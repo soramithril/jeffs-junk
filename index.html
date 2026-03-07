@@ -2324,8 +2324,8 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).gte('date', weekStartS).neq('status','Cancelled'),
     // This week's revenue
     db.from('jobs').select('price').gte('date', weekStartS).neq('status','Cancelled'),
-    // Bin counts by status
-    db.from('jobs').select('bin_instatus').eq('service','Bin Rental').eq('status','In Progress'),
+    // Bin counts — active bins currently out (dropped, not yet picked up)
+    db.from('jobs').select('bin_instatus,bin_size').eq('service','Bin Rental').eq('status','In Progress').neq('bin_instatus','pickedup'),
     // Junk count this month
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date', monthStart),
     // Furniture count this month
@@ -2358,7 +2358,7 @@ async function renderDash(){
 
   // ── Bin stats ──────────────────────────────────────────────
   var totalBins = binItems.length;
-  var binsOut   = binsOutOnDate(todayS);
+  var binsOut   = (rBinCounts.data||[]).length;  // from Supabase: In Progress + not picked up
   var binsIn    = Math.max(0, totalBins - binsOut);
   var outPct    = totalBins ? Math.round(binsOut/totalBins*100) : 0;
   animCount(document.getElementById('s-bins-out'), binsOut);
@@ -2492,41 +2492,39 @@ function binDropBtn(j){
   if(j.binInstatus==='dropped')return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#22c55e;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">🚛 Dropped</button></td>';
   return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.35);color:#eab308;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">⏳ Not Dropped</button></td>';
 }
+function confirmedHtml(id, confirmed){
+  if(confirmed)
+    return '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ Confirmed</button>';
+  return '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap">📞 Confirm</button>';
+}
+function emailHtml(id, sent){
+  if(sent)
+    return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap">📧 Sent</button>';
+  return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap">📧 Email</button>';
+}
 function makeJobRowNoSvc(j){
-  var confirmedBtn=j.confirmed
-    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markUnconfirmed(\''+j.id+'\')">✅ Confirmed</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markConfirmed(\''+j.id+'\')">📞 Confirm</button>';
-  var emailBtn=j.emailSent
-    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailUnsent(\''+j.id+'\')">📧 Sent</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailSent(\''+j.id+'\')">📧 Email</button>';
-  return '<tr onclick="openDetail(\''+j.id+'\')">'
-    +'<td>'+jid(j.id)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
-    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
-    +'<td onclick="cycleStatus(\''+j.id+'\',event)" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
-    +binDropBtn(j)
-    +'<td onclick="event.stopPropagation()">'+confirmedBtn+'</td>'
-    +'<td onclick="event.stopPropagation()">'+emailBtn+'</td>'
-    +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" style="font-size:14px;padding:8px 13px" onclick="openEdit(\''+j.id+'\')">✏️</button><button class="btn btn-danger btn-sm" style="font-size:14px;padding:8px 13px" onclick="delJob(\''+j.id+'\')">🗑️</button></div></td></tr>';
+  return '<tr data-jid="'+j.id+'" class="job-row">'\
+    +'<td>'+jid(j.id)+'</td>'\
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'\
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'\
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'\
+    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'\
+    +binDropBtn(j)\
+    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'\
+    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'\
+    +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
-  var confirmedBtn=j.confirmed
-    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markUnconfirmed(\''+j.id+'\')">✅ Confirmed</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markConfirmed(\''+j.id+'\')">📞 Confirm</button>';
-  var emailBtn=j.emailSent
-    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailUnsent(\''+j.id+'\')">📧 Sent</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailSent(\''+j.id+'\')">📧 Email</button>';
-  return '<tr onclick="openDetail(\''+j.id+'\')">'
-    +'<td>'+jid(j.id)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
-    +'<td>'+sb(j.service)+'</td>'
-    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
-    +'<td onclick="cycleStatus(\''+j.id+'\',event)" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
-    +'<td onclick="event.stopPropagation()">'+confirmedBtn+'</td>'
-    +'<td onclick="event.stopPropagation()">'+emailBtn+'</td>'
-    +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" style="font-size:14px;padding:8px 13px" onclick="openEdit(\''+j.id+'\')">✏️</button><button class="btn btn-danger btn-sm" style="font-size:14px;padding:8px 13px" onclick="delJob(\''+j.id+'\')">🗑️</button></div></td></tr>';
+  return '<tr data-jid="'+j.id+'" class="job-row">'\
+    +'<td>'+jid(j.id)+'</td>'\
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'\
+    +'<td>'+sb(j.service)+'</td>'\
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'\
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'\
+    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'\
+    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'\
+    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'\
+    +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 function renderJobs(){
@@ -2562,6 +2560,52 @@ function renderJobs(){
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(7);
   }
 }
+
+// Event delegation for job table rows - single click, no double-fire
+(function(){
+  function handleJobTableClick(e){
+    var btn = e.target.closest('[data-action]');
+    var row = e.target.closest('tr.job-row');
+    if(!row) return;
+    if(btn){
+      e.stopPropagation();
+      var id = btn.getAttribute('data-jid');
+      var action = btn.getAttribute('data-action');
+      if(action==='confirm'){
+        jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});
+        save(); toast('Confirmed!');
+        row.querySelector('.jcell-confirm').innerHTML = confirmedHtml(id,true);
+      } else if(action==='unconfirm'){
+        jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});
+        save(); toast('Confirmation removed.');
+        row.querySelector('.jcell-confirm').innerHTML = confirmedHtml(id,false);
+      } else if(action==='emailsent'){
+        jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});
+        save(); toast('Email marked sent!');
+        row.querySelector('.jcell-email').innerHTML = emailHtml(id,true);
+      } else if(action==='emailunsent'){
+        jobs.forEach(function(j){if(j.id===id)j.emailSent=false;});
+        save(); toast('Email cleared.');
+        row.querySelector('.jcell-email').innerHTML = emailHtml(id,false);
+      } else if(action==='edit'){
+        openEdit(id);
+      } else if(action==='del'){
+        delJob(id);
+      } else if(action==='cyclestatus'){
+        var ev = {stopPropagation:function(){}};
+        cycleStatus(id, ev);
+      }
+      return;
+    }
+    // Clicked on the row itself (not a button) — open detail
+    var id = row.getAttribute('data-jid');
+    if(id) openDetail(id);
+  }
+  document.addEventListener('click', function(e){
+    var tbody = e.target.closest('tbody');
+    if(tbody) handleJobTableClick(e);
+  });
+})();
 
 // ─── CALENDAR ───
 var dragJobId=null;
