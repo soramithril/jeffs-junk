@@ -2502,28 +2502,38 @@ function emailHtml(id, sent){
     return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap">📧 Sent</button>';
   return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap">📧 Email</button>';
 }
+function confirmedHtml(id, confirmed){
+  if(confirmed)
+    return '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ Confirmed</button>';
+  return '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap">📞 Confirm</button>';
+}
+function emailHtml(id, sent){
+  if(sent)
+    return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap">📧 Sent</button>';
+  return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap">📧 Email</button>';
+}
 function makeJobRowNoSvc(j){
-  return '<tr data-jid="'+j.id+'" class="job-row">'\
-    +'<td>'+jid(j.id)+'</td>'\
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'\
-    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'\
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'\
-    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'\
-    +binDropBtn(j)\
-    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'\
-    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'\
+  return '<tr data-jid="'+j.id+'" class="job-row">'
+    +'<td>'+jid(j.id)+'</td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
+    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
+    +binDropBtn(j)
+    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
+    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
-  return '<tr data-jid="'+j.id+'" class="job-row">'\
-    +'<td>'+jid(j.id)+'</td>'\
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'\
-    +'<td>'+sb(j.service)+'</td>'\
-    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'\
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'\
-    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'\
-    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'\
-    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'\
+  return '<tr data-jid="'+j.id+'" class="job-row">'
+    +'<td>'+jid(j.id)+'</td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td>'+sb(j.service)+'</td>'
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
+    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
+    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
+    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
