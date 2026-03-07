@@ -1374,8 +1374,21 @@ textarea{resize:vertical;min-height:80px;}
       <div id="bin-extra" style="display:none;margin-top:16px">
         <div class="divider"></div>
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px">🚛 Bin Details</div>
+        <!-- Hidden: actual bin_bid and bin_size are set by the picker below -->
+        <input type="hidden" id="f-bsize">
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Select Bin <span style="color:#ef4444">*</span></label>
+          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn active" data-sz="all" onclick="filterBinPicker('all',this)">All</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="filterBinPicker('4 yard',this)">4 yd</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="filterBinPicker('7 yard',this)">7 yd</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="filterBinPicker('14 yard',this)">14 yd</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="filterBinPicker('20 yard',this)">20 yd</button>
+          </div>
+          <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:200px;overflow-y:auto;padding:4px 0"></div>
+          <div id="bin-picker-selected" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.4);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
+        </div>
         <div class="form-grid">
-          <div class="form-group"><label>Bin Size</label><select id="f-bsize"><option>4 yard</option><option>7 yard</option><option>14 yard</option><option>20 yard</option></select></div>
           <div class="form-group"><label>Duration</label><input id="f-bdur" type="text" placeholder="e.g. 7 days"></div>
           <div class="form-group"><label>Drop-off Date</label><input id="f-bdrop" type="date"></div>
           <div class="form-group"><label>Pickup Date</label><input id="f-bpick" type="date"></div>
@@ -1568,6 +1581,7 @@ function dbToJob(r) {
     binPickup:  r.bin_pickup  || '',
     binInstatus:r.bin_instatus || '',
     binSide:    r.bin_side   || '',
+    binBid:     r.bin_bid    || '',
     clientId:   r.client_cid || '',
     deposit:    r.deposit != null ? String(r.deposit) : '',
     depositPaid:r.deposit_paid || false,
@@ -1624,6 +1638,7 @@ function jobToDb(j) {
     bin_pickup:  j.binPickup   || null,
     bin_instatus:j.binInstatus || '',
     bin_side:    j.binSide     || '',
+    bin_bid:     j.binBid      || '',
     client_cid:  j.clientId    || '',
     deposit:     j.deposit !== '' && j.deposit != null ? parseFloat(j.deposit) : null,
     deposit_paid:j.depositPaid || false,
@@ -4202,7 +4217,11 @@ function validateClient(){
 
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');}
-function toggleBin(){document.getElementById('bin-extra').style.display=document.getElementById('f-svc').value==='Bin Rental'?'block':'none';}
+function toggleBin(){
+  var isBin=document.getElementById('f-svc').value==='Bin Rental';
+  document.getElementById('bin-extra').style.display=isBin?'block':'none';
+  if(isBin) setTimeout(function(){initBinPicker('','');},50);
+}
 function newJob(){
   editId=null;
   _selectedClientObj=null;
@@ -4221,14 +4240,115 @@ function newJob(){
   ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
   document.getElementById('job-modal').classList.add('open');
 }
+
+// ─── BIN PICKER ───────────────────────────────────────────────────────────
+var binPickerSzFilter = 'all';
+
+function renderBinPicker(selectedBid){
+  var grid = document.getElementById('bin-picker-grid');
+  if(!grid) return;
+  var sizeColors = {'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
+  // Show all bins; in-yard bins are selectable, out bins shown but disabled
+  var filtered = binPickerSzFilter==='all' ? binItems : binItems.filter(function(b){return b.size===binPickerSzFilter;});
+  if(!filtered.length){
+    grid.innerHTML='<div style="grid-column:1/-1;color:var(--muted);font-size:13px;padding:12px;text-align:center">No bins in fleet for this size</div>';
+    return;
+  }
+  // Sort: in-yard first, then by bin number
+  filtered = [].concat(filtered).sort(function(a,b){
+    if(a.status==='in'&&b.status!=='in') return -1;
+    if(a.status!=='in'&&b.status==='in') return 1;
+    return (a.num||'').localeCompare(b.num||'');
+  });
+  grid.innerHTML = filtered.map(function(b){
+    var isOut = b.status==='out';
+    var isSel = b.bid === selectedBid;
+    var col = sizeColors[b.size]||'#22c55e';
+    var baseStyle = 'border-radius:10px;padding:10px 6px;text-align:center;cursor:'+(isOut?'not-allowed':'pointer')+';'
+      +'border:2px solid '+(isSel?col:(isOut?'rgba(100,100,100,.3)':'rgba(255,255,255,.1)'))+';'
+      +'background:'+(isSel?'rgba(34,197,94,.15)':(isOut?'rgba(60,60,60,.3)':'var(--surface)'))+'';
+    return '<div style="'+baseStyle+'" '+(isOut?'title="Already out on a job"':'onclick="selectBinFromPicker(\''+b.bid+'\')"')+'>'
+      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:'+(isOut?'var(--muted)':'var(--text)')+'">'+b.num+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'var(--muted)':col)+';margin-top:2px">'+b.size+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'#ef4444':'#22c55e')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function selectBinFromPicker(bid){
+  var b = binItems.find(function(x){return x.bid===bid;});
+  if(!b) return;
+  document.getElementById('f-bsize').value = b.size;
+  // Highlight selected
+  renderBinPicker(bid);
+  // Show selected label
+  var sel = document.getElementById('bin-picker-selected');
+  if(sel){
+    sel.style.display='block';
+    sel.innerHTML = '✅ Selected: <strong>'+b.num+'</strong> · '+b.size+(b.color?' · '+(b.color==='green'?'🟢 Green':'⚫ Black'):'');
+    sel.dataset.bid = bid;
+  }
+}
+
+function filterBinPicker(sz, el){
+  binPickerSzFilter = sz;
+  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');});
+  if(el) el.classList.add('active');
+  var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
+  renderBinPicker(currentBid||'');
+}
+
+function getPickedBinBid(){
+  var sel = document.getElementById('bin-picker-selected');
+  return sel&&sel.style.display!=='none'&&sel.dataset.bid ? sel.dataset.bid : '';
+}
+
+function initBinPicker(existingBid, existingSize){
+  // Set size filter if we have a size
+  if(existingSize){
+    binPickerSzFilter = existingSize;
+    document.querySelectorAll('.bsz-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.sz===existingSize||(!existingSize&&b.dataset.sz==='all'));
+    });
+  } else {
+    binPickerSzFilter = 'all';
+    document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.toggle('active',b.dataset.sz==='all');});
+  }
+  renderBinPicker(existingBid||'');
+  var sel = document.getElementById('bin-picker-selected');
+  if(sel){
+    if(existingBid){
+      var b = binItems.find(function(x){return x.bid===existingBid;});
+      if(b){
+        sel.style.display='block';
+        sel.innerHTML='✅ Selected: <strong>'+b.num+'</strong> · '+b.size+(b.color?' · '+(b.color==='green'?'🟢 Green':'⚫ Black'):'');
+        sel.dataset.bid=existingBid;
+      } else if(existingSize){
+        // Old job: no bid stored, just show size info
+        sel.style.display='block';
+        sel.innerHTML='ℹ️ Previously: <strong>'+existingSize+'</strong> — pick a bin to link it';
+        sel.dataset.bid='';
+      }
+    } else if(existingSize){
+      sel.style.display='block';
+      sel.innerHTML='ℹ️ Previously: <strong>'+existingSize+'</strong> — pick a bin to link it';
+      sel.dataset.bid='';
+    } else {
+      sel.style.display='none';
+      sel.dataset.bid='';
+    }
+  }
+}
+
 function bookBin(size){
   go('jobs');
   newJob();
   document.getElementById('f-svc').value='Bin Rental';
   document.getElementById('f-svc').dispatchEvent(new Event('change'));
   setTimeout(function(){
-    document.getElementById('f-bsize').value=size;
-  },50);
+    initBinPicker('', size);
+  },100);
 }
 function openEdit(id){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
@@ -4246,7 +4366,15 @@ function openEdit(id){
     document.getElementById('f-paymethod').value=j.payMethod||'';
     document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
-    if(j.service==='Bin Rental'){document.getElementById('f-bsize').value=j.binSize||'14 yard';document.getElementById('f-bdur').value=j.binDuration||'';document.getElementById('f-bdrop').value=j.binDropoff||'';document.getElementById('f-bpick').value=j.binPickup||'';document.getElementById('f-bside').value=j.binSide||'';document.getElementById('f-binstatus').value=j.binInstatus||'';}
+    if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
+    if(j.service==='Bin Rental'){
+      document.getElementById('f-bdur').value=j.binDuration||'';
+      document.getElementById('f-bdrop').value=j.binDropoff||'';
+      document.getElementById('f-bpick').value=j.binPickup||'';
+      document.getElementById('f-bside').value=j.binSide||'';
+      document.getElementById('f-binstatus').value=j.binInstatus||'';
+      initBinPicker(j.binBid||'', j.binSize||'');
+    }
     document.getElementById('f-client-select').value=j.clientId||'';
     document.getElementById('job-modal').classList.add('open');
   },150);
@@ -4331,12 +4459,32 @@ function saveJob(e){
   };
 
   if(svc==='Bin Rental'){
-    job.binSize     = document.getElementById('f-bsize').value;
+    var pickedBid = getPickedBinBid();
+    var pickedBin = pickedBid ? binItems.find(function(b){return b.bid===pickedBid;}) : null;
+    job.binBid      = pickedBid || '';
+    job.binSize     = pickedBin ? pickedBin.size : (document.getElementById('f-bsize').value||'');
     job.binDuration = document.getElementById('f-bdur').value;
     job.binDropoff  = document.getElementById('f-bdrop').value;
     job.binPickup   = document.getElementById('f-bpick').value;
     job.binSide     = document.getElementById('f-bside').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
+    // Sync binItems: if a bin was previously assigned to this job, release it first
+    if(editId){
+      var oldJob = jobs.find(function(x){return x.id===editId;});
+      if(oldJob && oldJob.binBid && oldJob.binBid !== pickedBid){
+        binItems.forEach(function(b){if(b.bid===oldJob.binBid) b.status='in';});
+      }
+    }
+    // Mark the newly picked bin as out
+    if(pickedBin && job.binInstatus !== 'pickedup'){
+      pickedBin.status = 'out';
+      saveBins();
+    }
+    // If status is picked up, mark bin back in
+    if(job.binInstatus === 'pickedup' && pickedBin){
+      pickedBin.status = 'in';
+      saveBins();
+    }
   }
 
   // Auto-create client record if none selected
@@ -4376,7 +4524,16 @@ function openDetail(id){
   if(j.service==='Bin Rental'){
     var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' side'):'';
     var bsStatus=j.binInstatus==='dropped'?'<span style="color:#22c55e;font-weight:700">✅ Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="color:#22c55e;font-weight:700">✅ Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
-    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid"><div class="detail-item"><label>Bin Size</label><span>'+(j.binSize||'—')+'</span></div><div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div><div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+'</span></div><div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+'</span></div><div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' Side':'—')+'</span></div><div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div></div></div>';
+    var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
+    var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
+    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid">'
+      +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
+      +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
+      +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+'</span></div>'
+      +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+'</span></div>'
+      +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' Side':'—')+'</span></div>'
+      +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
+      +'</div></div>';
   }
   var paymentInfo='';
   if(j.payMethod){paymentInfo='<div class="detail-item"><label>Method</label><span>'+j.payMethod+'</span></div>';}
