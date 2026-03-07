@@ -480,6 +480,27 @@ textarea{resize:vertical;min-height:80px;}
   .stat-value{font-size:28px;}
   .stat-card{padding:14px;}
   .stat-icon{font-size:18px;margin-bottom:8px;}
+
+  /* ── DASHBOARD MOBILE FIXES ── */
+  /* Bin size cards: 2 cols instead of 4 */
+  #dash-bin-by-size{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
+  /* Today's Jobs + Workload / Overdue + Long Bins: stack to 1 col */
+  .dash-2col{grid-template-columns:1fr!important;}
+  /* Bin date picker row: wrap nicely */
+  .dash-date-row{flex-wrap:wrap;gap:8px;}
+  /* Page header new job button full width on mobile */
+  #view-dashboard .page-header{flex-direction:column;align-items:flex-start;gap:10px;}
+  #view-dashboard .page-header>div:last-child{width:100%;display:flex;flex-direction:column;gap:8px;}
+  #view-dashboard .page-header .btn-primary{width:100%;justify-content:center;}
+  /* Fleet summary metrics: wrap */
+  #dash-bin-fleet-card>div:first-child{gap:14px!important;}
+  /* Week calendar: compact */
+  .week-cal-wrap{margin-bottom:16px;}
+  .week-day-col{min-height:56px;}
+  /* Cat section tables: hide price col to save space */
+  .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
+  /* Chart cards inside dashboard */
+  .dash-2col .chart-card{padding:14px;}
 }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr!important;}
@@ -490,6 +511,10 @@ textarea{resize:vertical;min-height:80px;}
   .search-input{width:100%;margin-left:0;}
   .stat-value{font-size:24px;}
   .stat-label{font-size:10px;}
+  /* Bin size cards: single col on tiny screens */
+  #dash-bin-by-size{grid-template-columns:1fr 1fr!important;}
+  /* Fleet summary metrics: wrap */
+  #dash-bin-fleet-card [style*="display:flex"][style*="justify-content:center"]{gap:12px!important;}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -631,7 +656,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- Today's jobs | Workload — 2 columns -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+  <div class="dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div class="chart-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px">📍 TODAY'S JOBS</div>
@@ -646,7 +671,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- Overdue Pickups | Bins Out Long — 2 columns -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+  <div class="dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div class="chart-card">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;margin-bottom:12px">🔴 OVERDUE PICKUPS</div>
       <div id="dash-overdue"></div>
@@ -3815,7 +3840,9 @@ var leafMap=null,mapPins=[];
 function geocode(addr,cb){
   if(!addr){cb(null);return;}
   if(geoCache[addr]){cb(geoCache[addr]);return;}
-  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr))
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr),{
+    headers:{'User-Agent':'JeffsJunkJobTracker/1.0 (jeffsjunk.ca)','Accept-Language':'en'}
+  })
     .then(function(r){return r.json();})
     .then(function(data){if(data&&data[0]){var r={lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)};geoCache[addr]=r;saveGeo();cb(r);}else{cb(null);}})
     .catch(function(){cb(null);});
@@ -3825,8 +3852,25 @@ function pinIcon(status){
   var html='<div style="position:relative;width:30px;height:40px"><svg viewBox="0 0 30 40" width="30" height="40" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))"><path d="M15 0C6.7 0 0 6.7 0 15 0 25.5 15 40 15 40S30 25.5 30 15C30 6.7 23.3 0 15 0z" fill="'+c+'"/><circle cx="15" cy="15" r="7" fill="rgba(0,0,0,.2)"/></svg><div style="position:absolute;top:7px;left:7px;font-size:13px">🚛</div></div>';
   return L.divIcon({html:html,iconSize:[30,40],iconAnchor:[15,40],popupAnchor:[0,-42],className:''});
 }
-function renderMap(){
+async function renderMap(){
   if(typeof L==='undefined'){document.getElementById('map-spinner').style.display='flex';setTimeout(renderMap,250);return;}
+  document.getElementById('map-spinner').style.display='flex';
+
+  // Always fetch fresh active bin jobs from Supabase for the map
+  try {
+    var today = todayStr();
+    var [rActive, rUpcoming] = await Promise.all([
+      db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).neq('bin_instatus','pickedup'),
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').gte('bin_pickup', today)
+    ]);
+    var seen={};
+    [(rActive.data||[]),(rUpcoming.data||[])].forEach(function(arr){
+      arr.map(dbToJob).forEach(function(j){
+        if(!seen[j.id]){seen[j.id]=true;var idx=jobs.findIndex(function(x){return x.id===j.id;});if(idx>=0)jobs[idx]=j;else jobs.push(j);}
+      });
+    });
+  } catch(e){ console.warn('Map bin load error:',e); }
+
   // Only show ACTIVE bins currently out (In Progress or Pending with drop-off date reached)
   var today = todayStr();
   var binJobs = jobs.filter(function(j){
@@ -3838,8 +3882,6 @@ function renderMap(){
     return true;
   });
   document.getElementById('bin-cnt').textContent=binJobs.length;
-  // Helper: given a job's address + city fields, return {geocodeStr, displayStr}
-  // Handles cases where the full street address was entered into the city field
   var rowsEl=document.getElementById('bin-rows');
   rowsEl.innerHTML=binJobs.length?binJobs.map(function(j){
     var ra=resolveAddr(j);
@@ -3850,10 +3892,10 @@ function renderMap(){
     +'</div>';}).join('')
     :'<div class="empty-state" style="padding:28px 16px"><div class="ei">🚛</div><h3>No active bins</h3><p>All bins are currently in the yard</p></div>';
   if(!leafMap){
-    document.getElementById('map-spinner').style.display='none';
     leafMap=L.map('the-map',{center:[44.39,-79.69],zoom:10});
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',maxZoom:19}).addTo(leafMap);
-  } else {document.getElementById('map-spinner').style.display='none';}
+  }
+  document.getElementById('map-spinner').style.display='none';
   mapPins.forEach(function(p){try{p.marker.remove();}catch(e){}});mapPins=[];
   if(!binJobs.length){setTimeout(function(){try{leafMap.invalidateSize();}catch(e){}},300);return;}
   var bounds=[],idx=0;
@@ -3877,7 +3919,7 @@ function renderMap(){
         marker.on('click',function(){highlightRow(j.id);});
         mapPins.push({id:j.id,marker:marker,lat:geo.lat,lng:geo.lng});bounds.push([geo.lat,geo.lng]);
       }
-      setTimeout(next,250);
+      setTimeout(next,300);
     });
   }
   next();
