@@ -1656,6 +1656,7 @@ function clientToDb(c) {
 function save() {
   // Save all jobs that changed — for simplicity upsert all in background
   if (!jobs.length) return;
+  _clientStatsCache = null; // invalidate client stats cache
   var batch = jobs.map(jobToDb);
   db.from('jobs').upsert(batch, {onConflict:'job_id'}).then(function(r){
     if(r.error) console.error('Save jobs error:', r.error.message);
@@ -1663,6 +1664,7 @@ function save() {
 }
 
 function saveSingleJob(j) {
+  _clientStatsCache = null; // invalidate client stats cache
   db.from('jobs').upsert(jobToDb(j), {onConflict:'job_id'}).then(function(r){
     if(r.error) console.error('Save job error:', r.error.message);
   });
@@ -2101,6 +2103,18 @@ function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/
 function ft(t){if(!t)return '';var p=t.split(':'),h=parseInt(p[0]);return (h%12||12)+':'+(p[1]||'00')+' '+(h>=12?'PM':'AM');}
 function fm(v){var n=parseFloat(v);return isNaN(n)?'—':'$'+n.toFixed(2);}
 function todayStr(){return new Date().toISOString().split('T')[0];}
+function resolveAddr(j){
+  var a=(j.address||'').trim();
+  var c=(j.city||'').trim();
+  var cityIsStreet=c&&/\d/.test(c);
+  var addrIsCity=a&&!/\d/.test(a)&&a.split(' ').length<=3;
+  var street,city;
+  if(cityIsStreet){street=c;city=addrIsCity?a:'';}
+  else{street=addrIsCity?'':a;city=c||(addrIsCity?a:'');}
+  var display=street?(street+(city?' · '+city:'')):city;
+  var geocodeStr=street?(street+(city?', '+city:'')+', ON, Canada'):(city?city+', ON, Canada':'');
+  return {geocodeStr:geocodeStr,display:display,street:street,city:city};
+}
 function extractCity(addr,city){
   // Prefer the dedicated city field if set
   if(city&&city.trim()&&city.trim().length>1){
@@ -2627,7 +2641,7 @@ function makeJobRowNoSvc(j){
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
     +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
     +binDropBtn(j)
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
@@ -2640,7 +2654,7 @@ function makeJobRowWithSvc(j){
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
     +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
@@ -2649,7 +2663,7 @@ function makeJobRowWithSvc(j){
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 function renderJobs(){
   var q=searchF.toLowerCase();
-  function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
+  function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
   function matchStatus(j){return jobStatusF==='all'||j.status===jobStatusF;}
   function matchBinDrop(j){
     if(binDropF==='all')return true;
@@ -2921,64 +2935,86 @@ function renderClients(){
   clientSearchTimer = setTimeout(loadClientsPage, clientSearchF.trim() ? 200 : 0);
 }
 
+// Cache so repeat visits to the clients page are instant
+var _clientStatsCache = null;   // { statsMap, nameToCid, allClientRows }
+var _clientStatsCacheTime = 0;
+var CLIENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 async function loadClientsPage() {
   var el = document.getElementById('clients-list');
   el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Loading...</div>';
   var q = clientSearchF.trim();
   var BATCH = 1000;
+  var now = Date.now();
 
-  // ── 1. Fetch ALL clients (paginated past Supabase 1000-row cap) ────────────
-  var allClientRows = [];
-  var from = 0;
-  while(true){
-    var cq = db.from('clients').select('*').order('name',{ascending:true}).range(from, from+BATCH-1);
-    if(q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
-    var rc = await cq;
-    if(rc.error || !rc.data || rc.data.length===0) break;
-    allClientRows = allClientRows.concat(rc.data);
-    if(rc.data.length < BATCH) break;
-    from += BATCH;
+  var allClientRows, statsMap, nameToCid;
+
+  // ── Use cache if fresh and no active search filter ─────────────────────────
+  if(!q && _clientStatsCache && (now - _clientStatsCacheTime) < CLIENT_CACHE_TTL){
+    allClientRows = _clientStatsCache.allClientRows;
+    statsMap      = _clientStatsCache.statsMap;
+    nameToCid     = _clientStatsCache.nameToCid;
+  } else {
+
+    // ── 1. Get total counts first so we know how many parallel batches to fire ─
+    var [rcCount, rjCount] = await Promise.all([
+      db.from('clients').select('*', {count:'exact', head:true}),
+      db.from('jobs').select('*', {count:'exact', head:true}).neq('status','Cancelled')
+    ]);
+    var totalClients = rcCount.count || 0;
+    var totalJobs    = rjCount.count || 0;
+
+    // ── 2. Fire ALL batches in parallel ───────────────────────────────────────
+    var clientBatches = [], jobBatches = [];
+    for(var i=0; i<Math.ceil(totalClients/BATCH)||1; i++) clientBatches.push(i);
+    for(var j=0; j<Math.ceil(totalJobs/BATCH)||1;    j++) jobBatches.push(j);
+
+    var clientPromises = clientBatches.map(function(i){
+      var cq = db.from('clients').select('*').order('name',{ascending:true}).range(i*BATCH, (i+1)*BATCH-1);
+      if(q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
+      return cq;
+    });
+    var jobPromises = jobBatches.map(function(i){
+      return db.from('jobs').select('client_cid,name,service,price,date')
+        .neq('status','Cancelled').range(i*BATCH, (i+1)*BATCH-1);
+    });
+
+    var allResults = await Promise.all(clientPromises.concat(jobPromises));
+    var clientResults = allResults.slice(0, clientPromises.length);
+    var jobResults    = allResults.slice(clientPromises.length);
+
+    allClientRows = [];
+    clientResults.forEach(function(r){ if(r.data) allClientRows = allClientRows.concat(r.data); });
+    var allJobRows = [];
+    jobResults.forEach(function(r){ if(r.data) allJobRows = allJobRows.concat(r.data); });
+
+    // ── 3. Build name→cid lookup ───────────────────────────────────────────────
+    nameToCid = {};
+    allClientRows.forEach(function(row){
+      if(row.name) nameToCid[row.name.trim().toLowerCase()] = row.cid;
+    });
+
+    // ── 4. Build stats map ─────────────────────────────────────────────────────
+    statsMap = {};
+    allJobRows.forEach(function(row){
+      var cid = row.client_cid || (row.name ? nameToCid[row.name.trim().toLowerCase()] : null);
+      if(!cid) return;
+      if(!statsMap[cid]) statsMap[cid]={total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
+      var s = statsMap[cid];
+      s.total++;
+      s.revenue += parseFloat(row.price)||0;
+      if(!s.lastDate||row.date>s.lastDate) s.lastDate=row.date;
+      if(row.service==='Bin Rental') s.bins++;
+      else if(row.service==='Junk Removal') s.junk++;
+      else if(row.service==='Furniture Pickup'||row.service==='Furniture Delivery') s.furn++;
+    });
+
+    // Cache for subsequent visits
+    if(!q){
+      _clientStatsCache = { allClientRows:allClientRows, statsMap:statsMap, nameToCid:nameToCid };
+      _clientStatsCacheTime = now;
+    }
   }
-
-  // ── 2. Fetch ALL jobs (paginated) — need client_cid AND name to match ──────
-  var allJobRows = [];
-  from = 0;
-  while(true){
-    var jq = db.from('jobs')
-      .select('client_cid,name,service,price,date')
-      .neq('status','Cancelled')
-      .range(from, from+BATCH-1);
-    var rj = await jq;
-    if(rj.error || !rj.data || rj.data.length===0) break;
-    allJobRows = allJobRows.concat(rj.data);
-    if(rj.data.length < BATCH) break;
-    from += BATCH;
-  }
-
-  // ── 3. Build lookup: normalised name → cid (for name-only old jobs) ────────
-  var nameToCid = {};
-  allClientRows.forEach(function(row){
-    if(row.name) nameToCid[row.name.trim().toLowerCase()] = row.cid;
-  });
-
-  // ── 4. Build stats map keyed by cid ───────────────────────────────────────
-  var statsMap = {};
-  function addStat(cid, row){
-    if(!cid) return;
-    if(!statsMap[cid]) statsMap[cid]={total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
-    var s = statsMap[cid];
-    s.total++;
-    s.revenue += parseFloat(row.price)||0;
-    if(!s.lastDate||row.date>s.lastDate) s.lastDate=row.date;
-    if(row.service==='Bin Rental') s.bins++;
-    else if(row.service==='Junk Removal') s.junk++;
-    else if(row.service==='Furniture Pickup'||row.service==='Furniture Delivery') s.furn++;
-  }
-  allJobRows.forEach(function(row){
-    // Match by client_cid first, then fall back to name lookup
-    var cid = row.client_cid || (row.name ? nameToCid[row.name.trim().toLowerCase()] : null);
-    addStat(cid, row);
-  });
 
   // ── 5. Merge stats into client objects ─────────────────────────────────────
   var allClients = allClientRows.map(function(row){
@@ -3755,16 +3791,19 @@ function renderMap(){
     return true;
   });
   document.getElementById('bin-cnt').textContent=binJobs.length;
+  // Helper: given a job's address + city fields, return {geocodeStr, displayStr}
+  // Handles cases where the full street address was entered into the city field
   var rowsEl=document.getElementById('bin-rows');
-  rowsEl.innerHTML=binJobs.length?binJobs.map(function(j){return'<div class="bin-row" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')">'
+  rowsEl.innerHTML=binJobs.length?binJobs.map(function(j){
+    var ra=resolveAddr(j);
+    return '<div class="bin-row" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')">'
     +'<div class="bin-row-name">'+j.name+'</div>'
-    +'<div class="bin-row-addr">'+(j.address||'<span style="color:var(--red);font-size:11px">⚠ No address</span>')+'</div>'
+    +'<div class="bin-row-addr">'+(ra.display||'<span style="color:var(--red);font-size:11px">⚠ No address</span>')+'</div>'
     +'<div class="bin-row-meta">'+stb(j.status)+(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')+(j.binPickup?'<span style="font-size:11px;color:var(--muted)">Pickup: '+fd(j.binPickup)+'</span>':'')+'</div>'
     +'</div>';}).join('')
     :'<div class="empty-state" style="padding:28px 16px"><div class="ei">🚛</div><h3>No active bins</h3><p>All bins are currently in the yard</p></div>';
   if(!leafMap){
     document.getElementById('map-spinner').style.display='none';
-    // Centre on Barrie/Elmvale area
     leafMap=L.map('the-map',{center:[44.39,-79.69],zoom:10});
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',maxZoom:19}).addTo(leafMap);
   } else {document.getElementById('map-spinner').style.display='none';}
@@ -3778,10 +3817,12 @@ function renderMap(){
       else leafMap.setView([44.39,-79.69],10);
       setTimeout(function(){try{leafMap.invalidateSize();}catch(e){}},300);return;
     }
-    var j=binJobs[idx++];if(!j.address){next();return;}
-    geocode(j.address,function(geo){
+    var j=binJobs[idx++];
+    var ra=resolveAddr(j);
+    if(!ra.geocodeStr){next();return;}
+    geocode(ra.geocodeStr,function(geo){
       if(geo){
-        var popup='<div class="p-id">'+j.id+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+j.address+'</div>'
+        var popup='<div class="p-id">'+j.id+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
           +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+stb(j.status)+sb(j.service)+'</div>'
           +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'')+'</div>'
           +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
@@ -4196,10 +4237,10 @@ function openEdit(id){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
     document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'Pending';
     document.getElementById('f-name').value=j.name||'';document.getElementById('f-phone').value=j.phone||'';
-    // Split address back into parts
-    var addrParts=(j.address||'').split(',').map(function(p){return p.trim();});
-    document.getElementById('f-addr').value=addrParts.length>1?addrParts[0]:'';
-    document.getElementById('f-city').value=addrParts.length>1?addrParts[1]:(addrParts[0]||'');
+    // Use resolveAddr to correctly handle cases where address/city fields are swapped
+    var ra=resolveAddr(j);
+    document.getElementById('f-addr').value=ra.street||'';
+    document.getElementById('f-city').value=ra.city||j.city||'';
     document.getElementById('f-date').value=j.date||'';document.getElementById('f-time').value=j.time||'';
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
