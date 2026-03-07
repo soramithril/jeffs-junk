@@ -3857,28 +3857,25 @@ async function renderMap(){
   document.getElementById('map-spinner').style.display='flex';
 
   // Always fetch fresh active bin jobs from Supabase for the map
+  // Fetch ALL bin rentals where the bin is physically out (dropped but not picked up)
   try {
-    var today = todayStr();
-    var [rActive, rUpcoming] = await Promise.all([
-      db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).neq('bin_instatus','pickedup'),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').gte('bin_pickup', today)
-    ]);
-    var seen={};
-    [(rActive.data||[]),(rUpcoming.data||[])].forEach(function(arr){
-      arr.map(dbToJob).forEach(function(j){
-        if(!seen[j.id]){seen[j.id]=true;var idx=jobs.findIndex(function(x){return x.id===j.id;});if(idx>=0)jobs[idx]=j;else jobs.push(j);}
-      });
+    var rMap = await db.from('jobs').select('*')
+      .eq('service','Bin Rental')
+      .neq('status','Cancelled')
+      .neq('bin_instatus','pickedup');
+    var mapBinRows = (rMap.data || []).map(dbToJob);
+    mapBinRows.forEach(function(j){
+      var idx=jobs.findIndex(function(x){return x.id===j.id;});
+      if(idx>=0) jobs[idx]=j; else jobs.push(j);
     });
   } catch(e){ console.warn('Map bin load error:',e); }
 
-  // Only show ACTIVE bins currently out (In Progress or Pending with drop-off date reached)
+  // Show all bins that are physically out — not cancelled, not picked up
   var today = todayStr();
   var binJobs = jobs.filter(function(j){
     if(j.service!=='Bin Rental') return false;
-    if(j.status==='Cancelled'||j.status==='Done') return false;
-    // Only show if bin has been dropped off (dropoff date <= today)
-    var drop = j.binDropoff || j.date;
-    if(drop && drop > today) return false; // Not dropped off yet
+    if(j.status==='Cancelled') return false;
+    if(j.binInstatus==='pickedup') return false;
     return true;
   });
   document.getElementById('bin-cnt').textContent=binJobs.length;
