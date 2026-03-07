@@ -2242,19 +2242,21 @@ function updateDashBinStats(overrideBinsOut, skipFleetBar){
 function updateDashBinStatsDirect(totalOut, sizeOutMap){
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
+  var BN="\'Bebas Neue\',sans-serif";
+  var DM="\'DM Sans\',sans-serif";
   var sizeHtml=sizes.map(function(s){
     var out=sizeOutMap[s]||0;
     var tot=binItems.filter(function(b){return b.size===s;}).length;
     var inY=Math.max(0,tot-out);
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;border-top:5px solid '+sizeColors[s]+';box-shadow:0 4px 16px rgba(0,0,0,.15)">'
-      +'<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
-      +'<div style="font-family:'Bebas Neue',sans-serif;font-size:72px;line-height:1;color:#22c55e;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.2)">'+inY+'</div>'
+      +'<div style="font-family:'+BN+';font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
+      +'<div style="font-family:'+BN+';font-size:72px;line-height:1;color:#22c55e;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.2)">'+inY+'</div>'
       +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
       +'<div style="display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);padding-top:10px">'
-      +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
-      +'<div style="flex:1;padding:0 4px"><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
+      +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:'+BN+';font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
+      +'<div style="flex:1;padding:0 4px"><div style="font-family:'+BN+';font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
       +'</div>'
-      +'<button onclick="bookBin(''+s+'')" style="margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">📅 Book This Size</button>'
+      +'<button onclick="bookBin(\'' +s+ '\')" style="margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:'+DM+';font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">Book This Size</button>'
       +'</div>';
   }).join('');
   var sizeContainer=document.getElementById('dash-bin-by-size');
