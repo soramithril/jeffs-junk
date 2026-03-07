@@ -148,6 +148,7 @@ body.light-mode .chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
 .week-job-chip.svc-bin{background:rgba(34,197,94,.18);color:#22c55e;}
 .week-job-chip.svc-junk{background:rgba(234,179,8,.18);color:#eab308;}
 .week-job-chip.svc-furn{background:rgba(239,68,68,.18);color:#ef4444;}
+.week-job-chip.svc-quote{background:rgba(96,165,250,.18);color:#60a5fa;}
 
 /* ── CATEGORY SECTIONS ── */
 .cat-section{margin-bottom:28px;}
@@ -165,11 +166,11 @@ body.light-mode .chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
 .cat-section .table-wrap{border-radius:0 0 10px 10px;}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
 .btn-primary{background:var(--accent);color:#0a0a0a;}.btn-primary:hover{background:#16a34a;}
 .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
 .btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}.btn-danger:hover{background:rgba(239,68,68,.25);}
-.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-sm{padding:8px 14px;font-size:13px;}
 .cal-nav{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:16px;}
 .cal-nav:hover{border-color:var(--accent);color:var(--accent);}
 
@@ -185,20 +186,20 @@ body.light-mode .chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
 /* ── TABLE ── */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
 table{width:100%;border-collapse:collapse;}
-thead th{padding:12px 16px;text-align:left;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2);}
+thead th{padding:14px 18px;text-align:left;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2);}
 tbody tr{border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:var(--surface2);}
-tbody td{padding:12px 16px;font-size:14px;vertical-align:middle;}
+tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 
 /* ── JOB ID COLOURS ── */
-.job-id-bin{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--c-bin);letter-spacing:1px;}
-.job-id-junk{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--c-junk);letter-spacing:1px;}
-.job-id-furn{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--c-furn);letter-spacing:1px;}
-.job-id-quote{font-family:'Bebas Neue',sans-serif;font-size:15px;color:#60a5fa;letter-spacing:1px;}
+.job-id-bin{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--c-bin);letter-spacing:1px;}
+.job-id-junk{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--c-junk);letter-spacing:1px;}
+.job-id-furn{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--c-furn);letter-spacing:1px;}
+.job-id-quote{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#60a5fa;letter-spacing:1px;}
 
 /* ── BADGES ── */
-.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
 .badge-pending{background:rgba(234,179,8,.15);color:#eab308;}
 .badge-progress{background:rgba(34,197,94,.15);color:#22c55e;}
 .badge-done{background:rgba(107,117,133,.15);color:var(--muted);}
@@ -1260,14 +1261,24 @@ textarea{resize:vertical;min-height:80px;}
     <div class="form-group"><label>Vehicle Name / ID</label><input type="text" id="v-name" placeholder="e.g. Junk Truck 1, Furniture Truck" class="form-input" oninput="clearErr('v-name')"><div class="field-error-msg" id="err-v-name">Vehicle name is required.</div></div>
     <div class="form-group"><label>Type</label>
       <select id="v-type" class="form-input">
-        <option value="Junk Truck">Junk Truck</option>
         <option value="Bin Truck">Bin Truck</option>
         <option value="Furniture Truck">Furniture Truck</option>
-        <option value="Van">Van</option>
         <option value="Other">Other</option>
       </select>
     </div>
     <div class="form-group"><label>Plate / Notes</label><input type="text" id="v-notes" placeholder="Plate number or notes" class="form-input"></div>
+    <div class="form-group"><label>Yellow Sticker Expiry</label>
+      <div style="display:flex;gap:10px">
+        <select id="v-sticker-month" class="form-input" style="flex:1">
+          <option value="">Month</option>
+          <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+          <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        </select>
+        <input type="number" id="v-sticker-year" class="form-input" placeholder="Year" min="2024" max="2040" style="flex:1">
+      </div>
+    </div>
     <div class="form-group"><label>Color (for calendar)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="v-color-picker">
         <div class="veh-color-opt" data-color="#ef4444" style="background:#ef4444" onclick="selectVehColor('#ef4444',this)"></div>
@@ -2066,7 +2077,7 @@ function closeSidebar(){
 }
 
 // ─── THEME ───
-var isLight = true;
+var isLight = false;
 function toggleTheme(){
   isLight=!isLight;
   document.body.classList.toggle('light-mode',isLight);
@@ -2219,7 +2230,7 @@ async function renderWeekCal(){
   weekJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
+  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
   var html='';
   for(var i=0;i<7;i++){
     var d=new Date(ws);d.setDate(d.getDate()+i);
@@ -2347,7 +2358,7 @@ async function renderDash(){
 
   // ── Bin stats ──────────────────────────────────────────────
   var totalBins = binItems.length;
-  var binsOut   = (rBinCounts.data||[]).length;
+  var binsOut   = binsOutOnDate(todayS);
   var binsIn    = Math.max(0, totalBins - binsOut);
   var outPct    = totalBins ? Math.round(binsOut/totalBins*100) : 0;
   animCount(document.getElementById('s-bins-out'), binsOut);
@@ -2483,39 +2494,39 @@ function binDropBtn(j){
 }
 function makeJobRowNoSvc(j){
   var confirmedBtn=j.confirmed
-    ?'<button class="btn btn-sm" style="font-size:11px;padding:4px 8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e" onclick="event.stopPropagation();markUnconfirmed(\''+j.id+'\')" title="Click to unconfirm">✅ Confirmed</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;border-color:rgba(34,197,94,.3);color:#22c55e" onclick="event.stopPropagation();markConfirmed(\''+j.id+'\')" title="Mark customer confirmed">📞</button>';
+    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markUnconfirmed(\''+j.id+'\')">✅ Confirmed</button>'
+    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markConfirmed(\''+j.id+'\')">📞 Confirm</button>';
   var emailBtn=j.emailSent
-    ?'<button class="btn btn-sm" style="font-size:11px;padding:4px 8px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa" onclick="event.stopPropagation();markEmailUnsent(\''+j.id+'\')" title="Click to unmark email sent">📧 Sent</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;border-color:rgba(96,165,250,.3);color:#60a5fa" onclick="event.stopPropagation();markEmailSent(\''+j.id+'\')" title="Mark email sent">📧</button>';
+    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailUnsent(\''+j.id+'\')">📧 Sent</button>'
+    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailSent(\''+j.id+'\')">📧 Email</button>';
   return '<tr onclick="openDetail(\''+j.id+'\')">'
     +'<td>'+jid(j.id)+'</td>'
-    +'<td><strong>'+j.name+'</strong><br><span style="font-size:11px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
-    +'<td>'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:13px;color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
     +'<td onclick="cycleStatus(\''+j.id+'\',event)" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
     +binDropBtn(j)
     +'<td onclick="event.stopPropagation()">'+confirmedBtn+'</td>'
     +'<td onclick="event.stopPropagation()">'+emailBtn+'</td>'
-    +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="delJob(\''+j.id+'\')">🗑️</button></div></td></tr>';
+    +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" style="font-size:14px;padding:8px 13px" onclick="openEdit(\''+j.id+'\')">✏️</button><button class="btn btn-danger btn-sm" style="font-size:14px;padding:8px 13px" onclick="delJob(\''+j.id+'\')">🗑️</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
   var confirmedBtn=j.confirmed
-    ?'<button class="btn btn-sm" style="font-size:11px;padding:4px 8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e" onclick="event.stopPropagation();markUnconfirmed(\''+j.id+'\')" title="Click to unconfirm">✅ Confirmed</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;border-color:rgba(34,197,94,.3);color:#22c55e" onclick="event.stopPropagation();markConfirmed(\''+j.id+'\')" title="Mark customer confirmed">📞</button>';
+    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markUnconfirmed(\''+j.id+'\')">✅ Confirmed</button>'
+    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap" onclick="event.stopPropagation();markConfirmed(\''+j.id+'\')">📞 Confirm</button>';
   var emailBtn=j.emailSent
-    ?'<button class="btn btn-sm" style="font-size:11px;padding:4px 8px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa" onclick="event.stopPropagation();markEmailUnsent(\''+j.id+'\')" title="Click to unmark email sent">📧 Sent</button>'
-    :'<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;border-color:rgba(96,165,250,.3);color:#60a5fa" onclick="event.stopPropagation();markEmailSent(\''+j.id+'\')" title="Mark email sent">📧</button>';
+    ?'<button class="btn btn-sm" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailUnsent(\''+j.id+'\')">📧 Sent</button>'
+    :'<button class="btn btn-ghost btn-sm" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap" onclick="event.stopPropagation();markEmailSent(\''+j.id+'\')">📧 Email</button>';
   return '<tr onclick="openDetail(\''+j.id+'\')">'
     +'<td>'+jid(j.id)+'</td>'
-    +'<td><strong>'+j.name+'</strong><br><span style="font-size:11px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
-    +'<td>'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:13px;color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j.address||'—')+'</td>'
     +'<td onclick="cycleStatus(\''+j.id+'\',event)" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
     +'<td onclick="event.stopPropagation()">'+confirmedBtn+'</td>'
     +'<td onclick="event.stopPropagation()">'+emailBtn+'</td>'
-    +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="delJob(\''+j.id+'\')">🗑️</button></div></td></tr>';
+    +'<td onclick="event.stopPropagation()"><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" style="font-size:14px;padding:8px 13px" onclick="openEdit(\''+j.id+'\')">✏️</button><button class="btn btn-danger btn-sm" style="font-size:14px;padding:8px 13px" onclick="delJob(\''+j.id+'\')">🗑️</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 function renderJobs(){
@@ -2559,7 +2570,7 @@ function renderCal(){
   document.getElementById('cal-lbl').textContent=new Date(y,mo,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
   var today=new Date();
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
+  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
   var g=document.getElementById('cal-grid');
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
   var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
@@ -2568,7 +2579,7 @@ function renderCal(){
     var dj=jobs.filter(function(j){return j.date===ds;});
     var isT=today.getDate()===d&&today.getMonth()===mo&&today.getFullYear()===y;
     var dots=dj.map(function(j){
-      return '<div class="cal-dot '+(clsMap[j.service]||'svc-bin')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.name+'">'+j.name+'</div>';
+      return '<div class="cal-dot '+(clsMap[j.service]||'svc-junk')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.name+'">'+j.name+'</div>';
     }).join('');
     var more='';
     // Vehicle blocks for this day
@@ -3629,7 +3640,7 @@ function makeBinRow(b){
   return '<tr'+rowCls+'><td><span class="bnum '+numCls+'">'+b.num+'</span></td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
     +'<td>'+dmg+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
-    +'<td><div class="ra"><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
+    +'<td><div class="ra"><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.4)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
 }
 function quickToggleStatus(bid){binItems.forEach(function(b){if(b.bid===bid)b.status=b.status==='in'?'out':'in';});saveBins();renderBinInventory();renderDash();}
 function shiftTimeline(n){tlOffset+=n;renderTimeline();}
@@ -3800,6 +3811,15 @@ function newJob(){
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
   ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
   document.getElementById('job-modal').classList.add('open');
+}
+function bookBin(size){
+  showView('jobs');
+  newJob();
+  document.getElementById('f-svc').value='Bin Rental';
+  document.getElementById('f-svc').dispatchEvent(new Event('change'));
+  setTimeout(function(){
+    document.getElementById('f-bsize').value=size;
+  },50);
 }
 function openEdit(id){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
@@ -3983,7 +4003,7 @@ function openDetail(id){
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
 }
-function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});save();toast('Customer marked as confirmed!');openDetail(id);refresh();}
+function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});save();toast('Customer marked as confirmed!');refresh();}
 
 function newJobForClient(cid){
   var cl=clients.find(function(c){return c.cid===cid;});
@@ -5025,8 +5045,10 @@ function openAddVehicle(){
   document.getElementById('vehicle-modal-ttl').textContent='Add Vehicle';
   document.getElementById('vehicle-save-btn').textContent='Add Vehicle';
   document.getElementById('v-name').value='';
-  document.getElementById('v-type').value='Junk Truck';
+  document.getElementById('v-type').value='Bin Truck';
   document.getElementById('v-notes').value='';
+  document.getElementById('v-sticker-month').value='';
+  document.getElementById('v-sticker-year').value='';
   document.getElementById('v-color').value='#ef4444';
   document.querySelectorAll('.veh-color-opt').forEach(function(o){o.classList.remove('selected');if(o.getAttribute('data-color')==='#ef4444')o.classList.add('selected');});
   clearErr('v-name');
@@ -5038,8 +5060,10 @@ function openEditVehicle(vid){
   document.getElementById('vehicle-modal-ttl').textContent='Edit Vehicle';
   document.getElementById('vehicle-save-btn').textContent='Save Changes';
   document.getElementById('v-name').value=v.name||'';
-  document.getElementById('v-type').value=v.type||'Junk Truck';
+  document.getElementById('v-type').value=v.type||'Bin Truck';
   document.getElementById('v-notes').value=v.notes||'';
+  document.getElementById('v-sticker-month').value=v.stickerMonth||'';
+  document.getElementById('v-sticker-year').value=v.stickerYear||'';
   document.getElementById('v-color').value=v.color||'#ef4444';
   document.querySelectorAll('.veh-color-opt').forEach(function(o){o.classList.remove('selected');if(o.getAttribute('data-color')===(v.color||'#ef4444'))o.classList.add('selected');});
   document.getElementById('vehicle-modal').style.display='flex';
@@ -5052,7 +5076,7 @@ function selectVehColor(c,el){
 function saveVehicle(){
   var name=document.getElementById('v-name').value.trim();
   if(!name){showErr('v-name');return;}
-  var v={vid:editVehicleId||nextVid(),name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,active:true};
+  var v={vid:editVehicleId||nextVid(),name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),active:true};
   if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?v:x;});}
   else{vehicles.push(v);if(!vehBlocks[v.vid])vehBlocks[v.vid]={};}
   saveVehicles();renderVehicles();
@@ -5135,6 +5159,7 @@ function renderVehicles(){
       +'<div>'
       +'<div class="veh-card-name" style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+v.color+'"></span>'+v.name+'</div>'
       +'<div class="veh-card-type">'+v.type+(v.notes?' · '+v.notes:'')+'</div>'
+      +(v.stickerMonth&&v.stickerYear?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">🟡 Sticker expires: '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(v.stickerMonth,10)-1]+' '+v.stickerYear+'</div>':'')
       +'</div>'
       +'<div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEditVehicle(\''+v.vid+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="delVehicle(\''+v.vid+'\')">🗑️</button></div>'
       +'</div>'
