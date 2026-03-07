@@ -2898,49 +2898,83 @@ function renderClients(){
 async function loadClientsPage() {
   var el = document.getElementById('clients-list');
   el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Loading...</div>';
-  var from = clientsPage * clientsPageSize;
   var q = clientSearchF.trim();
 
-  // Try client_summary view first (has job stats pre-computed)
-  var query = db.from('client_summary').select('*', {count:'exact'});
-  if (q) query = query.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%,email.ilike.%'+q+'%');
-  if (clientSort==='alpha')   query = query.order('name',{ascending:true});
-  else if (clientSort==='jobs')    query = query.order('total_jobs',{ascending:false});
-  else if (clientSort==='revenue') query = query.order('total_revenue',{ascending:false});
-  else if (clientSort==='recent')  query = query.order('last_job_date',{ascending:false,nullsFirst:false});
-  else if (clientSort==='dormant') query = query.order('last_job_date',{ascending:true,nullsFirst:true});
-  query = query.range(from, from + clientsPageSize - 1);
-  var r = await query;
+  // ── Fetch clients + job stats in parallel ──────────────────────────────────
+  var [rClients, rJobStats] = await Promise.all([
+    // All clients (no server-side pagination yet — we sort client-side on stats)
+    (function(){
+      var cq = db.from('clients').select('*', {count:'exact'});
+      if (q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
+      return cq.order('name', {ascending:true});
+    })(),
+    // Job stats grouped by client_cid — count, revenue, last date, service breakdown
+    db.from('jobs')
+      .select('client_cid,service,price,date,name')
+      .neq('status','Cancelled')
+      .not('client_cid','is',null)
+      .neq('client_cid','')
+  ]);
 
-  if (r.error) {
-    // Fallback to plain clients table
-    var q2 = db.from('clients').select('*',{count:'exact'}).order('name');
-    if (q) q2 = q2.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
-    q2 = q2.range(from, from + clientsPageSize - 1);
-    var r2 = await q2;
-    clientsTotal = r2.count || 0;
-    var list2 = (r2.data||[]).map(dbToClient);
-    list2.forEach(function(c){ if(!clients.find(function(x){return x.cid===c.cid;})) clients.push(c); });
-    renderClientsList(list2);
-    renderClientsPagination();
-    return;
-  }
-
-  clientsTotal = r.count || 0;
-  var list = r.data || [];
-  // Cache in local clients array
-  list.forEach(function(row){
-    var c = { cid:row.cid, name:row.name||'', phone:row.phone||'', email:row.email||'',
-      address:row.address||'', city:row.city||'', referral:row.referral||'', notes:row.notes||'',
-      names:row.names||[row.name||''], phones:row.phones||[], emails:row.emails||[],
-      _totalJobs:row.total_jobs||0, _totalRev:row.total_revenue||0, _lastDate:row.last_job_date||null,
-      _bins:row.bin_count||0, _junk:row.junk_count||0, _furn:row.furn_count||0 };
-    var idx = clients.findIndex(function(x){return x.cid===c.cid;}); if(idx>=0) clients[idx]=c; else clients.push(c);
+  // ── Build stats map keyed by cid ───────────────────────────────────────────
+  var statsMap = {};
+  (rJobStats.data||[]).forEach(function(row){
+    var cid = row.client_cid;
+    if(!cid) return;
+    if(!statsMap[cid]) statsMap[cid]={total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
+    var s = statsMap[cid];
+    s.total++;
+    s.revenue += parseFloat(row.price)||0;
+    if(!s.lastDate||row.date>s.lastDate) s.lastDate=row.date;
+    if(row.service==='Bin Rental') s.bins++;
+    else if(row.service==='Junk Removal') s.junk++;
+    else if(row.service==='Furniture Pickup'||row.service==='Furniture Delivery') s.furn++;
   });
-  renderClientsList(list);
+
+  // ── Merge stats into client list ───────────────────────────────────────────
+  var allClients = (rClients.data||[]).map(function(row){
+    var c = dbToClient(row);
+    var s = statsMap[c.cid]||{total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
+    c._totalJobs = s.total;
+    c._totalRev  = s.revenue;
+    c._lastDate  = s.lastDate;
+    c._bins = s.bins; c._junk = s.junk; c._furn = s.furn;
+    return c;
+  });
+
+  // Cache locally
+  allClients.forEach(function(c){
+    var idx=clients.findIndex(function(x){return x.cid===c.cid;});
+    if(idx>=0) clients[idx]=c; else clients.push(c);
+  });
+
+  // ── Sort client-side ───────────────────────────────────────────────────────
+  allClients.sort(function(a,b){
+    if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
+    if(clientSort==='revenue') return b._totalRev  - a._totalRev;
+    if(clientSort==='recent'){
+      if(!a._lastDate&&!b._lastDate) return 0;
+      if(!a._lastDate) return 1; if(!b._lastDate) return -1;
+      return b._lastDate.localeCompare(a._lastDate);
+    }
+    if(clientSort==='dormant'){
+      if(!a._lastDate&&!b._lastDate) return 0;
+      if(!a._lastDate) return -1; if(!b._lastDate) return 1;
+      return a._lastDate.localeCompare(b._lastDate);
+    }
+    // alpha
+    return (a.name||'').localeCompare(b.name||'');
+  });
+
+  // ── Paginate after sort ────────────────────────────────────────────────────
+  clientsTotal = allClients.length;
+  var from = clientsPage * clientsPageSize;
+  var pageClients = allClients.slice(from, from + clientsPageSize);
+
+  renderClientsList(pageClients);
   renderClientsPagination();
   var sub = document.getElementById('clients-sub');
-  if (sub) sub.textContent = clientsTotal.toLocaleString() + ' clients total';
+  if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients total';
 }
 
 function renderClientsList(list) {
@@ -3005,9 +3039,19 @@ async function openClientDetail(cid){
     if (r.error||!r.data) return;
     cl = dbToClient(r.data); clients.push(cl);
   }
-  // Fetch jobs for this client directly from Supabase by client_cid
-  var rj = await db.from('jobs').select('*').eq('client_cid',cid).order('date',{ascending:false});
-  var clientJobs = (rj.data||[]).map(dbToJob);
+  // Fetch jobs for this client — by client_cid first, then also by name match for old records
+  var [rjCid, rjName] = await Promise.all([
+    db.from('jobs').select('*').eq('client_cid', cid).order('date',{ascending:false}),
+    db.from('jobs').select('*').ilike('name', cl.name).order('date',{ascending:false})
+  ]);
+  var seenIds = {};
+  var clientJobs = [];
+  [(rjCid.data||[]), (rjName.data||[])].forEach(function(arr){
+    arr.map(dbToJob).forEach(function(j){
+      if(!seenIds[j.id]){ seenIds[j.id]=true; clientJobs.push(j); }
+    });
+  });
+  clientJobs.sort(function(a,b){return b.date.localeCompare(a.date);});
   clientJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
   var totalRev = clientJobs.reduce(function(s,j){return s+(parseFloat(j.price)||0);},0);
