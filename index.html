@@ -2277,9 +2277,16 @@ async function refreshDashBinStats(){
     });
   } catch(e){ console.error('refreshDashBinStats load error',e); }
 
-  // ── Now use binsOutOnDate() exactly as renderUtilization does ─────────────
-  var binsOut=binsOutOnDate(dateStr);
-  var binsIn=Math.max(0,totalBins-binsOut);
+  // ── Use binItems.status for today (matches bin fleet page exactly) ─────────
+  // For other dates, fall back to job-record logic (forecast)
+  var binsOut, binsIn;
+  if(dateStr===today){
+    binsOut=binItems.filter(function(b){return b.status==='out';}).length;
+    binsIn=binItems.filter(function(b){return b.status==='in';}).length;
+  } else {
+    binsOut=binsOutOnDate(dateStr);
+    binsIn=Math.max(0,totalBins-binsOut);
+  }
   var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
 
   animCount(document.getElementById('s-bins-out'),binsOut);
@@ -3884,7 +3891,15 @@ function makeBinRow(b){
     +'<td>'+dmg+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
     +'<td><div class="ra"><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.4)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
 }
-function quickToggleStatus(bid){binItems.forEach(function(b){if(b.bid===bid)b.status=b.status==='in'?'out':'in';});saveBins();renderBinInventory();renderDash();}
+function quickToggleStatus(bid){
+  binItems.forEach(function(b){if(b.bid===bid)b.status=b.status==='in'?'out':'in';});
+  saveBins();
+  renderBinInventory();
+  refreshDashBinStats();
+  // Also refresh utilization page if currently visible
+  var activeView=document.querySelector('.view.active');
+  if(activeView&&activeView.id==='view-utilization') renderUtilization();
+}
 function shiftTimeline(n){tlOffset+=n;renderTimeline();}
 function renderTimeline(){
   var numDays=14;
@@ -3946,9 +3961,16 @@ function renderTimeline(){
   }).join('');
 
   // Summary row: total out / in
+  // For today use binItems.status (physical truth); for other dates use job records
   var sumCells=cols.map(function(ds){
-    var out=binsOutOnDate(ds);
-    var inY=Math.max(0,totalBins-out);
+    var out,inY;
+    if(ds===todayISO){
+      out=binItems.filter(function(b){return b.status==='out';}).length;
+      inY=binItems.filter(function(b){return b.status==='in';}).length;
+    } else {
+      out=binsOutOnDate(ds);
+      inY=Math.max(0,totalBins-out);
+    }
     var isT=ds===todayISO;
     return '<td'+(isT?' class="tl-today-col"':'')+' style="padding:5px 8px;text-align:center">'
       +'<span class="tl-seg tl-seg-out" title="Out">'+out+'</span>'
@@ -3962,9 +3984,15 @@ function renderTimeline(){
     var fleetCount=binItems.filter(function(b){return b.size===sz;}).length;
     if(!fleetCount)return '';
     var cells=cols.map(function(ds){
-      var ob=outBySize(ds);
-      var out=ob[sz];
-      var avail=Math.max(0,fleetCount-out);
+      var out,avail;
+      if(ds===todayISO){
+        out=binItems.filter(function(b){return b.size===sz&&b.status==='out';}).length;
+        avail=binItems.filter(function(b){return b.size===sz&&b.status==='in';}).length;
+      } else {
+        var ob=outBySize(ds);
+        out=ob[sz];
+        avail=Math.max(0,fleetCount-out);
+      }
       var isT=ds===todayISO;
       var pct=fleetCount?out/fleetCount:0;
       var bg=pct>=1?'rgba(239,68,68,.18)':pct>=0.5?'rgba(234,179,8,.12)':'rgba(34,197,94,.08)';
@@ -4631,8 +4659,10 @@ function renderUtilization(){
     return !wasUsed;
   });
 
-  var currentOut=binsOutOnDate(today2);
-  var currentIn=Math.max(0,totalBinCount-currentOut);
+  // Use binItems.status as the single source of truth for current in/out
+  // (same as renderBinInventory does — so all three pages always agree)
+  var currentOut=binItems.filter(function(b){return b.status==='out';}).length;
+  var currentIn=binItems.filter(function(b){return b.status==='in';}).length;
   document.getElementById('util-metrics').innerHTML=
     '<div class="metric-box"><div class="metric-val" id="utm-util" style="color:var(--accent)">0%</div><div class="metric-lbl">Overall Utilization (90d)</div></div>'
     +'<div class="metric-box"><div class="metric-val" id="utm-days">0</div><div class="metric-lbl">Bin-Days Rented (90d)</div></div>'
