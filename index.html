@@ -2918,27 +2918,45 @@ async function loadClientsPage() {
   var el = document.getElementById('clients-list');
   el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Loading...</div>';
   var q = clientSearchF.trim();
+  var BATCH = 1000;
 
-  // ── Fetch clients + job stats in parallel ──────────────────────────────────
-  var [rClients, rJobStats] = await Promise.all([
-    // All clients (no server-side pagination yet — we sort client-side on stats)
-    (function(){
-      var cq = db.from('clients').select('*', {count:'exact'});
-      if (q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
-      return cq.order('name', {ascending:true});
-    })(),
-    // Job stats grouped by client_cid — count, revenue, last date, service breakdown
-    db.from('jobs')
-      .select('client_cid,service,price,date,name')
+  // ── 1. Fetch ALL clients (paginated past Supabase 1000-row cap) ────────────
+  var allClientRows = [];
+  var from = 0;
+  while(true){
+    var cq = db.from('clients').select('*').order('name',{ascending:true}).range(from, from+BATCH-1);
+    if(q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
+    var rc = await cq;
+    if(rc.error || !rc.data || rc.data.length===0) break;
+    allClientRows = allClientRows.concat(rc.data);
+    if(rc.data.length < BATCH) break;
+    from += BATCH;
+  }
+
+  // ── 2. Fetch ALL jobs (paginated) — need client_cid AND name to match ──────
+  var allJobRows = [];
+  from = 0;
+  while(true){
+    var jq = db.from('jobs')
+      .select('client_cid,name,service,price,date')
       .neq('status','Cancelled')
-      .not('client_cid','is',null)
-      .neq('client_cid','')
-  ]);
+      .range(from, from+BATCH-1);
+    var rj = await jq;
+    if(rj.error || !rj.data || rj.data.length===0) break;
+    allJobRows = allJobRows.concat(rj.data);
+    if(rj.data.length < BATCH) break;
+    from += BATCH;
+  }
 
-  // ── Build stats map keyed by cid ───────────────────────────────────────────
+  // ── 3. Build lookup: normalised name → cid (for name-only old jobs) ────────
+  var nameToCid = {};
+  allClientRows.forEach(function(row){
+    if(row.name) nameToCid[row.name.trim().toLowerCase()] = row.cid;
+  });
+
+  // ── 4. Build stats map keyed by cid ───────────────────────────────────────
   var statsMap = {};
-  (rJobStats.data||[]).forEach(function(row){
-    var cid = row.client_cid;
+  function addStat(cid, row){
     if(!cid) return;
     if(!statsMap[cid]) statsMap[cid]={total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
     var s = statsMap[cid];
@@ -2948,10 +2966,15 @@ async function loadClientsPage() {
     if(row.service==='Bin Rental') s.bins++;
     else if(row.service==='Junk Removal') s.junk++;
     else if(row.service==='Furniture Pickup'||row.service==='Furniture Delivery') s.furn++;
+  }
+  allJobRows.forEach(function(row){
+    // Match by client_cid first, then fall back to name lookup
+    var cid = row.client_cid || (row.name ? nameToCid[row.name.trim().toLowerCase()] : null);
+    addStat(cid, row);
   });
 
-  // ── Merge stats into client list ───────────────────────────────────────────
-  var allClients = (rClients.data||[]).map(function(row){
+  // ── 5. Merge stats into client objects ─────────────────────────────────────
+  var allClients = allClientRows.map(function(row){
     var c = dbToClient(row);
     var s = statsMap[c.cid]||{total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
     c._totalJobs = s.total;
@@ -2967,7 +2990,7 @@ async function loadClientsPage() {
     if(idx>=0) clients[idx]=c; else clients.push(c);
   });
 
-  // ── Sort client-side ───────────────────────────────────────────────────────
+  // ── 6. Sort ────────────────────────────────────────────────────────────────
   allClients.sort(function(a,b){
     if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
     if(clientSort==='revenue') return b._totalRev  - a._totalRev;
@@ -2981,14 +3004,13 @@ async function loadClientsPage() {
       if(!a._lastDate) return -1; if(!b._lastDate) return 1;
       return a._lastDate.localeCompare(b._lastDate);
     }
-    // alpha
     return (a.name||'').localeCompare(b.name||'');
   });
 
-  // ── Paginate after sort ────────────────────────────────────────────────────
+  // ── 7. Paginate after sort ─────────────────────────────────────────────────
   clientsTotal = allClients.length;
-  var from = clientsPage * clientsPageSize;
-  var pageClients = allClients.slice(from, from + clientsPageSize);
+  var pageFrom = clientsPage * clientsPageSize;
+  var pageClients = allClients.slice(pageFrom, pageFrom + clientsPageSize);
 
   renderClientsList(pageClients);
   renderClientsPagination();
