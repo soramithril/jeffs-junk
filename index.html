@@ -2174,22 +2174,24 @@ function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 
 // ─── DASHBOARD ───
 function getWeekStart(offset){var d=new Date();d.setDate(d.getDate()-d.getDay()+(offset*7));d.setHours(0,0,0,0);return d;}
-function updateDashBinStats(overrideBinsOut){
+function updateDashBinStats(overrideBinsOut, skipFleetBar){
   var datePicker=document.getElementById('dash-bin-date');
   var dateStr=datePicker?datePicker.value:todayStr();
   if(!dateStr)dateStr=todayStr();
   var binsOut=(overrideBinsOut!==undefined)?overrideBinsOut:binsOutOnDate(dateStr);
   var totalBins=binItems.length;
   var binsIn=Math.max(0,totalBins-binsOut);
-  animCount(document.getElementById('s-bins-out'),binsOut);
-  animCount(document.getElementById('s-bins-in'),binsIn);
-  var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins);
-  var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
-  setTimeout(function(){
-    var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
-    var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% of fleet currently deployed';
-  },50);
-  document.getElementById('m-bins').textContent=binsOut;
+  if(!skipFleetBar){
+    animCount(document.getElementById('s-bins-out'),binsOut);
+    animCount(document.getElementById('s-bins-in'),binsIn);
+    var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins);
+    var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
+    setTimeout(function(){
+      var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
+      var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% of fleet currently deployed';
+    },50);
+    document.getElementById('m-bins').textContent=binsOut;
+  }
   // Per size breakdown — big hero numbers
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
@@ -2371,7 +2373,7 @@ async function renderDash(){
     var ob=document.getElementById('s-bins-out-bar'); if(ob) ob.style.width=outPct+'%';
     var pl=document.getElementById('s-bins-pct-lbl'); if(pl) pl.textContent=outPct+'% of fleet currently deployed';
     // Update per-size breakdown
-    updateDashBinStats(binsOut);
+    updateDashBinStats(binsOut, true);
   },50);
 
   // ── Week stats ─────────────────────────────────────────────
@@ -3869,7 +3871,7 @@ function newJob(){
   document.getElementById('job-modal').classList.add('open');
 }
 function bookBin(size){
-  showView('jobs');
+  go('jobs');
   newJob();
   document.getElementById('f-svc').value='Bin Rental';
   document.getElementById('f-svc').dispatchEvent(new Event('change'));
