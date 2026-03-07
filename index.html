@@ -3674,16 +3674,28 @@ function sizePill(s){var cls=s==='4 yard'?'sp-4':s==='7 yard'?'sp-7':s==='14 yar
 function typePill(t){var cls=t==='wide'||t==='low'?'tc-low':'tc-reg';var lbl=t==='wide'||t==='low'?'Low-Wide':'Regular';return '<span class="tc '+cls+'">'+lbl+'</span>';}
 function binsOutOnDate(dateStr){
   var count=0;
+  var seen={};
   jobs.forEach(function(j){
     if(j.service!=='Bin Rental')return;
     if(j.status==='Cancelled')return;
-    // If bin is marked picked up, it's back in yard — don't count
     if(j.binInstatus==='pickedup')return;
-    var drop=j.binDropoff||j.date;var pick=j.binPickup;
+    var drop=j.binDropoff||j.date;
+    var pick=j.binPickup;
     if(!drop)return;
-    if(dateStr>=drop&&(!pick||dateStr<=pick))count++;
+    // Only count jobs that have a pickup date OR are within 30 days of dropoff
+    // This prevents old open-ended jobs from counting forever
+    if(pick){
+      if(dateStr>=drop&&dateStr<=pick) count++;
+    } else {
+      // No pickup date: assume max 30-day rental window
+      var dropD=new Date(drop+'T12:00:00');
+      var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
+      var maxPickStr=maxPick.toISOString().split('T')[0];
+      if(dateStr>=drop&&dateStr<=maxPickStr) count++;
+    }
   });
-  return count;
+  // Never exceed total fleet size
+  return Math.min(count, binItems.length);
 }
 function renderBinInventory(){
   var total=binItems.length,inYard=0,outJob=0,damaged=0,green=0,black=0,s4=0,s7=0,s14=0,s20=0;
@@ -3749,15 +3761,111 @@ function makeBinRow(b){
 function quickToggleStatus(bid){binItems.forEach(function(b){if(b.bid===bid)b.status=b.status==='in'?'out':'in';});saveBins();renderBinInventory();renderDash();}
 function shiftTimeline(n){tlOffset+=n;renderTimeline();}
 function renderTimeline(){
-  var numDays=14,start=new Date();start.setDate(start.getDate()+tlOffset);start.setHours(0,0,0,0);
-  var totalBins=binItems.length,todayISO=new Date().toISOString().split('T')[0];
-  var cols=[];for(var i=0;i<numDays;i++){var d=new Date(start);d.setDate(d.getDate()+i);cols.push(d.toISOString().split('T')[0]);}
-  var binJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled';});
-  var headCols=cols.map(function(ds){var d=new Date(ds+'T00:00:00');var isT=ds===todayISO;return'<th'+(isT?' class="tl-today-col"':'')+' style="min-width:60px">'+(isT?'<span style="color:var(--accent);font-size:9px;display:block">TODAY</span>':'')+'<span style="font-size:9px;color:var(--muted)">'+d.toLocaleDateString('en-US',{weekday:'short'})+'</span><br><span style="font-weight:600">'+d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</span></th>';}).join('');
-  var sumCells=cols.map(function(ds){var out=binsOutOnDate(ds);var inY=Math.max(0,totalBins-out);var isT=ds===todayISO;return'<td'+(isT?' class="tl-today-col"':'')+' style="padding:5px 8px"><span class="tl-seg tl-seg-out">'+out+'</span> <span class="tl-seg tl-seg-in">'+inY+'</span></td>';}).join('');
-  var sumRow='<tr class="tl-sum-row"><td style="padding-left:14px"><strong>📊 Total</strong><br><span style="font-size:10px;color:var(--muted)">Out / In</span></td>'+sumCells+'</tr>';
-  var jobRows=binJobs.map(function(j){var cells=cols.map(function(ds){var drop=j.binDropoff||j.date;var pick=j.binPickup;var isActive=drop&&ds>=drop&&(!pick||ds<=pick);var isPast=pick&&ds>pick;var isT=ds===todayISO;var cc=isActive?'<div class="tl-active"></div>':isPast?'<div class="tl-done"></div>':'<div class="tl-empty"></div>';return'<td'+(isT?' class="tl-today-col"':'')+'>'+cc+'</td>';}).join('');return'<tr><td onclick="openDetail(\''+j.id+'\')" style="cursor:pointer;padding-left:14px"><span class="'+jobIdCls(j.id)+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:.5px">'+j.id+'</span><br><span style="font-size:11px;color:var(--muted)">'+j.name+'</span>'+(j.binSize?'<br>'+sizePill(j.binSize):'')+'</td>'+cells+'</tr>';}).join('');
-  document.getElementById('timeline-table').innerHTML='<table class="tl-table"><thead><tr><th>Job</th>'+headCols+'</tr></thead><tbody>'+sumRow+(jobRows||'<tr><td colspan="'+(numDays+1)+'" style="text-align:center;padding:20px;color:var(--muted)">No active bin rentals</td></tr>')+'</tbody></table><div style="display:flex;gap:16px;align-items:center;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)"><span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Out</span><span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px;vertical-align:middle;opacity:.4"></span>Returned</span><span><span style="display:inline-block;width:6px;height:6px;background:var(--border);border-radius:50%;margin-right:4px;vertical-align:middle"></span>Not yet</span></div>';
+  var numDays=14;
+  var start=new Date();start.setDate(start.getDate()+tlOffset);start.setHours(0,0,0,0);
+  var totalBins=binItems.length;
+  var todayISO=new Date().toISOString().split('T')[0];
+  var sizes=['4 yard','7 yard','14 yard','20 yard'];
+  var sizeColors={'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
+  var sizeLabels={'4 yard':'4 YD','7 yard':'7 YD','14 yard':'14 YD','20 yard':'20 YD'};
+
+  // Build date columns
+  var cols=[];
+  for(var i=0;i<numDays;i++){
+    var d=new Date(start);d.setDate(d.getDate()+i);
+    cols.push(d.toISOString().split('T')[0]);
+  }
+
+  // Active bin rental jobs only (not cancelled, not picked up)
+  var binJobs=jobs.filter(function(j){
+    return j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus!=='pickedup';
+  });
+
+  // For each date, count how many jobs of each size are active
+  function outBySize(ds){
+    var out={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
+    binJobs.forEach(function(j){
+      var drop=j.binDropoff||j.date;
+      var pick=j.binPickup;
+      if(!drop)return;
+      var active;
+      if(pick){
+        active=ds>=drop&&ds<=pick;
+      } else {
+        var dropD=new Date(drop+'T12:00:00');
+        var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
+        active=ds>=drop&&ds<=maxPick.toISOString().split('T')[0];
+      }
+      if(active&&out.hasOwnProperty(j.binSize))out[j.binSize]++;
+    });
+    // Cap each size at its fleet count
+    sizes.forEach(function(s){
+      var fleetCount=binItems.filter(function(b){return b.size===s;}).length;
+      out[s]=Math.min(out[s],fleetCount);
+    });
+    return out;
+  }
+
+  // Header row
+  var headCols=cols.map(function(ds){
+    var d=new Date(ds+'T00:00:00');
+    var isT=ds===todayISO;
+    return '<th'+(isT?' class="tl-today-col"':'')+' style="min-width:64px;text-align:center">'
+      +(isT?'<span style="color:var(--accent);font-size:9px;display:block;font-weight:700">TODAY</span>':'')
+      +'<span style="font-size:9px;color:var(--muted)">'+d.toLocaleDateString('en-US',{weekday:'short'})+'</span>'
+      +'<br><span style="font-weight:600;font-size:12px">'+d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</span>'
+      +'</th>';
+  }).join('');
+
+  // Summary row: total out / in
+  var sumCells=cols.map(function(ds){
+    var out=binsOutOnDate(ds);
+    var inY=Math.max(0,totalBins-out);
+    var isT=ds===todayISO;
+    return '<td'+(isT?' class="tl-today-col"':'')+' style="padding:5px 8px;text-align:center">'
+      +'<span class="tl-seg tl-seg-out" title="Out">'+out+'</span>'
+      +' <span class="tl-seg tl-seg-in" title="Available">'+inY+'</span>'
+      +'</td>';
+  }).join('');
+  var sumRow='<tr class="tl-sum-row"><td style="padding-left:14px;white-space:nowrap"><strong>📊 All Sizes</strong><br><span style="font-size:10px;color:var(--muted)">Out / Avail</span></td>'+sumCells+'</tr>';
+
+  // One row per size showing available count
+  var sizeRows=sizes.map(function(sz){
+    var fleetCount=binItems.filter(function(b){return b.size===sz;}).length;
+    if(!fleetCount)return '';
+    var cells=cols.map(function(ds){
+      var ob=outBySize(ds);
+      var out=ob[sz];
+      var avail=Math.max(0,fleetCount-out);
+      var isT=ds===todayISO;
+      var pct=fleetCount?out/fleetCount:0;
+      var bg=pct>=1?'rgba(239,68,68,.18)':pct>=0.5?'rgba(234,179,8,.12)':'rgba(34,197,94,.08)';
+      return '<td'+(isT?' class="tl-today-col"':'')+' style="text-align:center;padding:4px 2px">'
+        +'<div style="background:'+bg+';border-radius:6px;padding:4px 2px;margin:1px">'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;line-height:1;color:'+(avail===0?'#ef4444':sizeColors[sz])+'">'+avail+'</div>'
+        +'<div style="font-size:9px;color:var(--muted)">avail</div>'
+        +'</div>'
+        +'</td>';
+    }).join('');
+    return '<tr>'
+      +'<td style="padding-left:14px;white-space:nowrap">'
+      +'<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+sizeColors[sz]+';margin-right:6px;vertical-align:middle"></span>'
+      +'<strong style="font-size:13px">'+sizeLabels[sz]+'</strong>'
+      +'<br><span style="font-size:10px;color:var(--muted)">'+fleetCount+' in fleet</span>'
+      +'</td>'+cells+'</tr>';
+  }).filter(Boolean).join('');
+
+  var legend='<div style="display:flex;gap:20px;align-items:center;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);flex-wrap:wrap">'
+    +'<span style="font-weight:600;color:var(--text)">Availability key:</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(34,197,94,.2);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Most available</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(234,179,8,.2);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Half out</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(239,68,68,.2);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Fully booked</span>'
+    +'<span style="margin-left:auto">Big number = bins available that day</span>'
+    +'</div>';
+
+  document.getElementById('timeline-table').innerHTML=
+    '<table class="tl-table"><thead><tr><th style="min-width:110px">Size</th>'+headCols+'</tr></thead>'
+    +'<tbody>'+sumRow+sizeRows+'</tbody></table>'+legend;
 }
 function openAddBin(){
   editBinId=null;document.getElementById('bin-modal-ttl').textContent='Add Bin';document.getElementById('bin-save-btn').textContent='Add Bin';
