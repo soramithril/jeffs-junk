@@ -1756,18 +1756,12 @@ function saveBins() {
 
 function saveVehicles() {
   try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); localStorage.setItem('jj-vehblocks', JSON.stringify(vehBlocks)); } catch(e){}
-  // Sync to Supabase vehicles table
+  // Also persist to Supabase so vehicles sync across devices/browsers
   try {
-    var rows = vehicles.map(function(v){
-      return {vid:v.vid, name:v.name, type:v.type, color:v.color, notes:v.notes||'',
-              updated_at:new Date().toISOString()};
+    db.from('app_settings').upsert({key:'vehicles',value:JSON.stringify({vehicles:vehicles,vehBlocks:vehBlocks})},{onConflict:'key'}).then(function(r){
+      if(r.error){console.warn('Vehicle cloud save failed:',r.error.message);}
     });
-    if(rows.length) {
-      db.from('vehicles').upsert(rows, {onConflict:'vid'}).then(function(r){
-        if(r.error) console.warn('Vehicle sync failed:', r.error.message);
-      });
-    }
-  } catch(e){ console.warn('Vehicle sync error:',e); }
+  } catch(e){ console.warn('Vehicle cloud save error:',e); }
 }
 
 function saveGeo() {
@@ -1819,23 +1813,22 @@ async function loadAllFromSupabase() {
     var rb = await db.from('bin_items').select('*');
     binItems = rb.data || [];
 
-    // Load vehicles from Supabase vehicles table (synced across devices), fall back to localStorage
+    // Load vehicles from Supabase (synced across devices), fall back to localStorage
     try {
-      var rveh = await db.from('vehicles').select('*').order('created_at');
-      if(!rveh.error && rveh.data) {
-        vehicles = rveh.data.map(function(r){
-          return {vid:r.vid, name:r.name, type:r.type, color:r.color||'#22c55e', notes:r.notes||'', active:true,
-                  stickerMonth:'', stickerYear:''};
-        });
-        // vehBlocks still in localStorage (date blocks not in DB schema)
-        try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e){}
+      var rveh = await db.from('app_settings').select('value').eq('key','vehicles').maybeSingle();
+      if(rveh.data && rveh.data.value) {
+        var vdata = JSON.parse(rveh.data.value);
+        vehicles = vdata.vehicles || [];
+        vehBlocks = vdata.vehBlocks || {};
         // Update local cache
-        try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); } catch(e){}
+        try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); localStorage.setItem('jj-vehblocks', JSON.stringify(vehBlocks)); } catch(e){}
       } else {
+        // Fall back to localStorage if Supabase has nothing yet
         try { vehicles = JSON.parse(localStorage.getItem('jj-vehicles') || '[]'); } catch(e){}
         try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e){}
       }
     } catch(e) {
+      // Network error — use localStorage cache
       try { vehicles = JSON.parse(localStorage.getItem('jj-vehicles') || '[]'); } catch(e2){}
       try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e2){}
     }
@@ -5687,8 +5680,6 @@ function delVehicle(vid){
   vehicles=vehicles.filter(function(v){return v.vid!==vid;});
   delete vehBlocks[vid];
   saveVehicles();renderVehicles();
-  // Remove from Supabase
-  try { db.from('vehicles').delete().eq('vid',vid).then(function(r){ if(r.error) console.warn('Vehicle delete sync failed:',r.error.message); }); } catch(e){}
   toast('Vehicle removed.');
 }
 
