@@ -1756,12 +1756,17 @@ function saveBins() {
 
 function saveVehicles() {
   try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); localStorage.setItem('jj-vehblocks', JSON.stringify(vehBlocks)); } catch(e){}
-  // Also persist to Supabase so vehicles sync across devices/browsers
+  // Sync to Supabase vehicles table
   try {
-    db.from('app_settings').upsert({key:'vehicles',value:JSON.stringify({vehicles:vehicles,vehBlocks:vehBlocks})},{onConflict:'key'}).then(function(r){
-      if(r.error){console.warn('Vehicle cloud save failed:',r.error.message);}
+    var rows = vehicles.map(function(v){
+      return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||''};
     });
-  } catch(e){ console.warn('Vehicle cloud save error:',e); }
+    if(rows.length) {
+      db.from('vehicles').upsert(rows, {onConflict:'vid'}).then(function(r){
+        if(r.error) console.warn('Vehicle sync failed:', r.error.message);
+      });
+    }
+  } catch(e){ console.warn('Vehicle sync error:',e); }
 }
 
 function saveGeo() {
@@ -1813,22 +1818,23 @@ async function loadAllFromSupabase() {
     var rb = await db.from('bin_items').select('*');
     binItems = rb.data || [];
 
-    // Load vehicles from Supabase (synced across devices), fall back to localStorage
+    // Load vehicles from Supabase vehicles table (synced across devices), fall back to localStorage
     try {
-      var rveh = await db.from('app_settings').select('value').eq('key','vehicles').maybeSingle();
-      if(rveh.data && rveh.data.value) {
-        var vdata = JSON.parse(rveh.data.value);
-        vehicles = vdata.vehicles || [];
-        vehBlocks = vdata.vehBlocks || {};
+      var rveh = await db.from('vehicles').select('*').order('created_at');
+      if(!rveh.error && rveh.data) {
+        vehicles = rveh.data.map(function(r){
+          return {vid:r.vid, name:r.name, type:r.type, color:r.color||'#22c55e', notes:r.notes||'', active:true,
+                  stickerMonth:'', stickerYear:''};
+        });
+        // vehBlocks still in localStorage (date blocks not in DB schema)
+        try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e){}
         // Update local cache
-        try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); localStorage.setItem('jj-vehblocks', JSON.stringify(vehBlocks)); } catch(e){}
+        try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); } catch(e){}
       } else {
-        // Fall back to localStorage if Supabase has nothing yet
         try { vehicles = JSON.parse(localStorage.getItem('jj-vehicles') || '[]'); } catch(e){}
         try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e){}
       }
     } catch(e) {
-      // Network error — use localStorage cache
       try { vehicles = JSON.parse(localStorage.getItem('jj-vehicles') || '[]'); } catch(e2){}
       try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e2){}
     }
@@ -3005,17 +3011,18 @@ async function loadClientsPage() {
 
     // ── 2. Fire ALL batches in parallel ───────────────────────────────────────
     var clientBatches = [], jobBatches = [];
-    for(var i=0; i<Math.ceil(totalClients/BATCH)||1; i++) clientBatches.push(i);
-    for(var j=0; j<Math.ceil(totalJobs/BATCH)||1;    j++) jobBatches.push(j);
+    for(var i=0; i<Math.max(Math.ceil(totalClients/BATCH),1); i++) clientBatches.push(i);
+    for(var j=0; j<Math.max(Math.ceil(totalJobs/BATCH),1);    j++) jobBatches.push(j);
 
     var clientPromises = clientBatches.map(function(i){
-      var cq = db.from('clients').select('*').order('name',{ascending:true}).range(i*BATCH, (i+1)*BATCH-1);
+      var cq = db.from('clients').select('*').order('name',{ascending:true});
       if(q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
+      if(!q) cq = cq.range(i*BATCH, (i+1)*BATCH-1);
       return cq;
     });
     var jobPromises = jobBatches.map(function(i){
       return db.from('jobs').select('client_cid,name,service,price,date')
-        .neq('status','Cancelled').range(i*BATCH, (i+1)*BATCH-1);
+        .neq('status','Cancelled').range(i*BATCH, Math.min((i+1)*BATCH-1, totalJobs-1));
     });
 
     var allResults = await Promise.all(clientPromises.concat(jobPromises));
@@ -3119,7 +3126,7 @@ function renderClientsList(list) {
     var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().substring(0,2)||'?';
     var loyalty = totalJobs===0?'':totalJobs===1?'🆕 New':totalJobs<=3?'🔁 Repeat':'⭐ Frequent';
     var dormantBadge = isDormant?'<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:rgba(239,68,68,.12);color:#ef4444;font-weight:600">😴 Dormant 6mo+</span>':'';
-    return '<div class="client-card" onclick="openClientDetail(\''+cid+'\')">'
+    return '<div class="client-card" onclick="openClientDetailSafe(event,\''+cid+'\')">'
       +'<div class="client-avatar">'+initials+'</div>'
       +'<div class="client-info">'
       +'<div class="client-name">'+name+'</div>'
@@ -3133,8 +3140,8 @@ function renderClientsList(list) {
       +dormantBadge+'</div>'
       +(totalRev>0?'<div style="font-size:12px;color:var(--accent);margin-top:4px;font-weight:600">💰 $'+Math.round(totalRev).toLocaleString()+' lifetime'+(lastDate?' · Last: '+fd(lastDate):'')+'</div>':'')
       +'</div>'
-      +'<div class="client-actions"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editClient(\''+cid+'\')">✏️</button>'
-      +'<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delClient(\''+cid+'\')">🗑️</button></div>'
+      +'<div class="client-actions"><button class="btn btn-ghost btn-sm" onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')">✏️</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="event.preventDefault();event.stopPropagation();delClient(\''+cid+'\')">🗑️</button></div>'
       +'</div>';
   }).join('');
 }
@@ -3155,6 +3162,7 @@ function renderClientsPagination() {
   ['clients-pagination-top','clients-pagination-bottom'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=html;});
 }
 
+function openClientDetailSafe(e, cid){ e.preventDefault(); e.stopPropagation(); openClientDetail(cid); }
 async function openClientDetail(cid){
   var cl = clients.find(function(c){return c.cid===cid;});
   if (!cl) {
@@ -5680,6 +5688,8 @@ function delVehicle(vid){
   vehicles=vehicles.filter(function(v){return v.vid!==vid;});
   delete vehBlocks[vid];
   saveVehicles();renderVehicles();
+  // Remove from Supabase
+  try { db.from('vehicles').delete().eq('vid',vid).then(function(r){ if(r.error) console.warn('Vehicle delete sync failed:',r.error.message); }); } catch(e){}
   toast('Vehicle removed.');
 }
 
