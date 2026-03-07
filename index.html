@@ -2250,14 +2250,28 @@ async function refreshDashBinStats(){
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
 
-  // Fetch all active bin rentals dropped on or before the selected date
+  // Fetch ALL non-cancelled bin rentals where the job date (dropoff) is <= selected date
+  // We can't rely on bin_dropoff being set — many records use the job date field instead
   var r=await db.from('jobs').select('bin_size,bin_dropoff,bin_pickup,bin_instatus,date')
-    .eq('service','Bin Rental').neq('status','Cancelled')
-    .lte('bin_dropoff',dateStr);
+    .eq('service','Bin Rental')
+    .neq('status','Cancelled');
 
   var rows=(r.data||[]).filter(function(row){
-    if(row.bin_instatus==='pickedup')return false;       // already returned
-    if(row.bin_pickup&&row.bin_pickup<dateStr)return false; // picked up before this date
+    // Get effective dropoff date — use bin_dropoff if set, otherwise fall back to date
+    var drop=row.bin_dropoff||row.date;
+    if(!drop)return false;
+    // Must have dropped off on or before the selected date
+    if(drop>dateStr)return false;
+    // Already returned before this date
+    if(row.bin_instatus==='pickedup')return false;
+    // Has a scheduled pickup that already passed before this date
+    if(row.bin_pickup&&row.bin_pickup<dateStr)return false;
+    // No pickup date — assume max 30-day window (prevents ancient jobs clogging forever)
+    if(!row.bin_pickup){
+      var dropD=new Date(drop+'T12:00:00');
+      var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
+      if(dateStr>maxPick.toISOString().split('T')[0])return false;
+    }
     return true;
   });
 
@@ -3445,7 +3459,13 @@ function getAnalyticsDates(){
   return{a:{start:new Date(0),end:now,label:'All Time'},b:null};
 }
 function getFilteredJobs(start,end){
-  return jobs.filter(function(j){if(!start)return true;var d=new Date(j.date);return d>=start&&d<=end;});
+  return jobs.filter(function(j){
+    if(!start)return true;
+    if(!j.date)return false;
+    var parts=j.date.split('-');
+    var d=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+    return d>=start&&d<=end;
+  });
 }
 function delta(curr,prev){
   if(prev===null||prev===undefined)return'';
@@ -3455,36 +3475,34 @@ function delta(curr,prev){
 }
 async function renderAnalytics(){
   var dates=getAnalyticsDates();
+  var pageSize=1000;
 
-  // For "All Time", fetch all jobs from Supabase in paginated batches
-  if(analyticsPeriod==='all'){
-    var allTimeJobs=[];
-    var pageSize=1000;
+  async function fetchJobsInRange(start,end){
+    var results=[];
     var from=0;
-    var done=false;
-    while(!done){
-      var r=await db.from('jobs').select('job_id,service,status,name,address,city,date,price,referral,bin_size,bin_dropoff,bin_pickup').order('date',{ascending:false}).range(from,from+pageSize-1);
-      if(r.error||!r.data||r.data.length===0){done=true;break;}
+    var startS=start?start.toISOString().split('T')[0]:null;
+    var endS=end?end.toISOString().split('T')[0]:null;
+    while(true){
+      var q=db.from('jobs').select('job_id,service,status,name,address,city,date,price,referral,bin_size')
+        .order('date',{ascending:false}).range(from,from+pageSize-1);
+      if(startS)q=q.gte('date',startS);
+      if(endS)q=q.lte('date',endS);
+      var r=await q;
+      if(r.error||!r.data||r.data.length===0)break;
       r.data.forEach(function(row){
-        allTimeJobs.push({
-          id:row.job_id,service:row.service||'',status:row.status||'',
+        results.push({id:row.job_id,service:row.service||'',status:row.status||'',
           name:row.name||'',address:row.address||'',city:row.city||'',
           date:row.date||'',price:row.price||'',referral:row.referral||'',
-          binSize:row.bin_size||'',binDropoff:row.bin_dropoff||'',binPickup:row.bin_pickup||''
-        });
+          binSize:row.bin_size||''});
       });
-      if(r.data.length<pageSize){done=true;}else{from+=pageSize;}
+      if(r.data.length<pageSize)break;
+      from+=pageSize;
     }
-    // Override getFilteredJobs for all-time to use allTimeJobs
-    var aJobs=allTimeJobs;
-    var bJobs=[];
-    var hasB=false;
-    _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB);
-    return;
+    return results;
   }
 
-  var aJobs=getFilteredJobs(dates.a.start,dates.a.end);
-  var bJobs=dates.b?getFilteredJobs(dates.b.start,dates.b.end):[];
+  var aJobs=await fetchJobsInRange(dates.a.start,dates.a.end);
+  var bJobs=dates.b?await fetchJobsInRange(dates.b.start,dates.b.end):[];
   var hasB=dates.b!==null;
   _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB);
 }
