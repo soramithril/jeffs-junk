@@ -1795,14 +1795,19 @@ async function loadAllFromSupabase() {
     clients = [];
 
     hideLoading();
-    // ── Auto-mark past bin jobs as picked up on load ────────
+    // ── Auto-mark bins as picked up only when their pickup date has passed ──
     var today2 = todayStr();
-    var pastBinJobs = await db.from('jobs').select('job_id').eq('service','Bin Rental').lt('date', today2).neq('bin_instatus','pickedup');
+    var pastBinJobs = await db.from('jobs').select('job_id')
+      .eq('service','Bin Rental')
+      .neq('bin_instatus','pickedup')
+      .not('bin_pickup','is',null)
+      .lt('bin_pickup', today2);
     if (pastBinJobs.data && pastBinJobs.data.length) {
       var ids = pastBinJobs.data.map(function(r){return r.job_id;});
       await db.from('jobs').update({bin_instatus:'pickedup'}).in('job_id',ids);
       jobs.forEach(function(j){
-        if(j.service==='Bin Rental'&&j.date<today2&&j.binInstatus!=='pickedup') j.binInstatus='pickedup';
+        if(j.service==='Bin Rental'&&j.binPickup&&j.binPickup<today2&&j.binInstatus!=='pickedup')
+          j.binInstatus='pickedup';
       });
     }
     renderDash();
@@ -1901,14 +1906,36 @@ render = function(name) {
   _origRender(name);
 };
 
-// Load all bin rental jobs from Supabase, then render the Bin Fleet page
+// Load active + upcoming bin rental jobs from Supabase, then render Bin Fleet
 async function loadBinJobsThenRender() {
   try {
-    var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').order('date',{ascending:false});
-    var binJobs = (r.data || []).map(dbToJob);
+    var today = todayStr();
+    // Fetch all bin jobs that are: active (In Progress/Pending) OR have a future/current pickup date
+    var [rActive, rUpcoming] = await Promise.all([
+      // Currently active: In Progress or Pending, not picked up
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .in('status',['In Progress','Pending'])
+        .neq('bin_instatus','pickedup'),
+      // Has a bin_pickup date on or after today (bin still out or scheduled)
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .neq('status','Cancelled')
+        .neq('bin_instatus','pickedup')
+        .gte('bin_pickup', today)
+    ]);
+    var seen = {};
+    var binJobs = [];
+    [(rActive.data||[]), (rUpcoming.data||[])].forEach(function(arr){
+      arr.map(dbToJob).forEach(function(j){
+        if(!seen[j.id]){ seen[j.id]=true; binJobs.push(j); }
+      });
+    });
     // Merge into local jobs array without duplicates
     binJobs.forEach(function(j) {
-      if (!jobs.find(function(x){return x.id===j.id;})) jobs.push(j);
+      var idx = jobs.findIndex(function(x){return x.id===j.id;});
+      if(idx >= 0) jobs[idx] = j; // update with fresh data
+      else jobs.push(j);
     });
   } catch(e) {
     console.error('Error loading bin jobs:', e);
@@ -2057,7 +2084,18 @@ async function saveClient(e){
   }catch(ex){alert('saveClient error: '+ex.message);console.error(ex);}
 }
 
-function jobIdCls(id,svc){if(!id)return 'job-id-bin';if(id.startsWith('BIN-'))return 'job-id-bin';if(id.startsWith('JUNK-'))return 'job-id-junk';if(id.startsWith('QT-'))return 'job-id-quote';if(svc==='Junk Quote')return 'job-id-quote';return 'job-id-furn';}
+function jobIdCls(id,svc){
+  if(id&&id.startsWith('BIN-'))return 'job-id-bin';
+  if(id&&id.startsWith('JUNK-'))return 'job-id-junk';
+  if(id&&id.startsWith('QT-'))return 'job-id-quote';
+  if(id&&id.startsWith('FB-'))return 'job-id-furn';
+  // fallback by service type
+  if(svc==='Bin Rental')return 'job-id-bin';
+  if(svc==='Junk Removal')return 'job-id-junk';
+  if(svc==='Junk Quote')return 'job-id-quote';
+  if(svc==='Furniture Pickup'||svc==='Furniture Delivery')return 'job-id-furn';
+  return 'job-id-bin';
+}
 function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d;}
 function ft(t){if(!t)return '';var p=t.split(':'),h=parseInt(p[0]);return (h%12||12)+':'+(p[1]||'00')+' '+(h>=12?'PM':'AM');}
 function fm(v){var n=parseFloat(v);return isNaN(n)?'—':'$'+n.toFixed(2);}
@@ -2309,11 +2347,11 @@ function shiftWeek(n){weekOffset+=n;renderWeekCal();}
 function goToday(){weekOffset=0;renderWeekCal();}
 function makeDashRows(list){
   if(!list.length) return '<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td><td>'+stb(j.status)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td><td>'+stb(j.status)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
 }
 function makeDashRowsFurn(list){
   if(!list.length) return '<tr><td colspan="6" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td><td>'+stb(j.status)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td><td>'+stb(j.status)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
 }
 function renderDashLongBins(){
   var threshold=parseInt((document.getElementById('dash-days-threshold')||{}).value)||7;
@@ -2372,7 +2410,7 @@ async function renderDash(){
     // This week's revenue
     db.from('jobs').select('price').gte('date', weekStartS).neq('status','Cancelled'),
     // Bin counts — active bins currently out (dropped, not yet picked up)
-    db.from('jobs').select('bin_instatus,bin_size').eq('service','Bin Rental').eq('status','In Progress').neq('bin_instatus','pickedup'),
+    db.from('jobs').select('bin_instatus,bin_size').eq('service','Bin Rental').eq('bin_instatus','dropped'),
     // Junk count this month
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date', monthStart),
     // Furniture count this month
@@ -2989,7 +3027,7 @@ async function openClientDetail(cid){
       dropInfo=j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:#22c55e">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
     }
     return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\')" style="cursor:pointer">'
-      +'<td>'+jid(j.id)+'</td>'
+      +'<td>'+jid(j.id,j.service)+'</td>'
       +'<td>'+sb(j.service)+binInfo+'</td>'
       +'<td>'+fd(j.date)+'</td>'
       +'<td>'+stb(j.status)+'</td>'
@@ -3507,7 +3545,13 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   var dayShort=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   function buildDayChart(jobSet,color){
     var counts=[0,0,0,0,0,0,0];
-    jobSet.forEach(function(j){var d=new Date(j.date);counts[d.getDay()]++;});
+    jobSet.forEach(function(j){
+      // Parse YYYY-MM-DD directly to avoid UTC→local timezone day shift
+      var parts=j.date?j.date.split('-'):null;
+      if(!parts||parts.length<3)return;
+      var d=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+      counts[d.getDay()]++;
+    });
     var bIdx=counts.indexOf(Math.max.apply(null,counts));
     var data=dayShort.map(function(n,i){return{key:n,val:counts[i]};});
     return{html:makeBarChart(data,function(k,i){return i===bIdx?color:'rgba(34,197,94,.25)';}),busiestDay:dayNames[bIdx],busiestCount:counts[bIdx]};
@@ -3674,7 +3718,6 @@ function sizePill(s){var cls=s==='4 yard'?'sp-4':s==='7 yard'?'sp-7':s==='14 yar
 function typePill(t){var cls=t==='wide'||t==='low'?'tc-low':'tc-reg';var lbl=t==='wide'||t==='low'?'Low-Wide':'Regular';return '<span class="tc '+cls+'">'+lbl+'</span>';}
 function binsOutOnDate(dateStr){
   var count=0;
-  var seen={};
   jobs.forEach(function(j){
     if(j.service!=='Bin Rental')return;
     if(j.status==='Cancelled')return;
@@ -3682,19 +3725,17 @@ function binsOutOnDate(dateStr){
     var drop=j.binDropoff||j.date;
     var pick=j.binPickup;
     if(!drop)return;
-    // Only count jobs that have a pickup date OR are within 30 days of dropoff
-    // This prevents old open-ended jobs from counting forever
     if(pick){
+      // Has a scheduled pickup — count only in the dropoff→pickup window
       if(dateStr>=drop&&dateStr<=pick) count++;
     } else {
-      // No pickup date: assume max 30-day rental window
+      // No pickup date set — count from dropoff up to 30 days
       var dropD=new Date(drop+'T12:00:00');
       var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
       var maxPickStr=maxPick.toISOString().split('T')[0];
       if(dateStr>=drop&&dateStr<=maxPickStr) count++;
     }
   });
-  // Never exceed total fleet size
   return Math.min(count, binItems.length);
 }
 function renderBinInventory(){
@@ -3782,6 +3823,12 @@ function renderTimeline(){
   });
 
   // For each date, count how many jobs of each size are active
+  // Pre-compute fleet count per size once
+  var fleetBySize={};
+  sizes.forEach(function(s){
+    fleetBySize[s]=binItems.filter(function(b){return b.size===s;}).length;
+  });
+
   function outBySize(ds){
     var out={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
     binJobs.forEach(function(j){
@@ -3798,11 +3845,7 @@ function renderTimeline(){
       }
       if(active&&out.hasOwnProperty(j.binSize))out[j.binSize]++;
     });
-    // Cap each size at its fleet count
-    sizes.forEach(function(s){
-      var fleetCount=binItems.filter(function(b){return b.size===s;}).length;
-      out[s]=Math.min(out[s],fleetCount);
-    });
+    sizes.forEach(function(s){ out[s]=Math.min(out[s],fleetBySize[s]||0); });
     return out;
   }
 
