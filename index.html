@@ -608,10 +608,11 @@ textarea{resize:vertical;min-height:80px;}
   <div style="margin-bottom:24px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)">BIN STATUS</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted)">Date:</span>
-        <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="updateDashBinStats()">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();updateDashBinStats()">Today</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(-1)">‹</button>
+        <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats()">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats()">Today</button>
+        <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(1)">›</button>
       </div>
     </div>
     <!-- 4 bin size cards -->
@@ -2231,37 +2232,56 @@ function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 
 // ─── DASHBOARD ───
 function getWeekStart(offset){var d=new Date();d.setDate(d.getDate()-d.getDay()+(offset*7));d.setHours(0,0,0,0);return d;}
-function updateDashBinStats(overrideBinsOut, skipFleetBar){
-  var datePicker=document.getElementById('dash-bin-date');
-  var dateStr=datePicker?datePicker.value:todayStr();
-  if(!dateStr)dateStr=todayStr();
-  var binsOut=(overrideBinsOut!==undefined)?overrideBinsOut:binsOutOnDate(dateStr);
+// Shift the dashboard bin date picker by n days and refresh
+function shiftDashDate(n){
+  var dp=document.getElementById('dash-bin-date');
+  var base=dp&&dp.value?dp.value:todayStr();
+  var d=new Date(base+'T12:00:00');
+  d.setDate(d.getDate()+n);
+  dp.value=d.toISOString().split('T')[0];
+  refreshDashBinStats();
+}
+
+// Supabase-powered bin stats refresh — works on load and for any date
+async function refreshDashBinStats(){
+  var dp=document.getElementById('dash-bin-date');
+  var dateStr=dp&&dp.value?dp.value:todayStr();
   var totalBins=binItems.length;
-  var binsIn=Math.max(0,totalBins-binsOut);
-  if(!skipFleetBar){
-    animCount(document.getElementById('s-bins-out'),binsOut);
-    animCount(document.getElementById('s-bins-in'),binsIn);
-    var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins);
-    var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
-    setTimeout(function(){
-      var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
-      var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% of fleet currently deployed';
-    },50);
-    document.getElementById('m-bins').textContent=binsOut;
-  }
-  // Per size breakdown — big hero numbers
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
-  var sizeOut={};sizes.forEach(function(s){sizeOut[s]=0;});
-  var sizeTotal={};sizes.forEach(function(s){sizeTotal[s]=binItems.filter(function(b){return b.size===s;}).length;});
-  var binJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled';});
-  binJobs.forEach(function(j){
-    var drop=j.binDropoff||j.date;var pick=j.binPickup;
-    if(!drop)return;
-    if(dateStr>=drop&&(!pick||dateStr<=pick)&&j.binSize&&sizeOut.hasOwnProperty(j.binSize))sizeOut[j.binSize]++;
+
+  // Fetch all active bin rentals dropped on or before the selected date
+  var r=await db.from('jobs').select('bin_size,bin_dropoff,bin_pickup,bin_instatus,date')
+    .eq('service','Bin Rental').neq('status','Cancelled')
+    .lte('bin_dropoff',dateStr);
+
+  var rows=(r.data||[]).filter(function(row){
+    if(row.bin_instatus==='pickedup')return false;       // already returned
+    if(row.bin_pickup&&row.bin_pickup<dateStr)return false; // picked up before this date
+    return true;
   });
+
+  var sizeOut={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
+  rows.forEach(function(row){if(sizeOut.hasOwnProperty(row.bin_size))sizeOut[row.bin_size]++;});
+
+  var binsOut=Math.min(rows.length,totalBins);
+  var binsIn=Math.max(0,totalBins-binsOut);
+  var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
+
+  animCount(document.getElementById('s-bins-out'),binsOut);
+  animCount(document.getElementById('s-bins-in'),binsIn);
+  var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins);
+  document.getElementById('m-bins').textContent=binsOut;
+  setTimeout(function(){
+    var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
+    var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% of fleet deployed on '+dateStr;
+  },50);
+
+  // Per-size cards
+  var sizeTotal={};
+  sizes.forEach(function(s){sizeTotal[s]=binItems.filter(function(b){return b.size===s;}).length;});
   var sizeHtml=sizes.map(function(s){
-    var out=sizeOut[s];var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
+    var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;border-top:5px solid '+sizeColors[s]+';box-shadow:0 4px 16px rgba(0,0,0,.15)">'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:72px;line-height:1;color:#22c55e;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.2)">'+inY+'</div>'
@@ -2273,33 +2293,11 @@ function updateDashBinStats(overrideBinsOut, skipFleetBar){
       +'<button onclick="bookBin(\''+s+'\')" style="margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">📅 Book This Size</button>'
       +'</div>';
   }).join('');
-  var sizeContainer=document.getElementById('dash-bin-by-size');
-  if(sizeContainer)sizeContainer.innerHTML=sizeHtml;
+  var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
 }
-// Called from renderDash with accurate Supabase-derived counts
-function updateDashBinStatsDirect(totalOut, sizeOutMap){
-  var sizes=['4 yard','7 yard','14 yard','20 yard'];
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#fbbf24','14 yard':'#fb923c','20 yard':'#f87171'};
-  var BN="\'Bebas Neue\',sans-serif";
-  var DM="\'DM Sans\',sans-serif";
-  var sizeHtml=sizes.map(function(s){
-    var out=sizeOutMap[s]||0;
-    var tot=binItems.filter(function(b){return b.size===s;}).length;
-    var inY=Math.max(0,tot-out);
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;border-top:5px solid '+sizeColors[s]+';box-shadow:0 4px 16px rgba(0,0,0,.15)">'
-      +'<div style="font-family:'+BN+';font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
-      +'<div style="font-family:'+BN+';font-size:72px;line-height:1;color:#22c55e;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.2)">'+inY+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
-      +'<div style="display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);padding-top:10px">'
-      +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:'+BN+';font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
-      +'<div style="flex:1;padding:0 4px"><div style="font-family:'+BN+';font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
-      +'</div>'
-      +'<button onclick="bookBin(\'' +s+ '\')" style="margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:'+DM+';font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">Book This Size</button>'
-      +'</div>';
-  }).join('');
-  var sizeContainer=document.getElementById('dash-bin-by-size');
-  if(sizeContainer)sizeContainer.innerHTML=sizeHtml;
-}
+// Legacy aliases — any old calls route to the new Supabase-powered function
+function updateDashBinStats(){refreshDashBinStats();}
+function updateDashBinStatsDirect(){refreshDashBinStats();}
 async function renderWeekCal(){
   var ws=getWeekStart(weekOffset),we=new Date(ws);we.setDate(we.getDate()+6);
   var today=new Date();today.setHours(0,0,0,0);
@@ -2383,7 +2381,7 @@ async function renderDash(){
   var monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 
   var datePicker = document.getElementById('dash-bin-date');
-  if (datePicker && !datePicker.value) datePicker.value = todayS;
+  datePicker.value = todayS;  // always start on today when dashboard loads
   document.getElementById('today-lbl').textContent = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
   // ── Fetch all stats in parallel from Supabase ──────────────
@@ -2441,24 +2439,8 @@ async function renderDash(){
   animCount(document.getElementById('s-month-rev'), Math.round(monthRev), '$');
   document.getElementById('m-active').textContent = active;
 
-  // ── Bin stats ──────────────────────────────────────────────
-  var totalBins = binItems.length;
-  var binsOut   = (rBinCounts.data||[]).length;  // from Supabase: In Progress + not picked up
-  var binsIn    = Math.max(0, totalBins - binsOut);
-  var outPct    = totalBins ? Math.round(binsOut/totalBins*100) : 0;
-  animCount(document.getElementById('s-bins-out'), binsOut);
-  animCount(document.getElementById('s-bins-in'), binsIn);
-  var totalEl = document.getElementById('s-bins-total'); if(totalEl) animCount(totalEl, totalBins);
-  document.getElementById('m-bins').textContent = binsOut;
-  // Build per-size out counts from Supabase data
-  var dashSizeOut = {'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
-  (rBinCounts.data||[]).forEach(function(r){ if(dashSizeOut.hasOwnProperty(r.bin_size)) dashSizeOut[r.bin_size]++; });
-  setTimeout(function(){
-    var ob=document.getElementById('s-bins-out-bar'); if(ob) ob.style.width=outPct+'%';
-    var pl=document.getElementById('s-bins-pct-lbl'); if(pl) pl.textContent=outPct+'% of fleet currently deployed';
-    // Update per-size breakdown using Supabase counts (not local jobs[])
-    updateDashBinStatsDirect(binsOut, dashSizeOut);
-  },50);
+  // ── Bin stats — delegated to refreshDashBinStats (Supabase-powered) ──────
+  refreshDashBinStats();
 
   // ── Week stats ─────────────────────────────────────────────
   var wjEl = document.getElementById('s-week-jobs'); if(wjEl) animCount(wjEl, weekJobs);
