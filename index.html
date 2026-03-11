@@ -1439,6 +1439,20 @@ textarea{resize:vertical;min-height:80px;}
           </select>
           <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
         </div>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select id="f-paymethod">
+            <option value="">— Not set —</option>
+            <option value="Cash">Cash</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Debit">Debit</option>
+            <option value="E-Transfer">E-Transfer</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Invoice">Invoice</option>
+          </select>
+        </div>
+        <input type="hidden" id="f-price" value="">
+        <input type="hidden" id="f-paid" value="Unpaid">
         <div class="form-group full"><label>Notes</label><textarea id="f-notes" placeholder="Job details..."></textarea></div>
       </div>
       <div id="bin-extra" style="display:none;margin-top:16px">
@@ -4781,7 +4795,7 @@ function saveJob(e){
     time:      document.getElementById('f-time').value,
     price:     '',
     paid:      'Unpaid',
-    payMethod: '',
+    payMethod: document.getElementById('f-paymethod').value,
     referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
     clientId:  cid || '',
@@ -4879,11 +4893,11 @@ function openDetail(id){
   }
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ Customer Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
-    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+stb(j.status)+'<span class="badge '+(j.paid==='Paid'?'badge-progress':'badge-pending')+'">'+(j.paid==='Paid'?'✅ Paid':'⏳ Unpaid')+'</span>'+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
+    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+stb(j.status)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address||'—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
-    +'<div class="detail-section"><div class="detail-section-title">💰 Billing</div><div class="detail-grid"><div class="detail-item"><label>Price</label><span style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--accent)">'+fm(j.price)+'</span></div><div class="detail-item"><label>Payment</label><span style="color:'+(j.paid==='Paid'?'var(--green)':'var(--yellow)')+'">'+j.paid+(j.payMethod?' · '+j.payMethod:'')+'</span></div>'+paymentInfo+'</div>'+etransferNote+'</div>'
+    +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
@@ -4893,7 +4907,6 @@ function openDetail(id){
     +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')">✏️ Edit</button>'
     +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')">🗑️ Delete</button>'
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-weight:700" onclick="convertQuoteToJob(\''+j.id+'\')">⚡ Convert to Job</button>':'')
-    +(j.paid!=='Paid'?'<button class="btn btn-ghost" onclick="markPaid(\''+j.id+'\')">✅ Mark Paid</button>':'')
     +(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e" onclick="markDropped(\''+j.id+'\')">🚛 Mark Dropped</button>':'')
     +(j.service==='Bin Rental'&&j.binInstatus==='dropped'?'<button class="btn btn-ghost" style="border-color:rgba(234,179,8,.4);color:#eab308;font-size:13px" onclick="markNotDropped(\''+j.id+'\')">↩ Not Dropped Yet</button>':'')
     +(j.service==='Bin Rental'&&j.binInstatus==='dropped'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e" onclick="markBinPickedUp2(\''+j.id+'\')">🚚 Mark Picked Up</button>':'')
