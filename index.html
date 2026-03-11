@@ -1465,7 +1465,7 @@ textarea{resize:vertical;min-height:80px;}
       <div class="modal-title" id="modal-ttl">New Job</div>
       <button class="modal-close" onclick="closeM('job-modal')">&#x2715;</button>
     </div>
-    <form onsubmit="saveJob(event)" novalidate>
+    <form onsubmit="return false;" novalidate>
       <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--accent)">
         👤 <strong>Search existing client</strong> or fill in new customer info below
       </div>
@@ -2229,6 +2229,19 @@ function nextId(svc){
   if(svc==='Junk Removal'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('JUNK-');}).map(function(j){return parseInt(j.id.replace('JUNK-',''))||0;});return 'JUNK-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
   if(svc==='Junk Quote'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('QT-');}).map(function(j){return parseInt(j.id.replace('QT-',''))||0;});return 'QT-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
   var n=jobs.filter(function(j){return j.id&&j.id.startsWith('FB-');}).map(function(j){return parseInt(j.id.replace('FB-',''))||0;});return 'FB-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');
+}
+
+var _saveJobLock = false;
+async function nextIdFromDb(svc) {
+  var prefix = svc==='Bin Rental' ? 'BIN-' : svc==='Junk Removal' ? 'JUNK-' : svc==='Junk Quote' ? 'QT-' : 'FB-';
+  try {
+    var r = await db.from('jobs').select('job_id').like('job_id', prefix+'%').order('job_id',{ascending:false}).limit(1);
+    var maxNum = 0;
+    if(!r.error && r.data && r.data.length) maxNum = parseInt((r.data[0].job_id||'').replace(prefix,''))||0;
+    var localNums = jobs.filter(function(j){return j.id&&j.id.startsWith(prefix);}).map(function(j){return parseInt(j.id.replace(prefix,''))||0;});
+    if(localNums.length) maxNum = Math.max(maxNum, Math.max.apply(null,localNums));
+    return prefix + String(maxNum+1).padStart(5,'0');
+  } catch(ex) { console.warn('nextIdFromDb fallback:', ex); return nextId(svc); }
 }
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
 function nextClientId(){var n=clients.map(function(c){return parseInt((c.cid||'').replace('CL-',''))||0;});return 'CL-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
@@ -4859,8 +4872,10 @@ function openEdit(id){
     document.getElementById('job-modal').classList.add('open');
   },150);
 }
-function saveJob(e){
+async function saveJob(e){
   if(e && e.preventDefault) e.preventDefault();
+  if(_saveJobLock){ console.warn("saveJob already running"); return; }
+  _saveJobLock = true;
 
   // Clear error banner
   var banner = document.getElementById('job-form-errors');
@@ -4923,7 +4938,7 @@ function saveJob(e){
   var userName  = userEmail.split('@')[0];
 
   var job = {
-    id:        editId || nextId(svc),
+    id:        editId || await nextIdFromDb(svc),
     service:   svc,
     status:    document.getElementById('f-status').value,
     name:      name,
@@ -4993,9 +5008,25 @@ function saveJob(e){
   }
 
   editId = null;
-  save();
+  try {
+    var dbRow = jobToDb(job);
+    console.log('Saving job:', dbRow.job_id, dbRow);
+    var dbRes = await db.from('jobs').upsert(dbRow, {onConflict:'job_id'});
+    if(dbRes.error){
+      alert('\u274c Error saving job: ' + dbRes.error.message);
+      console.error('saveJob error:', dbRes.error);
+      _saveJobLock = false; return;
+    }
+    _clientStatsCache = null;
+    toast('\u2705 ' + job.id + ' saved!');
+  } catch(ex){
+    alert('\u274c Exception: ' + ex.message);
+    console.error(ex);
+    _saveJobLock = false; return;
+  }
+  _saveJobLock = false;
   closeM('job-modal');
-  refresh();
+  loadJobsPage(jobsPage);
 }
 function delJob(id){
   if(!confirm('Delete this job?'))return;
