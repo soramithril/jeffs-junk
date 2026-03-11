@@ -518,13 +518,7 @@ textarea{resize:vertical;min-height:80px;}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="./supabase.js"></script>
-<script>
-  // Init db immediately after supabase.js loads, in its own block so nothing can break it
-  var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
-  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
-  var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -1610,7 +1604,9 @@ textarea{resize:vertical;min-height:80px;}
 // ═══════════════════════════════════════
 //  SUPABASE CONNECTION
 // ═══════════════════════════════════════
-// db already initialized in head script block
+var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Title Case helper ──────────────────────────────────────────────────────
 // ── Background job phone backfill (runs once on startup) ──────────────────
@@ -2737,22 +2733,10 @@ async function renderDash(){
   function makeTodayCat(title,color,list){
     if(!list.length) return '';
     return '<div style="margin-bottom:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:5px">'+title+' ('+list.length+')</div>'
-      +list.map(function(j){
-        var ph=j.phone||'';
-        var callBtn=ph
-          ?'<a href="tel:'+ph+'" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap">📞 Call '+ph+'</a>'
-          :'<span style="font-size:11px;color:var(--muted);font-style:italic">No phone on file</span>';
-        return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:6px;cursor:pointer;background:var(--surface2)" onclick="openDetail(''+j.id+'')">'
-          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
-          +'<strong style="font-size:14px">'+j.name+'</strong>'
-          +(j.confirmed?'<span style="font-size:11px;color:#22c55e;font-weight:600">✅ Confirmed</span>':'<span style="font-size:11px;color:#eab308;font-weight:600">⚠️ Unconfirmed</span>')
-          +'</div>'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">'
-          +callBtn
-          +'<span style="font-size:11px;color:var(--muted)">'+(j.time?ft(j.time)+' · ':'')+j.id+'</span>'
-          +'</div>'
-          +'</div>';
-      }).join('')+'</div>';
+      +list.map(function(j){return'<div style="padding:7px 10px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:5px;cursor:pointer;background:var(--surface2)" onclick="openDetail(\''+j.id+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+j.name+'</strong><span style="font-size:12px;color:var(--accent);font-weight:700">'+fm(j.price)+'</span></div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+(j.time?ft(j.time)+' · ':'')+j.id+(j.confirmed?'<span style="margin-left:6px;color:#22c55e">✅</span>':'<span style="margin-left:6px;color:#eab308">📞?</span>')+'</div>'
+      +'</div>';}).join('')+'</div>';
   }
   var todayHtml = makeTodayCat('🚛 Bin Deliveries','#22c55e',todayBinDropoffs)
     +makeTodayCat('🚚 Bin Pickups','#4ade80',todayBinPickups)
@@ -4869,25 +4853,6 @@ function delJob(id){
 }
 function openDetail(id){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
-  // If phone is missing, try to pull it from the client record
-  if(!j.phone && j.clientId){
-    db.from('clients').select('phone').eq('cid',j.clientId).single().then(function(rc){
-      if(!rc.error&&rc.data&&rc.data.phone){
-        j.phone=rc.data.phone;
-        // Re-render detail with the phone now filled in
-        openDetail(id);
-      }
-    });
-  } else if(!j.phone && j.name){
-    db.from('clients').select('cid,phone').ilike('name',j.name.trim()).limit(1).then(function(rc){
-      if(!rc.error&&rc.data&&rc.data[0]&&rc.data[0].phone){
-        j.phone=rc.data[0].phone;
-        if(rc.data[0].cid) j.clientId=rc.data[0].cid;
-        db.from('jobs').update({phone:j.phone,client_cid:j.clientId}).eq('job_id',id);
-        openDetail(id);
-      }
-    });
-  }
   document.getElementById('det-ttl').textContent=j.id;
   var bin='';
   if(j.service==='Bin Rental'){
@@ -5332,12 +5297,6 @@ var adminUnlocked = false;
 var appLoaded = false;
 
 // Check if already logged in on page load
-if (typeof db === 'undefined') {
-  window.db = db = supabase.createClient(
-    'https://okoqzbdyfjfgcdgmcamq.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w'
-  );
-}
 db.auth.getSession().then(function(r) {
   if (r.data && r.data.session) {
     currentUser = r.data.session.user;
@@ -5369,19 +5328,6 @@ async function doLogin() {
   var errEl = document.getElementById('login-error');
   var btn   = document.getElementById('login-btn');
   if (!email || !pass) { errEl.textContent = 'Please enter your email and password.'; return; }
-  // Re-init db if somehow undefined (e.g. script loaded late)
-  if (typeof db === 'undefined') {
-    try {
-      window.db = supabase.createClient(
-        'https://okoqzbdyfjfgcdgmcamq.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w'
-      );
-      db = window.db;
-    } catch(e) {
-      errEl.textContent = 'App failed to load — please hard-refresh (Ctrl+Shift+R). Error: ' + e.message;
-      return;
-    }
-  }
   errEl.textContent = '';
   btn.textContent = 'Signing in...';
   btn.style.background = '#16a34a';
