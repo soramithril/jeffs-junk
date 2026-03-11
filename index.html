@@ -1465,7 +1465,7 @@ textarea{resize:vertical;min-height:80px;}
       <div class="modal-title" id="modal-ttl">New Job</div>
       <button class="modal-close" onclick="closeM('job-modal')">&#x2715;</button>
     </div>
-    <form onsubmit="return false;" novalidate>
+    <form onsubmit="saveJob(event)" novalidate>
       <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--accent)">
         👤 <strong>Search existing client</strong> or fill in new customer info below
       </div>
@@ -1919,6 +1919,16 @@ function deleteClientFromDb(cid) {
   });
 }
 
+function delClient(cid) {
+  if(!confirm('Delete this client? This cannot be undone.')) return;
+  clients = clients.filter(function(c){ return c.cid !== cid; });
+  deleteClientFromDb(cid);
+  _clientStatsCache = null;
+  closeM('client-detail-modal');
+  toast('Client deleted.');
+  loadClientsPage();
+}
+
 function saveBins() {
   if (!binItems.length) {
     db.from('bin_items').delete().neq('bid','__none__')
@@ -2219,48 +2229,6 @@ function nextId(svc){
   if(svc==='Junk Quote'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('QT-');}).map(function(j){return parseInt(j.id.replace('QT-',''))||0;});return 'QT-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
   var n=jobs.filter(function(j){return j.id&&j.id.startsWith('FB-');}).map(function(j){return parseInt(j.id.replace('FB-',''))||0;});return 'FB-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');
 }
-
-async function nextIdFromDb(svc) {
-  var prefix;
-  if(svc==='Bin Rental')        prefix='BIN-';
-  else if(svc==='Junk Removal') prefix='JUNK-';
-  else if(svc==='Junk Quote')   prefix='QT-';
-  else                          prefix='FB-';
-  try {
-    var r = await db.from('jobs').select('job_id').like('job_id', prefix+'%').order('job_id', {ascending:false}).limit(1);
-    var maxNum = 0;
-    if (!r.error && r.data && r.data.length) {
-      maxNum = parseInt((r.data[0].job_id||'').replace(prefix,'')) || 0;
-    }
-    var localNums = jobs.filter(function(j){return j.id&&j.id.startsWith(prefix);}).map(function(j){return parseInt(j.id.replace(prefix,''))||0;});
-    if(localNums.length) maxNum = Math.max(maxNum, Math.max.apply(null,localNums));
-    return prefix + String(maxNum+1).padStart(5,'0');
-  } catch(ex) {
-    console.warn('nextIdFromDb fallback:', ex);
-    return nextId(svc);
-  }
-}
-
-async function nextIdFromDb(svc) {
-  var prefix;
-  if(svc==='Bin Rental')        prefix='BIN-';
-  else if(svc==='Junk Removal') prefix='JUNK-';
-  else if(svc==='Junk Quote')   prefix='QT-';
-  else                          prefix='FB-';
-  try {
-    var r = await db.from('jobs').select('job_id').like('job_id', prefix+'%').order('job_id', {ascending:false}).limit(1);
-    var maxNum = 0;
-    if (!r.error && r.data && r.data.length) {
-      maxNum = parseInt((r.data[0].job_id||'').replace(prefix,'')) || 0;
-    }
-    var localNums = jobs.filter(function(j){return j.id&&j.id.startsWith(prefix);}).map(function(j){return parseInt(j.id.replace(prefix,''))||0;});
-    if(localNums.length) maxNum = Math.max(maxNum, Math.max.apply(null,localNums));
-    return prefix + String(maxNum+1).padStart(5,'0');
-  } catch(ex) {
-    console.warn('nextIdFromDb fallback:', ex);
-    return nextId(svc);
-  }
-}
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
 function nextClientId(){var n=clients.map(function(c){return parseInt((c.cid||'').replace('CL-',''))||0;});return 'CL-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
 
@@ -2399,10 +2367,9 @@ async function saveClient(e){
     clients.push(cl);
   }
   _clientStatsCache = null;
-  _clientStatsCache = null;
-  clientsPage = 0;
   toast(editClientId?'Client updated!':'Client added!');
   closeM('client-modal');
+  clientsPage = 0;
   loadClientsPage();
   }catch(ex){alert('saveClient error: '+ex.message);console.error(ex);}
 }
@@ -3518,13 +3485,12 @@ async function loadClientsPage() {
     return c;
   });
 
-  // Cache locally — update or insert, never duplicate
+  // Cache locally — upsert by cid, then deduplicate to prevent search duplicates
   allClients.forEach(function(c){
     var idx=clients.findIndex(function(x){return x.cid===c.cid;});
     if(idx>=0) clients[idx]=c; else clients.push(c);
   });
-  var _seen={};
-  clients=clients.filter(function(c){ if(!c.cid||_seen[c.cid]) return false; _seen[c.cid]=true; return true; });
+  var _seen={}; clients=clients.filter(function(c){ if(!c.cid||_seen[c.cid]) return false; _seen[c.cid]=true; return true; });
 
   // ── 6. Populate range dropdowns (uses full unfiltered list for accurate maxes)
   populateRangeDropdowns(allClients);
@@ -4888,11 +4854,8 @@ function openEdit(id){
     document.getElementById('job-modal').classList.add('open');
   },150);
 }
-async var _saveJobLock = false;
-async function saveJob(e){
+function saveJob(e){
   if(e && e.preventDefault) e.preventDefault();
-  if(_saveJobLock){ console.warn('saveJob already running'); return; }
-  _saveJobLock = true;
 
   // Clear error banner
   var banner = document.getElementById('job-form-errors');
@@ -4955,7 +4918,7 @@ async function saveJob(e){
   var userName  = userEmail.split('@')[0];
 
   var job = {
-    id:        editId || await nextIdFromDb(svc),
+    id:        editId || nextId(svc),
     service:   svc,
     status:    document.getElementById('f-status').value,
     name:      name,
@@ -5025,26 +4988,9 @@ async function saveJob(e){
   }
 
   editId = null;
-  try {
-    var dbRow = jobToDb(job);
-    console.log('Saving to DB:', dbRow.job_id, dbRow);
-    var dbRes = await db.from('jobs').upsert(dbRow, {onConflict:'job_id'});
-    if(dbRes.error) {
-      alert('❌ DB Error: ' + dbRes.error.message);
-      console.error('saveJob upsert error:', dbRes.error);
-      _saveJobLock = false; return;
-    }
-    console.log('Saved OK:', dbRow.job_id);
-    toast('✅ ' + job.id + ' saved!');
-    _clientStatsCache = null;
-  } catch(ex) {
-    alert('❌ Exception: ' + ex.message);
-    console.error('saveJob exception:', ex);
-    _saveJobLock = false; return;
-  }
-  _saveJobLock = false;
+  save();
   closeM('job-modal');
-  loadJobsPage(jobsPage);
+  refresh();
 }
 function delJob(id){
   if(!confirm('Delete this job?'))return;
