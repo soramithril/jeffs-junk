@@ -1824,22 +1824,6 @@ function dbToClient(r) {
 }
 
 // ── Map local job → Supabase DB row ───────────────────────
-// Cache of actual DB columns — discovered at runtime to avoid PGRST204 errors
-var _jobsDbColumns = null;
-async function getJobsColumns() {
-  if(_jobsDbColumns) return _jobsDbColumns;
-  // Fetch one row to discover real columns
-  var r = await db.from('jobs').select('*').limit(1);
-  if(!r.error && r.data && r.data.length) {
-    _jobsDbColumns = Object.keys(r.data[0]);
-  } else {
-    // Fallback: use a known-safe minimal set
-    _jobsDbColumns = ['job_id','service','status','name','phone','address','city','date','time','price','paid','notes','referral','confirmed','email_sent','client_cid'];
-  }
-  console.log('Discovered jobs columns:', _jobsDbColumns);
-  return _jobsDbColumns;
-}
-
 function jobToDb(j) {
   return {
     job_id:      j.id,
@@ -1873,13 +1857,6 @@ function jobToDb(j) {
     created_by_email: j.createdByEmail  || null,
     edited_by_email:  j.editedByEmail   || null,
   };
-}
-
-// Strip keys not in actual DB schema to prevent PGRST204 errors
-function stripToDbColumns(row, columns) {
-  var safe = {};
-  columns.forEach(function(col){ if(col in row) safe[col] = row[col]; });
-  return safe;
 }
 
 // ── Map local client → Supabase DB row ────────────────────
@@ -4931,13 +4908,13 @@ async function saveJob(e){
       banner.innerHTML = '⚠️ Please fix the following:<ul style="margin:6px 0 0 16px">' + errs.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul>';
       banner.style.display = 'block';
     }
-    return;
+    _saveJobLock = false; return;
   }
 
   // Vehicle availability warning
   if(!editId){
     var avail=checkVehicleAvailability(svc,date);
-    if(!avail.ok&&!confirm(avail.msg))return;
+    if(!avail.ok&&!confirm(avail.msg)){_saveJobLock=false;return;}
   }
 
   var cid    = document.getElementById('f-client-select').value;
@@ -5032,9 +5009,7 @@ async function saveJob(e){
 
   editId = null;
   try {
-    var allCols = await getJobsColumns();
-    var dbRow = stripToDbColumns(jobToDb(job), allCols);
-    console.log('Columns being sent:', Object.keys(dbRow));
+    var dbRow = jobToDb(job);
     console.log('Saving job:', dbRow.job_id, dbRow);
     var dbRes = await db.from('jobs').upsert(dbRow, {onConflict:'job_id'});
     if(dbRes.error){
