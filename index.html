@@ -1013,11 +1013,19 @@ body.light-mode .atabs-wrap{
   </div>
   <div class="filters-bar" style="flex-wrap:wrap;gap:8px;row-gap:8px;">
     <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Search by name, phone, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;width:100%;max-width:300px">
-    <span style="font-size:12px;color:var(--muted)">Sort:</span>
-    <button class="filter-chip active" id="csort-alpha" onclick="setClientSort('alpha',this)">A–Z</button>
-    <button class="filter-chip" id="csort-jobs" onclick="setClientSort('jobs',this)">Most Jobs</button>
-    <button class="filter-chip" id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
-    <button class="filter-chip" id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Sort</span>
+      <!-- Animated sort tabs -->
+      <div class="atabs-wrap" id="atabs-csort" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-csort-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" id="csort-alpha"   onclick="setClientSort('alpha',this)">A–Z</button>
+          <button class="atab"        id="csort-jobs"    onclick="setClientSort('jobs',this)">Most Jobs</button>
+          <button class="atab"        id="csort-recent"  onclick="setClientSort('recent',this)">Recent</button>
+          <button class="atab"        id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
+        </div>
+      </div>
+    </div>
     <!-- Per-service min/max range filters -->
     <div id="client-range-panel" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
       <!-- Panel header -->
@@ -1126,12 +1134,18 @@ body.light-mode .atabs-wrap{
 
   <!-- Period selector -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
       <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">View Period</span>
-      <button class="chart-filter active" id="af-week" onclick="setAnalyticsPeriod('week',this)">Week</button>
-      <button class="chart-filter" id="af-month" onclick="setAnalyticsPeriod('month',this)">Month</button>
-      <button class="chart-filter" id="af-year" onclick="setAnalyticsPeriod('year',this)">Year</button>
-      <button class="chart-filter" id="af-all" onclick="setAnalyticsPeriod('all',this)">All Time</button>
+      <!-- Animated period tabs -->
+      <div class="atabs-wrap" id="atabs-analytics" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-analytics-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" id="af-week"  onclick="setAnalyticsPeriod('week',this)">Week</button>
+          <button class="atab"        id="af-month" onclick="setAnalyticsPeriod('month',this)">Month</button>
+          <button class="atab"        id="af-year"  onclick="setAnalyticsPeriod('year',this)">Year</button>
+          <button class="atab"        id="af-all"   onclick="setAnalyticsPeriod('all',this)">All Time</button>
+        </div>
+      </div>
     </div>
     <!-- Week pickers -->
     <div id="an-week-pickers" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -2565,9 +2579,9 @@ function atabsSync(groupId) {
   hl.style.width = tabRect.width + 'px';
 }
 
-// Sync all 4 groups at once
+// Sync all groups at once
 function atabsSyncAll() {
-  ['svc','status','date','bin'].forEach(atabsSync);
+  ['svc','status','date','bin','csort','analytics'].forEach(atabsSync);
 }
 
 // Patch the existing filter setters to also sync tabs
@@ -2577,12 +2591,11 @@ var _origSetJobDateFilter = typeof setJobDateFilter === 'function' ? setJobDateF
 var _origSetBinDropFilter = typeof setBinDropFilter === 'function' ? setBinDropFilter : null;
 
 function _patchAtabs() {
-  // Wrap each setter to sync highlight after state change
+  // Jobs: service
   if (typeof setSvc === 'function') {
     var _s = setSvc;
     setSvc = function(v, el) {
       _s(v, el);
-      // Move active class to clicked tab
       if (el) {
         document.querySelectorAll('#atabs-svc .atab').forEach(function(b){ b.classList.remove('active'); });
         el.classList.add('active');
@@ -2590,6 +2603,7 @@ function _patchAtabs() {
       atabsSync('svc');
     };
   }
+  // Jobs: status
   if (typeof setJobStatus === 'function') {
     var _js = setJobStatus;
     setJobStatus = function(v, el) {
@@ -2601,6 +2615,7 @@ function _patchAtabs() {
       atabsSync('status');
     };
   }
+  // Jobs: date
   if (typeof setJobDateFilter === 'function') {
     var _jd = setJobDateFilter;
     setJobDateFilter = function(v, el) {
@@ -2612,6 +2627,7 @@ function _patchAtabs() {
       atabsSync('date');
     };
   }
+  // Jobs: bin drop
   if (typeof setBinDropFilter === 'function') {
     var _bd = setBinDropFilter;
     setBinDropFilter = function(v, el) {
@@ -2621,6 +2637,30 @@ function _patchAtabs() {
         el.classList.add('active');
       }
       atabsSync('bin');
+    };
+  }
+  // Clients: sort
+  if (typeof setClientSort === 'function') {
+    var _cs = setClientSort;
+    setClientSort = function(v, el) {
+      _cs(v, el);
+      if (el) {
+        document.querySelectorAll('#atabs-csort .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('csort');
+    };
+  }
+  // Analytics: period
+  if (typeof setAnalyticsPeriod === 'function') {
+    var _ap = setAnalyticsPeriod;
+    setAnalyticsPeriod = function(v, el) {
+      _ap(v, el);
+      if (el) {
+        document.querySelectorAll('#atabs-analytics .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('analytics');
     };
   }
 }
@@ -2717,8 +2757,8 @@ function render(name){
   if(name==='dashboard') renderDash();
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='calendar') renderCal();
-  else if(name==='clients') renderClients();
-  else if(name==='analytics') initAnalytics();
+  else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
+  else if(name==='analytics'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
   else if(name==='revenue') renderRevenue();
   else if(name==='utilization') renderUtilization();
   else if(name==='pricing') renderPricing();
