@@ -519,6 +519,12 @@ textarea{resize:vertical;min-height:80px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Fallback if jsdelivr CDN fails
+  if (typeof supabase === 'undefined') {
+    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+  }
+</script>
 </head>
 <body>
 
@@ -5359,6 +5365,11 @@ async function doLogin() {
   var errEl = document.getElementById('login-error');
   var btn   = document.getElementById('login-btn');
   if (!email || !pass) { errEl.textContent = 'Please enter your email and password.'; return; }
+  // Guard: make sure Supabase library loaded
+  if (typeof supabase === 'undefined' || typeof db === 'undefined') {
+    errEl.textContent = 'App failed to load (Supabase library missing). Please hard-refresh the page (Ctrl+Shift+R).';
+    return;
+  }
   errEl.textContent = '';
   btn.textContent = 'Signing in...';
   btn.style.background = '#16a34a';
