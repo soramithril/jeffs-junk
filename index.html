@@ -2219,6 +2219,7 @@ function nextId(svc){
   if(svc==='Junk Quote'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('QT-');}).map(function(j){return parseInt(j.id.replace('QT-',''))||0;});return 'QT-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
   var n=jobs.filter(function(j){return j.id&&j.id.startsWith('FB-');}).map(function(j){return parseInt(j.id.replace('FB-',''))||0;});return 'FB-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');
 }
+
 async function nextIdFromDb(svc) {
   var prefix;
   if(svc==='Bin Rental')        prefix='BIN-';
@@ -2231,12 +2232,11 @@ async function nextIdFromDb(svc) {
     if (!r.error && r.data && r.data.length) {
       maxNum = parseInt((r.data[0].job_id||'').replace(prefix,'')) || 0;
     }
-    // Also check local jobs in case of unsaved in-flight creates
     var localNums = jobs.filter(function(j){return j.id&&j.id.startsWith(prefix);}).map(function(j){return parseInt(j.id.replace(prefix,''))||0;});
     if(localNums.length) maxNum = Math.max(maxNum, Math.max.apply(null,localNums));
     return prefix + String(maxNum+1).padStart(5,'0');
   } catch(ex) {
-    console.warn('nextIdFromDb fell back to local:', ex);
+    console.warn('nextIdFromDb fallback:', ex);
     return nextId(svc);
   }
 }
@@ -2377,7 +2377,7 @@ async function saveClient(e){
   } else {
     clients.push(cl);
   }
-  _clientStatsCache = null; // force fresh load so new/edited client is visible
+  _clientStatsCache = null;
   toast(editClientId?'Client updated!':'Client added!');
   closeM('client-modal');
   renderClients();
@@ -3500,12 +3500,8 @@ async function loadClientsPage() {
     var idx=clients.findIndex(function(x){return x.cid===c.cid;});
     if(idx>=0) clients[idx]=c; else clients.push(c);
   });
-  // Deduplicate the local clients array by cid (guard against repeated search appends)
-  var seen={};
-  clients=clients.filter(function(c){
-    if(!c.cid||seen[c.cid]) return false;
-    seen[c.cid]=true; return true;
-  });
+  var _seen={};
+  clients=clients.filter(function(c){ if(!c.cid||_seen[c.cid]) return false; _seen[c.cid]=true; return true; });
 
   // ── 6. Populate range dropdowns (uses full unfiltered list for accurate maxes)
   populateRangeDropdowns(allClients);
@@ -5003,8 +4999,12 @@ async function saveJob(e){
   }
 
   editId = null;
-  saveSingleJob(job);    // only write this one job, not the whole paginated local array
-  _clientStatsCache = null;
+  try {
+    var dbRes = await db.from('jobs').upsert(jobToDb(job), {onConflict:'job_id'});
+    if(dbRes.error) { alert('❌ Job save error: ' + dbRes.error.message); console.error('saveJob DB error:', dbRes.error); return; }
+    _clientStatsCache = null;
+    toast(job.id + ' saved!');
+  } catch(ex) { alert('❌ saveJob exception: ' + ex.message); console.error(ex); return; }
   closeM('job-modal');
   refresh();
 }
