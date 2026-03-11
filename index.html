@@ -120,8 +120,42 @@ body.light-mode .chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
 .veh-blocked{background:rgba(239,68,68,.13)!important;}
 .veh-blocked-dot{display:block;font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
 
-/* ── VEHICLE PAGE ── */
-.bin-status-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px;}
+/* ── CLIENT RANGE FILTER PANEL ── */
+.crange-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:12px;transition:border-color .2s,background .2s;
+}
+.crange-card:hover{border-color:rgba(255,255,255,.12);}
+.crange-card.active-filter{
+  background:color-mix(in srgb, var(--surface2) 80%, transparent);
+  border-color:var(--card-color,var(--border));
+}
+.crange-card-header{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+.crange-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.crange-label{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;}
+.crange-inputs{display:flex;align-items:center;gap:6px;}
+.crange-field{display:flex;flex-direction:column;gap:3px;flex:1;}
+.crange-field-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;}
+.crange-select{
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:6px 8px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;
+  font-weight:500;cursor:pointer;width:100%;transition:border-color .15s;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+  padding-right:22px;
+}
+.crange-select:focus{outline:none;border-color:var(--accent);}
+.crange-select option{background:var(--surface2);}
+.crange-arrow{font-size:11px;color:var(--muted);flex-shrink:0;margin-top:12px;}
+@media(max-width:700px){
+  #client-range-grid{grid-template-columns:1fr 1fr!important;}
+}
+@media(max-width:420px){
+  #client-range-grid{grid-template-columns:1fr!important;}
+}
+
+
 .bin-stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;}
 .bin-stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.2);}
 .bin-stat-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;}
@@ -891,48 +925,96 @@ textarea{resize:vertical;min-height:80px;}
     <button class="filter-chip" id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
     <button class="filter-chip" id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
     <!-- Per-service min/max range filters -->
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;padding:8px 12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
-      <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-right:4px">Filter by job count:</span>
-      <!-- Bins -->
-      <span style="font-size:12px;color:var(--green);font-weight:600">🚛 Bins</span>
-      <select id="crange-bin-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-bin-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
-      <!-- Junk -->
-      <span style="font-size:12px;color:var(--yellow);font-weight:600">🧹 Junk</span>
-      <select id="crange-junk-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-junk-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
-      <!-- Furn -->
-      <span style="font-size:12px;color:var(--red);font-weight:600">🛋️ Furn</span>
-      <select id="crange-furn-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-furn-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
-      <!-- Total -->
-      <span style="font-size:12px;color:var(--text);font-weight:600">📋 Total</span>
-      <select id="crange-total-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-total-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" onclick="clearClientRangeFilters()" style="margin-left:6px;font-size:11px">✕ Clear</button>
+    <div id="client-range-panel" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <!-- Panel header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;" onclick="toggleClientRangePanel()">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--accent);flex-shrink:0"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)">Filter by Job Count</span>
+          <span id="client-range-active-badge" style="display:none;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.35);color:#22c55e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px">ACTIVE</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();clearClientRangeFilters()" id="client-range-clear-btn" style="font-size:11px;padding:4px 10px;opacity:0;pointer-events:none;transition:opacity .2s;">✕ Clear All</button>
+          <svg id="client-range-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--muted);transition:transform .25s;"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <!-- Panel body -->
+      <div id="client-range-body" style="padding:14px 16px;display:none;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="client-range-grid">
+          <!-- Bins -->
+          <div class="crange-card" data-color="#22c55e" data-color-dim="rgba(34,197,94,.12)">
+            <div class="crange-card-header">
+              <span class="crange-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.5)"></span>
+              <span class="crange-label" style="color:#22c55e">Bin Rentals</span>
+            </div>
+            <div class="crange-inputs">
+              <div class="crange-field">
+                <span class="crange-field-label">Min</span>
+                <select id="crange-bin-min" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+              <div class="crange-arrow">→</div>
+              <div class="crange-field">
+                <span class="crange-field-label">Max</span>
+                <select id="crange-bin-max" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+            </div>
+          </div>
+          <!-- Junk -->
+          <div class="crange-card" data-color="#eab308" data-color-dim="rgba(234,179,8,.12)">
+            <div class="crange-card-header">
+              <span class="crange-dot" style="background:#eab308;box-shadow:0 0 6px rgba(234,179,8,.5)"></span>
+              <span class="crange-label" style="color:#eab308">Junk Removal</span>
+            </div>
+            <div class="crange-inputs">
+              <div class="crange-field">
+                <span class="crange-field-label">Min</span>
+                <select id="crange-junk-min" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+              <div class="crange-arrow">→</div>
+              <div class="crange-field">
+                <span class="crange-field-label">Max</span>
+                <select id="crange-junk-max" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+            </div>
+          </div>
+          <!-- Furniture -->
+          <div class="crange-card" data-color="#ef4444" data-color-dim="rgba(239,68,68,.12)">
+            <div class="crange-card-header">
+              <span class="crange-dot" style="background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.5)"></span>
+              <span class="crange-label" style="color:#ef4444">Furniture</span>
+            </div>
+            <div class="crange-inputs">
+              <div class="crange-field">
+                <span class="crange-field-label">Min</span>
+                <select id="crange-furn-min" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+              <div class="crange-arrow">→</div>
+              <div class="crange-field">
+                <span class="crange-field-label">Max</span>
+                <select id="crange-furn-max" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+            </div>
+          </div>
+          <!-- Total -->
+          <div class="crange-card" data-color="#a78bfa" data-color-dim="rgba(167,139,250,.12)">
+            <div class="crange-card-header">
+              <span class="crange-dot" style="background:#a78bfa;box-shadow:0 0 6px rgba(167,139,250,.5)"></span>
+              <span class="crange-label" style="color:#a78bfa">Total Jobs</span>
+            </div>
+            <div class="crange-inputs">
+              <div class="crange-field">
+                <span class="crange-field-label">Min</span>
+                <select id="crange-total-min" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+              <div class="crange-arrow">→</div>
+              <div class="crange-field">
+                <span class="crange-field-label">Max</span>
+                <select id="crange-total-max" class="crange-select" onchange="applyClientRangeFilter()"><option value="">Any</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <button class="btn btn-ghost btn-sm" onclick="exportClientList()" title="Export filtered list">⬇ Export CSV</button>
   </div>
@@ -3173,6 +3255,41 @@ function populateRangeDropdowns(allClients) {
   fillSelect('crange-total-max', maxTotal, clientRangeFilter.totalMax);
 }
 
+function _updateRangePanelUI() {
+  var active = clientRangeActive();
+  var badge = document.getElementById('client-range-active-badge');
+  var clearBtn = document.getElementById('client-range-clear-btn');
+  if (badge) badge.style.display = active ? 'inline-block' : 'none';
+  if (clearBtn) { clearBtn.style.opacity = active ? '1' : '0'; clearBtn.style.pointerEvents = active ? 'auto' : 'none'; }
+  // Highlight active cards
+  var cardDefs = [
+    { ids:['crange-bin-min','crange-bin-max'],   card:0 },
+    { ids:['crange-junk-min','crange-junk-max'],  card:1 },
+    { ids:['crange-furn-min','crange-furn-max'],  card:2 },
+    { ids:['crange-total-min','crange-total-max'],card:3 },
+  ];
+  var cards = document.querySelectorAll('.crange-card');
+  cardDefs.forEach(function(def, i) {
+    var hasVal = def.ids.some(function(id){ var el=document.getElementById(id); return el&&el.value!==''; });
+    if (cards[i]) {
+      cards[i].classList.toggle('active-filter', hasVal);
+      var color = cards[i].getAttribute('data-color');
+      var dim   = cards[i].getAttribute('data-color-dim');
+      cards[i].style.borderColor = hasVal ? color : '';
+      cards[i].style.background  = hasVal ? dim   : '';
+    }
+  });
+}
+
+var _rangePanelOpen = false;
+function toggleClientRangePanel() {
+  _rangePanelOpen = !_rangePanelOpen;
+  var body = document.getElementById('client-range-body');
+  var chevron = document.getElementById('client-range-chevron');
+  if (body) body.style.display = _rangePanelOpen ? 'block' : 'none';
+  if (chevron) chevron.style.transform = _rangePanelOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
 function applyClientRangeFilter() {
   clientRangeFilter.binMin   = document.getElementById('crange-bin-min')   ? document.getElementById('crange-bin-min').value   : '';
   clientRangeFilter.binMax   = document.getElementById('crange-bin-max')   ? document.getElementById('crange-bin-max').value   : '';
@@ -3182,6 +3299,7 @@ function applyClientRangeFilter() {
   clientRangeFilter.furnMax  = document.getElementById('crange-furn-max')  ? document.getElementById('crange-furn-max').value  : '';
   clientRangeFilter.totalMin = document.getElementById('crange-total-min') ? document.getElementById('crange-total-min').value : '';
   clientRangeFilter.totalMax = document.getElementById('crange-total-max') ? document.getElementById('crange-total-max').value : '';
+  _updateRangePanelUI();
   clientsPage = 0;
   renderClients();
 }
@@ -3192,6 +3310,7 @@ function clearClientRangeFilters() {
    'crange-furn-min','crange-furn-max','crange-total-min','crange-total-max'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
+  _updateRangePanelUI();
   clientsPage = 0;
   renderClients();
 }
@@ -3362,6 +3481,7 @@ async function loadClientsPage() {
 
   // ── 6. Populate range dropdowns (uses full unfiltered list for accurate maxes)
   populateRangeDropdowns(allClients);
+  _updateRangePanelUI();
 
   // ── 6b. Apply range filters ────────────────────────────────────────────────
   if (clientRangeActive()) {
