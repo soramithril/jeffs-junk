@@ -551,20 +551,63 @@ textarea{resize:vertical;min-height:80px;}
   #dash-bin-fleet-card [style*="display:flex"][style*="justify-content:center"]{gap:12px!important;}
 }
 
-/* ── JOBS DOCK TOOLBAR ── */
-.jdock-item{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer;position:relative;padding:0 3px;}
-.jdock-icon{display:flex;align-items:center;justify-content:center;border-radius:12px;font-size:22px;line-height:1;transform-origin:bottom center;will-change:transform;width:44px;height:44px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.10);box-shadow:0 2px 8px rgba(0,0,0,0.3);user-select:none;transition:background .15s,border-color .15s;}
-.jdock-item:hover .jdock-icon{background:rgba(255,255,255,0.13);border-color:rgba(255,255,255,0.22);}
-.jdock-item.jdock-primary .jdock-icon{background:rgba(34,197,94,0.18);border-color:rgba(34,197,94,0.4);}
-.jdock-item.jdock-primary:hover .jdock-icon{background:rgba(34,197,94,0.3);border-color:rgba(34,197,94,0.6);}
-.jdock-tooltip{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);background:rgba(20,20,20,0.95);color:#f0f0f0;font-size:11px;font-weight:600;white-space:nowrap;padding:4px 9px;border-radius:7px;letter-spacing:.4px;pointer-events:none;opacity:0;transition:opacity .12s;border:1px solid rgba(255,255,255,0.12);box-shadow:0 4px 12px rgba(0,0,0,0.4);}
-.jdock-item:hover .jdock-tooltip{opacity:1;}
-.jdock-sep{width:1px;height:30px;background:rgba(255,255,255,0.1);margin:0 5px;align-self:center;flex-shrink:0;}
-body.light-mode #jobs-dock{background:rgba(235,235,235,0.9);border-color:rgba(0,0,0,0.1);box-shadow:0 8px 32px rgba(0,0,0,0.12);}
-body.light-mode .jdock-icon{background:rgba(0,0,0,0.05);border-color:rgba(0,0,0,0.1);color:#111;}
-body.light-mode .jdock-item:hover .jdock-icon{background:rgba(0,0,0,0.1);border-color:rgba(0,0,0,0.2);}
-body.light-mode .jdock-sep{background:rgba(0,0,0,0.12);}
-body.light-mode .jdock-tooltip{background:rgba(20,20,20,0.92);}
+/* ── ANIMATED PILL TABS ── */
+.atabs-wrap{
+  position:relative;
+  display:inline-flex;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:999px;
+  padding:4px;
+  overflow:hidden;
+}
+.atabs-track{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:0;
+  z-index:2;
+}
+.atab{
+  position:relative;
+  z-index:2;
+  padding:5px 13px;
+  border-radius:999px;
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:500;
+  font-family:'DM Sans',sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:color .2s;
+  line-height:1.4;
+}
+.atab:hover{ color:var(--text); }
+.atab.active{ color:#0a0a0a; font-weight:600; }
+body.light-mode .atab.active{ color:#fff; }
+
+/* The sliding green pill behind the active tab */
+.atabs-highlight{
+  position:absolute;
+  top:4px;
+  left:4px;
+  height:calc(100% - 8px);
+  background:var(--accent);
+  border-radius:999px;
+  transition:left .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
+  z-index:1;
+  pointer-events:none;
+}
+body.light-mode .atabs-wrap{
+  background:rgba(0,0,0,0.04);
+  border-color:rgba(0,0,0,0.1);
+}
+@media(max-width:600px){
+  .atabs-wrap{ flex-wrap:nowrap; overflow-x:auto; max-width:100%; }
+  #jobs-filters-area > div { flex-wrap:wrap; }
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -773,34 +816,71 @@ body.light-mode .jdock-tooltip{background:rgba(20,20,20,0.92);}
 <div id="view-jobs" class="view">
   <div class="page-header">
     <div><div class="page-title">All Jobs</div><div class="page-sub">Manage all service orders</div></div>
-    <!-- Jobs Dock Toolbar -->
-    <div id="jobs-dock" style="position:relative;display:inline-flex;align-items:flex-end;gap:0;padding:10px 14px;background:rgba(20,20,20,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.10);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.08);" onmouseleave="jobsDockLeave()" onmousemove="jobsDockMove(event)">
-      <!-- each item: emoji icon + label tooltip -->
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
   </div>
-  <div class="filters-bar">
-    <button class="filter-chip active" onclick="setSvc('all',this)">All Services</button>
-    <button class="filter-chip" onclick="setSvc('Bin Rental',this)">🚛 Bin</button>
-    <button class="filter-chip" onclick="setSvc('Junk Removal',this)">🧹 Junk</button>
-    <button class="filter-chip" onclick="setSvc('Junk Quote',this)">📋 Quote</button>
-    <button class="filter-chip" onclick="setSvc('Furniture Pickup',this)">🛋️ Pickup</button>
-    <button class="filter-chip" onclick="setSvc('Furniture Delivery',this)">📦 Delivery</button>
-    <span style="width:1px;height:20px;background:var(--border);margin:0 2px"></span>
-    <button class="filter-chip" id="jstf-all" onclick="setJobStatus('all',this)">All Status</button>
-    <button class="filter-chip" id="jstf-pending" onclick="setJobStatus('Pending',this)">🟡 Pending</button>
-    <button class="filter-chip" id="jstf-progress" onclick="setJobStatus('In Progress',this)">🔵 In Progress</button>
-    <button class="filter-chip" id="jstf-done" onclick="setJobStatus('Done',this)">🟢 Done</button>
-    <span style="width:1px;height:20px;background:var(--border);margin:0 2px"></span>
-    <button class="filter-chip active" id="jdtf-all" onclick="setJobDateFilter('all',this)">All Time</button>
-    <button class="filter-chip" id="jdtf-today" onclick="setJobDateFilter('today',this)">Today</button>
-    <button class="filter-chip" id="jdtf-week" onclick="setJobDateFilter('week',this)">This Week</button>
-    <button class="filter-chip" id="jdtf-month" onclick="setJobDateFilter('month',this)">This Month</button>
-    <span style="width:1px;height:20px;background:var(--border);margin:0 2px"></span>
-    <button class="filter-chip active" id="jbdf-all" onclick="setBinDropFilter('all',this)">All Bins</button>
-    <button class="filter-chip" id="jbdf-pending" onclick="setBinDropFilter('pending',this)">⏳ Not Dropped</button>
-    <button class="filter-chip" id="jbdf-dropped" onclick="setBinDropFilter('dropped',this)">🚛 Dropped</button>
-    <button class="filter-chip" id="jbdf-pickedup" onclick="setBinDropFilter('pickedup',this)">✔ Picked Up</button>
-    <input class="search-input" type="text" placeholder="🔍 Search..." oninput="doJobSearch(this.value)">
+  <div id="jobs-filters-area" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+
+    <!-- Row 1: Service + Status -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+
+      <!-- Service Tabs -->
+      <div class="atabs-wrap" id="atabs-svc" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-svc-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" data-group="svc" data-val="all"        onclick="setSvc('all',this)">All Services</button>
+          <button class="atab"        data-group="svc" data-val="Bin Rental"  onclick="setSvc('Bin Rental',this)">🚛 Bin</button>
+          <button class="atab"        data-group="svc" data-val="Junk Removal" onclick="setSvc('Junk Removal',this)">🧹 Junk</button>
+          <button class="atab"        data-group="svc" data-val="Junk Quote"  onclick="setSvc('Junk Quote',this)">📋 Quote</button>
+          <button class="atab"        data-group="svc" data-val="Furniture Pickup" onclick="setSvc('Furniture Pickup',this)">🛋️ Pickup</button>
+          <button class="atab"        data-group="svc" data-val="Furniture Delivery" onclick="setSvc('Furniture Delivery',this)">📦 Delivery</button>
+        </div>
+      </div>
+
+      <!-- Status Tabs -->
+      <div class="atabs-wrap" id="atabs-status" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-status-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" data-group="status" id="jstf-all"      onclick="setJobStatus('all',this)">All Status</button>
+          <button class="atab"        data-group="status" id="jstf-pending"   onclick="setJobStatus('Pending',this)">🟡 Pending</button>
+          <button class="atab"        data-group="status" id="jstf-progress"  onclick="setJobStatus('In Progress',this)">🔵 In Progress</button>
+          <button class="atab"        data-group="status" id="jstf-done"      onclick="setJobStatus('Done',this)">🟢 Done</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Date + Bin Drop + Search -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+
+      <!-- Date Tabs -->
+      <div class="atabs-wrap" id="atabs-date" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-date-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" data-group="date" id="jdtf-all"   onclick="setJobDateFilter('all',this)">All Time</button>
+          <button class="atab"        data-group="date" id="jdtf-today"  onclick="setJobDateFilter('today',this)">Today</button>
+          <button class="atab"        data-group="date" id="jdtf-week"   onclick="setJobDateFilter('week',this)">This Week</button>
+          <button class="atab"        data-group="date" id="jdtf-month"  onclick="setJobDateFilter('month',this)">This Month</button>
+        </div>
+      </div>
+
+      <!-- Bin Drop Tabs -->
+      <div class="atabs-wrap" id="atabs-bin" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-bin-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" data-group="bin" id="jbdf-all"      onclick="setBinDropFilter('all',this)">All Bins</button>
+          <button class="atab"        data-group="bin" id="jbdf-pending"   onclick="setBinDropFilter('pending',this)">⏳ Not Dropped</button>
+          <button class="atab"        data-group="bin" id="jbdf-dropped"   onclick="setBinDropFilter('dropped',this)">🚛 Dropped</button>
+          <button class="atab"        data-group="bin" id="jbdf-pickedup"  onclick="setBinDropFilter('pickedup',this)">✔ Picked Up</button>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <input class="search-input" type="text" placeholder="🔍 Search..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:280px;">
+
+    </div>
   </div>
   <div id="jobs-pagination-top"></div>
   <div id="jobs-cat-view">
@@ -1216,8 +1296,8 @@ body.light-mode .jdock-tooltip{background:rgba(20,20,20,0.92);}
       <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
     </div>
     <div class="form-grid" style="margin-bottom:4px">
-      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b-fuel" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted);line-height:1.4">Added on top of bin price per delivery</span></div>
+      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><input id="our-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
+      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted);line-height:1.4">% added on top of bin price per delivery</span></div>
     </div>
 
     <div class="divider"></div>
@@ -1263,7 +1343,7 @@ body.light-mode .jdock-tooltip{background:rgba(20,20,20,0.92);}
       <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="comp-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
     </div>
     <div class="form-grid" style="margin-bottom:4px">
-      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="comp-b-fuel" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><input id="comp-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
       <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted)">Leave blank if they don't charge one</span></div>
     </div>
 
@@ -2470,6 +2550,97 @@ function closeSidebar(){
 
 // ─── THEME ───
 var isLight = false;
+// ── ANIMATED PILL TABS ──
+// Call after any tab click to slide the highlight to the active tab
+function atabsSync(groupId) {
+  var wrap = document.getElementById('atabs-' + groupId);
+  if (!wrap) return;
+  var hl = document.getElementById('atabs-' + groupId + '-hl');
+  if (!hl) return;
+  var active = wrap.querySelector('.atab.active');
+  if (!active) return;
+  var wrapRect = wrap.getBoundingClientRect();
+  var tabRect  = active.getBoundingClientRect();
+  hl.style.left  = (tabRect.left - wrapRect.left) + 'px';
+  hl.style.width = tabRect.width + 'px';
+}
+
+// Sync all 4 groups at once
+function atabsSyncAll() {
+  ['svc','status','date','bin'].forEach(atabsSync);
+}
+
+// Patch the existing filter setters to also sync tabs
+var _origSetSvc = typeof setSvc === 'function' ? setSvc : null;
+var _origSetJobStatus = typeof setJobStatus === 'function' ? setJobStatus : null;
+var _origSetJobDateFilter = typeof setJobDateFilter === 'function' ? setJobDateFilter : null;
+var _origSetBinDropFilter = typeof setBinDropFilter === 'function' ? setBinDropFilter : null;
+
+function _patchAtabs() {
+  // Wrap each setter to sync highlight after state change
+  if (typeof setSvc === 'function') {
+    var _s = setSvc;
+    setSvc = function(v, el) {
+      _s(v, el);
+      // Move active class to clicked tab
+      if (el) {
+        document.querySelectorAll('#atabs-svc .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('svc');
+    };
+  }
+  if (typeof setJobStatus === 'function') {
+    var _js = setJobStatus;
+    setJobStatus = function(v, el) {
+      _js(v, el);
+      if (el) {
+        document.querySelectorAll('#atabs-status .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('status');
+    };
+  }
+  if (typeof setJobDateFilter === 'function') {
+    var _jd = setJobDateFilter;
+    setJobDateFilter = function(v, el) {
+      _jd(v, el);
+      if (el) {
+        document.querySelectorAll('#atabs-date .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('date');
+    };
+  }
+  if (typeof setBinDropFilter === 'function') {
+    var _bd = setBinDropFilter;
+    setBinDropFilter = function(v, el) {
+      _bd(v, el);
+      if (el) {
+        document.querySelectorAll('#atabs-bin .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('bin');
+    };
+  }
+}
+
+// Run patch + initial sync once DOM is ready
+(function() {
+  function _initAtabs() {
+    _patchAtabs();
+    // Small delay so layout is settled before measuring
+    setTimeout(atabsSyncAll, 80);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initAtabs);
+  } else {
+    _initAtabs();
+  }
+  // Re-sync when jobs view becomes active
+  window.addEventListener('resize', atabsSyncAll);
+})();
+
 function toggleTheme(){
   isLight=!isLight;
   document.body.classList.toggle('light-mode',isLight);
@@ -2485,61 +2656,6 @@ try{
     document.getElementById('mob-theme-btn').textContent='🌙';
   }
 }catch(e){}
-
-// ─── JOBS DOCK ───
-var _jdockItems = [
-  { emoji:'+ 🗒️', label:'+ New Job',     action:'newJob()',       primary:true },
-  { sep: true },
-  { emoji:'🌙',    label:'Night Mode',    action:'toggleTheme()',  primary:false },
-];
-
-function buildJobsDock(){
-  var dock = document.getElementById('jobs-dock');
-  if(!dock) return;
-  dock.innerHTML = _jdockItems.map(function(item, i){
-    if(item.sep) return '<div class="jdock-sep"></div>';
-    return '<div class="jdock-item'+(item.primary?' jdock-primary':'')+'" data-idx="'+i+'" onclick="'+item.action+'">'
-      +'<div class="jdock-tooltip">'+item.label+'</div>'
-      +'<div class="jdock-icon" id="jdi-'+i+'">'+item.emoji+'</div>'
-      +'</div>';
-  }).join('');
-}
-
-function jobsDockMove(e){
-  var dock = document.getElementById('jobs-dock');
-  if(!dock) return;
-  var rect = dock.getBoundingClientRect();
-  var mouseX = e.clientX - rect.left;
-  var items = dock.querySelectorAll('.jdock-item');
-  var BASE = 44, MAX_SCALE = 1.7, RADIUS = 90;
-  items.forEach(function(item){
-    var icon = item.querySelector('.jdock-icon');
-    if(!icon) return;
-    var iRect = icon.getBoundingClientRect();
-    var centerX = iRect.left + iRect.width/2 - rect.left;
-    var dist = Math.abs(mouseX - centerX);
-    var scale = dist < RADIUS ? MAX_SCALE - (MAX_SCALE - 1) * (dist / RADIUS) : 1;
-    var size = BASE * scale;
-    icon.style.width = size+'px';
-    icon.style.height = size+'px';
-    icon.style.fontSize = (22 * scale)+'px';
-    icon.style.borderRadius = (12 * Math.min(scale, 1.4))+'px';
-    icon.style.transform = 'translateY('+(-( size - BASE ) * 0.5)+'px)';
-  });
-}
-
-function jobsDockLeave(){
-  var dock = document.getElementById('jobs-dock');
-  if(!dock) return;
-  dock.querySelectorAll('.jdock-icon').forEach(function(icon){
-    icon.style.width = '44px';
-    icon.style.height = '44px';
-    icon.style.fontSize = '22px';
-    icon.style.borderRadius = '12px';
-    icon.style.transform = 'translateY(0)';
-  });
-}
-
 
 // ─── VIEWS ───
 // ─── ANIMATION UTILITIES ───
@@ -2599,7 +2715,7 @@ function go(name){
 }
 function render(name){
   if(name==='dashboard') renderDash();
-  else if(name==='jobs'){ renderJobs(); buildJobsDock(); }
+  else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='calendar') renderCal();
   else if(name==='clients') renderClients();
   else if(name==='analytics') initAnalytics();
@@ -3820,7 +3936,7 @@ function renderPricing(){
         +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:var(--accent);line-height:1">'+v+'</div>'
         +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+s+'</div></div>';
     }).join('');
-    var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308;margin-left:8px">⛽ +$'+ap.binFuel+' fuel</span>' : '';
+    var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308;margin-left:8px">⛽ +'+ap.binFuel+'% fuel</span>' : '';
     var junkCells = [{k:'min',l:'Min'},{k:'quarter',l:'¼'},{k:'half',l:'½'},{k:'full',l:'Full'}].map(function(t){
       var v = ap.junk&&ap.junk[t.k] ? '$'+ap.junk[t.k] : '<span style="color:var(--muted)">—</span>';
       return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(234,179,8,.25);border-radius:8px;padding:10px 14px;min-width:64px">'
@@ -3883,13 +3999,13 @@ function renderPricingGrids(){
     binHtml += '<tr style="background:rgba(34,197,94,.06);border-bottom:1px solid var(--border)">'
       +'<td style="padding:10px 14px;font-weight:700;color:var(--accent)">🏠 Jeff\'s Junk</td>'
       +binSizes.map(function(s){ var v=ap.bins&&ap.bins[s]?'$'+ap.bins[s]:'—'; return'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+v+'</td>'; }).join('')
-      +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?'$'+ap.binFuel:'—')+'</td>'
+      +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'—')+'</td>'
       +'<td></td></tr>';
     areaComps.forEach(function(comp){
       binHtml += '<tr style="border-bottom:1px solid var(--border)">'
         +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
         +binSizes.map(function(s){ return priceCell(comp.bins&&comp.bins[s], ap.bins&&ap.bins[s]); }).join('')
-        +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:#eab308">$'+comp.binFuel+'</span>':'—')+'</td>'
+        +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:#eab308">'+comp.binFuel+'%</span>':'—')+'</td>'
         +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
         +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
         +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
@@ -3936,6 +4052,7 @@ function renderOurAreaTabs(){
     var active = area === activeOurArea;
     return '<div onclick="selectOurArea(\''+area+'\')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'rgba(34,197,94,.12)':'transparent')+';color:'+(active?'var(--accent)':'var(--text)')+';cursor:pointer;font-size:13px;font-weight:'+(active?'700':'400')+';transition:all .15s">'
       +'<span>'+area+'</span>'
+      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1" title="Rename">✏️</span>'
       +(area!=='Default'?'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1">✕</span>':'')
       +'</div>';
   }).join('');
@@ -3976,6 +4093,28 @@ function deleteOurArea(area){
   saveOurPricesData();
   selectOurArea('Default');
   toast('Area deleted.');
+}
+
+function renameOurArea(oldName){
+  var newName = prompt('Rename "'+oldName+'" to:', oldName);
+  if(!newName || !newName.trim() || newName.trim() === oldName) return;
+  newName = newName.trim();
+  if(pricingAreas.indexOf(newName) >= 0){ toast('An area with that name already exists.'); return; }
+  // Rename in areas list
+  var idx = pricingAreas.indexOf(oldName);
+  if(idx >= 0) pricingAreas[idx] = newName;
+  // Migrate prices
+  if(ourPricesV2[oldName]){ ourPricesV2[newName] = ourPricesV2[oldName]; delete ourPricesV2[oldName]; }
+  // Migrate competitors
+  competitors.forEach(function(c){ if(c.area === oldName) c.area = newName; });
+  if(activeOurArea === oldName) activeOurArea = newName;
+  savePricingAreas();
+  saveOurPricesData();
+  saveCompetitors();
+  renderOurAreaTabs();
+  selectOurArea(newName);
+  renderPricing();
+  toast('"'+oldName+'" renamed to "'+newName+'".');
 }
 
 function openEditOurPrices(){
