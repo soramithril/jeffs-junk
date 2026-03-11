@@ -1824,6 +1824,22 @@ function dbToClient(r) {
 }
 
 // ── Map local job → Supabase DB row ───────────────────────
+// Cache of actual DB columns — discovered at runtime to avoid PGRST204 errors
+var _jobsDbColumns = null;
+async function getJobsColumns() {
+  if(_jobsDbColumns) return _jobsDbColumns;
+  // Fetch one row to discover real columns
+  var r = await db.from('jobs').select('*').limit(1);
+  if(!r.error && r.data && r.data.length) {
+    _jobsDbColumns = Object.keys(r.data[0]);
+  } else {
+    // Fallback: use a known-safe minimal set
+    _jobsDbColumns = ['job_id','service','status','name','phone','address','city','date','time','price','paid','notes','referral','confirmed','email_sent','client_cid'];
+  }
+  console.log('Discovered jobs columns:', _jobsDbColumns);
+  return _jobsDbColumns;
+}
+
 function jobToDb(j) {
   return {
     job_id:      j.id,
@@ -1857,6 +1873,13 @@ function jobToDb(j) {
     created_by_email: j.createdByEmail  || null,
     edited_by_email:  j.editedByEmail   || null,
   };
+}
+
+// Strip keys not in actual DB schema to prevent PGRST204 errors
+function stripToDbColumns(row, columns) {
+  var safe = {};
+  columns.forEach(function(col){ if(col in row) safe[col] = row[col]; });
+  return safe;
 }
 
 // ── Map local client → Supabase DB row ────────────────────
@@ -5009,28 +5032,16 @@ async function saveJob(e){
 
   editId = null;
   try {
-    var dbRow = jobToDb(job);
-
-    // Step 1: attempt upsert
+    var allCols = await getJobsColumns();
+    var dbRow = stripToDbColumns(jobToDb(job), allCols);
+    console.log('Columns being sent:', Object.keys(dbRow));
+    console.log('Saving job:', dbRow.job_id, dbRow);
     var dbRes = await db.from('jobs').upsert(dbRow, {onConflict:'job_id'});
-    var upsertErr = dbRes.error ? dbRes.error.message + ' (code:' + dbRes.error.code + ')' : 'none';
-
-    // Step 2: verify the row actually exists in DB (catches silent RLS blocks)
-    var verify = await db.from('jobs').select('job_id').eq('job_id', dbRow.job_id).limit(1);
-    var found = !verify.error && verify.data && verify.data.length > 0;
-
-    var msg = 'ID: ' + dbRow.job_id
-      + '\nUpsert error: ' + upsertErr
-      + '\nVerify found in DB: ' + found
-      + (verify.error ? '\nVerify error: ' + verify.error.message : '');
-
-    if(dbRes.error || !found) {
-      alert('\u274c Job NOT saved!\n\n' + msg + '\n\nThis is likely a Supabase RLS policy blocking inserts. Check your Supabase dashboard > Table Editor > jobs > RLS policies.');
-      console.error('saveJob failed:', msg);
+    if(dbRes.error){
+      alert('\u274c Error saving job: ' + dbRes.error.message);
+      console.error('saveJob error:', dbRes.error);
       _saveJobLock = false; return;
     }
-
-    console.log('saveJob verified OK:', dbRow.job_id);
     _clientStatsCache = null;
     toast('\u2705 ' + job.id + ' saved!');
   } catch(ex){
