@@ -518,13 +518,7 @@ textarea{resize:vertical;min-height:80px;}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  // Fallback if jsdelivr CDN fails
-  if (typeof supabase === 'undefined') {
-    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
-  }
-</script>
+<script src="./supabase.js"></script>
 </head>
 <body>
 
@@ -1612,7 +1606,7 @@ textarea{resize:vertical;min-height:80px;}
 // ═══════════════════════════════════════
 var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
-var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Title Case helper ──────────────────────────────────────────────────────
 // ── Background job phone backfill (runs once on startup) ──────────────────
@@ -5334,6 +5328,9 @@ var adminUnlocked = false;
 var appLoaded = false;
 
 // Check if already logged in on page load
+if (typeof db === 'undefined') {
+  window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
 db.auth.getSession().then(function(r) {
   if (r.data && r.data.session) {
     currentUser = r.data.session.user;
@@ -5365,10 +5362,14 @@ async function doLogin() {
   var errEl = document.getElementById('login-error');
   var btn   = document.getElementById('login-btn');
   if (!email || !pass) { errEl.textContent = 'Please enter your email and password.'; return; }
-  // Guard: make sure Supabase library loaded
-  if (typeof supabase === 'undefined' || typeof db === 'undefined') {
-    errEl.textContent = 'App failed to load (Supabase library missing). Please hard-refresh the page (Ctrl+Shift+R).';
-    return;
+  // Re-init db if somehow undefined (e.g. script loaded late)
+  if (typeof db === 'undefined') {
+    try {
+      window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch(e) {
+      errEl.textContent = 'App failed to load — please hard-refresh (Ctrl+Shift+R).';
+      return;
+    }
   }
   errEl.textContent = '';
   btn.textContent = 'Signing in...';
