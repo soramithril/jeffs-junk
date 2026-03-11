@@ -883,26 +883,58 @@ textarea{resize:vertical;min-height:80px;}
       <button class="btn btn-primary" onclick="openAddClient()">+ Add Client</button>
     </div>
   </div>
-  <div class="filters-bar" style="flex-wrap:wrap;gap:8px;">
+  <div class="filters-bar" style="flex-wrap:wrap;gap:8px;row-gap:8px;">
     <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Search by name, phone, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;width:100%;max-width:300px">
     <span style="font-size:12px;color:var(--muted)">Sort:</span>
     <button class="filter-chip active" id="csort-alpha" onclick="setClientSort('alpha',this)">A–Z</button>
     <button class="filter-chip" id="csort-jobs" onclick="setClientSort('jobs',this)">Most Jobs</button>
     <button class="filter-chip" id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
     <button class="filter-chip" id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
-    <span style="font-size:12px;color:var(--muted);margin-left:4px">Jobs:</span>
-    <button class="filter-chip active" id="cjobs-any" onclick="setClientJobFilter('any',this)">Any</button>
-    <button class="filter-chip" id="cjobs-1" onclick="setClientJobFilter('1',this)">1+</button>
-    <button class="filter-chip" id="cjobs-5" onclick="setClientJobFilter('5',this)">5+</button>
-    <button class="filter-chip" id="cjobs-10" onclick="setClientJobFilter('10',this)">10+</button>
-    <button class="filter-chip" id="cjobs-20" onclick="setClientJobFilter('20',this)">20+</button>
-    <button class="filter-chip" id="cjobs-50" onclick="setClientJobFilter('50',this)">50+</button>
-    <span style="font-size:12px;color:var(--muted);margin-left:4px">Service:</span>
-    <button class="filter-chip active" id="csvc-all" onclick="setClientSvcFilter('all',this)">All</button>
-    <button class="filter-chip" id="csvc-bin" onclick="setClientSvcFilter('bin',this)">🚛 Bins</button>
-    <button class="filter-chip" id="csvc-junk" onclick="setClientSvcFilter('junk',this)">🧹 Junk</button>
-    <button class="filter-chip" id="csvc-furn" onclick="setClientSvcFilter('furn',this)">🛋️ Furn</button>
-    <button class="btn btn-ghost btn-sm" onclick="exportClientList()" style="margin-left:auto" title="Export filtered list">⬇ Export CSV</button>
+    <!-- Per-service min/max range filters -->
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;padding:8px 12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-right:4px">Filter by job count:</span>
+      <!-- Bins -->
+      <span style="font-size:12px;color:var(--green);font-weight:600">🚛 Bins</span>
+      <select id="crange-bin-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Min</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)">–</span>
+      <select id="crange-bin-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Max</option>
+      </select>
+      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
+      <!-- Junk -->
+      <span style="font-size:12px;color:var(--yellow);font-weight:600">🧹 Junk</span>
+      <select id="crange-junk-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Min</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)">–</span>
+      <select id="crange-junk-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Max</option>
+      </select>
+      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
+      <!-- Furn -->
+      <span style="font-size:12px;color:var(--red);font-weight:600">🛋️ Furn</span>
+      <select id="crange-furn-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Min</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)">–</span>
+      <select id="crange-furn-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Max</option>
+      </select>
+      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
+      <!-- Total -->
+      <span style="font-size:12px;color:var(--text);font-weight:600">📋 Total</span>
+      <select id="crange-total-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Min</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)">–</span>
+      <select id="crange-total-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
+        <option value="">Max</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="clearClientRangeFilters()" style="margin-left:6px;font-size:11px">✕ Clear</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="exportClientList()" title="Export filtered list">⬇ Export CSV</button>
   </div>
   <div id="clients-pagination-top"></div>
   <div id="clients-list"></div>
@@ -1383,7 +1415,7 @@ textarea{resize:vertical;min-height:80px;}
           <label>Status</label>
           <select id="f-status"><option>Pending</option><option>In Progress</option><option>Done</option><option>Cancelled</option></select>
         </div>
-        <div class="form-group"><label>Customer Name <span style="color:#ef4444">*</span></label><input id="f-name" type="text" placeholder="Full name" oninput="clearErr('f-name')"><div class="field-error-msg" id="err-f-name">Customer name is required.</div></div>
+        <div class="form-group"><label>Customer Name <span style="color:#ef4444">*</span></label><input id="f-name" type="text" placeholder="Full name" oninput="clearErr('f-name')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-name">Customer name is required.</div></div>
         <div class="form-group"><label>Phone</label><input id="f-phone" type="tel" placeholder="(123) 456-7890"></div>
         <div class="form-group full">
           <label>Street Address</label>
@@ -1391,23 +1423,21 @@ textarea{resize:vertical;min-height:80px;}
             <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%">
             </select>
           </div>
-          <input id="f-addr" type="text" placeholder="123 Main St">
+          <input id="f-addr" type="text" placeholder="123 Main St" onblur="this.value=toTitleCase(this.value)">
         </div>
-        <div class="form-group"><label>City <span style="color:#ef4444">*</span></label><input id="f-city" type="text" placeholder="Barrie" oninput="clearErr('f-city')"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
+        <div class="form-group"><label>City <span style="color:#ef4444">*</span></label><input id="f-city" type="text" placeholder="Barrie" oninput="clearErr('f-city')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
         <div class="form-group"><label>Province</label><input id="f-province" type="text" value="Ontario" readonly style="opacity:.6;cursor:not-allowed"></div>
         <div class="form-group"><label>Country</label><input id="f-country" type="text" value="Canada" readonly style="opacity:.6;cursor:not-allowed"></div>
         <div class="form-group"><label>Date <span style="color:#ef4444">*</span></label><input id="f-date" type="date" oninput="clearErr('f-date')"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
         <div class="form-group"><label>Time</label><input id="f-time" type="time"></div>
-        <div class="form-group"><label>Price ($)</label><input id="f-price" type="number" step="0.01" min="0" placeholder="0.00"></div>
-        <div class="form-group"><label>Payment Status</label><select id="f-paid"><option value="Unpaid">Unpaid</option><option value="Paid">Paid</option></select></div>
-        <div class="form-group"><label>Payment Method</label><select id="f-paymethod"><option value="">Unknown</option><option value="Visa">Visa</option><option value="Mastercard">Mastercard</option><option value="Amex">Amex</option><option value="Visa Debit">Visa Debit</option><option value="Debit">Debit</option><option value="E-Transfer">E-Transfer</option><option value="Cash">Cash</option><option value="Cheque">Cheque</option></select></div>
         <div class="form-group">
-          <label>Referral Source</label>
-          <select id="f-referral">
-            <option value="">Unknown</option>
+          <label>Referral Source <span style="color:#ef4444">*</span></label>
+          <select id="f-referral" oninput="clearErr('f-referral')">
+            <option value="">— Choose source —</option>
             <option>Google</option><option>Word of Mouth</option><option>Facebook</option>
             <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option><option>Other</option>
           </select>
+          <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
         </div>
         <div class="form-group full"><label>Notes</label><textarea id="f-notes" placeholder="Job details..."></textarea></div>
       </div>
@@ -1539,12 +1569,13 @@ textarea{resize:vertical;min-height:80px;}
           <button type="button" class="btn btn-ghost btn-sm" onclick="addClientAddress()">+ Add Another Address</button>
         </div>
         <div class="form-group">
-          <label>Referral Source</label>
+          <label>Referral Source <span style="color:#ef4444">*</span></label>
           <select id="c-referral">
-            <option value="">Unknown</option>
+            <option value="">— Choose source —</option>
             <option>Google</option><option>Word of Mouth</option><option>Facebook</option>
-            <option>Instagram</option><option>Kijiji</option><option>Other</option>
+            <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option><option>Other</option>
           </select>
+          <div class="field-error-msg" id="err-c-referral">Referral source is required.</div>
         </div>
         <div class="form-group full"><label>Notes</label><textarea id="c-notes" placeholder="Any client notes..."></textarea></div>
       </div>
@@ -1576,6 +1607,17 @@ textarea{resize:vertical;min-height:80px;}
 var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── Title Case helper ──────────────────────────────────────────────────────
+function toTitleCase(str) {
+  if (!str) return str;
+  var small = /^(a|an|and|as|at|but|by|for|if|in|nor|of|on|or|so|the|to|up|yet)$/i;
+  return str.replace(/\S+/g, function(word, offset) {
+    if (offset === 0) return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    if (small.test(word)) return word.toLowerCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
 
 // ═══════════════════════════════════════
 //  DATA
@@ -2042,7 +2084,7 @@ function nextClientId(){var n=clients.map(function(c){return parseInt((c.cid||''
 var editClientId = null;
 
 function _clientNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientPhoneRow(num,ext){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
@@ -2056,7 +2098,7 @@ function _clientAddressRow(street, city, removable){
     +'<div style="flex:2"><label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">Street</label>'
     +'<input type="text" class="c-street-inp" placeholder="123 Main St" value="'+(street||'')+'" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
     +'<div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">City</label>'
-    +'<input type="text" class="c-city-inp" placeholder="Barrie" value="'+(city||'Barrie')+'" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
+    +'<input type="text" class="c-city-inp" placeholder="Barrie" value="'+(city||'Barrie')+'" onblur="this.value=toTitleCase(this.value)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
     +rmBtn+'</div>';
 }
 function addClientName(){document.getElementById('c-names-wrap').insertAdjacentHTML('beforeend',_clientNameRow(''));}
@@ -2109,12 +2151,19 @@ function editClient(cid){
 async function saveClient(e){
   try{
   if(e&&e.preventDefault)e.preventDefault();
-  // Collect names
+  // Collect names — apply Title Case
   var nameEls=document.querySelectorAll('#c-names-wrap .c-name-inp');
-  var names=[].slice.call(nameEls).map(function(el){return el.value.trim();}).filter(Boolean);
+  var names=[].slice.call(nameEls).map(function(el){
+    var v=toTitleCase(el.value.trim()); el.value=v; return v;
+  }).filter(Boolean);
   var errEl=document.getElementById('err-c-name');
   if(!names.length){if(errEl)errEl.style.display='block';return;}
   if(errEl)errEl.style.display='none';
+  // Validate referral
+  var refVal=document.getElementById('c-referral').value;
+  var refErrEl=document.getElementById('err-c-referral');
+  if(!refVal){if(refErrEl)refErrEl.style.display='block';return;}
+  if(refErrEl)refErrEl.style.display='none';
   // Collect phones
   var phoneRows=document.querySelectorAll('#c-phones-wrap .c-phone-inp');
   var extRows=document.querySelectorAll('#c-phones-wrap .c-ext-inp');
@@ -2128,8 +2177,9 @@ async function saveClient(e){
   var cityEls=document.querySelectorAll('#c-addresses-wrap .c-city-inp');
   var addresses=[];
   [].slice.call(streetEls).forEach(function(el,i){
-    var st=el.value.trim();
-    var cy=cityEls[i]?cityEls[i].value.trim():'Barrie';
+    var st=toTitleCase(el.value.trim());
+    var cy=toTitleCase(cityEls[i]?cityEls[i].value.trim():'Barrie');
+    el.value=st;if(cityEls[i])cityEls[i].value=cy;
     if(st||cy)addresses.push({street:st,city:cy||'Barrie'});
   });
   if(!addresses.length)addresses=[{street:'',city:'Barrie'}];
@@ -2526,7 +2576,7 @@ async function renderDash(){
     rTotal, rActive, rDone, rUnpaid, rMonthRev,
     rTodayJobs, rWeekJobs, rWeekRev,
     rBinCounts, rJunkCount, rFurnCount,
-    rOutstanding, rOverdue, rBinPickupsToday
+    rOutstanding, rOverdue, rBinPickupsToday, rBinDropoffsToday
   ] = await Promise.all([
     // Total jobs
     db.from('jobs').select('*',{count:'exact',head:true}),
@@ -2538,7 +2588,7 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).neq('paid','Paid').neq('status','Cancelled'),
     // Month revenue
     db.from('jobs').select('price').gte('date', monthStart).neq('status','Cancelled'),
-    // Today's jobs (full data for cards) — match calendar, include Done
+    // Today's jobs by job date (junk, furn, quotes) — exclude bin rentals handled separately
     db.from('jobs').select('*').eq('date', todayS).neq('status','Cancelled').order('time'),
     // This week's jobs count
     db.from('jobs').select('*',{count:'exact',head:true}).gte('date', weekStartS).neq('status','Cancelled'),
@@ -2554,8 +2604,10 @@ async function renderDash(){
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
     // Overdue bin pickups
     db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).lt('bin_pickup', todayS).not('bin_pickup','is',null),
-    // Bin pickups today
-    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', todayS).neq('status','Cancelled'),
+    // Bin pickups today — by bin_pickup date
+    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', todayS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
+    // Bin dropoffs today — by bin_dropoff date OR job date (for jobs without explicit dropoff date)
+    db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
   ]);
 
   // ── Calculate totals ───────────────────────────────────────
@@ -2584,30 +2636,47 @@ async function renderDash(){
   var wrEl = document.getElementById('s-week-rev');  if(wrEl) animCount(wrEl, Math.round(weekRev), '$');
   var osEl = document.getElementById('s-outstanding'); if(osEl) animCount(osEl, Math.round(outstanding), '$');
 
-  // ── Service type counts ────────────────────────────────────
-  var todayJobs = (rTodayJobs.data||[]).map(dbToJob);
-  // Merge into local jobs so detail modals work
-  todayJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
+  // ── Build today's categorised job lists ──────────────────────
+  var todayJobs        = (rTodayJobs.data||[]).map(dbToJob);
+  var todayBinPickups  = (rBinPickupsToday.data||[]).map(dbToJob);
+  var todayBinDropoffs = (rBinDropoffsToday.data||[]).map(dbToJob);
 
-  var svcCount = {'Bin Rental':0,'Junk Removal':0,'Furniture Pickup':0,'Furniture Delivery':0};
-  todayJobs.forEach(function(j){ if(svcCount.hasOwnProperty(j.service)) svcCount[j.service]++; });
-  var svcIcons  = {'Bin Rental':'🚛','Junk Removal':'🧹','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
-  var svcColors = {'Bin Rental':'#22c55e','Junk Removal':'#eab308','Furniture Pickup':'#ef4444','Furniture Delivery':'#f87171'};
-  var maxSvc = Math.max.apply(null,Object.values(svcCount))||1;
-  var hasAny = Object.values(svcCount).some(function(v){return v>0;});
-  document.getElementById('dash-workload').innerHTML = hasAny
-    ? Object.keys(svcCount).map(function(k){var v=svcCount[k];return'<div class="bar-row"><div class="bar-label">'+svcIcons[k]+' '+k.split(' ')[0]+'</div><div class="bar-track"><div class="bar-fill bar-anim" data-w="'+Math.round(v/maxSvc*100)+'%" style="background:'+svcColors[k]+'"></div></div><div class="bar-value">'+v+'</div></div>';}).join('')
-    : '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs today</div>';
-  requestAnimationFrame(function(){ animateBars(document.getElementById('dash-workload')); });
+  // Merge everything into local jobs cache so detail modals work
+  var allTodayJobs = todayJobs.concat(todayBinPickups).concat(todayBinDropoffs);
+  allTodayJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
-  // ── Today's jobs list ──────────────────────────────────────
-  var todayBinDropoffs  = todayJobs.filter(function(j){return j.service==='Bin Rental'&&(!j.binInstatus||j.binInstatus==='');});
-  var todayBinPickups   = (rBinPickupsToday.data||[]).map(dbToJob);
+  // De-duplicate by id (a bin dropoff today may also appear in todayJobs)
+  function dedup(arr){ var seen={}; return arr.filter(function(j){ if(seen[j.id]) return false; seen[j.id]=true; return true; }); }
+  todayBinDropoffs = dedup(todayBinDropoffs);
+  todayBinPickups  = dedup(todayBinPickups);
+
   var todayJunkRemovals = todayJobs.filter(function(j){return j.service==='Junk Removal';});
   var todayJunkQuotes   = todayJobs.filter(function(j){return j.service==='Junk Quote';});
   var todayFurnPickups  = todayJobs.filter(function(j){return j.service==='Furniture Pickup';});
   var todayFurnDelivs   = todayJobs.filter(function(j){return j.service==='Furniture Delivery';});
-  document.getElementById('dash-today-count').textContent = todayJobs.length+' job'+(todayJobs.length!==1?'s':'');
+
+  var totalTodayCount = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs)).length;
+  document.getElementById('dash-today-count').textContent = totalTodayCount+' job'+(totalTodayCount!==1?'s':'');
+
+  // ── Workload bar — bin dropoffs + pickups counted separately ─
+  var svcCount = {
+    'Bin Dropoffs':  todayBinDropoffs.length,
+    'Bin Pickups':   todayBinPickups.length,
+    'Junk Removal':  todayJunkRemovals.length,
+    'Furn Pickup':   todayFurnPickups.length,
+    'Furn Delivery': todayFurnDelivs.length
+  };
+  var svcIcons  = {'Bin Dropoffs':'🚛','Bin Pickups':'🚚','Junk Removal':'🧹','Furn Pickup':'🛋️','Furn Delivery':'📦'};
+  var svcColors = {'Bin Dropoffs':'#22c55e','Bin Pickups':'#4ade80','Junk Removal':'#eab308','Furn Pickup':'#ef4444','Furn Delivery':'#f87171'};
+  var maxSvc = Math.max.apply(null,Object.keys(svcCount).map(function(k){return svcCount[k];})) || 1;
+  var hasAny = Object.keys(svcCount).some(function(k){return svcCount[k]>0;});
+  document.getElementById('dash-workload').innerHTML = hasAny
+    ? Object.keys(svcCount).filter(function(k){return svcCount[k]>0;}).map(function(k){
+        var v=svcCount[k];
+        return '<div class="bar-row"><div class="bar-label">'+svcIcons[k]+' '+k+'</div><div class="bar-track"><div class="bar-fill bar-anim" data-w="'+Math.round(v/maxSvc*100)+'%" style="background:'+svcColors[k]+'"></div></div><div class="bar-value">'+v+'</div></div>';
+      }).join('')
+    : '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs today</div>';
+  requestAnimationFrame(function(){ animateBars(document.getElementById('dash-workload')); });
 
   function makeTodayCat(title,color,list){
     if(!list.length) return '';
@@ -3004,24 +3073,81 @@ var clientsPageSize = 50;
 var clientsTotal = 0;
 var clientSort = 'alpha';
 var clientSearchTimer = null;
-var clientJobFilter = 'any';   // 'any','1','5','10','20','50'
-var clientSvcFilter = 'all';   // 'all','bin','junk','furn'
 var _allClientsFiltered = [];  // holds last full filtered+sorted list for export
+var clientRangeFilter = { binMin:'', binMax:'', junkMin:'', junkMax:'', furnMin:'', furnMax:'', totalMin:'', totalMax:'' };
 
-function setClientJobFilter(v, el) {
-  clientJobFilter = v;
-  document.querySelectorAll('[id^="cjobs-"]').forEach(function(b){ b.classList.remove('active'); });
-  if (el) el.classList.add('active');
+// Populate dropdowns with 0–N options once we know the max values
+function populateRangeDropdowns(allClients) {
+  var maxBin = 0, maxJunk = 0, maxFurn = 0, maxTotal = 0;
+  allClients.forEach(function(c){
+    if (c._bins  > maxBin)   maxBin   = c._bins;
+    if (c._junk  > maxJunk)  maxJunk  = c._junk;
+    if (c._furn  > maxFurn)  maxFurn  = c._furn;
+    if (c._totalJobs > maxTotal) maxTotal = c._totalJobs;
+  });
+  function fillSelect(id, max, currentVal) {
+    var el = document.getElementById(id); if (!el) return;
+    var isMax = id.indexOf('-max') !== -1;
+    var saved = el.value || currentVal || '';
+    el.innerHTML = '<option value="">' + (isMax ? 'Max' : 'Min') + '</option>';
+    for (var i = 0; i <= max; i++) {
+      var opt = document.createElement('option');
+      opt.value = i; opt.textContent = i;
+      if (String(i) === String(saved)) opt.selected = true;
+      el.appendChild(opt);
+    }
+  }
+  fillSelect('crange-bin-min',   maxBin,   clientRangeFilter.binMin);
+  fillSelect('crange-bin-max',   maxBin,   clientRangeFilter.binMax);
+  fillSelect('crange-junk-min',  maxJunk,  clientRangeFilter.junkMin);
+  fillSelect('crange-junk-max',  maxJunk,  clientRangeFilter.junkMax);
+  fillSelect('crange-furn-min',  maxFurn,  clientRangeFilter.furnMin);
+  fillSelect('crange-furn-max',  maxFurn,  clientRangeFilter.furnMax);
+  fillSelect('crange-total-min', maxTotal, clientRangeFilter.totalMin);
+  fillSelect('crange-total-max', maxTotal, clientRangeFilter.totalMax);
+}
+
+function applyClientRangeFilter() {
+  clientRangeFilter.binMin   = document.getElementById('crange-bin-min')   ? document.getElementById('crange-bin-min').value   : '';
+  clientRangeFilter.binMax   = document.getElementById('crange-bin-max')   ? document.getElementById('crange-bin-max').value   : '';
+  clientRangeFilter.junkMin  = document.getElementById('crange-junk-min')  ? document.getElementById('crange-junk-min').value  : '';
+  clientRangeFilter.junkMax  = document.getElementById('crange-junk-max')  ? document.getElementById('crange-junk-max').value  : '';
+  clientRangeFilter.furnMin  = document.getElementById('crange-furn-min')  ? document.getElementById('crange-furn-min').value  : '';
+  clientRangeFilter.furnMax  = document.getElementById('crange-furn-max')  ? document.getElementById('crange-furn-max').value  : '';
+  clientRangeFilter.totalMin = document.getElementById('crange-total-min') ? document.getElementById('crange-total-min').value : '';
+  clientRangeFilter.totalMax = document.getElementById('crange-total-max') ? document.getElementById('crange-total-max').value : '';
   clientsPage = 0;
   renderClients();
 }
 
-function setClientSvcFilter(v, el) {
-  clientSvcFilter = v;
-  document.querySelectorAll('[id^="csvc-"]').forEach(function(b){ b.classList.remove('active'); });
-  if (el) el.classList.add('active');
+function clearClientRangeFilters() {
+  clientRangeFilter = { binMin:'', binMax:'', junkMin:'', junkMax:'', furnMin:'', furnMax:'', totalMin:'', totalMax:'' };
+  ['crange-bin-min','crange-bin-max','crange-junk-min','crange-junk-max',
+   'crange-furn-min','crange-furn-max','crange-total-min','crange-total-max'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
   clientsPage = 0;
   renderClients();
+}
+
+function clientRangeActive() {
+  var f = clientRangeFilter;
+  return f.binMin||f.binMax||f.junkMin||f.junkMax||f.furnMin||f.furnMax||f.totalMin||f.totalMax;
+}
+
+function applyRangeToClients(allClients) {
+  var f = clientRangeFilter;
+  return allClients.filter(function(c) {
+    if (f.binMin   !== '' && c._bins      < parseInt(f.binMin,10))   return false;
+    if (f.binMax   !== '' && c._bins      > parseInt(f.binMax,10))   return false;
+    if (f.junkMin  !== '' && c._junk      < parseInt(f.junkMin,10))  return false;
+    if (f.junkMax  !== '' && c._junk      > parseInt(f.junkMax,10))  return false;
+    if (f.furnMin  !== '' && c._furn      < parseInt(f.furnMin,10))  return false;
+    if (f.furnMax  !== '' && c._furn      > parseInt(f.furnMax,10))  return false;
+    if (f.totalMin !== '' && c._totalJobs < parseInt(f.totalMin,10)) return false;
+    if (f.totalMax !== '' && c._totalJobs > parseInt(f.totalMax,10)) return false;
+    return true;
+  });
 }
 
 function exportClientList() {
@@ -3045,9 +3171,11 @@ function exportClientList() {
   var blob = new Blob([csv], {type:'text/csv'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
+  var f = clientRangeFilter;
   var label = [];
-  if (clientJobFilter !== 'any') label.push(clientJobFilter + '+jobs');
-  if (clientSvcFilter !== 'all') label.push(clientSvcFilter);
+  if (f.binMin||f.binMax)   label.push('bins'+(f.binMin||'0')+'-'+(f.binMax||'any'));
+  if (f.junkMin||f.junkMax) label.push('junk'+(f.junkMin||'0')+'-'+(f.junkMax||'any'));
+  if (f.furnMin||f.furnMax) label.push('furn'+(f.furnMin||'0')+'-'+(f.furnMax||'any'));
   if (clientSearchF.trim()) label.push(clientSearchF.trim());
   a.download = 'clients' + (label.length ? '-' + label.join('-') : '') + '.csv';
   a.click();
@@ -3166,18 +3294,12 @@ async function loadClientsPage() {
     if(idx>=0) clients[idx]=c; else clients.push(c);
   });
 
-  // ── 6. Apply job count + service filters ──────────────────────────────────
-  if (clientJobFilter !== 'any') {
-    var minJobs = parseInt(clientJobFilter, 10);
-    allClients = allClients.filter(function(c){ return c._totalJobs >= minJobs; });
-  }
-  if (clientSvcFilter !== 'all') {
-    allClients = allClients.filter(function(c){
-      if (clientSvcFilter === 'bin')  return c._bins  > 0;
-      if (clientSvcFilter === 'junk') return c._junk  > 0;
-      if (clientSvcFilter === 'furn') return c._furn  > 0;
-      return true;
-    });
+  // ── 6. Populate range dropdowns (uses full unfiltered list for accurate maxes)
+  populateRangeDropdowns(allClients);
+
+  // ── 6b. Apply range filters ────────────────────────────────────────────────
+  if (clientRangeActive()) {
+    allClients = applyRangeToClients(allClients);
   }
 
   // ── 7. Sort ────────────────────────────────────────────────────────────────
@@ -3207,9 +3329,12 @@ async function loadClientsPage() {
   renderClientsPagination();
   var sub = document.getElementById('clients-sub');
   var filterNote = [];
-  if (clientJobFilter !== 'any') filterNote.push(clientJobFilter + '+ jobs');
-  if (clientSvcFilter !== 'all') filterNote.push(clientSvcFilter);
-  if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients' + (filterNote.length ? ' · filtered: ' + filterNote.join(', ') : ' total');
+  var f = clientRangeFilter;
+  if (f.binMin||f.binMax)   filterNote.push('bins '+(f.binMin||'0')+'–'+(f.binMax||'any'));
+  if (f.junkMin||f.junkMax) filterNote.push('junk '+(f.junkMin||'0')+'–'+(f.junkMax||'any'));
+  if (f.furnMin||f.furnMax) filterNote.push('furn '+(f.furnMin||'0')+'–'+(f.furnMax||'any'));
+  if (f.totalMin||f.totalMax) filterNote.push('total '+(f.totalMin||'0')+'–'+(f.totalMax||'any'));
+  if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients' + (filterNote.length ? ' · ' + filterNote.join(', ') : ' total');
 }
 
 function renderClientsList(list) {
@@ -4538,20 +4663,26 @@ function saveJob(e){
   if(banner) { banner.style.display='none'; banner.textContent=''; }
 
   // Read values
-  var svc  = document.getElementById('f-svc').value;
-  var name = document.getElementById('f-name').value.trim();
-  var date = document.getElementById('f-date').value;
-  var city = document.getElementById('f-city').value.trim();
+  var svc      = document.getElementById('f-svc').value;
+  var name     = toTitleCase(document.getElementById('f-name').value.trim());
+  var date     = document.getElementById('f-date').value;
+  var city     = toTitleCase(document.getElementById('f-city').value.trim());
+  var referral = document.getElementById('f-referral').value;
+
+  // Write Title Case back to fields
+  document.getElementById('f-name').value = name;
+  document.getElementById('f-city').value = city;
 
   // Clear previous field errors
-  ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
+  ['f-svc','f-name','f-date','f-city','f-referral'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
-  if(!svc)  { showErr('f-svc');  errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); }
-  if(!name) { showErr('f-name'); errs.push('Customer name is required.'); }
-  if(!date) { showErr('f-date'); errs.push('Date is required.'); }
-  if(!city) { showErr('f-city'); errs.push('City is required (e.g. Barrie).'); }
+  if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); }
+  if(!name)     { showErr('f-name');     errs.push('Customer name is required.'); }
+  if(!date)     { showErr('f-date');     errs.push('Date is required.'); }
+  if(!city)     { showErr('f-city');     errs.push('City is required (e.g. Barrie).'); }
+  if(!referral) { showErr('f-referral'); errs.push('Referral source is required.'); }
 
   if(errs.length) {
     if(banner) {
@@ -4596,10 +4727,10 @@ function saveJob(e){
     address:   fullAddr,
     date:      date,
     time:      document.getElementById('f-time').value,
-    price:     document.getElementById('f-price').value,
-    paid:      document.getElementById('f-paid').value,
-    payMethod: document.getElementById('f-paymethod').value,
-    referral:  document.getElementById('f-referral').value,
+    price:     '',
+    paid:      'Unpaid',
+    payMethod: '',
+    referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
     clientId:  cid || '',
     // Preserve existing tracking if editing, set new if creating
