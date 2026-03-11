@@ -884,7 +884,7 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
   <div class="filters-bar">
-    <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Search by name, phone, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;width:100%;max-width:300px">
+    <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Name, phone, city… or '20 bins', '5+ junk', 'revenue 1000'" oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;width:100%;max-width:480px">
     <span style="font-size:12px;color:var(--muted);margin-left:8px">Sort:</span>
     <button class="filter-chip active" id="csort-alpha" onclick="setClientSort('alpha',this)">A–Z</button>
     <button class="filter-chip" id="csort-jobs" onclick="setClientSort('jobs',this)">Most Jobs</button>
@@ -1626,16 +1626,35 @@ function dbToJob(r) {
 }
 
 // ── Map Supabase DB row → local client object ──────────────
+function _parseJsonField(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') { try { var p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch(e){ return []; } }
+  return [];
+}
+function _resolvePrimaryPhone(r) {
+  // Use the scalar `phone` column first; fall back to first entry in phones[]
+  if (r.phone) return r.phone;
+  var phones = _parseJsonField(r.phones);
+  if (!phones.length) return '';
+  var first = phones[0];
+  return (typeof first === 'object') ? (first.num || '') : (String(first) || '');
+}
 function dbToClient(r) {
   var street=(r.address||'').split(',')[0].trim();
+  var phones = _parseJsonField(r.phones);
+  var emails = _parseJsonField(r.emails);
+  var names  = _parseJsonField(r.names);
+  if (!names.length && r.name) names = [r.name];
+  var primaryPhone = _resolvePrimaryPhone(r);
   return {
     cid:      r.cid,
     name:     r.name    || '',
-    names:    r.names   || [r.name || ''],
-    phone:    r.phone   || '',
-    phones:   r.phones  || [],
-    email:    r.email   || '',
-    emails:   r.emails  || [],
+    names:    names,
+    phone:    primaryPhone,
+    phones:   phones,
+    email:    r.email   || (emails.length ? (typeof emails[0]==='string'?emails[0]:(emails[0].email||'')) : ''),
+    emails:   emails,
     address:  r.address || '',
     addresses:street?[{street:street,city:r.city||''}]:[],
     city:     r.city    || '',
@@ -2914,7 +2933,7 @@ function selectClientResult(cid){
   var badge=document.getElementById('f-client-selected-badge');
   var nm=document.getElementById('f-client-selected-name');
   if(badge){badge.style.display='flex';}
-  if(nm){nm.textContent='✅ '+cl.name+(cl.phone?' · '+cl.phone:'');}
+  if(nm){nm.textContent='✅ '+cl.name+(cl.phone?' · '+cl.phone:'')+((cl.phones&&cl.phones.length>1)?' (+'+( cl.phones.length-1)+' more)':'');}
   fillClientFromSelect(cid);
 }
 
@@ -3039,13 +3058,16 @@ async function loadClientsPage() {
   var el = document.getElementById('clients-list');
   el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Loading...</div>';
   var q = clientSearchF.trim();
+  // Detect numeric/stat searches — handle these client-side after stats are built
+  var isStatSearch = q && /\d/.test(q) && /bin|junk|furn|job|revenue|\$|dormant/i.test(q);
+  var dbQ = (q && !isStatSearch) ? q : '';
   var BATCH = 1000;
   var now = Date.now();
 
   var allClientRows, statsMap, nameToCid;
 
   // ── Use cache if fresh and no active search filter ─────────────────────────
-  if(!q && _clientStatsCache && (now - _clientStatsCacheTime) < CLIENT_CACHE_TTL){
+  if(!dbQ && !isStatSearch && _clientStatsCache && (now - _clientStatsCacheTime) < CLIENT_CACHE_TTL){
     allClientRows = _clientStatsCache.allClientRows;
     statsMap      = _clientStatsCache.statsMap;
     nameToCid     = _clientStatsCache.nameToCid;
@@ -3066,8 +3088,8 @@ async function loadClientsPage() {
 
     var clientPromises = clientBatches.map(function(i){
       var cq = db.from('clients').select('*').order('name',{ascending:true});
-      if(q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
-      if(!q) cq = cq.range(i*BATCH, (i+1)*BATCH-1);
+      if(dbQ) cq = cq.or('name.ilike.%'+dbQ+'%,phone.ilike.%'+dbQ+'%,city.ilike.%'+dbQ+'%');
+      if(!dbQ) cq = cq.range(i*BATCH, (i+1)*BATCH-1);
       return cq;
     });
     var jobPromises = jobBatches.map(function(i){
@@ -3106,7 +3128,7 @@ async function loadClientsPage() {
     });
 
     // Cache for subsequent visits
-    if(!q){
+    if(!dbQ && !isStatSearch){
       _clientStatsCache = { allClientRows:allClientRows, statsMap:statsMap, nameToCid:nameToCid };
       _clientStatsCacheTime = now;
     }
@@ -3129,7 +3151,47 @@ async function loadClientsPage() {
     if(idx>=0) clients[idx]=c; else clients.push(c);
   });
 
-  // ── 6. Sort ────────────────────────────────────────────────────────────────
+  // ── 6. Smart query filter (bins/junk/furn/jobs/revenue counts) ───────────────
+  // Supports: "20 bins", "5+ junk", "3 jobs", "revenue 500", "no jobs", "dormant"
+  if(q) {
+    var ql = q.toLowerCase();
+    var smartMatch = null;
+    // Parse patterns: "20 bins", "20+ bins", "bin 20", etc.
+    var patterns = [
+      { re:/(\d+)\+?\s*(bin|bins)/,       key:'_bins',     op:'gte' },
+      { re:/(bin|bins)\s*(\d+)/,           key:'_bins',     op:'gte', swap:true },
+      { re:/(\d+)\+?\s*(junk)/,            key:'_junk',     op:'gte' },
+      { re:/(junk)\s*(\d+)/,               key:'_junk',     op:'gte', swap:true },
+      { re:/(\d+)\+?\s*(furn|furniture)/,  key:'_furn',     op:'gte' },
+      { re:/(\d+)\+?\s*(job|jobs)/,        key:'_totalJobs',op:'gte' },
+      { re:/(job|jobs)\s*(\d+)/,           key:'_totalJobs',op:'gte', swap:true },
+      { re:/revenue\s*\$?(\d+)/,           key:'_totalRev', op:'gte', revOnly:true },
+      { re:/\$(\d+)/,                      key:'_totalRev', op:'gte', revOnly:true },
+    ];
+    var filters = [];
+    patterns.forEach(function(p){
+      var m = ql.match(p.re);
+      if(m) {
+        var num = parseInt(p.swap ? m[2] : m[1]);
+        if(!isNaN(num)) filters.push({key:p.key, num:num});
+      }
+    });
+    // "no jobs" or "0 jobs"
+    if(/no jobs|0 jobs/.test(ql)) filters.push({key:'_totalJobs', num:0, exact:true});
+    // "dormant" handled by sort, but also filter
+    if(/dormant/.test(ql) && !filters.length) {
+      var sixMonthsAgo = new Date(Date.now()-180*86400000).toISOString().split('T')[0];
+      allClients = allClients.filter(function(c){ return !c._lastDate || c._lastDate < sixMonthsAgo; });
+    }
+    if(filters.length) {
+      allClients = allClients.filter(function(c){
+        return filters.every(function(f){
+          var val = c[f.key]||0;
+          return f.exact ? val===f.num : val >= f.num;
+        });
+      });
+    }
+  }
   allClients.sort(function(a,b){
     if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
     if(clientSort==='revenue') return b._totalRev  - a._totalRev;
@@ -3160,7 +3222,7 @@ async function loadClientsPage() {
 function renderClientsList(list) {
   var el = document.getElementById('clients-list');
   if (!list.length) {
-    el.innerHTML = '<div class="empty-state"><div class="ei">👥</div><h3>'+(clientSearchF?'No clients found':'No clients yet')+'</h3></div>';
+    el.innerHTML = '<div class="empty-state"><div class="ei">👥</div><h3>'+(clientSearchF?'No clients match "'+clientSearchF+'"':'No clients yet')+'</h3>'+(clientSearchF&&/bin|junk|job|revenue/i.test(clientSearchF)?'<p style="color:var(--muted);font-size:13px">Try: "5+ bins", "20 bins", "3 junk", "revenue 500"</p>':'')+'</div>';
     return;
   }
   var today6mo = new Date(Date.now()-180*86400000).toISOString().split('T')[0];
@@ -4655,10 +4717,20 @@ function openDetail(id){
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ Customer Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+stb(j.status)+'<span class="badge '+(j.paid==='Paid'?'badge-progress':'badge-pending')+'">'+(j.paid==='Paid'?'✅ Paid':'⏳ Unpaid')+'</span>'+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone?'<a href="tel:'+j.phone+'" style="color:var(--accent);text-decoration:none">'+j.phone+'</a> <button onclick="navigator.clipboard.writeText(\''+j.phone+'\');toast(\'Phone copied!\')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted)" title="Copy phone">📋</button>':'—')+'</span></div>'+(j.email?'<div class="detail-item"><label>Email</label><span><a href="mailto:'+j.email+'" style="color:var(--accent);text-decoration:none">'+j.email+'</a></span></div>':'')+'<div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address?'<a href="https://maps.google.com/?q='+encodeURIComponent(j.address)+'" target="_blank" style="color:var(--accent);text-decoration:none">'+j.address+' 🗺️</a>':'—')+'</span></div></div>'+(j.clientId?'<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="closeM(\'detail-modal\');openClientDetail(\''+j.clientId+'\')">👤 View Full Client Profile →</button></div>':'')+'</div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone?'<a href="tel:'+j.phone+'" style="color:var(--accent);text-decoration:none">'+j.phone+'</a> <button onclick="navigator.clipboard.writeText(\''+j.phone+'\');toast(\'Phone copied!\')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted)" title="Copy phone">📋</button>':'—')+'</span></div>'+(j.email?'<div class="detail-item"><label>Email</label><span><a href="mailto:'+j.email+'" style="color:var(--accent);text-decoration:none">'+j.email+'</a></span></div>':'')+'<div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address?'<a href="https://maps.google.com/?q='+encodeURIComponent(j.address)+'" target="_blank" style="color:var(--accent);text-decoration:none">'+j.address+' 🗺️</a>':'—')+'</span></div></div>'
+    +(function(){
+      // Find client by clientId OR by name match
+      var linkCid = j.clientId;
+      if(!linkCid && j.name) {
+        var match = clients.find(function(c){return c.name&&c.name.toLowerCase()===j.name.toLowerCase();});
+        if(match) linkCid = match.cid;
+      }
+      return linkCid ? '<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="closeM(\'detail-modal\');openClientDetail(\''+linkCid+'\')">👤 View Full Client Profile →</button></div>' : '';
+    })()
+    +'</div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
-    +'<div class="detail-section"><div class="detail-section-title">💰 Billing</div><div class="detail-grid"><div class="detail-item"><label>Price</label><span style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--accent)">'+fm(j.price)+'</span></div><div class="detail-item"><label>Payment</label><span style="color:'+(j.paid==='Paid'?'var(--green)':'var(--yellow)')+'">'+j.paid+(j.payMethod?' · '+j.payMethod:'')+'</span></div>'+paymentInfo+'</div>'+etransferNote+'</div>'
+    +'<div class="detail-section"><div class="detail-section-title">💰 Payment</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="badge '+(j.paid==='Paid'?'badge-progress':'badge-pending')+'" style="font-size:14px;padding:7px 16px">'+(j.paid==='Paid'?'✅ Paid':'⏳ Unpaid')+'</span>'+(j.payMethod?'<span style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 16px;font-size:14px;font-weight:600">'+j.payMethod+'</span>':'<span style="color:var(--muted);font-size:13px">No payment method recorded</span>')+'</div>'+etransferNote+'</div>'
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
