@@ -5010,13 +5010,27 @@ async function saveJob(e){
   editId = null;
   try {
     var dbRow = jobToDb(job);
-    console.log('Saving job:', dbRow.job_id, dbRow);
+
+    // Step 1: attempt upsert
     var dbRes = await db.from('jobs').upsert(dbRow, {onConflict:'job_id'});
-    if(dbRes.error){
-      alert('\u274c Error saving job: ' + dbRes.error.message);
-      console.error('saveJob error:', dbRes.error);
+    var upsertErr = dbRes.error ? dbRes.error.message + ' (code:' + dbRes.error.code + ')' : 'none';
+
+    // Step 2: verify the row actually exists in DB (catches silent RLS blocks)
+    var verify = await db.from('jobs').select('job_id').eq('job_id', dbRow.job_id).limit(1);
+    var found = !verify.error && verify.data && verify.data.length > 0;
+
+    var msg = 'ID: ' + dbRow.job_id
+      + '\nUpsert error: ' + upsertErr
+      + '\nVerify found in DB: ' + found
+      + (verify.error ? '\nVerify error: ' + verify.error.message : '');
+
+    if(dbRes.error || !found) {
+      alert('\u274c Job NOT saved!\n\n' + msg + '\n\nThis is likely a Supabase RLS policy blocking inserts. Check your Supabase dashboard > Table Editor > jobs > RLS policies.');
+      console.error('saveJob failed:', msg);
       _saveJobLock = false; return;
     }
+
+    console.log('saveJob verified OK:', dbRow.job_id);
     _clientStatsCache = null;
     toast('\u2705 ' + job.id + ' saved!');
   } catch(ex){
