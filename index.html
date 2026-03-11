@@ -519,6 +519,12 @@ textarea{resize:vertical;min-height:80px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="./supabase.js"></script>
+<script>
+  // Init db immediately after supabase.js loads, in its own block so nothing can break it
+  var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+  var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
 </head>
 <body>
 
@@ -1604,9 +1610,7 @@ textarea{resize:vertical;min-height:80px;}
 // ═══════════════════════════════════════
 //  SUPABASE CONNECTION
 // ═══════════════════════════════════════
-var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
-var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// db already initialized in head script block
 
 // ── Title Case helper ──────────────────────────────────────────────────────
 // ── Background job phone backfill (runs once on startup) ──────────────────
@@ -5329,7 +5333,10 @@ var appLoaded = false;
 
 // Check if already logged in on page load
 if (typeof db === 'undefined') {
-  window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  window.db = db = supabase.createClient(
+    'https://okoqzbdyfjfgcdgmcamq.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w'
+  );
 }
 db.auth.getSession().then(function(r) {
   if (r.data && r.data.session) {
@@ -5365,9 +5372,13 @@ async function doLogin() {
   // Re-init db if somehow undefined (e.g. script loaded late)
   if (typeof db === 'undefined') {
     try {
-      window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      window.db = supabase.createClient(
+        'https://okoqzbdyfjfgcdgmcamq.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w'
+      );
+      db = window.db;
     } catch(e) {
-      errEl.textContent = 'App failed to load — please hard-refresh (Ctrl+Shift+R).';
+      errEl.textContent = 'App failed to load — please hard-refresh (Ctrl+Shift+R). Error: ' + e.message;
       return;
     }
   }
