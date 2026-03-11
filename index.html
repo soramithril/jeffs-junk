@@ -2235,7 +2235,7 @@ function jobIdCls(id,svc){
 function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d;}
 function ft(t){if(!t)return '';var p=t.split(':'),h=parseInt(p[0]);return (h%12||12)+':'+(p[1]||'00')+' '+(h>=12?'PM':'AM');}
 function fm(v){var n=parseFloat(v);return isNaN(n)?'—':'$'+n.toFixed(2);}
-function todayStr(){return new Date().toISOString().split('T')[0];}
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function resolveAddr(j){
   var a=(j.address||'').trim();
   var c=(j.city||'').trim();
