@@ -883,13 +883,26 @@ textarea{resize:vertical;min-height:80px;}
       <button class="btn btn-primary" onclick="openAddClient()">+ Add Client</button>
     </div>
   </div>
-  <div class="filters-bar">
+  <div class="filters-bar" style="flex-wrap:wrap;gap:8px;">
     <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Search by name, phone, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;width:100%;max-width:300px">
-    <span style="font-size:12px;color:var(--muted);margin-left:8px">Sort:</span>
+    <span style="font-size:12px;color:var(--muted)">Sort:</span>
     <button class="filter-chip active" id="csort-alpha" onclick="setClientSort('alpha',this)">A–Z</button>
     <button class="filter-chip" id="csort-jobs" onclick="setClientSort('jobs',this)">Most Jobs</button>
     <button class="filter-chip" id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
     <button class="filter-chip" id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:4px">Jobs:</span>
+    <button class="filter-chip active" id="cjobs-any" onclick="setClientJobFilter('any',this)">Any</button>
+    <button class="filter-chip" id="cjobs-1" onclick="setClientJobFilter('1',this)">1+</button>
+    <button class="filter-chip" id="cjobs-5" onclick="setClientJobFilter('5',this)">5+</button>
+    <button class="filter-chip" id="cjobs-10" onclick="setClientJobFilter('10',this)">10+</button>
+    <button class="filter-chip" id="cjobs-20" onclick="setClientJobFilter('20',this)">20+</button>
+    <button class="filter-chip" id="cjobs-50" onclick="setClientJobFilter('50',this)">50+</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:4px">Service:</span>
+    <button class="filter-chip active" id="csvc-all" onclick="setClientSvcFilter('all',this)">All</button>
+    <button class="filter-chip" id="csvc-bin" onclick="setClientSvcFilter('bin',this)">🚛 Bins</button>
+    <button class="filter-chip" id="csvc-junk" onclick="setClientSvcFilter('junk',this)">🧹 Junk</button>
+    <button class="filter-chip" id="csvc-furn" onclick="setClientSvcFilter('furn',this)">🛋️ Furn</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportClientList()" style="margin-left:auto" title="Export filtered list">⬇ Export CSV</button>
   </div>
   <div id="clients-pagination-top"></div>
   <div id="clients-list"></div>
@@ -1924,33 +1937,6 @@ async function loadJobsPage(page) {
   if (!r.error) {
     jobs = (r.data || []).map(dbToJob);
     jobsTotal = r.count || jobsTotal;
-
-    // For jobs still missing a phone, look up client by name (case-insensitive)
-    var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
-    if (noPhone.length) {
-      var names = noPhone.map(function(j){ return j.name; });
-      var rc = await db.from('clients').select('cid,name,phone').in('name', names);
-      // build case-insensitive map
-      var phoneMap = {};
-      if (!rc.error && rc.data) {
-        rc.data.forEach(function(c){ if(c.name) phoneMap[c.name.trim().toLowerCase()] = c.phone || ''; });
-      }
-      // also try ilike fetch for any that didn't match exactly
-      var stillMissing = noPhone.filter(function(j){ return !phoneMap[j.name.trim().toLowerCase()]; });
-      for (var i = 0; i < stillMissing.length; i++) {
-        var rr = await db.from('clients').select('cid,name,phone').ilike('name', stillMissing[i].name.trim()).limit(1);
-        if (!rr.error && rr.data && rr.data[0] && rr.data[0].phone) {
-          phoneMap[stillMissing[i].name.trim().toLowerCase()] = rr.data[0].phone;
-          // backfill the DB so next load is instant
-          db.from('jobs').update({ phone: rr.data[0].phone, client_cid: rr.data[0].cid }).eq('job_id', stillMissing[i].id);
-        }
-      }
-      jobs.forEach(function(j){
-        if (!j.phone && j.name && phoneMap[j.name.trim().toLowerCase()]) {
-          j.phone = phoneMap[j.name.trim().toLowerCase()];
-        }
-      });
-    }
   }
   jobsLoading = false;
   renderJobs();
@@ -3018,6 +3004,55 @@ var clientsPageSize = 50;
 var clientsTotal = 0;
 var clientSort = 'alpha';
 var clientSearchTimer = null;
+var clientJobFilter = 'any';   // 'any','1','5','10','20','50'
+var clientSvcFilter = 'all';   // 'all','bin','junk','furn'
+var _allClientsFiltered = [];  // holds last full filtered+sorted list for export
+
+function setClientJobFilter(v, el) {
+  clientJobFilter = v;
+  document.querySelectorAll('[id^="cjobs-"]').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  clientsPage = 0;
+  renderClients();
+}
+
+function setClientSvcFilter(v, el) {
+  clientSvcFilter = v;
+  document.querySelectorAll('[id^="csvc-"]').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  clientsPage = 0;
+  renderClients();
+}
+
+function exportClientList() {
+  if (!_allClientsFiltered.length) { toast('No clients to export.'); return; }
+  var rows = [['Name','Phone','City','Email','Total Jobs','Bins','Junk','Furniture','Lifetime Revenue','Last Job']];
+  _allClientsFiltered.forEach(function(c) {
+    rows.push([
+      c.name || '',
+      c.phone || '',
+      c.city  || '',
+      c.email || '',
+      c._totalJobs || 0,
+      c._bins  || 0,
+      c._junk  || 0,
+      c._furn  || 0,
+      (c._totalRev || 0).toFixed(2),
+      c._lastDate || ''
+    ]);
+  });
+  var csv = rows.map(function(r){ return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var blob = new Blob([csv], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var label = [];
+  if (clientJobFilter !== 'any') label.push(clientJobFilter + '+jobs');
+  if (clientSvcFilter !== 'all') label.push(clientSvcFilter);
+  if (clientSearchF.trim()) label.push(clientSearchF.trim());
+  a.download = 'clients' + (label.length ? '-' + label.join('-') : '') + '.csv';
+  a.click();
+  toast('Exported ' + _allClientsFiltered.length + ' clients.');
+}
 
 function setClientSort(v,el){
   clientSort=v;
@@ -3131,7 +3166,21 @@ async function loadClientsPage() {
     if(idx>=0) clients[idx]=c; else clients.push(c);
   });
 
-  // ── 6. Sort ────────────────────────────────────────────────────────────────
+  // ── 6. Apply job count + service filters ──────────────────────────────────
+  if (clientJobFilter !== 'any') {
+    var minJobs = parseInt(clientJobFilter, 10);
+    allClients = allClients.filter(function(c){ return c._totalJobs >= minJobs; });
+  }
+  if (clientSvcFilter !== 'all') {
+    allClients = allClients.filter(function(c){
+      if (clientSvcFilter === 'bin')  return c._bins  > 0;
+      if (clientSvcFilter === 'junk') return c._junk  > 0;
+      if (clientSvcFilter === 'furn') return c._furn  > 0;
+      return true;
+    });
+  }
+
+  // ── 7. Sort ────────────────────────────────────────────────────────────────
   allClients.sort(function(a,b){
     if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
     if(clientSort==='revenue') return b._totalRev  - a._totalRev;
@@ -3148,7 +3197,8 @@ async function loadClientsPage() {
     return (a.name||'').localeCompare(b.name||'');
   });
 
-  // ── 7. Paginate after sort ─────────────────────────────────────────────────
+  // ── 8. Store filtered list for export, then paginate ──────────────────────
+  _allClientsFiltered = allClients;
   clientsTotal = allClients.length;
   var pageFrom = clientsPage * clientsPageSize;
   var pageClients = allClients.slice(pageFrom, pageFrom + clientsPageSize);
@@ -3156,7 +3206,10 @@ async function loadClientsPage() {
   renderClientsList(pageClients);
   renderClientsPagination();
   var sub = document.getElementById('clients-sub');
-  if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients total';
+  var filterNote = [];
+  if (clientJobFilter !== 'any') filterNote.push(clientJobFilter + '+ jobs');
+  if (clientSvcFilter !== 'all') filterNote.push(clientSvcFilter);
+  if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients' + (filterNote.length ? ' · filtered: ' + filterNote.join(', ') : ' total');
 }
 
 function renderClientsList(list) {
