@@ -1819,6 +1819,7 @@ function dbToClient(r) {
     city:     r.city    || '',
     referral: r.referral || '',
     notes:    r.notes   || '',
+    createdAt: r.created_at || '',
   };
 }
 
@@ -3413,36 +3414,37 @@ async function loadClientsPage() {
     nameToCid     = _clientStatsCache.nameToCid;
   } else {
 
-    // ── 1. Get total counts first so we know how many parallel batches to fire ─
-    var [rcCount, rjCount] = await Promise.all([
-      db.from('clients').select('*', {count:'exact', head:true}),
-      db.from('jobs').select('*', {count:'exact', head:true}).neq('status','Cancelled')
-    ]);
-    var totalClients = rcCount.count || 0;
-    var totalJobs    = rjCount.count || 0;
+    // ── 1. Get total job count for batching ──────────────────────────────────
+    var rjCount = await db.from('jobs').select('*', {count:'exact', head:true}).neq('status','Cancelled');
+    var totalJobs = rjCount.count || 0;
 
-    // ── 2. Fire ALL batches in parallel ───────────────────────────────────────
-    var clientBatches = [], jobBatches = [];
-    for(var i=0; i<Math.max(Math.ceil(totalClients/BATCH),1); i++) clientBatches.push(i);
-    for(var j=0; j<Math.max(Math.ceil(totalJobs/BATCH),1);    j++) jobBatches.push(j);
+    // ── 2a. Fetch clients — single query if searching, batched if loading all ─
+    if(q) {
+      // Search: single query, no batching (avoids running the same search N times)
+      var cqSearch = db.from('clients').select('*').order('name',{ascending:true})
+        .or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
+      var rSearch = await cqSearch;
+      allClientRows = rSearch.data || [];
+    } else {
+      // No search: batch-fetch all clients
+      var rcCount = await db.from('clients').select('*', {count:'exact', head:true});
+      var totalClients = rcCount.count || 0;
+      var clientBatches = [];
+      for(var i=0; i<Math.max(Math.ceil(totalClients/BATCH),1); i++) clientBatches.push(i);
+      var clientResults = await Promise.all(clientBatches.map(function(i){
+        return db.from('clients').select('*').order('name',{ascending:true}).range(i*BATCH,(i+1)*BATCH-1);
+      }));
+      allClientRows = [];
+      clientResults.forEach(function(r){ if(r.data) allClientRows = allClientRows.concat(r.data); });
+    }
 
-    var clientPromises = clientBatches.map(function(i){
-      var cq = db.from('clients').select('*').order('name',{ascending:true});
-      if(q) cq = cq.or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%');
-      if(!q) cq = cq.range(i*BATCH, (i+1)*BATCH-1);
-      return cq;
-    });
-    var jobPromises = jobBatches.map(function(i){
+    // ── 2b. Fetch all jobs in parallel batches ────────────────────────────────
+    var jobBatches = [];
+    for(var j=0; j<Math.max(Math.ceil(totalJobs/BATCH),1); j++) jobBatches.push(j);
+    var jobResults = await Promise.all(jobBatches.map(function(i){
       return db.from('jobs').select('client_cid,name,service,price,date')
         .neq('status','Cancelled').range(i*BATCH, Math.min((i+1)*BATCH-1, totalJobs-1));
-    });
-
-    var allResults = await Promise.all(clientPromises.concat(jobPromises));
-    var clientResults = allResults.slice(0, clientPromises.length);
-    var jobResults    = allResults.slice(clientPromises.length);
-
-    allClientRows = [];
-    clientResults.forEach(function(r){ if(r.data) allClientRows = allClientRows.concat(r.data); });
+    }));
     var allJobRows = [];
     jobResults.forEach(function(r){ if(r.data) allJobRows = allJobRows.concat(r.data); });
 
@@ -3506,9 +3508,12 @@ async function loadClientsPage() {
     if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
     if(clientSort==='revenue') return b._totalRev  - a._totalRev;
     if(clientSort==='recent'){
-      if(!a._lastDate&&!b._lastDate) return 0;
-      if(!a._lastDate) return 1; if(!b._lastDate) return -1;
-      return b._lastDate.localeCompare(a._lastDate);
+      // Use last job date; fall back to client created_at for new clients with no jobs
+      var aDate = a._lastDate || a.createdAt || '';
+      var bDate = b._lastDate || b.createdAt || '';
+      if(!aDate&&!bDate) return 0;
+      if(!aDate) return 1; if(!bDate) return -1;
+      return bDate.localeCompare(aDate);
     }
     if(clientSort==='dormant'){
       if(!a._lastDate&&!b._lastDate) return 0;
