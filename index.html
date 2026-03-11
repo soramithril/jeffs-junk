@@ -1609,6 +1609,36 @@ var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Title Case helper ──────────────────────────────────────────────────────
+// ── Background job phone backfill (runs once on startup) ──────────────────
+async function backfillJobPhones() {
+  try {
+    // Fetch all unlinked jobs in one go
+    var allUnlinked = [];
+    var pg = 0;
+    while (true) {
+      var r = await db.from('jobs').select('job_id,name').is('client_cid',null).not('name','is',null).range(pg*1000, pg*1000+999);
+      if (!r.data || !r.data.length) break;
+      allUnlinked = allUnlinked.concat(r.data);
+      if (r.data.length < 1000) break;
+      pg++;
+    }
+    if (!allUnlinked.length) return;
+    var fixed = 0;
+    for (var i = 0; i < allUnlinked.length; i++) {
+      var j = allUnlinked[i];
+      if (!j.name) continue;
+      var rc = await db.from('clients').select('cid,phone').ilike('name', j.name.trim()).limit(1);
+      if (!rc.error && rc.data && rc.data[0]) {
+        var upd = { client_cid: rc.data[0].cid };
+        if (rc.data[0].phone) upd.phone = rc.data[0].phone;
+        await db.from('jobs').update(upd).eq('job_id', j.job_id);
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log('[backfill] Fixed ' + fixed + ' jobs with missing phone/client_cid');
+  } catch(e) { console.warn('[backfill] error:', e); }
+}
+
 function toTitleCase(str) {
   if (!str) return str;
   var small = /^(a|an|and|as|at|but|by|for|if|in|nor|of|on|or|so|the|to|up|yet)$/i;
@@ -1940,6 +1970,8 @@ async function loadAllFromSupabase() {
     }
     renderDash();
     toast('✓ Dashboard ready');
+    // Background: fix any jobs still missing phone/client_cid
+    backfillJobPhones();
 
   } catch(e) {
     hideLoading();
@@ -1979,6 +2011,20 @@ async function loadJobsPage(page) {
   if (!r.error) {
     jobs = (r.data || []).map(dbToJob);
     jobsTotal = r.count || jobsTotal;
+
+    // Fill missing phones using ilike client name match, then backfill DB
+    var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
+    if (noPhone.length) {
+      for (var i = 0; i < noPhone.length; i++) {
+        var j = noPhone[i];
+        var rc = await db.from('clients').select('cid,phone').ilike('name', j.name.trim()).limit(1);
+        if (!rc.error && rc.data && rc.data[0] && rc.data[0].phone) {
+          j.phone = rc.data[0].phone;
+          // Backfill DB silently so next load is instant
+          db.from('jobs').update({ phone: rc.data[0].phone, client_cid: rc.data[0].cid }).eq('job_id', j.id);
+        }
+      }
+    }
   }
   jobsLoading = false;
   renderJobs();
