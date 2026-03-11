@@ -1591,7 +1591,7 @@ function dbToJob(r) {
     service:    r.service,
     status:     r.status     || 'Pending',
     name:       r.name       || '',
-    phone:      r.phone      || '',
+    phone:      r.phone      || r.client_phone || '',
     address:    r.address    || '',
     city:       r.city       || '',
     date:       r.date       || '',
@@ -1903,7 +1903,7 @@ async function loadJobsPage(page) {
   var from = page * jobsPageSize;
 
   // Build query with current filters
-  var query = db.from('jobs').select('*', {count:'exact'}).order('date', {ascending: false});
+  var query = db.from('jobs_with_client').select('*', {count:'exact'}).order('date', {ascending: false});
 
   // Apply search filter server-side
   if (searchF && searchF.trim()) {
