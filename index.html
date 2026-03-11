@@ -1591,7 +1591,7 @@ function dbToJob(r) {
     service:    r.service,
     status:     r.status     || 'Pending',
     name:       r.name       || '',
-    phone:      r.phone      || r.client_phone || '',
+    phone:      r.phone      || '',
     address:    r.address    || '',
     city:       r.city       || '',
     date:       r.date       || '',
@@ -1903,7 +1903,7 @@ async function loadJobsPage(page) {
   var from = page * jobsPageSize;
 
   // Build query with current filters
-  var query = db.from('jobs_with_client').select('*', {count:'exact'}).order('date', {ascending: false});
+  var query = db.from('jobs').select('*', {count:'exact'}).order('date', {ascending: false});
 
   // Apply search filter server-side
   if (searchF && searchF.trim()) {
@@ -1924,6 +1924,33 @@ async function loadJobsPage(page) {
   if (!r.error) {
     jobs = (r.data || []).map(dbToJob);
     jobsTotal = r.count || jobsTotal;
+
+    // For jobs still missing a phone, look up client by name (case-insensitive)
+    var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
+    if (noPhone.length) {
+      var names = noPhone.map(function(j){ return j.name; });
+      var rc = await db.from('clients').select('cid,name,phone').in('name', names);
+      // build case-insensitive map
+      var phoneMap = {};
+      if (!rc.error && rc.data) {
+        rc.data.forEach(function(c){ if(c.name) phoneMap[c.name.trim().toLowerCase()] = c.phone || ''; });
+      }
+      // also try ilike fetch for any that didn't match exactly
+      var stillMissing = noPhone.filter(function(j){ return !phoneMap[j.name.trim().toLowerCase()]; });
+      for (var i = 0; i < stillMissing.length; i++) {
+        var rr = await db.from('clients').select('cid,name,phone').ilike('name', stillMissing[i].name.trim()).limit(1);
+        if (!rr.error && rr.data && rr.data[0] && rr.data[0].phone) {
+          phoneMap[stillMissing[i].name.trim().toLowerCase()] = rr.data[0].phone;
+          // backfill the DB so next load is instant
+          db.from('jobs').update({ phone: rr.data[0].phone, client_cid: rr.data[0].cid }).eq('job_id', stillMissing[i].id);
+        }
+      }
+      jobs.forEach(function(j){
+        if (!j.phone && j.name && phoneMap[j.name.trim().toLowerCase()]) {
+          j.phone = phoneMap[j.name.trim().toLowerCase()];
+        }
+      });
+    }
   }
   jobsLoading = false;
   renderJobs();
