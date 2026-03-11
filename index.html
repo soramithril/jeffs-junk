@@ -516,6 +516,253 @@ textarea{resize:vertical;min-height:80px;}
   /* Fleet summary metrics: wrap */
   #dash-bin-fleet-card [style*="display:flex"][style*="justify-content:center"]{gap:12px!important;}
 }
+
+/* ═══════════════════════════════════════════
+   ANIMATED COUNTER
+═══════════════════════════════════════════ */
+@keyframes countPop{0%{transform:scale(1.18);opacity:.6}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+.stat-value.popping{animation:countPop .4s cubic-bezier(.22,.68,0,1.2) both;}
+
+/* ═══════════════════════════════════════════
+   SKELETON LOADERS
+═══════════════════════════════════════════ */
+@keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+.skeleton{
+  border-radius:8px;
+  background:linear-gradient(90deg,var(--surface2) 25%,rgba(255,255,255,.05) 50%,var(--surface2) 75%);
+  background-size:600px 100%;
+  animation:shimmer 1.4s ease infinite;
+}
+body.light-mode .skeleton{
+  background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);
+  background-size:600px 100%;
+}
+.skeleton-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;overflow:hidden;}
+.skeleton-line{height:12px;margin-bottom:8px;}
+.skeleton-line.wide{width:80%;}
+.skeleton-line.med{width:55%;}
+.skeleton-line.short{width:35%;}
+.skeleton-line.title{height:28px;width:60%;margin-bottom:12px;}
+.skeleton-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;}
+.skeleton-client-row{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--border);}
+.skeleton-client-row:last-child{border-bottom:none;}
+
+/* ═══════════════════════════════════════════
+   SMART SELECT (searchable dropdown)
+═══════════════════════════════════════════ */
+.smart-select-wrap{position:relative;}
+.smart-select-input{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;
+  width:100%;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  transition:border-color .15s;
+}
+.smart-select-input:focus,.smart-select-input.open{outline:none;border-color:var(--accent);}
+.smart-select-input .ss-arrow{font-size:10px;color:var(--muted);transition:transform .2s;margin-left:8px;flex-shrink:0;}
+.smart-select-input.open .ss-arrow{transform:rotate(180deg);}
+.smart-select-dropdown{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.35);overflow:hidden;
+  max-height:240px;display:none;flex-direction:column;
+}
+.smart-select-dropdown.open{display:flex;}
+.ss-search{
+  padding:8px 12px;border-bottom:1px solid var(--border);
+  background:var(--surface2);display:flex;align-items:center;gap:8px;
+}
+.ss-search input{
+  background:none;border:none;color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:13px;width:100%;padding:0;
+}
+.ss-search input::placeholder{color:var(--muted);}
+.ss-options{overflow-y:auto;max-height:190px;}
+.ss-option{
+  padding:10px 14px;font-size:14px;cursor:pointer;transition:background .1s;
+  display:flex;align-items:center;gap:8px;
+}
+.ss-option:hover,.ss-option.focused{background:var(--surface2);}
+.ss-option.selected{color:var(--accent);font-weight:600;}
+.ss-option .ss-opt-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ss-empty{padding:14px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* ═══════════════════════════════════════════
+   ENHANCED BADGES — animated dot indicator
+═══════════════════════════════════════════ */
+.badge-dot{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.3px;}
+.badge-dot .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.badge-dot.pending .dot{background:#eab308;animation:pulse-dot 1.6s ease infinite;}
+.badge-dot.progress .dot{background:#22c55e;animation:pulse-dot 2s ease infinite;}
+.badge-dot.done .dot{background:#6b7785;}
+.badge-dot.cancelled .dot{background:#ef4444;}
+.badge-dot.pending{background:rgba(234,179,8,.12);color:#eab308;}
+.badge-dot.progress{background:rgba(34,197,94,.12);color:#22c55e;}
+.badge-dot.done{background:rgba(107,117,133,.1);color:var(--muted);}
+.badge-dot.cancelled{background:rgba(239,68,68,.1);color:#ef4444;}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)}}
+
+/* ═══════════════════════════════════════════
+   ALERT BANNERS
+═══════════════════════════════════════════ */
+.alert-stack{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.alert-banner{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;
+  font-size:13px;font-weight:500;border:1px solid;position:relative;overflow:hidden;
+  animation:slideDown .3s cubic-bezier(.22,.68,0,1.2) both;
+}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.alert-banner.warn{background:rgba(234,179,8,.08);border-color:rgba(234,179,8,.3);color:#eab308;}
+.alert-banner.danger{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3);color:#ef4444;}
+.alert-banner.info{background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.3);color:#60a5fa;}
+.alert-banner.success{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.3);color:#22c55e;}
+.alert-banner .alert-icon{font-size:16px;flex-shrink:0;}
+.alert-banner .alert-msg{flex:1;line-height:1.4;}
+.alert-banner .alert-action{font-size:12px;font-weight:700;cursor:pointer;opacity:.8;padding:4px 10px;border:1px solid currentColor;border-radius:6px;white-space:nowrap;transition:opacity .15s;}
+.alert-banner .alert-action:hover{opacity:1;}
+.alert-banner .alert-close{margin-left:8px;background:none;border:none;color:currentColor;cursor:pointer;font-size:14px;opacity:.6;padding:0 4px;flex-shrink:0;}
+.alert-banner .alert-close:hover{opacity:1;}
+
+/* ═══════════════════════════════════════════
+   NOTIFICATION BELL
+═══════════════════════════════════════════ */
+.notif-bell-wrap{position:relative;}
+.notif-bell{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:38px;height:38px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.notif-bell:hover{border-color:var(--accent);color:var(--accent);}
+.notif-badge{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg);}
+.notif-panel{
+  position:absolute;top:calc(100% + 8px);right:0;width:320px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 12px 40px rgba(0,0,0,.4);z-index:9000;display:none;overflow:hidden;
+}
+.notif-panel.open{display:block;animation:slideDown .2s ease both;}
+.notif-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.notif-header-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;}
+.notif-clear{font-size:11px;color:var(--muted);cursor:pointer;transition:color .15s;}
+.notif-clear:hover{color:var(--accent);}
+.notif-list{max-height:360px;overflow-y:auto;}
+.notif-item{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;cursor:pointer;transition:background .12s;}
+.notif-item:last-child{border-bottom:none;}
+.notif-item:hover{background:var(--surface2);}
+.notif-item .ni-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.notif-item .ni-body{flex:1;}
+.notif-item .ni-title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+.notif-item .ni-sub{font-size:11px;color:var(--muted);}
+.notif-item.unread{background:rgba(34,197,94,.04);}
+.notif-item.unread .ni-title{color:var(--accent);}
+.notif-empty{padding:28px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* ═══════════════════════════════════════════
+   POPOVER (quick job hover preview)
+═══════════════════════════════════════════ */
+.job-popover{
+  position:fixed;z-index:8000;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;width:240px;pointer-events:none;
+  box-shadow:0 8px 30px rgba(0,0,0,.35);
+  opacity:0;transform:scale(.95) translateY(4px);
+  transition:opacity .15s,transform .15s;
+}
+.job-popover.visible{opacity:1;transform:scale(1) translateY(0);}
+.jp-name{font-weight:700;font-size:14px;margin-bottom:4px;}
+.jp-meta{font-size:12px;color:var(--muted);line-height:1.6;}
+.jp-price{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent);margin-top:6px;}
+
+/* ═══════════════════════════════════════════
+   MOBILE DOCK
+═══════════════════════════════════════════ */
+.mobile-dock{
+  display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  background:var(--surface);border:1px solid var(--border);border-radius:24px;
+  padding:8px 12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:300;
+  flex-direction:row;gap:4px;align-items:center;
+  backdrop-filter:blur(12px);
+}
+@media(max-width:768px){.mobile-dock{display:flex;}}
+.dock-btn{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:8px 12px;border-radius:16px;border:none;background:none;
+  color:var(--muted);cursor:pointer;font-size:10px;font-weight:600;
+  letter-spacing:.3px;transition:all .15s;min-width:54px;
+}
+.dock-btn:hover,.dock-btn.active{background:rgba(34,197,94,.12);color:var(--accent);}
+.dock-btn .dock-icon{font-size:20px;line-height:1;}
+.dock-add{
+  background:var(--accent)!important;color:#0a0a0a!important;
+  border-radius:16px;padding:10px 16px;font-size:14px;
+}
+.dock-add:hover{background:#16a34a!important;}
+
+/* ═══════════════════════════════════════════
+   DATE RANGE PICKER
+═══════════════════════════════════════════ */
+.daterange-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.daterange-preset{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.daterange-preset:hover,.daterange-preset.active{background:rgba(34,197,94,.12);border-color:var(--accent);color:var(--accent);}
+.daterange-custom{display:flex;align-items:center;gap:6px;}
+.daterange-custom input[type=date]{padding:5px 10px;font-size:12px;width:130px;}
+.daterange-sep{font-size:12px;color:var(--muted);}
+
+/* ═══════════════════════════════════════════
+   STICKY TABLE HEADERS
+═══════════════════════════════════════════ */
+.table-wrap.sticky-head{overflow:auto;max-height:600px;}
+.table-wrap.sticky-head thead th{position:sticky;top:0;z-index:10;}
+
+/* ═══════════════════════════════════════════
+   ENHANCED TABLE SORT ARROWS
+═══════════════════════════════════════════ */
+thead th.sortable{cursor:pointer;user-select:none;}
+thead th.sortable:hover{color:var(--text);}
+thead th.sortable .sort-icon{opacity:.35;margin-left:4px;font-size:10px;}
+thead th.sortable.asc .sort-icon::after{content:'↑';opacity:1;}
+thead th.sortable.desc .sort-icon::after{content:'↓';opacity:1;}
+thead th.sortable:not(.asc):not(.desc) .sort-icon::after{content:'↕';}
+
+/* ═══════════════════════════════════════════
+   IMPROVED TOAST
+═══════════════════════════════════════════ */
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;padding:13px 20px;
+  font-size:14px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.4);
+  z-index:9999;opacity:0;transform:translateY(12px) scale(.96);
+  transition:opacity .2s,transform .2s;pointer-events:none;max-width:320px;
+  display:flex;align-items:center;gap:10px;
+}
+.toast.show{opacity:1;transform:translateY(0) scale(1);pointer-events:all;}
+.toast.toast-success{border-color:rgba(34,197,94,.4);color:#22c55e;}
+.toast.toast-error{border-color:rgba(239,68,68,.4);color:#ef4444;}
+.toast.toast-info{border-color:rgba(96,165,250,.4);color:#60a5fa;}
+@media(max-width:768px){.toast{bottom:88px;right:12px;left:12px;}}
+
+/* ═══════════════════════════════════════════
+   REVENUE SPARKLINE
+═══════════════════════════════════════════ */
+.sparkline-wrap{height:32px;display:flex;align-items:flex-end;gap:3px;margin-top:8px;}
+.sparkline-bar{flex:1;border-radius:3px 3px 0 0;min-height:3px;transition:height .5s cubic-bezier(.22,.68,0,1.2);background:rgba(34,197,94,.3);}
+.sparkline-bar:hover{background:rgba(34,197,94,.7);}
+
+/* ═══════════════════════════════════════════
+   ENHANCED CLIENT CARDS — improved layout
+═══════════════════════════════════════════ */
+.client-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px;display:flex;gap:12px;align-items:flex-start;
+  cursor:pointer;transition:all .18s;position:relative;overflow:hidden;
+}
+.client-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:transparent;transition:background .18s;}
+.client-card:hover{border-color:rgba(34,197,94,.3);transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.2);}
+.client-card:hover::before{background:var(--accent);}
+.client-avatar{width:44px;height:44px;border-radius:12px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent);flex-shrink:0;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;}
+.client-info{flex:1;min-width:0;}
+.client-name{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
+.client-meta{font-size:12px;color:var(--muted);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.client-stats{display:flex;gap:6px;flex-wrap:wrap;}
+.client-stat{font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px;}
+.cs-bin{background:rgba(34,197,94,.12);color:var(--c-bin);}
+.cs-junk{background:rgba(234,179,8,.12);color:var(--c-junk);}
+.cs-furn{background:rgba(239,68,68,.12);color:var(--c-furn);}
+.cs-total{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.client-actions{display:flex;flex-direction:column;gap:5px;flex-shrink:0;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -625,8 +872,47 @@ textarea{resize:vertical;min-height:80px;}
   <div class="page-header">
     <div><div class="page-title">Dashboard</div><div class="page-sub" id="today-lbl"></div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="notif-bell-wrap">
+        <button class="notif-bell" id="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifications">🔔</button>
+        <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+        <div class="notif-panel" id="notif-panel">
+          <div class="notif-header">
+            <span class="notif-header-title">Notifications</span>
+            <span class="notif-clear" onclick="clearAllNotifs()">Clear all</span>
+          </div>
+          <div class="notif-list" id="notif-list"><div class="notif-empty">All caught up ✅</div></div>
+        </div>
+      </div>
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙 Night Mode</button>
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
+    </div>
+  </div>
+
+  <!-- Smart alert banners -->
+  <div class="alert-stack" id="dash-alerts"></div>
+
+  <!-- Top stat strip -->
+  <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
+    <div class="stat-card c-green"><div class="stat-icon">📋</div><div class="stat-value" id="s-total">—</div><div class="stat-label">Total Jobs</div></div>
+    <div class="stat-card c-yellow"><div class="stat-icon">⚡</div><div class="stat-value" id="s-active">—</div><div class="stat-label">In Progress</div></div>
+    <div class="stat-card c-green"><div class="stat-icon">✅</div><div class="stat-value" id="s-done">—</div><div class="stat-label">Completed</div></div>
+    <div class="stat-card c-red"><div class="stat-icon">⏳</div><div class="stat-value" id="s-unpaid">—</div><div class="stat-label">Unpaid</div></div>
+    <div class="stat-card c-green"><div class="stat-icon">💰</div><div class="stat-value" id="s-month-rev">—</div><div id="dash-sparkline"></div><div class="stat-label">This Month</div></div>
+  </div>
+
+  <!-- Secondary stats row -->
+  <div class="metric-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">This Week</div><div style="font-family:'Bebas Neue',sans-serif;font-size:26px" id="s-week-jobs">—</div></div>
+      <div style="font-size:24px">📅</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Week Revenue</div><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent)" id="s-week-rev">—</div></div>
+      <div style="font-size:24px">📈</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Outstanding</div><div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#eab308" id="s-outstanding">—</div></div>
+      <div style="font-size:24px">💸</div>
     </div>
   </div>
 
@@ -5986,6 +6272,361 @@ function checkVehicleAvailability(serviceType, dateStr){
   </div>
 </div>
 
+<!-- ─── MOBILE DOCK ─── -->
+<div class="mobile-dock" id="mobile-dock">
+  <button class="dock-btn" onclick="go('dashboard')" id="dock-dash"><span class="dock-icon">🏠</span>Home</button>
+  <button class="dock-btn" onclick="go('jobs')" id="dock-jobs"><span class="dock-icon">📋</span>Jobs</button>
+  <button class="dock-btn dock-add" onclick="newJob()"><span class="dock-icon">＋</span></button>
+  <button class="dock-btn" onclick="go('clients')" id="dock-clients"><span class="dock-icon">👥</span>Clients</button>
+  <button class="dock-btn" onclick="go('calendar')" id="dock-cal"><span class="dock-icon">📅</span>Cal</button>
+</div>
+
+<!-- ─── JOB HOVER POPOVER ─── -->
+<div class="job-popover" id="job-popover">
+  <div class="jp-name" id="jp-name"></div>
+  <div class="jp-meta" id="jp-meta"></div>
+  <div class="jp-price" id="jp-price"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  NOTIFICATION SYSTEM
+// ═══════════════════════════════════════
+var _notifications = [];
+var _notifRead = false;
+
+function buildNotifications() {
+  var notifs = [];
+  var today = todayStr();
+  var yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+
+  // Overdue bins
+  var overdueBins = jobs.filter(function(j){
+    return j.service==='Bin Rental' && j.binInstatus==='dropped' && j.binPickup && j.binPickup < today && j.status !== 'Done' && j.status !== 'Cancelled';
+  });
+  if(overdueBins.length) notifs.push({icon:'🚨',title:overdueBins.length+' bin'+(overdueBins.length>1?'s':'')+' overdue for pickup',sub:'Scheduled pickup dates have passed',type:'danger',action:function(){go('dashboard');}});
+
+  // Unpaid jobs
+  var unpaid = jobs.filter(function(j){return j.paid!=='Paid'&&j.status==='Done'&&j.service!=='Junk Quote';});
+  if(unpaid.length) notifs.push({icon:'💰',title:unpaid.length+' completed job'+(unpaid.length>1?'s':'')+' still unpaid',sub:'Follow up to collect payment',type:'warn',action:function(){go('jobs');}});
+
+  // Bins out with no pickup scheduled
+  var noPickup = jobs.filter(function(j){return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&!j.binPickup;});
+  if(noPickup.length) notifs.push({icon:'📋',title:noPickup.length+' bin'+(noPickup.length>1?'s':'')+' out with no pickup date',sub:'Add a pickup date to track these',type:'info',action:function(){go('bininventory');}});
+
+  // Unconfirmed today's jobs
+  var unconfirmed = jobs.filter(function(j){return j.date===today&&!j.confirmed&&j.status!=='Cancelled'&&j.status!=='Done';});
+  if(unconfirmed.length) notifs.push({icon:'📞',title:unconfirmed.length+' job'+(unconfirmed.length>1?'s':'')+' today not confirmed',sub:'Call to confirm customer availability',type:'warn',action:function(){go('dashboard');}});
+
+  _notifications = notifs;
+  renderNotifications();
+}
+
+function renderNotifications() {
+  var list = document.getElementById('notif-list');
+  var badge = document.getElementById('notif-badge');
+  if(!list) return;
+  if(!_notifications.length) {
+    list.innerHTML = '<div class="notif-empty">All caught up ✅</div>';
+    if(badge) badge.style.display = 'none';
+    return;
+  }
+  list.innerHTML = _notifications.map(function(n,i){
+    return '<div class="notif-item unread" onclick="closeNotifPanel();if(n.action)_notifications['+i+'].action()">'
+      +'<div class="ni-icon">'+n.icon+'</div>'
+      +'<div class="ni-body"><div class="ni-title">'+n.title+'</div><div class="ni-sub">'+n.sub+'</div></div>'
+      +'</div>';
+  }).join('');
+  if(badge) { badge.textContent = _notifications.length; badge.style.display = 'flex'; }
+
+  // Also build dashboard alert banners
+  renderDashAlerts();
+}
+
+function renderDashAlerts() {
+  var el = document.getElementById('dash-alerts');
+  if(!el) return;
+  // Show max 3 most important alerts
+  var alerts = _notifications.slice(0,3);
+  el.innerHTML = alerts.map(function(n){
+    return '<div class="alert-banner '+n.type+'" id="alert-'+n.type+'">'
+      +'<span class="alert-icon">'+n.icon+'</span>'
+      +'<span class="alert-msg">'+n.title+'</span>'
+      +(n.action?'<span class="alert-action" onclick="'+('_notifications.find(function(x){return x.icon===\''+n.icon+'\';}).action&&_notifications.find(function(x){return x.icon===\''+n.icon+'\';}).action()')+'">View →</span>':'')
+      +'<button class="alert-close" onclick="this.closest(\'.alert-banner\').remove()">✕</button>'
+      +'</div>';
+  }).join('');
+}
+
+function toggleNotifPanel() {
+  var p = document.getElementById('notif-panel');
+  p.classList.toggle('open');
+  if(p.classList.contains('open')) {
+    _notifRead = true;
+    // Close on outside click
+    setTimeout(function(){
+      document.addEventListener('click', closeNotifOnOutside, {once:true});
+    }, 50);
+  }
+}
+function closeNotifPanel() { document.getElementById('notif-panel').classList.remove('open'); }
+function closeNotifOnOutside(e) { if(!e.target.closest('.notif-bell-wrap')) closeNotifPanel(); }
+function clearAllNotifs() { _notifications = []; renderNotifications(); closeNotifPanel(); }
+
+// ═══════════════════════════════════════
+//  SKELETON LOADERS
+// ═══════════════════════════════════════
+function skeletonClientCards(n) {
+  var rows = '';
+  for(var i=0;i<(n||6);i++){
+    rows += '<div class="skeleton-card" style="margin-bottom:8px">'
+      +'<div class="skeleton-client-row">'
+      +'<div class="skeleton skeleton-avatar"></div>'
+      +'<div style="flex:1">'
+      +'<div class="skeleton skeleton-line title" style="height:16px;width:'+(50+Math.random()*30|0)+'%"></div>'
+      +'<div class="skeleton skeleton-line" style="width:'+(30+Math.random()*30|0)+'%"></div>'
+      +'</div>'
+      +'</div>'
+      +'</div>';
+  }
+  return rows;
+}
+
+function skeletonJobRows(n) {
+  var rows = '';
+  for(var i=0;i<(n||8);i++){
+    rows += '<tr><td colspan="6"><div style="display:flex;gap:14px;padding:4px 0">'
+      +'<div class="skeleton" style="width:60px;height:18px;border-radius:4px"></div>'
+      +'<div class="skeleton" style="width:'+(80+Math.random()*80|0)+'px;height:18px;border-radius:4px"></div>'
+      +'<div class="skeleton" style="width:80px;height:18px;border-radius:4px;margin-left:auto"></div>'
+      +'</div></td></tr>';
+  }
+  return '<table><tbody>'+rows+'</tbody></table>';
+}
+
+// Patch loadClientsPage to show skeleton while loading
+var _origLoadClientsPage = loadClientsPage;
+loadClientsPage = async function() {
+  var el = document.getElementById('clients-list');
+  if(el) el.innerHTML = skeletonClientCards(8);
+  return _origLoadClientsPage.apply(this, arguments);
+};
+
+// ═══════════════════════════════════════
+//  SMART SELECT COMPONENT
+// ═══════════════════════════════════════
+function createSmartSelect(opts) {
+  // opts: { id, placeholder, options:[{value,label,color,dot}], onChange, value }
+  var wrap = document.createElement('div');
+  wrap.className = 'smart-select-wrap';
+  wrap.innerHTML =
+    '<div class="smart-select-input" id="ss-trigger-'+opts.id+'" tabindex="0">'
+    +'<span id="ss-label-'+opts.id+'">'+opts.placeholder+'</span>'
+    +'<span class="ss-arrow">▼</span>'
+    +'</div>'
+    +'<div class="smart-select-dropdown" id="ss-drop-'+opts.id+'">'
+    +(opts.searchable!==false?'<div class="ss-search"><span>🔍</span><input type="text" placeholder="Search..." id="ss-search-'+opts.id+'"></div>':'')
+    +'<div class="ss-options" id="ss-opts-'+opts.id+'"></div>'
+    +'</div>';
+
+  var currentVal = opts.value || '';
+
+  function renderOpts(q) {
+    var optsEl = wrap.querySelector('#ss-opts-'+opts.id);
+    var filtered = q ? opts.options.filter(function(o){return o.label.toLowerCase().includes(q.toLowerCase());}) : opts.options;
+    if(!filtered.length) { optsEl.innerHTML = '<div class="ss-empty">No options found</div>'; return; }
+    optsEl.innerHTML = filtered.map(function(o){
+      return '<div class="ss-option'+(o.value===currentVal?' selected':'')+'\" data-val="'+o.value+'">'
+        +(o.dot?'<span class="ss-opt-dot" style="background:'+o.dot+'"></span>':'')
+        +'<span>'+o.label+'</span></div>';
+    }).join('');
+    optsEl.querySelectorAll('.ss-option').forEach(function(el){
+      el.addEventListener('click', function(){
+        currentVal = el.dataset.val;
+        var selectedOpt = opts.options.find(function(o){return o.value===currentVal;});
+        wrap.querySelector('#ss-label-'+opts.id).textContent = selectedOpt ? selectedOpt.label : opts.placeholder;
+        closeDrop();
+        if(opts.onChange) opts.onChange(currentVal);
+        renderOpts('');
+      });
+    });
+  }
+
+  function openDrop() {
+    wrap.querySelector('#ss-trigger-'+opts.id).classList.add('open');
+    wrap.querySelector('#ss-drop-'+opts.id).classList.add('open');
+    renderOpts('');
+    var si = wrap.querySelector('#ss-search-'+opts.id);
+    if(si) { si.value=''; si.focus(); }
+  }
+  function closeDrop() {
+    wrap.querySelector('#ss-trigger-'+opts.id).classList.remove('open');
+    wrap.querySelector('#ss-drop-'+opts.id).classList.remove('open');
+  }
+
+  wrap.querySelector('#ss-trigger-'+opts.id).addEventListener('click', function(e){
+    e.stopPropagation();
+    var isOpen = wrap.querySelector('#ss-drop-'+opts.id).classList.contains('open');
+    if(isOpen) closeDrop(); else openDrop();
+  });
+  var si = wrap.querySelector('#ss-search-'+opts.id);
+  if(si) si.addEventListener('input', function(){ renderOpts(this.value); });
+  document.addEventListener('click', function(e){ if(!wrap.contains(e.target)) closeDrop(); });
+
+  wrap.getValue = function(){ return currentVal; };
+  wrap.setValue = function(v){
+    currentVal = v;
+    var selectedOpt = opts.options.find(function(o){return o.value===v;});
+    wrap.querySelector('#ss-label-'+opts.id).textContent = selectedOpt ? selectedOpt.label : opts.placeholder;
+  };
+  return wrap;
+}
+
+// ═══════════════════════════════════════
+//  JOB POPOVER ON CALENDAR HOVER
+// ═══════════════════════════════════════
+var _popoverTimer = null;
+function showJobPopover(jobId, e) {
+  clearTimeout(_popoverTimer);
+  var j = jobs.find(function(x){return x.id===jobId;});
+  if(!j) return;
+  var pop = document.getElementById('job-popover');
+  document.getElementById('jp-name').textContent = j.name;
+  document.getElementById('jp-meta').textContent = [j.id, j.service, j.date ? fd(j.date) : ''].filter(Boolean).join(' · ');
+  document.getElementById('jp-price').textContent = j.price ? fm(j.price) : '';
+  var rect = e.target.getBoundingClientRect();
+  pop.style.left = Math.min(rect.left, window.innerWidth-260)+'px';
+  pop.style.top = (rect.bottom+6)+'px';
+  pop.classList.add('visible');
+}
+function hideJobPopover() {
+  _popoverTimer = setTimeout(function(){
+    document.getElementById('job-popover').classList.remove('visible');
+  }, 120);
+}
+
+// Patch renderCal to add popover listeners after render
+var _origRenderCal = renderCal;
+renderCal = function() {
+  _origRenderCal.apply(this, arguments);
+  // Add hover popover to all cal dots
+  setTimeout(function(){
+    document.querySelectorAll('.cal-dot[data-jid],.week-job-chip[data-jid]').forEach(function(el){
+      el.addEventListener('mouseenter', function(e){ showJobPopover(el.dataset.jid, e); });
+      el.addEventListener('mouseleave', hideJobPopover);
+    });
+  }, 50);
+};
+
+// ═══════════════════════════════════════
+//  MOBILE DOCK — sync active state
+// ═══════════════════════════════════════
+var _origGo = go;
+go = function(name) {
+  _origGo.apply(this, arguments);
+  var map = {dashboard:'dock-dash',jobs:'dock-jobs',clients:'dock-clients',calendar:'dock-cal'};
+  document.querySelectorAll('.dock-btn').forEach(function(b){b.classList.remove('active');});
+  if(map[name]) { var b = document.getElementById(map[name]); if(b) b.classList.add('active'); }
+};
+
+// ═══════════════════════════════════════
+//  ENHANCED TOAST
+// ═══════════════════════════════════════
+var _toastTimer = null;
+var _origToast = toast;
+toast = function(msg, type) {
+  clearTimeout(_toastTimer);
+  var el = document.getElementById('toast');
+  if(!el) return;
+  var icon = type==='error'?'❌':type==='info'?'ℹ️':'✅';
+  el.innerHTML = icon + ' ' + msg;
+  el.className = 'toast show' + (type?' toast-'+type:' toast-success');
+  _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 3000);
+};
+
+// ═══════════════════════════════════════
+//  DATE RANGE PRESETS for Analytics
+// ═══════════════════════════════════════
+function setAnalyticsRange(preset) {
+  document.querySelectorAll('.daterange-preset').forEach(function(b){b.classList.remove('active');});
+  var now = new Date();
+  var from, to = now.toISOString().split('T')[0];
+  if(preset==='7d'){ from=new Date(now-7*86400000).toISOString().split('T')[0]; }
+  else if(preset==='30d'){ from=new Date(now-30*86400000).toISOString().split('T')[0]; }
+  else if(preset==='90d'){ from=new Date(now-90*86400000).toISOString().split('T')[0]; }
+  else if(preset==='mtd'){ from=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0]; }
+  else if(preset==='ytd'){ from=new Date(now.getFullYear(),0,1).toISOString().split('T')[0]; }
+  var fromEl=document.getElementById('analytics-from'),toEl=document.getElementById('analytics-to');
+  if(fromEl) fromEl.value=from;
+  if(toEl) toEl.value=to;
+  var btn=document.querySelector('.daterange-preset[data-preset="'+preset+'"]');
+  if(btn) btn.classList.add('active');
+  // Trigger analytics re-render if function exists
+  if(typeof renderAnalytics==='function') renderAnalytics();
+}
+
+// ═══════════════════════════════════════
+//  IMPROVED STATUS BADGE FUNCTION
+// ═══════════════════════════════════════
+function stbDot(status) {
+  var map = {
+    'Pending':   {cls:'pending',   label:'Pending'},
+    'In Progress':{cls:'progress', label:'In Progress'},
+    'Done':      {cls:'done',      label:'Done'},
+    'Cancelled': {cls:'cancelled', label:'Cancelled'}
+  };
+  var s = map[status] || {cls:'pending', label:status||'Unknown'};
+  return '<span class="badge-dot '+s.cls+'"><span class="dot"></span>'+s.label+'</span>';
+}
+
+// ═══════════════════════════════════════
+//  SPARKLINE for stat cards
+// ═══════════════════════════════════════
+async function renderRevenueSparkline(elId) {
+  var el = document.getElementById(elId);
+  if(!el) return;
+  var now = new Date();
+  var days = [];
+  for(var i=6;i>=0;i--){
+    var d = new Date(now-i*86400000);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  try {
+    var r = await db.from('jobs').select('date,price').gte('date',days[0]).lte('date',days[6]).neq('status','Cancelled');
+    var byDay = {};
+    days.forEach(function(d){byDay[d]=0;});
+    (r.data||[]).forEach(function(row){if(byDay.hasOwnProperty(row.date))byDay[row.date]+=(parseFloat(row.price)||0);});
+    var vals = days.map(function(d){return byDay[d];});
+    var max = Math.max.apply(null,vals)||1;
+    el.innerHTML = '<div class="sparkline-wrap" title="Revenue last 7 days">'
+      +vals.map(function(v,i){
+        var pct = Math.max(4, Math.round(v/max*100));
+        return '<div class="sparkline-bar" style="height:'+pct+'%;background:rgba(34,197,94,'+(v>0?.5:.15)+')" title="'+days[i]+': $'+Math.round(v)+'"></div>';
+      }).join('')
+      +'</div>';
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════
+//  HOOK INTO renderDash to build notifs + sparkline
+// ═══════════════════════════════════════
+var _origRenderDash = renderDash;
+renderDash = async function() {
+  await _origRenderDash.apply(this, arguments);
+  // Build smart notifications after data is loaded
+  setTimeout(function(){
+    buildNotifications();
+    renderRevenueSparkline('dash-sparkline');
+  }, 400);
+  // Sync dock active state
+  var b = document.getElementById('dock-dash'); if(b) b.classList.add('active');
+};
+
+// Close notif panel on outside click from anywhere
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.notif-bell-wrap')) closeNotifPanel();
+});
+</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
