@@ -1201,8 +1201,8 @@ textarea{resize:vertical;min-height:80px;}
       <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
     </div>
     <div class="form-grid" style="margin-bottom:4px">
-      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b-fuel" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted);line-height:1.4">Added on top of bin price per delivery</span></div>
+      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><input id="our-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
+      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted);line-height:1.4">% added on top of bin price per delivery</span></div>
     </div>
 
     <div class="divider"></div>
@@ -1248,7 +1248,7 @@ textarea{resize:vertical;min-height:80px;}
       <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="comp-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
     </div>
     <div class="form-grid" style="margin-bottom:4px">
-      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="comp-b-fuel" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>⛽ Fuel Surcharge</label><div style="position:relative"><input id="comp-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
       <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted)">Leave blank if they don't charge one</span></div>
     </div>
 
@@ -3750,7 +3750,7 @@ function renderPricing(){
         +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:var(--accent);line-height:1">'+v+'</div>'
         +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+s+'</div></div>';
     }).join('');
-    var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308;margin-left:8px">⛽ +$'+ap.binFuel+' fuel</span>' : '';
+    var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308;margin-left:8px">⛽ +'+ap.binFuel+'% fuel</span>' : '';
     var junkCells = [{k:'min',l:'Min'},{k:'quarter',l:'¼'},{k:'half',l:'½'},{k:'full',l:'Full'}].map(function(t){
       var v = ap.junk&&ap.junk[t.k] ? '$'+ap.junk[t.k] : '<span style="color:var(--muted)">—</span>';
       return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(234,179,8,.25);border-radius:8px;padding:10px 14px;min-width:64px">'
@@ -3813,13 +3813,13 @@ function renderPricingGrids(){
     binHtml += '<tr style="background:rgba(34,197,94,.06);border-bottom:1px solid var(--border)">'
       +'<td style="padding:10px 14px;font-weight:700;color:var(--accent)">🏠 Jeff\'s Junk</td>'
       +binSizes.map(function(s){ var v=ap.bins&&ap.bins[s]?'$'+ap.bins[s]:'—'; return'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+v+'</td>'; }).join('')
-      +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?'$'+ap.binFuel:'—')+'</td>'
+      +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'—')+'</td>'
       +'<td></td></tr>';
     areaComps.forEach(function(comp){
       binHtml += '<tr style="border-bottom:1px solid var(--border)">'
         +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
         +binSizes.map(function(s){ return priceCell(comp.bins&&comp.bins[s], ap.bins&&ap.bins[s]); }).join('')
-        +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:#eab308">$'+comp.binFuel+'</span>':'—')+'</td>'
+        +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:#eab308">'+comp.binFuel+'%</span>':'—')+'</td>'
         +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
         +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
         +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
@@ -3866,6 +3866,7 @@ function renderOurAreaTabs(){
     var active = area === activeOurArea;
     return '<div onclick="selectOurArea(\''+area+'\')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'rgba(34,197,94,.12)':'transparent')+';color:'+(active?'var(--accent)':'var(--text)')+';cursor:pointer;font-size:13px;font-weight:'+(active?'700':'400')+';transition:all .15s">'
       +'<span>'+area+'</span>'
+      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1" title="Rename">✏️</span>'
       +(area!=='Default'?'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1">✕</span>':'')
       +'</div>';
   }).join('');
@@ -3906,6 +3907,28 @@ function deleteOurArea(area){
   saveOurPricesData();
   selectOurArea('Default');
   toast('Area deleted.');
+}
+
+function renameOurArea(oldName){
+  var newName = prompt('Rename "'+oldName+'" to:', oldName);
+  if(!newName || !newName.trim() || newName.trim() === oldName) return;
+  newName = newName.trim();
+  if(pricingAreas.indexOf(newName) >= 0){ toast('An area with that name already exists.'); return; }
+  // Rename in areas list
+  var idx = pricingAreas.indexOf(oldName);
+  if(idx >= 0) pricingAreas[idx] = newName;
+  // Migrate prices
+  if(ourPricesV2[oldName]){ ourPricesV2[newName] = ourPricesV2[oldName]; delete ourPricesV2[oldName]; }
+  // Migrate competitors
+  competitors.forEach(function(c){ if(c.area === oldName) c.area = newName; });
+  if(activeOurArea === oldName) activeOurArea = newName;
+  savePricingAreas();
+  saveOurPricesData();
+  saveCompetitors();
+  renderOurAreaTabs();
+  selectOurArea(newName);
+  renderPricing();
+  toast('"'+oldName+'" renamed to "'+newName+'".');
 }
 
 function openEditOurPrices(){
