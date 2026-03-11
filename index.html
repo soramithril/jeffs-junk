@@ -518,12 +518,24 @@ textarea{resize:vertical;min-height:80px;}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="./supabase.js"></script>
+<script src="./supabase.js" onerror="document.getElementById('sb-load-err').style.display='block'"></script>
 <script>
-  // Init db immediately after supabase.js loads, in its own block so nothing can break it
   var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
-  var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  if (typeof supabase !== 'undefined') {
+    var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+</script>
+<!-- Fallback: load from CDN if local file failed -->
+<script>
+  if (typeof supabase === 'undefined') {
+    document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.0/dist/umd/supabase.js"><\/scr'+'ipt>');
+  }
+</script>
+<script>
+  if (typeof db === 'undefined' && typeof supabase !== 'undefined') {
+    var db = window.db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
 </script>
 </head>
 <body>
@@ -890,57 +902,58 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
   <div class="filters-bar" style="flex-wrap:wrap;gap:8px;row-gap:8px;">
-    <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Search by name, phone, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;width:100%;max-width:300px">
-    <span style="font-size:12px;color:var(--muted)">Sort:</span>
-    <button class="filter-chip active" id="csort-alpha" onclick="setClientSort('alpha',this)">A–Z</button>
-    <button class="filter-chip" id="csort-jobs" onclick="setClientSort('jobs',this)">Most Jobs</button>
-    <button class="filter-chip" id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
-    <button class="filter-chip" id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
-    <!-- Per-service min/max range filters -->
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;padding:8px 12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
-      <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-right:4px">Filter by job count:</span>
-      <!-- Bins -->
-      <span style="font-size:12px;color:var(--green);font-weight:600">🚛 Bins</span>
-      <select id="crange-bin-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-bin-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
-      <!-- Junk -->
-      <span style="font-size:12px;color:var(--yellow);font-weight:600">🧹 Junk</span>
-      <select id="crange-junk-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-junk-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
-      <!-- Furn -->
-      <span style="font-size:12px;color:var(--red);font-weight:600">🛋️ Furn</span>
-      <select id="crange-furn-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-furn-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <span style="width:1px;height:20px;background:var(--border);margin:0 6px"></span>
-      <!-- Total -->
-      <span style="font-size:12px;color:var(--text);font-weight:600">📋 Total</span>
-      <select id="crange-total-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Min</option>
-      </select>
-      <span style="font-size:12px;color:var(--muted)">–</span>
-      <select id="crange-total-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="padding:4px 8px;font-size:12px">
-        <option value="">Max</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" onclick="clearClientRangeFilters()" style="margin-left:6px;font-size:11px">✕ Clear</button>
+    <!-- Row 1: search + sort + actions -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">
+      <input class="search-input" id="clients-search-input" type="text" placeholder="🔍 Search clients..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:0;flex:1;min-width:160px;max-width:260px">
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="filter-chip active" id="csort-alpha" onclick="setClientSort('alpha',this)">A–Z</button>
+        <button class="filter-chip" id="csort-jobs" onclick="setClientSort('jobs',this)">Top Jobs</button>
+        <button class="filter-chip" id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
+        <button class="filter-chip" id="csort-dormant" onclick="setClientSort('dormant',this)">Dormant</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-left:auto">
+        <button class="btn btn-ghost btn-sm" id="crange-toggle-btn" onclick="toggleClientRangePanel()" style="font-size:12px;gap:4px">⚙ Filters <span id="crange-active-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block"></span></button>
+        <button class="btn btn-ghost btn-sm" onclick="exportClientList()" style="font-size:12px">⬇ Export</button>
+      </div>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="exportClientList()" title="Export filtered list">⬇ Export CSV</button>
+    <!-- Row 2: collapsible range filters -->
+    <div id="crange-panel" style="display:none;width:100%;padding:12px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--green);font-weight:700;margin-bottom:5px">Bins</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <select id="crange-bin-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Min</option></select>
+            <span style="color:var(--muted);font-size:12px">–</span>
+            <select id="crange-bin-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Max</option></select>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--yellow);font-weight:700;margin-bottom:5px">Junk</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <select id="crange-junk-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Min</option></select>
+            <span style="color:var(--muted);font-size:12px">–</span>
+            <select id="crange-junk-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Max</option></select>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#f87171;font-weight:700;margin-bottom:5px">Furniture</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <select id="crange-furn-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Min</option></select>
+            <span style="color:var(--muted);font-size:12px">–</span>
+            <select id="crange-furn-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Max</option></select>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin-bottom:5px">Total Jobs</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <select id="crange-total-min" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Min</option></select>
+            <span style="color:var(--muted);font-size:12px">–</span>
+            <select id="crange-total-max" class="bin-date-picker" onchange="applyClientRangeFilter()" style="flex:1;padding:5px 6px;font-size:12px"><option value="">Max</option></select>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="clearClientRangeFilters()" style="margin-top:10px;font-size:11px">✕ Clear Filters</button>
+    </div>
   </div>
   <div id="clients-pagination-top"></div>
   <div id="clients-list"></div>
@@ -2749,7 +2762,7 @@ async function renderDash(){
           +'</div>'
           +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">'
           +callBtn
-          +'<span style="font-size:11px;color:var(--muted)">'+(j.time?ft(j.time)+' · ':'')+j.id+'</span>'
+          +'<span style="font-size:11px;color:var(--muted)">'+(j.time?ft(j.time)+' - ':'')+j.id+'</span>'
           +'</div>'
           +'</div>';
       }).join('')+'</div>';
@@ -3175,6 +3188,22 @@ function populateRangeDropdowns(allClients) {
   fillSelect('crange-total-max', maxTotal, clientRangeFilter.totalMax);
 }
 
+function toggleClientRangePanel() {
+  var panel = document.getElementById('crange-panel');
+  var btn = document.getElementById('crange-toggle-btn');
+  if (!panel) return;
+  var open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  btn.style.background = open ? '' : 'rgba(34,197,94,.1)';
+  btn.style.borderColor = open ? '' : 'rgba(34,197,94,.4)';
+  btn.style.color = open ? '' : '#22c55e';
+}
+
+function updateRangeActiveDot() {
+  var dot = document.getElementById('crange-active-dot');
+  if (dot) dot.style.display = clientRangeActive() ? 'inline-block' : 'none';
+}
+
 function applyClientRangeFilter() {
   clientRangeFilter.binMin   = document.getElementById('crange-bin-min')   ? document.getElementById('crange-bin-min').value   : '';
   clientRangeFilter.binMax   = document.getElementById('crange-bin-max')   ? document.getElementById('crange-bin-max').value   : '';
@@ -3184,6 +3213,7 @@ function applyClientRangeFilter() {
   clientRangeFilter.furnMax  = document.getElementById('crange-furn-max')  ? document.getElementById('crange-furn-max').value  : '';
   clientRangeFilter.totalMin = document.getElementById('crange-total-min') ? document.getElementById('crange-total-min').value : '';
   clientRangeFilter.totalMax = document.getElementById('crange-total-max') ? document.getElementById('crange-total-max').value : '';
+  updateRangeActiveDot();
   clientsPage = 0;
   renderClients();
 }
@@ -3194,6 +3224,7 @@ function clearClientRangeFilters() {
    'crange-furn-min','crange-furn-max','crange-total-min','crange-total-max'].forEach(function(id){
     var el = document.getElementById(id); if (el) el.value = '';
   });
+  updateRangeActiveDot();
   clientsPage = 0;
   renderClients();
 }
