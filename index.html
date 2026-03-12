@@ -495,7 +495,7 @@ textarea{resize:vertical;min-height:80px;}
 .chart-filter.active{background:rgba(34,197,94,.15);border-color:var(--accent);color:var(--accent);}
 .bar-chart{display:flex;flex-direction:column;gap:10px;}
 .bar-row{display:flex;align-items:center;gap:10px;}
-.bar-label{font-size:12px;color:var(--muted);width:80px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-label{font-size:12px;color:var(--muted);width:130px;min-width:130px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bar-track{flex:1;height:24px;background:var(--surface2);border-radius:6px;overflow:hidden;position:relative;}
 .bar-fill{height:100%;border-radius:6px;}
 .bar-anim{width:0;transition:width 2.55s cubic-bezier(.22,.68,0,1.2);}
@@ -562,7 +562,7 @@ textarea{resize:vertical;min-height:80px;}
   .client-card{flex-wrap:wrap;}
   .client-actions{width:100%;justify-content:flex-end;margin-top:8px;}
   .detail-grid{grid-template-columns:1fr;}
-  .bar-label{width:60px;}
+  .bar-label{width:100px;min-width:100px;}
   
   .inv-amount{min-width:auto;}
   .stat-value{font-size:28px;}
@@ -1314,7 +1314,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="chart-card">
       <div class="chart-title">📍 Jobs by City</div>
       <div class="chart-sub">Where your customers are located</div>
-      <div class="bar-chart" id="chart-city"></div>
+      <div class="bar-chart" id="chart-city" style="max-height:420px;overflow-y:auto;padding-right:4px"></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">📣 Referral Sources</div>
@@ -4868,7 +4868,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   // By city
   var cityMap={};
   aJobs.forEach(function(j){var c=extractCity(j.address,j.city);cityMap[c]=(cityMap[c]||0)+1;});
-  var cityData=Object.keys(cityMap).sort(function(a,b){return cityMap[b]-cityMap[a];}).slice(0,8).map(function(k){return{key:k,val:cityMap[k]};});
+  var cityData=Object.keys(cityMap).sort(function(a,b){return cityMap[b]-cityMap[a];}).map(function(k){return{key:k,val:cityMap[k]};});
   var cityColors=['#22c55e','#4ade80','#86efac','#bbf7d0','#dcfce7','#a7f3d0','#6ee7b7','#34d399'];
   document.getElementById('chart-city').innerHTML=makeBarChart(cityData,function(k,i){return cityColors[cityData.findIndex(function(d){return d.key===k;})]||'#22c55e';});
 
