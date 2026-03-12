@@ -751,20 +751,37 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <!-- ─── LOADING SCREEN ─── -->
-<div id="sb-loading" class="jj-screen-bg" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
-  <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;color:#16a34a;opacity:.7;">Jeff's Junk</div>
-  <!-- Progress bar track -->
-  <div style="width:280px;height:6px;background:rgba(34,197,94,.15);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.2);">
+<style>
+@keyframes truckDrive{0%{transform:translateX(-120px);}100%{transform:translateX(320px);}}
+@keyframes loadFadeIn{0%{opacity:0;transform:translateY(-8px);}100%{opacity:1;transform:translateY(0);}}
+#sb-loading-logo{animation:loadFadeIn .6s ease both;}
+#sb-truck{animation:truckDrive 2.2s cubic-bezier(.4,0,.2,1) infinite;}
+</style>
+<div id="sb-loading" class="jj-screen-bg" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#f8fafc;">
+  <!-- Logo -->
+  <img id="sb-loading-logo" src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
+    onerror="this.style.display='none';document.getElementById('sb-loading-wordmark').style.display='block';"
+    style="height:80px;width:auto;object-fit:contain;margin-bottom:4px;" alt="Jeff's Junk">
+  <div id="sb-loading-wordmark" style="display:none;font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:#16a34a;">Jeff's Junk</div>
+  <!-- Truck animation track -->
+  <div style="width:320px;height:44px;position:relative;overflow:hidden;margin:4px 0;">
+    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(34,197,94,.25);border-radius:2px;"></div>
+    <div id="sb-truck" style="position:absolute;bottom:3px;font-size:32px;line-height:1;">🚛</div>
+  </div>
+  <!-- Progress bar -->
+  <div style="width:280px;height:5px;background:rgba(34,197,94,.15);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.2);">
     <div id="load-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px;transition:width .4s ease;"></div>
   </div>
-  <p id="sb-loading-msg" style="color:#4b5563;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;min-height:20px;"></p>
+  <p id="sb-loading-msg" style="color:#6b7280;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;min-height:18px;letter-spacing:.3px;"></p>
 </div>
 
 <!-- ─── MOBILE HEADER ─── -->
 <div class="mobile-header">
   <button class="mob-hamburger" onclick="toggleSidebar()">☰</button>
   <div>
-    <div class="mob-logo">Jeff's Junk</div>
+    <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
+      onerror="this.style.display='none';"
+      style="height:28px;width:auto;object-fit:contain;" alt="Jeff's Junk">
   </div>
   <div class="mob-header-actions">
     
@@ -777,8 +794,11 @@ textarea{resize:vertical;min-height:80px;}
 
 
 <nav class="sidebar" id="sidebar">
-  <div class="logo">
-    <div class="logo-title">Jeff's Junk</div>
+  <div class="logo" style="padding:16px 20px 14px;">
+    <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
+      onerror="this.style.display='none';document.getElementById('sb-wordmark').style.display='block';"
+      style="height:44px;width:auto;object-fit:contain;display:block;" alt="Jeff's Junk">
+    <div id="sb-wordmark" style="display:none;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);line-height:1;">Jeff's Junk</div>
   </div>
   <div class="nav">
     <div class="nav-label">Menu</div>
