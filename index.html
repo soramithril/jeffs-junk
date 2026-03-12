@@ -808,15 +808,15 @@ textarea{resize:vertical;min-height:80px;}
   </div>
   <div class="cat-section">
     <div class="cat-section-header bin"><div class="cat-title">🚛 Bin Rentals</div><span class="cat-count" id="dash-bin-count">0 jobs</span></div>
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Status</th><th>Price</th></tr></thead><tbody id="dash-bin-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Price</th></tr></thead><tbody id="dash-bin-tbody"></tbody></table></div>
   </div>
   <div class="cat-section">
     <div class="cat-section-header junk"><div class="cat-title">🧹 Junk Removal</div><span class="cat-count" id="dash-junk-count">0 jobs</span></div>
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Status</th><th>Price</th></tr></thead><tbody id="dash-junk-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Price</th></tr></thead><tbody id="dash-junk-tbody"></tbody></table></div>
   </div>
   <div class="cat-section">
     <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="dash-furn-count">0 jobs</span></div>
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Status</th><th>Price</th></tr></thead><tbody id="dash-furn-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Price</th></tr></thead><tbody id="dash-furn-tbody"></tbody></table></div>
   </div>
 </div>
 
@@ -847,16 +847,7 @@ textarea{resize:vertical;min-height:80px;}
         </div>
       </div>
 
-      <!-- Status Tabs -->
-      <div class="atabs-wrap" id="atabs-status" style="position:relative;">
-        <div class="atabs-highlight" id="atabs-status-hl"></div>
-        <div class="atabs-track">
-          <button class="atab active" data-group="status" id="jstf-all"      onclick="setJobStatus('all',this)">All Status</button>
-          <button class="atab"        data-group="status" id="jstf-pending"   onclick="setJobStatus('Pending',this)">🟡 Pending</button>
-          <button class="atab"        data-group="status" id="jstf-progress"  onclick="setJobStatus('In Progress',this)">🔵 In Progress</button>
-          <button class="atab"        data-group="status" id="jstf-done"      onclick="setJobStatus('Done',this)">🟢 Done</button>
-        </div>
-      </div>
+
 
     </div>
 
@@ -894,23 +885,23 @@ textarea{resize:vertical;min-height:80px;}
   <div id="jobs-cat-view">
     <div class="cat-section">
       <div class="cat-section-header bin"><div class="cat-title">🚛 Bin Rentals</div><span class="cat-count" id="jobs-bin-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Status</th><th>Bin</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header junk"><div class="cat-title">🧹 Junk Removal</div><span class="cat-count" id="jobs-junk-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Status</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header quote"><div class="cat-title">📋 Junk Quotes</div><span class="cat-count" id="jobs-quote-count">0 quotes</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Status</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
   </div>
   <div id="jobs-pagination-bottom"></div>
 </div>
@@ -1614,10 +1605,7 @@ textarea{resize:vertical;min-height:80px;}
           </select>
           <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
         </div>
-        <div class="form-group">
-          <label>Status</label>
-          <select id="f-status"><option>Pending</option><option>In Progress</option><option>Done</option><option>Cancelled</option></select>
-        </div>
+        <input type="hidden" id="f-status" value="Pending">
         <div class="form-group"><label>Customer Name <span style="color:#ef4444">*</span></label><input id="f-name" type="text" placeholder="Full name" oninput="clearErr('f-name')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-name">Customer name is required.</div></div>
         <div class="form-group"><label>Phone</label><input id="f-phone" type="tel" placeholder="(123) 456-7890"></div>
         <div class="form-group full">
@@ -2964,12 +2952,12 @@ async function renderWeekCal(){
 function shiftWeek(n){weekOffset+=n;renderWeekCal();}
 function goToday(){weekOffset=0;renderWeekCal();}
 function makeDashRows(list){
-  if(!list.length) return '<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td><td>'+stb(j.status)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
+  if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
 }
 function makeDashRowsFurn(list){
-  if(!list.length) return '<tr><td colspan="6" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td><td>'+stb(j.status)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
+  if(!list.length) return '<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
 }
 function renderDashLongBins(){
   var threshold=parseInt((document.getElementById('dash-days-threshold')||{}).value)||7;
@@ -3233,7 +3221,6 @@ function makeJobRowNoSvc(j){
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
-    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
     +binDropBtn(j)
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
@@ -3246,7 +3233,6 @@ function makeJobRowWithSvc(j){
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
-    +'<td data-action="cyclestatus" data-jid="'+j.id+'" title="Click to advance status" style="cursor:pointer">'+stb(j.status)+'</td>'
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
@@ -3275,14 +3261,14 @@ function renderJobs(){
     document.getElementById('jobs-junk-count').textContent=jr.length+' job'+(jr.length!==1?'s':'');
     document.getElementById('jobs-quote-count').textContent=qr.length+' quote'+(qr.length!==1?'s':'');
     document.getElementById('jobs-furn-count').textContent=fr.length+' job'+(fr.length!==1?'s':'');
-    document.getElementById('jobs-bin-tbody').innerHTML=br.length?br.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
-    document.getElementById('jobs-junk-tbody').innerHTML=jr.length?jr.map(makeJobRowNoSvc).join(''):emptyJobRow(6);
-    document.getElementById('jobs-quote-tbody').innerHTML=qr.length?qr.map(makeJobRowNoSvc).join(''):emptyJobRow(6);
-    document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(7);
+    document.getElementById('jobs-bin-tbody').innerHTML=br.length?br.map(makeJobRowNoSvc).join(''):emptyJobRow(8);
+    document.getElementById('jobs-junk-tbody').innerHTML=jr.length?jr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
+    document.getElementById('jobs-quote-tbody').innerHTML=qr.length?qr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
+    document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   } else {
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
     var filt=all.filter(function(j){return j.service===svcF&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
-    document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(7);
+    document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   }
 }
 
@@ -3316,9 +3302,6 @@ function renderJobs(){
         openEdit(id);
       } else if(action==='del'){
         delJob(id);
-      } else if(action==='cyclestatus'){
-        var ev = {stopPropagation:function(){}};
-        cycleStatus(id, ev);
       }
       return;
     }
@@ -3913,7 +3896,7 @@ async function openClientDetail(cid){
       +'<td>'+jid(j.id,j.service)+'</td>'
       +'<td>'+sb(j.service)+binInfo+'</td>'
       +'<td>'+fd(j.date)+'</td>'
-      +'<td>'+stb(j.status)+'</td>'
+      
       +'<td>'+dropInfo+'</td>'
       +'</tr>';
   }).join('');
@@ -3943,7 +3926,7 @@ async function openClientDetail(cid){
     +(totalRev>0?'<span style="font-size:13px;color:var(--accent);font-weight:700">💰 $'+Math.round(totalRev).toLocaleString()+' lifetime</span>':'')
     +'<span style="font-size:12px;color:var(--muted)">'+loyalty+'</span>'
     +'</div>'
-    +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Status</th><th>Bin Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
+    +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Bin Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
@@ -4672,7 +4655,7 @@ async function renderMap(){
     return '<div class="bin-row" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')">'
     +'<div class="bin-row-name">'+j.name+'</div>'
     +'<div class="bin-row-addr">'+(ra.display||'<span style="color:var(--red);font-size:11px">⚠ No address</span>')+'</div>'
-    +'<div class="bin-row-meta">'+stb(j.status)+(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')+(j.binPickup?'<span style="font-size:11px;color:var(--muted)">Pickup: '+fd(j.binPickup)+'</span>':'')+'</div>'
+    +'<div class="bin-row-meta">'+(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')+(j.binPickup?'<span style="font-size:11px;color:var(--muted)">Pickup: '+fd(j.binPickup)+'</span>':'')+'</div>'
     +'</div>';}).join('')
     :'<div class="empty-state" style="padding:28px 16px"><div class="ei">🚛</div><h3>No active bins</h3><p>All bins are currently in the yard</p></div>';
   if(!leafMap){
@@ -4696,7 +4679,7 @@ async function renderMap(){
     geocode(ra.geocodeStr,function(geo){
       if(geo){
         var popup='<div class="p-id">'+j.id+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
-          +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+stb(j.status)+sb(j.service)+'</div>'
+          +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
           +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'')+'</div>'
           +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
         var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
@@ -5427,7 +5410,7 @@ function openDetail(id){
   }
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ Customer Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
-    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+stb(j.status)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
+    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address||'—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
@@ -5550,7 +5533,7 @@ function renderToday(){
   // Today's jobs
   var el=document.getElementById('today-jobs-list');
   el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+j.name+'</strong>'+stb(j.status)+'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+j.name+'</strong></div>'
     +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(j.time?' · '+ft(j.time):'')+'</div>'
     +'<div style="font-size:12px;color:var(--muted)">'+fm(j.price)+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No jobs scheduled today</div>';
@@ -5658,7 +5641,7 @@ function renderRevenue(){
     +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Jobs</th>'
     +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Avg Job</th>'
     +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Last Job</th>'
-    +'<th style="text-align:center;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Status</th>'
+    +'<th style="text-align:center;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Activity</th>'
     +'</tr></thead><tbody>'
     +clvList.slice(0,10).map(function(x,i){var dormant=x.lastDate&&x.lastDate<today6mo;return'<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="openClientDetail(\''+x.c.cid+'\')">'
     +'<td style="padding:8px 12px;font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--muted)">'+(i+1)+'</td>'
