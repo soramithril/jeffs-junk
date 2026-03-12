@@ -7193,7 +7193,7 @@ async function runAdvisor(){
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
       body:JSON.stringify({prompt:prompt})
     });
-    if(!aiResp.ok) throw new Error('Proxy error '+aiResp.status);
+    if(!aiResp.ok){var errBody=await aiResp.text();throw new Error('Proxy '+aiResp.status+': '+errBody);}
     var aiData=await aiResp.json();
     var rawText=(aiData.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
 
@@ -7216,7 +7216,7 @@ async function runAdvisor(){
       ];
       snap.innerHTML=snapItems.map(function(s){
         return '<div style="flex:1;min-width:110px;text-align:center;">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
+          +'<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
           +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">'+s.label+'</div>'
           +'</div>';
       }).join('');
@@ -7239,7 +7239,7 @@ async function runAdvisor(){
           +'<div style="font-size:24px;flex-shrink:0;margin-top:2px;">'+icon+'</div>'
           +'<div style="flex:1;">'
           +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'
-          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);">'+r.title+'</span>'
+          +'<span style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);">'+r.title+'</span>'
           +'<span style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+col+';background:'+col+'22;padding:2px 8px;border-radius:10px;">'+r.priority+'</span>'
           +'<span style="font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;">'+r.category+'</span>'
           +'</div>'
