@@ -4043,7 +4043,9 @@ function renderPricing(){
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
       +'<span style="display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px"></span>'
       +'<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">📍 '+area+'</span>'
-      +fuelBadge+'</div>'
+      +fuelBadge
+      +'<button onclick="deleteOurArea(\''+area+'\')" style="margin-left:auto;background:none;border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;opacity:.7" title="Delete area">🗑️ Delete</button>'
+      +'</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+binCells+'</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+junkCells+'</div>'
       +'</div>';
@@ -4149,7 +4151,7 @@ function renderOurAreaTabs(){
     return '<div onclick="selectOurArea(\''+area+'\')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'rgba(34,197,94,.12)':'transparent')+';color:'+(active?'var(--accent)':'var(--text)')+';cursor:pointer;font-size:13px;font-weight:'+(active?'700':'400')+';transition:all .15s">'
       +'<span>'+area+'</span>'
       +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1" title="Rename">✏️</span>'
-      +(area!=='Default'?'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1">✕</span>':'')
+      +'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1" title="Delete">✕</span>'
       +'</div>';
   }).join('');
 }
@@ -4185,10 +4187,25 @@ function deleteOurArea(area){
   if(!confirm('Delete area "'+area+'" and its prices?')) return;
   pricingAreas = pricingAreas.filter(function(a){return a!==area;});
   delete ourPricesV2[area];
+  // If we deleted everything, restore a blank Default so the page isn't broken
+  if(!pricingAreas.length){
+    pricingAreas = ['Default'];
+    ourPricesV2['Default'] = {bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''};
+  }
   savePricingAreas();
   saveOurPricesData();
-  selectOurArea('Default');
-  toast('Area deleted.');
+  // Delete from Supabase our_prices
+  db.from('our_prices').delete().eq('area',area).then(function(r){
+    if(r.error) console.warn('Our prices delete failed:',r.error.message);
+  });
+  // Move competitors in this area to Default
+  competitors.forEach(function(c){ if(c.area===area) c.area='Default'; });
+  saveCompetitors();
+  var nextArea = pricingAreas[0] || 'Default';
+  activeOurArea = nextArea;
+  selectOurArea(nextArea);
+  renderPricing();
+  toast('Area "'+area+'" deleted.');
 }
 
 function renameOurArea(oldName){
@@ -4207,6 +4224,10 @@ function renameOurArea(oldName){
   savePricingAreas();
   saveOurPricesData();
   saveCompetitors();
+  // Delete the old area row from Supabase (new name will be upserted by saveOurPricesData)
+  db.from('our_prices').delete().eq('area',oldName).then(function(r){
+    if(r.error) console.warn('Our prices rename/delete failed:',r.error.message);
+  });
   renderOurAreaTabs();
   selectOurArea(newName);
   renderPricing();
