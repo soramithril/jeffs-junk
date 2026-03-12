@@ -7,13 +7,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0a0a0a;--surface:#111111;--surface2:#1a1a1a;--border:#2a2a2a;
-  --accent:#22c55e;--text:#f0f0f0;--muted:#666666;
+  --bg:#f4f4f4;--surface:#ffffff;--surface2:#eeeeee;--border:#dddddd;
+  --accent:#22c55e;--text:#111111;--muted:#888888;
   --green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#4ade80;
   --c-bin:#22c55e;--c-junk:#eab308;--c-furn:#ef4444;
   --sidebar-w:220px;
 }
-body.light-mode{--bg:#f4f4f4;--surface:#ffffff;--surface2:#eeeeee;--border:#dddddd;--text:#111111;--muted:#888888;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
 
@@ -23,11 +22,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .mob-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--accent);}
 .mob-logo-sub{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
 .mob-header-actions{margin-left:auto;display:flex;gap:8px;}
-.mob-theme-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer;}
 
-/* ── THEME TOGGLE (desktop) ── */
-.theme-toggle{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;}
-.theme-toggle:hover{border-color:var(--accent);color:var(--accent);}
 /* date picker for bin stats */
 .bin-date-picker{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;}
 
@@ -82,17 +77,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .stat-icon{font-size:22px;margin-bottom:12px;}
 .stat-value{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;line-height:1;color:#e8faea;}
 .stat-label{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;text-transform:uppercase;letter-spacing:1px;}
-body.light-mode .stat-card{background:#ffffff;border-color:rgba(34,197,94,.25);}
-body.light-mode .stat-card:hover{background:linear-gradient(135deg,#f0fdf4,#dcfce7,#bbf7d0,#dcfce7,#f0fdf4);background-size:300% 300%;animation:gradientShift 3s ease infinite;box-shadow:0 10px 32px rgba(34,197,94,.22);border-color:rgba(34,197,94,.5);}
-body.light-mode .stat-value{color:#14532d;}
-body.light-mode .stat-label{color:#166534;}
-body.light-mode .stat-card::after{background:radial-gradient(circle,rgba(34,197,94,.0) 0%,transparent 70%);}
-body.light-mode .stat-card:hover::after{background:radial-gradient(circle,rgba(34,197,94,.14) 0%,transparent 70%);}
+.stat-card{background:#ffffff;border-color:rgba(34,197,94,.25);}
+.stat-card:hover{background:linear-gradient(135deg,#f0fdf4,#dcfce7,#bbf7d0,#dcfce7,#f0fdf4);background-size:300% 300%;animation:gradientShift 3s ease infinite;box-shadow:0 10px 32px rgba(34,197,94,.22);border-color:rgba(34,197,94,.5);}
+.stat-value{color:#14532d;}
+.stat-label{color:#166534;}
+.stat-card::after{background:radial-gradient(circle,rgba(34,197,94,.0) 0%,transparent 70%);}
+.stat-card:hover::after{background:radial-gradient(circle,rgba(34,197,94,.14) 0%,transparent 70%);}
 
 /* ── card hover (generic) ── */
 .chart-card{transition:transform .2s ease,box-shadow .2s ease;}
 .chart-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.22);}
-body.light-mode .chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
+.chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
 /* ── page slide-in ── */
 @keyframes slideUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
 .page-animate{animation:slideUp .32s ease both;}
@@ -481,7 +476,6 @@ textarea{resize:vertical;min-height:80px;}
   .sidebar.mob-open{transform:translateX(0);}
   .sidebar-overlay.mob-open{display:block;}
   .mobile-header{display:flex;}
-  .theme-toggle{display:none;}
   .main{margin-left:0;padding:72px 16px 24px;}
   .page-title{font-size:32px;}
   .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
@@ -586,7 +580,7 @@ textarea{resize:vertical;min-height:80px;}
 }
 .atab:hover{ color:var(--text); }
 .atab.active{ color:#0a0a0a; font-weight:600; }
-body.light-mode .atab.active{ color:#fff; }
+.atab.active{ color:#fff; }
 
 /* The sliding green pill behind the active tab */
 .atabs-highlight{
@@ -600,7 +594,7 @@ body.light-mode .atab.active{ color:#fff; }
   z-index:1;
   pointer-events:none;
 }
-body.light-mode .atabs-wrap{
+.atabs-wrap{
   background:rgba(0,0,0,0.04);
   border-color:rgba(0,0,0,0.1);
 }
@@ -669,7 +663,7 @@ body.light-mode .atabs-wrap{
     <div class="mob-logo">Jeff's Junk</div>
   </div>
   <div class="mob-header-actions">
-    <button class="mob-theme-btn" onclick="toggleTheme()" id="mob-theme-btn">🌙</button>
+    
     <button class="btn btn-primary btn-sm" onclick="newJob()" style="padding:6px 12px;font-size:12px">+ Job</button>
   </div>
 </div>
@@ -716,7 +710,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Dashboard</div><div class="page-sub" id="today-lbl"></div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙 Night Mode</button>
+      
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
   </div>
@@ -817,7 +811,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">All Jobs</div><div class="page-sub">Manage all service orders</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
   </div>
@@ -912,7 +906,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Calendar</div><div class="page-sub">Schedule view</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
   </div>
@@ -937,7 +931,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Furniture Bank</div><div class="page-sub">Donation Receiving Document (DRD)</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-ghost" onclick="drdClear()">Clear Form</button>
       <button class="btn btn-ghost" onclick="drdDownloadPDF()" id="drd-pdf-btn">⬇️ Download Filled PDF</button>
       <button class="btn btn-primary" onclick="drdSend()">📧 Email DRD</button>
@@ -1006,7 +1000,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Clients</div><div class="page-sub" id="clients-sub">Manage your client list</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-ghost" onclick="openMergeClients()">🔗 Merge Clients</button>
       <button class="btn btn-primary" onclick="openAddClient()">+ Add Client</button>
     </div>
@@ -1129,7 +1123,7 @@ body.light-mode .atabs-wrap{
 <div id="view-analytics" class="view">
   <div class="page-header">
     <div><div class="page-title">Analytics</div><div class="page-sub">Business insights & trends</div></div>
-    <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+    
   </div>
 
   <!-- Period selector -->
@@ -1247,7 +1241,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Competition Pricing</div><div class="page-sub">Track competitor rates vs your prices by city</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-ghost" onclick="openEditOurPrices()">✏️ Edit Our Prices</button>
       <button class="btn btn-primary" onclick="openAddCompetitor()">+ Add Competitor</button>
     </div>
@@ -1384,7 +1378,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Bin Map</div><div class="page-sub">Currently rented bins only</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
   </div>
@@ -1406,7 +1400,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">Bin Fleet</div><div class="page-sub" id="fleet-sub">Manage your physical bin inventory</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-ghost" onclick="openBinImport()" title="Import bins from CSV">📥 Import CSV</button>
       <button class="btn btn-primary" onclick="openAddBin()">+ Add Bin</button>
     </div>
@@ -1465,7 +1459,7 @@ body.light-mode .atabs-wrap{
 <div id="view-utilization" class="view">
   <div class="page-header">
     <div><div class="page-title">📊 Bin Utilization</div><div class="page-sub">Maximize your fleet efficiency</div></div>
-    <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+    
   </div>
   <div class="metric-row" id="util-metrics"></div>
   <div class="analytics-grid">
@@ -1512,7 +1506,7 @@ body.light-mode .atabs-wrap{
   <div class="page-header">
     <div><div class="page-title">🚛 Vehicles</div><div class="page-sub" id="vehicles-sub">Manage your fleet availability</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="theme-toggle" onclick="toggleTheme()">🌙 Night Mode</button>
+      
       <button class="btn btn-primary" onclick="openAddVehicle()">+ Add Vehicle</button>
     </div>
   </div>
@@ -2590,8 +2584,6 @@ function closeSidebar(){
   document.getElementById('sidebar-overlay').classList.remove('mob-open');
 }
 
-// ─── THEME ───
-var isLight = false;
 // ── ANIMATED PILL TABS ──
 // Call after any tab click to slide the highlight to the active tab
 function atabsSync(groupId) {
@@ -2709,21 +2701,6 @@ function _patchAtabs() {
   window.addEventListener('resize', atabsSyncAll);
 })();
 
-function toggleTheme(){
-  isLight=!isLight;
-  document.body.classList.toggle('light-mode',isLight);
-  var lbl=isLight?'🌙 Night Mode':'☀️ Day Mode';
-  document.querySelectorAll('.theme-toggle').forEach(function(btn){btn.textContent=lbl;});
-  document.getElementById('mob-theme-btn').textContent=isLight?'🌙':'☀️';
-  try{localStorage.setItem('jj-theme',isLight?'light':'dark');}catch(e){}
-}
-try{
-  if(localStorage.getItem('jj-theme')==='light'){
-    isLight=true;document.body.classList.add('light-mode');
-    document.querySelectorAll('.theme-toggle').forEach(function(btn){btn.textContent='🌙 Night Mode';});
-    document.getElementById('mob-theme-btn').textContent='🌙';
-  }
-}catch(e){}
 
 // ─── VIEWS ───
 // ─── ANIMATION UTILITIES ───
