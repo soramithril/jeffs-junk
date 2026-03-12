@@ -2081,8 +2081,7 @@ function saveBins() {
 }
 
 function saveVehicles() {
-  try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); localStorage.setItem('jj-vehblocks', JSON.stringify(vehBlocks)); } catch(e){}
-  // Sync to Supabase vehicles table
+  // Sync vehicles to Supabase
   try {
     var rows = vehicles.map(function(v){
       return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null};
@@ -2093,6 +2092,24 @@ function saveVehicles() {
       });
     }
   } catch(e){ console.warn('Vehicle sync error:',e); }
+}
+
+function saveVehBlocks(vid) {
+  // Sync all blocks for a vehicle to Supabase vehicle_blocks
+  try {
+    var blocks = vehBlocks[vid] || {};
+    var dates = Object.keys(blocks);
+    db.from('vehicle_blocks').delete().eq('vid', vid).then(function(r){
+      if(r.error){ console.warn('vehBlocks delete failed:', r.error.message); return; }
+      if(!dates.length) return;
+      var rows = dates.map(function(d){
+        return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||''};
+      });
+      db.from('vehicle_blocks').insert(rows).then(function(r2){
+        if(r2.error) console.warn('vehBlocks insert failed:', r2.error.message);
+      });
+    });
+  } catch(e){ console.warn('vehBlocks sync error:',e); }
 }
 
 function saveGeo() {
@@ -2159,26 +2176,24 @@ async function loadAllFromSupabase() {
     var rb = await db.from('bin_items').select('*');
     binItems = rb.data || [];
 
-    // Load vehicles from Supabase vehicles table (synced across devices), fall back to localStorage
+    // Load vehicles + vehicle blocks from Supabase
     showLoading('Loading vehicles...', 75);
     try {
       var rveh = await db.from('vehicles').select('*').order('created_at');
+      var rvehBlocks = await db.from('vehicle_blocks').select('*');
       if(!rveh.error && rveh.data) {
         vehicles = rveh.data.map(function(r){
           return {vid:r.vid, name:r.name, type:r.type, color:r.color||'#22c55e', notes:r.notes||'', active:true,
                   stickerMonth:r.sticker_month||'', stickerYear:r.sticker_year||''};
         });
-        // vehBlocks still in localStorage (date blocks not in DB schema)
-        try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e){}
-        // Update local cache
-        try { localStorage.setItem('jj-vehicles', JSON.stringify(vehicles)); } catch(e){}
-      } else {
-        try { vehicles = JSON.parse(localStorage.getItem('jj-vehicles') || '[]'); } catch(e){}
-        try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e){}
+        vehBlocks = {};
+        (rvehBlocks.data||[]).forEach(function(r){
+          if(!vehBlocks[r.vid]) vehBlocks[r.vid] = {};
+          vehBlocks[r.vid][r.date] = {reason:r.reason||'', notes:r.notes||''};
+        });
       }
     } catch(e) {
-      try { vehicles = JSON.parse(localStorage.getItem('jj-vehicles') || '[]'); } catch(e2){}
-      try { vehBlocks = JSON.parse(localStorage.getItem('jj-vehblocks') || '{}'); } catch(e2){}
+      console.warn('Vehicles load error:', e);
     }
 
     // Clients now load on-demand via search — no background loading needed
@@ -2193,7 +2208,6 @@ async function loadAllFromSupabase() {
           return {id:r.comp_id, name:r.name, website:r.website||'', area:r.area||'Default',
                   bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', notes:r.notes||''};
         });
-        try{localStorage.setItem('jj-competitors',JSON.stringify(competitors));}catch(e){}
       }
     } catch(e){ console.warn('Competitors load error:',e); }
 
@@ -2205,13 +2219,21 @@ async function loadAllFromSupabase() {
           ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):''};
         });
         if(!ourPricesV2['Default']) ourPricesV2['Default']={bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''};
-        // Sync pricing areas from loaded data
-        var dbAreas = Object.keys(ourPricesV2);
-        dbAreas.forEach(function(a){ if(pricingAreas.indexOf(a)<0) pricingAreas.push(a); });
-        try{localStorage.setItem('jj-ourprices-v2',JSON.stringify(ourPricesV2));}catch(e){}
-        try{localStorage.setItem('jj-pricing-areas',JSON.stringify(pricingAreas));}catch(e){}
+        // Derive pricingAreas entirely from Supabase data — authoritative
+        pricingAreas = Object.keys(ourPricesV2);
+        if(pricingAreas.indexOf('Default')<0) pricingAreas.unshift('Default');
       }
     } catch(e){ console.warn('Our prices load error:',e); }
+
+    // Load email presets from Supabase
+    try {
+      var rPresets = await db.from('email_presets').select('*');
+      if(!rPresets.error && rPresets.data && rPresets.data.length) {
+        rPresets.data.forEach(function(r){
+          emailPresets[r.preset_key] = {subject:r.subject||'', body:r.body||''};
+        });
+      }
+    } catch(e){ console.warn('Email presets load error:',e); }
 
     hideLoading();
     // ── Auto-mark bins as picked up only when their pickup date has passed ──
@@ -3955,23 +3977,15 @@ function makeBarChart(data, colorFn, displayFn){
 }
 
 // ─── COMPETITION PRICING ───
-var competitors = JSON.parse(localStorage.getItem('jj-competitors')||'[]');
-// ourPricesV2: { "Default": { bins:{...}, junk:{...}, binFuel:'' }, "Barrie": {...}, ... }
-var ourPricesV2 = (function(){
-  var v2 = localStorage.getItem('jj-ourprices-v2');
-  if(v2) return JSON.parse(v2);
-  // Migrate from old flat format
-  var old = JSON.parse(localStorage.getItem('jj-ourprices')||'{}');
-  var def = { bins: old.bins||{'4 yard':'','7 yard':'','14 yard':'','20 yard':''}, junk: old.junk||{min:'',quarter:'',half:'',full:''}, binFuel:'' };
-  return { 'Default': def };
-})();
-var pricingAreas = JSON.parse(localStorage.getItem('jj-pricing-areas')||'["Default"]');
+// All data loaded from Supabase on startup in loadAllFromSupabase()
+var competitors = [];
+var ourPricesV2 = { 'Default': {bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''} };
+var pricingAreas = ['Default'];
 var pricingCat = 'bin';
 var editingCompId = null;
 var activeOurArea = 'Default';
 
 function saveCompetitors(){
-  try{localStorage.setItem('jj-competitors',JSON.stringify(competitors));}catch(e){}
   // Sync to Supabase
   try {
     var rows = competitors.map(function(c){
@@ -3986,7 +4000,6 @@ function saveCompetitors(){
   } catch(e){ console.warn('Competitors sync error:',e); }
 }
 function saveOurPricesData(){
-  try{localStorage.setItem('jj-ourprices-v2',JSON.stringify(ourPricesV2));}catch(e){}
   // Sync to Supabase — one row per area
   try {
     var rows = Object.keys(ourPricesV2).map(function(area){
@@ -4000,7 +4013,7 @@ function saveOurPricesData(){
     }
   } catch(e){ console.warn('Our prices sync error:',e); }
 }
-function savePricingAreas(){ try{localStorage.setItem('jj-pricing-areas',JSON.stringify(pricingAreas));}catch(e){} }
+function savePricingAreas(){ /* pricingAreas derived from Supabase our_prices — no separate save needed */ }
 function nextCompId(){ return 'c'+(Date.now()%100000); }
 function getAreaPrices(area){ return ourPricesV2[area] || {bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''}; }
 
@@ -6037,7 +6050,6 @@ applyAdminVisibility();
 // ═══════════════════════════════════════
 var emailJobId = null;
 var emailPresets = {};
-try { emailPresets = JSON.parse(localStorage.getItem('jj-email-presets') || '{}'); } catch(e){}
 
 var defaultPresets = {
   bin_dropoff: {
@@ -6154,7 +6166,13 @@ function savePresets() {
     var b = document.getElementById('preset-body-' + k);
     if (s && b) emailPresets[k] = {subject: s.value, body: b.value};
   });
-  try { localStorage.setItem('jj-email-presets', JSON.stringify(emailPresets)); } catch(e){}
+  // Sync to Supabase
+  var rows = keys.map(function(k){
+    return {preset_key:k, subject:emailPresets[k]?emailPresets[k].subject:'', body:emailPresets[k]?emailPresets[k].body:''};
+  });
+  db.from('email_presets').upsert(rows, {onConflict:'preset_key'}).then(function(r){
+    if(r.error) console.warn('Email presets sync failed:', r.error.message);
+  });
   closeM('presets-modal');
   toast('Email presets saved!');
 }
@@ -6522,6 +6540,7 @@ function delVehicle(vid){
   saveVehicles();renderVehicles();
   // Remove from Supabase
   try { db.from('vehicles').delete().eq('vid',vid).then(function(r){ if(r.error) console.warn('Vehicle delete sync failed:',r.error.message); }); } catch(e){}
+  try { db.from('vehicle_blocks').delete().eq('vid',vid).then(function(r){ if(r.error) console.warn('Vehicle blocks delete failed:',r.error.message); }); } catch(e){}
   toast('Vehicle removed.');
 }
 
@@ -6555,13 +6574,13 @@ function addVehDateRange(vid){
     vehBlocks[vid][ds]={reason:reason,notes:notes};
     cur.setDate(cur.getDate()+1);count++;
   }
-  saveVehicles();renderVehicles();
+  saveVehBlocks(vid);renderVehicles();
   toast(count+' day'+(count!==1?'s':'')+' blocked for vehicle.');
 }
 function removeVehBlock(vid,date){
   if(!vehBlocks[vid])return;
   delete vehBlocks[vid][date];
-  saveVehicles();renderVehicles();
+  saveVehBlocks(vid);renderVehicles();
 }
 
 function renderVehicles(){
