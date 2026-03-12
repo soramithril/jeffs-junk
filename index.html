@@ -606,30 +606,34 @@ textarea{resize:vertical;min-height:80px;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* Google Places autocomplete dropdown styling */
-.pac-container {
+/* Address autocomplete dropdown */
+.addr-ac-wrap { position: relative; }
+.addr-ac-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0; right: 0;
+  background: #fff;
+  border: 1px solid #d1fae5;
   border-radius: 10px;
-  border: 1px solid var(--border, #e2e8f0);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+  z-index: 99999;
+  overflow: hidden;
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
-  background: #fff;
-  margin-top: 2px;
-  overflow: hidden;
-  z-index: 99999 !important;
+  max-height: 260px;
+  overflow-y: auto;
 }
-.pac-item {
+.addr-ac-item {
   padding: 10px 14px;
   cursor: pointer;
   border-top: 1px solid #f1f5f9;
   color: #1e293b;
   line-height: 1.4;
 }
-.pac-item:first-child { border-top: none; }
-.pac-item:hover, .pac-item-selected { background: #f0fdf4; }
-.pac-item-query { font-weight: 600; color: #16a34a; }
-.pac-icon { display: none; }
-.pac-matched { color: #16a34a; font-weight: 700; }
+.addr-ac-item:first-child { border-top: none; }
+.addr-ac-item:hover, .addr-ac-item.active { background: #f0fdf4; }
+.addr-ac-item strong { color: #16a34a; }
+.addr-ac-loading { padding: 10px 14px; color: #94a3b8; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -1839,59 +1843,122 @@ var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── Google Maps Places Autocomplete ───────────────────────────
-// Set your Google Maps API key here (needs Places API enabled)
-var GOOGLE_MAPS_KEY = 'AIzaSyCYPzLuIsZTB5rfCiv6UhUWxGlLQKqELSI';
+// ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
 
-var _placesReady = false;
-var _placesQueue = []; // inputs waiting for autocomplete to attach
+var _acDebounceTimers = {};
+var _acActiveIdx = {};
 
-function _loadGooglePlaces() {
-  if (_placesReady || document.getElementById('gplaces-script')) return;
-  var s = document.createElement('script');
-  s.id = 'gplaces-script';
-  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + GOOGLE_MAPS_KEY + '&libraries=places&loading=async&callback=_onGooglePlacesReady';
-  s.async = true; s.defer = true;
-  document.head.appendChild(s);
-}
-
-function _onGooglePlacesReady() {
-  _placesReady = true;
-  _placesQueue.forEach(function(fn){ try{ fn(); } catch(e){} });
-  _placesQueue = [];
-}
-
-// Attach Google Places autocomplete to a street input.
-// onPick(street, city) is called when user selects a suggestion.
 function attachAddressAutocomplete(inputEl, onPick) {
-  if (!inputEl) return;
-  if (GOOGLE_MAPS_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') return; // key not set
+  if (!inputEl || inputEl._acAttached) return;
+  inputEl._acAttached = true;
   inputEl.setAttribute('autocomplete', 'off');
-  function _attach() {
-    var ac = new google.maps.places.Autocomplete(inputEl, {
-      types: ['address'],
-      componentRestrictions: { country: 'ca' },
-      fields: ['address_components', 'formatted_address']
-    });
-    ac.addListener('place_changed', function() {
-      var place = ac.getPlace();
-      if (!place || !place.address_components) return;
-      var streetNum = '', route = '', city = '', province = '';
-      place.address_components.forEach(function(c) {
-        if (c.types.indexOf('street_number') >= 0) streetNum = c.long_name;
-        if (c.types.indexOf('route') >= 0) route = c.long_name;
-        if (c.types.indexOf('locality') >= 0) city = c.long_name;
-        if (c.types.indexOf('administrative_area_level_1') >= 0) province = c.long_name;
-      });
-      var street = (streetNum + (streetNum && route ? ' ' : '') + route).trim();
-      if (onPick) onPick(street || inputEl.value, city || province || '');
-    });
+
+  // Wrap in relative container so dropdown positions correctly
+  var parent = inputEl.parentNode;
+  var wrap = document.createElement('div');
+  wrap.className = 'addr-ac-wrap';
+  wrap.style.cssText = 'position:relative;width:100%';
+  parent.insertBefore(wrap, inputEl);
+  wrap.appendChild(inputEl);
+
+  var dropdown = document.createElement('div');
+  dropdown.className = 'addr-ac-dropdown';
+  dropdown.style.display = 'none';
+  wrap.appendChild(dropdown);
+
+  var uid = 'ac_' + Math.random().toString(36).slice(2);
+  _acActiveIdx[uid] = -1;
+
+  function showLoading() {
+    dropdown.innerHTML = '<div class="addr-ac-loading">Searching…</div>';
+    dropdown.style.display = 'block';
   }
-  if (_placesReady) { _attach(); }
-  else { _placesQueue.push(_attach); _loadGooglePlaces(); }
+  function hideDropdown() {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    _acActiveIdx[uid] = -1;
+  }
+  function renderResults(results) {
+    if (!results || !results.length) { hideDropdown(); return; }
+    dropdown.innerHTML = '';
+    _acActiveIdx[uid] = -1;
+    results.slice(0, 7).forEach(function(r, i) {
+      var item = document.createElement('div');
+      item.className = 'addr-ac-item';
+      // Build a nice display: bold the street part, muted the rest
+      var parts = (r.display_name || '').split(',');
+      var main = (parts[0] || '').trim();
+      var rest = parts.slice(1, 4).map(function(p){ return p.trim(); }).filter(Boolean).join(', ');
+      item.innerHTML = '<strong>' + main + '</strong>' + (rest ? ' <span style="color:#94a3b8;font-size:12px">' + rest + '</span>' : '');
+      item.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        var street = _extractStreet(r);
+        var city   = _extractCity(r);
+        inputEl.value = street;
+        hideDropdown();
+        if (onPick) onPick(street, city);
+      });
+      dropdown.appendChild(item);
+    });
+    dropdown.style.display = 'block';
+  }
+
+  inputEl.addEventListener('input', function() {
+    var q = inputEl.value.trim();
+    clearTimeout(_acDebounceTimers[uid]);
+    if (q.length < 4) { hideDropdown(); return; }
+    _acDebounceTimers[uid] = setTimeout(function() {
+      showLoading();
+      var url = 'https://nominatim.openstreetmap.org/search'
+        + '?q=' + encodeURIComponent(q + ', Canada')
+        + '&format=json&addressdetails=1&limit=7&countrycodes=ca';
+      fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'JeffsJunkJobTracker/1.0' } })
+        .then(function(res){ return res.json(); })
+        .then(renderResults)
+        .catch(function(){ hideDropdown(); });
+    }, 350);
+  });
+
+  // Keyboard navigation
+  inputEl.addEventListener('keydown', function(e) {
+    var items = dropdown.querySelectorAll('.addr-ac-item');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _acActiveIdx[uid] = Math.min(_acActiveIdx[uid] + 1, items.length - 1);
+      items.forEach(function(it, i){ it.classList.toggle('active', i === _acActiveIdx[uid]); });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _acActiveIdx[uid] = Math.max(_acActiveIdx[uid] - 1, 0);
+      items.forEach(function(it, i){ it.classList.toggle('active', i === _acActiveIdx[uid]); });
+    } else if (e.key === 'Enter' && _acActiveIdx[uid] >= 0) {
+      e.preventDefault();
+      items[_acActiveIdx[uid]].dispatchEvent(new MouseEvent('mousedown'));
+    } else if (e.key === 'Escape') {
+      hideDropdown();
+    }
+  });
+
+  inputEl.addEventListener('blur', function() {
+    setTimeout(hideDropdown, 180);
+  });
 }
 
-// Init autocomplete on the static address inputs once DOM is ready
+function _extractStreet(r) {
+  var a = r.address || {};
+  var num  = a.house_number || '';
+  var road = a.road || a.pedestrian || a.path || '';
+  if (num && road) return num + ' ' + road;
+  if (road) return road;
+  // fallback: first part of display_name
+  return (r.display_name || '').split(',')[0].trim();
+}
+
+function _extractCity(r) {
+  var a = r.address || {};
+  return a.city || a.town || a.village || a.municipality || a.county || '';
+}
+
 function _initStaticAddressAutocomplete() {
   // Job form: f-addr + f-city
   var fAddr = document.getElementById('f-addr');
@@ -1912,7 +1979,6 @@ function _initStaticAddressAutocomplete() {
     });
   }
 }
-
 // ── Title Case helper ──────────────────────────────────────────────────────
 // ── Background job phone backfill (runs once on startup) ──────────────────
 async function backfillJobPhones() {
@@ -6784,7 +6850,6 @@ function checkVehicleAvailability(serviceType, dateStr){
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   _initStaticAddressAutocomplete();
-  if (GOOGLE_MAPS_KEY !== 'YOUR_GOOGLE_MAPS_API_KEY') _loadGooglePlaces();
 });
 </script>
 </body>
