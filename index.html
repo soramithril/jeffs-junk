@@ -605,6 +605,32 @@ textarea{resize:vertical;min-height:80px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Google Places autocomplete dropdown styling */
+.pac-container {
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  background: #fff;
+  margin-top: 2px;
+  overflow: hidden;
+  z-index: 99999 !important;
+}
+.pac-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-top: 1px solid #f1f5f9;
+  color: #1e293b;
+  line-height: 1.4;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover, .pac-item-selected { background: #f0fdf4; }
+.pac-item-query { font-weight: 600; color: #16a34a; }
+.pac-icon { display: none; }
+.pac-matched { color: #16a34a; font-weight: 700; }
+</style>
 </head>
 <body>
 
@@ -1813,6 +1839,80 @@ var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── Google Maps Places Autocomplete ───────────────────────────
+// Set your Google Maps API key here (needs Places API enabled)
+var GOOGLE_MAPS_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+
+var _placesReady = false;
+var _placesQueue = []; // inputs waiting for autocomplete to attach
+
+function _loadGooglePlaces() {
+  if (_placesReady || document.getElementById('gplaces-script')) return;
+  var s = document.createElement('script');
+  s.id = 'gplaces-script';
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + GOOGLE_MAPS_KEY + '&libraries=places&loading=async&callback=_onGooglePlacesReady';
+  s.async = true; s.defer = true;
+  document.head.appendChild(s);
+}
+
+function _onGooglePlacesReady() {
+  _placesReady = true;
+  _placesQueue.forEach(function(fn){ try{ fn(); } catch(e){} });
+  _placesQueue = [];
+}
+
+// Attach Google Places autocomplete to a street input.
+// onPick(street, city) is called when user selects a suggestion.
+function attachAddressAutocomplete(inputEl, onPick) {
+  if (!inputEl) return;
+  if (GOOGLE_MAPS_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') return; // key not set
+  inputEl.setAttribute('autocomplete', 'off');
+  function _attach() {
+    var ac = new google.maps.places.Autocomplete(inputEl, {
+      types: ['address'],
+      componentRestrictions: { country: 'ca' },
+      fields: ['address_components', 'formatted_address']
+    });
+    ac.addListener('place_changed', function() {
+      var place = ac.getPlace();
+      if (!place || !place.address_components) return;
+      var streetNum = '', route = '', city = '', province = '';
+      place.address_components.forEach(function(c) {
+        if (c.types.indexOf('street_number') >= 0) streetNum = c.long_name;
+        if (c.types.indexOf('route') >= 0) route = c.long_name;
+        if (c.types.indexOf('locality') >= 0) city = c.long_name;
+        if (c.types.indexOf('administrative_area_level_1') >= 0) province = c.long_name;
+      });
+      var street = (streetNum + (streetNum && route ? ' ' : '') + route).trim();
+      if (onPick) onPick(street || inputEl.value, city || province || '');
+    });
+  }
+  if (_placesReady) { _attach(); }
+  else { _placesQueue.push(_attach); _loadGooglePlaces(); }
+}
+
+// Init autocomplete on the static address inputs once DOM is ready
+function _initStaticAddressAutocomplete() {
+  // Job form: f-addr + f-city
+  var fAddr = document.getElementById('f-addr');
+  var fCity = document.getElementById('f-city');
+  if (fAddr) {
+    attachAddressAutocomplete(fAddr, function(street, city) {
+      fAddr.value = street;
+      if (fCity && city) { fCity.value = city; clearErr('f-city'); }
+    });
+  }
+  // Donation receipt: drd-addr + drd-city
+  var drdAddr = document.getElementById('drd-addr');
+  var drdCity = document.getElementById('drd-city');
+  if (drdAddr) {
+    attachAddressAutocomplete(drdAddr, function(street, city) {
+      drdAddr.value = street;
+      if (drdCity && city) drdCity.value = city;
+    });
+  }
+}
+
 // ── Title Case helper ──────────────────────────────────────────────────────
 // ── Background job phone backfill (runs once on startup) ──────────────────
 async function backfillJobPhones() {
@@ -2438,15 +2538,32 @@ function _clientAddressRow(street, city, removable){
   var rmBtn=removable?'<button type="button" onclick="this.closest(\'.c-addr-row\').remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px;align-self:flex-start;margin-top:22px">✕</button>':'';
   return '<div class="c-addr-row" style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start">'
     +'<div style="flex:2"><label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">Street</label>'
-    +'<input type="text" class="c-street-inp" placeholder="123 Main St" value="'+(street||'')+'" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
+    +'<input type="text" class="c-street-inp" data-places="1" placeholder="123 Main St" value="'+(street||'')+'" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
     +'<div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">City</label>'
     +'<input type="text" class="c-city-inp" placeholder="Barrie" value="'+(city||'Barrie')+'" onblur="this.value=toTitleCase(this.value)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
     +rmBtn+'</div>';
 }
+function _attachClientAddressAutocompletes() {
+  var rows = document.querySelectorAll('#c-addresses-wrap .c-addr-row');
+  rows.forEach(function(row) {
+    var inp = row.querySelector('.c-street-inp[data-places="1"]');
+    if (inp && !inp._acAttached) {
+      inp._acAttached = true;
+      var cityInp = row.querySelector('.c-city-inp');
+      attachAddressAutocomplete(inp, function(street, city) {
+        inp.value = street;
+        if (cityInp && city) cityInp.value = city;
+      });
+    }
+  });
+}
 function addClientName(){document.getElementById('c-names-wrap').insertAdjacentHTML('beforeend',_clientNameRow(''));}
 function addClientPhone(){document.getElementById('c-phones-wrap').insertAdjacentHTML('beforeend',_clientPhoneRow('',''));}
 function addClientEmail(){document.getElementById('c-emails-wrap').insertAdjacentHTML('beforeend',_clientEmailRow(''));}
-function addClientAddress(){document.getElementById('c-addresses-wrap').insertAdjacentHTML('beforeend',_clientAddressRow('','Barrie',true));}
+function addClientAddress(){
+  document.getElementById('c-addresses-wrap').insertAdjacentHTML('beforeend',_clientAddressRow('','Barrie',true));
+  _attachClientAddressAutocompletes();
+}
 function openAddClient(){
   try{
     editClientId=null;
@@ -2483,6 +2600,7 @@ function editClient(cid){
   var addrWrap=document.getElementById('c-addresses-wrap');
   addrWrap.innerHTML='';
   addrs.forEach(function(a,i){addrWrap.insertAdjacentHTML('beforeend',_clientAddressRow(a.street||'',a.city||'Barrie',i>0));});
+  setTimeout(_attachClientAddressAutocompletes, 50);
   document.getElementById('c-referral').value=cl.referral||'';
   document.getElementById('c-notes').value=cl.notes||'';
   var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
@@ -6663,4 +6781,10 @@ function checkVehicleAvailability(serviceType, dateStr){
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  _initStaticAddressAutocomplete();
+  if (GOOGLE_MAPS_KEY !== 'YOUR_GOOGLE_MAPS_API_KEY') _loadGooglePlaces();
+});
+</script>
 </body>
