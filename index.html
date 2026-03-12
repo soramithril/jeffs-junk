@@ -1333,6 +1333,16 @@ textarea{resize:vertical;min-height:80px;}
       <div class="bar-chart" id="chart-time" style="flex-direction:row;gap:6px;align-items:flex-end;height:160px;padding-bottom:8px"></div>
       <div id="chart-time-labels" style="display:flex;gap:6px;padding-left:0;margin-top:4px"></div>
     </div>
+    <div class="chart-card">
+      <div class="chart-title">⚖️ Service Mix Trend</div>
+      <div class="chart-sub">Bin rental vs junk removal share by year</div>
+      <div id="chart-service-mix"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔄 Bin Turnover by Month</div>
+      <div class="chart-sub">Rentals per bin per month — how hard each size is working</div>
+      <div id="chart-bin-turnover"></div>
+    </div>
   </div>
 </div>
 
@@ -4963,6 +4973,99 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   }).join('');
   labelsEl.innerHTML=months.map(function(m){return'<div style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+m.label+'</div>';}).join('');
   requestAnimationFrame(function(){document.querySelectorAll('#chart-time .vbar-seg').forEach(function(seg){var h=seg.getAttribute('data-h');setTimeout(function(){seg.style.height=h+'px';},10);});});
+
+  // ── Service Mix Trend (all-time by year, from aJobs when "All Time" else show all-time via separate aggregation) ──
+  var mixEl = document.getElementById('chart-service-mix');
+  if(mixEl){
+    // Aggregate by year from aJobs
+    var yearMix = {};
+    aJobs.forEach(function(j){
+      if(!j.date) return;
+      var yr = j.date.slice(0,4);
+      if(!yearMix[yr]) yearMix[yr] = {bin:0,junk:0,other:0,total:0};
+      yearMix[yr].total++;
+      if(j.service==='Bin Rental') yearMix[yr].bin++;
+      else if(j.service==='Junk Removal') yearMix[yr].junk++;
+      else yearMix[yr].other++;
+    });
+    var years = Object.keys(yearMix).sort();
+    if(years.length < 2){
+      mixEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px 0">Select a longer period (Year or All Time) to see the service mix trend.</div>';
+    } else {
+      mixEl.innerHTML = years.map(function(yr){
+        var d = yearMix[yr];
+        if(!d.total) return '';
+        var binPct = Math.round(d.bin/d.total*100);
+        var junkPct = Math.round(d.junk/d.total*100);
+        var otherPct = 100 - binPct - junkPct;
+        return '<div style="margin-bottom:14px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">'
+          +'<span style="font-size:13px;font-weight:700;color:var(--text);">'+yr+'</span>'
+          +'<span style="font-size:11px;color:var(--muted);">'+d.total+' jobs</span>'
+          +'</div>'
+          +'<div style="height:22px;border-radius:6px;overflow:hidden;display:flex;gap:1px;">'
+          +(binPct?'<div style="width:'+binPct+'%;background:#22c55e;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+binPct+'%</span></div>':'')
+          +(junkPct?'<div style="width:'+junkPct+'%;background:#eab308;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+junkPct+'%</span></div>':'')
+          +(otherPct>2?'<div style="width:'+otherPct+'%;background:#94a3b8;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+otherPct+'%</span></div>':'')
+          +'</div>'
+          +'</div>';
+      }).join('')
+      +'<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">'
+      +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:#22c55e;flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Bin Rental</span></div>'
+      +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:#eab308;flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Junk Removal</span></div>'
+      +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:#94a3b8;flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Other</span></div>'
+      +'</div>';
+    }
+  }
+
+  // ── Bin Turnover Rate — rentals per bin per month (fleet sizes hardcoded from bin_items) ──
+  var turnoverEl = document.getElementById('chart-bin-turnover');
+  if(turnoverEl){
+    // Fleet counts from your actual inventory
+    var fleetCounts = {'14 yard':54,'20 yard':20,'4 yard':8,'7 yard':4};
+    var sizeColors2 = {'14 yard':'#22c55e','20 yard':'#3b82f6','4 yard':'#eab308','7 yard':'#f97316'};
+    // Count bin rentals by size from aJobs
+    var binBySize = {};
+    var totalBinDays = 0;
+    aJobs.forEach(function(j){
+      if(j.service !== 'Bin Rental' || !j.binSize) return;
+      binBySize[j.binSize] = (binBySize[j.binSize]||0) + 1;
+    });
+    // Figure out how many months are in the period
+    var periodMonths = 1;
+    if(dates.a.start && dates.a.end){
+      var ms = dates.a.end - dates.a.start;
+      periodMonths = Math.max(1, Math.round(ms / (30*24*60*60*1000)));
+    }
+    var sizes = Object.keys(fleetCounts);
+    var maxRate = 0;
+    var rates = sizes.map(function(sz){
+      var rentals = binBySize[sz]||0;
+      var fleet = fleetCounts[sz];
+      var rate = fleet > 0 ? (rentals / fleet / periodMonths) : 0;
+      if(rate > maxRate) maxRate = rate;
+      return {sz:sz, rentals:rentals, fleet:fleet, rate:rate};
+    });
+    if(maxRate === 0){
+      turnoverEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px 0">No bin rental data in this period.</div>';
+    } else {
+      turnoverEl.innerHTML = rates.map(function(r){
+        var pct = maxRate > 0 ? Math.round(r.rate/maxRate*100) : 0;
+        var rateStr = r.rate.toFixed(1);
+        return '<div style="margin-bottom:14px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">'
+          +'<span style="font-size:13px;font-weight:700;color:var(--text);">'+r.sz+'</span>'
+          +'<span style="font-size:11px;color:var(--muted);">'+rateStr+'x / bin / mo &nbsp;·&nbsp; '+r.rentals+' rentals &nbsp;·&nbsp; '+r.fleet+' bins</span>'
+          +'</div>'
+          +'<div style="height:18px;background:var(--surface2);border-radius:6px;overflow:hidden;">'
+          +'<div style="height:100%;width:'+pct+'%;background:'+sizeColors2[r.sz]+';border-radius:6px;transition:width .6s ease;display:flex;align-items:center;padding-left:8px;">'
+          +(pct>15?'<span style="font-size:10px;font-weight:700;color:#fff;">'+rateStr+'x</span>':'')
+          +'</div></div>'
+          +'</div>';
+      }).join('')
+      +'<div style="font-size:11px;color:var(--muted);margin-top:4px;">Rentals per bin per month — higher = each bin is working harder</div>';
+    }
+  }
 }
 function initAnalytics(){
   setAnalyticsPeriod('week',document.getElementById('af-week'));
