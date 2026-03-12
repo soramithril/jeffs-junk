@@ -51,6 +51,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .view{display:none;}.view.active{display:block;}
 .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:12px;}
 .page-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:2px;line-height:1;color:var(--text);}
+.page-title-sm{font-size:30px!important;letter-spacing:1.5px!important;}
 .page-sub{font-size:13px;color:var(--muted);margin-top:4px;}
 
 /* ── STATS GRID ── */
@@ -143,6 +144,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .crange-select:focus{outline:none;border-color:var(--accent);}
 .crange-select option{background:var(--surface2);}
 .crange-arrow{font-size:11px;color:var(--muted);flex-shrink:0;margin-top:12px;}
+.comp-vs-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px;}
+.comp-vs-cheaper{background:rgba(34,197,94,.12);color:#22c55e;}
+.comp-vs-pricier{background:rgba(239,68,68,.12);color:#ef4444;}
+.comp-vs-same{background:rgba(107,117,133,.1);color:var(--muted);}
 @media(max-width:700px){
   #client-range-grid{grid-template-columns:1fr 1fr!important;}
 }
@@ -248,7 +253,8 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 .modal-overlay.open .modal{transform:translateY(0);}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1.5px;color:var(--accent);}
-.modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+.modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:44px;height:44px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
+.modal-close:hover{background:rgba(239,68,68,.1);color:#ef4444;border-color:rgba(239,68,68,.3);}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-group.full{grid-column:1/-1;}
@@ -459,13 +465,21 @@ textarea{resize:vertical;min-height:80px;}
 .metric-val{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;}
 .metric-lbl{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.8px;}
 
+/* ── PRICE DELTA ── */
+.pdelta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;}
+.pdelta-cheaper{background:rgba(34,197,94,.14);color:#22c55e;}
+.pdelta-pricier{background:rgba(239,68,68,.14);color:#ef4444;}
+.pdelta-same{background:rgba(107,117,133,.1);color:var(--muted);}
+
 /* ── MISC ── */
-.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
-.empty-state .ei{font-size:44px;margin-bottom:14px;}
-.empty-state h3{font-size:17px;color:var(--text);margin-bottom:6px;}
+.empty-state{text-align:center;padding:28px 20px;color:var(--muted);}
+.empty-state .ei{font-size:28px;margin-bottom:8px;opacity:.6;}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:4px;font-weight:600;}
 .empty-state p{font-size:13px;}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;box-shadow:0 4px 16px rgba(0,0,0,.12);}
 .toast.show{transform:translateY(0);opacity:1;}
+.toast.toast-error{border-color:#ef4444!important;color:#ef4444!important;background:#fff5f5!important;}
+.toast.toast-warn{border-color:#eab308!important;color:#eab308!important;background:#fefce8!important;}
 .section-lbl{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
 
 
@@ -692,7 +706,7 @@ textarea{resize:vertical;min-height:80px;}
 
 <!-- ─── LOADING SCREEN ─── -->
 <div id="sb-loading" class="jj-screen-bg" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
-  <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:4px;color:#16a34a;text-shadow:0 2px 12px rgba(34,197,94,.2);">Jeff's Junk</div>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;color:#16a34a;opacity:.7;">Jeff's Junk</div>
   <!-- Progress bar track -->
   <div style="width:280px;height:6px;background:rgba(34,197,94,.15);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.2);">
     <div id="load-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px;transition:width .4s ease;"></div>
@@ -729,7 +743,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="nav-label" style="margin-top:16px">Bin Management</div>
     <button class="nav-item" onclick="go('bininventory')"><span class="icon">🚛</span><span>Bin Fleet</span></button>
     <button class="nav-item" onclick="go('binmap')"><span class="icon">🗺️</span><span>Bin Map</span></button>
-    <button class="nav-item" onclick="go('vehicles')"><span class="icon">🚛</span><span>Vehicles</span></button>
+    <button class="nav-item" onclick="go('vehicles')"><span class="icon">🚗</span><span>Vehicles</span></button>
     <button class="nav-item" onclick="go('furniturebank')"><span class="icon">🛋️</span><span>Furniture Bank</span></button>
     <div class="nav-label" style="margin-top:16px">Analytics</div>
     <button class="nav-item" onclick="go('analytics')"><span class="icon">📈</span><span>Analytics</span></button>
@@ -803,7 +817,7 @@ textarea{resize:vertical;min-height:80px;}
   <div class="dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div class="chart-card">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;margin-bottom:12px">🔴 OVERDUE PICKUPS</div>
-      <div id="dash-overdue"></div>
+      <div id="dash-overdue" style="min-height:0"></div>
     </div>
     <div class="chart-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -915,23 +929,23 @@ textarea{resize:vertical;min-height:80px;}
   <div id="jobs-cat-view">
     <div class="cat-section">
       <div class="cat-section-header bin"><div class="cat-title">🚛 Bin Rentals</div><span class="cat-count" id="jobs-bin-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header junk"><div class="cat-title">🧹 Junk Removal</div><span class="cat-count" id="jobs-junk-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header quote"><div class="cat-title">📋 Junk Quotes</div><span class="cat-count" id="jobs-quote-count">0 quotes</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Confirmed</th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
   </div>
   <div id="jobs-pagination-bottom"></div>
 </div>
@@ -939,7 +953,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ CALENDAR ═══════════════ -->
 <div id="view-calendar" class="view">
   <div class="page-header">
-    <div><div class="page-title">Calendar</div><div class="page-sub">Schedule view</div></div>
+    <div><div class="page-title page-title-sm">Calendar</div><div class="page-sub">Schedule view</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
@@ -950,13 +964,17 @@ textarea{resize:vertical;min-height:80px;}
     <div class="cal-month" id="cal-lbl"></div>
     <button class="cal-nav" onclick="shiftMonth(1)">&#8250;</button>
   </div>
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
-    <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-right:4px;">Legend:</span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#22c55e;background:rgba(34,197,94,.15);padding:3px 10px;border-radius:5px;">🚛 Bin Rental</span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#eab308;background:rgba(234,179,8,.15);padding:3px 10px;border-radius:5px;">🧹 Junk Removal</span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#60a5fa;background:rgba(96,165,250,.15);padding:3px 10px;border-radius:5px;">📋 Junk Quote</span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#ef4444;background:rgba(239,68,68,.15);padding:3px 10px;border-radius:5px;">🛋️ Furniture</span>
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--muted);background:var(--surface2);padding:3px 10px;border-radius:5px;border:1px solid var(--border);">🚫 Vehicle Blocked</span>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:7px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+    <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-right:2px;">Key:</span>
+    <span style="font-size:11px;font-weight:600;color:#22c55e;">🚛 Bin</span>
+    <span style="color:var(--border)">·</span>
+    <span style="font-size:11px;font-weight:600;color:#eab308;">🧹 Junk</span>
+    <span style="color:var(--border)">·</span>
+    <span style="font-size:11px;font-weight:600;color:#60a5fa;">📋 Quote</span>
+    <span style="color:var(--border)">·</span>
+    <span style="font-size:11px;font-weight:600;color:#ef4444;">🛋️ Furn</span>
+    <span style="color:var(--border)">·</span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted);">🚫 Blocked</span>
   </div>
   <div class="calendar-grid" id="cal-grid"></div>
 </div>
@@ -964,7 +982,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ FURNITURE BANK DRD ═══════════════ -->
 <div id="view-furniturebank" class="view">
   <div class="page-header">
-    <div><div class="page-title">Furniture Bank</div><div class="page-sub">Donation Receiving Document (DRD)</div></div>
+    <div><div class="page-title page-title-sm">Furniture Bank</div><div class="page-sub">Donation Receiving Document (DRD)</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="drdClear()">Clear Form</button>
@@ -1066,11 +1084,11 @@ textarea{resize:vertical;min-height:80px;}
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();clearClientRangeFilters()" id="client-range-clear-btn" style="font-size:11px;padding:4px 10px;opacity:0;pointer-events:none;transition:opacity .2s;">✕ Clear All</button>
-          <svg id="client-range-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--muted);transition:transform .25s;"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg id="client-range-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--muted);transition:transform .25s;transform:rotate(180deg)"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
       <!-- Panel body -->
-      <div id="client-range-body" style="padding:14px 16px;display:none;">
+      <div id="client-range-body" style="padding:14px 16px;display:block;">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="client-range-grid">
           <!-- Bins -->
           <div class="crange-card" data-color="#22c55e" data-color-dim="rgba(34,197,94,.12)">
@@ -1157,7 +1175,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ ANALYTICS ═══════════════ -->
 <div id="view-analytics" class="view">
   <div class="page-header">
-    <div><div class="page-title">Analytics</div><div class="page-sub">Business insights & trends</div></div>
+    <div><div class="page-title page-title-sm">Analytics</div><div class="page-sub">Business insights & trends</div></div>
     
   </div>
 
@@ -1274,7 +1292,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ COMPETITION PRICING ═══════════════ -->
 <div id="view-pricing" class="view">
   <div class="page-header">
-    <div><div class="page-title">Competition Pricing</div><div class="page-sub">Track competitor rates vs your prices by city</div></div>
+    <div><div class="page-title page-title-sm">Competition Pricing</div><div class="page-sub">Track competitor rates vs your prices by city</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="openEditOurPrices()">✏️ Edit Our Prices</button>
@@ -1411,7 +1429,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ BIN MAP ═══════════════ -->
 <div id="view-binmap" class="view">
   <div class="page-header">
-    <div><div class="page-title">Bin Map</div><div class="page-sub">Currently rented bins only</div></div>
+    <div><div class="page-title page-title-sm">Bin Map</div><div class="page-sub">Currently rented bins only</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
@@ -1433,7 +1451,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ BIN INVENTORY ═══════════════ -->
 <div id="view-bininventory" class="view">
   <div class="page-header">
-    <div><div class="page-title">Bin Fleet</div><div class="page-sub" id="fleet-sub">Manage your physical bin inventory</div></div>
+    <div><div class="page-title page-title-sm">Bin Fleet</div><div class="page-sub" id="fleet-sub">Manage your physical bin inventory</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="openBinImport()" title="Import bins from CSV">📥 Import CSV</button>
@@ -1493,7 +1511,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ BIN UTILIZATION ═══════════════ -->
 <div id="view-utilization" class="view">
   <div class="page-header">
-    <div><div class="page-title">📊 Bin Utilization</div><div class="page-sub">Maximize your fleet efficiency</div></div>
+    <div><div class="page-title page-title-sm">📊 Bin Utilization</div><div class="page-sub">Maximize your fleet efficiency</div></div>
     
   </div>
   <div class="metric-row" id="util-metrics"></div>
@@ -1539,7 +1557,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ═══════════════ VEHICLES ═══════════════ -->
 <div id="view-vehicles" class="view">
   <div class="page-header">
-    <div><div class="page-title">🚛 Vehicles</div><div class="page-sub" id="vehicles-sub">Manage your fleet availability</div></div>
+    <div><div class="page-title page-title-sm">🚗 Vehicles</div><div class="page-sub" id="vehicles-sub">Manage your fleet availability</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-primary" onclick="openAddVehicle()">+ Add Vehicle</button>
@@ -2166,10 +2184,17 @@ function clientToDb(c) {
 }
 
 // ── Save functions (write to Supabase) ─────────────────────
+function updateSidebarStats() {
+  var active = jobs.filter(function(j){ return j.status !== 'Cancelled' && j.status !== 'Done'; }).length;
+  var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped'; }).length;
+  var el = document.getElementById('m-active'); if(el) el.textContent = active;
+  var el2 = document.getElementById('m-bins'); if(el2) el2.textContent = binsOut;
+}
 function save() {
   // Save all jobs that changed — for simplicity upsert all in background
   if (!jobs.length) return;
   _clientStatsCache = null; // invalidate client stats cache
+  updateSidebarStats();
   var batch = jobs.map(jobToDb);
   db.from('jobs').upsert(batch, {onConflict:'job_id'}).then(function(r){
     if(r.error) console.error('Save jobs error:', r.error.message);
@@ -3118,7 +3143,7 @@ async function refreshDashBinStats(){
       +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
       +'<div style="flex:1;padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
       +'</div>'
-      +'<button onclick="bookBin(\''+s+'\')" style="margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">📅 Book This Size</button>'
+      +'<div style="display:flex;gap:6px;margin-top:12px">'+'<button onclick="bookBin(\''+s+'\')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:\'DM Sans\',sans-serif;font-size:12px;font-weight:700;cursor:pointer">📅 Book</button>'+'<button onclick="go(\'bininventory\');setTimeout(function(){setFleetF(\''+s+'\',document.getElementById(\'fnb-'+s.replace(' ','')+'\'))},200)" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:\'DM Sans\',sans-serif;font-size:12px;font-weight:700;cursor:pointer">🔍 View</button>'+'</div>'
       +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
@@ -5704,14 +5729,15 @@ function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransfer
 function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});save();toast('Marked as paid!');openDetail(id);refresh();}
 function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});save();toast('Marked complete!');openDetail(id);refresh();}
 function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.status='Done';j.binInstatus='pickedup';}});save();toast('Bin marked picked up!');refresh();}
-function toast(msg){
-  var t=document.getElementById('toast');
-  var isWarn=msg.indexOf('⚠')===0||msg.indexOf('⚠️')===0;
-  t.style.borderColor=isWarn?'#ef4444':'';
-  t.style.color=isWarn?'#ef4444':'';
-  t.textContent=(isWarn?'':('✓ '))+msg;
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  var isErr  = type === 'error'  || msg.indexOf('⚠') === 0 || msg.indexOf('⚠️') === 0 || msg.indexOf('Error') >= 0;
+  var isWarn = type === 'warn';
+  t.className = 'toast' + (isErr ? ' toast-error' : isWarn ? ' toast-warn' : '');
+  t.textContent = (isErr ? '✕ ' : isWarn ? '⚠ ' : '✓ ') + msg.replace(/^[⚠️✅✓⚠]\s*/,'');
   t.classList.add('show');
-  setTimeout(function(){t.classList.remove('show');t.style.borderColor='';t.style.color='';},2800);
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function(){ t.classList.remove('show'); }, 3000);
 }
 document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});
 document.addEventListener('click',function(e){
