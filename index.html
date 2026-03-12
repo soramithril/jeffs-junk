@@ -1847,6 +1847,17 @@ var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 var _acDebounceTimers = {};
 var _acActiveIdx = {};
+// Location bias for address autocomplete — Barrie, ON as fallback
+var _acLat = 44.3894;
+var _acLon = -79.6903;
+(function() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      _acLat = pos.coords.latitude;
+      _acLon = pos.coords.longitude;
+    }, function(){}, { timeout: 5000 });
+  }
+})();
 
 function attachAddressAutocomplete(inputEl, onPick) {
   if (!inputEl || inputEl._acAttached) return;
@@ -1909,9 +1920,12 @@ function attachAddressAutocomplete(inputEl, onPick) {
     if (q.length < 4) { hideDropdown(); return; }
     _acDebounceTimers[uid] = setTimeout(function() {
       showLoading();
+      // Viewbox biases results toward current location (±0.5 deg ≈ ~55km radius)
+      var vb = (_acLon-0.5)+','+(_acLat+0.5)+','+(_acLon+0.5)+','+(_acLat-0.5);
       var url = 'https://nominatim.openstreetmap.org/search'
-        + '?q=' + encodeURIComponent(q + ', Canada')
-        + '&format=json&addressdetails=1&limit=7&countrycodes=ca';
+        + '?q=' + encodeURIComponent(q + ', Ontario, Canada')
+        + '&format=json&addressdetails=1&limit=7&countrycodes=ca'
+        + '&viewbox=' + vb + '&bounded=0';
       fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'JeffsJunkJobTracker/1.0' } })
         .then(function(res){ return res.json(); })
         .then(renderResults)
