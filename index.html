@@ -7037,184 +7037,205 @@ function advisorProgress(pct,msg){
 }
 async function runAdvisor(){
   advisorShowState('loading');
-  advisorProgress(5,'Connecting to database...');
+  advisorProgress(10,'Connecting to database...');
   try{
-    advisorProgress(15,'Pulling job history...');
-    // NOTE: db is the Supabase client (var db = supabase.createClient(...))
-    var [r1,r2,r3,r4,r5,r6] = await Promise.all([
-      db.from('jobs').select('date,service,city,bin_size').neq('status','cancelled'),
-      db.from('bin_items').select('size,status'),
-      db.from('jobs').select('bin_size').eq('service','Bin Rental').neq('status','cancelled').not('bin_size','is',null),
-      db.from('jobs').select('bin_size,bin_dropoff,bin_pickup').eq('service','Bin Rental').neq('status','cancelled').not('bin_dropoff','is',null).not('bin_pickup','is',null),
-      db.from('jobs').select('client_cid,date').neq('status','cancelled').not('client_cid','is',null).not('date','is',null).order('date'),
-      db.from('jobs').select('date,service').neq('status','cancelled').not('date','is',null)
-    ]);
-    advisorProgress(40,'Crunching numbers...');
-    var jobRows=r1.data||[];
-    var binFleet=r2.data||[];
-    var binDemandRows=r3.data||[];
-    var binDurationRows=r4.data||[];
-    var repeatRows=r5.data||[];
-    var yoyRows=r6.data||[];
+    advisorProgress(30,'Pulling business data...');
+    var rpcRes = await db.rpc('get_advisor_data');
+    if(rpcRes.error) throw new Error('DB error: '+rpcRes.error.message);
+    var d = rpcRes.data;
 
-    // Monthly map
-    var monthMap={};
-    jobRows.forEach(function(j){
-      if(!j.date) return;
-      var m=j.date.slice(0,7);
-      if(!monthMap[m]) monthMap[m]={total:0,bin:0,junk:0};
-      monthMap[m].total++;
-      if(j.service==='Bin Rental') monthMap[m].bin++;
-      if(j.service==='Junk Removal') monthMap[m].junk++;
-    });
+    advisorProgress(60,'Crunching numbers...');
 
-    // Seasonal 3yr avg
-    var seasonMap={};
-    yoyRows.forEach(function(j){
-      if(!j.date) return;
-      var yr=parseInt(j.date.slice(0,4));
-      var mo=parseInt(j.date.slice(5,7));
-      if(yr<2023||yr>2025) return;
-      seasonMap[mo]=(seasonMap[mo]||0)+1;
-    });
-    var avgByMonth={};
-    for(var mo=1;mo<=12;mo++) avgByMonth[mo]=Math.round((seasonMap[mo]||0)/3);
-    var mNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var slowMonths=Object.keys(avgByMonth).map(Number).filter(function(m){return avgByMonth[m]<110;}).sort(function(a,b){return avgByMonth[a]-avgByMonth[b];});
-    var peakMonths=Object.keys(avgByMonth).map(Number).filter(function(m){return avgByMonth[m]>230;}).sort(function(a,b){return avgByMonth[b]-avgByMonth[a];});
+    var monthly = d.monthly || [];
+    var yoy = d.yoy || [];
+    var cities = d.cities || [];
+    var binDemand = d.bin_demand || [];
+    var binDuration = d.bin_duration || [];
+    var fleet = d.fleet || [];
+    var repeat = d.repeat || {};
+    var totalJobs = d.total_jobs || 0;
+    var yoyGrowth = d.yoy_growth || {};
+    var thisMonth = d.this_month || {};
 
-    // City breakdown
-    var cityMap={};
-    jobRows.forEach(function(j){
-      if(!j.city) return;
-      if(!cityMap[j.city]) cityMap[j.city]={total:0,bin:0,junk:0};
-      cityMap[j.city].total++;
-      if(j.service==='Bin Rental') cityMap[j.city].bin++;
-      if(j.service==='Junk Removal') cityMap[j.city].junk++;
+    var yoyPct = yoyGrowth.prev12 ? Math.round((yoyGrowth.last12 - yoyGrowth.prev12) / yoyGrowth.prev12 * 100) : 0;
+    var repeatRate = repeat.total_clients ? Math.round(repeat.repeat_clients / repeat.total_clients * 100) : 0;
+    var avgGap = repeat.avg_gap_days || 0;
+
+    var totalDemand = binDemand.reduce(function(a,b){return a+b.rentals;},0) || 1;
+    var demandMap = {};
+    binDemand.forEach(function(b){ demandMap[b.bin_size] = b.rentals; });
+
+    var durMap = {};
+    binDuration.forEach(function(b){ durMap[b.bin_size] = b.avg_days; });
+
+    var fleetMap = {};
+    fleet.forEach(function(f){ fleetMap[f.size] = f; });
+
+    var mNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var avgByMo = {};
+    yoy.forEach(function(row){
+      avgByMo[row.mo] = Math.round(((row.y2023||0)+(row.y2024||0)+(row.y2025||0))/3);
     });
-    var topCities=Object.keys(cityMap).sort(function(a,b){return cityMap[b].total-cityMap[a].total;}).slice(0,15);
-    var junkOpCities=topCities.filter(function(c){
-      var d=cityMap[c]; return d.total>=30&&d.bin>20&&(d.junk/d.total)<0.10&&c!=='Barrie';
+    var curMo = new Date().getMonth()+1;
+    var nextMo = curMo===12?1:curMo+1;
+    var nextMonthAvg = avgByMo[nextMo]||0;
+    var curMonthAvg = avgByMo[curMo]||0;
+    var slowMonths = Object.keys(avgByMo).map(Number).filter(function(m){return avgByMo[m]<110;}).sort(function(a,b){return avgByMo[a]-avgByMo[b];});
+    var peakMonths = Object.keys(avgByMo).map(Number).filter(function(m){return avgByMo[m]>230;}).sort(function(a,b){return avgByMo[b]-avgByMo[a];});
+
+    var curCount = thisMonth.current || 0;
+    var lastYearCount = thisMonth.last_year || 0;
+    var monthVsLY = lastYearCount ? Math.round((curCount - lastYearCount) / lastYearCount * 100) : 0;
+
+    var junkOpCities = cities.filter(function(c){
+      return c.total >= 30 && c.bin > 20 && c.city !== 'Barrie' && (c.junk/c.total) < 0.10;
     }).slice(0,4);
+    var growthCities = cities.filter(function(c){
+      return c.total >= 50 && c.city !== 'Barrie' && c.city !== 'Innisfil';
+    }).slice(0,5);
 
-    // Fleet
-    var fleetBySize={};
-    binFleet.forEach(function(b){
-      if(!b.size) return;
-      if(!fleetBySize[b.size]) fleetBySize[b.size]={total:0,out:0,yard:0};
-      fleetBySize[b.size].total++;
-      if(b.status==='out') fleetBySize[b.size].out++;
-      if(b.status==='yard') fleetBySize[b.size].yard++;
-    });
-    var demandBySize={};
-    binDemandRows.forEach(function(j){if(j.bin_size) demandBySize[j.bin_size]=(demandBySize[j.bin_size]||0)+1;});
-    var totalDemand=Object.values(demandBySize).reduce(function(a,b){return a+b;},0)||1;
+    var f14 = fleetMap['14 yard'] || {};
+    var f20 = fleetMap['20 yard'] || {};
+    var demand14pct = Math.round((demandMap['14 yard']||0)/totalDemand*100);
+    var demand20pct = Math.round((demandMap['20 yard']||0)/totalDemand*100);
+    var dur20 = durMap['20 yard'] || 0;
+    var dur14 = durMap['14 yard'] || 0;
 
-    var durSum={},durCnt={};
-    binDurationRows.forEach(function(j){
-      if(!j.bin_size||!j.bin_dropoff||!j.bin_pickup) return;
-      var d=(new Date(j.bin_pickup)-new Date(j.bin_dropoff))/86400000;
-      if(d>0&&d<60){durSum[j.bin_size]=(durSum[j.bin_size]||0)+d;durCnt[j.bin_size]=(durCnt[j.bin_size]||0)+1;}
-    });
-    var avgDur={};
-    Object.keys(durSum).forEach(function(s){avgDur[s]=Math.round(durSum[s]/durCnt[s]);});
+    advisorProgress(80,'Building recommendations...');
 
-    // Repeat customers
-    var clientDates={};
-    repeatRows.forEach(function(j){
-      if(!j.client_cid||!j.date) return;
-      if(!clientDates[j.client_cid]) clientDates[j.client_cid]=[];
-      clientDates[j.client_cid].push(j.date);
-    });
-    var totalClients=Object.keys(clientDates).length;
-    var repeatClients=0,gapTotal=0,gapCnt=0;
-    Object.values(clientDates).forEach(function(dates){
-      dates.sort();
-      if(dates.length>=2){
-        repeatClients++;
-        var gap=(new Date(dates[1])-new Date(dates[0]))/86400000;
-        if(gap>0&&gap<1000){gapTotal+=gap;gapCnt++;}
+    var recs = [];
+
+    // YoY growth/decline
+    if(yoyPct >= 10){
+      recs.push({category:'OPERATIONS',priority:'LOW',status:'positive',
+        title:'Business Growing '+yoyPct+'% Year Over Year',
+        detail:'Job volume is up '+yoyPct+'% compared to the prior 12 months ('+yoyGrowth.last12+' vs '+yoyGrowth.prev12+' jobs). Growth is being driven primarily by bin rentals. The business is in a healthy expansion phase.',
+        action:'Document what\'s working — referral sources, pricing, service areas — so you can double down on the highest-ROI growth drivers.'
+      });
+    } else if(yoyPct <= -10){
+      recs.push({category:'MARKETING',priority:'HIGH',status:'urgent',
+        title:'Volume Down '+Math.abs(yoyPct)+'% — Action Needed',
+        detail:'Job volume has declined '+Math.abs(yoyPct)+'% year over year ('+yoyGrowth.last12+' vs '+yoyGrowth.prev12+' jobs). This warrants reviewing pricing, marketing spend, and competitor activity in core markets.',
+        action:'Survey recent customers on how they found you and whether they considered competitors — identify where leads are being lost.'
+      });
+    }
+
+    // This month vs last year
+    if(curCount > 0 && lastYearCount > 0){
+      if(monthVsLY <= -20){
+        recs.push({category:'MARKETING',priority:'HIGH',status:'urgent',
+          title:mNames[curMo]+' Tracking Behind Last Year',
+          detail:'This '+mNames[curMo]+' has '+curCount+' jobs so far vs '+lastYearCount+' in '+mNames[curMo]+' last year — running '+Math.abs(monthVsLY)+'% behind. Seasonal average for '+mNames[curMo]+' is '+curMonthAvg+' jobs.',
+          action:'Push a promotional offer or targeted social media post this week to accelerate bookings for the rest of the month.'
+        });
+      } else if(monthVsLY >= 20){
+        recs.push({category:'OPERATIONS',priority:'MEDIUM',status:'positive',
+          title:mNames[curMo]+' Running '+monthVsLY+'% Ahead of Last Year',
+          detail:'This '+mNames[curMo]+' has '+curCount+' jobs vs '+lastYearCount+' same time last year. Make sure you have enough bin inventory and crew capacity to handle the higher demand.',
+          action:'Confirm all crew schedules and verify bin inventory levels are adequate for the rest of the month.'
+        });
       }
+    }
+
+    // Upcoming slow/peak month
+    if(nextMonthAvg < 110){
+      recs.push({category:'SEASONAL',priority:'MEDIUM',status:'urgent',
+        title:'Slow Month Ahead — Plan Now',
+        detail:mNames[nextMo]+' historically averages only '+nextMonthAvg+' jobs/month based on 3 years of data. Slowest months: '+slowMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMo[m]+'/mo)';}).join(', ')+'.',
+        action:'Prepare a targeted email to past customers and consider a limited-time discount to fill the calendar for '+mNames[nextMo]+'.'
+      });
+    } else if(nextMonthAvg > 230){
+      recs.push({category:'SEASONAL',priority:'HIGH',status:'opportunity',
+        title:'Peak Season Approaching — Staff Up',
+        detail:mNames[nextMo]+' historically averages '+nextMonthAvg+' jobs/month — one of your busiest periods. Peak months: '+peakMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMo[m]+'/mo)';}).join(', ')+'. Demand spikes 3x vs slow months.',
+        action:'Confirm bin inventory is fully serviced and crewed — book any part-time help now before peak demand hits.'
+      });
+    }
+
+    // 20yd duration
+    if(dur20 >= 8){
+      recs.push({category:'FLEET',priority:'HIGH',status:'urgent',
+        title:'20 Yard Bins Rented Too Long',
+        detail:'20 yard bins average '+dur20+' days per rental vs '+dur14+' days for 14 yard bins. Longer rentals tie up expensive inventory and reduce the jobs each bin can service per month.',
+        action:'Add a default 7-day rental period for 20yd bins in your booking process with clear overage fees to encourage faster returns.'
+      });
+    }
+
+    // 14yd dominance
+    if(demand14pct >= 75){
+      recs.push({category:'FLEET',priority:'MEDIUM',status:'opportunity',
+        title:'14 Yard Bins Drive '+demand14pct+'% of Rentals',
+        detail:'14 yard bins account for '+demand14pct+'% of all bin demand with '+(demandMap['14 yard']||0).toLocaleString()+' total rentals. Your fleet of '+(f14.total||54)+' bins in this size is your most critical asset.',
+        action:'Prioritize maintenance and fast turnaround on 14yd bins — any bin sitting unrepaired in the yard is directly costing you bookings.'
+      });
+    }
+
+    // Junk removal cross-sell
+    if(junkOpCities.length >= 2){
+      var cityNames = junkOpCities.map(function(c){return c.city+' ('+c.junk+' junk / '+c.total+' total)';}).join(', ');
+      recs.push({category:'SERVICE MIX',priority:'MEDIUM',status:'opportunity',
+        title:'Junk Removal Untapped in Bin Cities',
+        detail:'Several top bin rental markets have very low junk removal penetration: '+cityNames+'. These customers already trust you for bins — they\'re the easiest upsell.',
+        action:'When booking bin rentals in these cities, mention junk removal and add it as an add-on option in your booking confirmation.'
+      });
+    }
+
+    // Repeat rate
+    if(repeatRate < 25){
+      recs.push({category:'CUSTOMER RETENTION',priority:'HIGH',status:'urgent',
+        title:'Only '+repeatRate+'% of Customers Return',
+        detail:'Just '+repeatRate+'% of your '+repeat.total_clients.toLocaleString()+' clients have booked more than once. Average time between first and second booking is '+avgGap+' days. Most customers are one-time visits.',
+        action:'Set up a follow-up message at '+Math.round(avgGap*0.8)+' days after a job to remind past customers and prompt a second booking.'
+      });
+    } else if(repeatRate >= 35){
+      recs.push({category:'CUSTOMER RETENTION',priority:'LOW',status:'positive',
+        title:repeatRate+'% Repeat Rate — Strong Loyalty',
+        detail:repeatRate+'% of your '+repeat.total_clients.toLocaleString()+' clients have returned, averaging '+avgGap+' days between visits. This is a strong indicator of satisfaction and word-of-mouth referrals.',
+        action:'Ask your highest-frequency customers for a Google review — loyal customers are your best source of new business.'
+      });
+    } else {
+      recs.push({category:'CUSTOMER RETENTION',priority:'MEDIUM',status:'opportunity',
+        title:'Grow Your '+repeatRate+'% Repeat Rate',
+        detail:repeatRate+'% of clients have returned, averaging '+avgGap+' days between bookings. Each percentage point of repeat rate represents roughly '+(Math.round(repeat.total_clients*0.01))+' additional jobs per year.',
+        action:'Add a post-job follow-up at '+Math.round(avgGap*0.75)+' days asking if they need the bin picked up or have more junk to remove.'
+      });
+    }
+
+    // Geographic concentration
+    var barrieData = cities.find(function(c){return c.city==='Barrie';});
+    if(barrieData){
+      var barriePct = Math.round(barrieData.total / totalJobs * 100);
+      if(barriePct >= 50){
+        recs.push({category:'CITY TARGETING',priority:'MEDIUM',status:'opportunity',
+          title:'Barrie Is '+barriePct+'% of All Jobs',
+          detail:'Barrie accounts for '+barrieData.total.toLocaleString()+' of '+totalJobs.toLocaleString()+' total jobs. Heavy concentration means any local downturn impacts the whole business. Markets like '+growthCities.slice(0,3).map(function(c){return c.city+' ('+c.total+' jobs)';}).join(', ')+' show real growth potential.',
+          action:'Allocate a small marketing budget specifically to Innisfil, Wasaga Beach, and Angus to grow these secondary markets.'
+        });
+      }
+    }
+
+    // Sort: HIGH > MEDIUM > LOW, urgent > opportunity > positive
+    var priOrder = {HIGH:0,MEDIUM:1,LOW:2};
+    var statOrder = {urgent:0,opportunity:1,positive:2};
+    recs.sort(function(a,b){
+      var p = priOrder[a.priority] - priOrder[b.priority];
+      return p !== 0 ? p : statOrder[a.status] - statOrder[b.status];
     });
-    var repeatRate=Math.round(repeatClients/totalClients*100);
-    var avgGap=gapCnt?Math.round(gapTotal/gapCnt):0;
 
-    // YoY
-    var now=new Date(),last12=0,prev12=0;
-    yoyRows.forEach(function(j){
-      if(!j.date) return;
-      var daysAgo=(now-new Date(j.date))/86400000;
-      if(daysAgo<=365) last12++;
-      else if(daysAgo<=730) prev12++;
-    });
-    var yoyGrowth=prev12?Math.round((last12-prev12)/prev12*100):0;
-
-    var curMonth=new Date().toISOString().slice(0,7);
-    var lastYearMonth=(new Date().getFullYear()-1)+'-'+String(new Date().getMonth()+1).padStart(2,'0');
-    var curCount=(monthMap[curMonth]||{}).total||0;
-    var lastYearCount=(monthMap[lastYearMonth]||{}).total||0;
-
-    advisorProgress(70,'Building AI context...');
-
-    var fleetSummary=Object.keys(fleetBySize).map(function(s){
-      var f=fleetBySize[s];
-      return s+': '+f.total+' bins ('+f.out+' currently out, '+Math.round((demandBySize[s]||0)/totalDemand*100)+'% of all rental demand, avg '+( avgDur[s]||'?')+' day rental)';
-    }).join('; ');
-
-    var citySummary=topCities.slice(0,10).map(function(c){
-      var d=cityMap[c]; return c+' ('+d.total+' jobs: '+d.bin+' bin, '+d.junk+' junk)';
-    }).join('; ');
-
-    var seasonSummary=Array.from({length:12},function(_,i){return mNames[i+1]+': avg '+avgByMonth[i+1]+'/mo';}).join(', ');
-    var months=Object.keys(monthMap).sort();
-    var recentTrend=months.slice(-6).map(function(m){var d=monthMap[m];return m+': '+d.total+' ('+d.bin+' bin, '+d.junk+' junk)';}).join('; ');
-
-    var curMo=new Date().getMonth()+1;
-
-    var dataContext='BUSINESS: Jeffs Junk — bin rental and junk removal, Barrie Ontario / Simcoe County area. Today: '+new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})+'.\n\n'
-      +'SEASONAL AVERAGES (3yr, 2023-2025): '+seasonSummary+'.\n'
-      +'Slowest months: '+slowMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+'.\n'
-      +'Peak months: '+peakMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+'.\n'
-      +'Recent 6 months: '+recentTrend+'.\n'
-      +'YoY growth (last 12 vs prior 12 months): '+yoyGrowth+'%.\n\n'
-      +'BIN FLEET: '+fleetSummary+'.\n\n'
-      +'TOP CITIES: '+citySummary+'.\n'
-      +'Cities with mostly bin jobs but under 10% junk removal penetration (cross-sell opportunity): '+junkOpCities.join(', ')+'.\n\n'
-      +'CUSTOMER LOYALTY: '+repeatRate+'% of clients have booked more than once. Median days between first and second booking: '+avgGap+' days.\n\n'
-      +'This month ('+mNames[curMo]+'): '+curCount+' jobs booked so far vs '+lastYearCount+' same month last year.\n\n'
-      +'NOTE: Revenue dollar amounts are not tracked in the system. Focus on job volume, utilization, and operational recommendations.';
-
-    var prompt=dataContext+'\n\n---\n\nBased on this real business data, provide exactly 6-8 specific actionable recommendations. For each:\n\n- category: one of FLEET, MARKETING, SEASONAL, CITY TARGETING, SERVICE MIX, CUSTOMER RETENTION, OPERATIONS\n- priority: HIGH (act this month), MEDIUM (act this quarter), or LOW (act this year)\n- status: urgent, opportunity, or positive\n- title: bold 4-7 word title\n- detail: 2-3 sentences using specific numbers from the data\n- action: one concrete next step\n\nRespond ONLY with a valid JSON array. No markdown, no commentary, just the JSON.\n\nExample format:\n[{"category":"FLEET","priority":"HIGH","status":"urgent","title":"Title here","detail":"Detail here.","action":"Action here."}]\n\nOrder by priority then impact. Be direct and specific.';
-
-    advisorProgress(80,'Waiting for AI response...');
-
-    var aiResp=await fetch(SUPABASE_URL+'/functions/v1/advisor-proxy',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
-      body:JSON.stringify({prompt:prompt})
-    });
-    if(!aiResp.ok){var errBody=await aiResp.text();throw new Error('Proxy '+aiResp.status+': '+errBody);}
-    var aiData=await aiResp.json();
-    var rawText=(aiData.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
-
-    advisorProgress(95,'Rendering...');
-    var clean=rawText.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-    var recs;
-    try{ recs=JSON.parse(clean); }
-    catch(e){ throw new Error('Could not parse AI response: '+clean.slice(0,100)); }
+    advisorProgress(90,'Rendering...');
 
     // Snapshot bar
-    var snap=document.getElementById('advisor-snapshot');
+    var snap = document.getElementById('advisor-snapshot');
     if(snap){
-      var snapItems=[
-        {label:'Total Jobs (all time)',val:jobRows.length.toLocaleString()},
-        {label:'YoY Growth',val:(yoyGrowth>=0?'+':'')+yoyGrowth+'%'},
-        {label:'Repeat Customer Rate',val:repeatRate+'%'},
+      var snapItems = [
+        {label:'Total Jobs',val:totalJobs.toLocaleString()},
+        {label:'YoY Growth',val:(yoyPct>=0?'+':'')+yoyPct+'%'},
+        {label:'Repeat Rate',val:repeatRate+'%'},
         {label:'Avg Days to Return',val:avgGap+' days'},
-        {label:'Fleet Size',val:binFleet.length+' bins'},
-        {label:'14yd Demand Share',val:Math.round((demandBySize['14 yard']||0)/totalDemand*100)+'%'}
+        {label:'Fleet (14yd)',val:(f14.total||54)+' bins'},
+        {label:'14yd Demand',val:demand14pct+'%'}
       ];
-      snap.innerHTML=snapItems.map(function(s){
+      snap.innerHTML = snapItems.map(function(s){
         return '<div style="flex:1;min-width:110px;text-align:center;">'
           +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
           +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">'+s.label+'</div>'
@@ -7223,17 +7244,17 @@ async function runAdvisor(){
     }
 
     // Recommendation cards
-    var cards=document.getElementById('advisor-cards');
+    var cards = document.getElementById('advisor-cards');
     if(cards){
-      var statusColors={urgent:'#ef4444',opportunity:'#eab308',positive:'#22c55e'};
-      var priorityBg={HIGH:'rgba(239,68,68,.06)',MEDIUM:'rgba(234,179,8,.05)',LOW:'rgba(34,197,94,.05)'};
-      var priorityBorder={HIGH:'rgba(239,68,68,.22)',MEDIUM:'rgba(234,179,8,.18)',LOW:'rgba(34,197,94,.18)'};
-      var catIcons={FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️'};
-      cards.innerHTML=recs.map(function(r){
-        var col=statusColors[r.status]||'#22c55e';
-        var bg=priorityBg[r.priority]||'var(--surface)';
-        var bord=priorityBorder[r.priority]||'var(--border)';
-        var icon=catIcons[r.category]||'💡';
+      var statusColors = {urgent:'#ef4444',opportunity:'#eab308',positive:'#22c55e'};
+      var priorityBg = {HIGH:'rgba(239,68,68,.06)',MEDIUM:'rgba(234,179,8,.05)',LOW:'rgba(34,197,94,.05)'};
+      var priorityBorder = {HIGH:'rgba(239,68,68,.22)',MEDIUM:'rgba(234,179,8,.18)',LOW:'rgba(34,197,94,.18)'};
+      var catIcons = {FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️'};
+      cards.innerHTML = recs.map(function(r){
+        var col = statusColors[r.status]||'#22c55e';
+        var bg = priorityBg[r.priority]||'var(--surface)';
+        var bord = priorityBorder[r.priority]||'var(--border)';
+        var icon = catIcons[r.category]||'💡';
         return '<div style="background:'+bg+';border:1px solid '+bord+';border-left:4px solid '+col+';border-radius:12px;padding:18px 20px;">'
           +'<div style="display:flex;align-items:flex-start;gap:12px;">'
           +'<div style="font-size:24px;flex-shrink:0;margin-top:2px;">'+icon+'</div>'
@@ -7254,15 +7275,15 @@ async function runAdvisor(){
       }).join('');
     }
 
-    var ts=document.getElementById('advisor-timestamp');
-    if(ts) ts.textContent='Generated '+new Date().toLocaleString('en-CA',{dateStyle:'medium',timeStyle:'short'});
+    var ts = document.getElementById('advisor-timestamp');
+    if(ts) ts.textContent = 'Generated '+new Date().toLocaleString('en-CA',{dateStyle:'medium',timeStyle:'short'});
     advisorProgress(100,'');
     advisorShowState('results');
 
   }catch(err){
     console.error('Advisor error:',err);
-    var errEl=document.getElementById('advisor-error-msg');
-    if(errEl) errEl.textContent=err.message||'Unknown error';
+    var errEl = document.getElementById('advisor-error-msg');
+    if(errEl) errEl.textContent = err.message||'Unknown error';
     advisorShowState('error');
   }
 }
