@@ -4313,7 +4313,7 @@ function renderPricingGrids(){
   var junkTiers = [{k:'min',l:'Min/Small'},{k:'quarter',l:'\u00bc Truck'},{k:'half',l:'\u00bd Truck'},{k:'full',l:'Full Truck'}];
 
   function priceCell(val, ourVal){
-    if(!val || val==='') return {html:'<td style="padding:10px 14px;text-align:center;color:var(--border);font-size:18px">\u2014</td>', status:'unknown'};
+    if(!val || val==='') return {html:'<td style="padding:10px 14px;text-align:center;color:var(--border);font-size:18px">&mdash;</td>', status:'unknown'};
     var v = parseFloat(val);
     var o = parseFloat(ourVal);
     var display = '$'+v.toLocaleString('en-CA',{minimumFractionDigits:0,maximumFractionDigits:0});
@@ -4335,7 +4335,7 @@ function renderPricingGrids(){
     }
     var cellBg = bg ? 'background:'+bg+';' : '';
     return {
-      html:'<td style="padding:8px 10px;text-align:center;'+cellBg+'">'
+      html: '<td style="padding:8px 10px;text-align:center;'+cellBg+'">'
         +'<div style="font-weight:700;font-size:14px;color:var(--text)">'+display+'</div>'
         +'<div style="font-size:10px;color:'+color+';font-weight:700;margin-top:2px;letter-spacing:.3px">'+arrow+' '+label+'</div>'
         +'</td>',
@@ -4347,14 +4347,14 @@ function renderPricingGrids(){
     var cheaper=0, pricier=0, known=0;
     cells.forEach(function(c){ if(c.status==='cheaper') cheaper++; else if(c.status==='pricier') pricier++; if(c.status!=='unknown') known++; });
     if(!known) return '';
-    if(cheaper===0&&pricier>0) return '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.3);color:#16a34a;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap">\u2705 We're cheaper</span>';
-    if(pricier===0&&cheaper>0) return '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#dc2626;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap">\u26a0\ufe0f They're cheaper</span>';
-    if(cheaper>0&&pricier>0) return '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);color:#ca8a04;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap">\u2195 Mixed</span>';
-    return '<span style="background:rgba(107,117,133,.1);color:var(--muted);font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;">= Same</span>';
+    if(cheaper===0 && pricier>0) return '<span style="background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.3);color:#16a34a;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-block">\u2705 We\'re cheaper</span>';
+    if(pricier===0 && cheaper>0) return '<span style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#dc2626;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-block">\u26a0\ufe0f They\'re cheaper</span>';
+    if(cheaper>0 && pricier>0) return '<span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);color:#ca8a04;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block">\u2195 Mixed</span>';
+    return '<span style="background:rgba(107,117,133,.1);color:var(--muted);font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-block">= Same</span>';
   }
 
-  function thStyle(){ return 'padding:10px 12px;text-align:center;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--surface2);white-space:nowrap'; }
-  function thLeft(){ return 'padding:10px 14px;text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--surface2)'; }
+  var thC = 'padding:10px 12px;text-align:center;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--surface2);white-space:nowrap';
+  var thL = 'padding:10px 14px;text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--surface2)';
 
   var binOut = '', junkOut = '';
 
@@ -4372,9 +4372,9 @@ function renderPricingGrids(){
     });
     var areaAlert = '';
     if(areaComps.length && cheaperCount > 0){
-      areaAlert = '<span style="margin-left:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#dc2626;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">\u26a0\ufe0f '+cheaperCount+' competitor'+(cheaperCount>1?'s':'')+' undercutting you</span>';
+      areaAlert = ' <span style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#dc2626;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">\u26a0\ufe0f '+cheaperCount+' competitor'+(cheaperCount>1?'s':'')+' undercutting you</span>';
     } else if(areaComps.length){
-      areaAlert = '<span style="margin-left:10px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#16a34a;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">\u2705 Competitive</span>';
+      areaAlert = ' <span style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#16a34a;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">\u2705 Competitive</span>';
     }
 
     var areaHeader = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:20px 0 10px">'
@@ -4382,66 +4382,71 @@ function renderPricingGrids(){
       +'<span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text)">\ud83d\udccd '+area+'</span>'
       +areaAlert+'</div>';
 
-    // BIN TABLE
+    // ── BIN TABLE ──
     var binHtml = '<div style="overflow-x:auto;margin-bottom:8px;border-radius:10px;border:1px solid var(--border);overflow:hidden"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
-      +'<th style="'+thLeft()+'">Company</th>'
-      +binSizes.map(function(s){return'<th style="'+thStyle()+'">'+s+'</th>';}).join('')
-      +'<th style="'+thStyle()+'">\u26fd Fuel</th>'
-      +'<th style="'+thStyle()+'">Overall</th>'
+      +'<th style="'+thL+'">Company</th>'
+      +binSizes.map(function(s){return '<th style="'+thC+'">'+s+'</th>';}).join('')
+      +'<th style="'+thC+'">\u26fd Fuel</th>'
+      +'<th style="'+thC+'">Overall</th>'
       +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
+
+    // Our pinned row
     binHtml += '<tr style="background:rgba(34,197,94,.07);border-bottom:2px solid rgba(34,197,94,.2)">'
       +'<td style="padding:10px 14px"><div style="display:flex;align-items:center;gap:8px">'
       +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>'
-      +'<span style="font-weight:700;color:var(--accent);font-size:14px">Jeff's Junk</span>'
-      +'<span style="font-size:10px;font-weight:700;background:rgba(34,197,94,.2);color:#16a34a;padding:1px 7px;border-radius:10px;letter-spacing:.5px">YOU</span>'
+      +'<span style="font-weight:700;color:var(--accent);font-size:14px">Jeff\'s Junk</span>'
+      +' <span style="font-size:10px;font-weight:700;background:rgba(34,197,94,.2);color:#16a34a;padding:1px 7px;border-radius:10px">YOU</span>'
       +'</div></td>'
       +binSizes.map(function(s){
         var v=ap.bins&&ap.bins[s]?parseFloat(ap.bins[s]):null;
-        var disp=v?'<span style="font-weight:800;font-size:15px;color:var(--accent)">$'+v+'</span>':'<span style="color:var(--border)">\u2014</span>';
-        return'<td style="padding:10px 12px;text-align:center">'+disp+'</td>';
+        var disp=v?'<span style="font-weight:800;font-size:15px;color:var(--accent)">$'+v+'</span>':'<span style="color:var(--border)">&mdash;</span>';
+        return '<td style="padding:10px 12px;text-align:center">'+disp+'</td>';
       }).join('')
-      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'\u2014')+'</td>'
+      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'&mdash;')+'</td>'
       +'<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;color:var(--muted)">baseline</span></td>'
       +'<td></td></tr>';
+
     areaComps.forEach(function(comp){
       var cells = binSizes.map(function(s){ return priceCell(comp.bins&&comp.bins[s], ap.bins&&ap.bins[s]); });
       binHtml += '<tr style="border-bottom:1px solid var(--border)">'
         +'<td style="padding:10px 14px"><div style="font-weight:600;font-size:14px">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
         +cells.map(function(c){return c.html;}).join('')
-        +'<td style="padding:10px 12px;text-align:center;color:var(--muted);font-size:13px">'+(comp.binFuel?'<span style="color:#eab308;font-weight:600">'+comp.binFuel+'%</span>':'\u2014')+'</td>'
+        +'<td style="padding:10px 12px;text-align:center;font-size:13px">'+(comp.binFuel?'<span style="color:#eab308;font-weight:600">'+comp.binFuel+'%</span>':'&mdash;')+'</td>'
         +'<td style="padding:10px 12px;text-align:center">'+verdictBadge(cells)+'</td>'
         +'<td style="padding:10px 8px"><div style="display:flex;gap:4px">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(''+comp.id+'')" title="Edit">\u270f\ufe0f</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(''+comp.id+'')" title="Delete">\ud83d\uddd1\ufe0f</button>'
+        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')" title="Edit">\u270f\ufe0f</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')" title="Delete">\ud83d\uddd1\ufe0f</button>'
         +'</div></td></tr>';
     });
-    if(!areaComps.length) binHtml += '<tr><td colspan="'+(binSizes.length+4)+'" style="padding:20px 14px;color:var(--muted);font-size:13px;text-align:center">No competitors added for this area yet. <button class="btn btn-ghost btn-sm" onclick="openAddCompetitor()" style="margin-left:8px">+ Add Competitor</button></td></tr>';
+    if(!areaComps.length) binHtml += '<tr><td colspan="'+(binSizes.length+4)+'" style="padding:20px 14px;color:var(--muted);font-size:13px;text-align:center">No competitors added yet. <button class="btn btn-ghost btn-sm" onclick="openAddCompetitor()" style="margin-left:8px">+ Add Competitor</button></td></tr>';
     binHtml += '</tbody></table></div>';
     binOut += areaHeader + binHtml;
 
-    // JUNK TABLE
+    // ── JUNK TABLE ──
     var junkHtml = '<div style="overflow-x:auto;margin-bottom:8px;border-radius:10px;border:1px solid var(--border);overflow:hidden"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
-      +'<th style="'+thLeft()+'">Company</th>'
-      +junkTiers.map(function(t){return'<th style="'+thStyle()+'">'+t.l+'</th>';}).join('')
-      +'<th style="'+thStyle()+'">Overall</th>'
+      +'<th style="'+thL+'">Company</th>'
+      +junkTiers.map(function(t){return '<th style="'+thC+'">'+t.l+'</th>';}).join('')
+      +'<th style="'+thC+'">Overall</th>'
       +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
+
     junkHtml += '<tr style="background:rgba(234,179,8,.06);border-bottom:2px solid rgba(234,179,8,.2)">'
       +'<td style="padding:10px 14px"><div style="display:flex;align-items:center;gap:8px">'
       +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;flex-shrink:0"></span>'
-      +'<span style="font-weight:700;color:#eab308;font-size:14px">Jeff's Junk</span>'
-      +'<span style="font-size:10px;font-weight:700;background:rgba(234,179,8,.2);color:#ca8a04;padding:1px 7px;border-radius:10px;letter-spacing:.5px">YOU</span>'
+      +'<span style="font-weight:700;color:#eab308;font-size:14px">Jeff\'s Junk</span>'
+      +' <span style="font-size:10px;font-weight:700;background:rgba(234,179,8,.2);color:#ca8a04;padding:1px 7px;border-radius:10px">YOU</span>'
       +'</div></td>'
       +junkTiers.map(function(t){
         var v=ap.junk&&ap.junk[t.k]?parseFloat(ap.junk[t.k]):null;
-        var disp=v?'<span style="font-weight:800;font-size:15px;color:#eab308">$'+v+'</span>':'<span style="color:var(--border)">\u2014</span>';
-        return'<td style="padding:10px 12px;text-align:center">'+disp+'</td>';
+        var disp=v?'<span style="font-weight:800;font-size:15px;color:#eab308">$'+v+'</span>':'<span style="color:var(--border)">&mdash;</span>';
+        return '<td style="padding:10px 12px;text-align:center">'+disp+'</td>';
       }).join('')
       +'<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;color:var(--muted)">baseline</span></td>'
       +'<td></td></tr>';
+
     areaComps.forEach(function(comp){
       var cells = junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); });
       junkHtml += '<tr style="border-bottom:1px solid var(--border)">'
@@ -4449,11 +4454,11 @@ function renderPricingGrids(){
         +cells.map(function(c){return c.html;}).join('')
         +'<td style="padding:10px 12px;text-align:center">'+verdictBadge(cells)+'</td>'
         +'<td style="padding:10px 8px"><div style="display:flex;gap:4px">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(''+comp.id+'')" title="Edit">\u270f\ufe0f</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(''+comp.id+'')" title="Delete">\ud83d\uddd1\ufe0f</button>'
+        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')" title="Edit">\u270f\ufe0f</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')" title="Delete">\ud83d\uddd1\ufe0f</button>'
         +'</div></td></tr>';
     });
-    if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+3)+'" style="padding:20px 14px;color:var(--muted);font-size:13px;text-align:center">No competitors added for this area yet.</td></tr>';
+    if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+3)+'" style="padding:20px 14px;color:var(--muted);font-size:13px;text-align:center">No competitors added yet.</td></tr>';
     junkHtml += '</tbody></table></div>';
     junkOut += areaHeader + junkHtml;
   });
@@ -4461,6 +4466,7 @@ function renderPricingGrids(){
   document.getElementById('pricing-bin-grid').innerHTML = binOut;
   document.getElementById('pricing-junk-grid').innerHTML = junkOut;
 }
+
 
 
 // ── Area tabs in "Edit Our Prices" modal ──
