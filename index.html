@@ -795,6 +795,7 @@ textarea{resize:vertical;min-height:80px;}
     <button class="nav-item" onclick="go('analytics')"><span class="icon">📈</span><span>Analytics</span></button>
     <button class="nav-item" onclick="go('utilization')"><span class="icon">📊</span><span>Bin Utilization</span></button>
     <button class="nav-item" onclick="go('pricing')"><span class="icon">🏷️</span><span>Competition Pricing</span></button>
+    <button class="nav-item" onclick="go('advisor')"><span class="icon">🧠</span><span>AI Advisor</span></button>
   </div>
   <div class="sidebar-footer">
     <div class="stats-mini">
@@ -1597,6 +1598,69 @@ textarea{resize:vertical;min-height:80px;}
       <div class="chart-sub">Bin-days analysis and expansion recommendations</div>
       <div id="util-summary" style="margin-top:12px"></div>
     </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════ AI ADVISOR ═══════════════ -->
+<div id="view-advisor" class="view">
+  <div class="page-header">
+    <div>
+      <div class="page-title page-title-sm">🧠 AI Advisor</div>
+      <div class="page-sub">Data-driven recommendations for your business</div>
+    </div>
+    <button class="btn btn-primary" id="advisor-run-btn" onclick="runAdvisor()">▶ Run Analysis</button>
+  </div>
+
+  <!-- Intro / idle state -->
+  <div id="advisor-idle" style="text-align:center;padding:60px 20px;">
+    <div style="font-size:56px;margin-bottom:16px;">🧠</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--text);margin-bottom:10px;">BUSINESS INTELLIGENCE ADVISOR</div>
+    <div style="color:var(--muted);font-size:14px;max-width:480px;margin:0 auto 28px;line-height:1.6;">
+      Analyzes your job history, bin fleet, city data, seasonal trends, and customer patterns — then gives you specific, prioritized actions to grow the business.
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:32px;">
+      <span style="background:var(--surface2);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);">📅 Seasonal ad timing</span>
+      <span style="background:var(--surface2);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);">🚛 Fleet sizing</span>
+      <span style="background:var(--surface2);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);">📍 City targeting</span>
+      <span style="background:var(--surface2);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);">💰 What to promote</span>
+      <span style="background:var(--surface2);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);">🔁 Customer retention</span>
+      <span style="background:var(--surface2);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--muted);">📣 Referral channels</span>
+    </div>
+    <button class="btn btn-primary" onclick="runAdvisor()" style="font-size:15px;padding:12px 32px;">▶ Run Analysis Now</button>
+  </div>
+
+  <!-- Loading state -->
+  <div id="advisor-loading" style="display:none;text-align:center;padding:60px 20px;">
+    <div style="font-size:40px;margin-bottom:20px;animation:pulse 1.5s infinite;">🧠</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text);margin-bottom:8px;">ANALYZING YOUR DATA</div>
+    <div id="advisor-loading-msg" style="color:var(--muted);font-size:13px;">Crunching 3 years of job history...</div>
+    <div style="margin-top:20px;width:200px;height:4px;background:var(--surface2);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
+      <div id="advisor-progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .4s ease;"></div>
+    </div>
+  </div>
+
+  <!-- Results state -->
+  <div id="advisor-results" style="display:none;">
+    <!-- Data snapshot bar -->
+    <div id="advisor-snapshot" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;padding:14px 16px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);"></div>
+
+    <!-- Recommendation cards -->
+    <div id="advisor-cards" style="display:flex;flex-direction:column;gap:14px;"></div>
+
+    <!-- Footer -->
+    <div style="margin-top:24px;padding:14px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div style="font-size:12px;color:var(--muted);">Analysis based on your live Supabase data · <span id="advisor-timestamp"></span></div>
+      <button class="btn btn-ghost btn-sm" onclick="runAdvisor()">🔄 Refresh Analysis</button>
+    </div>
+  </div>
+
+  <!-- Error state -->
+  <div id="advisor-error" style="display:none;text-align:center;padding:40px 20px;">
+    <div style="font-size:36px;margin-bottom:12px;">⚠️</div>
+    <div style="color:var(--text);font-size:15px;margin-bottom:8px;">Analysis failed</div>
+    <div id="advisor-error-msg" style="color:var(--muted);font-size:13px;margin-bottom:20px;"></div>
+    <button class="btn btn-primary" onclick="runAdvisor()">Try Again</button>
   </div>
 </div>
 
@@ -3053,7 +3117,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','furniturebank','analytics','revenue','utilization','pricing'];
+var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','furniturebank','analytics','revenue','utilization','pricing','advisor'];
 function go(name){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
@@ -3076,6 +3140,7 @@ function render(name){
   else if(name==='utilization') renderUtilization();
   else if(name==='pricing') renderPricing();
   else if(name==='binmap') renderMap();
+  else if(name==='advisor') renderAdvisor();
   else if(name==='bininventory') renderBinInventory();
   else if(name==='vehicles'){renderVehicles();}
   else if(name==='furniturebank'){renderDRD();}
@@ -6968,5 +7033,337 @@ function checkVehicleAvailability(serviceType, dateStr){
 document.addEventListener('DOMContentLoaded', function() {
   _initStaticAddressAutocomplete();
 });
+
+// ─────────────────────────────────────────────
+// AI ADVISOR
+// Fetches aggregate data from Supabase, sends to
+// Claude API, renders structured recommendations.
+// ─────────────────────────────────────────────
+
+var _advisorHasRun = false;
+
+function renderAdvisor() {
+  // Auto-run first time user opens the page
+  if (!_advisorHasRun) {
+    _advisorHasRun = true;
+    runAdvisor();
+  }
+}
+
+function advisorShowState(state) {
+  ['idle','loading','results','error'].forEach(function(s) {
+    var el = document.getElementById('advisor-' + s);
+    if (el) el.style.display = (s === state) ? (state === 'results' ? 'block' : state === 'loading' ? 'block' : 'block') : 'none';
+  });
+}
+
+function advisorProgress(pct, msg) {
+  var bar = document.getElementById('advisor-progress-bar');
+  var lbl = document.getElementById('advisor-loading-msg');
+  if (bar) bar.style.width = pct + '%';
+  if (lbl && msg) lbl.textContent = msg;
+}
+
+async function runAdvisor() {
+  advisorShowState('loading');
+  advisorProgress(5, 'Connecting to database...');
+
+  try {
+    // ── Gather data in parallel ──────────────────
+    advisorProgress(15, 'Pulling job history...');
+
+    const [
+      monthlyRes,
+      cityRes,
+      binFleetRes,
+      binDemandRes,
+      binDurationRes,
+      repeatRes,
+      yoyRes
+    ] = await Promise.all([
+      supabase.rpc ? null : null, // placeholder
+      supabase.from('jobs').select('date,service,city,bin_size').neq('status','cancelled'),
+      supabase.from('bin_items').select('size,status'),
+      supabase.from('jobs').select('bin_size').eq('service','Bin Rental').neq('status','cancelled').not('bin_size','is',null),
+      supabase.from('jobs').select('bin_size,bin_dropoff,bin_pickup').eq('service','Bin Rental').neq('status','cancelled').not('bin_dropoff','is',null).not('bin_pickup','is',null),
+      supabase.from('jobs').select('client_cid,date').neq('status','cancelled').not('client_cid','is',null).not('date','is',null).order('date'),
+      supabase.from('jobs').select('date,service').neq('status','cancelled').not('date','is',null)
+    ]);
+
+    advisorProgress(40, 'Crunching numbers...');
+
+    const jobRows = cityRes.data || [];
+    const binFleet = binFleetRes.data || [];
+    const binDemandRows = binDemandRes.data || [];
+    const binDurationRows = binDurationRes.data || [];
+    const allJobsForRepeat = repeatRes.data || [];
+    const allJobsForYoY = yoyRes.data || [];
+
+    // ── Monthly volume ──────────────────────────
+    var monthMap = {};
+    jobRows.forEach(function(j) {
+      if (!j.date) return;
+      var m = j.date.slice(0,7);
+      if (!monthMap[m]) monthMap[m] = {total:0,bin:0,junk:0};
+      monthMap[m].total++;
+      if (j.service==='Bin Rental') monthMap[m].bin++;
+      if (j.service==='Junk Removal') monthMap[m].junk++;
+    });
+    var months = Object.keys(monthMap).sort();
+    var recentMonths = months.slice(-24);
+
+    // ── Seasonal (by calendar month, 3yr avg) ──
+    var seasonMap = {};
+    allJobsForYoY.forEach(function(j) {
+      if (!j.date) return;
+      var yr = parseInt(j.date.slice(0,4));
+      var mo = parseInt(j.date.slice(5,7));
+      if (yr < 2023 || yr > 2025) return;
+      if (!seasonMap[mo]) seasonMap[mo] = [];
+      seasonMap[mo].push(1);
+    });
+    var avgByMonth = {};
+    for (var mo=1; mo<=12; mo++) {
+      var arr = seasonMap[mo] || [];
+      avgByMonth[mo] = Math.round(arr.length / 3);
+    }
+    var monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var slowMonths = Object.keys(avgByMonth).filter(function(m){ return avgByMonth[m] < 110; }).map(Number).sort(function(a,b){return avgByMonth[a]-avgByMonth[b]});
+    var peakMonths = Object.keys(avgByMonth).filter(function(m){ return avgByMonth[m] > 230; }).map(Number).sort(function(a,b){return avgByMonth[b]-avgByMonth[a]});
+
+    // ── City breakdown ──────────────────────────
+    var cityMap = {};
+    jobRows.forEach(function(j) {
+      if (!j.city) return;
+      var c = j.city;
+      if (!cityMap[c]) cityMap[c] = {total:0,bin:0,junk:0};
+      cityMap[c].total++;
+      if (j.service==='Bin Rental') cityMap[c].bin++;
+      if (j.service==='Junk Removal') cityMap[c].junk++;
+    });
+    var topCities = Object.keys(cityMap).sort(function(a,b){return cityMap[b].total-cityMap[a].total;}).slice(0,15);
+    // Cities with high bin but low junk ratio (junk < 10% of total)
+    var junkOpCities = topCities.filter(function(c) {
+      var d = cityMap[c];
+      return d.total >= 30 && d.bin > 20 && (d.junk/d.total) < 0.10 && c !== 'Barrie';
+    }).slice(0,4);
+    // Cities with high volume that aren't Barrie (expansion targets)
+    var expansionCities = topCities.slice(1,6);
+
+    // ── Bin fleet ───────────────────────────────
+    var fleetBySize = {};
+    binFleet.forEach(function(b) {
+      if (!b.size) return;
+      if (!fleetBySize[b.size]) fleetBySize[b.size] = {total:0,out:0,yard:0};
+      fleetBySize[b.size].total++;
+      if (b.status==='out') fleetBySize[b.size].out++;
+      if (b.status==='yard') fleetBySize[b.size].yard++;
+    });
+    // Demand by size (all-time rentals)
+    var demandBySize = {};
+    binDemandRows.forEach(function(j) {
+      if (!j.bin_size) return;
+      demandBySize[j.bin_size] = (demandBySize[j.bin_size]||0)+1;
+    });
+    var totalDemand = Object.values(demandBySize).reduce(function(a,b){return a+b;},0) || 1;
+
+    // Avg duration by size
+    var durationSum = {}, durationCnt = {};
+    binDurationRows.forEach(function(j) {
+      if (!j.bin_size || !j.bin_dropoff || !j.bin_pickup) return;
+      var d = (new Date(j.bin_pickup) - new Date(j.bin_dropoff)) / 86400000;
+      if (d > 0 && d < 60) {
+        durationSum[j.bin_size] = (durationSum[j.bin_size]||0)+d;
+        durationCnt[j.bin_size] = (durationCnt[j.bin_size]||0)+1;
+      }
+    });
+    var avgDuration = {};
+    Object.keys(durationSum).forEach(function(s){
+      avgDuration[s] = Math.round(durationSum[s]/durationCnt[s]);
+    });
+
+    // ── Repeat customers ────────────────────────
+    var clientDates = {};
+    allJobsForRepeat.forEach(function(j) {
+      if (!j.client_cid || !j.date) return;
+      if (!clientDates[j.client_cid]) clientDates[j.client_cid] = [];
+      clientDates[j.client_cid].push(j.date);
+    });
+    var totalClients = Object.keys(clientDates).length;
+    var repeatClients = 0, gapTotal = 0, gapCount = 0;
+    Object.values(clientDates).forEach(function(dates) {
+      dates.sort();
+      if (dates.length >= 2) {
+        repeatClients++;
+        var gap = (new Date(dates[1]) - new Date(dates[0])) / 86400000;
+        if (gap > 0 && gap < 1000) { gapTotal += gap; gapCount++; }
+      }
+    });
+    var repeatRate = Math.round(repeatClients/totalClients*100);
+    var avgGap = gapCount ? Math.round(gapTotal/gapCount) : 0;
+
+    // ── YoY growth last 12 months ───────────────
+    var now = new Date();
+    var last12 = 0, prev12 = 0;
+    allJobsForYoY.forEach(function(j) {
+      if (!j.date) return;
+      var d = new Date(j.date);
+      var daysAgo = (now - d) / 86400000;
+      if (daysAgo <= 365) last12++;
+      else if (daysAgo <= 730) prev12++;
+    });
+    var yoyGrowth = prev12 ? Math.round((last12-prev12)/prev12*100) : 0;
+
+    // ── Current month performance ───────────────
+    var curMonth = new Date().toISOString().slice(0,7);
+    var lastYearMonth = (new Date().getFullYear()-1) + '-' + String(new Date().getMonth()+1).padStart(2,'0');
+    var curCount = (monthMap[curMonth]||{}).total || 0;
+    var lastYearCount = (monthMap[lastYearMonth]||{}).total || 0;
+
+    advisorProgress(70, 'Building context for AI...');
+
+    // ── Format data summary for Claude ──────────
+    var fleetSummary = Object.keys(fleetBySize).map(function(s){
+      var f = fleetBySize[s];
+      var demandPct = Math.round((demandBySize[s]||0)/totalDemand*100);
+      return s+': '+f.total+' bins ('+f.out+' out, demand '+demandPct+'% of all rentals, avg '+( avgDuration[s]||'?')+' days)';
+    }).join('; ');
+
+    var citySummary = topCities.slice(0,10).map(function(c){
+      var d = cityMap[c];
+      return c+' ('+d.total+' jobs, '+d.bin+' bin, '+d.junk+' junk)';
+    }).join('; ');
+
+    var seasonSummary = Array.from({length:12},function(_,i){
+      return monthNames[i+1]+': avg '+avgByMonth[i+1]+'/mo';
+    }).join(', ');
+
+    var recentTrend = recentMonths.slice(-6).map(function(m){
+      var d = monthMap[m];
+      return m+': '+d.total+' jobs ('+d.bin+' bin, '+d.junk+' junk)';
+    }).join('; ');
+
+    var currentMonthNum = new Date().getMonth()+1;
+    var nextMonthNum = currentMonthNum===12?1:currentMonthNum+1;
+    var monthIn2 = nextMonthNum===12?1:nextMonthNum+1;
+
+    var dataContext = [
+      'BUSINESS: Jeff\'s Junk — bin rental and junk removal company, Barrie Ontario area (Simcoe County). Current date: '+new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})+'.',
+      '',
+      'JOB VOLUME TRENDS (3-year monthly averages): '+seasonSummary+'.',
+      'Slowest months: '+slowMonths.slice(0,3).map(function(m){return monthNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+'.',
+      'Peak months: '+peakMonths.slice(0,3).map(function(m){return monthNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+'.',
+      'Recent 6 months: '+recentTrend+'.',
+      'YoY growth (last 12 vs prior 12 months): '+yoyGrowth+'%.',
+      '',
+      'BIN FLEET & DEMAND: '+fleetSummary+'.',
+      'Jobs currently booked this month ('+monthNames[currentMonthNum]+'): '+curCount+' (vs '+lastYearCount+' same month last year).',
+      '',
+      'TOP CITIES BY JOBS: '+citySummary+'.',
+      'Cities with many bin jobs but low junk removal penetration (<10% junk ratio): '+junkOpCities.join(', ')+'.',
+      '',
+      'CUSTOMER LOYALTY: '+repeatRate+'% of clients have booked more than once. Median days between first and second job: '+avgGap+' days.',
+      '',
+      'SERVICE MIX: 14-yard bins are '+Math.round((demandBySize['14 yard']||0)/totalDemand*100)+'% of all bin demand, 20-yard bins are '+Math.round((demandBySize['20 yard']||0)/totalDemand*100)+'%.',
+      '',
+      'NOTE: Revenue data is not tracked in the system, so focus on job volume, utilization, and operational recommendations only.'
+    ].join('\n');
+
+    var prompt = dataContext + '\n\n---\n\nBased on this real data, provide exactly 6-8 specific, prioritized, actionable business recommendations. For each recommendation:\n\n- Assign a category from: FLEET, MARKETING, SEASONAL, CITY TARGETING, SERVICE MIX, CUSTOMER RETENTION, OPERATIONS\n- Assign a priority: HIGH (act this month), MEDIUM (act this quarter), LOW (act this year)\n- Assign a status indicator: urgent (red), opportunity (yellow), or positive (green)\n- Give a SHORT bold title (4-7 words max)\n- Give a 2-3 sentence specific explanation with actual numbers from the data\n- Give 1 concrete next step they can take immediately\n\nRespond ONLY with a JSON array, no markdown, no preamble. Format:\n[\n  {\n    "category": "FLEET",\n    "priority": "HIGH",\n    "status": "urgent",\n    "title": "Short bold title here",\n    "detail": "2-3 sentence explanation with specific numbers.",\n    "action": "One concrete next step."\n  }\n]\n\nOrder by priority (HIGH first), then by potential business impact. Be specific and direct — no generic advice.';
+
+    advisorProgress(80, 'Asking AI for recommendations...');
+
+    const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!aiResp.ok) throw new Error('API error ' + aiResp.status);
+    const aiData = await aiResp.json();
+    const rawText = (aiData.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+
+    advisorProgress(95, 'Rendering recommendations...');
+
+    // Parse JSON — strip any markdown fences
+    var clean = rawText.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    var recs;
+    try { recs = JSON.parse(clean); }
+    catch(e) { throw new Error('Could not parse AI response'); }
+
+    // ── Render snapshot bar ─────────────────────
+    var snap = document.getElementById('advisor-snapshot');
+    if (snap) {
+      var snapItems = [
+        { label: 'Total Jobs (all time)', val: jobRows.length.toLocaleString() },
+        { label: 'YoY Growth', val: (yoyGrowth>=0?'+':'')+yoyGrowth+'%' },
+        { label: 'Repeat Customer Rate', val: repeatRate+'%' },
+        { label: 'Avg Days to Return', val: avgGap+' days' },
+        { label: 'Fleet Size', val: binFleet.length+' bins' },
+        { label: '14yd Demand Share', val: Math.round((demandBySize['14 yard']||0)/totalDemand*100)+'%' }
+      ];
+      snap.innerHTML = snapItems.map(function(s){
+        return '<div style="flex:1;min-width:120px;text-align:center;">'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
+          +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">'+s.label+'</div>'
+          +'</div>';
+      }).join('');
+    }
+
+    // ── Render recommendation cards ─────────────
+    var cards = document.getElementById('advisor-cards');
+    if (cards) {
+      var statusColors = { urgent:'#ef4444', opportunity:'#eab308', positive:'#22c55e' };
+      var priorityBg = { HIGH:'rgba(239,68,68,.07)', MEDIUM:'rgba(234,179,8,.05)', LOW:'rgba(34,197,94,.05)' };
+      var priorityBorder = { HIGH:'rgba(239,68,68,.25)', MEDIUM:'rgba(234,179,8,.2)', LOW:'rgba(34,197,94,.2)' };
+      var categoryIcons = {
+        'FLEET':'🚛','MARKETING':'📣','SEASONAL':'📅','CITY TARGETING':'📍',
+        'SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁','OPERATIONS':'⚙️'
+      };
+
+      cards.innerHTML = recs.map(function(r) {
+        var color = statusColors[r.status] || '#22c55e';
+        var bg = priorityBg[r.priority] || 'var(--surface)';
+        var border = priorityBorder[r.priority] || 'var(--border)';
+        var icon = categoryIcons[r.category] || '💡';
+        return '<div style="background:var(--surface);border:1px solid '+border+';border-left:4px solid '+color+';border-radius:12px;padding:18px 20px;background:'+bg+'">'
+          +'<div style="display:flex;align-items:flex-start;gap:12px;">'
+          +'<div style="font-size:24px;flex-shrink:0;margin-top:2px;">'+icon+'</div>'
+          +'<div style="flex:1;">'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'
+          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);">'+r.title+'</span>'
+          +'<span style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';background:'+color+'22;padding:2px 8px;border-radius:10px;">'+r.priority+'</span>'
+          +'<span style="font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;">'+r.category+'</span>'
+          +'</div>'
+          +'<p style="font-size:13px;color:var(--text);line-height:1.6;margin:0 0 10px;">'+r.detail+'</p>'
+          +'<div style="display:flex;align-items:flex-start;gap:8px;background:rgba(0,0,0,.04);border-radius:8px;padding:10px 12px;">'
+          +'<span style="font-size:13px;flex-shrink:0;">→</span>'
+          +'<span style="font-size:12px;color:var(--muted);line-height:1.5;"><strong style="color:var(--text);">Next step:</strong> '+r.action+'</span>'
+          +'</div>'
+          +'</div>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+    }
+
+    // Timestamp
+    var ts = document.getElementById('advisor-timestamp');
+    if (ts) ts.textContent = 'Generated '+new Date().toLocaleString('en-CA',{dateStyle:'medium',timeStyle:'short'});
+
+    advisorProgress(100, 'Done.');
+    advisorShowState('results');
+
+  } catch(err) {
+    console.error('Advisor error:', err);
+    var errMsg = document.getElementById('advisor-error-msg');
+    if (errMsg) errMsg.textContent = err.message || 'Unknown error';
+    advisorShowState('error');
+  }
+}
+
 </script>
 </body>
