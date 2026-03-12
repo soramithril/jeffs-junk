@@ -7039,156 +7039,105 @@ async function runAdvisor(){
   advisorShowState('loading');
   advisorProgress(5,'Connecting to database...');
   try{
-    advisorProgress(15,'Pulling job history...');
-    // NOTE: db is the Supabase client (var db = supabase.createClient(...))
-    var [r1,r2,r3,r4,r5,r6] = await Promise.all([
-      db.from('jobs').select('date,service,city,bin_size').neq('status','cancelled'),
-      db.from('bin_items').select('size,status'),
-      db.from('jobs').select('bin_size').eq('service','Bin Rental').neq('status','cancelled').not('bin_size','is',null),
-      db.from('jobs').select('bin_size,bin_dropoff,bin_pickup').eq('service','Bin Rental').neq('status','cancelled').not('bin_dropoff','is',null).not('bin_pickup','is',null),
-      db.from('jobs').select('client_cid,date').neq('status','cancelled').not('client_cid','is',null).not('date','is',null).order('date'),
-      db.from('jobs').select('date,service').neq('status','cancelled').not('date','is',null)
-    ]);
-    advisorProgress(40,'Crunching numbers...');
-    var jobRows=r1.data||[];
-    var binFleet=r2.data||[];
-    var binDemandRows=r3.data||[];
-    var binDurationRows=r4.data||[];
-    var repeatRows=r5.data||[];
-    var yoyRows=r6.data||[];
+    advisorProgress(20,'Fetching data from Supabase...');
 
-    // Monthly map
-    var monthMap={};
-    jobRows.forEach(function(j){
-      if(!j.date) return;
-      var m=j.date.slice(0,7);
-      if(!monthMap[m]) monthMap[m]={total:0,bin:0,junk:0};
-      monthMap[m].total++;
-      if(j.service==='Bin Rental') monthMap[m].bin++;
-      if(j.service==='Junk Removal') monthMap[m].junk++;
-    });
+    // Single RPC call — server-side aggregation, no row limit issues
+    var rpcRes = await db.rpc('get_advisor_data');
+    if(rpcRes.error) throw new Error('DB error: '+rpcRes.error.message);
+    var d = rpcRes.data;
 
-    // Seasonal 3yr avg
-    var seasonMap={};
-    yoyRows.forEach(function(j){
-      if(!j.date) return;
-      var yr=parseInt(j.date.slice(0,4));
-      var mo=parseInt(j.date.slice(5,7));
-      if(yr<2023||yr>2025) return;
-      seasonMap[mo]=(seasonMap[mo]||0)+1;
-    });
-    var avgByMonth={};
-    for(var mo=1;mo<=12;mo++) avgByMonth[mo]=Math.round((seasonMap[mo]||0)/3);
+    advisorProgress(50,'Crunching numbers...');
+
+    // ── Unpack RPC result ──────────────────────
+    var monthly    = d.monthly    || [];
+    var yoy        = d.yoy        || [];
+    var cities     = d.cities     || [];
+    var binDemand  = d.bin_demand || [];
+    var binDur     = d.bin_duration|| [];
+    var fleet      = d.fleet      || [];
+    var repeat     = d.repeat     || {};
+    var totalJobs  = d.total_jobs || 0;
+    var yoyGrowthD = d.yoy_growth || {};
+    var thisMonth  = d.this_month || {};
+
+    // ── Seasonal averages by month ─────────────
+    var avgByMonth = {};
     var mNames=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var slowMonths=Object.keys(avgByMonth).map(Number).filter(function(m){return avgByMonth[m]<110;}).sort(function(a,b){return avgByMonth[a]-avgByMonth[b];});
-    var peakMonths=Object.keys(avgByMonth).map(Number).filter(function(m){return avgByMonth[m]>230;}).sort(function(a,b){return avgByMonth[b]-avgByMonth[a];});
-
-    // City breakdown
-    var cityMap={};
-    jobRows.forEach(function(j){
-      if(!j.city) return;
-      if(!cityMap[j.city]) cityMap[j.city]={total:0,bin:0,junk:0};
-      cityMap[j.city].total++;
-      if(j.service==='Bin Rental') cityMap[j.city].bin++;
-      if(j.service==='Junk Removal') cityMap[j.city].junk++;
+    yoy.forEach(function(r){
+      avgByMonth[r.mo] = Math.round(((r.y2023||0)+(r.y2024||0)+(r.y2025||0))/3);
     });
-    var topCities=Object.keys(cityMap).sort(function(a,b){return cityMap[b].total-cityMap[a].total;}).slice(0,15);
-    var junkOpCities=topCities.filter(function(c){
-      var d=cityMap[c]; return d.total>=30&&d.bin>20&&(d.junk/d.total)<0.10&&c!=='Barrie';
-    }).slice(0,4);
+    var slowMonths = Object.keys(avgByMonth).map(Number).filter(function(m){return avgByMonth[m]<110;}).sort(function(a,b){return avgByMonth[a]-avgByMonth[b];});
+    var peakMonths = Object.keys(avgByMonth).map(Number).filter(function(m){return avgByMonth[m]>230;}).sort(function(a,b){return avgByMonth[b]-avgByMonth[a];});
 
-    // Fleet
-    var fleetBySize={};
-    binFleet.forEach(function(b){
-      if(!b.size) return;
-      if(!fleetBySize[b.size]) fleetBySize[b.size]={total:0,out:0,yard:0};
-      fleetBySize[b.size].total++;
-      if(b.status==='out') fleetBySize[b.size].out++;
-      if(b.status==='yard') fleetBySize[b.size].yard++;
-    });
-    var demandBySize={};
-    binDemandRows.forEach(function(j){if(j.bin_size) demandBySize[j.bin_size]=(demandBySize[j.bin_size]||0)+1;});
-    var totalDemand=Object.values(demandBySize).reduce(function(a,b){return a+b;},0)||1;
+    // ── Bin demand ─────────────────────────────
+    var demandBySize={}, totalDemand=0;
+    binDemand.forEach(function(r){demandBySize[r.bin_size]=r.rentals; totalDemand+=r.rentals;});
+    if(!totalDemand) totalDemand=1;
 
-    var durSum={},durCnt={};
-    binDurationRows.forEach(function(j){
-      if(!j.bin_size||!j.bin_dropoff||!j.bin_pickup) return;
-      var d=(new Date(j.bin_pickup)-new Date(j.bin_dropoff))/86400000;
-      if(d>0&&d<60){durSum[j.bin_size]=(durSum[j.bin_size]||0)+d;durCnt[j.bin_size]=(durCnt[j.bin_size]||0)+1;}
-    });
     var avgDur={};
-    Object.keys(durSum).forEach(function(s){avgDur[s]=Math.round(durSum[s]/durCnt[s]);});
+    binDur.forEach(function(r){avgDur[r.bin_size]=r.avg_days;});
 
-    // Repeat customers
-    var clientDates={};
-    repeatRows.forEach(function(j){
-      if(!j.client_cid||!j.date) return;
-      if(!clientDates[j.client_cid]) clientDates[j.client_cid]=[];
-      clientDates[j.client_cid].push(j.date);
-    });
-    var totalClients=Object.keys(clientDates).length;
-    var repeatClients=0,gapTotal=0,gapCnt=0;
-    Object.values(clientDates).forEach(function(dates){
-      dates.sort();
-      if(dates.length>=2){
-        repeatClients++;
-        var gap=(new Date(dates[1])-new Date(dates[0]))/86400000;
-        if(gap>0&&gap<1000){gapTotal+=gap;gapCnt++;}
-      }
-    });
-    var repeatRate=Math.round(repeatClients/totalClients*100);
-    var avgGap=gapCnt?Math.round(gapTotal/gapCnt):0;
+    // ── Fleet ──────────────────────────────────
+    var fleetBySize={}, totalFleet=0;
+    fleet.forEach(function(r){fleetBySize[r.size]={total:r.total,out:r.out,yard:r.in_yard}; totalFleet+=r.total;});
 
-    // YoY
-    var now=new Date(),last12=0,prev12=0;
-    yoyRows.forEach(function(j){
-      if(!j.date) return;
-      var daysAgo=(now-new Date(j.date))/86400000;
-      if(daysAgo<=365) last12++;
-      else if(daysAgo<=730) prev12++;
-    });
-    var yoyGrowth=prev12?Math.round((last12-prev12)/prev12*100):0;
+    // ── Cities ─────────────────────────────────
+    var topCities = cities.map(function(c){return c.city;});
+    var junkOpCities = cities.filter(function(c){
+      return c.total>=30 && c.bin>20 && (c.junk/c.total)<0.10 && c.city!=='Barrie';
+    }).map(function(c){return c.city;}).slice(0,4);
 
-    var curMonth=new Date().toISOString().slice(0,7);
-    var lastYearMonth=(new Date().getFullYear()-1)+'-'+String(new Date().getMonth()+1).padStart(2,'0');
-    var curCount=(monthMap[curMonth]||{}).total||0;
-    var lastYearCount=(monthMap[lastYearMonth]||{}).total||0;
+    // ── YoY growth ─────────────────────────────
+    var last12=yoyGrowthD.last12||0, prev12=yoyGrowthD.prev12||0;
+    var yoyGrowth = prev12 ? Math.round((last12-prev12)/prev12*100) : 0;
+
+    // ── Repeat ─────────────────────────────────
+    var repeatRate = repeat.total_clients ? Math.round(repeat.repeat_clients/repeat.total_clients*100) : 0;
+    var avgGap = repeat.avg_gap_days || 0;
+
+    // ── Recent trend ───────────────────────────
+    var recentTrend = monthly.slice(-6).map(function(m){
+      return m.month+': '+m.total+' ('+m.bin+' bin, '+m.junk+' junk)';
+    }).join('; ');
+
+    var curMo = new Date().getMonth()+1;
 
     advisorProgress(70,'Building AI context...');
 
-    var fleetSummary=Object.keys(fleetBySize).map(function(s){
+    // ── Build data summary for Claude ──────────
+    var fleetSummary = Object.keys(fleetBySize).map(function(s){
       var f=fleetBySize[s];
-      return s+': '+f.total+' bins ('+f.out+' currently out, '+Math.round((demandBySize[s]||0)/totalDemand*100)+'% of all rental demand, avg '+( avgDur[s]||'?')+' day rental)';
+      return s+': '+f.total+' in fleet ('+f.out+' out now, '+Math.round((demandBySize[s]||0)/totalDemand*100)+'% of all rental demand, avg '+( avgDur[s]||'?')+' day rental)';
     }).join('; ');
 
-    var citySummary=topCities.slice(0,10).map(function(c){
-      var d=cityMap[c]; return c+' ('+d.total+' jobs: '+d.bin+' bin, '+d.junk+' junk)';
+    var citySummary = cities.slice(0,10).map(function(c){
+      return c.city+' ('+c.total+' jobs: '+c.bin+' bin, '+c.junk+' junk)';
     }).join('; ');
 
-    var seasonSummary=Array.from({length:12},function(_,i){return mNames[i+1]+': avg '+avgByMonth[i+1]+'/mo';}).join(', ');
-    var months=Object.keys(monthMap).sort();
-    var recentTrend=months.slice(-6).map(function(m){var d=monthMap[m];return m+': '+d.total+' ('+d.bin+' bin, '+d.junk+' junk)';}).join('; ');
+    var seasonSummary = Array.from({length:12},function(_,i){
+      return mNames[i+1]+': avg '+(avgByMonth[i+1]||0)+'/mo';
+    }).join(', ');
 
-    var curMo=new Date().getMonth()+1;
+    var dataContext = "BUSINESS: Jeff's Junk — bin rental and junk removal, Barrie Ontario / Simcoe County. Today: "
+      +new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})+".\n\n"
+      +"TOTAL JOBS (all time, non-cancelled): "+totalJobs+".\n\n"
+      +"SEASONAL AVERAGES (3yr avg 2023-2025): "+seasonSummary+".\n"
+      +"Slowest months: "+slowMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+".\n"
+      +"Peak months: "+peakMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+".\n"
+      +"Recent 6 months: "+recentTrend+".\n"
+      +"YoY growth (last 12 vs prior 12 months): "+yoyGrowth+"% ("+last12+" vs "+prev12+" jobs).\n\n"
+      +"BIN FLEET & DEMAND: "+fleetSummary+".\n\n"
+      +"TOP CITIES: "+citySummary+".\n"
+      +"Cities with high bin volume but under 10% junk removal penetration (cross-sell opportunity): "+junkOpCities.join(', ')+".\n\n"
+      +"CUSTOMER LOYALTY: "+repeatRate+"% repeat rate ("+repeat.repeat_clients+" of "+repeat.total_clients+" clients booked more than once). Average "+avgGap+" days between first and second booking.\n\n"
+      +"THIS MONTH ("+mNames[curMo]+"): "+thisMonth.current+" jobs so far vs "+thisMonth.last_year+" same month last year.\n\n"
+      +"NOTE: Dollar revenue is not tracked. Focus on job volume, utilization, and growth recommendations.";
 
-    var dataContext='BUSINESS: Jeffs Junk — bin rental and junk removal, Barrie Ontario / Simcoe County area. Today: '+new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})+'.\n\n'
-      +'SEASONAL AVERAGES (3yr, 2023-2025): '+seasonSummary+'.\n'
-      +'Slowest months: '+slowMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+'.\n'
-      +'Peak months: '+peakMonths.slice(0,3).map(function(m){return mNames[m]+' (avg '+avgByMonth[m]+'/mo)';}).join(', ')+'.\n'
-      +'Recent 6 months: '+recentTrend+'.\n'
-      +'YoY growth (last 12 vs prior 12 months): '+yoyGrowth+'%.\n\n'
-      +'BIN FLEET: '+fleetSummary+'.\n\n'
-      +'TOP CITIES: '+citySummary+'.\n'
-      +'Cities with mostly bin jobs but under 10% junk removal penetration (cross-sell opportunity): '+junkOpCities.join(', ')+'.\n\n'
-      +'CUSTOMER LOYALTY: '+repeatRate+'% of clients have booked more than once. Median days between first and second booking: '+avgGap+' days.\n\n'
-      +'This month ('+mNames[curMo]+'): '+curCount+' jobs booked so far vs '+lastYearCount+' same month last year.\n\n'
-      +'NOTE: Revenue dollar amounts are not tracked in the system. Focus on job volume, utilization, and operational recommendations.';
+    var prompt = dataContext+"\n\n---\n\nBased on this real business data, give exactly 6-8 specific prioritized recommendations.\n\nFor each provide:\n- category: FLEET, MARKETING, SEASONAL, CITY TARGETING, SERVICE MIX, CUSTOMER RETENTION, or OPERATIONS\n- priority: HIGH (act this month), MEDIUM (act this quarter), LOW (act this year)\n- status: urgent, opportunity, or positive\n- title: 4-7 word bold title\n- detail: 2-3 sentences with specific numbers from the data\n- action: one concrete immediate next step\n\nRespond ONLY with a JSON array. No markdown, no commentary.\n[{\"category\":\"...\",\"priority\":\"...\",\"status\":\"...\",\"title\":\"...\",\"detail\":\"...\",\"action\":\"...\"}]\n\nOrder by priority then impact. Be specific and direct.";
 
-    var prompt=dataContext+'\n\n---\n\nBased on this real business data, provide exactly 6-8 specific actionable recommendations. For each:\n\n- category: one of FLEET, MARKETING, SEASONAL, CITY TARGETING, SERVICE MIX, CUSTOMER RETENTION, OPERATIONS\n- priority: HIGH (act this month), MEDIUM (act this quarter), or LOW (act this year)\n- status: urgent, opportunity, or positive\n- title: bold 4-7 word title\n- detail: 2-3 sentences using specific numbers from the data\n- action: one concrete next step\n\nRespond ONLY with a valid JSON array. No markdown, no commentary, just the JSON.\n\nExample format:\n[{"category":"FLEET","priority":"HIGH","status":"urgent","title":"Title here","detail":"Detail here.","action":"Action here."}]\n\nOrder by priority then impact. Be direct and specific.';
+    advisorProgress(80,'Waiting for AI...');
 
-    advisorProgress(80,'Waiting for AI response...');
-
-    var aiResp=await fetch('https://api.anthropic.com/v1/messages',{
+    var aiResp = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -7197,43 +7146,43 @@ async function runAdvisor(){
         messages:[{role:'user',content:prompt}]
       })
     });
-    if(!aiResp.ok) throw new Error('API error '+aiResp.status);
-    var aiData=await aiResp.json();
-    var rawText=(aiData.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+    if(!aiResp.ok) throw new Error('Claude API error '+aiResp.status);
+    var aiData = await aiResp.json();
+    var rawText = (aiData.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
 
     advisorProgress(95,'Rendering...');
-    var clean=rawText.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    var clean = rawText.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
     var recs;
     try{ recs=JSON.parse(clean); }
-    catch(e){ throw new Error('Could not parse AI response: '+clean.slice(0,100)); }
+    catch(e){ throw new Error('Could not parse AI response: '+clean.slice(0,120)); }
 
-    // Snapshot bar
-    var snap=document.getElementById('advisor-snapshot');
+    // ── Snapshot bar ───────────────────────────
+    var snap = document.getElementById('advisor-snapshot');
     if(snap){
       var snapItems=[
-        {label:'Total Jobs (all time)',val:jobRows.length.toLocaleString()},
+        {label:'Total Jobs',val:Number(totalJobs).toLocaleString()},
         {label:'YoY Growth',val:(yoyGrowth>=0?'+':'')+yoyGrowth+'%'},
-        {label:'Repeat Customer Rate',val:repeatRate+'%'},
+        {label:'Repeat Rate',val:repeatRate+'%'},
         {label:'Avg Days to Return',val:avgGap+' days'},
-        {label:'Fleet Size',val:binFleet.length+' bins'},
-        {label:'14yd Demand Share',val:Math.round((demandBySize['14 yard']||0)/totalDemand*100)+'%'}
+        {label:'Fleet',val:totalFleet+' bins'},
+        {label:'14yd Demand',val:Math.round((demandBySize['14 yard']||0)/totalDemand*100)+'%'}
       ];
-      snap.innerHTML=snapItems.map(function(s){
-        return '<div style="flex:1;min-width:110px;text-align:center;">'
-          +'<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
+      snap.innerHTML = snapItems.map(function(s){
+        return '<div style="flex:1;min-width:100px;text-align:center;">'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
           +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">'+s.label+'</div>'
           +'</div>';
       }).join('');
     }
 
-    // Recommendation cards
-    var cards=document.getElementById('advisor-cards');
+    // ── Recommendation cards ───────────────────
+    var cards = document.getElementById('advisor-cards');
     if(cards){
       var statusColors={urgent:'#ef4444',opportunity:'#eab308',positive:'#22c55e'};
       var priorityBg={HIGH:'rgba(239,68,68,.06)',MEDIUM:'rgba(234,179,8,.05)',LOW:'rgba(34,197,94,.05)'};
       var priorityBorder={HIGH:'rgba(239,68,68,.22)',MEDIUM:'rgba(234,179,8,.18)',LOW:'rgba(34,197,94,.18)'};
       var catIcons={FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️'};
-      cards.innerHTML=recs.map(function(r){
+      cards.innerHTML = recs.map(function(r){
         var col=statusColors[r.status]||'#22c55e';
         var bg=priorityBg[r.priority]||'var(--surface)';
         var bord=priorityBorder[r.priority]||'var(--border)';
@@ -7243,7 +7192,7 @@ async function runAdvisor(){
           +'<div style="font-size:24px;flex-shrink:0;margin-top:2px;">'+icon+'</div>'
           +'<div style="flex:1;">'
           +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'
-          +'<span style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);">'+r.title+'</span>'
+          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);">'+r.title+'</span>'
           +'<span style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+col+';background:'+col+'22;padding:2px 8px;border-radius:10px;">'+r.priority+'</span>'
           +'<span style="font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;">'+r.category+'</span>'
           +'</div>'
