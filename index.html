@@ -773,11 +773,10 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ═══ BIN STATUS ═══ -->
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:24px">
-    <!-- Header row: label + date picker -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:700">🚛 Bin Fleet Status</div>
+  <!-- ═══ BIN STATUS — all 5 cards under one date picker ═══ -->
+  <div style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)">BIN STATUS</div>
       <div style="display:flex;align-items:center;gap:6px">
         <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(-1)">‹</button>
         <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats()">
@@ -785,40 +784,18 @@ textarea{resize:vertical;min-height:80px;}
         <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(1)">›</button>
       </div>
     </div>
-
-    <!-- Big 3 stat numbers + progress bar -->
-    <div style="display:flex;gap:0;margin-bottom:12px;background:var(--surface2);border-radius:10px;overflow:hidden;border:1px solid var(--border)">
-      <button onclick="go('bininventory');setTimeout(function(){setFleetF('out',document.getElementById('fnb-out'))},200)"
-        style="flex:1;padding:14px 10px;background:none;border:none;border-right:1px solid var(--border);cursor:pointer;transition:background .15s;text-align:center"
-        onmouseover="this.style.background='rgba(239,68,68,.07)'" onmouseout="this.style.background='none'">
-        <div class="metric-val" id="s-bins-out" style="color:#ef4444;font-size:28px">0</div>
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Out on Jobs</div>
-        <div style="font-size:10px;color:#ef4444;margin-top:2px;font-weight:600">→ View</div>
-      </button>
-      <button onclick="go('bininventory');setTimeout(function(){setFleetF('in',document.getElementById('fnb-in'))},200)"
-        style="flex:1;padding:14px 10px;background:none;border:none;border-right:1px solid var(--border);cursor:pointer;transition:background .15s;text-align:center"
-        onmouseover="this.style.background='rgba(34,197,94,.07)'" onmouseout="this.style.background='none'">
-        <div class="metric-val" id="s-bins-in" style="color:#22c55e;font-size:28px">0</div>
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">In Yard</div>
-        <div style="font-size:10px;color:#22c55e;margin-top:2px;font-weight:600">→ View</div>
-      </button>
-      <button onclick="go('bininventory')"
-        style="flex:1;padding:14px 10px;background:none;border:none;cursor:pointer;transition:background .15s;text-align:center"
-        onmouseover="this.style.background='rgba(0,0,0,.04)'" onmouseout="this.style.background='none'">
-        <div class="metric-val" id="s-bins-total" style="color:var(--text);font-size:28px">0</div>
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Total Fleet</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px;font-weight:600">→ Fleet</div>
-      </button>
+    <!-- 4 bin size cards -->
+    <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px"></div>
+    <!-- Summary bar -->
+    <div id="dash-bin-fleet-card" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:0">
+      <div style="display:flex;justify-content:center;gap:40px;margin-bottom:12px">
+        <div style="text-align:center"><div class="metric-val" id="s-bins-out" style="color:#ef4444">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Currently Out</div></div>
+        <div style="text-align:center"><div class="metric-val" id="s-bins-in" style="color:#22c55e">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Currently In Yard</div></div>
+        <div style="text-align:center"><div class="metric-val" id="s-bins-total" style="color:var(--text)">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Total Fleet</div></div>
+      </div>
+      <div style="height:8px;background:var(--surface2);border-radius:4px;margin:4px 0 6px"><div id="s-bins-out-bar" style="height:100%;background:#ef4444;border-radius:4px;width:0%;transition:width .5s ease"></div></div>
+      <div id="s-bins-pct-lbl" style="font-size:12px;color:var(--muted);text-align:center">0% of fleet currently deployed</div>
     </div>
-
-    <!-- Progress bar -->
-    <div style="height:6px;background:var(--surface2);border-radius:4px;margin-bottom:6px;overflow:hidden">
-      <div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#ef4444,#f87171);border-radius:4px;width:0%;transition:width .5s ease"></div>
-    </div>
-    <div id="s-bins-pct-lbl" style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px">0% of fleet currently deployed</div>
-
-    <!-- Per-size action buttons row -->
-    <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
   </div>
 
   <!-- Today's jobs | Workload — 2 columns -->
@@ -3158,19 +3135,16 @@ async function refreshDashBinStats(){
 
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
-    var bdr=sizeColors[s];
-    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;border-top:3px solid '+bdr+'">'
-      +'<div style="padding:10px 10px 6px;text-align:center">'
-      +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:4px">'+s+'</div>'
-      +'<div style="display:flex;justify-content:center;gap:10px;font-size:13px;font-weight:700">'
-      +'<span style="color:#22c55e">'+inY+' in</span>'
-      +'<span style="color:var(--border)">·</span>'
-      +'<span style="color:#ef4444">'+out+' out</span>'
-      +'</div></div>'
-      +'<div style="display:flex;border-top:1px solid var(--border)">'
-      +'<button onclick="bookBin(\''+s+'\')" style="flex:1;padding:8px 4px;border:none;border-right:1px solid var(--border);background:none;color:#22c55e;font-size:11px;font-weight:700;cursor:pointer;transition:background .12s;font-family:\'DM Sans\',sans-serif" onmouseover="this.style.background=\'rgba(34,197,94,.1)\'" onmouseout="this.style.background=\'none\'">📅 Book</button>'
-      +'<button onclick="go(\'bininventory\');setTimeout(function(){setFleetF(\''+s+'\',document.getElementById(\'fnb-'+s.replace(' ','')+'\'))},200)" style="flex:1;padding:8px 4px;border:none;background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:background .12s;font-family:\'DM Sans\',sans-serif" onmouseover="this.style.background=\'rgba(0,0,0,.05)\'" onmouseout="this.style.background=\'none\'">🔍 Fleet</button>'
-      +'</div></div>';
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;border-top:5px solid '+sizeColors[s]+';box-shadow:0 4px 16px rgba(0,0,0,.15)">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:72px;line-height:1;color:#22c55e;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.2)">'+inY+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
+      +'<div style="display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);padding-top:10px">'
+      +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
+      +'<div style="flex:1;padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:12px">'+'<button onclick="bookBin(\''+s+'\')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:\'DM Sans\',sans-serif;font-size:12px;font-weight:700;cursor:pointer">📅 Book</button>'+'<button onclick="go(\'bininventory\');setTimeout(function(){setFleetF(\''+s+'\',document.getElementById(\'fnb-'+s.replace(' ','')+'\'))},200)" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:\'DM Sans\',sans-serif;font-size:12px;font-weight:700;cursor:pointer">🔍 View</button>'+'</div>'
+      +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
 }
@@ -3826,7 +3800,7 @@ function _updateRangePanelUI() {
   });
 }
 
-var _rangePanelOpen = true;
+var _rangePanelOpen = false;
 function toggleClientRangePanel() {
   _rangePanelOpen = !_rangePanelOpen;
   var body = document.getElementById('client-range-body');
@@ -4310,155 +4284,83 @@ function renderPricing(){
 
 function renderPricingGrids(){
   var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
-  var junkTiers = [{k:'min',l:'Min/Small'},{k:'quarter',l:'\u00bc Truck'},{k:'half',l:'\u00bd Truck'},{k:'full',l:'Full Truck'}];
+  var junkTiers = [{k:'min',l:'Min/Small'},{k:'quarter',l:'¼ Truck'},{k:'half',l:'½ Truck'},{k:'full',l:'Full Truck'}];
 
   function priceCell(val, ourVal){
-    if(!val || val==='') return {html:'<td style="padding:10px 14px;text-align:center;color:var(--border);font-size:18px">&mdash;</td>', status:'unknown'};
-    var v = parseFloat(val);
-    var o = parseFloat(ourVal);
-    var display = '$'+v.toLocaleString('en-CA',{minimumFractionDigits:0,maximumFractionDigits:0});
-    if(!ourVal || ourVal==='' || isNaN(o)) {
-      return {html:'<td style="padding:10px 14px;text-align:center"><span style="font-weight:600;font-size:14px">'+display+'</span></td>', status:'unknown'};
-    }
-    var diff = v - o;
-    var pct  = Math.round(Math.abs(diff)/o*100);
-    var status, bg, color, label, arrow;
-    if(diff > 0){
-      status='pricier'; bg='rgba(34,197,94,.09)'; color='#16a34a';
-      arrow='\u25b2'; label='+'+pct+'% vs us';
-    } else if(diff < 0){
-      status='cheaper'; bg='rgba(239,68,68,.07)'; color='#dc2626';
-      arrow='\u25bc'; label='-'+pct+'% vs us';
-    } else {
-      status='same'; bg=''; color='var(--muted)';
-      arrow='='; label='same';
-    }
-    var cellBg = bg ? 'background:'+bg+';' : '';
-    return {
-      html: '<td style="padding:8px 10px;text-align:center;'+cellBg+'">'
-        +'<div style="font-weight:700;font-size:14px;color:var(--text)">'+display+'</div>'
-        +'<div style="font-size:10px;color:'+color+';font-weight:700;margin-top:2px;letter-spacing:.3px">'+arrow+' '+label+'</div>'
-        +'</td>',
-      status: status
-    };
+    if(!val) return '<td style="padding:10px 14px;text-align:center;color:var(--muted)">—</td>';
+    var display = '$'+val;
+    if(!ourVal) return '<td style="padding:10px 14px;text-align:center">'+display+'</td>';
+    var diff = parseFloat(val)-parseFloat(ourVal);
+    var pct = Math.round(diff/parseFloat(ourVal)*100);
+    var color = diff>0?'#22c55e':diff<0?'#ef4444':'var(--muted)';
+    var arrow = diff>0?'▲':diff<0?'▼':'=';
+    return '<td style="padding:10px 14px;text-align:center">'
+      +'<div style="font-weight:700">'+display+'</div>'
+      +'<div style="font-size:11px;color:'+color+'">'+arrow+' '+(diff>=0?'+':'')+pct+'%</div>'
+      +'</td>';
   }
 
-  function verdictBadge(cells){
-    var cheaper=0, pricier=0, known=0;
-    cells.forEach(function(c){ if(c.status==='cheaper') cheaper++; else if(c.status==='pricier') pricier++; if(c.status!=='unknown') known++; });
-    if(!known) return '';
-    if(cheaper===0 && pricier>0) return '<span style="background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.3);color:#16a34a;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-block">\u2705 We\'re cheaper</span>';
-    if(pricier===0 && cheaper>0) return '<span style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#dc2626;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;display:inline-block">\u26a0\ufe0f They\'re cheaper</span>';
-    if(cheaper>0 && pricier>0) return '<span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);color:#ca8a04;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block">\u2195 Mixed</span>';
-    return '<span style="background:rgba(107,117,133,.1);color:var(--muted);font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-block">= Same</span>';
-  }
-
-  var thC = 'padding:10px 12px;text-align:center;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--surface2);white-space:nowrap';
-  var thL = 'padding:10px 14px;text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--surface2)';
+  function thStyle(){ return 'padding:10px 14px;text-align:center;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2)'; }
+  function thLeft(){ return 'padding:10px 14px;text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2)'; }
 
   var binOut = '', junkOut = '';
 
   pricingAreas.forEach(function(area){
     var ap = getAreaPrices(area);
     var areaComps = competitors.filter(function(x){ return (x.area||'Default') === area; });
+    var areaHeader = '<div style="display:flex;align-items:center;gap:8px;margin:20px 0 10px">'
+      +'<span style="display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px"></span>'
+      +'<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">📍 '+area+'</span></div>';
 
-    var cheaperCount = 0;
-    areaComps.forEach(function(comp){
-      var isCheaper = binSizes.some(function(s){
-        var cv=parseFloat(comp.bins&&comp.bins[s]), ov=parseFloat(ap.bins&&ap.bins[s]);
-        return !isNaN(cv)&&!isNaN(ov)&&cv<ov;
-      });
-      if(isCheaper) cheaperCount++;
-    });
-    var areaAlert = '';
-    if(areaComps.length && cheaperCount > 0){
-      areaAlert = ' <span style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#dc2626;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">\u26a0\ufe0f '+cheaperCount+' competitor'+(cheaperCount>1?'s':'')+' undercutting you</span>';
-    } else if(areaComps.length){
-      areaAlert = ' <span style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#16a34a;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px">\u2705 Competitive</span>';
-    }
-
-    var areaHeader = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:20px 0 10px">'
-      +'<span style="display:inline-block;width:3px;height:16px;background:var(--accent);border-radius:2px"></span>'
-      +'<span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text)">\ud83d\udccd '+area+'</span>'
-      +areaAlert+'</div>';
-
-    // ── BIN TABLE ──
-    var binHtml = '<div style="overflow-x:auto;margin-bottom:8px;border-radius:10px;border:1px solid var(--border);overflow:hidden"><table style="width:100%;border-collapse:collapse">'
+    // BIN TABLE for this area
+    var binHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
-      +'<th style="'+thL+'">Company</th>'
-      +binSizes.map(function(s){return '<th style="'+thC+'">'+s+'</th>';}).join('')
-      +'<th style="'+thC+'">\u26fd Fuel</th>'
-      +'<th style="'+thC+'">Overall</th>'
-      +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);background:var(--surface2)"></th>'
+      +'<th style="'+thLeft()+'">Company</th>'
+      +binSizes.map(function(s){return'<th style="'+thStyle()+'">'+s+'</th>';}).join('')
+      +'<th style="'+thStyle()+'">⛽ Fuel</th>'
+      +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
-
-    // Our pinned row
-    binHtml += '<tr style="background:rgba(34,197,94,.07);border-bottom:2px solid rgba(34,197,94,.2)">'
-      +'<td style="padding:10px 14px"><div style="display:flex;align-items:center;gap:8px">'
-      +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>'
-      +'<span style="font-weight:700;color:var(--accent);font-size:14px">Jeff\'s Junk</span>'
-      +' <span style="font-size:10px;font-weight:700;background:rgba(34,197,94,.2);color:#16a34a;padding:1px 7px;border-radius:10px">YOU</span>'
-      +'</div></td>'
-      +binSizes.map(function(s){
-        var v=ap.bins&&ap.bins[s]?parseFloat(ap.bins[s]):null;
-        var disp=v?'<span style="font-weight:800;font-size:15px;color:var(--accent)">$'+v+'</span>':'<span style="color:var(--border)">&mdash;</span>';
-        return '<td style="padding:10px 12px;text-align:center">'+disp+'</td>';
-      }).join('')
-      +'<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'&mdash;')+'</td>'
-      +'<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;color:var(--muted)">baseline</span></td>'
+    // Our row
+    binHtml += '<tr style="background:rgba(34,197,94,.06);border-bottom:1px solid var(--border)">'
+      +'<td style="padding:10px 14px;font-weight:700;color:var(--accent)">🏠 Jeff\'s Junk</td>'
+      +binSizes.map(function(s){ var v=ap.bins&&ap.bins[s]?'$'+ap.bins[s]:'—'; return'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+v+'</td>'; }).join('')
+      +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'—')+'</td>'
       +'<td></td></tr>';
-
     areaComps.forEach(function(comp){
-      var cells = binSizes.map(function(s){ return priceCell(comp.bins&&comp.bins[s], ap.bins&&ap.bins[s]); });
       binHtml += '<tr style="border-bottom:1px solid var(--border)">'
-        +'<td style="padding:10px 14px"><div style="font-weight:600;font-size:14px">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
-        +cells.map(function(c){return c.html;}).join('')
-        +'<td style="padding:10px 12px;text-align:center;font-size:13px">'+(comp.binFuel?'<span style="color:#eab308;font-weight:600">'+comp.binFuel+'%</span>':'&mdash;')+'</td>'
-        +'<td style="padding:10px 12px;text-align:center">'+verdictBadge(cells)+'</td>'
-        +'<td style="padding:10px 8px"><div style="display:flex;gap:4px">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')" title="Edit">\u270f\ufe0f</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')" title="Delete">\ud83d\uddd1\ufe0f</button>'
+        +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
+        +binSizes.map(function(s){ return priceCell(comp.bins&&comp.bins[s], ap.bins&&ap.bins[s]); }).join('')
+        +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:#eab308">'+comp.binFuel+'%</span>':'—')+'</td>'
+        +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
+        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
         +'</div></td></tr>';
     });
-    if(!areaComps.length) binHtml += '<tr><td colspan="'+(binSizes.length+4)+'" style="padding:20px 14px;color:var(--muted);font-size:13px;text-align:center">No competitors added yet. <button class="btn btn-ghost btn-sm" onclick="openAddCompetitor()" style="margin-left:8px">+ Add Competitor</button></td></tr>';
+    if(!areaComps.length) binHtml += '<tr><td colspan="'+(binSizes.length+3)+'" style="padding:16px 14px;color:var(--muted);font-size:13px">No competitors added for this area yet.</td></tr>';
     binHtml += '</tbody></table></div>';
     binOut += areaHeader + binHtml;
 
-    // ── JUNK TABLE ──
-    var junkHtml = '<div style="overflow-x:auto;margin-bottom:8px;border-radius:10px;border:1px solid var(--border);overflow:hidden"><table style="width:100%;border-collapse:collapse">'
+    // JUNK TABLE for this area
+    var junkHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
-      +'<th style="'+thL+'">Company</th>'
-      +junkTiers.map(function(t){return '<th style="'+thC+'">'+t.l+'</th>';}).join('')
-      +'<th style="'+thC+'">Overall</th>'
-      +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);background:var(--surface2)"></th>'
+      +'<th style="'+thLeft()+'">Company</th>'
+      +junkTiers.map(function(t){return'<th style="'+thStyle()+'">'+t.l+'</th>';}).join('')
+      +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
-
-    junkHtml += '<tr style="background:rgba(234,179,8,.06);border-bottom:2px solid rgba(234,179,8,.2)">'
-      +'<td style="padding:10px 14px"><div style="display:flex;align-items:center;gap:8px">'
-      +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;flex-shrink:0"></span>'
-      +'<span style="font-weight:700;color:#eab308;font-size:14px">Jeff\'s Junk</span>'
-      +' <span style="font-size:10px;font-weight:700;background:rgba(234,179,8,.2);color:#ca8a04;padding:1px 7px;border-radius:10px">YOU</span>'
-      +'</div></td>'
-      +junkTiers.map(function(t){
-        var v=ap.junk&&ap.junk[t.k]?parseFloat(ap.junk[t.k]):null;
-        var disp=v?'<span style="font-weight:800;font-size:15px;color:#eab308">$'+v+'</span>':'<span style="color:var(--border)">&mdash;</span>';
-        return '<td style="padding:10px 12px;text-align:center">'+disp+'</td>';
-      }).join('')
-      +'<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;color:var(--muted)">baseline</span></td>'
+    junkHtml += '<tr style="background:rgba(234,179,8,.06);border-bottom:1px solid var(--border)">'
+      +'<td style="padding:10px 14px;font-weight:700;color:#eab308">🏠 Jeff\'s Junk</td>'
+      +junkTiers.map(function(t){ var v=ap.junk&&ap.junk[t.k]?'$'+ap.junk[t.k]:'—'; return'<td style="padding:10px 14px;text-align:center;font-weight:700;color:#eab308">'+v+'</td>'; }).join('')
       +'<td></td></tr>';
-
     areaComps.forEach(function(comp){
-      var cells = junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); });
       junkHtml += '<tr style="border-bottom:1px solid var(--border)">'
-        +'<td style="padding:10px 14px"><div style="font-weight:600;font-size:14px">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
-        +cells.map(function(c){return c.html;}).join('')
-        +'<td style="padding:10px 12px;text-align:center">'+verdictBadge(cells)+'</td>'
-        +'<td style="padding:10px 8px"><div style="display:flex;gap:4px">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')" title="Edit">\u270f\ufe0f</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')" title="Delete">\ud83d\uddd1\ufe0f</button>'
+        +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
+        +junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); }).join('')
+        +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
+        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
         +'</div></td></tr>';
     });
-    if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+3)+'" style="padding:20px 14px;color:var(--muted);font-size:13px;text-align:center">No competitors added yet.</td></tr>';
+    if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+2)+'" style="padding:16px 14px;color:var(--muted);font-size:13px">No competitors added for this area yet.</td></tr>';
     junkHtml += '</tbody></table></div>';
     junkOut += areaHeader + junkHtml;
   });
@@ -4466,8 +4368,6 @@ function renderPricingGrids(){
   document.getElementById('pricing-bin-grid').innerHTML = binOut;
   document.getElementById('pricing-junk-grid').innerHTML = junkOut;
 }
-
-
 
 // ── Area tabs in "Edit Our Prices" modal ──
 function renderOurAreaTabs(){
