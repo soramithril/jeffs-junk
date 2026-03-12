@@ -160,6 +160,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .bin-stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.2);}
 .bin-stat-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;}
 .bin-stat-card.out::before{background:#ef4444;}.bin-stat-card.in::before{background:#22c55e;}
+.bin-book-btn{margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,transform .12s,box-shadow .15s;will-change:transform;}
+.bin-book-btn:hover{background:rgba(34,197,94,.22);box-shadow:0 4px 14px rgba(34,197,94,.28);transform:translateY(-2px);}
+.bin-book-btn:active{transform:scale(.95);box-shadow:none;background:rgba(34,197,94,.3);}
 .bin-stat-value{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:1px;line-height:1;}
 .bin-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
 .bin-stat-card.out .bin-stat-value{color:#ef4444;}.bin-stat-card.in .bin-stat-value{color:#22c55e;}
@@ -2423,10 +2426,8 @@ async function loadAllFromSupabase() {
         rPrices.data.forEach(function(r){
           ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):''};
         });
-        if(!ourPricesV2['Default']) ourPricesV2['Default']={bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''};
         // Derive pricingAreas entirely from Supabase data — authoritative
         pricingAreas = Object.keys(ourPricesV2);
-        if(pricingAreas.indexOf('Default')<0) pricingAreas.unshift('Default');
       }
     } catch(e){ console.warn('Our prices load error:',e); }
 
@@ -3143,7 +3144,7 @@ async function refreshDashBinStats(){
       +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
       +'<div style="flex:1;padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
       +'</div>'
-      +'<div style="display:flex;gap:6px;margin-top:12px">'+'<button onclick="bookBin(\''+s+'\')" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:\'DM Sans\',sans-serif;font-size:12px;font-weight:700;cursor:pointer">📅 Book</button>'+'<button onclick="go(\'bininventory\');setTimeout(function(){setFleetF(\''+s+'\',document.getElementById(\'fnb-'+s.replace(' ','')+'\'))},200)" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:\'DM Sans\',sans-serif;font-size:12px;font-weight:700;cursor:pointer">🔍 View</button>'+'</div>'
+      +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn">📅 Book</button>'
       +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
@@ -4202,8 +4203,8 @@ function makeBarChart(data, colorFn, displayFn){
 // ─── COMPETITION PRICING ───
 // All data loaded from Supabase on startup in loadAllFromSupabase()
 var competitors = [];
-var ourPricesV2 = { 'Default': {bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''} };
-var pricingAreas = ['Default'];
+var ourPricesV2 = {};
+var pricingAreas = [];
 var pricingCat = 'bin';
 var editingCompId = null;
 var activeOurArea = 'Default';
@@ -4238,7 +4239,7 @@ function saveOurPricesData(){
 }
 function savePricingAreas(){ /* pricingAreas derived from Supabase our_prices — no separate save needed */ }
 function nextCompId(){ return 'c'+(Date.now()%100000); }
-function getAreaPrices(area){ return ourPricesV2[area] || {bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''}; }
+function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binFuel:''}; }
 
 function setPricingCat(cat,el){
   pricingCat=cat;
@@ -4278,7 +4279,9 @@ function renderPricing(){
       +'</div>';
   });
   // Separate with dividers
-  document.getElementById('our-prices-display').innerHTML = html.join('<div style="height:1px;background:var(--border);margin:16px 0"></div>');
+  document.getElementById('our-prices-display').innerHTML = html.length
+    ? html.join('<div style="height:1px;background:var(--border);margin:16px 0"></div>')
+    : '<div style="text-align:center;padding:32px 16px;color:var(--muted)"><div style="font-size:28px;margin-bottom:10px;opacity:.5">💰</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)">No pricing areas set up yet</div><div style="font-size:13px">Click "Edit Our Prices" to add your first area and pricing.</div></div>';
   renderPricingGrids();
 }
 
@@ -4365,8 +4368,9 @@ function renderPricingGrids(){
     junkOut += areaHeader + junkHtml;
   });
 
-  document.getElementById('pricing-bin-grid').innerHTML = binOut;
-  document.getElementById('pricing-junk-grid').innerHTML = junkOut;
+  var emptyMsg = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Add pricing areas using "Edit Our Prices" to see comparisons here.</div>';
+  document.getElementById('pricing-bin-grid').innerHTML = binOut || emptyMsg;
+  document.getElementById('pricing-junk-grid').innerHTML = junkOut || emptyMsg;
 }
 
 // ── Area tabs in "Edit Our Prices" modal ──
@@ -4414,23 +4418,17 @@ function deleteOurArea(area){
   if(!confirm('Delete area "'+area+'" and its prices?')) return;
   pricingAreas = pricingAreas.filter(function(a){return a!==area;});
   delete ourPricesV2[area];
-  // If we deleted everything, restore a blank Default so the page isn't broken
-  if(!pricingAreas.length){
-    pricingAreas = ['Default'];
-    ourPricesV2['Default'] = {bins:{'4 yard':'','7 yard':'','14 yard':'','20 yard':''},junk:{min:'',quarter:'',half:'',full:''},binFuel:''};
-  }
   savePricingAreas();
   saveOurPricesData();
   // Delete from Supabase our_prices
   db.from('our_prices').delete().eq('area',area).then(function(r){
     if(r.error) console.warn('Our prices delete failed:',r.error.message);
   });
-  // Move competitors in this area to Default
-  competitors.forEach(function(c){ if(c.area===area) c.area='Default'; });
+  // Move competitors in this area to unassigned
+  competitors.forEach(function(c){ if(c.area===area) c.area = pricingAreas[0] || 'Default'; });
   saveCompetitors();
-  var nextArea = pricingAreas[0] || 'Default';
-  activeOurArea = nextArea;
-  selectOurArea(nextArea);
+  var nextArea = pricingAreas[0] || null;
+  activeOurArea = nextArea || '';
   renderPricing();
   toast('Area "'+area+'" deleted.');
 }
