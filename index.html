@@ -92,6 +92,49 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 /* ── page slide-in ── */
 @keyframes slideUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
 .page-animate{animation:slideUp .32s ease both;}
+/* ── DASHBOARD ENTRANCE ANIMATIONS ── */
+@keyframes dashFadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.dash-section{opacity:0;animation:dashFadeUp .28s ease forwards;}
+.dash-s1{animation-delay:.04s;}
+.dash-s2{animation-delay:.12s;}
+.dash-s3{animation-delay:.20s;}
+.dash-s4{animation-delay:.28s;}
+.dash-s5{animation-delay:.36s;}
+.dash-s6{animation-delay:.44s;}
+/* ── BIN SIZE CARD depth ── */
+.bin-size-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:20px 16px;text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.08);
+  transition:transform .18s ease,box-shadow .18s ease;
+  will-change:transform;
+}
+.bin-size-card:hover{transform:translateY(-4px);box-shadow:0 6px 20px rgba(0,0,0,.14),0 16px 40px rgba(0,0,0,.1);}
+/* ── URGENCY STATES ── */
+.chart-card.urgency-warn{
+  border-left:4px solid #ef4444;
+  background:rgba(239,68,68,.025);
+}
+.chart-card.urgency-ok{
+  border-left:4px solid #22c55e;
+  background:rgba(34,197,94,.02);
+}
+.chart-card.urgency-neutral{
+  border-left:4px solid var(--border);
+}
+/* ── CALENDAR improvements ── */
+.week-day-col.today .week-day-hdr{background:rgba(34,197,94,.1);border-bottom:2px solid var(--accent);}
+.week-day-col.today .week-day-num{
+  color:#fff;background:var(--accent);
+  width:28px;height:28px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:16px;margin-top:1px;
+}
+.week-day-jobs{padding:6px 5px;display:flex;flex-direction:column;gap:4px;}
+.week-job-chip{font-size:10px;padding:3px 7px;border-radius:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;transition:opacity .12s;border-left:3px solid transparent;}
+.week-job-chip.confirmed{opacity:1;}
+.week-job-chip.unconfirmed{opacity:.6;border-style:dashed;border-left-style:solid;}
+.week-day-col{border-right:1px solid var(--border);min-height:120px;}
 /* vertical bar grow */
 @keyframes barGrowV{from{height:0;}to{height:var(--bh);}}
 .bar-v-anim{animation:barGrowV .5s cubic-bezier(.22,.68,0,1.2) both;}
@@ -174,7 +217,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .week-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
 .week-day-col{border-right:1px solid var(--border);min-height:110px;}
 .week-day-col:last-child{border-right:none;}
-.week-day-hdr{padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center;}
+.week-day-hdr{padding:10px 10px 8px;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center;}
 .week-day-name{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
 .week-day-num{font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1.2;color:var(--text);}
 .week-day-col.today .week-day-num{color:var(--accent);}
@@ -777,7 +820,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- ═══ BIN STATUS — all 5 cards under one date picker ═══ -->
-  <div style="margin-bottom:24px">
+  <div class="dash-section dash-s1" style="margin-bottom:24px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)">BIN STATUS</div>
       <div style="display:flex;align-items:center;gap:6px">
@@ -802,23 +845,23 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- Today's jobs | Workload — 2 columns -->
-  <div class="dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-    <div class="chart-card">
+  <div class="dash-section dash-s2 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="chart-card urgency-neutral" id="card-today-jobs">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px">📍 TODAY'S JOBS</div>
         <span id="dash-today-count" style="font-size:12px;color:var(--muted)"></span>
       </div>
       <div id="dash-today-jobs"></div>
     </div>
-    <div class="chart-card">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;margin-bottom:12px">🔧 TODAY'S WORKLOAD</div>
+    <div class="chart-card" id="card-workload">
+      <div id="workload-header" style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;margin-bottom:12px">🔧 TODAY'S WORKLOAD</div>
       <div id="dash-workload" class="bar-chart"></div>
     </div>
   </div>
 
   <!-- Overdue Pickups | Bins Out Long — 2 columns -->
-  <div class="dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-    <div class="chart-card">
+  <div class="dash-section dash-s3 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="chart-card urgency-neutral" id="card-overdue">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;margin-bottom:12px">🔴 OVERDUE PICKUPS</div>
       <div id="dash-overdue" style="min-height:0"></div>
     </div>
@@ -836,7 +879,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- Week calendar -->
-  <div class="week-cal-wrap">
+  <div class="week-cal-wrap dash-section dash-s4">
     <div class="week-cal-header">
       <div class="week-cal-title" id="week-lbl">THIS WEEK</div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -849,11 +892,11 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- Upcoming jobs by category -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+  <div class="dash-section dash-s5" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
     <div class="section-lbl" id="upcoming-hdr-lbl" style="margin-bottom:0">NEXT 14 DAYS</div>
     <button class="btn btn-ghost btn-sm" onclick="go('jobs')">View All →</button>
   </div>
-  <div class="cat-section">
+  <div class="dash-section dash-s6 cat-section">
     <div class="cat-section-header bin"><div class="cat-title">🚛 Bin Rentals</div><span class="cat-count" id="dash-bin-count">0 jobs</span></div>
     <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Price</th></tr></thead><tbody id="dash-bin-tbody"></tbody></table></div>
   </div>
@@ -3103,9 +3146,9 @@ async function refreshDashBinStats(){
   }
   var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
 
-  animCount(document.getElementById('s-bins-out'),binsOut);
-  animCount(document.getElementById('s-bins-in'),binsIn);
-  var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins);
+  animCount(document.getElementById('s-bins-out'),binsOut,'','',700);
+  animCount(document.getElementById('s-bins-in'),binsIn,'','',700);
+  var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins,'','',700);
   document.getElementById('m-bins').textContent=binsOut;
   setTimeout(function(){
     var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
@@ -3136,9 +3179,9 @@ async function refreshDashBinStats(){
 
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 16px;text-align:center;border-top:5px solid '+sizeColors[s]+';box-shadow:0 4px 16px rgba(0,0,0,.15)">'
+    return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+'">'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:72px;line-height:1;color:#22c55e;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.2)">'+inY+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:#22c55e;margin-bottom:2px;text-shadow:0 4px 16px rgba(34,197,94,.25)">'+inY+'</div>'
       +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
       +'<div style="display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);padding-top:10px">'
       +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
@@ -3174,7 +3217,7 @@ async function renderWeekCal(){
     var ds=d.toISOString().split('T')[0];
     var isToday=d.getTime()===today.getTime();
     var dJobs=weekJobs.filter(function(j){return j.date===ds;});
-    var chips=dJobs.map(function(j){return '<div class="week-job-chip '+(clsMap[j.service]||'')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.name+'">'+(j.time?ft(j.time)+' ':'')+j.name+'</div>';}).join('');
+    var chips=dJobs.map(function(j){var cfmCls=j.confirmed?' confirmed':' unconfirmed';return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+j.name+'">'+(j.time?ft(j.time)+' ':'')+j.name+(j.confirmed?'':' 📞')+'</div>';}).join('');
     html+='<div class="week-day-col'+(isToday?' today':'')+'\" data-date="'+ds+'"><div class="week-day-hdr"><div class="week-day-name">'+dayNames[d.getDay()]+'</div><div class="week-day-num">'+d.getDate()+'</div></div><div class="week-day-jobs" data-date="'+ds+'">'+(chips||'')+'</div></div>';
   }
   var wg=document.getElementById('week-grid');
@@ -3229,6 +3272,13 @@ function renderDashLongBins(){
     :'<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">✅ No bins out that long</div>';
 }
 async function renderDash(){
+  // ── Re-trigger entrance animations ───────────────────────────
+  document.querySelectorAll('#view-dashboard .dash-section').forEach(function(el){
+    el.style.animation='none';
+    el.style.opacity='0';
+    requestAnimationFrame(function(){ el.style.animation=''; });
+  });
+
   var todayS = todayStr();
   var now = new Date();
   var weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); var weekStartS = weekStart.toISOString().split('T')[0];
@@ -3288,11 +3338,11 @@ async function renderDash(){
   var outstanding= (rOutstanding.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
 
   // ── Animate stat cards ─────────────────────────────────────
-  animCount(document.getElementById('s-total'), total);
-  animCount(document.getElementById('s-active'), active);
-  animCount(document.getElementById('s-done'), done);
-  animCount(document.getElementById('s-unpaid'), unpaidCount);
-  animCount(document.getElementById('s-month-rev'), Math.round(monthRev), '$');
+  animCount(document.getElementById('s-total'), total, '', '', 700);
+  animCount(document.getElementById('s-active'), active, '', '', 700);
+  animCount(document.getElementById('s-done'), done, '', '', 700);
+  animCount(document.getElementById('s-unpaid'), unpaidCount, '', '', 700);
+  animCount(document.getElementById('s-month-rev'), Math.round(monthRev), '$', '', 700);
   document.getElementById('m-active').textContent = active;
 
   // ── Bin stats — delegated to refreshDashBinStats (Supabase-powered) ──────
@@ -3325,6 +3375,12 @@ async function renderDash(){
   var totalTodayCount = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs)).length;
   document.getElementById('dash-today-count').textContent = totalTodayCount+' job'+(totalTodayCount!==1?'s':'');
 
+  // ── CHANGE 4: Urgency state on Today's Jobs card ──────────────
+  var todayCard = document.getElementById('card-today-jobs');
+  if(todayCard){
+    todayCard.className = 'chart-card ' + (totalTodayCount === 0 ? 'urgency-ok' : totalTodayCount >= 5 ? 'urgency-warn' : 'urgency-neutral');
+  }
+
   // ── Workload bar — bin dropoffs + pickups counted separately ─
   var svcCount = {
     'Bin Dropoffs':  todayBinDropoffs.length,
@@ -3337,6 +3393,21 @@ async function renderDash(){
   var svcColors = {'Bin Dropoffs':'#22c55e','Bin Pickups':'#4ade80','Junk Removal':'#eab308','Furn Pickup':'#ef4444','Furn Delivery':'#f87171'};
   var maxSvc = Math.max.apply(null,Object.keys(svcCount).map(function(k){return svcCount[k];})) || 1;
   var hasAny = Object.keys(svcCount).some(function(k){return svcCount[k]>0;});
+
+  // ── CHANGE 5: Smart workload header ──────────────────────────
+  var unconfirmedToday = todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs).filter(function(j){return !j.confirmed;}).length;
+  var workloadHdr = document.getElementById('workload-header');
+  if(workloadHdr){
+    var wLabel;
+    if(!hasAny){ wLabel = '🔧 FREE DAY'; }
+    else if(totalTodayCount===1){ wLabel = '🔧 LIGHT DAY — 1 JOB'; }
+    else if(totalTodayCount<=3){ wLabel = '🔧 LIGHT DAY — '+totalTodayCount+' JOBS'; }
+    else if(totalTodayCount<=5){ wLabel = '🔧 BUSY — '+totalTodayCount+' JOBS'; }
+    else { wLabel = '🔧 HEAVY DAY — '+totalTodayCount+' JOBS'; }
+    if(unconfirmedToday>0){ wLabel += ' · <span style="color:#eab308;font-size:14px">'+unconfirmedToday+' unconfirmed</span>'; }
+    workloadHdr.innerHTML = wLabel;
+  }
+
   document.getElementById('dash-workload').innerHTML = hasAny
     ? Object.keys(svcCount).filter(function(k){return svcCount[k]>0;}).map(function(k){
         var v=svcCount[k];
@@ -3379,6 +3450,9 @@ async function renderDash(){
       +'<div style="font-size:12px;color:var(--muted)">Pickup was: '+fd(j.binPickup)+(j.binSize?' · '+j.binSize:'')+'</div>'
       +'</div>';}).join('')
     : '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">✅ No overdue pickups</div>';
+  // CHANGE 4: urgency state on overdue card
+  var overdueCard = document.getElementById('card-overdue');
+  if(overdueCard) overdueCard.className = 'chart-card ' + (overdueJobs.length > 0 ? 'urgency-warn' : 'urgency-ok');
 
   renderDashLongBins();
   renderWeekCal();
@@ -3402,7 +3476,12 @@ async function renderDash(){
   document.getElementById('dash-junk-tbody').innerHTML=makeDashRows(junkRows);
   document.getElementById('dash-furn-tbody').innerHTML=makeDashRowsFurn(furnRows);
   var upcomingHdr=document.getElementById('upcoming-hdr-lbl');
-  if(upcomingHdr)upcomingHdr.textContent='NEXT 14 DAYS'+(upcoming14.length?' ('+upcoming14.length+' jobs)':'');
+  if(upcomingHdr){
+    var n=upcoming14.length;
+    if(n===0){ upcomingHdr.textContent='NOTHING BOOKED IN THE NEXT 14 DAYS'; upcomingHdr.style.color='var(--muted)'; }
+    else if(n===1){ upcomingHdr.textContent='1 JOB COMING UP'; upcomingHdr.style.color='var(--text)'; }
+    else { upcomingHdr.textContent=n+' JOBS IN THE NEXT 14 DAYS'; upcomingHdr.style.color='var(--text)'; }
+  }
 }
 
 // ─── JOBS TABLE ───
