@@ -588,62 +588,73 @@ textarea{resize:vertical;min-height:80px;}
   /* Cat section tables: hide price col to save space */
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
   /* ── Geotab fleet panel ── */
-  @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
-  @keyframes gtFadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+  @keyframes gtRow{from{opacity:0;transform:translateX(-4px);}to{opacity:1;transform:none;}}
 
   .gt-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;}
 
-  /* Header */
-  .gt-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);}
-  .gt-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1.2px;color:var(--text);}
-  .gt-header-right{display:flex;align-items:center;gap:8px;}
-  .gt-status-chip{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);}
-  .gt-dot{width:6px;height:6px;border-radius:50%;background:#bbb;transition:background .3s;flex-shrink:0;}
+  /* Header bar */
+  .gt-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+  .gt-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1.5px;color:var(--text);flex-shrink:0;}
+  .gt-live-chip{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);}
+  .gt-dot{width:6px;height:6px;border-radius:50%;background:#bbb;flex-shrink:0;transition:background .3s;}
   .gt-dot.live{background:#22c55e;box-shadow:0 0 5px rgba(34,197,94,.5);animation:gtPulse 2s ease infinite;}
   .gt-dot.error{background:#ef4444;animation:none;}
-  .gt-status-txt{font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap;}
-  .gt-status-txt.live{color:#22c55e;}
-  .gt-status-txt.error{color:#ef4444;}
-  .gt-pills{display:flex;gap:4px;}
-  .gt-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
-  .gt-pill.moving{color:#22c55e;background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.25);}
+  .gt-live-txt{font-size:10px;font-weight:600;letter-spacing:.4px;color:var(--muted);}
+  .gt-live-txt.live{color:#22c55e;}
+  .gt-live-txt.error{color:#ef4444;}
+
+  /* Fleet summary stat row */
+  .gt-summary{display:flex;gap:0;border-bottom:1px solid var(--border);}
+  .gt-sum-stat{flex:1;padding:10px 14px;border-right:1px solid var(--border);min-width:0;}
+  .gt-sum-stat:last-child{border-right:none;}
+  .gt-sum-val{font-size:20px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-.5px;}
+  .gt-sum-val.green{color:#22c55e;}
+  .gt-sum-val.amber{color:#eab308;}
+  .gt-sum-val.red{color:#ef4444;}
+  .gt-sum-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:3px;font-weight:600;}
 
   /* Table */
-  .gt-table{width:100%;border-collapse:collapse;}
-  .gt-table thead tr{border-bottom:1px solid var(--border);}
-  .gt-table th{padding:7px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);text-align:left;white-space:nowrap;}
-  .gt-table th:not(:first-child){text-align:right;}
-  .gt-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s;animation:gtFadeIn .3s ease both;}
-  .gt-table tbody tr:last-child{border-bottom:none;}
-  .gt-table tbody tr:hover{background:var(--surface2);}
-  .gt-table td{padding:9px 12px;font-size:12px;color:var(--text);white-space:nowrap;}
-  .gt-table td:not(:first-child){text-align:right;}
+  .gt-wrap{overflow-x:auto;}
+  .gt-tbl{width:100%;border-collapse:collapse;min-width:560px;}
+  .gt-tbl thead tr{border-bottom:1px solid var(--border);}
+  .gt-tbl th{padding:7px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);text-align:left;white-space:nowrap;background:var(--surface2);}
+  .gt-tbl th.r{text-align:right;}
+  .gt-tbl tbody tr{border-bottom:1px solid var(--border);animation:gtRow .25s ease both;}
+  .gt-tbl tbody tr:last-child{border-bottom:none;}
+  .gt-tbl tbody tr:hover{background:rgba(0,0,0,.02);}
+  .gt-tbl td{padding:8px 12px;font-size:12px;color:var(--text);white-space:nowrap;vertical-align:middle;}
+  .gt-tbl td.r{text-align:right;}
 
-  /* Cells */
-  .gt-cell-name{display:flex;align-items:center;gap:8px;}
-  .gt-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-  .gt-status-dot.moving{background:#22c55e;box-shadow:0 0 4px rgba(34,197,94,.5);}
-  .gt-status-dot.stopped{background:#d1d5db;}
-  .gt-vname{font-weight:600;font-size:12px;color:var(--text);}
-  .gt-engine-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
-  .gt-engine-lbl.on{color:#22c55e;}
-  .gt-engine-lbl.off{color:var(--muted);}
+  /* Cell components */
+  .gt-veh-cell{display:flex;align-items:center;gap:9px;}
+  .gt-vdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px;}
+  .gt-vdot.moving{background:#22c55e;box-shadow:0 0 5px rgba(34,197,94,.45);}
+  .gt-vdot.stopped{background:#d1d5db;}
+  .gt-vname{font-weight:600;font-size:12.5px;color:var(--text);}
+  .gt-eng{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;font-weight:600;}
+  .gt-eng.on{color:#22c55e;}  .gt-eng.off{color:var(--muted);}
 
-  .gt-speed{font-size:13px;font-weight:700;}
-  .gt-speed.moving{color:#22c55e;}
-  .gt-speed.stopped{font-size:11px;color:var(--muted);font-weight:500;}
-  .gt-num{font-size:12px;color:var(--text);}
-  .gt-num.zero{color:var(--muted);}
-  .gt-warn{color:#eab308;font-weight:600;}
+  .gt-spd{font-size:13px;font-weight:700;}
+  .gt-spd.moving{color:#22c55e;}
+  .gt-spd.stopped{font-size:11px;color:var(--muted);font-weight:500;}
+
+  .gt-val{font-size:12px;color:var(--text);}
+  .gt-val.dim{color:var(--muted);}
+  .gt-val.amber{color:#eab308;font-weight:600;}
+
+  .gt-fault-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:4px;vertical-align:middle;box-shadow:0 0 4px rgba(239,68,68,.5);}
+  .gt-fault-none{color:var(--muted);font-size:11px;}
 
   /* Footer */
-  .gt-footer{padding:8px 14px;background:var(--surface2);border-top:1px solid var(--border);display:flex;justify-content:space-between;}
-  .gt-footer span{font-size:10px;color:var(--muted);}
+  .gt-foot{padding:7px 14px;background:var(--surface2);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .gt-foot span{font-size:10px;color:var(--muted);}
 
   .gt-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;}
-  .gt-error{padding:14px 16px;color:#ef4444;font-size:12px;background:rgba(239,68,68,.04);}
-  .gt-loading{padding:20px;text-align:center;color:var(--muted);font-size:12px;letter-spacing:.5px;animation:gtPulse 1.2s ease infinite;}
-  /* Chart cards inside dashboard */
+  .gt-error{padding:12px 16px;color:#ef4444;font-size:12px;display:flex;align-items:center;gap:6px;}
+  .gt-loading{padding:20px;text-align:center;color:var(--muted);font-size:11px;letter-spacing:.8px;text-transform:uppercase;animation:gtPulse 1.2s ease infinite;}
+
+    /* Chart cards inside dashboard */
   .dash-2col .chart-card{padding:14px;}
 }
 @media(max-width:480px){
@@ -879,12 +890,10 @@ textarea{resize:vertical;min-height:80px;}
   <div class="gt-panel dash-section">
     <div class="gt-header">
       <div class="gt-title">🚛 Live Fleet</div>
-      <div class="gt-header-right">
-        <div class="gt-pills" id="gt-pills"></div>
-        <div class="gt-status-chip">
-          <div class="gt-dot" id="gt-dot"></div>
-          <span class="gt-status-txt" id="gt-status-lbl">Connecting...</span>
-        </div>
+      <div id="gt-summary" class="gt-summary" style="display:none"></div>
+      <div class="gt-live-chip">
+        <div class="gt-dot" id="gt-dot"></div>
+        <span class="gt-live-txt" id="gt-status-lbl">Connecting...</span>
       </div>
     </div>
     <div id="gt-vehicles-wrap"><div class="gt-loading">Fetching vehicle data...</div></div>
@@ -3699,83 +3708,98 @@ var GT = {
   URL: 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy',
   timer: null,
 
-  fmtKm: function(n) { return n != null ? n.toLocaleString() + ' km' : '—'; },
+  fmtKm:  function(n) { return (n != null && n > 0) ? n.toLocaleString() + ' km' : '—'; },
   fmtMin: function(m) {
     if (!m) return '—';
-    return m < 60 ? m + ' min' : Math.floor(m/60) + 'h ' + (m%60) + 'm';
+    return m < 60 ? m + 'm' : Math.floor(m/60) + 'h ' + (m % 60 ? (m%60)+'m' : '');
   },
   fmtCad: function(n) { return (n && n > 0) ? '$' + n.toFixed(2) : '—'; },
 
   setStatus: function(state, label) {
     var dot = document.getElementById('gt-dot');
     var lbl = document.getElementById('gt-status-lbl');
-    if (dot) dot.className = 'gt-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '');
-    if (lbl) { lbl.className = 'gt-status-txt' + (state === 'live' ? ' live' : state === 'error' ? ' error' : ''); lbl.textContent = label; }
+    if (dot) dot.className = 'gt-dot' + (state==='live' ? ' live' : state==='error' ? ' error' : '');
+    if (lbl) { lbl.className = 'gt-live-txt' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); lbl.textContent = label; }
+  },
+
+  renderSummary: function(s) {
+    var el = document.getElementById('gt-summary');
+    if (!el) return;
+    el.style.display = 'flex';
+    var idleClass = s.totalIdle > 120 ? 'amber' : '';
+    var faultClass = s.totalFaults > 0 ? 'red' : '';
+    el.innerHTML =
+      '<div class="gt-sum-stat"><div class="gt-sum-val green">'+s.moving+'</div><div class="gt-sum-lbl">Moving</div></div>'
+    + '<div class="gt-sum-stat"><div class="gt-sum-val">'+s.stopped+'</div><div class="gt-sum-lbl">Stopped</div></div>'
+    + '<div class="gt-sum-stat"><div class="gt-sum-val">'+GT.fmtKm(s.totalKm)+'</div><div class="gt-sum-lbl">Fleet km today</div></div>'
+    + '<div class="gt-sum-stat"><div class="gt-sum-val '+(idleClass)+'">'+(s.totalIdle >= 60 ? Math.round(s.totalIdle/60)+'h' : s.totalIdle+'m')+'</div><div class="gt-sum-lbl">Total idle</div></div>'
+    + '<div class="gt-sum-stat"><div class="gt-sum-val '+faultClass+'">'+s.totalFaults+'</div><div class="gt-sum-lbl">Fault codes</div></div>'
+    + '<div class="gt-sum-stat"><div class="gt-sum-val">'+(s.totalFuel > 0 ? '$'+s.totalFuel.toFixed(0) : '—')+'</div><div class="gt-sum-lbl">Est. fuel cost</div></div>';
+  },
+
+  rowHTML: function(v, i) {
+    var mv  = v.isMoving;
+    var eng = v.engineOn;
+    var delay = (i * 0.025) + 's';
+
+    var speedCell = mv
+      ? '<span class="gt-spd moving">'+Math.round(v.speed)+' km/h</span>'
+      : '<span class="gt-spd stopped">Stopped</span>';
+
+    var idleClass = v.idleMinutes > 30 ? 'gt-val amber' : (v.idleMinutes ? 'gt-val' : 'gt-val dim');
+    var faultCell = v.faults && v.faults.length
+      ? '<span title="'+v.faults.join(', ')+'"><span class="gt-fault-dot"></span>'+v.faults.length+' fault'+(v.faults.length>1?'s':'')+'</span>'
+      : '<span class="gt-fault-none">—</span>';
+
+    return '<tr style="animation-delay:'+delay+'">'
+      + '<td><div class="gt-veh-cell">'
+          + '<div class="gt-vdot '+(mv?'moving':'stopped')+'"></div>'
+          + '<div><div class="gt-vname">'+(v.name||'Vehicle')+'</div>'
+            + '<div class="gt-eng '+(eng?'on':'off')+'">'+(eng?'Engine on':'Engine off')+'</div></div>'
+        + '</div></td>'
+      + '<td class="r">'+speedCell+'</td>'
+      + '<td class="r"><span class="gt-val'+(v.todayTrips?' ':' dim')+'">'+( v.todayTrips || '—')+'</span></td>'
+      + '<td class="r"><span class="gt-val'+(v.todayKm?'':' dim')+'">'+GT.fmtKm(v.todayKm||null)+'</span></td>'
+      + '<td class="r"><span class="'+idleClass+'">'+GT.fmtMin(v.idleMinutes)+'</span></td>'
+      + '<td class="r"><span class="gt-val'+(v.odometerKm?'':' dim')+'">'+GT.fmtKm(v.odometerKm)+'</span></td>'
+      + '<td class="r"><span class="gt-val'+(v.fuelCost?'':' dim')+'">'+GT.fmtCad(v.fuelCost)+'</span></td>'
+      + '<td class="r">'+faultCell+'</td>'
+      + '</tr>';
   },
 
   render: function(data) {
     var wrap = document.getElementById('gt-vehicles-wrap');
     if (!wrap) return;
-    var vehicles = (data && data.vehicles) ? data.vehicles : [];
+    var vehicles = data.vehicles || [];
+    var summary  = data.summary  || {};
+
     if (!vehicles.length) { wrap.innerHTML = '<div class="gt-empty">No vehicles found.</div>'; return; }
 
-    // Sort: moving first, then by name
     vehicles.sort(function(a,b) {
       if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
       return (a.name||'').localeCompare(b.name||'');
     });
 
-    var moving  = vehicles.filter(function(v){return v.isMoving;}).length;
-    var stopped = vehicles.length - moving;
+    GT.renderSummary(summary);
 
-    // Pills
-    var pills = document.getElementById('gt-pills');
-    if (pills) {
-      pills.innerHTML = (moving  ? '<div class="gt-pill moving">'+moving+' moving</div>'   : '')
-                      + (stopped ? '<div class="gt-pill">'+stopped+' stopped</div>' : '');
-    }
-
-    var now = new Date();
+    var now     = new Date();
     var timeStr = now.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
 
-    var rows = vehicles.map(function(v, i) {
-      var mv  = v.isMoving;
-      var eng = v.engineOn;
-      var delay = (i * 0.03) + 's';
-      var speedCell = mv
-        ? '<span class="gt-speed moving">'+Math.round(v.speed)+' km/h</span>'
-        : '<span class="gt-speed stopped">Stopped</span>';
-      var idleClass = (v.idleMinutes > 30) ? 'gt-warn' : 'gt-num' + (v.idleMinutes ? '' : ' zero');
-      var fuelClass = (v.fuelCost > 0) ? 'gt-num' : 'gt-num zero';
-      var odoClass  = (v.odometerKm) ? 'gt-num' : 'gt-num zero';
-      return '<tr style="animation-delay:'+delay+'">'
-        + '<td><div class="gt-cell-name">'
-            + '<div class="gt-status-dot '+(mv?'moving':'stopped')+'"></div>'
-            + '<div><div class="gt-vname">'+(v.name||'Vehicle')+'</div>'
-            + '<div class="gt-engine-lbl '+(eng?'on':'off')+'">'+(eng?'Engine on':'Engine off')+'</div></div>'
-          + '</div></td>'
-        + '<td>'+speedCell+'</td>'
-        + '<td><span class="gt-num'+(v.todayTrips?'':' zero')+'">'+( v.todayTrips || '—')+'</span></td>'
-        + '<td><span class="gt-num'+(v.todayKm?'':' zero')+'">'+GT.fmtKm(v.todayKm||null)+'</span></td>'
-        + '<td><span class="'+idleClass+'">'+GT.fmtMin(v.idleMinutes)+'</span></td>'
-        + '<td><span class="'+odoClass+'">'+GT.fmtKm(v.odometerKm)+'</span></td>'
-        + '<td><span class="'+fuelClass+'">'+GT.fmtCad(v.fuelCost)+'</span></td>'
-        + '</tr>';
-    }).join('');
-
-    wrap.innerHTML = '<table class="gt-table">'
+    wrap.innerHTML =
+      '<div class="gt-wrap"><table class="gt-tbl">'
       + '<thead><tr>'
         + '<th>Vehicle</th>'
-        + '<th>Speed</th>'
-        + '<th>Trips</th>'
-        + '<th>Distance</th>'
-        + '<th>Idle</th>'
-        + '<th>Odometer</th>'
-        + '<th>Est. Fuel</th>'
+        + '<th class="r">Speed</th>'
+        + '<th class="r">Trips</th>'
+        + '<th class="r">Distance</th>'
+        + '<th class="r">Idle</th>'
+        + '<th class="r">Odometer</th>'
+        + '<th class="r">Est. Fuel</th>'
+        + '<th class="r">Faults</th>'
       + '</tr></thead>'
-      + '<tbody>'+rows+'</tbody>'
-      + '</table>'
-      + '<div class="gt-footer"><span>'+vehicles.length+' vehicles</span><span>Updated '+timeStr+' &middot; refreshes every 30s</span></div>';
+      + '<tbody>'+vehicles.map(function(v,i){return GT.rowHTML(v,i);}).join('')+'</tbody>'
+      + '</table></div>'
+      + '<div class="gt-foot"><span>'+vehicles.length+' vehicles</span><span>Updated '+timeStr+' \u00b7 refreshes every 30s</span></div>';
   },
 
   fetch: async function() {
@@ -3783,7 +3807,6 @@ var GT = {
       var res  = await fetch(GT.URL);
       var json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Unknown error');
-      var count = (json.data.vehicles || []).length;
       GT.setStatus('live', 'Live');
       GT.render(json.data);
     } catch(e) {
