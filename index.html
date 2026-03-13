@@ -587,105 +587,149 @@ textarea{resize:vertical;min-height:80px;}
   .week-day-col{min-height:56px;}
   /* Cat section tables: hide price col to save space */
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
-  /* ── Geotab fleet panel ── */
-  @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
-  @keyframes gtSlideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  /* ── Fleet + Map section ── */
+  @keyframes fleetPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+  @keyframes fleetCardIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+  @keyframes liveDot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5);}70%{box-shadow:0 0 0 6px rgba(34,197,94,0);}}
 
-  .gt-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;}
-  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;border-bottom:1px solid var(--border);}
-  .gt-panel-left{display:flex;align-items:center;gap:10px;}
-  .gt-panel-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1.5px;color:var(--text);}
-  .gt-badge{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:3px 9px;}
-  .gt-dot{width:6px;height:6px;border-radius:50%;background:#ccc;transition:background .3s;}
-  .gt-dot.live{background:var(--accent);box-shadow:0 0 5px rgba(34,197,94,.6);animation:gtPulse 1.8s ease infinite;}
-  .gt-dot.error{background:#ef4444;animation:none;}
-  .gt-badge-txt{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.5px;}
-  .gt-badge-txt.live{color:var(--accent);}
-  .gt-badge-txt.error{color:#ef4444;}
-  .gt-summary{display:flex;gap:6px;}
-  .gt-sum-pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--surface2);}
-  .gt-sum-pill.moving{color:var(--accent);background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.2);}
+  /* Outer wrapper: map fills left, sidebar right */
+  .fleet-section{position:relative;border-radius:16px;overflow:hidden;margin-bottom:24px;border:1px solid var(--border);background:var(--surface);}
 
-  .gt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--border);}
-  .gt-card{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;animation:gtSlideIn .35s ease both;transition:background .15s;}
-  .gt-card:hover{background:var(--surface2);}
-  .gt-card-top{display:flex;align-items:center;gap:10px;}
-  .gt-icon{width:36px;height:36px;min-width:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .gt-icon.moving{background:rgba(34,197,94,.12);}
-  .gt-icon.stopped{background:var(--surface2);border:1px solid var(--border);}
-  .gt-icon svg{display:block;width:18px;height:18px;flex-shrink:0;}
-  .gt-icon.moving svg{color:var(--accent);}
-  .gt-icon.stopped svg{color:var(--muted);}
-  .gt-name-block{flex:1;min-width:0;}
-  .gt-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .gt-engine{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
-  .gt-engine.on{color:var(--accent);}
-  .gt-engine.off{color:var(--muted);}
-  .gt-speed-badge{flex-shrink:0;text-align:right;}
-  .gt-speed-val{font-size:18px;font-weight:800;line-height:1;}
-  .gt-speed-val.moving{color:var(--accent);}
-  .gt-speed-val.stopped{font-size:11px;font-weight:600;color:var(--muted);}
-  .gt-speed-unit{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  /* Map */
+  .fleet-map-wrap{position:relative;height:420px;}
+  #dash-map{width:100%;height:100%;}
+  .fleet-map-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);z-index:10;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;animation:fleetPulse 1.2s ease infinite;}
 
-  .gt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
-  .gt-stat{background:var(--surface2);border-radius:8px;padding:7px 8px;text-align:center;}
-  .gt-stat-val{font-size:13px;font-weight:700;color:var(--text);line-height:1.2;}
-  .gt-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
-  .gt-stat.highlight .gt-stat-val{color:var(--accent);}
-  .gt-stat.warn .gt-stat-val{color:#eab308;}
+  /* Header bar over the map */
+  .fleet-header{position:absolute;top:0;left:0;right:0;z-index:9;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);}
+  .fleet-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5);}
+  .fleet-live-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);}
+  .fleet-live-dot{width:7px;height:7px;border-radius:50%;background:#bbb;flex-shrink:0;}
+  .fleet-live-dot.live{background:#22c55e;animation:liveDot 1.8s ease infinite;}
+  .fleet-live-dot.error{background:#ef4444;animation:none;}
+  .fleet-live-txt{font-size:10px;font-weight:700;letter-spacing:.5px;color:rgba(255,255,255,.7);text-transform:uppercase;}
+  .fleet-live-txt.live{color:#4ade80;}
+  .fleet-live-txt.error{color:#f87171;}
+  .fleet-header-pills{display:flex;gap:6px;}
+  .fleet-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.8);backdrop-filter:blur(4px);}
+  .fleet-pill.moving{color:#4ade80;border-color:rgba(74,222,128,.3);background:rgba(34,197,94,.15);}
 
-  .gt-trips-section{border-top:1px solid var(--border);padding:12px 16px;}
-  .gt-trips-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
-  .gt-trip-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
-  .gt-trip-row:last-child{border-bottom:none;}
-  .gt-trip-num{width:18px;height:18px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted);flex-shrink:0;}
-  .gt-trip-time{font-size:11px;font-weight:600;color:var(--text);width:95px;flex-shrink:0;}
-  .gt-trip-dist{font-size:11px;color:var(--muted);flex:1;}
-  .gt-trip-cost{font-size:11px;font-weight:600;color:var(--text);}
+  /* Card strip overlaid at map bottom */
+  .fleet-cards-overlay{position:absolute;bottom:0;left:0;right:0;z-index:9;padding:0 12px 12px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);}
+  .fleet-cards-scroll{display:flex;gap:10px;overflow-x:auto;padding:6px 0 2px;scroll-snap-type:x mandatory;}
+  .fleet-cards-scroll::-webkit-scrollbar{height:3px;}
+  .fleet-cards-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px;}
+  .fleet-cards-scroll::-webkit-scrollbar-track{background:transparent;}
 
-  .gt-footer-bar{padding:8px 16px;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-  .gt-footer-txt{font-size:10px;color:var(--muted);}
+  /* Individual truck card */
+  .fleet-card{
+    flex-shrink:0;width:200px;border-radius:12px;overflow:hidden;position:relative;
+    background:#111;border:1px solid rgba(255,255,255,.1);
+    scroll-snap-align:start;cursor:pointer;
+    transition:transform .15s,border-color .15s;
+    animation:fleetCardIn .3s ease both;
+  }
+  .fleet-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.25);}
+  .fleet-card.moving{border-color:rgba(34,197,94,.45);}
+  .fleet-card.moving:hover{border-color:rgba(34,197,94,.7);}
 
-  .gt-empty{padding:28px;text-align:center;color:var(--muted);font-size:13px;}
-  .gt-error{padding:16px;text-align:center;color:#ef4444;font-size:12px;background:rgba(239,68,68,.04);border-radius:8px;margin:12px;}
-  .gt-loading{padding:24px;text-align:center;color:var(--muted);font-size:12px;animation:gtPulse 1.2s ease infinite;}
+  /* Truck image background */
+  .fleet-card-bg{
+    position:absolute;inset:0;
+    background-image:url('https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png');
+    background-size:55% auto;background-repeat:no-repeat;background-position:center 40%;
+    opacity:.07;
+  }
+  /* Subtle moving glow */
+  .fleet-card.moving .fleet-card-bg{
+    background-image:none;
+  }
+  .fleet-card.moving::before{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 120%,rgba(34,197,94,.18) 0%,transparent 70%);
+  }
 
-  /* ── Dashboard live map ── */
-  .gt-map-section{display:grid;grid-template-columns:1fr 320px;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;min-height:340px;}
-  @media(max-width:900px){.gt-map-section{grid-template-columns:1fr;}}
-  .gt-map-wrap{position:relative;min-height:340px;}
-  #dash-map{width:100%;height:100%;min-height:340px;}
-  .gt-map-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);z-index:10;font-size:12px;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;animation:gtPulse 1.2s ease infinite;}
-  .gt-map-sidebar{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
-  .gt-map-sidebar-hdr{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-  .gt-map-sidebar-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1.2px;color:var(--text);}
-  .gt-map-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:8px;padding:2px;}
-  .gt-map-tab{font-size:10px;font-weight:700;letter-spacing:.4px;padding:4px 10px;border-radius:6px;border:none;background:none;color:var(--muted);cursor:pointer;transition:all .15s;}
-  .gt-map-tab.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08);}
-  .gt-map-list{flex:1;overflow-y:auto;padding:6px 0;}
-  .gt-map-list::-webkit-scrollbar{width:3px;}
-  .gt-map-list::-webkit-scrollbar-thumb{background:var(--border);}
-  .gt-map-row{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border);}
-  .gt-map-row:last-child{border-bottom:none;}
-  .gt-map-row:hover{background:var(--surface2);}
-  .gt-map-row.active{background:rgba(34,197,94,.06);}
-  .gt-map-rdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-  .gt-map-rdot.truck-moving{background:#22c55e;box-shadow:0 0 4px rgba(34,197,94,.5);}
-  .gt-map-rdot.truck-stopped{background:#d1d5db;}
-  .gt-map-rdot.bin-active{background:#3b82f6;}
-  .gt-map-rdot.bin-overdue{background:#ef4444;}
-  .gt-map-rname{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .gt-map-rmeta{font-size:10px;color:var(--muted);text-align:right;flex-shrink:0;}
-  .gt-map-legend{padding:8px 14px;border-top:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;flex-shrink:0;}
-  .gt-leg-item{display:flex;align-items:center;gap:4px;font-size:9.5px;color:var(--muted);}
-  .gt-leg-dot{width:7px;height:7px;border-radius:50%;}
+  /* Card content */
+  .fleet-card-inner{position:relative;z-index:2;padding:11px 12px 10px;}
+  .fleet-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+  .fleet-card-status{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+  .fleet-card-status.moving{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.6);}
+  .fleet-card-status.stopped{background:#6b7280;}
+  .fleet-card-name{font-size:12px;font-weight:700;color:#fff;line-height:1.3;flex:1;padding:0 6px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fleet-card-spd{text-align:right;flex-shrink:0;}
+  .fleet-card-spd-val{font-size:16px;font-weight:800;line-height:1;color:#22c55e;}
+  .fleet-card-spd-unit{font-size:8px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.5px;}
+  .fleet-card-stopped-lbl{font-size:9px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
 
-  /* Truck marker override for Leaflet */
-  .gt-truck-marker{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:2px solid #22c55e;background:rgba(34,197,94,.15);box-shadow:0 2px 8px rgba(0,0,0,.25);}
-  .gt-truck-marker.stopped{border-color:#9ca3af;background:rgba(156,163,175,.12);}
-  .gt-bin-marker{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #3b82f6;background:rgba(59,130,246,.15);box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:12px;}
-  .gt-bin-marker.overdue{border-color:#ef4444;background:rgba(239,68,68,.12);}
+  /* Card engine badge */
+  .fleet-card-eng{display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 6px;border-radius:8px;margin-bottom:7px;}
+  .fleet-card-eng.on{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.2);}
+  .fleet-card-eng.off{background:rgba(255,255,255,.06);color:#6b7280;border:1px solid rgba(255,255,255,.08);}
+  .fleet-card-eng-dot{width:4px;height:4px;border-radius:50%;}
+  .fleet-card-eng.on .fleet-card-eng-dot{background:#22c55e;}
+  .fleet-card-eng.off .fleet-card-eng-dot{background:#4b5563;}
 
+  /* Card stats grid */
+  .fleet-card-stats{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+  .fleet-card-stat{background:rgba(255,255,255,.05);border-radius:6px;padding:5px 6px;}
+  .fleet-card-stat-val{font-size:11px;font-weight:700;color:#e5e7eb;line-height:1;}
+  .fleet-card-stat-lbl{font-size:8px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+  .fleet-card-stat.warn .fleet-card-stat-val{color:#fbbf24;}
+  .fleet-card-stat.hi .fleet-card-stat-val{color:#4ade80;}
+
+  /* Fault badge */
+  .fleet-card-fault{position:absolute;top:8px;right:8px;z-index:3;background:rgba(239,68,68,.9);border-radius:8px;padding:2px 6px;font-size:8px;font-weight:700;color:#fff;display:flex;align-items:center;gap:3px;}
+
+  /* Sidebar (for map list) */
+  .fleet-sidebar{border-top:1px solid var(--border);display:flex;overflow:hidden;}
+  .fleet-sidebar-tabs{display:flex;border-right:1px solid var(--border);flex-direction:column;}
+  .fleet-sidebar-tab{padding:10px 16px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:1px solid var(--border);transition:all .15s;white-space:nowrap;}
+  .fleet-sidebar-tab.on{color:var(--text);background:var(--surface2);}
+  .fleet-list{flex:1;overflow-y:auto;max-height:160px;}
+  .fleet-list::-webkit-scrollbar{width:3px;}
+  .fleet-list::-webkit-scrollbar-thumb{background:var(--border);}
+  .fleet-list-row{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s;}
+  .fleet-list-row:last-child{border-bottom:none;}
+  .fleet-list-row:hover{background:var(--surface2);}
+  .fleet-list-row.active{background:rgba(34,197,94,.05);}
+  .fleet-list-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .fleet-list-name{font-size:12px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fleet-list-meta{font-size:10px;color:var(--muted);text-align:right;flex-shrink:0;}
+
+  /* Footer */
+  .fleet-footer{padding:6px 14px;background:var(--surface2);border-top:1px solid var(--border);display:flex;justify-content:space-between;}
+  .fleet-footer span{font-size:10px;color:var(--muted);}
+
+  .fleet-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;}
+  .fleet-error{padding:12px 16px;color:#ef4444;font-size:12px;}
+  .fleet-loading{padding:20px;text-align:center;color:var(--muted);font-size:11px;letter-spacing:.8px;text-transform:uppercase;animation:fleetPulse 1.2s ease infinite;}
+
+  /* Map legend */
+  .fleet-legend{display:flex;gap:12px;padding:8px 14px;border-top:1px solid var(--border);background:var(--surface2);}
+  .fleet-leg{display:flex;align-items:center;gap:4px;font-size:9.5px;color:var(--muted);}
+  .fleet-leg-dot{width:7px;height:7px;border-radius:50%;}
+
+  /* Map sidebar list tabs */
+  .fleet-map-tabs{display:flex;gap:2px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);}
+  .fleet-map-tab{font-size:10px;font-weight:700;padding:4px 12px;border-radius:8px;border:none;background:none;color:var(--muted);cursor:pointer;transition:all .15s;}
+  .fleet-map-tab.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .fleet-map-list{overflow-y:auto;max-height:170px;}
+  .fleet-map-list::-webkit-scrollbar{width:3px;}
+  .fleet-map-list::-webkit-scrollbar-thumb{background:var(--border);}
+
+  /* Truck marker on map */
+  .ft-truck{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:2px solid #22c55e;background:rgba(34,197,94,.15);box-shadow:0 2px 8px rgba(0,0,0,.3);}
+  .ft-truck.stopped{border-color:#9ca3af;background:rgba(156,163,175,.12);}
+  .ft-bin{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #3b82f6;background:rgba(59,130,246,.15);box-shadow:0 2px 6px rgba(0,0,0,.2);font-size:12px;}
+  .ft-bin.overdue{border-color:#ef4444;background:rgba(239,68,68,.12);}
+
+  /* Leaflet popup dark override */
+  .leaflet-popup-content-wrapper{background:#111111!important;border:1px solid #2a2a2a!important;color:#f0f0f0!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,.6)!important;}
+  .leaflet-popup-tip{background:#111111!important;}
+  .leaflet-popup-content{margin:13px 15px!important;min-width:180px;}
+  .leaflet-popup-close-button{color:#666!important;top:8px!important;right:8px!important;}
+
+  /* Chart cards inside dashboard */
   /* Chart cards inside dashboard */
 
   .dash-2col .chart-card{padding:14px;}
@@ -919,44 +963,54 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- LIVE FLEET -->
-  <div class="gt-panel dash-section">
-    <div class="gt-panel-header">
-      <div class="gt-panel-left">
-        <div class="gt-panel-title">🚛 LIVE FLEET</div>
-        <div class="gt-badge">
-          <div class="gt-dot" id="gt-dot"></div>
-          <span class="gt-badge-txt" id="gt-status-lbl">Connecting...</span>
-        </div>
-      </div>
-      <div class="gt-summary" id="gt-summary"></div>
-    </div>
-    <div id="gt-vehicles-wrap">
-      <div class="gt-loading">Fetching vehicle data...</div>
-    </div>
-  </div>
+  <!-- ── FLEET + MAP ── -->
+  <div class="fleet-section dash-section">
 
-  <!-- LIVE MAP -->
-  <div class="gt-map-section dash-section">
-    <div class="gt-map-wrap">
-      <div class="gt-map-spinner" id="dash-map-spinner">Loading map...</div>
+    <!-- Map with overlaid header + card strip -->
+    <div class="fleet-map-wrap">
+      <div class="fleet-map-spinner" id="dash-map-spinner">Loading map...</div>
       <div id="dash-map"></div>
-    </div>
-    <div class="gt-map-sidebar">
-      <div class="gt-map-sidebar-hdr">
-        <div class="gt-map-sidebar-title">On The Ground</div>
-        <div class="gt-map-tabs">
-          <button class="gt-map-tab on" onclick="gtMapTab('trucks',this)">Trucks</button>
-          <button class="gt-map-tab" onclick="gtMapTab('bins',this)">Bins</button>
+
+      <!-- Header bar over map -->
+      <div class="fleet-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="fleet-title">🚛 Live Fleet</div>
+          <div class="fleet-live-chip">
+            <div class="fleet-live-dot" id="gt-dot"></div>
+            <span class="fleet-live-txt" id="gt-status-lbl">Connecting...</span>
+          </div>
+        </div>
+        <div class="fleet-header-pills" id="fleet-pills"></div>
+      </div>
+
+      <!-- Vehicle cards overlaid at bottom of map -->
+      <div class="fleet-cards-overlay">
+        <div class="fleet-cards-scroll" id="fleet-cards-scroll">
+          <div class="fleet-loading" style="color:rgba(255,255,255,.5)">Loading vehicles...</div>
         </div>
       </div>
-      <div class="gt-map-list" id="gt-map-list"></div>
-      <div class="gt-map-legend">
-        <div class="gt-leg-item"><div class="gt-leg-dot" style="background:#22c55e"></div>Moving</div>
-        <div class="gt-leg-item"><div class="gt-leg-dot" style="background:#9ca3af"></div>Stopped</div>
-        <div class="gt-leg-item"><div class="gt-leg-dot" style="background:#3b82f6"></div>Bin out</div>
-        <div class="gt-leg-item"><div class="gt-leg-dot" style="background:#ef4444"></div>Overdue</div>
+    </div>
+
+    <!-- List + tabs below map -->
+    <div style="display:flex;border-top:1px solid var(--border);">
+      <div style="flex:1;overflow:hidden;">
+        <div class="fleet-map-tabs">
+          <button class="fleet-map-tab on" id="fleet-tab-trucks" onclick="ftTab('trucks',this)">Trucks</button>
+          <button class="fleet-map-tab" id="fleet-tab-bins" onclick="ftTab('bins',this)">Bins</button>
+        </div>
+        <div class="fleet-map-list" id="fleet-map-list"></div>
       </div>
+      <div style="border-left:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:16px 20px;min-width:160px;" id="fleet-summary-side">
+        <div style="text-align:center;"><div class="fleet-footer" style="border:none;background:none;padding:0;flex-direction:column;gap:4px;" id="fleet-summary-nums"></div></div>
+      </div>
+    </div>
+
+    <div class="fleet-legend">
+      <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#22c55e"></div>Moving</div>
+      <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#9ca3af"></div>Stopped</div>
+      <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#3b82f6"></div>Bin out</div>
+      <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#ef4444"></div>Overdue</div>
+      <div style="margin-left:auto;" id="fleet-updated" class="fleet-leg"></div>
     </div>
   </div>
 
@@ -3764,272 +3818,281 @@ function makeJobRowWithSvc(j){
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 
-// ── GEOTAB LIVE FLEET ────────────────────────────────────────
-var GT = {
-  URL:   'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy?action=dashboard',
+// ── FLEET PANEL (map + cards + list) ─────────────────────────
+var FT = {
+  URL:   'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy',
   timer: null,
+  vehicles: [],
+  mapTab: 'trucks',
+  dashMap: null,
+  dashMapInited: false,
+  truckPins: [],
+  binPins: [],
 
-  icon: function(moving) {
-    var col = moving ? 'var(--accent)' : 'var(--muted)';
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"'
-      + ' fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'
-      + ' style="display:block;width:18px;height:18px;flex-shrink:0">'
-      + '<rect x="1" y="3" width="15" height="13" rx="1"/>'
-      + '<path d="M16 8h4l3 3v5h-7V8z"/>'
-      + '<circle cx="5.5" cy="18.5" r="2.5"/>'
-      + '<circle cx="18.5" cy="18.5" r="2.5"/></svg>';
-  },
-
-  fmt: function(n) { return n != null ? n.toLocaleString() : '--'; },
-  fmtKm: function(n) { return n != null ? n.toLocaleString() + ' km' : '--'; },
+  // ── formatters ────────────────────────────────────────────
+  fmtKm:  function(n) { return (n && n > 0) ? n.toLocaleString() + ' km' : '—'; },
   fmtMin: function(m) {
-    if (!m) return '0 min';
-    if (m < 60) return m + ' min';
-    return Math.floor(m/60) + 'h ' + (m%60) + 'm';
+    if (!m) return '—';
+    return m < 60 ? m + 'm' : Math.floor(m/60) + 'h' + (m % 60 ? ' ' + (m%60) + 'm' : '');
   },
-  fmtCad: function(n) { return n != null ? '$' + n.toFixed(2) : '--'; },
+  fmtCad: function(n) { return (n && n > 0) ? '$' + n.toFixed(2) : '—'; },
 
+  // ── status chip ───────────────────────────────────────────
   setStatus: function(state, label) {
     var dot = document.getElementById('gt-dot');
     var lbl = document.getElementById('gt-status-lbl');
-    if (dot) { dot.className = 'gt-dot' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); }
-    if (lbl) { lbl.className = 'gt-badge-txt' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); lbl.textContent = label; }
+    if (dot) dot.className = 'fleet-live-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '');
+    if (lbl) { lbl.className = 'fleet-live-txt' + (state === 'live' ? ' live' : state === 'error' ? ' error' : ''); lbl.textContent = label; }
   },
 
-  renderSummary: function(vehicles) {
-    var moving  = vehicles.filter(function(v){return v.isMoving;}).length;
-    var stopped = vehicles.length - moving;
-    var el = document.getElementById('gt-summary');
-    if (!el) return;
-    el.innerHTML = (moving  ? '<div class="gt-sum-pill moving">'+moving+' moving</div>'   : '')
-                 + (stopped ? '<div class="gt-sum-pill">'+stopped+' stopped</div>' : '');
-  },
-
+  // ── vehicle card HTML ─────────────────────────────────────
   cardHTML: function(v, idx) {
     var mv  = v.isMoving;
     var eng = v.engineOn;
-    var delay = (idx * 0.05) + 's';
+    var delay = (idx * 0.04) + 's';
+    var hasFault = v.faults && v.faults.length > 0;
 
-    // speed block
-    var speedHTML = mv
-      ? '<div class="gt-speed-badge"><div class="gt-speed-val moving">'+Math.round(v.speed)+'</div><div class="gt-speed-unit">km/h</div></div>'
-      : '<div class="gt-speed-badge"><div class="gt-speed-val stopped">STOPPED</div></div>';
+    var speedBlock = mv
+      ? '<div class="fleet-card-spd"><div class="fleet-card-spd-val">'+Math.round(v.speed)+'</div><div class="fleet-card-spd-unit">km/h</div></div>'
+      : '<div class="fleet-card-spd"><div class="fleet-card-stopped-lbl">Stopped</div></div>';
 
-    // stats row
-    var statsHTML = '<div class="gt-stats">'
-      + '<div class="gt-stat '+(v.todayTrips>0?'highlight':'')+'"><div class="gt-stat-val">'+GT.fmt(v.todayTrips)+'</div><div class="gt-stat-lbl">Trips today</div></div>'
-      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtKm(v.todayKm)+'</div><div class="gt-stat-lbl">Distance</div></div>'
-      + '<div class="gt-stat '+(v.idleMinutes>30?'warn':'')+'"><div class="gt-stat-val">'+GT.fmtMin(v.idleMinutes)+'</div><div class="gt-stat-lbl">Idle time</div></div>'
-      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtKm(v.odometerKm)+'</div><div class="gt-stat-lbl">Odometer</div></div>'
-      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtCad(v.fuelCost)+'</div><div class="gt-stat-lbl">Est. fuel</div></div>'
-      + '<div class="gt-stat '+(v.idleCost>1?'warn':'')+'"><div class="gt-stat-val">'+GT.fmtCad(v.idleCost)+'</div><div class="gt-stat-lbl">Idle cost</div></div>'
+    var stats = '<div class="fleet-card-stats">'
+      + '<div class="fleet-card-stat '+(v.todayTrips > 0 ? 'hi' : '')+'"><div class="fleet-card-stat-val">'+(v.todayTrips || '—')+'</div><div class="fleet-card-stat-lbl">Trips</div></div>'
+      + '<div class="fleet-card-stat"><div class="fleet-card-stat-val">'+FT.fmtKm(v.todayKm || null)+'</div><div class="fleet-card-stat-lbl">Today</div></div>'
+      + '<div class="fleet-card-stat '+(v.idleMinutes > 30 ? 'warn' : '')+'"><div class="fleet-card-stat-val">'+FT.fmtMin(v.idleMinutes)+'</div><div class="fleet-card-stat-lbl">Idle</div></div>'
+      + '<div class="fleet-card-stat"><div class="fleet-card-stat-val">'+FT.fmtKm(v.odometerKm)+'</div><div class="fleet-card-stat-lbl">Odo</div></div>'
       + '</div>';
 
-    return '<div class="gt-card" style="animation-delay:'+delay+'">'
-      + '<div class="gt-card-top">'
-        + '<div class="gt-icon '+(mv?'moving':'stopped')+'">'+GT.icon(mv)+'</div>'
-        + '<div class="gt-name-block">'
-          + '<div class="gt-name">'+(v.name||'Vehicle')+'</div>'
-          + '<div class="gt-engine '+(eng?'on':'off')+'">'+(eng?'Engine on':'Engine off')+'</div>'
+    return '<div class="fleet-card '+(mv?'moving':'')+'" style="animation-delay:'+delay+'"'
+      + (v.lat && v.lng ? ' onclick="FT.flyTo('+v.lat+','+v.lng+')" title="Click to locate on map"' : '')
+      + '>'
+      + '<div class="fleet-card-bg"></div>'
+      + (hasFault ? '<div class="fleet-card-fault" title="'+v.faults.join(', ')+'">⚠ '+v.faults.length+' fault'+(v.faults.length>1?'s':'')+'</div>' : '')
+      + '<div class="fleet-card-inner">'
+        + '<div class="fleet-card-top">'
+          + '<div class="fleet-card-status '+(mv?'moving':'stopped')+'"></div>'
+          + '<div class="fleet-card-name">'+(v.name || 'Vehicle')+'</div>'
+          + speedBlock
         + '</div>'
-        + speedHTML
+        + '<div class="fleet-card-eng '+(eng?'on':'off')+'"><div class="fleet-card-eng-dot"></div>'+(eng?'Engine on':'Engine off')+'</div>'
+        + stats
       + '</div>'
-      + statsHTML
-      + '</div>';
+    + '</div>';
   },
 
-  render: function(data) {
-    var wrap = document.getElementById('gt-vehicles-wrap');
-    if (!wrap) return;
-    var vehicles = data.vehicles || [];
-    if (!vehicles.length) {
-      wrap.innerHTML = '<div class="gt-empty">No vehicles found in your Geotab account.</div>';
-      return;
+  // ── render card strip ─────────────────────────────────────
+  renderCards: function(vehicles) {
+    var scroll = document.getElementById('fleet-cards-scroll');
+    if (!scroll) return;
+    if (!vehicles.length) { scroll.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:12px;padding:12px">No vehicles</div>'; return; }
+    var sorted = vehicles.slice().sort(function(a,b) {
+      if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+    scroll.innerHTML = sorted.map(function(v,i){ return FT.cardHTML(v,i); }).join('');
+  },
+
+  // ── render pills ──────────────────────────────────────────
+  renderPills: function(s) {
+    var el = document.getElementById('fleet-pills');
+    if (!el) return;
+    el.innerHTML = (s.moving  ? '<div class="fleet-pill moving">'+s.moving+' moving</div>'  : '')
+                 + (s.stopped ? '<div class="fleet-pill">'+s.stopped+' stopped</div>' : '')
+                 + (s.totalFaults > 0 ? '<div class="fleet-pill" style="color:#f87171;border-color:rgba(248,113,113,.3)">⚠ '+s.totalFaults+' fault'+(s.totalFaults>1?'s':'')+'</div>' : '');
+  },
+
+  // ── render sidebar list ───────────────────────────────────
+  renderList: function() {
+    var el = document.getElementById('fleet-map-list');
+    if (!el) return;
+    if (FT.mapTab === 'trucks') {
+      var sorted = FT.truckPins.slice().sort(function(a,b){ return (b.moving?1:0)-(a.moving?1:0); });
+      el.innerHTML = sorted.length
+        ? sorted.map(function(p) {
+            var col = p.moving ? '#22c55e' : '#9ca3af';
+            var meta = p.moving ? Math.round(p.speed)+' km/h' : 'Stopped';
+            return '<div class="fleet-list-row" data-lat="'+p.lat+'" data-lng="'+p.lng+'" data-type="truck" data-id="'+p.id+'" onclick="FT.rowClick(this)">'
+              + '<div class="fleet-list-dot" style="background:'+col+'"></div>'
+              + '<div class="fleet-list-name">'+(p.name||'Truck')+'</div>'
+              + '<div class="fleet-list-meta">'+meta+'</div>'
+              + '</div>';
+          }).join('')
+        : '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">No trucks located yet</div>';
+    } else {
+      var sorted = FT.binPins.slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0); });
+      el.innerHTML = sorted.length
+        ? sorted.map(function(p) {
+            return '<div class="fleet-list-row" data-lat="'+p.lat+'" data-lng="'+p.lng+'" data-type="bin" data-id="'+p.id+'" onclick="FT.rowClick(this)">'
+              + '<div class="fleet-list-dot" style="background:'+(p.overdue?'#ef4444':'#3b82f6')+'"></div>'
+              + '<div class="fleet-list-name">'+p.name+'</div>'
+              + '<div class="fleet-list-meta" style="'+(p.overdue?'color:#ef4444':'')+'">'+(p.overdue?'Overdue':'Out')+'</div>'
+              + '</div>';
+          }).join('')
+        : '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">No active bins</div>';
     }
-    vehicles.sort(function(a,b){ return (b.isMoving?1:0)-(a.isMoving?1:0); });
-    GT.renderSummary(vehicles);
-
-    var now = new Date();
-    var timeStr = now.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
-
-    wrap.innerHTML = '<div class="gt-grid">'
-        + vehicles.map(function(v,i){ return GT.cardHTML(v,i); }).join('')
-      + '</div>'
-      + '<div class="gt-footer-bar">'
-        + '<span class="gt-footer-txt">Last updated '+timeStr+'</span>'
-        + '<span class="gt-footer-txt">Refreshes every 30s</span>'
-      + '</div>';
   },
 
+  // ── map init ──────────────────────────────────────────────
+  initMap: function() {
+    if (typeof L === 'undefined' || FT.dashMapInited) return;
+    var el = document.getElementById('dash-map');
+    if (!el) return;
+    FT.dashMap = L.map('dash-map', { center:[44.39,-79.69], zoom:11, zoomControl:true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'&copy; OpenStreetMap contributors', maxZoom:19
+    }).addTo(FT.dashMap);
+    document.getElementById('dash-map-spinner').style.display = 'none';
+    FT.dashMapInited = true;
+  },
+
+  truckIcon: function(moving) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"'
+      + ' stroke="'+(moving?'#22c55e':'#9ca3af')+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+      + '<rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/>'
+      + '<circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>';
+    return L.divIcon({ html:'<div class="ft-truck'+(moving?'':' stopped')+'">'+svg+'</div>', iconSize:[30,30], iconAnchor:[15,15], popupAnchor:[0,-18], className:'' });
+  },
+
+  binIcon: function(overdue) {
+    return L.divIcon({ html:'<div class="ft-bin'+(overdue?' overdue':'')+'">🗑</div>', iconSize:[26,26], iconAnchor:[13,13], popupAnchor:[0,-16], className:'' });
+  },
+
+  // ── place truck pins ──────────────────────────────────────
+  placeTrucks: function(vehicles) {
+    if (!FT.dashMap) return;
+    FT.truckPins.forEach(function(p){ try{ p.marker.remove(); }catch(e){} });
+    FT.truckPins = [];
+    var bounds = [];
+    vehicles.forEach(function(v) {
+      if (!v.lat || !v.lng) return;
+      if (v.lat < 43 || v.lat > 46 || v.lng < -81 || v.lng > -78) return;
+      var popup = '<div style="font-weight:700;font-size:13px;margin-bottom:4px">'+(v.name||'Truck')+'</div>'
+        + '<div style="font-size:11px;color:#888;margin-bottom:3px">'+(v.engineOn?'Engine on':'Engine off')+'</div>'
+        + (v.isMoving ? '<div style="font-size:13px;color:#22c55e;font-weight:700">'+Math.round(v.speed)+' km/h</div>' : '<div style="font-size:11px;color:#888">Stopped</div>')
+        + (v.todayTrips ? '<div style="font-size:11px;margin-top:5px;color:#aaa">'+v.todayTrips+' trip'+(v.todayTrips>1?'s':'')+' &middot; '+v.todayKm+' km today</div>' : '');
+      var marker = L.marker([v.lat, v.lng], { icon: FT.truckIcon(v.isMoving) })
+        .bindPopup(popup, { maxWidth:220 }).addTo(FT.dashMap);
+      FT.truckPins.push({ id:v.id, name:v.name, marker:marker, lat:v.lat, lng:v.lng, moving:v.isMoving, speed:v.speed||0 });
+      bounds.push([v.lat, v.lng]);
+    });
+    if (bounds.length === 1) FT.dashMap.setView(bounds[0], 13);
+    else if (bounds.length > 1) { try{ FT.dashMap.fitBounds(bounds, {padding:[60,60], maxZoom:13}); }catch(e){} }
+  },
+
+  // ── place bin pins ────────────────────────────────────────
+  placeBins: function() {
+    if (!FT.dashMap) return;
+    FT.binPins.forEach(function(p){ try{ p.marker.remove(); }catch(e){} });
+    FT.binPins = [];
+    var today = todayStr();
+    var binJobs = jobs.filter(function(j){
+      return j.service==='Bin Rental' && j.status!=='Cancelled' && j.binInstatus!=='pickedup';
+    });
+    binJobs.forEach(function(j) {
+      var ra = resolveAddr(j);
+      if (!ra.geocodeStr) return;
+      var overdue = j.binPickup && j.binPickup < today;
+      geocode(ra.geocodeStr, function(geo) {
+        if (!geo || !FT.dashMap) return;
+        var popup = '<div style="font-weight:700;font-size:13px;margin-bottom:3px">'+j.name+'</div>'
+          + '<div style="font-size:11px;color:#888;margin-bottom:3px">'+ra.display+'</div>'
+          + (j.binSize ? '<div style="font-size:11px;color:#aaa">'+j.binSize+'</div>' : '')
+          + (overdue ? '<div style="font-size:11px;color:#f87171;font-weight:600;margin-top:4px">Overdue pickup</div>'
+                     : (j.binPickup ? '<div style="font-size:11px;color:#aaa;margin-top:4px">Pickup: '+fd(j.binPickup)+'</div>' : ''))
+          + '<button onclick="openDetail(\''+j.id+'\')" style="margin-top:8px;padding:4px 10px;background:#22c55e;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;width:100%">View Job</button>';
+        var marker = L.marker([geo.lat, geo.lng], { icon: FT.binIcon(overdue) })
+          .bindPopup(popup, { maxWidth:220 }).addTo(FT.dashMap);
+        FT.binPins.push({ id:j.id, name:j.name, marker:marker, lat:geo.lat, lng:geo.lng, overdue:overdue });
+        FT.renderList();
+      });
+    });
+  },
+
+  // ── fly to location ───────────────────────────────────────
+  flyTo: function(lat, lng) {
+    if (!FT.dashMap) return;
+    FT.dashMap.setView([lat, lng], 15, { animate:true });
+  },
+
+  rowClick: function(el) {
+    var lat = parseFloat(el.dataset.lat);
+    var lng = parseFloat(el.dataset.lng);
+    var id  = el.dataset.id;
+    FT.flyTo(lat, lng);
+    var type = el.dataset.type;
+    var pins = type === 'truck' ? FT.truckPins : FT.binPins;
+    pins.forEach(function(p){ if (p.id === id) { try{ p.marker.openPopup(); }catch(e){} } });
+    document.querySelectorAll('#fleet-map-list .fleet-list-row').forEach(function(r){
+      r.classList.toggle('active', r === el);
+    });
+  },
+
+  // ── main refresh ──────────────────────────────────────────
+  refresh: function(data) {
+    var vehicles = data.vehicles || [];
+    var summary  = data.summary  || {};
+    FT.vehicles = vehicles;
+
+    FT.renderCards(vehicles);
+    FT.renderPills(summary);
+
+    // Summary side panel
+    var sn = document.getElementById('fleet-summary-nums');
+    if (sn && summary.total) {
+      sn.innerHTML = '<div style="font-size:24px;font-weight:800;color:var(--text);letter-spacing:-1px">'+summary.total+'</div>'
+        + '<div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px">Vehicles</div>'
+        + '<div style="font-size:12px;color:var(--text)"><b>'+(summary.totalKm?summary.totalKm.toLocaleString()+' km':'—')+'</b> <span style="color:var(--muted);font-size:10px">today</span></div>'
+        + (summary.totalFaults > 0 ? '<div style="font-size:11px;color:#ef4444;margin-top:4px">⚠ '+summary.totalFaults+' fault'+(summary.totalFaults>1?'s':'')+'</div>' : '');
+    }
+
+    // Updated time
+    var upd = document.getElementById('fleet-updated');
+    if (upd) upd.textContent = 'Updated ' + new Date().toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'}) + ' · 30s refresh';
+
+    if (typeof L === 'undefined') return;
+    FT.initMap();
+    if (!FT.dashMap) return;
+    setTimeout(function(){ try{ FT.dashMap.invalidateSize(); }catch(e){} }, 100);
+    FT.placeTrucks(vehicles);
+    FT.placeBins();
+    FT.renderList();
+  },
+
+  // ── fetch ─────────────────────────────────────────────────
   fetch: async function() {
     try {
-      var res  = await fetch(GT.URL);
+      var res  = await fetch(FT.URL);
       var json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Unknown error');
-      var count = (json.data.vehicles || []).length;
-      GT.setStatus('live', 'Live \u00b7 ' + count + ' vehicles');
-      GT.render(json.data);
-      gtMapRefresh(json.data.vehicles || []);
+      FT.setStatus('live', 'Live');
+      FT.refresh(json.data);
     } catch(e) {
-      GT.setStatus('error', 'Unavailable');
-      var wrap = document.getElementById('gt-vehicles-wrap');
-      if (wrap) wrap.innerHTML = '<div class="gt-error">\u26a0\ufe0f Could not connect to Geotab: ' + e.message + '</div>';
+      FT.setStatus('error', 'Unavailable');
+      var scroll = document.getElementById('fleet-cards-scroll');
+      if (scroll) scroll.innerHTML = '<div style="color:#f87171;font-size:12px;padding:12px">⚠ ' + e.message + '</div>';
     }
   },
 
-  start: function() { GT.fetch(); GT.timer = setInterval(GT.fetch, 30000); }
+  start: function() { FT.fetch(); FT.timer = setInterval(FT.fetch, 30000); }
 };
-document.addEventListener('DOMContentLoaded', GT.start);
-if (document.readyState !== 'loading') GT.start();
-// ─────────────────────────────────────────────────────────────
 
-// ── DASHBOARD LIVE MAP ───────────────────────────────────────
-var dashMap = null;
-var dashMapTruckPins = [];
-var dashMapBinPins   = [];
-var dashMapTab       = 'trucks';
-var dashMapInited    = false;
-
-function gtMapTab(tab, el) {
-  dashMapTab = tab;
-  document.querySelectorAll('.gt-map-tab').forEach(function(b){ b.classList.remove('on'); });
+// Tab switcher
+function ftTab(tab, el) {
+  FT.mapTab = tab;
+  document.querySelectorAll('.fleet-map-tab').forEach(function(b){ b.classList.remove('on'); });
   if (el) el.classList.add('on');
-  gtMapRenderList();
+  FT.renderList();
 }
 
-function gtMapTruckIcon(moving) {
-  var cls = moving ? 'gt-truck-marker' : 'gt-truck-marker stopped';
-  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"'
-    + ' stroke="'+(moving?'#22c55e':'#9ca3af')+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
-    + '<rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/>'
-    + '<circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>';
-  return L.divIcon({ html:'<div class="'+cls+'">'+svg+'</div>', iconSize:[32,32], iconAnchor:[16,16], popupAnchor:[0,-18], className:'' });
-}
+document.addEventListener('DOMContentLoaded', FT.start);
+if (document.readyState !== 'loading') FT.start();
 
-function gtMapBinIcon(overdue) {
-  var cls = overdue ? 'gt-bin-marker overdue' : 'gt-bin-marker';
-  return L.divIcon({ html:'<div class="'+cls+'">🗑</div>', iconSize:[26,26], iconAnchor:[13,13], popupAnchor:[0,-16], className:'' });
-}
-
-function gtMapInit() {
-  if (typeof L === 'undefined' || dashMapInited) return;
-  var el = document.getElementById('dash-map');
-  if (!el) return;
-  dashMap = L.map('dash-map', { center:[44.39,-79.69], zoom:11, zoomControl:true });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution:'&copy; OpenStreetMap contributors', maxZoom:19
-  }).addTo(dashMap);
-  document.getElementById('dash-map-spinner').style.display = 'none';
-  dashMapInited = true;
-}
-
-function gtMapPlaceTrucks(vehicles) {
-  if (!dashMap) return;
-  dashMapTruckPins.forEach(function(p){ try{ p.marker.remove(); }catch(e){} });
-  dashMapTruckPins = [];
-  (vehicles || []).forEach(function(v) {
-    if (!v.lat || !v.lng) return;
-    if (v.lat < 43 || v.lat > 46 || v.lng < -81 || v.lng > -78) return;
-    var popup = '<div style="font-weight:700;font-size:13px;margin-bottom:4px">' + (v.name||'Truck') + '</div>'
-      + '<div style="font-size:11px;color:#888;margin-bottom:3px">' + (v.engineOn ? 'Engine on' : 'Engine off') + '</div>'
-      + (v.isMoving ? '<div style="font-size:12px;color:#22c55e;font-weight:600">'+Math.round(v.speed)+' km/h</div>' : '<div style="font-size:11px;color:#888">Stopped</div>')
-      + (v.todayTrips ? '<div style="font-size:11px;margin-top:4px">'+v.todayTrips+' trip'+(v.todayTrips>1?'s':'')+' · '+v.todayKm+' km today</div>' : '');
-    var marker = L.marker([v.lat, v.lng], { icon: gtMapTruckIcon(v.isMoving) })
-      .bindPopup(popup, { maxWidth: 220 }).addTo(dashMap);
-    dashMapTruckPins.push({ id: v.id, name: v.name, marker: marker, lat: v.lat, lng: v.lng, moving: v.isMoving, speed: v.speed });
-  });
-}
-
-function gtMapPlaceBins() {
-  if (!dashMap) return;
-  dashMapBinPins.forEach(function(p){ try{ p.marker.remove(); }catch(e){} });
-  dashMapBinPins = [];
-  var today = todayStr();
-  var binJobs = jobs.filter(function(j){
-    return j.service === 'Bin Rental' && j.status !== 'Cancelled' && j.binInstatus !== 'pickedup';
-  });
-  binJobs.forEach(function(j) {
-    var ra = resolveAddr(j);
-    if (!ra.geocodeStr) return;
-    var overdue = j.binPickup && j.binPickup < today;
-    geocode(ra.geocodeStr, function(geo) {
-      if (!geo || !dashMap) return;
-      var popup = '<div style="font-weight:700;font-size:13px;margin-bottom:4px">'+j.name+'</div>'
-        + '<div style="font-size:11px;color:#888;margin-bottom:3px">'+ra.display+'</div>'
-        + (j.binSize ? '<div style="font-size:11px">'+j.binSize+'</div>' : '')
-        + (overdue ? '<div style="font-size:11px;color:#ef4444;margin-top:3px;font-weight:600">Overdue pickup</div>' : (j.binPickup ? '<div style="font-size:11px;margin-top:3px">Pickup: '+fd(j.binPickup)+'</div>' : ''))
-        + '<button onclick="openDetail(\''+j.id+'\')" style="margin-top:8px;padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;width:100%">View Job</button>';
-      var marker = L.marker([geo.lat, geo.lng], { icon: gtMapBinIcon(overdue) })
-        .bindPopup(popup, { maxWidth: 220 }).addTo(dashMap);
-      dashMapBinPins.push({ id: j.id, name: j.name, marker: marker, lat: geo.lat, lng: geo.lng, overdue: overdue, addr: ra.display });
-    });
-  });
-}
-
-
-function gtMapRowClick(el) {
-  var lat  = parseFloat(el.dataset.lat);
-  var lng  = parseFloat(el.dataset.lng);
-  var type = el.dataset.type;
-  var id   = el.dataset.id;
-  gtMapFly(lat, lng, type, id);
-}
-
-function gtMapRenderList() {
-  var el = document.getElementById('gt-map-list');
-  if (!el) return;
-  if (dashMapTab === 'trucks') {
-    var sorted = dashMapTruckPins.slice().sort(function(a,b){ return (b.moving?1:0)-(a.moving?1:0); });
-    el.innerHTML = sorted.length
-      ? sorted.map(function(p) {
-          var cls = p.moving ? 'truck-moving' : 'truck-stopped';
-          var meta = p.moving ? Math.round(p.speed)+' km/h' : 'Stopped';
-          return '<div class="gt-map-row" data-lat="'+p.lat+'" data-lng="'+p.lng+'" data-type="truck" data-id="'+p.id+'" onclick="gtMapRowClick(this)">'  
-            + '<div class="gt-map-rdot '+cls+'"></div>'
-            + '<div class="gt-map-rname">'+(p.name||'Truck')+'</div>'
-            + '<div class="gt-map-rmeta">'+meta+'</div>'
-            + '</div>';
-        }).join('')
-      : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No truck data yet</div>';
-  } else {
-    var sorted = dashMapBinPins.slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0); });
-    el.innerHTML = sorted.length
-      ? sorted.map(function(p) {
-          var cls = p.overdue ? 'bin-overdue' : 'bin-active';
-          return '<div class="gt-map-row" data-lat="'+p.lat+'" data-lng="'+p.lng+'" data-type="bin" data-id="'+p.id+'" onclick="gtMapRowClick(this)">'
-            + '<div class="gt-map-rdot '+cls+'"></div>'
-            + '<div class="gt-map-rname">'+p.name+'</div>'
-            + '<div class="gt-map-rmeta" style="'+(p.overdue?'color:#ef4444':'')+'">'+(p.overdue?'Overdue':'Out')+'</div>'
-            + '</div>';
-        }).join('')
-      : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No active bins</div>';
-  }
-}
-
-function gtMapFly(lat, lng, type, id) {
-  if (!dashMap) return;
-  dashMap.setView([lat, lng], 15, { animate:true });
-  var pins = type === 'truck' ? dashMapTruckPins : dashMapBinPins;
-  pins.forEach(function(p){ if (p.id === id) { try{ p.marker.openPopup(); }catch(e){} } });
-  document.querySelectorAll('#gt-map-list .gt-map-row').forEach(function(r,i){
-    r.classList.toggle('active', r.getAttribute('onclick') && r.getAttribute('onclick').indexOf("'"+id+"'") >= 0);
-  });
-}
-
-function gtMapRefresh(vehicles) {
-  if (typeof L === 'undefined') return;
-  gtMapInit();
-  if (!dashMap) return;
-  setTimeout(function(){ try{ dashMap.invalidateSize(); }catch(e){} }, 100);
-  gtMapPlaceTrucks(vehicles);
-  gtMapPlaceBins();
-  gtMapRenderList();
-  // Fit to truck bounds if we have positions
-  var bounds = dashMapTruckPins.filter(function(p){ return p.lat; }).map(function(p){ return [p.lat, p.lng]; });
-  if (bounds.length === 1) dashMap.setView(bounds[0], 13);
-  else if (bounds.length > 1) { try{ dashMap.fitBounds(bounds, {padding:[40,40], maxZoom:13}); }catch(e){} }
-}
-
+// Legacy aliases so nothing else breaks
+var GT = { setStatus: FT.setStatus.bind(FT), render: function(){}, fetch: FT.fetch.bind(FT), start: FT.start.bind(FT) };
+function gtMapRefresh() {}
+function gtMapTab(tab,el) { ftTab(tab,el); }
+function gtMapRowClick(el) { FT.rowClick(el); }
+// ─────────────────────────────────────────────────────────────
 function renderJobs(){
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
