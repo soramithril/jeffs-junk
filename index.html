@@ -587,6 +587,53 @@ textarea{resize:vertical;min-height:80px;}
   .week-day-col{min-height:56px;}
   /* Cat section tables: hide price col to save space */
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
+  /* ── Geotab vehicle panel ── */
+  .gt-vehicle-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:24px;}
+  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .gt-panel-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;color:var(--text);}
+  .gt-connect-btn{font-size:11px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--accent);padding:4px 12px;border-radius:6px;cursor:pointer;font-weight:600;transition:all .15s;}
+  .gt-connect-btn:hover{background:rgba(34,197,94,.2);}
+  .gt-status-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:14px;}
+  .gt-live-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;}
+  .gt-live-dot.live{background:var(--accent);box-shadow:0 0 6px rgba(34,197,94,.5);animation:gtPulse 1.8s ease infinite;}
+  .gt-live-dot.error{background:#ef4444;}
+  @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .gt-vehicles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+  .gt-vehicle-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;transition:border-color .15s,background .15s;cursor:default;}
+  .gt-vehicle-card:hover{border-color:var(--accent);background:rgba(34,197,94,.03);}
+  .gt-vehicle-card.moving{border-left:3px solid var(--accent);}
+  .gt-vehicle-card.stopped{border-left:3px solid var(--border);}
+  .gt-vc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .gt-vc-icon.moving{background:rgba(34,197,94,.12);}
+  .gt-vc-icon.stopped{background:var(--surface2);border:1px solid var(--border);}
+  .gt-vc-icon svg{width:16px;height:16px;}
+  .gt-vc-icon.moving svg{color:var(--accent);}
+  .gt-vc-icon.stopped svg{color:var(--muted);}
+  .gt-vc-info{flex:1;min-width:0;}
+  .gt-vc-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gt-vc-sub{font-size:10px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.5px;}
+  .gt-vc-speed{font-size:13px;font-weight:700;flex-shrink:0;text-align:right;}
+  .gt-vc-speed.moving{color:var(--accent);}
+  .gt-vc-speed.stopped{color:var(--muted);font-size:10px;}
+  .gt-placeholder{color:var(--muted);font-size:13px;text-align:center;padding:16px;border:1px dashed var(--border);border-radius:8px;}
+  .gt-error{color:#ef4444;font-size:12px;text-align:center;padding:12px;}
+  .gt-loading{color:var(--muted);font-size:12px;text-align:center;padding:12px;animation:gtPulse 1.2s ease infinite;}
+
+  /* Geotab credentials modal */
+  .gt-modal-backdrop{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.5);align-items:center;justify-content:center;}
+  .gt-modal-backdrop.show{display:flex;}
+  .gt-modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+  .gt-modal-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;margin-bottom:4px;}
+  .gt-modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
+  .gt-field{margin-bottom:12px;}
+  .gt-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:5px;}
+  .gt-field input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s;}
+  .gt-field input:focus{border-color:var(--accent);}
+  .gt-modal-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;transition:opacity .15s;}
+  .gt-modal-btn:hover{opacity:.88;}
+  .gt-modal-note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5;text-align:center;}
+  .gt-modal-close{float:right;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;}
+
   /* Chart cards inside dashboard */
   .dash-2col .chart-card{padding:14px;}
 }
@@ -811,12 +858,41 @@ textarea{resize:vertical;min-height:80px;}
 <main class="main">
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
+<!-- Geotab credentials modal -->
+<div class="gt-modal-backdrop" id="gt-modal">
+  <div class="gt-modal">
+    <button class="gt-modal-close" onclick="document.getElementById('gt-modal').classList.remove('show')">x</button>
+    <div class="gt-modal-title">Connect MyGeotab</div>
+    <div class="gt-modal-sub">Database: jeffs_junk - Read-only access</div>
+    <div class="gt-field"><label>Email / Username</label><input id="gt-user" type="email" placeholder="you@example.com" autocomplete="off"></div>
+    <div class="gt-field"><label>Password</label><input id="gt-pass" type="password" placeholder=""></div>
+    <button class="gt-modal-btn" id="gt-connect-btn">Connect</button>
+    <div class="gt-modal-note">Credentials go to your private Supabase Edge Function only. They are never stored in the browser.</div>
+  </div>
+</div>
+
 <div id="view-dashboard" class="view active">
   <div class="page-header">
     <div><div class="page-title">Dashboard</div><div class="page-sub" id="today-lbl"></div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
+    </div>
+  </div>
+
+  <!-- GEOTAB VEHICLE STATUS -->
+  <div class="gt-vehicle-panel dash-section">
+    <div class="gt-panel-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="gt-panel-title">LIVE VEHICLES</div>
+        <div class="gt-status-row" style="margin-bottom:0">
+          <div class="gt-live-dot" id="gt-dot"></div>
+          <span id="gt-status-lbl">Not connected</span>
+        </div>
+      </div>
+      <button class="gt-connect-btn" id="gt-open-modal">Connect MyGeotab</button>
+    </div>
+    <div id="gt-vehicles-wrap">
+      <div class="gt-placeholder">Connect your MyGeotab account to see live truck locations, speed, and engine status.</div>
     </div>
   </div>
 
@@ -3623,6 +3699,132 @@ function makeJobRowWithSvc(j){
     +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
+
+// ══════════════════════════════════════════════════════
+// GEOTAB LIVE VEHICLE INTEGRATION
+// ══════════════════════════════════════════════════════
+var GT = {
+  EDGE_URL: 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy',
+  creds: { user: '', pass: '' },
+  pollTimer: null,
+  connected: false,
+
+  truckSVG: function() {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>';
+  },
+
+  setStatus: function(state, label) {
+    var dot = document.getElementById('gt-dot');
+    var lbl = document.getElementById('gt-status-lbl');
+    var btn = document.getElementById('gt-open-modal');
+    if (!dot || !lbl) return;
+    dot.className = 'gt-live-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '');
+    lbl.textContent = label;
+    if (btn) btn.textContent = state === 'live' ? 'Reconnect' : 'Connect MyGeotab';
+  },
+
+  renderCards: function(vehicles) {
+    var wrap = document.getElementById('gt-vehicles-wrap');
+    if (!wrap) return;
+    if (!vehicles || !vehicles.length) {
+      wrap.innerHTML = '<div class="gt-placeholder">No vehicles found in your MyGeotab account.</div>';
+      return;
+    }
+    var moving = vehicles.filter(function(v) { return v.isMoving; });
+    var stopped = vehicles.filter(function(v) { return !v.isMoving; });
+    // Sort: moving first
+    var sorted = moving.concat(stopped);
+
+    wrap.innerHTML = '<div class="gt-vehicles-grid">'
+      + sorted.map(function(v) {
+          var isMoving = v.isMoving;
+          var speedStr = isMoving ? Math.round(v.speed) + ' km/h' : 'Stopped';
+          var engineStr = v.engineOn ? 'Engine on' : 'Engine off';
+          return '<div class="gt-vehicle-card ' + (isMoving ? 'moving' : 'stopped') + '">'
+            + '<div class="gt-vc-icon ' + (isMoving ? 'moving' : 'stopped') + '">' + GT.truckSVG() + '</div>'
+            + '<div class="gt-vc-info">'
+              + '<div class="gt-vc-name">' + (v.name || 'Vehicle') + '</div>'
+              + '<div class="gt-vc-sub">' + engineStr + '</div>'
+            + '</div>'
+            + '<div class="gt-vc-speed ' + (isMoving ? 'moving' : 'stopped') + '">' + speedStr + '</div>'
+            + '</div>';
+        }).join('')
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:right">'
+      + moving.length + ' moving · ' + stopped.length + ' stopped · Updates every 30s'
+      + '</div>';
+  },
+
+  fetch: async function() {
+    if (!GT.creds.user || !GT.creds.pass) return;
+    var wrap = document.getElementById('gt-vehicles-wrap');
+    // Only show loading on first fetch
+    if (!GT.connected && wrap) {
+      wrap.innerHTML = '<div class="gt-loading">Connecting to MyGeotab...</div>';
+    }
+    try {
+      var url = GT.EDGE_URL
+        + '?action=status'
+        + '&gt_user=' + encodeURIComponent(GT.creds.user)
+        + '&gt_pass=' + encodeURIComponent(GT.creds.pass);
+      var res = await fetch(url);
+      var json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Unknown error');
+      GT.connected = true;
+      GT.setStatus('live', 'Live · ' + json.data.length + ' vehicles');
+      GT.renderCards(json.data);
+    } catch(e) {
+      GT.connected = false;
+      GT.setStatus('error', 'Error: ' + e.message);
+      if (wrap) wrap.innerHTML = '<div class="gt-error">Could not connect: ' + e.message + '<br><small>Check your credentials and try again.</small></div>';
+    }
+  },
+
+  connect: function(user, pass) {
+    GT.creds = { user: user, pass: pass };
+    GT.connected = false;
+    if (GT.pollTimer) clearInterval(GT.pollTimer);
+    GT.fetch();
+    GT.pollTimer = setInterval(GT.fetch, 30000);
+  },
+
+  init: function() {
+    var openBtn = document.getElementById('gt-open-modal');
+    var connectBtn = document.getElementById('gt-connect-btn');
+    var modal = document.getElementById('gt-modal');
+    var backdrop = modal;
+
+    if (openBtn) openBtn.addEventListener('click', function() {
+      modal.classList.add('show');
+      setTimeout(function() { var u = document.getElementById('gt-user'); if(u) u.focus(); }, 100);
+    });
+
+    // Close on backdrop click
+    if (backdrop) backdrop.addEventListener('click', function(e) {
+      if (e.target === backdrop) backdrop.classList.remove('show');
+    });
+
+    if (connectBtn) connectBtn.addEventListener('click', function() {
+      var user = (document.getElementById('gt-user').value || '').trim();
+      var pass = document.getElementById('gt-pass').value || '';
+      if (!user || !pass) { toast('Enter your MyGeotab email and password'); return; }
+      modal.classList.remove('show');
+      GT.connect(user, pass);
+    });
+
+    // Enter key on password
+    var passInput = document.getElementById('gt-pass');
+    if (passInput) passInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') connectBtn.click();
+    });
+  }
+};
+
+// Initialise after DOM ready
+document.addEventListener('DOMContentLoaded', function() { GT.init(); });
+// Also call init now in case DOM is already ready
+if (document.readyState !== 'loading') GT.init();
+
 function renderJobs(){
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
