@@ -587,37 +587,68 @@ textarea{resize:vertical;min-height:80px;}
   .week-day-col{min-height:56px;}
   /* Cat section tables: hide price col to save space */
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
-  /* ── Geotab live vehicle panel ── */
-  .gt-vehicle-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:24px;}
-  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .gt-panel-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;color:var(--text);}
-  .gt-status-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
-  .gt-live-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s;}
-  .gt-live-dot.live{background:var(--accent);box-shadow:0 0 6px rgba(34,197,94,.5);animation:gtPulse 1.8s ease infinite;}
-  .gt-live-dot.error{background:#ef4444;}
-  @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-  .gt-vehicles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
-  .gt-vehicle-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:border-color .15s;}
-  .gt-vehicle-card.moving{border-left:3px solid var(--accent);}
-  .gt-vehicle-card.stopped{border-left:3px solid var(--border);}
-  .gt-vc-icon{width:32px;height:32px;min-width:32px;min-height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
-  .gt-vc-icon.moving{background:rgba(34,197,94,.12);}
-  .gt-vc-icon.stopped{background:var(--surface2);border:1px solid var(--border);}
-  .gt-vc-icon svg{display:block;width:16px!important;height:16px!important;min-width:16px;min-height:16px;max-width:16px;max-height:16px;flex-shrink:0;}
-  .gt-vc-icon.moving svg{color:var(--accent);}
-  .gt-vc-icon.stopped svg{color:var(--muted);}
-  .gt-vc-info{flex:1;min-width:0;}
-  .gt-vc-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .gt-vc-sub{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.4px;}
-  .gt-vc-speed{font-size:13px;font-weight:700;flex-shrink:0;text-align:right;}
-  .gt-vc-speed.moving{color:var(--accent);}
-  .gt-vc-speed.stopped{font-size:10px;color:var(--muted);}
-  .gt-footer{font-size:10px;color:var(--muted);margin-top:10px;text-align:right;}
-  .gt-placeholder{color:var(--muted);font-size:13px;text-align:center;padding:20px;}
-  .gt-error-msg{color:#ef4444;font-size:12px;text-align:center;padding:12px;background:rgba(239,68,68,.05);border-radius:8px;border:1px solid rgba(239,68,68,.15);}
-  .gt-loading{color:var(--muted);font-size:12px;text-align:center;padding:16px;animation:gtPulse 1.2s ease infinite;}
-  .gt-error-msg{color:#ef4444;font-size:12px;text-align:center;padding:10px;}
-  .gt-loading{color:var(--muted);font-size:12px;text-align:center;padding:12px;animation:gtPulse 1.2s ease infinite;}
+  /* ── Geotab fleet panel ── */
+  @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+  @keyframes gtSlideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  .gt-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;}
+  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;border-bottom:1px solid var(--border);}
+  .gt-panel-left{display:flex;align-items:center;gap:10px;}
+  .gt-panel-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1.5px;color:var(--text);}
+  .gt-badge{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:3px 9px;}
+  .gt-dot{width:6px;height:6px;border-radius:50%;background:#ccc;transition:background .3s;}
+  .gt-dot.live{background:var(--accent);box-shadow:0 0 5px rgba(34,197,94,.6);animation:gtPulse 1.8s ease infinite;}
+  .gt-dot.error{background:#ef4444;animation:none;}
+  .gt-badge-txt{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.5px;}
+  .gt-badge-txt.live{color:var(--accent);}
+  .gt-badge-txt.error{color:#ef4444;}
+  .gt-summary{display:flex;gap:6px;}
+  .gt-sum-pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--surface2);}
+  .gt-sum-pill.moving{color:var(--accent);background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.2);}
+
+  .gt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--border);}
+  .gt-card{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;animation:gtSlideIn .35s ease both;transition:background .15s;}
+  .gt-card:hover{background:var(--surface2);}
+  .gt-card-top{display:flex;align-items:center;gap:10px;}
+  .gt-icon{width:36px;height:36px;min-width:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .gt-icon.moving{background:rgba(34,197,94,.12);}
+  .gt-icon.stopped{background:var(--surface2);border:1px solid var(--border);}
+  .gt-icon svg{display:block;width:18px;height:18px;flex-shrink:0;}
+  .gt-icon.moving svg{color:var(--accent);}
+  .gt-icon.stopped svg{color:var(--muted);}
+  .gt-name-block{flex:1;min-width:0;}
+  .gt-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gt-engine{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+  .gt-engine.on{color:var(--accent);}
+  .gt-engine.off{color:var(--muted);}
+  .gt-speed-badge{flex-shrink:0;text-align:right;}
+  .gt-speed-val{font-size:18px;font-weight:800;line-height:1;}
+  .gt-speed-val.moving{color:var(--accent);}
+  .gt-speed-val.stopped{font-size:11px;font-weight:600;color:var(--muted);}
+  .gt-speed-unit{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+
+  .gt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .gt-stat{background:var(--surface2);border-radius:8px;padding:7px 8px;text-align:center;}
+  .gt-stat-val{font-size:13px;font-weight:700;color:var(--text);line-height:1.2;}
+  .gt-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+  .gt-stat.highlight .gt-stat-val{color:var(--accent);}
+  .gt-stat.warn .gt-stat-val{color:#eab308;}
+
+  .gt-trips-section{border-top:1px solid var(--border);padding:12px 16px;}
+  .gt-trips-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
+  .gt-trip-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+  .gt-trip-row:last-child{border-bottom:none;}
+  .gt-trip-num{width:18px;height:18px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted);flex-shrink:0;}
+  .gt-trip-time{font-size:11px;font-weight:600;color:var(--text);width:95px;flex-shrink:0;}
+  .gt-trip-dist{font-size:11px;color:var(--muted);flex:1;}
+  .gt-trip-cost{font-size:11px;font-weight:600;color:var(--text);}
+
+  .gt-footer-bar{padding:8px 16px;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .gt-footer-txt{font-size:10px;color:var(--muted);}
+
+  .gt-empty{padding:28px;text-align:center;color:var(--muted);font-size:13px;}
+  .gt-error{padding:16px;text-align:center;color:#ef4444;font-size:12px;background:rgba(239,68,68,.04);border-radius:8px;margin:12px;}
+  .gt-loading{padding:24px;text-align:center;color:var(--muted);font-size:12px;animation:gtPulse 1.2s ease infinite;}
 
   /* Chart cards inside dashboard */
   .dash-2col .chart-card{padding:14px;}
@@ -851,14 +882,17 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- LIVE VEHICLES -->
-  <div class="gt-vehicle-panel dash-section">
+  <!-- LIVE FLEET -->
+  <div class="gt-panel dash-section">
     <div class="gt-panel-header">
-      <div class="gt-panel-title">🚛 LIVE VEHICLES</div>
-      <div class="gt-status-row">
-        <div class="gt-live-dot" id="gt-dot"></div>
-        <span id="gt-status-lbl">Connecting...</span>
+      <div class="gt-panel-left">
+        <div class="gt-panel-title">🚛 LIVE FLEET</div>
+        <div class="gt-badge">
+          <div class="gt-dot" id="gt-dot"></div>
+          <span class="gt-badge-txt" id="gt-status-lbl">Connecting...</span>
+        </div>
       </div>
+      <div class="gt-summary" id="gt-summary"></div>
     </div>
     <div id="gt-vehicles-wrap">
       <div class="gt-loading">Fetching vehicle data...</div>
@@ -3669,60 +3703,118 @@ function makeJobRowWithSvc(j){
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 
-// ── GEOTAB LIVE VEHICLES ─────────────────────────────────────
+// ── GEOTAB LIVE FLEET ────────────────────────────────────────
 var GT = {
-  URL: 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy?action=status',
+  URL:   'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy?action=dashboard',
   timer: null,
-  // width/height MUST be inline on the SVG element — CSS selectors don't
-  // reliably constrain SVGs injected via innerHTML
-  truckSVG: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;width:16px;height:16px;flex-shrink:0"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+
+  icon: function(moving) {
+    var col = moving ? 'var(--accent)' : 'var(--muted)';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"'
+      + ' fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'
+      + ' style="display:block;width:18px;height:18px;flex-shrink:0">'
+      + '<rect x="1" y="3" width="15" height="13" rx="1"/>'
+      + '<path d="M16 8h4l3 3v5h-7V8z"/>'
+      + '<circle cx="5.5" cy="18.5" r="2.5"/>'
+      + '<circle cx="18.5" cy="18.5" r="2.5"/></svg>';
+  },
+
+  fmt: function(n) { return n != null ? n.toLocaleString() : '--'; },
+  fmtKm: function(n) { return n != null ? n.toLocaleString() + ' km' : '--'; },
+  fmtMin: function(m) {
+    if (!m) return '0 min';
+    if (m < 60) return m + ' min';
+    return Math.floor(m/60) + 'h ' + (m%60) + 'm';
+  },
+  fmtCad: function(n) { return n != null ? '$' + n.toFixed(2) : '--'; },
+
   setStatus: function(state, label) {
     var dot = document.getElementById('gt-dot');
     var lbl = document.getElementById('gt-status-lbl');
-    if (dot) dot.className = 'gt-live-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '');
-    if (lbl) lbl.textContent = label;
+    if (dot) { dot.className = 'gt-dot' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); }
+    if (lbl) { lbl.className = 'gt-badge-txt' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); lbl.textContent = label; }
   },
-  render: function(vehicles) {
+
+  renderSummary: function(vehicles) {
+    var moving  = vehicles.filter(function(v){return v.isMoving;}).length;
+    var stopped = vehicles.length - moving;
+    var el = document.getElementById('gt-summary');
+    if (!el) return;
+    el.innerHTML = (moving  ? '<div class="gt-sum-pill moving">'+moving+' moving</div>'   : '')
+                 + (stopped ? '<div class="gt-sum-pill">'+stopped+' stopped</div>' : '');
+  },
+
+  cardHTML: function(v, idx) {
+    var mv  = v.isMoving;
+    var eng = v.engineOn;
+    var delay = (idx * 0.05) + 's';
+
+    // speed block
+    var speedHTML = mv
+      ? '<div class="gt-speed-badge"><div class="gt-speed-val moving">'+Math.round(v.speed)+'</div><div class="gt-speed-unit">km/h</div></div>'
+      : '<div class="gt-speed-badge"><div class="gt-speed-val stopped">STOPPED</div></div>';
+
+    // stats row
+    var statsHTML = '<div class="gt-stats">'
+      + '<div class="gt-stat '+(v.todayTrips>0?'highlight':'')+'"><div class="gt-stat-val">'+GT.fmt(v.todayTrips)+'</div><div class="gt-stat-lbl">Trips today</div></div>'
+      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtKm(v.todayKm)+'</div><div class="gt-stat-lbl">Distance</div></div>'
+      + '<div class="gt-stat '+(v.idleMinutes>30?'warn':'')+'"><div class="gt-stat-val">'+GT.fmtMin(v.idleMinutes)+'</div><div class="gt-stat-lbl">Idle time</div></div>'
+      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtKm(v.odometerKm)+'</div><div class="gt-stat-lbl">Odometer</div></div>'
+      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtCad(v.fuelCost)+'</div><div class="gt-stat-lbl">Est. fuel</div></div>'
+      + '<div class="gt-stat '+(v.idleCost>1?'warn':'')+'"><div class="gt-stat-val">'+GT.fmtCad(v.idleCost)+'</div><div class="gt-stat-lbl">Idle cost</div></div>'
+      + '</div>';
+
+    return '<div class="gt-card" style="animation-delay:'+delay+'">'
+      + '<div class="gt-card-top">'
+        + '<div class="gt-icon '+(mv?'moving':'stopped')+'">'+GT.icon(mv)+'</div>'
+        + '<div class="gt-name-block">'
+          + '<div class="gt-name">'+(v.name||'Vehicle')+'</div>'
+          + '<div class="gt-engine '+(eng?'on':'off')+'">'+(eng?'Engine on':'Engine off')+'</div>'
+        + '</div>'
+        + speedHTML
+      + '</div>'
+      + statsHTML
+      + '</div>';
+  },
+
+  render: function(data) {
     var wrap = document.getElementById('gt-vehicles-wrap');
     if (!wrap) return;
+    var vehicles = data.vehicles || [];
     if (!vehicles.length) {
-      wrap.innerHTML = '<div class="gt-placeholder">No vehicles found in your Geotab account.</div>';
+      wrap.innerHTML = '<div class="gt-empty">No vehicles found in your Geotab account.</div>';
       return;
     }
     vehicles.sort(function(a,b){ return (b.isMoving?1:0)-(a.isMoving?1:0); });
-    var moving = vehicles.filter(function(v){return v.isMoving;}).length;
-    wrap.innerHTML = '<div class="gt-vehicles-grid">'
-      + vehicles.map(function(v){
-          var mv = v.isMoving;
-          var speed = mv ? Math.round(v.speed) + ' km/h' : 'Stopped';
-          var eng   = v.engineOn ? 'Engine on' : 'Engine off';
-          return '<div class="gt-vehicle-card ' + (mv?'moving':'stopped') + '">'
-            + '<div class="gt-vc-icon ' + (mv?'moving':'stopped') + '">' + GT.truckSVG + '</div>'
-            + '<div class="gt-vc-info">'
-              + '<div class="gt-vc-name">' + (v.name || 'Vehicle') + '</div>'
-              + '<div class="gt-vc-sub">' + eng + '</div>'
-            + '</div>'
-            + '<div class="gt-vc-speed ' + (mv?'moving':'stopped') + '">' + speed + '</div>'
-            + '</div>';
-        }).join('')
+    GT.renderSummary(vehicles);
+
+    var now = new Date();
+    var timeStr = now.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
+
+    wrap.innerHTML = '<div class="gt-grid">'
+        + vehicles.map(function(v,i){ return GT.cardHTML(v,i); }).join('')
       + '</div>'
-      + '<div class="gt-footer">'
-        + moving + ' moving &middot; ' + (vehicles.length - moving) + ' stopped &middot; refreshes every 30s'
+      + '<div class="gt-footer-bar">'
+        + '<span class="gt-footer-txt">Last updated '+timeStr+'</span>'
+        + '<span class="gt-footer-txt">Refreshes every 30s</span>'
       + '</div>';
   },
+
   fetch: async function() {
     try {
       var res  = await fetch(GT.URL);
       var json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Unknown error');
-      GT.setStatus('live', 'Live · ' + json.data.length + ' vehicles');
+      var count = (json.data.vehicles || []).length;
+      GT.setStatus('live', 'Live \u00b7 ' + count + ' vehicles');
       GT.render(json.data);
     } catch(e) {
-      GT.setStatus('error', 'Geotab unavailable');
+      GT.setStatus('error', 'Unavailable');
       var wrap = document.getElementById('gt-vehicles-wrap');
-      if (wrap) wrap.innerHTML = '<div class="gt-error-msg">⚠️ ' + e.message + '</div>';
+      if (wrap) wrap.innerHTML = '<div class="gt-error">\u26a0\ufe0f Could not connect to Geotab: ' + e.message + '</div>';
     }
   },
+
   start: function() { GT.fetch(); GT.timer = setInterval(GT.fetch, 30000); }
 };
 document.addEventListener('DOMContentLoaded', GT.start);
