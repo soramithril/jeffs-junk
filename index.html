@@ -589,67 +589,60 @@ textarea{resize:vertical;min-height:80px;}
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
   /* ── Geotab fleet panel ── */
   @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
-  @keyframes gtSlideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  @keyframes gtFadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
 
   .gt-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;}
-  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;border-bottom:1px solid var(--border);}
-  .gt-panel-left{display:flex;align-items:center;gap:10px;}
-  .gt-panel-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1.5px;color:var(--text);}
-  .gt-badge{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:3px 9px;}
-  .gt-dot{width:6px;height:6px;border-radius:50%;background:#ccc;transition:background .3s;}
-  .gt-dot.live{background:var(--accent);box-shadow:0 0 5px rgba(34,197,94,.6);animation:gtPulse 1.8s ease infinite;}
+
+  /* Header */
+  .gt-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border);}
+  .gt-title{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1.2px;color:var(--text);}
+  .gt-header-right{display:flex;align-items:center;gap:8px;}
+  .gt-status-chip{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);}
+  .gt-dot{width:6px;height:6px;border-radius:50%;background:#bbb;transition:background .3s;flex-shrink:0;}
+  .gt-dot.live{background:#22c55e;box-shadow:0 0 5px rgba(34,197,94,.5);animation:gtPulse 2s ease infinite;}
   .gt-dot.error{background:#ef4444;animation:none;}
-  .gt-badge-txt{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.5px;}
-  .gt-badge-txt.live{color:var(--accent);}
-  .gt-badge-txt.error{color:#ef4444;}
-  .gt-summary{display:flex;gap:6px;}
-  .gt-sum-pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--surface2);}
-  .gt-sum-pill.moving{color:var(--accent);background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.2);}
+  .gt-status-txt{font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap;}
+  .gt-status-txt.live{color:#22c55e;}
+  .gt-status-txt.error{color:#ef4444;}
+  .gt-pills{display:flex;gap:4px;}
+  .gt-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
+  .gt-pill.moving{color:#22c55e;background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.25);}
 
-  .gt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--border);}
-  .gt-card{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;animation:gtSlideIn .35s ease both;transition:background .15s;}
-  .gt-card:hover{background:var(--surface2);}
-  .gt-card-top{display:flex;align-items:center;gap:10px;}
-  .gt-icon{width:36px;height:36px;min-width:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .gt-icon.moving{background:rgba(34,197,94,.12);}
-  .gt-icon.stopped{background:var(--surface2);border:1px solid var(--border);}
-  .gt-icon svg{display:block;width:18px;height:18px;flex-shrink:0;}
-  .gt-icon.moving svg{color:var(--accent);}
-  .gt-icon.stopped svg{color:var(--muted);}
-  .gt-name-block{flex:1;min-width:0;}
-  .gt-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .gt-engine{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
-  .gt-engine.on{color:var(--accent);}
-  .gt-engine.off{color:var(--muted);}
-  .gt-speed-badge{flex-shrink:0;text-align:right;}
-  .gt-speed-val{font-size:18px;font-weight:800;line-height:1;}
-  .gt-speed-val.moving{color:var(--accent);}
-  .gt-speed-val.stopped{font-size:11px;font-weight:600;color:var(--muted);}
-  .gt-speed-unit{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  /* Table */
+  .gt-table{width:100%;border-collapse:collapse;}
+  .gt-table thead tr{border-bottom:1px solid var(--border);}
+  .gt-table th{padding:7px 12px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);text-align:left;white-space:nowrap;}
+  .gt-table th:not(:first-child){text-align:right;}
+  .gt-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s;animation:gtFadeIn .3s ease both;}
+  .gt-table tbody tr:last-child{border-bottom:none;}
+  .gt-table tbody tr:hover{background:var(--surface2);}
+  .gt-table td{padding:9px 12px;font-size:12px;color:var(--text);white-space:nowrap;}
+  .gt-table td:not(:first-child){text-align:right;}
 
-  .gt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
-  .gt-stat{background:var(--surface2);border-radius:8px;padding:7px 8px;text-align:center;}
-  .gt-stat-val{font-size:13px;font-weight:700;color:var(--text);line-height:1.2;}
-  .gt-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
-  .gt-stat.highlight .gt-stat-val{color:var(--accent);}
-  .gt-stat.warn .gt-stat-val{color:#eab308;}
+  /* Cells */
+  .gt-cell-name{display:flex;align-items:center;gap:8px;}
+  .gt-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .gt-status-dot.moving{background:#22c55e;box-shadow:0 0 4px rgba(34,197,94,.5);}
+  .gt-status-dot.stopped{background:#d1d5db;}
+  .gt-vname{font-weight:600;font-size:12px;color:var(--text);}
+  .gt-engine-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
+  .gt-engine-lbl.on{color:#22c55e;}
+  .gt-engine-lbl.off{color:var(--muted);}
 
-  .gt-trips-section{border-top:1px solid var(--border);padding:12px 16px;}
-  .gt-trips-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;}
-  .gt-trip-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
-  .gt-trip-row:last-child{border-bottom:none;}
-  .gt-trip-num{width:18px;height:18px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted);flex-shrink:0;}
-  .gt-trip-time{font-size:11px;font-weight:600;color:var(--text);width:95px;flex-shrink:0;}
-  .gt-trip-dist{font-size:11px;color:var(--muted);flex:1;}
-  .gt-trip-cost{font-size:11px;font-weight:600;color:var(--text);}
+  .gt-speed{font-size:13px;font-weight:700;}
+  .gt-speed.moving{color:#22c55e;}
+  .gt-speed.stopped{font-size:11px;color:var(--muted);font-weight:500;}
+  .gt-num{font-size:12px;color:var(--text);}
+  .gt-num.zero{color:var(--muted);}
+  .gt-warn{color:#eab308;font-weight:600;}
 
-  .gt-footer-bar{padding:8px 16px;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-  .gt-footer-txt{font-size:10px;color:var(--muted);}
+  /* Footer */
+  .gt-footer{padding:8px 14px;background:var(--surface2);border-top:1px solid var(--border);display:flex;justify-content:space-between;}
+  .gt-footer span{font-size:10px;color:var(--muted);}
 
-  .gt-empty{padding:28px;text-align:center;color:var(--muted);font-size:13px;}
-  .gt-error{padding:16px;text-align:center;color:#ef4444;font-size:12px;background:rgba(239,68,68,.04);border-radius:8px;margin:12px;}
-  .gt-loading{padding:24px;text-align:center;color:var(--muted);font-size:12px;animation:gtPulse 1.2s ease infinite;}
-
+  .gt-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;}
+  .gt-error{padding:14px 16px;color:#ef4444;font-size:12px;background:rgba(239,68,68,.04);}
+  .gt-loading{padding:20px;text-align:center;color:var(--muted);font-size:12px;letter-spacing:.5px;animation:gtPulse 1.2s ease infinite;}
   /* Chart cards inside dashboard */
   .dash-2col .chart-card{padding:14px;}
 }
@@ -884,19 +877,17 @@ textarea{resize:vertical;min-height:80px;}
 
   <!-- LIVE FLEET -->
   <div class="gt-panel dash-section">
-    <div class="gt-panel-header">
-      <div class="gt-panel-left">
-        <div class="gt-panel-title">🚛 LIVE FLEET</div>
-        <div class="gt-badge">
+    <div class="gt-header">
+      <div class="gt-title">🚛 Live Fleet</div>
+      <div class="gt-header-right">
+        <div class="gt-pills" id="gt-pills"></div>
+        <div class="gt-status-chip">
           <div class="gt-dot" id="gt-dot"></div>
-          <span class="gt-badge-txt" id="gt-status-lbl">Connecting...</span>
+          <span class="gt-status-txt" id="gt-status-lbl">Connecting...</span>
         </div>
       </div>
-      <div class="gt-summary" id="gt-summary"></div>
     </div>
-    <div id="gt-vehicles-wrap">
-      <div class="gt-loading">Fetching vehicle data...</div>
-    </div>
+    <div id="gt-vehicles-wrap"><div class="gt-loading">Fetching vehicle data...</div></div>
   </div>
 
   <!-- ═══ BIN STATUS — all 5 cards under one date picker ═══ -->
@@ -3705,99 +3696,86 @@ function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-
 
 // ── GEOTAB LIVE FLEET ────────────────────────────────────────
 var GT = {
-  URL:   'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy?action=dashboard',
+  URL: 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy',
   timer: null,
 
-  icon: function(moving) {
-    var col = moving ? 'var(--accent)' : 'var(--muted)';
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"'
-      + ' fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'
-      + ' style="display:block;width:18px;height:18px;flex-shrink:0">'
-      + '<rect x="1" y="3" width="15" height="13" rx="1"/>'
-      + '<path d="M16 8h4l3 3v5h-7V8z"/>'
-      + '<circle cx="5.5" cy="18.5" r="2.5"/>'
-      + '<circle cx="18.5" cy="18.5" r="2.5"/></svg>';
-  },
-
-  fmt: function(n) { return n != null ? n.toLocaleString() : '--'; },
-  fmtKm: function(n) { return n != null ? n.toLocaleString() + ' km' : '--'; },
+  fmtKm: function(n) { return n != null ? n.toLocaleString() + ' km' : '—'; },
   fmtMin: function(m) {
-    if (!m) return '0 min';
-    if (m < 60) return m + ' min';
-    return Math.floor(m/60) + 'h ' + (m%60) + 'm';
+    if (!m) return '—';
+    return m < 60 ? m + ' min' : Math.floor(m/60) + 'h ' + (m%60) + 'm';
   },
-  fmtCad: function(n) { return n != null ? '$' + n.toFixed(2) : '--'; },
+  fmtCad: function(n) { return (n && n > 0) ? '$' + n.toFixed(2) : '—'; },
 
   setStatus: function(state, label) {
     var dot = document.getElementById('gt-dot');
     var lbl = document.getElementById('gt-status-lbl');
-    if (dot) { dot.className = 'gt-dot' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); }
-    if (lbl) { lbl.className = 'gt-badge-txt' + (state==='live' ? ' live' : state==='error' ? ' error' : ''); lbl.textContent = label; }
-  },
-
-  renderSummary: function(vehicles) {
-    var moving  = vehicles.filter(function(v){return v.isMoving;}).length;
-    var stopped = vehicles.length - moving;
-    var el = document.getElementById('gt-summary');
-    if (!el) return;
-    el.innerHTML = (moving  ? '<div class="gt-sum-pill moving">'+moving+' moving</div>'   : '')
-                 + (stopped ? '<div class="gt-sum-pill">'+stopped+' stopped</div>' : '');
-  },
-
-  cardHTML: function(v, idx) {
-    var mv  = v.isMoving;
-    var eng = v.engineOn;
-    var delay = (idx * 0.05) + 's';
-
-    // speed block
-    var speedHTML = mv
-      ? '<div class="gt-speed-badge"><div class="gt-speed-val moving">'+Math.round(v.speed)+'</div><div class="gt-speed-unit">km/h</div></div>'
-      : '<div class="gt-speed-badge"><div class="gt-speed-val stopped">STOPPED</div></div>';
-
-    // stats row
-    var statsHTML = '<div class="gt-stats">'
-      + '<div class="gt-stat '+(v.todayTrips>0?'highlight':'')+'"><div class="gt-stat-val">'+GT.fmt(v.todayTrips)+'</div><div class="gt-stat-lbl">Trips today</div></div>'
-      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtKm(v.todayKm)+'</div><div class="gt-stat-lbl">Distance</div></div>'
-      + '<div class="gt-stat '+(v.idleMinutes>30?'warn':'')+'"><div class="gt-stat-val">'+GT.fmtMin(v.idleMinutes)+'</div><div class="gt-stat-lbl">Idle time</div></div>'
-      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtKm(v.odometerKm)+'</div><div class="gt-stat-lbl">Odometer</div></div>'
-      + '<div class="gt-stat"><div class="gt-stat-val">'+GT.fmtCad(v.fuelCost)+'</div><div class="gt-stat-lbl">Est. fuel</div></div>'
-      + '<div class="gt-stat '+(v.idleCost>1?'warn':'')+'"><div class="gt-stat-val">'+GT.fmtCad(v.idleCost)+'</div><div class="gt-stat-lbl">Idle cost</div></div>'
-      + '</div>';
-
-    return '<div class="gt-card" style="animation-delay:'+delay+'">'
-      + '<div class="gt-card-top">'
-        + '<div class="gt-icon '+(mv?'moving':'stopped')+'">'+GT.icon(mv)+'</div>'
-        + '<div class="gt-name-block">'
-          + '<div class="gt-name">'+(v.name||'Vehicle')+'</div>'
-          + '<div class="gt-engine '+(eng?'on':'off')+'">'+(eng?'Engine on':'Engine off')+'</div>'
-        + '</div>'
-        + speedHTML
-      + '</div>'
-      + statsHTML
-      + '</div>';
+    if (dot) dot.className = 'gt-dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '');
+    if (lbl) { lbl.className = 'gt-status-txt' + (state === 'live' ? ' live' : state === 'error' ? ' error' : ''); lbl.textContent = label; }
   },
 
   render: function(data) {
     var wrap = document.getElementById('gt-vehicles-wrap');
     if (!wrap) return;
-    var vehicles = data.vehicles || [];
-    if (!vehicles.length) {
-      wrap.innerHTML = '<div class="gt-empty">No vehicles found in your Geotab account.</div>';
-      return;
+    var vehicles = (data && data.vehicles) ? data.vehicles : [];
+    if (!vehicles.length) { wrap.innerHTML = '<div class="gt-empty">No vehicles found.</div>'; return; }
+
+    // Sort: moving first, then by name
+    vehicles.sort(function(a,b) {
+      if (a.isMoving !== b.isMoving) return a.isMoving ? -1 : 1;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+
+    var moving  = vehicles.filter(function(v){return v.isMoving;}).length;
+    var stopped = vehicles.length - moving;
+
+    // Pills
+    var pills = document.getElementById('gt-pills');
+    if (pills) {
+      pills.innerHTML = (moving  ? '<div class="gt-pill moving">'+moving+' moving</div>'   : '')
+                      + (stopped ? '<div class="gt-pill">'+stopped+' stopped</div>' : '');
     }
-    vehicles.sort(function(a,b){ return (b.isMoving?1:0)-(a.isMoving?1:0); });
-    GT.renderSummary(vehicles);
 
     var now = new Date();
     var timeStr = now.toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'});
 
-    wrap.innerHTML = '<div class="gt-grid">'
-        + vehicles.map(function(v,i){ return GT.cardHTML(v,i); }).join('')
-      + '</div>'
-      + '<div class="gt-footer-bar">'
-        + '<span class="gt-footer-txt">Last updated '+timeStr+'</span>'
-        + '<span class="gt-footer-txt">Refreshes every 30s</span>'
-      + '</div>';
+    var rows = vehicles.map(function(v, i) {
+      var mv  = v.isMoving;
+      var eng = v.engineOn;
+      var delay = (i * 0.03) + 's';
+      var speedCell = mv
+        ? '<span class="gt-speed moving">'+Math.round(v.speed)+' km/h</span>'
+        : '<span class="gt-speed stopped">Stopped</span>';
+      var idleClass = (v.idleMinutes > 30) ? 'gt-warn' : 'gt-num' + (v.idleMinutes ? '' : ' zero');
+      var fuelClass = (v.fuelCost > 0) ? 'gt-num' : 'gt-num zero';
+      var odoClass  = (v.odometerKm) ? 'gt-num' : 'gt-num zero';
+      return '<tr style="animation-delay:'+delay+'">'
+        + '<td><div class="gt-cell-name">'
+            + '<div class="gt-status-dot '+(mv?'moving':'stopped')+'"></div>'
+            + '<div><div class="gt-vname">'+(v.name||'Vehicle')+'</div>'
+            + '<div class="gt-engine-lbl '+(eng?'on':'off')+'">'+(eng?'Engine on':'Engine off')+'</div></div>'
+          + '</div></td>'
+        + '<td>'+speedCell+'</td>'
+        + '<td><span class="gt-num'+(v.todayTrips?'':' zero')+'">'+( v.todayTrips || '—')+'</span></td>'
+        + '<td><span class="gt-num'+(v.todayKm?'':' zero')+'">'+GT.fmtKm(v.todayKm||null)+'</span></td>'
+        + '<td><span class="'+idleClass+'">'+GT.fmtMin(v.idleMinutes)+'</span></td>'
+        + '<td><span class="'+odoClass+'">'+GT.fmtKm(v.odometerKm)+'</span></td>'
+        + '<td><span class="'+fuelClass+'">'+GT.fmtCad(v.fuelCost)+'</span></td>'
+        + '</tr>';
+    }).join('');
+
+    wrap.innerHTML = '<table class="gt-table">'
+      + '<thead><tr>'
+        + '<th>Vehicle</th>'
+        + '<th>Speed</th>'
+        + '<th>Trips</th>'
+        + '<th>Distance</th>'
+        + '<th>Idle</th>'
+        + '<th>Odometer</th>'
+        + '<th>Est. Fuel</th>'
+      + '</tr></thead>'
+      + '<tbody>'+rows+'</tbody>'
+      + '</table>'
+      + '<div class="gt-footer"><span>'+vehicles.length+' vehicles</span><span>Updated '+timeStr+' &middot; refreshes every 30s</span></div>';
   },
 
   fetch: async function() {
@@ -3806,12 +3784,12 @@ var GT = {
       var json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Unknown error');
       var count = (json.data.vehicles || []).length;
-      GT.setStatus('live', 'Live \u00b7 ' + count + ' vehicles');
+      GT.setStatus('live', 'Live');
       GT.render(json.data);
     } catch(e) {
       GT.setStatus('error', 'Unavailable');
       var wrap = document.getElementById('gt-vehicles-wrap');
-      if (wrap) wrap.innerHTML = '<div class="gt-error">\u26a0\ufe0f Could not connect to Geotab: ' + e.message + '</div>';
+      if (wrap) wrap.innerHTML = '<div class="gt-error">\u26a0\ufe0f ' + e.message + '</div>';
     }
   },
 
