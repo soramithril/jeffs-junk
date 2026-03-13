@@ -589,30 +589,33 @@ textarea{resize:vertical;min-height:80px;}
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
   /* ── Geotab live vehicle panel ── */
   .gt-vehicle-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:24px;}
-  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .gt-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
   .gt-panel-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;color:var(--text);}
   .gt-status-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
   .gt-live-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s;}
   .gt-live-dot.live{background:var(--accent);box-shadow:0 0 6px rgba(34,197,94,.5);animation:gtPulse 1.8s ease infinite;}
   .gt-live-dot.error{background:#ef4444;}
   @keyframes gtPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-  .gt-vehicles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
-  .gt-vehicle-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;display:flex;align-items:center;gap:10px;transition:border-color .15s;}
+  .gt-vehicles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+  .gt-vehicle-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:border-color .15s;}
   .gt-vehicle-card.moving{border-left:3px solid var(--accent);}
   .gt-vehicle-card.stopped{border-left:3px solid var(--border);}
-  .gt-vc-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .gt-vc-icon{width:32px;height:32px;min-width:32px;min-height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
   .gt-vc-icon.moving{background:rgba(34,197,94,.12);}
   .gt-vc-icon.stopped{background:var(--surface2);border:1px solid var(--border);}
-  .gt-vc-icon svg{width:15px;height:15px;}
+  .gt-vc-icon svg{display:block;width:16px!important;height:16px!important;min-width:16px;min-height:16px;max-width:16px;max-height:16px;flex-shrink:0;}
   .gt-vc-icon.moving svg{color:var(--accent);}
   .gt-vc-icon.stopped svg{color:var(--muted);}
   .gt-vc-info{flex:1;min-width:0;}
-  .gt-vc-name{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .gt-vc-sub{font-size:10px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.4px;}
-  .gt-vc-speed{font-size:13px;font-weight:700;flex-shrink:0;}
+  .gt-vc-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gt-vc-sub{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.4px;}
+  .gt-vc-speed{font-size:13px;font-weight:700;flex-shrink:0;text-align:right;}
   .gt-vc-speed.moving{color:var(--accent);}
   .gt-vc-speed.stopped{font-size:10px;color:var(--muted);}
-  .gt-placeholder{color:var(--muted);font-size:13px;text-align:center;padding:16px;}
+  .gt-footer{font-size:10px;color:var(--muted);margin-top:10px;text-align:right;}
+  .gt-placeholder{color:var(--muted);font-size:13px;text-align:center;padding:20px;}
+  .gt-error-msg{color:#ef4444;font-size:12px;text-align:center;padding:12px;background:rgba(239,68,68,.05);border-radius:8px;border:1px solid rgba(239,68,68,.15);}
+  .gt-loading{color:var(--muted);font-size:12px;text-align:center;padding:16px;animation:gtPulse 1.2s ease infinite;}
   .gt-error-msg{color:#ef4444;font-size:12px;text-align:center;padding:10px;}
   .gt-loading{color:var(--muted);font-size:12px;text-align:center;padding:12px;animation:gtPulse 1.2s ease infinite;}
 
@@ -3670,7 +3673,9 @@ function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-
 var GT = {
   URL: 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geotab-proxy?action=status',
   timer: null,
-  truckSVG: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  // width/height MUST be inline on the SVG element — CSS selectors don't
+  // reliably constrain SVGs injected via innerHTML
+  truckSVG: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;width:16px;height:16px;flex-shrink:0"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
   setStatus: function(state, label) {
     var dot = document.getElementById('gt-dot');
     var lbl = document.getElementById('gt-status-lbl');
@@ -3680,37 +3685,42 @@ var GT = {
   render: function(vehicles) {
     var wrap = document.getElementById('gt-vehicles-wrap');
     if (!wrap) return;
-    if (!vehicles.length) { wrap.innerHTML = '<div class="gt-placeholder">No vehicles found.</div>'; return; }
+    if (!vehicles.length) {
+      wrap.innerHTML = '<div class="gt-placeholder">No vehicles found in your Geotab account.</div>';
+      return;
+    }
     vehicles.sort(function(a,b){ return (b.isMoving?1:0)-(a.isMoving?1:0); });
     var moving = vehicles.filter(function(v){return v.isMoving;}).length;
     wrap.innerHTML = '<div class="gt-vehicles-grid">'
       + vehicles.map(function(v){
           var mv = v.isMoving;
-          return '<div class="gt-vehicle-card '+(mv?'moving':'stopped')+'">'
-            + '<div class="gt-vc-icon '+(mv?'moving':'stopped')+'">'+GT.truckSVG+'</div>'
+          var speed = mv ? Math.round(v.speed) + ' km/h' : 'Stopped';
+          var eng   = v.engineOn ? 'Engine on' : 'Engine off';
+          return '<div class="gt-vehicle-card ' + (mv?'moving':'stopped') + '">'
+            + '<div class="gt-vc-icon ' + (mv?'moving':'stopped') + '">' + GT.truckSVG + '</div>'
             + '<div class="gt-vc-info">'
-              + '<div class="gt-vc-name">'+(v.name||'Vehicle')+'</div>'
-              + '<div class="gt-vc-sub">'+(v.engineOn?'Engine on':'Engine off')+'</div>'
+              + '<div class="gt-vc-name">' + (v.name || 'Vehicle') + '</div>'
+              + '<div class="gt-vc-sub">' + eng + '</div>'
             + '</div>'
-            + '<div class="gt-vc-speed '+(mv?'moving':'stopped')+'">'+(mv?Math.round(v.speed)+' km/h':'Stopped')+'</div>'
+            + '<div class="gt-vc-speed ' + (mv?'moving':'stopped') + '">' + speed + '</div>'
             + '</div>';
         }).join('')
       + '</div>'
-      + '<div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:right">'
-        + moving+' moving \xb7 '+(vehicles.length-moving)+' stopped \xb7 refreshes every 30s'
+      + '<div class="gt-footer">'
+        + moving + ' moving &middot; ' + (vehicles.length - moving) + ' stopped &middot; refreshes every 30s'
       + '</div>';
   },
   fetch: async function() {
     try {
-      var res = await fetch(GT.URL);
+      var res  = await fetch(GT.URL);
       var json = await res.json();
       if (!json.ok) throw new Error(json.error || 'Unknown error');
-      GT.setStatus('live', 'Live \xb7 '+json.data.length+' vehicles');
+      GT.setStatus('live', 'Live · ' + json.data.length + ' vehicles');
       GT.render(json.data);
     } catch(e) {
       GT.setStatus('error', 'Geotab unavailable');
       var wrap = document.getElementById('gt-vehicles-wrap');
-      if (wrap) wrap.innerHTML = '<div class="gt-error-msg">'+e.message+'</div>';
+      if (wrap) wrap.innerHTML = '<div class="gt-error-msg">⚠️ ' + e.message + '</div>';
     }
   },
   start: function() { GT.fetch(); GT.timer = setInterval(GT.fetch, 30000); }
