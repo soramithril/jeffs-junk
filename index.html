@@ -530,63 +530,7 @@ textarea{resize:vertical;min-height:80px;}
 
 
 /* ── RESPONSIVE ── */
-@media(max-width:900px){
-  :root{--sidebar-w:0px;}
-  .sidebar{width:260px;transform:translateX(-100%);}
-  .sidebar.mob-open{transform:translateX(0);}
-  .sidebar-overlay.mob-open{display:block;}
-  .mobile-header{display:flex;}
-  .main{margin-left:0;padding:72px 16px 24px;}
-  .page-title{font-size:32px;}
-  .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
-  .form-grid{grid-template-columns:1fr;}
-  .map-layout{grid-template-columns:1fr;}
-  #map-container{height:300px;}
-  .bin-panel{max-height:250px;}
-  .analytics-grid{grid-template-columns:1fr;}
-  .analytics-full{grid-column:1;}
-  .metric-row{grid-template-columns:repeat(2,1fr);}
-  .fleet-layout{grid-template-columns:1fr;}
-  .fleet-nav{display:none;}
-  .fleet-stats{grid-template-columns:repeat(3,1fr);}
-  .week-cal-grid{grid-template-columns:repeat(7,1fr);}
-  .week-day-name{font-size:9px;}
-  .week-day-num{font-size:15px;}
-  .week-job-chip{display:none;}
-  
-  .bin-status-grid{grid-template-columns:repeat(2,1fr);}
-  .form-actions{justify-content:stretch;}
-  .form-actions .btn{flex:1;justify-content:center;}
-  table{font-size:12px;}
-  thead th,tbody td{padding:8px 10px;}
-  .client-card{flex-wrap:wrap;}
-  .client-actions{width:100%;justify-content:flex-end;margin-top:8px;}
-  .detail-grid{grid-template-columns:1fr;}
-  .bar-label{width:100px;min-width:100px;}
-  
-  .inv-amount{min-width:auto;}
-  .stat-value{font-size:28px;}
-  .stat-card{padding:14px;}
-  .stat-icon{font-size:18px;margin-bottom:8px;}
 
-  /* ── DASHBOARD MOBILE FIXES ── */
-  /* Bin size cards: 2 cols instead of 4 */
-  #dash-bin-by-size{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
-  /* Today's Jobs + Workload / Overdue + Long Bins: stack to 1 col */
-  .dash-2col{grid-template-columns:1fr!important;}
-  /* Bin date picker row: wrap nicely */
-  .dash-date-row{flex-wrap:wrap;gap:8px;}
-  /* Page header new job button full width on mobile */
-  #view-dashboard .page-header{flex-direction:column;align-items:flex-start;gap:10px;}
-  #view-dashboard .page-header>div:last-child{width:100%;display:flex;flex-direction:column;gap:8px;}
-  #view-dashboard .page-header .btn-primary{width:100%;justify-content:center;}
-  /* Fleet summary metrics: wrap */
-  #dash-bin-fleet-card>div:first-child{gap:14px!important;}
-  /* Week calendar: compact */
-  .week-cal-wrap{margin-bottom:16px;}
-  .week-day-col{min-height:56px;}
-  /* Cat section tables: hide price col to save space */
-  .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
   /* ── Fleet section ── */
   @keyframes fleetPulse{0%,100%{opacity:1;}50%{opacity:.2;}}
   @keyframes fleetCardIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
@@ -740,7 +684,65 @@ textarea{resize:vertical;min-height:80px;}
   /* Chart cards inside dashboard */
 
   .dash-2col .chart-card{padding:14px;}
-}
+
+@media(max-width:900px){
+  :root{--sidebar-w:0px;}
+  .sidebar{width:260px;transform:translateX(-100%);}
+  .sidebar.mob-open{transform:translateX(0);}
+  .sidebar-overlay.mob-open{display:block;}
+  .mobile-header{display:flex;}
+  .main{margin-left:0;padding:72px 16px 24px;}
+  .page-title{font-size:32px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
+  .form-grid{grid-template-columns:1fr;}
+  .map-layout{grid-template-columns:1fr;}
+  #map-container{height:300px;}
+  .bin-panel{max-height:250px;}
+  .analytics-grid{grid-template-columns:1fr;}
+  .analytics-full{grid-column:1;}
+  .metric-row{grid-template-columns:repeat(2,1fr);}
+  .fleet-layout{grid-template-columns:1fr;}
+  .fleet-nav{display:none;}
+  .fleet-stats{grid-template-columns:repeat(3,1fr);}
+  .week-cal-grid{grid-template-columns:repeat(7,1fr);}
+  .week-day-name{font-size:9px;}
+  .week-day-num{font-size:15px;}
+  .week-job-chip{display:none;}
+  
+  .bin-status-grid{grid-template-columns:repeat(2,1fr);}
+  .form-actions{justify-content:stretch;}
+  .form-actions .btn{flex:1;justify-content:center;}
+  table{font-size:12px;}
+  thead th,tbody td{padding:8px 10px;}
+  .client-card{flex-wrap:wrap;}
+  .client-actions{width:100%;justify-content:flex-end;margin-top:8px;}
+  .detail-grid{grid-template-columns:1fr;}
+  .bar-label{width:100px;min-width:100px;}
+  
+  .inv-amount{min-width:auto;}
+  .stat-value{font-size:28px;}
+  .stat-card{padding:14px;}
+  .stat-icon{font-size:18px;margin-bottom:8px;}
+
+  /* ── DASHBOARD MOBILE FIXES ── */
+  /* Bin size cards: 2 cols instead of 4 */
+  #dash-bin-by-size{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
+  /* Today's Jobs + Workload / Overdue + Long Bins: stack to 1 col */
+  .dash-2col{grid-template-columns:1fr!important;}
+  /* Bin date picker row: wrap nicely */
+  .dash-date-row{flex-wrap:wrap;gap:8px;}
+  /* Page header new job button full width on mobile */
+  #view-dashboard .page-header{flex-direction:column;align-items:flex-start;gap:10px;}
+  #view-dashboard .page-header>div:last-child{width:100%;display:flex;flex-direction:column;gap:8px;}
+  #view-dashboard .page-header .btn-primary{width:100%;justify-content:center;}
+  /* Fleet summary metrics: wrap */
+  #dash-bin-fleet-card>div:first-child{gap:14px!important;}
+  /* Week calendar: compact */
+  .week-cal-wrap{margin-bottom:16px;}
+  .week-day-col{min-height:56px;}
+  /* Cat section tables: hide price col to save space */
+  .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
+  }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr!important;}
   .metric-row{grid-template-columns:1fr 1fr;}
