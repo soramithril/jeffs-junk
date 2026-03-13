@@ -972,60 +972,6 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ── LIVE FLEET ── -->
-  <div class="fleet-wrap dash-section">
-
-    <!-- Top bar: title + live chip + view toggle + pills -->
-    <div class="fleet-topbar">
-      <div class="fleet-topbar-left">
-        <div class="fleet-heading">🚛 Live Fleet</div>
-        <div class="fleet-live-chip">
-          <div class="fleet-live-dot" id="gt-dot"></div>
-          <span class="fleet-live-txt" id="gt-status-lbl">Connecting...</span>
-        </div>
-      </div>
-      <div class="fleet-topbar-right">
-        <div id="fleet-pills"></div>
-        <div class="fleet-view-toggle">
-          <button class="fleet-view-btn on" id="fleet-btn-cards" onclick="ftView('cards',this)">⊞ Cards</button>
-          <button class="fleet-view-btn" id="fleet-btn-map" onclick="ftView('map',this)">🗺 Map</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Fleet summary bar -->
-    <div class="fleet-summary" id="fleet-summary" style="display:none"></div>
-
-    <!-- Cards view -->
-    <div class="fleet-cards-box" id="fleet-cards-box">
-      <div class="fleet-loading" style="grid-column:1/-1">Loading vehicles...</div>
-    </div>
-
-    <!-- Map view -->
-    <div class="fleet-map-box hidden" id="fleet-map-box">
-      <div class="fleet-map-spinner" id="dash-map-spinner">Loading map...</div>
-      <div id="dash-map"></div>
-      <div class="fleet-map-ctrl">
-        <button class="fleet-map-ctrl-btn on" id="fleet-maptab-trucks" onclick="ftMapTab('trucks',this)">🚛 Trucks</button>
-        <button class="fleet-map-ctrl-btn off" id="fleet-maptab-bins" onclick="ftMapTab('bins',this)">🗑 Bins</button>
-      </div>
-      <div class="fleet-map-legend">
-        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#22c55e"></div>Moving</div>
-        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#9ca3af"></div>Stopped</div>
-        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#3b82f6"></div>Bin out</div>
-        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#ef4444"></div>Overdue</div>
-      </div>
-    </div>
-
-    <!-- List panel (shown in map view) -->
-    <div class="fleet-map-list-panel hidden" id="fleet-list-panel">
-      <div class="fleet-map-list-header">
-        <div class="fleet-map-list-title" id="fleet-list-title">Trucks</div>
-      </div>
-      <div class="fleet-map-list-rows" id="fleet-map-list"></div>
-    </div>
-
-  </div>
 
   <!-- ═══ BIN STATUS — all 5 cards under one date picker ═══ -->
   <div class="dash-section dash-s1" style="margin-bottom:24px">
@@ -1117,6 +1063,61 @@ textarea{resize:vertical;min-height:80px;}
     <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Price</th></tr></thead><tbody id="dash-furn-tbody"></tbody></table></div>
   </div>
 </div>
+
+  <!-- ── LIVE FLEET ── -->
+  <div class="fleet-wrap dash-section">
+
+    <!-- Top bar: title + live chip + view toggle + pills -->
+    <div class="fleet-topbar">
+      <div class="fleet-topbar-left">
+        <div class="fleet-heading">🚛 Live Fleet</div>
+        <div class="fleet-live-chip">
+          <div class="fleet-live-dot" id="gt-dot"></div>
+          <span class="fleet-live-txt" id="gt-status-lbl">Connecting...</span>
+        </div>
+      </div>
+      <div class="fleet-topbar-right">
+        <div id="fleet-pills"></div>
+        <div class="fleet-view-toggle">
+          <button class="fleet-view-btn on" id="fleet-btn-cards" onclick="ftView('cards',this)">⊞ Cards</button>
+          <button class="fleet-view-btn" id="fleet-btn-map" onclick="ftView('map',this)">🗺 Map</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fleet summary bar -->
+    <div class="fleet-summary" id="fleet-summary" style="display:none"></div>
+
+    <!-- Cards view -->
+    <div class="fleet-cards-box" id="fleet-cards-box">
+      <div class="fleet-loading" style="grid-column:1/-1">Loading vehicles...</div>
+    </div>
+
+    <!-- Map view -->
+    <div class="fleet-map-box hidden" id="fleet-map-box">
+      <div class="fleet-map-spinner" id="dash-map-spinner">Loading map...</div>
+      <div id="dash-map"></div>
+      <div class="fleet-map-ctrl">
+        <button class="fleet-map-ctrl-btn on" id="fleet-maptab-trucks" onclick="ftMapTab('trucks',this)">🚛 Trucks</button>
+        <button class="fleet-map-ctrl-btn off" id="fleet-maptab-bins" onclick="ftMapTab('bins',this)">🗑 Bins</button>
+      </div>
+      <div class="fleet-map-legend">
+        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#22c55e"></div>Moving</div>
+        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#9ca3af"></div>Stopped</div>
+        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#3b82f6"></div>Bin out</div>
+        <div class="fleet-leg"><div class="fleet-leg-dot" style="background:#ef4444"></div>Overdue</div>
+      </div>
+    </div>
+
+    <!-- List panel (shown in map view) -->
+    <div class="fleet-map-list-panel hidden" id="fleet-list-panel">
+      <div class="fleet-map-list-header">
+        <div class="fleet-map-list-title" id="fleet-list-title">Trucks</div>
+      </div>
+      <div class="fleet-map-list-rows" id="fleet-map-list"></div>
+    </div>
+
+  </div>
 
 <!-- ═══════════════ ALL JOBS ═══════════════ -->
 <div id="view-jobs" class="view">
