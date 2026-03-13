@@ -2302,7 +2302,7 @@ function save() {
   updateSidebarStats();
   var batch = jobs.map(jobToDb);
   db.from('jobs').upsert(batch, {onConflict:'job_id'}).then(function(r){
-    if(r.error) console.error('Save jobs error:', r.error.message);
+    if(r.error) { console.error('Save jobs error:', r.error.message); toast('⚠️ Save failed: ' + r.error.message); }
   });
 }
 
@@ -2578,48 +2578,54 @@ async function loadJobsPage(page) {
   if (jobsLoading) return;
   jobsLoading = true;
   jobsPage = page;
-  var from = page * jobsPageSize;
+  try {
+    var from = page * jobsPageSize;
 
-  // Build query with current filters
-  var query = db.from('jobs').select('*', {count:'exact'}).order('date', {ascending: false});
+    // Build query with current filters
+    var query = db.from('jobs').select('*', {count:'exact'}).order('date', {ascending: false});
 
-  // Apply search filter server-side
-  if (searchF && searchF.trim()) {
-    query = query.or('name.ilike.%' + searchF + '%,address.ilike.%' + searchF + '%,job_id.ilike.%' + searchF + '%');
-  }
-  // Apply service filter
-  if (svcF && svcF !== 'all') {
-    query = query.eq('service', svcF);
-  }
-  // Apply status filter
-  if (jobStatusF && jobStatusF !== 'all') {
-    query = query.eq('status', jobStatusF);
-  }
+    // Apply search filter server-side
+    if (searchF && searchF.trim()) {
+      query = query.or('name.ilike.%' + searchF + '%,address.ilike.%' + searchF + '%,job_id.ilike.%' + searchF + '%');
+    }
+    // Apply service filter
+    if (svcF && svcF !== 'all') {
+      query = query.eq('service', svcF);
+    }
+    // Apply status filter
+    if (jobStatusF && jobStatusF !== 'all') {
+      query = query.eq('status', jobStatusF);
+    }
 
-  query = query.range(from, from + jobsPageSize - 1);
-  var r = await query;
+    query = query.range(from, from + jobsPageSize - 1);
+    var r = await query;
 
-  if (!r.error) {
-    jobs = (r.data || []).map(dbToJob);
-    jobsTotal = r.count || jobsTotal;
+    if (!r.error) {
+      jobs = (r.data || []).map(dbToJob);
+      jobsTotal = r.count || jobsTotal;
 
-    // Fill missing phones using ilike client name match, then backfill DB
-    var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
-    if (noPhone.length) {
-      for (var i = 0; i < noPhone.length; i++) {
-        var j = noPhone[i];
-        var rc = await db.from('clients').select('cid,phone').ilike('name', j.name.trim()).limit(1);
-        if (!rc.error && rc.data && rc.data[0] && rc.data[0].phone) {
-          j.phone = rc.data[0].phone;
-          // Backfill DB silently so next load is instant
-          db.from('jobs').update({ phone: rc.data[0].phone, client_cid: rc.data[0].cid }).eq('job_id', j.id);
+      // Fill missing phones using ilike client name match, then backfill DB
+      var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
+      if (noPhone.length) {
+        for (var i = 0; i < noPhone.length; i++) {
+          var j = noPhone[i];
+          var rc = await db.from('clients').select('cid,phone').ilike('name', j.name.trim()).limit(1);
+          if (!rc.error && rc.data && rc.data[0] && rc.data[0].phone) {
+            j.phone = rc.data[0].phone;
+            // Backfill DB silently so next load is instant
+            db.from('jobs').update({ phone: rc.data[0].phone, client_cid: rc.data[0].cid }).eq('job_id', j.id);
+          }
         }
       }
     }
+    jobsLoading = false;
+    renderJobs();
+    renderJobsPagination();
+  } catch(ex) {
+    jobsLoading = false;
+    console.error('loadJobsPage error:', ex);
+    toast('⚠️ Error loading jobs — try refreshing.');
   }
-  jobsLoading = false;
-  renderJobs();
-  renderJobsPagination();
 }
 
 // ── Render pagination controls ─────────────────────────────
