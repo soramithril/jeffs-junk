@@ -3958,12 +3958,21 @@ function gtMapPlaceBins() {
         + '<div style="font-size:11px;color:#888;margin-bottom:3px">'+ra.display+'</div>'
         + (j.binSize ? '<div style="font-size:11px">'+j.binSize+'</div>' : '')
         + (overdue ? '<div style="font-size:11px;color:#ef4444;margin-top:3px;font-weight:600">Overdue pickup</div>' : (j.binPickup ? '<div style="font-size:11px;margin-top:3px">Pickup: '+fd(j.binPickup)+'</div>' : ''))
-        + '<button onclick="openDetail(''+j.id+'')" style="margin-top:8px;padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;width:100%">View Job</button>';
+        + '<button onclick="openDetail(\''+j.id+'\')" style="margin-top:8px;padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;width:100%">View Job</button>';
       var marker = L.marker([geo.lat, geo.lng], { icon: gtMapBinIcon(overdue) })
         .bindPopup(popup, { maxWidth: 220 }).addTo(dashMap);
       dashMapBinPins.push({ id: j.id, name: j.name, marker: marker, lat: geo.lat, lng: geo.lng, overdue: overdue, addr: ra.display });
     });
   });
+}
+
+
+function gtMapRowClick(el) {
+  var lat  = parseFloat(el.dataset.lat);
+  var lng  = parseFloat(el.dataset.lng);
+  var type = el.dataset.type;
+  var id   = el.dataset.id;
+  gtMapFly(lat, lng, type, id);
 }
 
 function gtMapRenderList() {
@@ -3975,7 +3984,7 @@ function gtMapRenderList() {
       ? sorted.map(function(p) {
           var cls = p.moving ? 'truck-moving' : 'truck-stopped';
           var meta = p.moving ? Math.round(p.speed)+' km/h' : 'Stopped';
-          return '<div class="gt-map-row" onclick="gtMapFly('+p.lat+','+p.lng+','truck',''+p.id+'')">'
+          return '<div class="gt-map-row" data-lat="'+p.lat+'" data-lng="'+p.lng+'" data-type="truck" data-id="'+p.id+'" onclick="gtMapRowClick(this)">'  
             + '<div class="gt-map-rdot '+cls+'"></div>'
             + '<div class="gt-map-rname">'+(p.name||'Truck')+'</div>'
             + '<div class="gt-map-rmeta">'+meta+'</div>'
@@ -3987,7 +3996,7 @@ function gtMapRenderList() {
     el.innerHTML = sorted.length
       ? sorted.map(function(p) {
           var cls = p.overdue ? 'bin-overdue' : 'bin-active';
-          return '<div class="gt-map-row" onclick="gtMapFly('+p.lat+','+p.lng+','bin',''+p.id+'')">'
+          return '<div class="gt-map-row" data-lat="'+p.lat+'" data-lng="'+p.lng+'" data-type="bin" data-id="'+p.id+'" onclick="gtMapRowClick(this)">'
             + '<div class="gt-map-rdot '+cls+'"></div>'
             + '<div class="gt-map-rname">'+p.name+'</div>'
             + '<div class="gt-map-rmeta" style="'+(p.overdue?'color:#ef4444':'')+'">'+(p.overdue?'Overdue':'Out')+'</div>'
