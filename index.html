@@ -938,8 +938,8 @@ textarea{resize:vertical;min-height:80px;}
       <div style="font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text);">🚛 Bin Fleet Status</div>
       <div style="display:flex;align-items:center;gap:6px">
         <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(-1)">‹</button>
-        <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats()">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats()">Today</button>
+        <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats();refreshDashJobs()">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats();refreshDashJobs()">Today</button>
         <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(1)">›</button>
       </div>
     </div>
@@ -3325,6 +3325,7 @@ function shiftDashDate(n){
   d.setDate(d.getDate()+n);
   dp.value=d.toISOString().split('T')[0];
   refreshDashBinStats();
+  refreshDashJobs();
 }
 
 // Dashboard bin stats — loads all bin jobs into jobs[] exactly like loadBinJobsThenRender,
@@ -3425,6 +3426,101 @@ async function refreshDashBinStats(){
 // Legacy aliases — any old calls route to the new Supabase-powered function
 function updateDashBinStats(){refreshDashBinStats();}
 function updateDashBinStatsDirect(){refreshDashBinStats();}
+
+// Refresh just the Today's Jobs panel for whatever date the picker is on
+async function refreshDashJobs(){
+  var dp = document.getElementById('dash-bin-date');
+  var dateS = dp && dp.value ? dp.value : todayStr();
+  var realTodayS = todayStr();
+  var isToday = dateS === realTodayS;
+
+  // Update the section header label
+  var wHdr = document.getElementById('workload-header');
+  var dateLbl = isToday ? "TODAY'S JOBS" : "JOBS — " + new Date(dateS+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
+  if(wHdr) wHdr.textContent = '📍 ' + dateLbl;
+
+  // Fetch jobs for the selected date
+  var [rJobs, rPickups, rDropoffs] = await Promise.all([
+    db.from('jobs').select('*').eq('date', dateS).neq('status','Cancelled').order('time'),
+    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', dateS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
+    db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+dateS+',and(bin_dropoff.is.null,date.eq.'+dateS+')')
+  ]);
+
+  var dayJobs      = (rJobs.data||[]).map(dbToJob);
+  var dayPickups   = (rPickups.data||[]).map(dbToJob);
+  var dayDropoffs  = (rDropoffs.data||[]).map(dbToJob);
+
+  // Cache in local jobs array
+  dayJobs.concat(dayPickups).concat(dayDropoffs).forEach(function(j){
+    if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j);
+  });
+
+  function dedup(arr){ var seen={}; return arr.filter(function(j){ if(seen[j.id])return false; seen[j.id]=true; return true; }); }
+  dayDropoffs = dedup(dayDropoffs);
+  dayPickups  = dedup(dayPickups);
+
+  var junkRemovals = dayJobs.filter(function(j){return j.service==='Junk Removal';});
+  var junkQuotes   = dayJobs.filter(function(j){return j.service==='Junk Quote';});
+  var furnPickups  = dayJobs.filter(function(j){return j.service==='Furniture Pickup';});
+  var furnDelivs   = dayJobs.filter(function(j){return j.service==='Furniture Delivery';});
+
+  var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(furnPickups).concat(furnDelivs));
+  var total = allDay.length;
+  var unconf = allDay.filter(function(j){return !j.confirmed;}).length;
+
+  // Update count subheading
+  var countEl = document.getElementById('dash-today-count');
+  if(countEl){
+    var parts=[];
+    if(dayDropoffs.length) parts.push(dayDropoffs.length+' bin drop'+(dayDropoffs.length!==1?'s':''));
+    if(dayPickups.length)  parts.push(dayPickups.length+' pickup'+(dayPickups.length!==1?'s':''));
+    if(junkRemovals.length)parts.push(junkRemovals.length+' junk');
+    if(furnPickups.length+furnDelivs.length) parts.push((furnPickups.length+furnDelivs.length)+' furniture');
+    if(unconf>0) parts.push('<span style="color:#eab308;font-weight:600">'+unconf+' unconfirmed 📞</span>');
+    countEl.innerHTML = parts.join(' · ') || 'Nothing booked';
+  }
+
+  // Update stat pill
+  var statToday = document.getElementById('dash-stat-today');
+  if(statToday) statToday.textContent = total;
+
+  // Urgency state
+  var card = document.getElementById('card-today-jobs');
+  if(card) card.className = 'chart-card ' + (total===0?'urgency-ok':total>=5?'urgency-warn':'urgency-neutral');
+
+  // Render job rows (reuse same makeTodayCat pattern)
+  function makeCat(title,color,list){
+    if(!list.length)return '';
+    return '<div style="margin-bottom:12px">'
+      +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:6px;">'+title+' ('+list.length+')</div>'
+      +list.map(function(j){
+        var cfm=j.confirmed;
+        return '<div style="padding:9px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);display:flex;align-items:center;gap:10px;">'
+          +'<div style="flex:1;cursor:pointer" onclick="openDetail(''+j.id+'')">'
+          +'<div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:14px">'+j.name+'</strong>'
+          +(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')
+          +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span></div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
+          +(j.time?ft(j.time)+' · ':'')+j.id
+          +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
+          +(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Call to confirm</span>')
+          +'</div></div>'
+          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(''+j.id+'',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
+          +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(''+j.id+'',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm</button>':'')
+          +'</div>';
+      }).join('')+'</div>';
+  }
+
+  var html = makeCat('🚛 Bin Deliveries','#22c55e',dayDropoffs)
+    +makeCat('🚚 Bin Pickups','#4ade80',dayPickups)
+    +makeCat('Junk Removals','#eab308',junkRemovals)
+    +makeCat('📋 Junk Quotes','#60a5fa',junkQuotes)
+    +makeCat('🛋️ Furniture Pickups','#ef4444',furnPickups)
+    +makeCat('📦 Furniture Deliveries','#f87171',furnDelivs);
+
+  document.getElementById('dash-today-jobs').innerHTML = html
+    || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
+}
 async function renderWeekCal(){
   var ws=getWeekStart(weekOffset),we=new Date(ws);we.setDate(we.getDate()+6);
   var today=new Date();today.setHours(0,0,0,0);
