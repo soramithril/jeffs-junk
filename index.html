@@ -2868,16 +2868,33 @@ function nextId(svc){
 
 var _saveJobLock = false;
 async function nextIdFromDb(svc) {
-  var prefix = svc==='Bin Rental' ? 'BIN-' : svc==='Junk Removal' ? 'JUNK-' : svc==='Junk Quote' ? 'QT-' : 'FB-';
   try {
-    var r = await db.from('jobs').select('job_id').like('job_id', prefix+'%').order('job_id',{ascending:false}).limit(1);
+    // Fetch every job_id from Supabase with no limit, parse all as integers, take the max
+    var r = await db.from('jobs').select('job_id').limit(100000);
     var maxNum = 0;
-    if(!r.error && r.data && r.data.length) maxNum = parseInt((r.data[0].job_id||'').replace(prefix,''))||0;
-    var localNums = jobs.filter(function(j){return j.id&&j.id.startsWith(prefix);}).map(function(j){return parseInt(j.id.replace(prefix,''))||0;});
-    if(localNums.length) maxNum = Math.max(maxNum, Math.max.apply(null,localNums));
-    return prefix + String(maxNum+1).padStart(5,'0');
-  } catch(ex) { console.warn('nextIdFromDb fallback:', ex); return nextId(svc); }
+    if (!r.error && r.data) {
+      r.data.forEach(function(row) {
+        var n = parseInt((row.job_id || ''), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      });
+    }
+    // Also check local cache
+    jobs.forEach(function(j) {
+      var n = parseInt(j.id, 10);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    });
+    var next = String(maxNum + 1);
+    console.log('[nextIdFromDb] maxNum=' + maxNum + ' → ' + next);
+    return next;
+  } catch(ex) {
+    console.warn('[nextIdFromDb] error:', ex);
+    // Last resort: use local cache only
+    var maxNum = 0;
+    jobs.forEach(function(j) { var n = parseInt(j.id, 10); if (!isNaN(n) && n > maxNum) maxNum = n; });
+    return String(maxNum + 1);
+  }
 }
+
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
 function nextClientId(){var n=clients.map(function(c){return parseInt((c.cid||'').replace('CL-',''))||0;});return 'CL-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
 
