@@ -8,17 +8,35 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f4f4f4;--surface:#ffffff;--surface2:#eeeeee;--border:#dddddd;
-  --accent:#22c55e;--text:#111111;--muted:#888888;
-  --green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#4ade80;
-  --c-bin:#22c55e;--c-junk:#eab308;--c-furn:#ef4444;
+  /* Apple-glass palette */
+  --bg:#e8eaf0;
+  --surface:rgba(255,255,255,0.72);
+  --surface2:rgba(255,255,255,0.45);
+  --surface-solid:#ffffff;
+  --border:rgba(0,0,0,0.08);
+  --border-strong:rgba(0,0,0,0.14);
+  --glass-blur:blur(18px) saturate(180%);
+  --glass-shadow:0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.07);
+  --glass-shadow-lg:0 8px 40px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
+  --accent:#22c55e;--text:#111111;--muted:#6b7280;
+  --green:#22c55e;--yellow:#f59e0b;--red:#ef4444;--blue:#4ade80;
+  --c-bin:#22c55e;--c-junk:#f59e0b;--c-furn:#ef4444;
   --sidebar-w:220px;
+  --radius:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(34,197,94,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(96,165,250,0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(167,139,250,0.10) 0%, transparent 60%);
+  background-attachment:fixed;
+  color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;
+}
 
 /* ── MOBILE HEADER ── */
-.mobile-header{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--surface);border-bottom:1px solid var(--border);z-index:200;align-items:center;padding:0 16px;gap:12px;}
+.mobile-header{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:rgba(255,255,255,0.82);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-bottom:1px solid var(--border);z-index:200;align-items:center;padding:0 16px;gap:12px;}
 .mob-hamburger{background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;flex-shrink:0;}
 .mob-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--accent);}
 .mob-logo-sub{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
@@ -28,7 +46,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .bin-date-picker{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;}
 
 /* ── SIDEBAR ── */
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:150;padding:0 0 24px;transition:transform .25s;}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:rgba(255,255,255,0.78);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:150;padding:0 0 24px;transition:transform .25s;}
 .logo{padding:28px 24px 24px;border-bottom:1px solid var(--border);}
 .logo-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);line-height:1;}
 .logo-sub{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
@@ -79,17 +97,97 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .stat-icon{font-size:22px;margin-bottom:12px;}
 .stat-value{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:1px;line-height:1;color:#e8faea;}
 .stat-label{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;text-transform:uppercase;letter-spacing:1px;}
-.stat-card{background:#ffffff;border-color:rgba(34,197,94,.25);}
-.stat-card:hover{background:linear-gradient(135deg,#f0fdf4,#dcfce7,#bbf7d0,#dcfce7,#f0fdf4);background-size:300% 300%;animation:gradientShift 3s ease infinite;box-shadow:0 10px 32px rgba(34,197,94,.22);border-color:rgba(34,197,94,.5);}
+.stat-card{
+  background:rgba(255,255,255,0.65)!important;
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid rgba(255,255,255,0.70)!important;
+  box-shadow:var(--glass-shadow);
+}
+.stat-card:hover{
+  background:rgba(255,255,255,0.88)!important;
+  transform:translateY(-3px);
+  box-shadow:var(--glass-shadow-lg)!important;
+  border-color:rgba(34,197,94,.45)!important;
+  animation:none!important;
+}
 .stat-value{color:#14532d;}
 .stat-label{color:#166534;}
-.stat-card::after{background:radial-gradient(circle,rgba(34,197,94,.0) 0%,transparent 70%);}
-.stat-card:hover::after{background:radial-gradient(circle,rgba(34,197,94,.14) 0%,transparent 70%);}
+.stat-card::after{display:none;}
+.stat-card:hover::after{display:none;}
+
+
+/* ── APPLE GLASS EXTRAS ── */
+.btn{border-radius:10px!important;}
+.btn-primary{
+  background:rgba(34,197,94,0.9)!important;
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(34,197,94,0.5)!important;
+  box-shadow:0 2px 12px rgba(34,197,94,0.30);
+}
+.btn-ghost{
+  background:rgba(255,255,255,0.55)!important;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(0,0,0,0.08)!important;
+}
+.btn-ghost:hover{background:rgba(255,255,255,0.80)!important;}
+/* Glass input fields */
+input[type=date], input[type=number], input[type=text], input[type=email], input[type=tel], select, textarea{
+  background:rgba(255,255,255,0.60)!important;
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(0,0,0,0.10)!important;
+  border-radius:10px!important;
+}
+/* Bin fleet hero wrapper */
+.bin-fleet-hero{
+  background:linear-gradient(135deg, rgba(34,197,94,0.18) 0%, rgba(96,165,250,0.14) 50%, rgba(167,139,250,0.12) 100%);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid rgba(255,255,255,0.65);
+  border-radius:18px;
+  box-shadow:var(--glass-shadow-lg);
+  padding:20px;
+  margin-bottom:24px;
+}
+.bin-fleet-hero .bin-size-card{
+  background:rgba(255,255,255,0.55)!important;
+}
+.bin-fleet-hero #dash-bin-fleet-card{
+  background:rgba(255,255,255,0.50)!important;
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.60)!important;
+  border-radius:12px;
+}
+/* Quick-stat pill cards */
+.dash-stat-pill{
+  background:rgba(255,255,255,0.68);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid rgba(255,255,255,0.72);
+  border-radius:var(--radius);
+  box-shadow:var(--glass-shadow);
+  padding:16px 20px;
+  display:flex;align-items:center;gap:14px;
+  transition:transform .22s ease,box-shadow .22s ease;
+}
+.dash-stat-pill:hover{transform:translateY(-3px);box-shadow:var(--glass-shadow-lg);}
+/* Override white overdue/long-bins card bg */
+#card-overdue, #dash-callback-list, .chart-card{
+  background:rgba(255,255,255,0.65)!important;
+}
 
 /* ── card hover (generic) ── */
-.chart-card{transition:transform .2s ease,box-shadow .2s ease;}
-.chart-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.22);}
-.chart-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);}
+.chart-card{
+  background:var(--surface);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid rgba(255,255,255,0.65);
+  border-radius:var(--radius);
+  box-shadow:var(--glass-shadow);
+  transition:transform .22s ease,box-shadow .22s ease;
+}
+.chart-card:hover{transform:translateY(-3px);box-shadow:var(--glass-shadow-lg);}
 /* ── page slide-in ── */
 @keyframes slideUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
 .page-animate{animation:slideUp .32s ease both;}
@@ -97,20 +195,23 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 @keyframes dashFadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 .dash-section{opacity:0;animation:dashFadeUp .28s ease forwards;}
 .dash-s1{animation-delay:.04s;}
-.dash-s2{animation-delay:.12s;}
-.dash-s3{animation-delay:.20s;}
-.dash-s4{animation-delay:.28s;}
-.dash-s5{animation-delay:.36s;}
-.dash-s6{animation-delay:.44s;}
+.dash-s2{animation-delay:.10s;}
+.dash-s3{animation-delay:.18s;}
+.dash-s4{animation-delay:.26s;}
+.dash-s5{animation-delay:.34s;}
 /* ── BIN SIZE CARD depth ── */
 .bin-size-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  background:rgba(255,255,255,0.68);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  border:1px solid rgba(255,255,255,0.72);
+  border-radius:var(--radius);
   padding:20px 16px;text-align:center;
-  box-shadow:0 2px 8px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.08);
-  transition:transform .18s ease,box-shadow .18s ease;
+  box-shadow:var(--glass-shadow);
+  transition:transform .18s ease,box-shadow .22s ease;
   will-change:transform;
 }
-.bin-size-card:hover{transform:translateY(-4px);box-shadow:0 6px 20px rgba(0,0,0,.14),0 16px 40px rgba(0,0,0,.1);}
+.bin-size-card:hover{transform:translateY(-5px);box-shadow:var(--glass-shadow-lg);}
 /* ── URGENCY STATES ── */
 .chart-card.urgency-warn{
   border-left:4px solid #ef4444;
@@ -212,8 +313,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .bin-stat-card.out .bin-stat-value{color:#ef4444;}.bin-stat-card.in .bin-stat-value{color:#22c55e;}
 
 /* ── WEEK CALENDAR ── */
-.week-cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:32px;}
-.week-cal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);}
+.week-cal-wrap{background:rgba(255,255,255,0.65);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid rgba(255,255,255,0.70);border-radius:var(--radius);box-shadow:var(--glass-shadow);overflow:hidden;margin-bottom:32px;}
+.week-cal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.45);}
 .week-cal-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:var(--text);}
 .week-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
 .week-day-col{border-right:1px solid var(--border);min-height:110px;}
@@ -831,8 +932,31 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
+  <!-- ROW HERO: Bin Fleet — moved to top, glass hero wrapper -->
+  <div class="bin-fleet-hero dash-section dash-s1" style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text);">🚛 Bin Fleet Status</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(-1)">‹</button>
+        <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats()">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats()">Today</button>
+        <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(1)">›</button>
+      </div>
+    </div>
+    <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px"></div>
+    <div id="dash-bin-fleet-card" style="padding:16px;border-radius:12px;">
+      <div style="display:flex;justify-content:center;gap:40px;margin-bottom:12px">
+        <div style="text-align:center"><div class="metric-val" id="s-bins-out-fleet" style="color:#ef4444">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Currently Out</div></div>
+        <div style="text-align:center"><div class="metric-val" id="s-bins-in" style="color:#22c55e">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Currently In Yard</div></div>
+        <div style="text-align:center"><div class="metric-val" id="s-bins-total" style="color:var(--text)">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Total Fleet</div></div>
+      </div>
+      <div style="height:8px;background:rgba(0,0,0,0.07);border-radius:4px;margin:4px 0 6px"><div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:4px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
+      <div id="s-bins-pct-lbl" style="font-size:12px;color:var(--muted);text-align:center">0% of fleet currently deployed</div>
+    </div>
+  </div>
+
   <!-- ROW 1: 4 quick-stat pills -->
-  <div class="dash-section dash-s1" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+  <div class="dash-section dash-s2" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
     <div class="chart-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
       <div style="font-size:26px;line-height:1;flex-shrink:0;">📋</div>
       <div>
@@ -864,7 +988,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- ROW 2: Today's Jobs hero + Call-Back panel -->
-  <div class="dash-section dash-s2" style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:24px">
+  <div class="dash-section dash-s3" style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:24px">
 
     <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:hidden;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
@@ -888,7 +1012,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- ROW 3: Overdue + Bins Out Long -->
-  <div class="dash-section dash-s3 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+  <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🔴 OVERDUE PICKUPS</div>
@@ -910,28 +1034,7 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ROW 4: Bin Fleet by size -->
-  <div class="dash-section dash-s4" style="margin-bottom:24px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:600;">BIN FLEET STATUS</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(-1)">‹</button>
-        <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats()">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats()">Today</button>
-        <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(1)">›</button>
-      </div>
-    </div>
-    <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px"></div>
-    <div id="dash-bin-fleet-card" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
-      <div style="display:flex;justify-content:center;gap:40px;margin-bottom:12px">
-        <div style="text-align:center"><div class="metric-val" id="s-bins-out-fleet" style="color:#ef4444">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Currently Out</div></div>
-        <div style="text-align:center"><div class="metric-val" id="s-bins-in" style="color:#22c55e">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Currently In Yard</div></div>
-        <div style="text-align:center"><div class="metric-val" id="s-bins-total" style="color:var(--text)">0</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px">Total Fleet</div></div>
-      </div>
-      <div style="height:8px;background:var(--surface2);border-radius:4px;margin:4px 0 6px"><div id="s-bins-out-bar" style="height:100%;background:#ef4444;border-radius:4px;width:0%;transition:width .5s ease"></div></div>
-      <div id="s-bins-pct-lbl" style="font-size:12px;color:var(--muted);text-align:center">0% of fleet currently deployed</div>
-    </div>
-  </div>
+
 
   <!-- ROW 5: Week Calendar -->
   <div class="week-cal-wrap dash-section dash-s5">
