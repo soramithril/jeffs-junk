@@ -132,8 +132,11 @@ body{
   border:1px solid rgba(0,0,0,0.08)!important;
 }
 .btn-ghost:hover{background:rgba(255,255,255,0.80)!important;}
-/* Glass input fields */
-input[type=date], input[type=number], input[type=text], input[type=email], input[type=tel], select, textarea{
+/* Glass input fields — scoped to main app only, NOT login screen */
+.main input[type=date], .main input[type=number], .main input[type=text],
+.main input[type=email], .main input[type=tel], .main select, .main textarea,
+.modal input[type=date], .modal input[type=number], .modal input[type=text],
+.modal input[type=email], .modal input[type=tel], .modal select, .modal textarea{
   background:rgba(255,255,255,0.60)!important;
   backdrop-filter:blur(10px);
   border:1px solid rgba(0,0,0,0.10)!important;
