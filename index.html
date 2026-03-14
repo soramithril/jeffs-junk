@@ -1146,7 +1146,7 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Bin</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
   </div>
   <div id="jobs-pagination-bottom"></div>
 </div>
@@ -2749,32 +2749,6 @@ async function loadJobsPage(page) {
   if (jobStatusF && jobStatusF !== 'all') {
     query = query.eq('status', jobStatusF);
   }
-  // Apply bin drop filter server-side (only meaningful when service is Bin Rental)
-  if (binDropF && binDropF !== 'all') {
-    if (svcF === 'Bin Rental' || svcF === 'all') {
-      if (binDropF === 'pending') {
-        query = query.or('bin_instatus.is.null,bin_instatus.eq.');
-      } else {
-        query = query.eq('bin_instatus', binDropF);
-      }
-    }
-  }
-  // Apply date filter server-side
-  if (jobDateF && jobDateF !== 'all') {
-    var today = todayStr();
-    if (jobDateF === 'today') {
-      query = query.eq('date', today);
-    } else if (jobDateF === 'week') {
-      var ws = new Date(); ws.setDate(ws.getDate() - ws.getDay());
-      var we = new Date(ws); we.setDate(we.getDate() + 6);
-      query = query.gte('date', ws.toISOString().split('T')[0]).lte('date', we.toISOString().split('T')[0]);
-    } else if (jobDateF === 'month') {
-      var now = new Date();
-      var ms = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      var me = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-      query = query.gte('date', ms).lte('date', me);
-    }
-  }
 
   query = query.range(from, from + jobsPageSize - 1);
   var r = await query;
@@ -3874,18 +3848,7 @@ async function confirmJob(id, e){
 }
 
 // ─── JOBS TABLE ───
-function setSvc(v,el){
-  svcF=v;
-  document.querySelectorAll('#view-jobs .filter-chip').forEach(function(c){c.classList.remove('active');});
-  el.classList.add('active');
-  // Show bin drop filter only when Bin Rental or All Services is selected
-  var binWrap = document.getElementById('atabs-bin');
-  if(binWrap) binWrap.style.display = (v==='all'||v==='Bin Rental') ? '' : 'none';
-  // Reset bin filter when switching away from bin
-  if(v!=='all'&&v!=='Bin Rental'){ binDropF='all'; var allBtn=document.getElementById('jbdf-all'); if(allBtn){document.querySelectorAll('[id^="jbdf-"]').forEach(function(b){b.classList.remove('active');}); allBtn.classList.add('active');} }
-  jobsPage=0;
-  loadJobsPage(0);
-}
+function setSvc(v,el){svcF=v;document.querySelectorAll('#view-jobs .filter-chip').forEach(function(c){c.classList.remove('active');});el.classList.add('active');jobsPage=0;loadJobsPage(0);}
 function setJobStatus(v,el){jobStatusF=v;document.querySelectorAll('[id^="jstf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);}
 function setJobDateFilter(v,el){jobDateF=v;document.querySelectorAll('[id^="jdtf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();}
 function setBinDropFilter(v,el){binDropF=v;document.querySelectorAll('[id^="jbdf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();}
@@ -3958,6 +3921,7 @@ function makeJobRowWithSvc(j){
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
+    +binDropBtn(j)
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
