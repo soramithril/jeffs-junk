@@ -3499,7 +3499,7 @@ async function refreshDashJobs(){
       +list.map(function(j){
         var cfm=j.confirmed;
         return '<div style="padding:9px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);display:flex;align-items:center;gap:10px;">'
-          +'<div style="flex:1;cursor:pointer" onclick="openDetail(''+j.id+'')">'
+          +'<div style="flex:1;cursor:pointer" onclick="openDetail(\'' +j.id+ '\')" >'
           +'<div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:14px">'+j.name+'</strong>'
           +(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')
           +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span></div>'
@@ -3508,8 +3508,8 @@ async function refreshDashJobs(){
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
           +(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Call to confirm</span>')
           +'</div></div>'
-          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(''+j.id+'',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
-          +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(''+j.id+'',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm</button>':'')
+          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
+          +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm</button>':'')
           +'</div>';
       }).join('')+'</div>';
   }
