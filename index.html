@@ -6704,8 +6704,13 @@ db.auth.getSession().then(function(r) {
 
 // Listen for auth changes (e.g. session expiry)
 db.auth.onAuthStateChange(function(event, session) {
-  if (event === 'SIGNED_IN' && !appLoaded) {
-    // Handled by getSession above — ignore duplicate
+  if (event === 'SIGNED_IN' && appLoaded) {
+    // Already handled by doLogin() or getSession() — ignore duplicate
+    return;
+  }
+  if (event === 'SIGNED_IN' && !appLoaded && session) {
+    currentUser = session.user;
+    onLoginSuccess();
     return;
   }
   if (event === 'SIGNED_OUT') {
