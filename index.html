@@ -970,7 +970,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="chart-card" id="dash-stat-unconf-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
       <div style="font-size:26px;line-height:1;flex-shrink:0;">📞</div>
       <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Bin Pickups Unconfirmed</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Pickups Unconfirmed</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--yellow)" id="dash-stat-unconf">—</div>
       </div>
     </div>
@@ -1007,7 +1007,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="chart-card" style="padding:0;overflow:hidden;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups — pickup not yet confirmed</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups · furniture pickups &amp; drop-offs</div>
       </div>
       <div id="dash-callback-list" style="padding:10px 12px;"></div>
     </div>
@@ -1131,41 +1131,41 @@ textarea{resize:vertical;min-height:80px;}
   <div id="jobs-cat-view">
     <div class="cat-section">
       <div class="cat-section-header bin"><div class="cat-title">Bin Rentals</div><span class="cat-count" id="jobs-bin-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header junk"><div class="cat-title">Junk Removal</div><span class="cat-count" id="jobs-junk-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header quote"><div class="cat-title">📋 Junk Quotes</div><span class="cat-count" id="jobs-quote-count">0 quotes</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
     <div id="jobs-cancelled-section" style="display:none">
       <div class="cat-section">
         <div class="cat-section-header bin" style="opacity:.7"><div class="cat-title">🚫 Bin Rentals — Cancelled</div><span class="cat-count" id="jobs-cancelled-bin-count">0 jobs</span></div>
-        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-bin-tbody"></tbody></table></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">↩&nbsp;Restore &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-cancelled-bin-tbody"></tbody></table></div>
       </div>
       <div class="cat-section">
         <div class="cat-section-header junk" style="opacity:.7"><div class="cat-title">🚫 Junk Removal — Cancelled</div><span class="cat-count" id="jobs-cancelled-junk-count">0 jobs</span></div>
-        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-junk-tbody"></tbody></table></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">↩&nbsp;Restore &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-cancelled-junk-tbody"></tbody></table></div>
       </div>
       <div class="cat-section">
         <div class="cat-section-header quote" style="opacity:.7"><div class="cat-title">🚫 Junk Quotes — Cancelled</div><span class="cat-count" id="jobs-cancelled-quote-count">0 quotes</span></div>
-        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-quote-tbody"></tbody></table></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">↩&nbsp;Restore &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-cancelled-quote-tbody"></tbody></table></div>
       </div>
       <div class="cat-section">
         <div class="cat-section-header furn" style="opacity:.7"><div class="cat-title">🚫 Furniture — Cancelled</div><span class="cat-count" id="jobs-cancelled-furn-count">0 jobs</span></div>
-        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-furn-tbody"></tbody></table></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">↩&nbsp;Restore &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-cancelled-furn-tbody"></tbody></table></div>
       </div>
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Bin</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
   </div>
   <div id="jobs-pagination-bottom"></div>
 </div>
@@ -3525,11 +3525,10 @@ async function refreshDashJobs(){
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
           +(j.time?ft(j.time)+' · ':'')+j.id
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
-          +(j.service==='Bin Rental'?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Pickup Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm pickup</span>'):'')
+          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm '+(j.service==='Furniture Delivery'?'drop-off':'pickup')+'</span>'):'')
           +'</div></div>'
           +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
-          +(j.service==='Bin Rental'&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm Pickup</button>':'')
-      }).join('')+'</div>';
+          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+'</button>':'')
   }
 
   var html = makeCat('🚛 Bin Deliveries','#22c55e',dayDropoffs)
@@ -3669,8 +3668,8 @@ async function renderDash(){
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
     db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
-    // Bin Rentals with pickup date in next 14 days that haven't been pickup-confirmed (for call-back list)
-    db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_pickup',todayS).lte('bin_pickup',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('bin_pickup').order('time')
+    // Bin Rentals with upcoming pickup + Furniture jobs with upcoming date — unconfirmed (for call-back list)
+    db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup','Furniture Delivery']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time')
   ]);
 
   // Write hidden stat IDs that other code may reference
@@ -3714,7 +3713,7 @@ async function renderDash(){
 
   var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs));
   var totalTodayCount = allToday.length;
-  var unconfirmedToday = allToday.filter(function(j){return j.service==='Bin Rental'&&!j.confirmed;}).length;
+  var unconfirmedToday = allToday.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
 
   // ── QUICK STAT PILLS ──────────────────────────────────────
   var statToday = document.getElementById('dash-stat-today');
@@ -3734,7 +3733,7 @@ async function renderDash(){
 
   // ── TOMORROW PILL in header ───────────────────────────────
   var tomorrowJobs = (rTomorrowJobs.data||[]).map(dbToJob);
-  var tomorrowUnconf = tomorrowJobs.filter(function(j){return j.service==='Bin Rental'&&!j.confirmed;}).length;
+  var tomorrowUnconf = tomorrowJobs.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
   var tPill = document.getElementById('dash-tomorrow-pill');
   if(tPill && tomorrowJobs.length > 0){
     tPill.style.display = '';
@@ -3789,12 +3788,12 @@ async function renderDash(){
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
           +(j.time?ft(j.time)+' · ':'')+j.id
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
-          +(j.service==='Bin Rental'?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Pickup Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm pickup</span>'):'')
+          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm '+(j.service==='Furniture Delivery'?'drop-off':'pickup')+'</span>'):'')
           +'</div>'
           +'</div>'
           // Quick actions
           +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
-          +(j.service==='Bin Rental'&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm Pickup</button>':'')
+          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+'</button>':'')
           +'</div>';
       }).join('')+'</div>';
   }
@@ -3813,7 +3812,7 @@ async function renderDash(){
   var cbEl = document.getElementById('dash-callback-list');
   if(cbEl){
     if(!callbackJobs.length){
-      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All bin pickups confirmed</div>';
+      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All pickups &amp; drop-offs confirmed</div>';
     } else {
       cbEl.innerHTML = callbackJobs.map(function(j){
         var isToday = j.date===todayS;
@@ -3902,10 +3901,12 @@ function binDropBtn(j){
   return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.35);color:#eab308;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">⏳ Not Dropped</button></td>';
 }
 function confirmedHtml(id, confirmed, service){
-  if(service !== 'Bin Rental') return '<td class="jcell-confirm"></td>';
+  var needsConfirm = service==='Bin Rental'||service==='Furniture Pickup'||service==='Furniture Delivery';
+  if(!needsConfirm) return '<td class="jcell-confirm"></td>';
+  var label = service==='Furniture Delivery' ? 'Drop-Off' : 'Pickup';
   var cell = confirmed
-    ? '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ Pickup Confirmed</button>'
-    : '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;border-color:rgba(234,179,8,.4);color:#eab308;white-space:nowrap">📞 Confirm Pickup</button>';
+    ? '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ '+label+' Confirmed</button>'
+    : '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;border-color:rgba(234,179,8,.4);color:#eab308;white-space:nowrap">📞 Confirm '+label+'</button>';
   return '<td class="jcell-confirm">'+cell+'</td>';
 }
 function emailHtml(id, sent){
@@ -6255,7 +6256,7 @@ function openDetail(id){
       +(j.etransferRefundSent?'<span style="color:#22c55e">✅ E-Transfer refund sent to customer</span>':'<span style="color:#eab308">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
       +'</div>';
   }
-  var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ Pickup Confirmed</span>':'';
+  var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address||'—')+'</span></div></div></div>'
@@ -6283,7 +6284,7 @@ function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">🚚 Mark Picked Up</button>');
       if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">✔ Mark Done</button>');
-      if(j.service==='Bin Rental'&&!j.confirmed) btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 Confirm Pickup</button>');
+      if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 '+confirmLabel+'</button>');}
       return btns.length ? '<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div>' : '';
     }())
 
