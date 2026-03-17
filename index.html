@@ -970,7 +970,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="chart-card" id="dash-stat-unconf-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
       <div style="font-size:26px;line-height:1;flex-shrink:0;">📞</div>
       <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Need Call-Back</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Bin Pickups Unconfirmed</div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--yellow)" id="dash-stat-unconf">—</div>
       </div>
     </div>
@@ -1006,8 +1006,8 @@ textarea{resize:vertical;min-height:80px;}
 
     <div class="chart-card" style="padding:0;overflow:hidden;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 NEEDS CALL-BACK</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Unconfirmed — today &amp; upcoming</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups — pickup not yet confirmed</div>
       </div>
       <div id="dash-callback-list" style="padding:10px 12px;"></div>
     </div>
@@ -3525,11 +3525,10 @@ async function refreshDashJobs(){
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
           +(j.time?ft(j.time)+' · ':'')+j.id
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
-          +(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Call to confirm</span>')
+          +(j.service==='Bin Rental'?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Pickup Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm pickup</span>'):'')
           +'</div></div>'
           +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
-          +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm</button>':'')
-          +'</div>';
+          +(j.service==='Bin Rental'&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm Pickup</button>':'')
       }).join('')+'</div>';
   }
 
@@ -3670,8 +3669,8 @@ async function renderDash(){
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
     db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
-    // Unconfirmed jobs in next 14 days (for call-back list)
-    db.from('jobs').select('*').gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time')
+    // Bin Rentals with pickup date in next 14 days that haven't been pickup-confirmed (for call-back list)
+    db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_pickup',todayS).lte('bin_pickup',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('bin_pickup').order('time')
   ]);
 
   // Write hidden stat IDs that other code may reference
@@ -3715,7 +3714,7 @@ async function renderDash(){
 
   var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs));
   var totalTodayCount = allToday.length;
-  var unconfirmedToday = allToday.filter(function(j){return !j.confirmed;}).length;
+  var unconfirmedToday = allToday.filter(function(j){return j.service==='Bin Rental'&&!j.confirmed;}).length;
 
   // ── QUICK STAT PILLS ──────────────────────────────────────
   var statToday = document.getElementById('dash-stat-today');
@@ -3735,12 +3734,12 @@ async function renderDash(){
 
   // ── TOMORROW PILL in header ───────────────────────────────
   var tomorrowJobs = (rTomorrowJobs.data||[]).map(dbToJob);
-  var tomorrowUnconf = tomorrowJobs.filter(function(j){return !j.confirmed;}).length;
+  var tomorrowUnconf = tomorrowJobs.filter(function(j){return j.service==='Bin Rental'&&!j.confirmed;}).length;
   var tPill = document.getElementById('dash-tomorrow-pill');
   if(tPill && tomorrowJobs.length > 0){
     tPill.style.display = '';
     tPill.innerHTML = 'Tomorrow: <strong style="color:var(--text)">' + tomorrowJobs.length + ' job' + (tomorrowJobs.length!==1?'s':'') + '</strong>'
-      + (tomorrowUnconf > 0 ? ' &nbsp;·&nbsp; <span style="color:#eab308;font-weight:600">' + tomorrowUnconf + ' unconfirmed</span>' : '');
+      + (tomorrowUnconf > 0 ? ' &nbsp;·&nbsp; <span style="color:#eab308;font-weight:600">' + tomorrowUnconf + ' pickup unconfirmed</span>' : '');
   } else if(tPill){
     tPill.style.display = 'none';
   }
@@ -3765,7 +3764,7 @@ async function renderDash(){
     if(todayBinPickups.length)  parts.push(todayBinPickups.length+' pickup'+(todayBinPickups.length!==1?'s':''));
     if(todayJunkRemovals.length)parts.push(todayJunkRemovals.length+' junk');
     if(todayFurnPickups.length+todayFurnDelivs.length) parts.push((todayFurnPickups.length+todayFurnDelivs.length)+' furniture');
-    if(unconfirmedToday>0) parts.push('<span style="color:#eab308;font-weight:600">'+unconfirmedToday+' unconfirmed 📞</span>');
+    if(unconfirmedToday>0) parts.push('<span style="color:#eab308;font-weight:600">'+unconfirmedToday+' pickup unconfirmed 📞</span>');
     countEl.innerHTML = parts.join(' · ') || 'Nothing booked';
   }
 
@@ -3790,12 +3789,12 @@ async function renderDash(){
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
           +(j.time?ft(j.time)+' · ':'')+j.id
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
-          +(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Call to confirm</span>')
+          +(j.service==='Bin Rental'?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ Pickup Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm pickup</span>'):'')
           +'</div>'
           +'</div>'
           // Quick actions
           +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
-          +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm</button>':'')
+          +(j.service==='Bin Rental'&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm Pickup</button>':'')
           +'</div>';
       }).join('')+'</div>';
   }
@@ -3814,7 +3813,7 @@ async function renderDash(){
   var cbEl = document.getElementById('dash-callback-list');
   if(cbEl){
     if(!callbackJobs.length){
-      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All jobs confirmed</div>';
+      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All bin pickups confirmed</div>';
     } else {
       cbEl.innerHTML = callbackJobs.map(function(j){
         var isToday = j.date===todayS;
@@ -3827,7 +3826,7 @@ async function renderDash(){
           +'<div style="display:flex;align-items:baseline;gap:6px;"><strong style="font-size:13px">'+j.name+'</strong><span style="font-size:11px;color:var(--muted)">'+dateLabel+'</span></div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:1px;">'+j.id+(j.phone?'<span style="margin-left:8px;font-weight:600;color:var(--text)">'+j.phone+'</span>':'')+(j.service?'<span style="margin-left:6px;color:var(--muted)">'+j.service+'</span>':'')+'</div>'
           +'</div>'
-          +'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap;flex-shrink:0">✅ Confirm</button>'
+          +'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap;flex-shrink:0">✅ Confirm Pickup</button>'
           +'</div>';
       }).join('');
     }
@@ -3902,20 +3901,12 @@ function binDropBtn(j){
   if(j.binInstatus==='dropped')return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#22c55e;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">🚛 Dropped</button></td>';
   return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.35);color:#eab308;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">⏳ Not Dropped</button></td>';
 }
-function confirmedHtml(id, confirmed){
-  if(confirmed)
-    return '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ Confirmed</button>';
-  return '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap">📞 Confirm</button>';
-}
-function emailHtml(id, sent){
-  if(sent)
-    return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap">📧 Sent</button>';
-  return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap">📧 Email</button>';
-}
-function confirmedHtml(id, confirmed){
-  if(confirmed)
-    return '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ Confirmed</button>';
-  return '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(34,197,94,.3);color:#22c55e;white-space:nowrap">📞 Confirm</button>';
+function confirmedHtml(id, confirmed, service){
+  if(service !== 'Bin Rental') return '<td class="jcell-confirm"></td>';
+  var cell = confirmed
+    ? '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ Pickup Confirmed</button>'
+    : '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;border-color:rgba(234,179,8,.4);color:#eab308;white-space:nowrap">📞 Confirm Pickup</button>';
+  return '<td class="jcell-confirm">'+cell+'</td>';
 }
 function emailHtml(id, sent){
   if(sent)
@@ -3931,7 +3922,7 @@ function makeJobRowNoSvc(j){
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
-    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
+    +confirmedHtml(j.id,j.confirmed,j.service)
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#ef4444;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#ef4444;border-color:rgba(239,68,68,.3)" title="Cancel job">🚫</button>')
@@ -3947,7 +3938,7 @@ function makeJobRowWithSvc(j){
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
-    +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
+    +confirmedHtml(j.id,j.confirmed,j.service)
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#ef4444;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#ef4444;border-color:rgba(239,68,68,.3)" title="Cancel job">🚫</button>')
@@ -6264,7 +6255,7 @@ function openDetail(id){
       +(j.etransferRefundSent?'<span style="color:#22c55e">✅ E-Transfer refund sent to customer</span>':'<span style="color:#eab308">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
       +'</div>';
   }
-  var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ Customer Confirmed</span>':'';
+  var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ Pickup Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address||'—')+'</span></div></div></div>'
@@ -6292,7 +6283,7 @@ function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">🚚 Mark Picked Up</button>');
       if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">✔ Mark Done</button>');
-      if(!j.confirmed) btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 Confirm Customer</button>');
+      if(j.service==='Bin Rental'&&!j.confirmed) btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 Confirm Pickup</button>');
       return btns.length ? '<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div>' : '';
     }())
 
