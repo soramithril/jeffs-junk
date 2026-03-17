@@ -1145,9 +1145,23 @@ textarea{resize:vertical;min-height:80px;}
       <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
-    <div class="cat-section" id="jobs-cancelled-section" style="display:none">
-      <div class="cat-section-header" style="background:rgba(239,68,68,.08);border-left:4px solid #ef4444"><div class="cat-title" style="color:#ef4444">🚫 Cancelled Jobs</div><span class="cat-count" id="jobs-cancelled-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-tbody"></tbody></table></div>
+    <div id="jobs-cancelled-section" style="display:none">
+      <div class="cat-section">
+        <div class="cat-section-header bin" style="opacity:.7"><div class="cat-title">🚫 Bin Rentals — Cancelled</div><span class="cat-count" id="jobs-cancelled-bin-count">0 jobs</span></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-bin-tbody"></tbody></table></div>
+      </div>
+      <div class="cat-section">
+        <div class="cat-section-header junk" style="opacity:.7"><div class="cat-title">🚫 Junk Removal — Cancelled</div><span class="cat-count" id="jobs-cancelled-junk-count">0 jobs</span></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-junk-tbody"></tbody></table></div>
+      </div>
+      <div class="cat-section">
+        <div class="cat-section-header quote" style="opacity:.7"><div class="cat-title">🚫 Junk Quotes — Cancelled</div><span class="cat-count" id="jobs-cancelled-quote-count">0 quotes</span></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-quote-tbody"></tbody></table></div>
+      </div>
+      <div class="cat-section">
+        <div class="cat-section-header furn" style="opacity:.7"><div class="cat-title">🚫 Furniture — Cancelled</div><span class="cat-count" id="jobs-cancelled-furn-count">0 jobs</span></div>
+        <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-furn-tbody"></tbody></table></div>
+      </div>
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
@@ -3944,6 +3958,18 @@ function makeCancelledRow(j){
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
+    +'<td style="font-size:14px">'+fd(j.date)+'</td>'
+    +'<td style="font-size:13px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(resolveAddr(j).display||'—')+'</td>'
+    +'<td><div style="display:flex;gap:8px">'
+    +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Restore job">↩ Restore</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
+    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
+    +'</div></td></tr>';
+}
+function makeCancelledRowWithSvc(j){
+  return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
+    +'<td>'+jid(j.id,j.service)+'</td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(resolveAddr(j).display||'—')+'</td>'
@@ -3988,12 +4014,21 @@ function renderJobs(){
     document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   } else if(showingCancelled){
     document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
-    // Hide normal service sections, show only cancelled
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
     if(cancelledSection) cancelledSection.style.display='block';
     var cr=all.filter(function(j){return j.status==='Cancelled'&&m(j)&&matchDateFilter(j);});
-    document.getElementById('jobs-cancelled-count').textContent=cr.length+' job'+(cr.length!==1?'s':'');
-    document.getElementById('jobs-cancelled-tbody').innerHTML=cr.length?cr.map(makeCancelledRow).join(''):emptyJobRow(6);
+    var crBin  =cr.filter(function(j){return j.service==='Bin Rental';});
+    var crJunk =cr.filter(function(j){return j.service==='Junk Removal';});
+    var crQuote=cr.filter(function(j){return j.service==='Junk Quote';});
+    var crFurn =cr.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';});
+    document.getElementById('jobs-cancelled-bin-count').textContent=crBin.length+' job'+(crBin.length!==1?'s':'');
+    document.getElementById('jobs-cancelled-junk-count').textContent=crJunk.length+' job'+(crJunk.length!==1?'s':'');
+    document.getElementById('jobs-cancelled-quote-count').textContent=crQuote.length+' quote'+(crQuote.length!==1?'s':'');
+    document.getElementById('jobs-cancelled-furn-count').textContent=crFurn.length+' job'+(crFurn.length!==1?'s':'');
+    document.getElementById('jobs-cancelled-bin-tbody').innerHTML=crBin.length?crBin.map(makeCancelledRow).join(''):emptyJobRow(5);
+    document.getElementById('jobs-cancelled-junk-tbody').innerHTML=crJunk.length?crJunk.map(makeCancelledRow).join(''):emptyJobRow(5);
+    document.getElementById('jobs-cancelled-quote-tbody').innerHTML=crQuote.length?crQuote.map(makeCancelledRow).join(''):emptyJobRow(5);
+    document.getElementById('jobs-cancelled-furn-tbody').innerHTML=crFurn.length?crFurn.map(makeCancelledRowWithSvc).join(''):emptyJobRow(6);
   } else {
     if(cancelledSection) cancelledSection.style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
