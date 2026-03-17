@@ -6276,17 +6276,32 @@ function openDetail(id){
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:#eab308;font-weight:600">'+j.editedBy+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +'</div></div>':'')
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'
-    +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')">✏️ Edit</button>'
-    +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')">🗑️ Delete</button>'
-    +(j.status!=='Cancelled'?'<button class="btn btn-ghost" style="border-color:rgba(239,68,68,.4);color:#ef4444" onclick="cancelJob(\''+j.id+'\')">🚫 Cancel Job</button>':'')
-    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-weight:700" onclick="convertQuoteToJob(\''+j.id+'\')">⚡ Convert to Job</button>':'')
-    +(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e" onclick="markDropped(\''+j.id+'\')">🚛 Mark Dropped</button>':'')
-    +(j.service==='Bin Rental'&&j.binInstatus==='dropped'?'<button class="btn btn-ghost" style="border-color:rgba(234,179,8,.4);color:#eab308;font-size:13px" onclick="markNotDropped(\''+j.id+'\')">↩ Not Dropped Yet</button>':'')
-    +(j.service==='Bin Rental'&&j.binInstatus==='dropped'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e" onclick="markBinPickedUp2(\''+j.id+'\')">🚚 Mark Picked Up</button>':'')
-    +(j.service!=='Bin Rental'&&j.status!=='Done'?'<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')">✔ Mark Done</button>':'')
-    +(!j.confirmed?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e" onclick="markConfirmed(\''+j.id+'\')">📞 Mark Confirmed</button>':'')
-    +'<button class="btn btn-ghost" style="border-color:rgba(96,165,250,.4);color:#60a5fa" onclick="openEmailModal(\''+j.id+'\')">📧 Send Email</button>'
+    +'<div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px;display:flex;flex-direction:column;gap:10px">'
+
+    // ── Row 1: primary action + email ──
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')" style="flex:1;justify-content:center">✏️ Edit Job</button>'
+    +'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(96,165,250,.4);color:#60a5fa">📧 Send Email</button>'
+    +'</div>'
+
+    // ── Row 2: workflow / status actions (only those relevant to this job) ──
+    +(function(){
+      var btns=[];
+      if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e;font-weight:700">⚡ Convert to Job</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">🚛 Mark Dropped</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">↩ Not Dropped Yet</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">🚚 Mark Picked Up</button>');
+      if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">✔ Mark Done</button>');
+      if(!j.confirmed) btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 Confirm Customer</button>');
+      return btns.length ? '<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div>' : '';
+    }())
+
+    // ── Row 3: destructive actions ──
+    +'<div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--border)">'
+    +(j.status!=='Cancelled'?'<button class="btn btn-ghost" onclick="cancelJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(239,68,68,.3);color:#ef4444">🚫 Cancel Job</button>':'')
+    +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')" style="flex:1;justify-content:center">🗑️ Delete</button>'
+    +'</div>'
+
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
 }
