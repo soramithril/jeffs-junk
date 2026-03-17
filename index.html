@@ -1089,6 +1089,7 @@ textarea{resize:vertical;min-height:80px;}
           <button class="atab"        data-group="svc" data-val="Junk Quote"  onclick="setSvc('Junk Quote',this)">📋 Quote</button>
           <button class="atab"        data-group="svc" data-val="Furniture Pickup" onclick="setSvc('Furniture Pickup',this)">🛋️ Pickup</button>
           <button class="atab"        data-group="svc" data-val="Furniture Delivery" onclick="setSvc('Furniture Delivery',this)">📦 Delivery</button>
+          <button class="atab"        data-group="svc" data-val="Cancelled" onclick="setSvc('Cancelled',this)">🚫 Cancelled</button>
         </div>
       </div>
 
@@ -1143,6 +1144,10 @@ textarea{resize:vertical;min-height:80px;}
     <div class="cat-section">
       <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th title="Has the customer confirmed their appointment?">Confirmed <span style="font-size:10px;opacity:.5;font-weight:400;cursor:help">(?)</span></th><th></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
+    </div>
+    <div class="cat-section" id="jobs-cancelled-section" style="display:none">
+      <div class="cat-section-header" style="background:rgba(239,68,68,.08);border-left:4px solid #ef4444"><div class="cat-title" style="color:#ef4444">🚫 Cancelled Jobs</div><span class="cat-count" id="jobs-cancelled-count">0 jobs</span></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th></tr></thead><tbody id="jobs-cancelled-tbody"></tbody></table></div>
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
@@ -3904,7 +3909,9 @@ function emailHtml(id, sent){
   return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap">📧 Email</button>';
 }
 function makeJobRowNoSvc(j){
-  return '<tr data-jid="'+j.id+'" class="job-row">'
+  var isCancelled = j.status === 'Cancelled';
+  var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
+  return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
@@ -3912,10 +3919,14 @@ function makeJobRowNoSvc(j){
     +binDropBtn(j)
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
-    +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
+    +'<td><div style="display:flex;gap:8px">'
+    +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#ef4444;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#ef4444;border-color:rgba(239,68,68,.3)" title="Cancel job">🚫</button>')
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
-  return '<tr data-jid="'+j.id+'" class="job-row">'
+  var isCancelled = j.status === 'Cancelled';
+  var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
+  return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
@@ -3924,9 +3935,24 @@ function makeJobRowWithSvc(j){
     +binDropBtn(j)
     +'<td class="jcell-confirm">'+confirmedHtml(j.id,j.confirmed)+'</td>'
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
-    +'<td><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
+    +'<td><div style="display:flex;gap:8px">'
+    +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#ef4444;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#ef4444;border-color:rgba(239,68,68,.3)" title="Cancel job">🚫</button>')
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
+function makeCancelledRow(j){
+  return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
+    +'<td>'+jid(j.id,j.service)+'</td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
+    +'<td>'+sb(j.service)+'</td>'
+    +'<td style="font-size:14px">'+fd(j.date)+'</td>'
+    +'<td style="font-size:13px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(resolveAddr(j).display||'—')+'</td>'
+    +'<td><div style="display:flex;gap:8px">'
+    +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Restore job">↩ Restore</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
+    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
+    +'</div></td></tr>';
+}
 function renderJobs(){
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
@@ -3940,12 +3966,18 @@ function renderJobs(){
     return true;
   }
   var all=[].concat(jobs).sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+
+  // Show/hide cancelled section
+  var cancelledSection = document.getElementById('jobs-cancelled-section');
+  var showingCancelled = svcF === 'Cancelled';
+
   if(svcF==='all'){
     document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
-    var br=all.filter(function(j){return j.service==='Bin Rental'&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
-    var jr=all.filter(function(j){return j.service==='Junk Removal'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
-    var qr=all.filter(function(j){return j.service==='Junk Quote'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
-    var fr=all.filter(function(j){return (j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    if(cancelledSection) cancelledSection.style.display='none';
+    var br=all.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
+    var jr=all.filter(function(j){return j.service==='Junk Removal'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    var qr=all.filter(function(j){return j.service==='Junk Quote'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    var fr=all.filter(function(j){return (j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-bin-count').textContent=br.length+' job'+(br.length!==1?'s':'');
     document.getElementById('jobs-junk-count').textContent=jr.length+' job'+(jr.length!==1?'s':'');
     document.getElementById('jobs-quote-count').textContent=qr.length+' quote'+(qr.length!==1?'s':'');
@@ -3954,9 +3986,19 @@ function renderJobs(){
     document.getElementById('jobs-junk-tbody').innerHTML=jr.length?jr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-quote-tbody').innerHTML=qr.length?qr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
+  } else if(showingCancelled){
+    document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
+    // Hide normal service sections, show only cancelled
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
+    if(cancelledSection) cancelledSection.style.display='block';
+    var cr=all.filter(function(j){return j.status==='Cancelled'&&m(j)&&matchDateFilter(j);});
+    document.getElementById('jobs-cancelled-count').textContent=cr.length+' job'+(cr.length!==1?'s':'');
+    document.getElementById('jobs-cancelled-tbody').innerHTML=cr.length?cr.map(makeCancelledRow).join(''):emptyJobRow(6);
   } else {
+    if(cancelledSection) cancelledSection.style.display='none';
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
-    var filt=all.filter(function(j){return j.service===svcF&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
+    var filt=all.filter(function(j){return j.service===svcF&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   }
 }
@@ -3991,6 +4033,20 @@ function renderJobs(){
         openEdit(id);
       } else if(action==='del'){
         delJob(id);
+      } else if(action==='cancel'){
+        if(confirm('Mark this job as Cancelled?')){
+          var jc=jobs.find(function(x){return x.id===id;});
+          if(jc){
+            jc.status='Cancelled';
+            if(jc.binBid){binItems.forEach(function(b){if(b.bid===jc.binBid)b.status='in';});saveBins();}
+            saveSingleJob(jc);
+            toast('Job cancelled.');
+            loadJobsPage(jobsPage);
+          }
+        }
+      } else if(action==='uncancel'){
+        var ju=jobs.find(function(x){return x.id===id;});
+        if(ju){ju.status='Pending';saveSingleJob(ju);toast('Job restored to Pending.');loadJobsPage(jobsPage);}
       }
       return;
     }
@@ -6132,6 +6188,21 @@ function delJob(id){
   deleteJobFromDb(id);
   toast('Deleted.');closeM('detail-modal');refresh();
 }
+function cancelJob(id){
+  if(!confirm('Mark this job as Cancelled?'))return;
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.status='Cancelled';
+  // Release bin back to yard if one was assigned
+  if(j.binBid){
+    binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});
+    saveBins();
+  }
+  saveSingleJob(j);
+  toast('Job cancelled.');
+  closeM('detail-modal');
+  refresh();
+}
 function openDetail(id){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
   document.getElementById('det-ttl').textContent=j.id;
@@ -6173,6 +6244,7 @@ function openDetail(id){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'
     +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')">✏️ Edit</button>'
     +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')">🗑️ Delete</button>'
+    +(j.status!=='Cancelled'?'<button class="btn btn-ghost" style="border-color:rgba(239,68,68,.4);color:#ef4444" onclick="cancelJob(\''+j.id+'\')">🚫 Cancel Job</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-weight:700" onclick="convertQuoteToJob(\''+j.id+'\')">⚡ Convert to Job</button>':'')
     +(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost" style="border-color:rgba(34,197,94,.4);color:#22c55e" onclick="markDropped(\''+j.id+'\')">🚛 Mark Dropped</button>':'')
     +(j.service==='Bin Rental'&&j.binInstatus==='dropped'?'<button class="btn btn-ghost" style="border-color:rgba(234,179,8,.4);color:#eab308;font-size:13px" onclick="markNotDropped(\''+j.id+'\')">↩ Not Dropped Yet</button>':'')
