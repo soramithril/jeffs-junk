@@ -4022,21 +4022,6 @@ function cycleBinDrop(id,e){
   });
   save();refresh();
 }
-function binDropBtn(j){
-  if(j.service!=='Bin Rental')return '<td></td>';
-  if(j.binInstatus==='pickedup')return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(107,117,133,.1);border:1px solid rgba(107,117,133,.3);color:var(--muted);padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">✔ Picked Up</button></td>';
-  if(j.binInstatus==='dropped')return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#22c55e;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">🚛 Dropped</button></td>';
-  return '<td onclick="event.stopPropagation()"><button onclick="cycleBinDrop(\''+j.id+'\',event)" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.35);color:#eab308;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">⏳ Not Dropped</button></td>';
-}
-function confirmedHtml(id, confirmed, service){
-  var needsConfirm = service==='Bin Rental'||service==='Furniture Pickup'||service==='Furniture Delivery';
-  if(!needsConfirm) return '<td class="jcell-confirm"></td>';
-  var label = service==='Furniture Delivery' ? 'Drop-Off' : 'Pickup';
-  var cell = confirmed
-    ? '<button class="btn btn-sm" data-action="unconfirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22c55e;white-space:nowrap">✅ '+label+' Confirmed</button>'
-    : '<button class="btn btn-ghost btn-sm" data-action="confirm" data-jid="'+id+'" style="font-size:12px;padding:6px 12px;border-color:rgba(234,179,8,.4);color:#eab308;white-space:nowrap">📞 Confirm '+label+'</button>';
-  return '<td class="jcell-confirm">'+cell+'</td>';
-}
 function emailHtml(id, sent){
   if(sent)
     return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap">📧 Sent</button>';
