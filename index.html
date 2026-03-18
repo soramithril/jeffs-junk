@@ -356,6 +356,20 @@ body{
 .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
 .btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}.btn-danger:hover{background:rgba(239,68,68,.25);}
 .btn-sm{padding:8px 14px;font-size:13px;}
+
+/* ── JOB TABLE DROPDOWNS ── */
+.jdd-wrap{position:relative;display:inline-block;}
+.jdd-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;transition:all .15s;background:none;}
+.jdd-btn .jdd-caret{font-size:9px;opacity:.65;transition:transform .15s;}
+.jdd-wrap.open .jdd-caret{transform:rotate(180deg);}
+.jdd-menu{position:fixed;z-index:9999;min-width:160px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08);padding:5px;display:none;overflow:hidden;}
+.jdd-wrap.open .jdd-menu{display:block;}
+.jdd-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;}
+.jdd-item:hover{background:rgba(34,197,94,.1);color:var(--accent);}
+.jdd-item.active-item{background:rgba(34,197,94,.08);color:var(--accent);font-weight:700;}
+.jdd-item.danger:hover{background:rgba(239,68,68,.1);color:#ef4444;}
+.jdd-item .jdd-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.jdd-divider{height:1px;background:var(--border);margin:4px 0;}
 .cal-nav{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:16px;}
 .cal-nav:hover{border-color:var(--accent);color:var(--accent);}
 
@@ -3902,6 +3916,96 @@ function matchDateFilter(j){
   if(jobDateF==='month'){var now=new Date();var ms=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];var me=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];return j.date>=ms&&j.date<=me;}
   return true;
 }
+// ── JOB TABLE DROPDOWN MANAGER ──────────────────────────────
+var _jddOpen = null;
+function jddToggle(e, id, type){
+  e.stopPropagation();
+  var wrap = e.currentTarget.closest('.jdd-wrap');
+  if(!wrap) return;
+  if(_jddOpen && _jddOpen !== wrap){
+    _jddOpen.classList.remove('open');
+    _jddOpen = null;
+  }
+  var isOpen = wrap.classList.contains('open');
+  if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
+  // Position menu relative to button
+  var menu = wrap.querySelector('.jdd-menu');
+  var btn  = wrap.querySelector('.jdd-btn');
+  var rect = btn.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4)+'px';
+  menu.style.left = rect.left+'px';
+  // Flip left if would overflow right edge
+  var menuW = 170;
+  if(rect.left + menuW > window.innerWidth - 8){
+    menu.style.left = (rect.right - menuW)+'px';
+  }
+  wrap.classList.add('open');
+  _jddOpen = wrap;
+}
+document.addEventListener('click', function(){ if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;} });
+
+function binDropBtn(j){
+  if(j.service!=='Bin Rental') return '<td></td>';
+  var st = j.binInstatus || '';
+  // Current state label & color
+  var label, color, dot;
+  if(st==='pickedup'){  label='✔ Picked Up';   color='rgba(107,117,133,.8)'; dot='#94a3b8'; }
+  else if(st==='dropped'){ label='🚛 Dropped';  color='#22c55e';              dot='#22c55e'; }
+  else {                   label='⏳ Not Dropped'; color='#eab308';            dot='#eab308'; }
+
+  var html = '<td class="jcell-drop" onclick="event.stopPropagation()" style="padding:8px 12px">'
+    +'<div class="jdd-wrap">'
+    +'<button class="jdd-btn" onclick="jddToggle(event,\''+j.id+'\',\'drop\')" '
+    +' style="border-color:'+(st==='pickedup'?'rgba(107,117,133,.3)':st==='dropped'?'rgba(34,197,94,.4)':'rgba(234,179,8,.4)')+';color:'+color+';background:'+(st==='pickedup'?'rgba(107,117,133,.08)':st==='dropped'?'rgba(34,197,94,.08)':'rgba(234,179,8,.08)')+';">'
+    +'<span style="width:7px;height:7px;border-radius:50%;background:'+dot+';flex-shrink:0;display:inline-block"></span>'
+    +label+' <span class="jdd-caret">▼</span></button>'
+    +'<div class="jdd-menu">'
+    +'<button class="jdd-item'+(st===''?' active-item':'')+'" onclick="jddSetDrop(\''+j.id+'\',\'\',event)">'
+    +'<span class="jdd-dot" style="background:#eab308"></span>⏳ Not Dropped</button>'
+    +'<button class="jdd-item'+(st==='dropped'?' active-item':'')+'" onclick="jddSetDrop(\''+j.id+'\',\'dropped\',event)">'
+    +'<span class="jdd-dot" style="background:#22c55e"></span>🚛 Dropped</button>'
+    +'<button class="jdd-item'+(st==='pickedup'?' active-item':'')+'" onclick="jddSetDrop(\''+j.id+'\',\'pickedup\',event)">'
+    +'<span class="jdd-dot" style="background:#94a3b8"></span>✔ Picked Up</button>'
+    +'</div></div></td>';
+  return html;
+}
+
+function jddSetDrop(id, newStatus, e){
+  if(e) e.stopPropagation();
+  if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;}
+  jobs.forEach(function(j){ if(j.id===id) j.binInstatus=newStatus; });
+  save();
+  // Surgical DOM update — re-render just the drop status cell
+  var row = document.querySelector('tr[data-jid="'+id+'"]');
+  if(row){
+    var j = jobs.find(function(x){return x.id===id;});
+    var dropCell = row.querySelector('.jcell-drop');
+    if(j && dropCell) dropCell.outerHTML = binDropBtn(j);
+  }
+  var label = newStatus===''?'Not Dropped yet':newStatus==='dropped'?'Dropped off!':'Picked up!';
+  toast('🚛 '+label);
+}
+
+function confirmedHtml(id, confirmed, service){
+  var needsConfirm = service==='Bin Rental'||service==='Furniture Pickup'||service==='Furniture Delivery';
+  if(!needsConfirm) return '<td class="jcell-confirm"></td>';
+  var label = service==='Furniture Delivery' ? 'Drop-Off' : 'Pickup';
+  var isConf = !!confirmed;
+
+  var html = '<td class="jcell-confirm" onclick="event.stopPropagation()" style="padding:8px 12px">'
+    +'<div class="jdd-wrap">'
+    +'<button class="jdd-btn" onclick="jddToggle(event,\''+id+'\',\'confirm\')" '
+    +' style="border-color:'+(isConf?'rgba(34,197,94,.4)':'rgba(234,179,8,.4)')+';color:'+(isConf?'#22c55e':'#eab308')+';background:'+(isConf?'rgba(34,197,94,.08)':'rgba(234,179,8,.06)')+';">'
+    +'<span style="width:7px;height:7px;border-radius:50%;background:'+(isConf?'#22c55e':'#eab308')+';flex-shrink:0;display:inline-block"></span>'
+    +(isConf?'✅ '+label+' Confirmed':'📞 Confirm '+label)+' <span class="jdd-caret">▼</span></button>'
+    +'<div class="jdd-menu">'
+    +'<button class="jdd-item'+(isConf?'':' active-item')+'" data-action="confirm" data-jid="'+id+'">'
+    +'<span class="jdd-dot" style="background:#eab308"></span>📞 Needs Confirming</button>'
+    +'<button class="jdd-item'+(isConf?' active-item':'')+'" data-action="unconfirm" data-jid="'+id+'">'
+    +'<span class="jdd-dot" style="background:#22c55e"></span>✅ '+label+' Confirmed</button>'
+    +'</div></div></td>';
+  return html;
+}
 function cycleStatus(id,e){
   if(e)e.stopPropagation();
   var order=['Pending','In Progress','Done'];
@@ -4062,16 +4166,17 @@ function renderJobs(){
     if(!row) return;
     if(btn){
       e.stopPropagation();
+      if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;}
       var id = btn.getAttribute('data-jid');
       var action = btn.getAttribute('data-action');
       if(action==='confirm'){
         jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});
-        save(); toast('Confirmed!');
-        row.querySelector('.jcell-confirm').innerHTML = confirmedHtml(id,true);
+        save(); toast('✅ Confirmed!');
+        row.querySelector('.jcell-confirm').outerHTML = confirmedHtml(id,true, (jobs.find(function(j){return j.id===id;})||{}).service||'Bin Rental');
       } else if(action==='unconfirm'){
         jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});
         save(); toast('Confirmation removed.');
-        row.querySelector('.jcell-confirm').innerHTML = confirmedHtml(id,false);
+        row.querySelector('.jcell-confirm').outerHTML = confirmedHtml(id,false, (jobs.find(function(j){return j.id===id;})||{}).service||'Bin Rental');
       } else if(action==='emailsent'){
         jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});
         save(); toast('Email marked sent!');
