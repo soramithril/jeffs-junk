@@ -362,7 +362,8 @@ body{
 .jdd-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;transition:all .15s;background:none;}
 .jdd-btn .jdd-caret{font-size:9px;opacity:.65;transition:transform .15s;}
 .jdd-wrap.open .jdd-caret{transform:rotate(180deg);}
-.jdd-menu{position:fixed;z-index:9999;min-width:160px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08);padding:5px;display:none;overflow:hidden;}
+.jdd-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:9999;min-width:170px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08);padding:5px;display:none;overflow:hidden;}
+.jdd-menu.flip-left{left:auto;right:0;}
 .jdd-wrap.open .jdd-menu{display:block;}
 .jdd-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;}
 .jdd-item:hover{background:rgba(34,197,94,.1);color:var(--accent);}
@@ -383,11 +384,15 @@ body{
 .search-input::placeholder{color:var(--muted);}
 
 /* ── TABLE ── */
-.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:visible;}
 table{width:100%;border-collapse:collapse;}
 thead th{padding:14px 18px;text-align:left;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2);}
+thead th:first-child{border-radius:12px 0 0 0;}
+thead th:last-child{border-radius:0 12px 0 0;}
 tbody tr{border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer;}
 tbody tr:last-child{border-bottom:none;}
+tbody tr:last-child td:first-child{border-radius:0 0 0 12px;}
+tbody tr:last-child td:last-child{border-radius:0 0 12px 0;}
 tbody tr:hover{background:var(--surface2);}
 tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 
@@ -3928,16 +3933,13 @@ function jddToggle(e, id, type){
   }
   var isOpen = wrap.classList.contains('open');
   if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
-  // Position menu relative to button
+  // Flip menu left-aligned vs right-aligned based on available space
   var menu = wrap.querySelector('.jdd-menu');
-  var btn  = wrap.querySelector('.jdd-btn');
-  var rect = btn.getBoundingClientRect();
-  menu.style.top  = (rect.bottom + 4)+'px';
-  menu.style.left = rect.left+'px';
-  // Flip left if would overflow right edge
-  var menuW = 170;
-  if(rect.left + menuW > window.innerWidth - 8){
-    menu.style.left = (rect.right - menuW)+'px';
+  var rect = wrap.getBoundingClientRect();
+  if(rect.left + 170 > window.innerWidth - 8){
+    menu.classList.add('flip-left');
+  } else {
+    menu.classList.remove('flip-left');
   }
   wrap.classList.add('open');
   _jddOpen = wrap;
