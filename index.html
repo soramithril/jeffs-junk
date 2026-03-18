@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Jeff's Junk — Job Tracker</title>
+<title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -958,23 +958,11 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ROW 1: 4 quick-stat pills -->
-  <div class="dash-section dash-s2" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
-    <div class="chart-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
-      <div style="font-size:26px;line-height:1;flex-shrink:0;">📋</div>
-      <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Jobs Today</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--text)" id="dash-stat-today">—</div>
-      </div>
-    </div>
-    <div class="chart-card" id="dash-stat-unconf-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
-      <div style="font-size:26px;line-height:1;flex-shrink:0;">📞</div>
-      <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Pickups Unconfirmed</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--yellow)" id="dash-stat-unconf">—</div>
-      </div>
-    </div>
-    <div class="chart-card" id="dash-stat-overdue-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
+  <!-- ROW 1: hidden stubs to keep JS happy -->
+  <div style="display:none">
+    <div id="dash-stat-today"></div>
+    <div id="dash-stat-unconf-card"><div id="dash-stat-unconf"></div></div>
+    <div id="dash-stat-overdue-card">
       <div style="font-size:26px;line-height:1;flex-shrink:0;">🔴</div>
       <div>
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Overdue Pickups</div>
@@ -1038,6 +1026,21 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
 
+
+  <!-- MY PRICING DASHBOARD CARD -->
+  <div class="chart-card dash-section dash-s4" style="margin-bottom:24px;padding:0;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.2px;">💰 MY PRICING</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Your current rates · HST (13%) shown</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <select id="dash-pricing-area" onchange="renderDashPricing()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;outline:none;"></select>
+        <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:12px;">View Full Pricing →</button>
+      </div>
+    </div>
+    <div id="dash-pricing-display" style="padding:18px 20px;"></div>
+  </div>
 
   <!-- ROW 5: Week Calendar -->
   <div class="week-cal-wrap dash-section dash-s5">
@@ -2733,6 +2736,7 @@ async function loadAllFromSupabase() {
       });
     }
     renderDash();
+    initDashPricingDropdown();
     toast('✓ Dashboard ready');
     // Background: fix any jobs still missing phone/client_cid
     backfillJobPhones();
@@ -3316,7 +3320,7 @@ function go(name){
   closeSidebar();
 }
 function render(name){
-  if(name==='dashboard') renderDash();
+  if(name==='dashboard'){ renderDash(); initDashPricingDropdown(); }
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='calendar') renderCal();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
@@ -4813,20 +4817,99 @@ function renderPricing(){
   renderPricingGrids();
 }
 
+function renderDashPricing(){
+  var TAX = 1.13;
+  var sel = document.getElementById('dash-pricing-area');
+  if(!sel) return;
+  // Populate dropdown
+  if(sel.options.length !== pricingAreas.length){
+    sel.innerHTML = pricingAreas.map(function(a){
+      return '<option value="'+a+'">'+a+'</option>';
+    }).join('');
+  }
+  var area = sel.value || pricingAreas[0] || '';
+  if(!area){ document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing →</button></div>'; return; }
+  var ap = getAreaPrices(area);
+  var bins = ap.bins || {};
+  var junk = ap.junk || {};
+  var fuel = parseFloat(ap.binFuel)||0;
+  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
+  var junkTiers = [{k:'min',l:'Min / Small'},{k:'quarter',l:'¼ Truck'},{k:'half',l:'½ Truck'},{k:'full',l:'Full Truck'}];
+
+  function fmtPrice(v){ return v ? '$'+parseFloat(v).toFixed(0) : '—'; }
+  function fmtPriceDec(v){ return v ? '$'+parseFloat(v).toFixed(2) : '—'; }
+  function withTax(v){ return v ? '$'+(parseFloat(v)*TAX).toFixed(2) : '—'; }
+  function withFuel(v){ return v&&fuel ? '$'+(parseFloat(v)*(1+fuel/100)).toFixed(0) : (v?'$'+parseFloat(v).toFixed(0):'—'); }
+  function withFuelTax(v){ return v&&fuel ? '$'+(parseFloat(v)*(1+fuel/100)*TAX).toFixed(2) : (v?'$'+(parseFloat(v)*TAX).toFixed(2):'—'); }
+
+  // Bin table
+  var binHtml = '<div style="margin-bottom:20px">'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">🚛 Bin Rental'+(fuel?' <span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:5px;padding:2px 8px;font-size:10px;color:#eab308">⛽ +'+fuel+'% fuel</span>':'')+'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+  binSizes.forEach(function(s){
+    var v = bins[s];
+    var withF = fuel ? (v ? parseFloat(v)*(1+fuel/100) : null) : (v ? parseFloat(v) : null);
+    binHtml += '<div style="background:var(--surface2);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:14px;text-align:center">'
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">'+s+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--accent);line-height:1">'+(withF?'$'+withF.toFixed(0):'—')+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:3px">excl. tax</div>'
+      +'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#22c55e;line-height:1">'+(withF?'$'+(withF*TAX).toFixed(2):'—')+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:3px">incl. HST</div>'
+      +'</div>'
+      +'</div>';
+  });
+  binHtml += '</div></div>';
+
+  // Junk table
+  var junkHtml = '<div>'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">🧹 Junk Removal</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+  junkTiers.forEach(function(t){
+    var v = junk[t.k];
+    junkHtml += '<div style="background:var(--surface2);border:1px solid rgba(234,179,8,.2);border-radius:10px;padding:14px;text-align:center">'
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">'+t.l+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#eab308;line-height:1">'+(v?'$'+parseFloat(v).toFixed(0):'—')+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:3px">excl. tax</div>'
+      +'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#f59e0b;line-height:1">'+(v?'$'+(parseFloat(v)*TAX).toFixed(2):'—')+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:3px">incl. HST</div>'
+      +'</div>'
+      +'</div>';
+  });
+  junkHtml += '</div></div>';
+
+  document.getElementById('dash-pricing-display').innerHTML = binHtml + junkHtml;
+}
+
+function initDashPricingDropdown(){
+  var sel = document.getElementById('dash-pricing-area');
+  if(!sel) return;
+  sel.innerHTML = pricingAreas.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
+  if(pricingAreas.length) sel.value = pricingAreas[0];
+  renderDashPricing();
+}
+
+
 function renderPricingGrids(){
+  var TAX_RATE = 1.13; // Ontario HST 13%
   var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
   var junkTiers = [{k:'min',l:'Min/Small'},{k:'quarter',l:'¼ Truck'},{k:'half',l:'½ Truck'},{k:'full',l:'Full Truck'}];
 
+  function fmtWithTax(v){ return v ? '$'+(parseFloat(v)*TAX_RATE).toFixed(2) : '—'; }
+
   function priceCell(val, ourVal){
-    if(!val) return '<td style="padding:10px 14px;text-align:center;color:var(--muted)">—</td>';
-    var display = '$'+val;
-    if(!ourVal) return '<td style="padding:10px 14px;text-align:center">'+display+'</td>';
+    if(!val) return '<td style="padding:10px 14px;text-align:center;color:var(--muted)">—<br><span style="font-size:10px;color:var(--muted)">—</span></td>';
+    var pretax = '$'+val;
+    var withtax = '$'+(parseFloat(val)*TAX_RATE).toFixed(2);
+    if(!ourVal) return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700">'+pretax+'</div><div style="font-size:11px;color:var(--muted)">'+withtax+' w/tax</div></td>';
     var diff = parseFloat(val)-parseFloat(ourVal);
     var pct = Math.round(diff/parseFloat(ourVal)*100);
     var color = diff>0?'#22c55e':diff<0?'#ef4444':'var(--muted)';
     var arrow = diff>0?'▲':diff<0?'▼':'=';
     return '<td style="padding:10px 14px;text-align:center">'
-      +'<div style="font-weight:700">'+display+'</div>'
+      +'<div style="font-weight:700">'+pretax+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+withtax+' w/tax</div>'
       +'<div style="font-size:11px;color:'+color+'">'+arrow+' '+(diff>=0?'+':'')+pct+'%</div>'
       +'</td>';
   }
@@ -4843,18 +4926,23 @@ function renderPricingGrids(){
       +'<span style="display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px"></span>'
       +'<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">📍 '+area+'</span></div>';
 
-    // BIN TABLE for this area
+    // BIN TABLE for this area — shows pre-tax + with-tax
     var binHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
       +'<th style="'+thLeft()+'">Company</th>'
-      +binSizes.map(function(s){return'<th style="'+thStyle()+'">'+s+'</th>';}).join('')
+      +binSizes.map(function(s){return'<th style="'+thStyle()+'">'+s+'<br><span style="font-size:9px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">pre-tax / w/tax</span></th>';}).join('')
       +'<th style="'+thStyle()+'">⛽ Fuel</th>'
       +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
-    // Our row
+    // Our row — show pre-tax and with-tax
     binHtml += '<tr style="background:rgba(34,197,94,.06);border-bottom:1px solid var(--border)">'
       +'<td style="padding:10px 14px;font-weight:700;color:var(--accent)">🏠 Jeff\'s Junk</td>'
-      +binSizes.map(function(s){ var v=ap.bins&&ap.bins[s]?'$'+ap.bins[s]:'—'; return'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+v+'</td>'; }).join('')
+      +binSizes.map(function(s){
+        var v = ap.bins&&ap.bins[s] ? parseFloat(ap.bins[s]) : null;
+        var pre = v ? '$'+v.toFixed(0) : '—';
+        var tax = v ? '$'+(v*TAX_RATE).toFixed(2) : '—';
+        return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700;color:var(--accent)">'+pre+'</div><div style="font-size:11px;color:#4ade80">'+tax+' w/tax</div></td>';
+      }).join('')
       +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'—')+'</td>'
       +'<td></td></tr>';
     areaComps.forEach(function(comp){
@@ -4871,16 +4959,21 @@ function renderPricingGrids(){
     binHtml += '</tbody></table></div>';
     binOut += areaHeader + binHtml;
 
-    // JUNK TABLE for this area
+    // JUNK TABLE for this area — shows pre-tax + with-tax
     var junkHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
       +'<th style="'+thLeft()+'">Company</th>'
-      +junkTiers.map(function(t){return'<th style="'+thStyle()+'">'+t.l+'</th>';}).join('')
+      +junkTiers.map(function(t){return'<th style="'+thStyle()+'">'+t.l+'<br><span style="font-size:9px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">pre-tax / w/tax</span></th>';}).join('')
       +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
     junkHtml += '<tr style="background:rgba(234,179,8,.06);border-bottom:1px solid var(--border)">'
       +'<td style="padding:10px 14px;font-weight:700;color:#eab308">🏠 Jeff\'s Junk</td>'
-      +junkTiers.map(function(t){ var v=ap.junk&&ap.junk[t.k]?'$'+ap.junk[t.k]:'—'; return'<td style="padding:10px 14px;text-align:center;font-weight:700;color:#eab308">'+v+'</td>'; }).join('')
+      +junkTiers.map(function(t){
+        var v = ap.junk&&ap.junk[t.k] ? parseFloat(ap.junk[t.k]) : null;
+        var pre = v ? '$'+v.toFixed(0) : '—';
+        var tax = v ? '$'+(v*TAX_RATE).toFixed(2) : '—';
+        return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700;color:#eab308">'+pre+'</div><div style="font-size:11px;color:#f59e0b">'+tax+' w/tax</div></td>';
+      }).join('')
       +'<td></td></tr>';
     areaComps.forEach(function(comp){
       junkHtml += '<tr style="border-bottom:1px solid var(--border)">'
