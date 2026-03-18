@@ -3865,9 +3865,27 @@ async function confirmJob(id, e){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.confirmed=true;
-  await db.from('jobs').update({confirmed:true}).eq('id',id);
+  // Immediately remove from callback list DOM — don't wait for DB round-trip
+  var cbEl = document.getElementById('dash-callback-list');
+  if(cbEl){
+    // Find and remove the row containing this job's confirm button
+    var rows = cbEl.querySelectorAll('div[style*="border-left"]');
+    rows.forEach(function(row){
+      if(row.innerHTML.indexOf("confirmJob('"+id+"'") >= 0 || row.innerHTML.indexOf('confirmJob(\''+id+'\'') >= 0){
+        row.remove();
+      }
+    });
+    // If no rows left, show the "all confirmed" message
+    var remaining = cbEl.querySelectorAll('div[style*="border-left"]');
+    if(!remaining.length){
+      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All pickups &amp; drop-offs confirmed</div>';
+    }
+  }
+  // Also update the today's jobs section — hide the confirm button for this job
+  document.querySelectorAll('[onclick*="confirmJob(\''+id+'\'"]').forEach(function(btn){ btn.remove(); });
   toast('✅ '+j.name+' confirmed!');
-  renderDash();
+  // Save to DB in background
+  db.from('jobs').update({confirmed:true}).eq('id',id).then(function(){});
 }
 
 // ─── JOBS TABLE ───
@@ -4831,19 +4849,11 @@ function renderDashPricing(){
   if(!area){ document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing →</button></div>'; return; }
   var ap = getAreaPrices(area);
   var bins = ap.bins || {};
-  var junk = ap.junk || {};
   var fuel = parseFloat(ap.binFuel)||0;
   var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
-  var junkTiers = [{k:'min',l:'Min / Small'},{k:'quarter',l:'¼ Truck'},{k:'half',l:'½ Truck'},{k:'full',l:'Full Truck'}];
 
-  function fmtPrice(v){ return v ? '$'+parseFloat(v).toFixed(0) : '—'; }
-  function fmtPriceDec(v){ return v ? '$'+parseFloat(v).toFixed(2) : '—'; }
-  function withTax(v){ return v ? '$'+(parseFloat(v)*TAX).toFixed(2) : '—'; }
-  function withFuel(v){ return v&&fuel ? '$'+(parseFloat(v)*(1+fuel/100)).toFixed(0) : (v?'$'+parseFloat(v).toFixed(0):'—'); }
-  function withFuelTax(v){ return v&&fuel ? '$'+(parseFloat(v)*(1+fuel/100)*TAX).toFixed(2) : (v?'$'+(parseFloat(v)*TAX).toFixed(2):'—'); }
-
-  // Bin table
-  var binHtml = '<div style="margin-bottom:20px">'
+  // Bin table only
+  var binHtml = '<div>'
     +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">🚛 Bin Rental'+(fuel?' <span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:5px;padding:2px 8px;font-size:10px;color:#eab308">⛽ +'+fuel+'% fuel</span>':'')+'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
   binSizes.forEach(function(s){
@@ -4861,25 +4871,7 @@ function renderDashPricing(){
   });
   binHtml += '</div></div>';
 
-  // Junk table
-  var junkHtml = '<div>'
-    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">🧹 Junk Removal</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
-  junkTiers.forEach(function(t){
-    var v = junk[t.k];
-    junkHtml += '<div style="background:var(--surface2);border:1px solid rgba(234,179,8,.2);border-radius:10px;padding:14px;text-align:center">'
-      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">'+t.l+'</div>'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#eab308;line-height:1">'+(v?'$'+parseFloat(v).toFixed(0):'—')+'</div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:3px">excl. tax</div>'
-      +'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#f59e0b;line-height:1">'+(v?'$'+(parseFloat(v)*TAX).toFixed(2):'—')+'</div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:3px">incl. HST</div>'
-      +'</div>'
-      +'</div>';
-  });
-  junkHtml += '</div></div>';
-
-  document.getElementById('dash-pricing-display').innerHTML = binHtml + junkHtml;
+  document.getElementById('dash-pricing-display').innerHTML = binHtml;
 }
 
 function initDashPricingDropdown(){
