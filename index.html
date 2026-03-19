@@ -7395,14 +7395,18 @@ applyAdminVisibility();
     <div class="form-grid">
       <div class="form-group">
         <label>Primary Client <span style="font-weight:400;color:var(--muted)">(keep this one)</span></label>
-        <input type="text" id="merge-primary-search" placeholder="Search by name…" oninput="filterMergeList('primary')" autocomplete="off" style="width:100%;margin-bottom:4px">
-        <div id="merge-primary-dropdown" style="display:none;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);box-shadow:var(--glass-shadow);z-index:10;position:relative;"></div>
+        <div style="position:relative;">
+          <input type="text" id="merge-primary-search" placeholder="Search by name…" oninput="filterMergeList('primary')" autocomplete="off" style="width:100%;">
+          <div id="merge-primary-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:600;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:0 0 10px 10px;background:var(--surface-solid);box-shadow:0 8px 24px rgba(0,0,0,.25);"></div>
+        </div>
         <input type="hidden" id="merge-primary">
       </div>
       <div class="form-group">
         <label>Secondary Client <span style="font-weight:400;color:var(--muted)">(will be deleted)</span></label>
-        <input type="text" id="merge-secondary-search" placeholder="Search by name…" oninput="filterMergeList('secondary')" autocomplete="off" style="width:100%;margin-bottom:4px">
-        <div id="merge-secondary-dropdown" style="display:none;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);box-shadow:var(--glass-shadow);z-index:10;position:relative;"></div>
+        <div style="position:relative;">
+          <input type="text" id="merge-secondary-search" placeholder="Search by name…" oninput="filterMergeList('secondary')" autocomplete="off" style="width:100%;">
+          <div id="merge-secondary-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:600;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:0 0 10px 10px;background:var(--surface-solid);box-shadow:0 8px 24px rgba(0,0,0,.25);"></div>
+        </div>
         <input type="hidden" id="merge-secondary">
       </div>
     </div>
@@ -7629,50 +7633,61 @@ function countClientJobs(cid, name) {
   }).length;
 }
 
-function filterMergeList(which) {
-  var searchId = 'merge-' + which + '-search';
-  var dropId   = 'merge-' + which + '-dropdown';
-  var hiddenId = 'merge-' + which;
-  var query = document.getElementById(searchId).value.trim().toLowerCase();
-  var drop  = document.getElementById(dropId);
+async function filterMergeList(which) {
+  var q = document.getElementById('merge-' + which + '-search').value.trim();
+  var drop = document.getElementById('merge-' + which + '-dropdown');
 
-  if (!query) { drop.style.display = 'none'; return; }
+  if (!q) { drop.style.display = 'none'; return; }
 
-  var sorted = clients.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
-  var matches = sorted.filter(function(c){ return c.name.toLowerCase().includes(query); });
-
-  if (!matches.length) {
-    drop.innerHTML = '<div style="padding:10px 12px;color:var(--muted);font-size:13px;">No clients found</div>';
-    drop.style.display = 'block';
-    return;
-  }
-
-  drop.innerHTML = matches.map(function(c){
-    var cnt = countClientJobs(c.cid, c.name);
-    var nameJson = JSON.stringify(c.name);
-    return '<div style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;" '
-      + 'onmousedown="event.preventDefault();selectMergeClient(\''+which+'\',\''+c.cid+'\','+nameJson+')" '
-      + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-      + '<span>'+c.name+'</span>'
-      + '<span style="color:var(--muted);font-size:11px;">'+cnt+' job'+(cnt!==1?'s':'')+'</span>'
-      + '</div>';
-  }).join('');
   drop.style.display = 'block';
+  drop.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
+
+  try {
+    var r = await db.from('clients').select('cid,name,phone,city')
+      .or('name.ilike.%' + q + '%,phone.ilike.%' + q + '%')
+      .order('name').limit(15);
+
+    if (!r.data || !r.data.length) {
+      drop.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found</div>';
+      return;
+    }
+
+    r.data.forEach(function(c) {
+      var cl = dbToClient(c);
+      var idx = clients.findIndex(function(x) { return x.cid === cl.cid; });
+      if (idx >= 0) clients[idx] = cl; else clients.push(cl);
+    });
+
+    drop.innerHTML = r.data.map(function(c) {
+      var cnt = countClientJobs(c.cid, c.name);
+      return '<div onclick="selectMergeClient(\'' + which + '\',\'' + c.cid + '\')" '
+        + 'style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center;" '
+        + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        + '<span><strong>' + c.name + '</strong>' + (c.city ? ' <span style="color:var(--muted);font-size:11px">· ' + c.city + '</span>' : '') + '</span>'
+        + '<span style="color:var(--muted);font-size:11px;flex-shrink:0;margin-left:8px;">' + cnt + ' job' + (cnt !== 1 ? 's' : '') + '</span>'
+        + '</div>';
+    }).join('');
+
+  } catch(ex) {
+    drop.innerHTML = '<div style="padding:10px 14px;color:#ef4444;font-size:13px">Error: ' + ex.message + '</div>';
+  }
 }
 
-function selectMergeClient(which, cid, name) {
-  document.getElementById('merge-' + which + '-search').value = name;
+function selectMergeClient(which, cid) {
+  var c = clients.find(function(x) { return x.cid === cid; });
+  if (!c) return;
+  document.getElementById('merge-' + which + '-search').value = c.name;
   document.getElementById('merge-' + which).value = cid;
   document.getElementById('merge-' + which + '-dropdown').style.display = 'none';
   updateMergePreview();
 }
 
-// Close dropdowns when clicking outside
+// Hide merge dropdowns when clicking outside
 document.addEventListener('click', function(e){
   ['primary','secondary'].forEach(function(w){
-    var search = document.getElementById('merge-'+w+'-search');
-    var drop   = document.getElementById('merge-'+w+'-dropdown');
-    if (search && drop && !search.contains(e.target) && !drop.contains(e.target)) {
+    var wrap = document.getElementById('merge-'+w+'-search');
+    var drop = document.getElementById('merge-'+w+'-dropdown');
+    if (drop && wrap && !wrap.contains(e.target) && !drop.contains(e.target)) {
       drop.style.display = 'none';
     }
   });
