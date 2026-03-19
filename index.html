@@ -1047,17 +1047,12 @@ textarea{resize:vertical;min-height:80px;}
 
   <!-- MY PRICING DASHBOARD CARD -->
   <div class="chart-card dash-section dash-s4" style="margin-bottom:24px;padding:0;overflow:hidden;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
-      <div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.2px;">💰 MY PRICING</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Your current rates · HST (13%) shown</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <select id="dash-pricing-area" onchange="renderDashPricing()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;outline:none;"></select>
-        <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:12px;">View Full Pricing →</button>
-      </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
+      <select id="dash-pricing-area" onchange="renderDashPricing()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;outline:none;"></select>
+      <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">View Full Pricing →</button>
     </div>
-    <div id="dash-pricing-display" style="padding:18px 20px;"></div>
+    <div id="dash-pricing-display" style="padding:10px 14px;"></div>
   </div>
 
   <!-- ROW 5: Week Calendar -->
@@ -5081,131 +5076,77 @@ function renderDashPricing(){
   }
   var area = sel.value || pricingAreas[0] || '';
   if(!area){
-    document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing &#x2192;</button></div>';
+    document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing &#x2192;</button></div>';
     return;
   }
   var ap    = getAreaPrices(area);
   var bins  = ap.bins  || {};
+  var bins3 = ap.bins3day || null;
+  var bins7 = ap.bins7day || null;
   var fuel  = parseFloat(ap.binFuel)  || 0;
   var tonne = parseFloat(ap.binTonne) || 0;
-  var junk  = ap.junk  || {};
-  var binSizes  = ['4 yard','7 yard','14 yard','20 yard'];
-  var tonneOn   = {'14 yard':true,'20 yard':true};
-  var junkTiers = [{k:'min',l:'Min'},{k:'quarter',l:'1/4 Load'},{k:'half',l:'1/2 Load'},{k:'full',l:'Full Load'}];
+  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
+  var tonneOn  = {'14 yard':true,'20 yard':true};
 
-  // Build the step-by-step total for a bin
-  function buildSteps(rawVal, sz){
-    var base = parseFloat(rawVal)||0;
-    if(!base) return null;
-    var hasTonne = tonne && tonneOn[sz];
-    var afterFuel  = fuel  ? base*(1+fuel/100)     : base;
-    var afterTonne = hasTonne ? afterFuel+tonne      : afterFuel;
-    var hst        = afterTonne*(TAX-1);
-    var total      = afterTonne+hst;
-    return {base:base, afterFuel:afterFuel, afterTonne:afterTonne, hst:hst, total:total, hasTonne:hasTonne};
+  function calcTotal(raw, sz){
+    var v = parseFloat(raw)||0;
+    if(!v) return null;
+    if(fuel) v = v*(1+fuel/100);
+    if(tonne && tonneOn[sz]) v = v+tonne;
+    return v*TAX;
   }
-
   function fmD(v){ return '$'+v.toFixed(2); }
   function fmR(v){ return '$'+Math.round(v); }
 
   var activeBins = binSizes.filter(function(sz){ return parseFloat(bins[sz])||0; });
-  var activeJunk = junkTiers.filter(function(t){ return parseFloat(junk[t.k])||0; });
-  var hasBins = activeBins.length > 0;
-  var hasJunk = activeJunk.length > 0;
+  if(!activeBins.length){
+    document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px">No bin prices set for this area.</div>';
+    return;
+  }
 
-  // ── Row style helpers ──────────────────────────────
-  var ROW  = 'display:flex;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);gap:0;';
-  var ROW_LAST = 'display:flex;align-items:center;padding:7px 12px;gap:0;';
+  // Surcharge pills — compact, only shown if applicable
+  var pills = '';
+  if(fuel)  pills += '<span style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);border-radius:20px;padding:1px 8px;font-size:11px;color:#eab308;font-weight:600">⛽ +'+fuel+'% fuel</span> ';
+  if(tonne) pills += '<span style="background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);border-radius:20px;padding:1px 8px;font-size:11px;color:#60a5fa;font-weight:600">🚛 $'+tonne+'/tonne (14&amp;20yd)</span> ';
+  pills += '<span style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.2);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--muted);font-weight:500">+HST 13%</span>';
+  var out = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+pills+'</div>';
 
-  // ── Breakdown steps as inline chips ──────────────
-  // "base → +fuel% → +tonne → +HST = TOTAL"
-  function buildBreakdown(s, color){
-    var steps = '';
-    var sz_chip = function(val, label, col){
-      return '<span style="color:var(--muted);font-size:11px">'+val+'</span>'
-             +'<span style="font-size:10px;color:var(--muted);margin:0 3px">&rarr;</span>';
-    };
-    // Base
-    steps += '<span style="font-size:11px;color:var(--muted)">'+fmR(s.base)+'</span>';
-    // Fuel
+  // Bin rows — one per line, label | breakdown → total
+  out += '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">';
+  activeBins.forEach(function(sz, i){
+    var tot = calcTotal(bins[sz], sz);
+    if(!tot) return;
+    var base = parseFloat(bins[sz]);
+    var isLast = i === activeBins.length-1;
+    var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
+    var border = isLast ? '' : 'border-bottom:1px solid var(--border);';
+
+    // Breakdown string
+    var bd = '<span style="font-size:12px;color:var(--muted)">'+fmR(base)+'</span>';
     if(fuel){
-      steps += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
-      steps += '<span style="font-size:11px;color:#eab308">+'+fuel+'%</span>';
+      bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
+      bd += '<span style="font-size:12px;color:#eab308;font-weight:600">+'+fuel+'%</span>';
     }
-    // Tonne
-    if(s.hasTonne){
-      steps += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
-      steps += '<span style="font-size:11px;color:#60a5fa">+'+fmR(tonne)+' tonne</span>';
+    if(tonne && tonneOn[sz]){
+      bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
+      bd += '<span style="font-size:12px;color:#60a5fa;font-weight:600">+'+fmR(tonne)+' tonne</span>';
     }
-    // HST
-    steps += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
-    steps += '<span style="font-size:11px;color:var(--muted)">+HST</span>';
-    // = Total
-    steps += '<span style="font-size:10px;color:var(--muted);margin:0 5px">=</span>';
-    steps += '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:'+color+';letter-spacing:.5px;line-height:1">'+fmD(s.total)+'</span>';
-    return steps;
-  }
+    bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
+    bd += '<span style="font-size:12px;color:var(--muted)">+HST</span>';
+    bd += '<span style="font-size:12px;color:var(--muted);margin:0 5px">=</span>';
 
-  var out = '';
+    out += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:'+bg+';'+border+'">';
+    // Size
+    out += '<div style="width:52px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text)">'+sz+'</div>';
+    // Breakdown + total
+    out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+bd
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#22c55e;line-height:1;letter-spacing:.3px">'+fmD(tot)+'</span>'
+      +'</div>';
+    out += '</div>';
+  });
+  out += '</div>';
 
-  // ── BIN BLOCK ──────────────────────────────────────────────
-  if(hasBins){
-    out += '<div style="margin-bottom:'+(hasJunk?'10px':'0')+'">';
-    // Section label
-    out += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);padding:0 12px;margin-bottom:4px">🚛 Bin Rental</div>';
-    out += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-
-    activeBins.forEach(function(sz, i){
-      var s = buildSteps(bins[sz], sz);
-      if(!s) return;
-      var isLast = i === activeBins.length-1;
-      var rowStyle = isLast ? ROW_LAST : ROW;
-      var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
-
-      out += '<div style="'+rowStyle+'background:'+bg+'">';
-      // Size label — fixed width
-      out += '<div style="width:60px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text)">'+sz+'</div>';
-      // Breakdown steps — fills remaining space
-      out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:1px">'+buildBreakdown(s,'#22c55e')+'</div>';
-      out += '</div>';
-    });
-
-    out += '</div></div>';
-  }
-
-  // ── JUNK BLOCK ─────────────────────────────────────────────
-  if(hasJunk){
-    out += '<div>';
-    out += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);padding:0 12px;margin-bottom:4px">🧹 Junk Removal</div>';
-    out += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-
-    activeJunk.forEach(function(t, i){
-      var pre  = parseFloat(junk[t.k]);
-      var hst  = pre*(TAX-1);
-      var tot  = pre+hst;
-      var isLast = i === activeJunk.length-1;
-      var rowStyle = isLast ? ROW_LAST : ROW;
-      var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
-
-      out += '<div style="'+rowStyle+'background:'+bg+'">';
-      // Load label
-      out += '<div style="width:72px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text)">'+t.l+'</div>';
-      // Breakdown
-      out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:1px">';
-      out += '<span style="font-size:11px;color:var(--muted)">'+fmR(pre)+'</span>';
-      out += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
-      out += '<span style="font-size:11px;color:var(--muted)">+HST</span>';
-      out += '<span style="font-size:10px;color:var(--muted);margin:0 5px">=</span>';
-      out += '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:#eab308;letter-spacing:.5px;line-height:1">'+fmD(tot)+'</span>';
-      out += '</div>';
-      out += '</div>';
-    });
-
-    out += '</div></div>';
-  }
-
-  document.getElementById('dash-pricing-display').innerHTML = out
-    || '<div style="color:var(--muted);font-size:13px">No prices set for this area.</div>';
+  document.getElementById('dash-pricing-display').innerHTML = out;
 }
 function initDashPricingDropdown(){
   var sel = document.getElementById('dash-pricing-area');
