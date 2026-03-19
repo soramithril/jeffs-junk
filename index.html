@@ -4033,31 +4033,21 @@ document.addEventListener('click', function(){ if(_jddOpen){_jddOpen.classList.r
 function toggleJdd(wrap){
   if(!wrap) return;
   if(_jddOpen && _jddOpen !== wrap){
-    var om=_jddOpen.querySelector('.jdd-menu');
-    if(om){om.style.display='none';}
     _jddOpen.classList.remove('open'); _jddOpen=null;
   }
   var isOpen = wrap.classList.contains('open');
-  if(isOpen){
-    var om=wrap.querySelector('.jdd-menu');
-    if(om) om.style.display='none';
-    wrap.classList.remove('open'); _jddOpen=null; return;
-  }
+  if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
   var menu = wrap.querySelector('.jdd-menu');
   if(menu){
     var btn = wrap.querySelector('.jdd-btn');
     var rect = (btn||wrap).getBoundingClientRect();
-    var menuW = 192;
-    // Position below the button
+    var menuW = 200;
     var top = rect.bottom + 4;
     var left = rect.left;
-    // Flip left if would go off right edge
     if(left + menuW > window.innerWidth - 8){ left = rect.right - menuW; }
-    // Flip up if would go off bottom
-    if(top + 160 > window.innerHeight - 8){ top = rect.top - 160; }
+    if(top + 200 > window.innerHeight - 8){ top = rect.top - 200; }
     menu.style.top  = top  + 'px';
     menu.style.left = left + 'px';
-    menu.style.display = 'none'; // let CSS open class handle it
   }
   wrap.classList.add('open'); _jddOpen=wrap;
 }
@@ -5051,52 +5041,80 @@ function renderDashPricing(){
     sel.innerHTML = pricingAreas.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
   }
   var area = sel.value || pricingAreas[0] || '';
-  if(!area){ document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing \u2192</button></div>'; return; }
+  if(!area){
+    document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing \u2192</button></div>';
+    return;
+  }
   var ap = getAreaPrices(area);
   var bins  = ap.bins   || {};
   var bins3 = ap.bins3day || null;
   var bins7 = ap.bins7day || null;
   var fuel  = parseFloat(ap.binFuel)||0;
-  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
+  var junk  = ap.junk   || {};
+  var binSizes  = ['4 yard','7 yard','14 yard','20 yard'];
+  var junkTiers = [{k:'min',l:'Min'},{k:'quarter',l:'\u00bc Truck'},{k:'half',l:'\u00bd Truck'},{k:'full',l:'Full Truck'}];
   var hasMultiday = !!(bins3 || bins7);
 
   function applyFuel(v){ return fuel && v ? parseFloat(v)*(1+fuel/100) : (v ? parseFloat(v) : null); }
-  function fmt(v){ return v ? '$'+v.toFixed(0) : '\u2014'; }
-  function fmtTax(v){ return v ? '$'+(v*TAX).toFixed(2) : '\u2014'; }
+  function fmt(v)    { return v ? '$'+v.toFixed(0) : '\u2014'; }
+  function fmtTax(v) { return v ? '$'+(v*TAX).toFixed(2) : '\u2014'; }
 
+  var colColors = {'Standard':'#22c55e','3-Day':'#eab308','7-Day':'#60a5fa'};
   var cols = ['Standard'];
   if(hasMultiday){ if(bins3) cols.push('3-Day'); if(bins7) cols.push('7-Day'); }
-  var colColors = {'Standard':'#22c55e','3-Day':'#eab308','7-Day':'#60a5fa'};
-  var colSrcs   = {'Standard':bins,'3-Day':bins3||{},'7-Day':bins7||{}};
+  var colSrcs = {'Standard':bins,'3-Day':bins3||{},'7-Day':bins7||{}};
 
-  var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">';
-  // Header
-  html += '<thead><tr>';
-  html += '<th style="padding:8px 14px 8px 0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--border)">Size</th>';
+  var tdL = 'padding:11px 10px 11px 0;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;';
+  var tdC = 'padding:11px 8px;text-align:center;border-left:1px solid var(--border);';
+
+  // ── BIN section
+  var binHtml = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">🚛 Bin Rental'+(fuel?' <span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:5px;padding:1px 7px;font-size:10px;color:#eab308">\u26fd +'+fuel+'%</span>':'')+'</div>';
+  binHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+  binHtml += '<thead><tr><th style="'+tdL+'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--border)">Size</th>';
   cols.forEach(function(col){
-    html += '<th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:'+colColors[col]+';font-weight:700;border-bottom:2px solid var(--border);white-space:nowrap">'+col+'</th>';
+    binHtml += '<th style="padding:0 8px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+colColors[col]+';font-weight:700;border-bottom:2px solid var(--border);white-space:nowrap">'+col+'</th>';
   });
-  html += '</tr></thead><tbody>';
-  // Rows
+  binHtml += '</tr></thead><tbody>';
   binSizes.forEach(function(sz, idx){
     var bg = idx%2===0?'transparent':'rgba(0,0,0,.025)';
-    html += '<tr style="background:'+bg+'">';
-    html += '<td style="padding:13px 14px 13px 0;font-size:15px;font-weight:700;color:var(--text);white-space:nowrap">'+sz+'</td>';
+    binHtml += '<tr style="background:'+bg+'">';
+    binHtml += '<td style="'+tdL+'">'+sz+'</td>';
     cols.forEach(function(col){
       var raw = colSrcs[col][sz];
-      var base;
-      if(col==='Standard'){ base = applyFuel(raw); }
-      else { base = raw ? parseFloat(raw) : applyFuel(colSrcs['Standard'][sz]); }
-      html += '<td style="padding:13px 10px;text-align:center;border-left:1px solid var(--border)">';
-      html += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+colColors[col]+';line-height:1;letter-spacing:.5px">'+fmt(base)+'</div>';
-      html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">'+fmtTax(base)+' w/ HST</div>';
-      html += '</td>';
+      var base = col==='Standard' ? applyFuel(raw) : (raw ? parseFloat(raw) : applyFuel(colSrcs['Standard'][sz]));
+      binHtml += '<td style="'+tdC+'">';
+      binHtml += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+colColors[col]+';line-height:1">'+fmt(base)+'</div>';
+      binHtml += '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+fmtTax(base)+' w/HST</div>';
+      binHtml += '</td>';
     });
-    html += '</tr>';
+    binHtml += '</tr>';
   });
-  html += '</tbody></table></div>';
-  if(fuel){ html = '<div style="margin-bottom:10px"><span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;color:#eab308">\u26fd Fuel surcharge: +'+fuel+'% included above</span></div>'+html; }
-  document.getElementById('dash-pricing-display').innerHTML = html;
+  binHtml += '</tbody></table></div>';
+
+  // ── JUNK section
+  var hasJunk = junkTiers.some(function(t){ return junk[t.k]; });
+  var junkHtml = '';
+  if(hasJunk){
+    junkHtml += '<div style="height:1px;background:var(--border);margin:4px 0 12px"></div>';
+    junkHtml += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">🧹 Junk Removal</div>';
+    junkHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">';
+    junkHtml += '<thead><tr><th style="'+tdL+'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--border)">Load</th>';
+    junkHtml += '<th style="padding:0 8px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#eab308;font-weight:700;border-bottom:2px solid var(--border)">Price</th></tr></thead><tbody>';
+    junkTiers.forEach(function(t, idx){
+      if(!junk[t.k]) return;
+      var v = parseFloat(junk[t.k]);
+      var bg = idx%2===0?'transparent':'rgba(0,0,0,.025)';
+      junkHtml += '<tr style="background:'+bg+'">';
+      junkHtml += '<td style="'+tdL+'">'+t.l+'</td>';
+      junkHtml += '<td style="'+tdC+'">';
+      junkHtml += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#eab308;line-height:1">'+fmt(v)+'</div>';
+      junkHtml += '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+fmtTax(v)+' w/HST</div>';
+      junkHtml += '</td></tr>';
+    });
+    junkHtml += '</tbody></table></div>';
+  }
+
+  document.getElementById('dash-pricing-display').innerHTML = binHtml + junkHtml;
 }
 
 function initDashPricingDropdown(){
