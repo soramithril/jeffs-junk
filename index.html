@@ -942,15 +942,12 @@ textarea{resize:vertical;min-height:80px;}
 <div id="view-dashboard" class="view active">
 
   <!-- PAGE HEADER -->
-  <div class="page-header" style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;">
+  <div class="page-header">
     <div>
       <div class="page-title">Dashboard</div>
       <div class="page-sub" id="today-lbl"></div>
     </div>
-    <div style="text-align:center;flex-shrink:0;">
-      <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png" alt="Jeff's Junk" style="height:48px;width:auto;object-fit:contain;display:block;margin:0 auto;">
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
@@ -1023,6 +1020,19 @@ textarea{resize:vertical;min-height:80px;}
 
   </div>
 
+  <!-- ROW 5: Week Calendar -->
+  <div class="week-cal-wrap dash-section dash-s5">
+    <div class="week-cal-header">
+      <div class="week-cal-title" id="week-lbl">THIS WEEK</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="cal-nav" onclick="shiftWeek(-1)" style="padding:5px 10px;font-size:14px">&#8249;</button>
+        <button class="btn btn-ghost btn-sm" onclick="goToday()">Today</button>
+        <button class="cal-nav" onclick="shiftWeek(1)" style="padding:5px 10px;font-size:14px">&#8250;</button>
+      </div>
+    </div>
+    <div class="week-cal-grid" id="week-grid"></div>
+  </div>
+
   <!-- ROW 3: Overdue + Bins Out Long -->
   <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
@@ -1075,19 +1085,6 @@ textarea{resize:vertical;min-height:80px;}
       <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">View Full Pricing →</button>
     </div>
     <div id="dash-pricing-display" style="padding:10px 14px;"></div>
-  </div>
-
-  <!-- ROW 5: Week Calendar -->
-  <div class="week-cal-wrap dash-section dash-s5">
-    <div class="week-cal-header">
-      <div class="week-cal-title" id="week-lbl">THIS WEEK</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="cal-nav" onclick="shiftWeek(-1)" style="padding:5px 10px;font-size:14px">&#8249;</button>
-        <button class="btn btn-ghost btn-sm" onclick="goToday()">Today</button>
-        <button class="cal-nav" onclick="shiftWeek(1)" style="padding:5px 10px;font-size:14px">&#8250;</button>
-      </div>
-    </div>
-    <div class="week-cal-grid" id="week-grid"></div>
   </div>
 
   <!-- Hidden stubs so old JS writes don't throw errors -->
@@ -1497,6 +1494,12 @@ textarea{resize:vertical;min-height:80px;}
 
   <div id="analytics-compare-lbl" style="font-size:12px;color:var(--muted);margin-bottom:16px;padding:0 2px"></div>
   <div class="metric-row" id="analytics-metrics"></div>
+  <!-- Month vs Last Month Summary -->
+  <div id="analytics-mom-summary" style="display:none;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px">📊 This Month vs Last Month</div>
+    <div id="analytics-mom-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px"></div>
+  </div>
+
   <div class="analytics-grid">
     <div class="chart-card analytics-full">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
@@ -5691,6 +5694,60 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     +mbox('am-junk',aJunk,bJunk,'#4ade80','Junk Removal')
     +mbox('am-furnp',aFP,bFP,'#ef4444','Furniture Pickup')
     +mbox('am-furnd',aFD,bFD,'#f87171','Furniture Delivery');
+
+  // ── Month-over-Month summary ─────────────────────────────────
+  (function(){
+    var momEl  = document.getElementById('analytics-mom-summary');
+    var momGrid = document.getElementById('analytics-mom-grid');
+    if(!momEl || !momGrid) return;
+    // Only show when comparing two periods (month vs previous month)
+    if(!hasB){ momEl.style.display='none'; return; }
+    momEl.style.display='block';
+
+    function calcRev(jobs){ return jobs.reduce(function(s,j){ return s+(parseFloat(j.price)||0); },0); }
+    var aRev = calcRev(aJobs);
+    var bRev = calcRev(bJobs);
+
+    function pct(a,b){ if(!b) return null; return Math.round((a-b)/b*100); }
+    function fmRev(v){ return '$'+Math.round(v).toLocaleString(); }
+    function arrow(p){ return p>0?'▲':'▼'; }
+    function arrowColor(p,higherIsBetter){
+      if(p===0) return 'var(--muted)';
+      var positive = higherIsBetter ? p>0 : p<0;
+      return positive ? '#22c55e' : '#ef4444';
+    }
+
+    function momCard(label, aVal, bVal, fmt, higherIsBetter){
+      var p = pct(aVal, bVal);
+      var pStr = p!==null ? (p>=0?'+':'')+p+'%' : '—';
+      var col  = p!==null ? arrowColor(p, higherIsBetter!==false) : 'var(--muted)';
+      var arw  = p!==null ? arrow(p) : '';
+      return '<div style="background:var(--surface2);border-radius:10px;padding:12px 14px">'
+        +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">'+label+'</div>'
+        +'<div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">'
+          +'<span style="font-family:Bebas Neue,sans-serif;font-size:24px;color:var(--text);letter-spacing:.5px;line-height:1">'+fmt(aVal)+'</span>'
+          +(p!==null?'<span style="font-size:12px;font-weight:700;color:'+col+'">'+arw+' '+pStr+'</span>':'')
+        +'</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-top:3px">Last: '+fmt(bVal)+'</div>'
+        +'</div>';
+    }
+
+    var aActive = aJobs.filter(function(j){ return j.status!=='Cancelled'; }).length;
+    var bActive = bJobs.filter(function(j){ return j.status!=='Cancelled'; }).length;
+    var aBinCount  = aJobs.filter(function(j){ return j.service==='Bin Rental'; }).length;
+    var bBinCount  = bJobs.filter(function(j){ return j.service==='Bin Rental'; }).length;
+    var aJunkCount = aJobs.filter(function(j){ return j.service==='Junk Removal'; }).length;
+    var bJunkCount = bJobs.filter(function(j){ return j.service==='Junk Removal'; }).length;
+    var aCancelled = aJobs.filter(function(j){ return j.status==='Cancelled'; }).length;
+    var bCancelled = bJobs.filter(function(j){ return j.status==='Cancelled'; }).length;
+
+    momGrid.innerHTML =
+      momCard('Revenue',        aRev,       bRev,       fmRev,            true)
+      +momCard('Total Jobs',    aActive,    bActive,    String,           true)
+      +momCard('Bin Rentals',   aBinCount,  bBinCount,  String,           true)
+      +momCard('Junk Removal',  aJunkCount, bJunkCount, String,           true)
+      +momCard('Cancellations', aCancelled, bCancelled, String,           false);
+  })();
 
   requestAnimationFrame(function(){
     animCount(document.getElementById('am-jobs'),aJobs.length);
