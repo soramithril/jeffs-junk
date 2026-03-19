@@ -629,7 +629,7 @@ textarea{resize:vertical;min-height:80px;}
 .pie-legend-label{flex:1;color:var(--muted);}
 .pie-legend-val{font-weight:600;}
 .analytics-full{grid-column:1/-1;}
-.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.metric-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
 .metric-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
 .metric-val{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1px;line-height:1;}
 .metric-lbl{font-size:11px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.8px;}
@@ -5704,12 +5704,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     if(!hasB){ momEl.style.display='none'; return; }
     momEl.style.display='block';
 
-    function calcRev(jobs){ return jobs.reduce(function(s,j){ return s+(parseFloat(j.price)||0); },0); }
-    var aRev = calcRev(aJobs);
-    var bRev = calcRev(bJobs);
-
     function pct(a,b){ if(!b) return null; return Math.round((a-b)/b*100); }
-    function fmRev(v){ return '$'+Math.round(v).toLocaleString(); }
     function arrow(p){ return p>0?'▲':'▼'; }
     function arrowColor(p,higherIsBetter){
       if(p===0) return 'var(--muted)';
@@ -5742,11 +5737,10 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     var bCancelled = bJobs.filter(function(j){ return j.status==='Cancelled'; }).length;
 
     momGrid.innerHTML =
-      momCard('Revenue',        aRev,       bRev,       fmRev,            true)
-      +momCard('Total Jobs',    aActive,    bActive,    String,           true)
-      +momCard('Bin Rentals',   aBinCount,  bBinCount,  String,           true)
-      +momCard('Junk Removal',  aJunkCount, bJunkCount, String,           true)
-      +momCard('Cancellations', aCancelled, bCancelled, String,           false);
+      momCard('Total Jobs',    aActive,    bActive,    String,           true)
+      +momCard('Bin Rentals',  aBinCount,  bBinCount,  String,           true)
+      +momCard('Junk Removal', aJunkCount, bJunkCount, String,           true)
+      +momCard('Cancellations',aCancelled, bCancelled, String,           false);
   })();
 
   requestAnimationFrame(function(){
