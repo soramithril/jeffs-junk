@@ -7449,7 +7449,7 @@ applyAdminVisibility();
 
     <div class="form-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" onclick="closeM('merge-modal')">Cancel</button>
-      <button class="btn btn-danger" id="merge-confirm-btn" disabled style="opacity:0.45;cursor:not-allowed;" onclick="doMergeClients()">🔗 Merge Clients</button>
+      <button class="btn btn-danger" id="merge-confirm-btn" style="opacity:0.45;cursor:not-allowed;" onclick="doMergeClients()">🔗 Merge Clients</button>
     </div>
   </div>
 </div>
@@ -7590,7 +7590,7 @@ function savePresets() {
 // ═══════════════════════════════════════
 // MERGE CLIENTS
 // ═══════════════════════════════════════
-function openMergeClients() {
+async function openMergeClients() {
   document.getElementById('merge-primary-search').value = '';
   document.getElementById('merge-secondary-search').value = '';
   document.getElementById('merge-primary').value = '';
@@ -7598,10 +7598,18 @@ function openMergeClients() {
   document.getElementById('merge-primary-dropdown').style.display = 'none';
   document.getElementById('merge-secondary-dropdown').style.display = 'none';
   document.getElementById('merge-preview-empty').style.display = 'block';
+  document.getElementById('merge-preview-empty').innerHTML = 'Search and select both clients to preview the merge';
   document.getElementById('merge-preview-diff').style.display = 'none';
   var btn = document.getElementById('merge-confirm-btn');
   btn.disabled = true; btn.style.opacity = '0.45'; btn.style.cursor = 'not-allowed';
   document.getElementById('merge-modal').classList.add('open');
+
+  // If clients haven't been loaded yet, fetch them now
+  if (!clients.length) {
+    document.getElementById('merge-preview-empty').innerHTML = 'Loading clients…';
+    await loadClientsPage();
+    document.getElementById('merge-preview-empty').innerHTML = 'Search and select both clients to preview the merge';
+  }
 }
 
 function countClientJobs(cid, name) {
@@ -7764,6 +7772,8 @@ function escHtml(str) {
 }
 
 function doMergeClients() {
+  var btn = document.getElementById('merge-confirm-btn');
+  if (btn && btn.style.cursor === 'not-allowed') return;
   var pid = document.getElementById('merge-primary').value;
   var sid = document.getElementById('merge-secondary').value;
   if (!pid || !sid || pid === sid) { alert('Please select two different clients.'); return; }
