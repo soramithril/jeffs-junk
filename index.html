@@ -362,7 +362,8 @@ body{
 .jdd-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;transition:all .15s;background:none;}
 .jdd-btn .jdd-caret{font-size:9px;opacity:.65;transition:transform .15s;}
 .jdd-wrap.open .jdd-caret{transform:rotate(180deg);}
-.jdd-menu{position:fixed;z-index:9999;min-width:160px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08);padding:5px;display:none;overflow:hidden;}
+.jdd-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:9999;min-width:170px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08);padding:5px;display:none;overflow:hidden;}
+.jdd-menu.flip-left{left:auto;right:0;}
 .jdd-wrap.open .jdd-menu{display:block;}
 .jdd-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;}
 .jdd-item:hover{background:rgba(34,197,94,.1);color:var(--accent);}
@@ -383,11 +384,15 @@ body{
 .search-input::placeholder{color:var(--muted);}
 
 /* ── TABLE ── */
-.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:visible;}
 table{width:100%;border-collapse:collapse;}
 thead th{padding:14px 18px;text-align:left;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface2);}
+thead th:first-child{border-radius:12px 0 0 0;}
+thead th:last-child{border-radius:0 12px 0 0;}
 tbody tr{border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer;}
 tbody tr:last-child{border-bottom:none;}
+tbody tr:last-child td:first-child{border-radius:0 0 0 12px;}
+tbody tr:last-child td:last-child{border-radius:0 0 12px 0;}
 tbody tr:hover{background:var(--surface2);}
 tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 
@@ -1597,16 +1602,47 @@ textarea{resize:vertical;min-height:80px;}
     </div>
 
     <div class="divider"></div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px">Bin Rental</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Bin Rental</div>
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--muted)">
+        <span>3 &amp; 7 Day Pricing</span>
+        <span style="position:relative;display:inline-block;width:34px;height:18px">
+          <input type="checkbox" id="our-multiday-toggle" onchange="toggleMultidayFields();" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="our-multiday-track" style="position:absolute;inset:0;border-radius:9px;background:var(--border);transition:background .2s;cursor:pointer" onclick="document.getElementById('our-multiday-toggle').click()"></span>
+          <span id="our-multiday-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.25)"></span>
+        </span>
+      </label>
+    </div>
+    <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">Standard (7-day default)</div>
     <div class="form-grid" style="margin-bottom:12px">
       <div class="form-group"><label>4 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
       <div class="form-group"><label>7 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
       <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
       <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
     </div>
+    <!-- 3-day pricing -->
+    <div id="our-3day-section" style="display:none;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;color:#eab308;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">🗓️ 3-Day Price <span style="font-weight:400;color:var(--muted);text-transform:none;font-size:10px">(leave blank = same as standard)</span></div>
+      <div class="form-grid">
+        <div class="form-group"><label>4 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+        <div class="form-group"><label>7 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+        <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+        <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+      </div>
+    </div>
+    <!-- 7-day pricing -->
+    <div id="our-7day-section" style="display:none;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;color:#60a5fa;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">🗓️ 7-Day Price <span style="font-weight:400;color:var(--muted);text-transform:none;font-size:10px">(leave blank = same as standard)</span></div>
+      <div class="form-grid">
+        <div class="form-group"><label>4 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+        <div class="form-group"><label>7 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+        <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+        <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+      </div>
+    </div>
     <div class="form-grid" style="margin-bottom:4px">
-      <div class="form-group"><label>Fuel Surcharge</label><div style="position:relative"><input id="our-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div><div style="font-size:11px;color:var(--muted);margin-top:4px">% added on top of bin price</div></div>
-      <div class="form-group"><label>Dump Charge (per tonne)</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b-dump" type="number" min="0" step="0.01" placeholder="0.00" style="padding-left:24px"></div><div style="font-size:11px;color:var(--muted);margin-top:4px">Applied to 14yd &amp; 20yd bins only</div></div>
+      <div class="form-group"><label>Fuel Surcharge</label><div style="position:relative"><input id="our-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
+      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted);line-height:1.4">% added on top of bin price per delivery</span></div>
     </div>
 
     <div class="divider"></div>
@@ -2716,7 +2752,7 @@ async function loadAllFromSupabase() {
       if(!rPrices.error && rPrices.data && rPrices.data.length) {
         ourPricesV2 = {};
         rPrices.data.forEach(function(r){
-          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', dumpCharge:r.dump_charge!=null?String(r.dump_charge):''};
+          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', bins3day:r.bins3day||null, bins7day:r.bins7day||null};
         });
         // Derive pricingAreas entirely from Supabase data — authoritative
         pricingAreas = Object.keys(ourPricesV2);
@@ -3812,8 +3848,31 @@ async function renderDash(){
           +'</div>'
           +'</div>'
           // Quick actions
-          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>':'')
-          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap">✅ Confirm '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+'</button>':'')
+          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'
+            ?'<div class="jdd-wrap" onclick="event.stopPropagation()">'
+              +'<div class="jdd-btn" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-size:11px;" onclick="toggleJdd(this.parentElement)">'
+                +'🚚 Actions <span class="jdd-caret">▾</span>'
+              +'</div>'
+              +'<div class="jdd-menu flip-left">'
+                +(!cfm?'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Confirm Pickup</div>':'')
+                +'<div class="jdd-item" onclick="markPickedUp(\''+j.id+'\',event)">✅ Mark Picked Up</div>'
+                +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">✏️ Open details</div>'
+                +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:'+j.phone+'\';event.stopPropagation()">📞 Call '+j.phone+'</div>':'')
+              +'</div>'
+            +'</div>'
+            :((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm
+              ?'<div class="jdd-wrap" onclick="event.stopPropagation()">'
+                +'<div class="jdd-btn" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-size:11px;" onclick="toggleJdd(this.parentElement)">'
+                  +'✅ Confirm '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' <span class="jdd-caret">▾</span>'
+                +'</div>'
+                +'<div class="jdd-menu flip-left">'
+                  +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Confirmed — '+(j.service==='Furniture Delivery'?'drop-off':'pickup')+' done</div>'
+                  +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">✏️ Open details</div>'
+                  +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:'+j.phone+'\';event.stopPropagation()">📞 Call '+j.phone+'</div>':'')
+                +'</div>'
+              +'</div>'
+              :'')
+          )
           +'</div>';
       }).join('')+'</div>';
   }
@@ -3840,12 +3899,23 @@ async function renderDash(){
         var dateLabel = isToday?'<span style="color:#ef4444;font-weight:700">TODAY</span>'
           : isTom?'<span style="color:#eab308;font-weight:700">Tomorrow</span>'
           : fd(j.date);
+        var isDelivery = j.service==='Furniture Delivery';
+        var cfmLabel = isDelivery?'Drop-Off':'Pickup';
         return '<div style="padding:8px 10px;border:1px solid rgba(234,179,8,.3);border-left:3px solid #eab308;border-radius:0 8px 8px 0;margin-bottom:7px;background:rgba(234,179,8,.04);display:flex;align-items:center;gap:8px;">'
           +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;align-items:baseline;gap:6px;"><strong style="font-size:13px">'+j.name+'</strong><span style="font-size:11px;color:var(--muted)">'+dateLabel+'</span></div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:1px;">'+j.id+(j.phone?'<span style="margin-left:8px;font-weight:600;color:var(--text)">'+j.phone+'</span>':'')+(j.service?'<span style="margin-left:6px;color:var(--muted)">'+j.service+'</span>':'')+'</div>'
           +'</div>'
-          +'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event)" style="font-size:11px;color:#22c55e;white-space:nowrap;flex-shrink:0">✅ Confirm Pickup</button>'
+          +'<div class="jdd-wrap" style="flex-shrink:0" onclick="event.stopPropagation()">'
+            +'<div class="jdd-btn" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-size:11px;" onclick="toggleJdd(this.parentElement)">'
+              +'✅ Confirm '+cfmLabel+' <span class="jdd-caret">▾</span>'
+            +'</div>'
+            +'<div class="jdd-menu flip-left">'
+              +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Confirmed — '+cfmLabel+' done</div>'
+              +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">✏️ Open job details</div>'
+              +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:'+j.phone+'\';event.stopPropagation()">📞 Call '+j.phone+'</div>':'')
+            +'</div>'
+          +'</div>'
           +'</div>';
       }).join('');
     }
@@ -3928,21 +3998,27 @@ function jddToggle(e, id, type){
   }
   var isOpen = wrap.classList.contains('open');
   if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
-  // Position menu relative to button
+  // Flip menu left-aligned vs right-aligned based on available space
   var menu = wrap.querySelector('.jdd-menu');
-  var btn  = wrap.querySelector('.jdd-btn');
-  var rect = btn.getBoundingClientRect();
-  menu.style.top  = (rect.bottom + 4)+'px';
-  menu.style.left = rect.left+'px';
-  // Flip left if would overflow right edge
-  var menuW = 170;
-  if(rect.left + menuW > window.innerWidth - 8){
-    menu.style.left = (rect.right - menuW)+'px';
+  var rect = wrap.getBoundingClientRect();
+  if(rect.left + 170 > window.innerWidth - 8){
+    menu.classList.add('flip-left');
+  } else {
+    menu.classList.remove('flip-left');
   }
   wrap.classList.add('open');
   _jddOpen = wrap;
 }
 document.addEventListener('click', function(){ if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;} });
+function toggleJdd(wrap){
+  if(!wrap) return;
+  if(_jddOpen && _jddOpen !== wrap){ _jddOpen.classList.remove('open'); _jddOpen=null; }
+  var isOpen = wrap.classList.contains('open');
+  if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
+  var menu = wrap.querySelector('.jdd-menu');
+  if(menu){ var rect=wrap.getBoundingClientRect(); if(rect.left+170>window.innerWidth-8) menu.classList.add('flip-left'); else menu.classList.remove('flip-left'); }
+  wrap.classList.add('open'); _jddOpen=wrap;
+}
 
 function binDropBtn(j){
   if(j.service!=='Bin Rental') return '<td></td>';
@@ -4868,7 +4944,7 @@ function saveOurPricesData(){
   try {
     var rows = Object.keys(ourPricesV2).map(function(area){
       var ap = ourPricesV2[area];
-      return {area:area, bins:ap.bins||{}, junk:ap.junk||{}, bin_fuel:ap.binFuel?parseFloat(ap.binFuel):null, dump_charge:ap.dumpCharge?parseFloat(ap.dumpCharge):null};
+      return {area:area, bins:ap.bins||{}, junk:ap.junk||{}, bin_fuel:ap.binFuel?parseFloat(ap.binFuel):null, bins3day:ap.bins3day||null, bins7day:ap.bins7day||null};
     });
     if(rows.length){
       db.from('our_prices').upsert(rows,{onConflict:'area'}).then(function(r){
@@ -4879,7 +4955,7 @@ function saveOurPricesData(){
 }
 function savePricingAreas(){ /* pricingAreas derived from Supabase our_prices — no separate save needed */ }
 function nextCompId(){ return 'c'+(Date.now()%100000); }
-function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binFuel:'',dumpCharge:''}; }
+function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binFuel:''}; }
 
 function setPricingCat(cat,el){
   pricingCat=cat;
@@ -4891,36 +4967,16 @@ function setPricingCat(cat,el){
 }
 
 function renderPricing(){
-  var TAX = 1.13;
-  var BIG_BINS = ['14 yard','20 yard'];
   // Render our prices summary grouped by area
   var html = pricingAreas.map(function(area){
-    var ap   = getAreaPrices(area);
-    var fuel = parseFloat(ap.binFuel)||0;
-    var dump = parseFloat(ap.dumpCharge)||0;
+    var ap = getAreaPrices(area);
     var binCells = ['4 yard','7 yard','14 yard','20 yard'].map(function(s){
-      var base     = ap.bins&&ap.bins[s] ? parseFloat(ap.bins[s]) : null;
-      var total    = base!=null ? base*(1+fuel/100)*TAX : null;
-      var hasDump  = dump && BIG_BINS.indexOf(s)>=0;
-      var totalPlus= (total!=null&&hasDump) ? total+dump*TAX : null;
-      return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:12px 14px;min-width:96px">'
-        +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">'+s+'</div>'
-        +'<div style="font-size:12px;color:var(--muted);margin-bottom:3px">Base: '+(base!=null?'$'+base.toFixed(0):'<span style="color:var(--muted)">—</span>')+'</div>'
-        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:24px;color:var(--accent);line-height:1">'+(total!=null?'$'+total.toFixed(2):'<span style="color:var(--muted)">—</span>')+'</div>'
-        +'<div style="font-size:10px;color:var(--muted);margin-top:2px">w/ fuel &amp; tax</div>'
-        +(hasDump&&totalPlus!=null
-          ?'<div style="margin-top:7px;padding-top:7px;border-top:1px solid var(--border);width:100%;text-align:center">'
-            +'<div style="font-size:10px;color:#eab308;margin-bottom:2px">+ dump:</div>'
-            +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:#22c55e;line-height:1">$'+totalPlus.toFixed(2)+'</div>'
-            +'<div style="font-size:10px;color:var(--muted)">w/ fuel, dump &amp; tax</div>'
-            +'</div>'
-          :'')
-        +'</div>';
+      var v = ap.bins&&ap.bins[s] ? '$'+ap.bins[s] : '<span style="color:var(--muted)">—</span>';
+      return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:10px 14px;min-width:76px">'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:var(--accent);line-height:1">'+v+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+s+'</div></div>';
     }).join('');
-    var surcharges = [];
-    if(fuel) surcharges.push('⛽ '+fuel+'% fuel');
-    if(dump) surcharges.push('🏗️ $'+dump.toFixed(2)+'/tonne dump (14yd &amp; 20yd)');
-    var fuelBadge = surcharges.map(function(s){return'<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308;margin-left:8px">'+s+'</span>';}).join('');
+    var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308;margin-left:8px">⛽ +'+ap.binFuel+'% fuel</span>' : '';
     var junkCells = [{k:'min',l:'Min'},{k:'quarter',l:'¼'},{k:'half',l:'½'},{k:'full',l:'Full'}].map(function(t){
       var v = ap.junk&&ap.junk[t.k] ? '$'+ap.junk[t.k] : '<span style="color:var(--muted)">—</span>';
       return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(234,179,8,.25);border-radius:8px;padding:10px 14px;min-width:64px">'
@@ -4928,13 +4984,13 @@ function renderPricing(){
         +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+t.l+'</div></div>';
     }).join('');
     return '<div style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
       +'<span style="display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px"></span>'
       +'<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">📍 '+area+'</span>'
       +fuelBadge
       +'<button onclick="deleteOurArea(\''+area+'\')" style="margin-left:auto;background:none;border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;opacity:.7" title="Delete area">🗑️ Delete</button>'
       +'</div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+binCells+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+binCells+'</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+junkCells+'</div>'
       +'</div>';
   });
@@ -4947,55 +5003,58 @@ function renderPricing(){
 
 function renderDashPricing(){
   var TAX = 1.13;
-  var BIG_BINS = ['14 yard','20 yard'];
-  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
   var sel = document.getElementById('dash-pricing-area');
   if(!sel) return;
   if(sel.options.length !== pricingAreas.length){
     sel.innerHTML = pricingAreas.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
   }
   var area = sel.value || pricingAreas[0] || '';
-  if(!area){ document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing →</button></div>'; return; }
-  var ap   = getAreaPrices(area);
-  var bins = ap.bins || {};
-  var fuel = parseFloat(ap.binFuel)||0;
-  var dump = parseFloat(ap.dumpCharge)||0;
+  if(!area){ document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px 0">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing \u2192</button></div>'; return; }
+  var ap = getAreaPrices(area);
+  var bins  = ap.bins   || {};
+  var bins3 = ap.bins3day || null;
+  var bins7 = ap.bins7day || null;
+  var fuel  = parseFloat(ap.binFuel)||0;
+  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
+  var hasMultiday = !!(bins3 || bins7);
 
-  // Surcharge badge row
-  var binHtml = '<div>';
-  var surcharges = [];
-  if(fuel) surcharges.push('⛽ '+fuel+'% fuel surcharge');
-  if(dump) surcharges.push('🏗️ $'+dump.toFixed(2)+'/tonne dump (14yd &amp; 20yd)');
-  if(surcharges.length){
-    binHtml += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'
-      +surcharges.map(function(s){return'<span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#eab308">'+s+'</span>';}).join('')
-      +'</div>';
-  }
-  binHtml += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
-  binSizes.forEach(function(s){
-    var base     = bins[s] ? parseFloat(bins[s]) : null;
-    var total    = base!=null ? base*(1+fuel/100)*TAX : null;        // fuel + tax, no dump
-    var hasDump  = dump && BIG_BINS.indexOf(s)>=0;
-    var totalPlus= (total!=null && hasDump) ? total + dump*TAX : null; // fuel + dump + tax
-    binHtml += '<div style="background:var(--surface2);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:14px;text-align:center">'
-      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">'+s+'</div>'
-      // Base price — small reference
-      +'<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Base: '+(base!=null?'$'+base.toFixed(0):'—')+'</div>'
-      // Total with fuel + tax
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:var(--accent);line-height:1">'+(total!=null?'$'+total.toFixed(2):'—')+'</div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:2px">w/ fuel &amp; tax</div>'
-      // For 14yd & 20yd: total including dump charge
-      +(hasDump&&totalPlus!=null
-        ?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
-          +'<div style="font-size:10px;color:#eab308;margin-bottom:3px">+ dump charge</div>'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#22c55e;line-height:1">$'+totalPlus.toFixed(2)+'</div>'
-          +'<div style="font-size:10px;color:var(--muted);margin-top:2px">w/ fuel, dump &amp; tax</div>'
-          +'</div>'
-        :'')
-      +'</div>';
+  function applyFuel(v){ return fuel && v ? parseFloat(v)*(1+fuel/100) : (v ? parseFloat(v) : null); }
+  function fmt(v){ return v ? '$'+v.toFixed(0) : '\u2014'; }
+  function fmtTax(v){ return v ? '$'+(v*TAX).toFixed(2) : '\u2014'; }
+
+  var cols = ['Standard'];
+  if(hasMultiday){ if(bins3) cols.push('3-Day'); if(bins7) cols.push('7-Day'); }
+  var colColors = {'Standard':'#22c55e','3-Day':'#eab308','7-Day':'#60a5fa'};
+  var colSrcs   = {'Standard':bins,'3-Day':bins3||{},'7-Day':bins7||{}};
+
+  var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">';
+  // Header
+  html += '<thead><tr>';
+  html += '<th style="padding:8px 14px 8px 0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--border)">Size</th>';
+  cols.forEach(function(col){
+    html += '<th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:'+colColors[col]+';font-weight:700;border-bottom:2px solid var(--border);white-space:nowrap">'+col+'</th>';
   });
-  binHtml += '</div></div>';
-  document.getElementById('dash-pricing-display').innerHTML = binHtml;
+  html += '</tr></thead><tbody>';
+  // Rows
+  binSizes.forEach(function(sz, idx){
+    var bg = idx%2===0?'transparent':'rgba(0,0,0,.025)';
+    html += '<tr style="background:'+bg+'">';
+    html += '<td style="padding:13px 14px 13px 0;font-size:15px;font-weight:700;color:var(--text);white-space:nowrap">'+sz+'</td>';
+    cols.forEach(function(col){
+      var raw = colSrcs[col][sz];
+      var base;
+      if(col==='Standard'){ base = applyFuel(raw); }
+      else { base = raw ? parseFloat(raw) : applyFuel(colSrcs['Standard'][sz]); }
+      html += '<td style="padding:13px 10px;text-align:center;border-left:1px solid var(--border)">';
+      html += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+colColors[col]+';line-height:1;letter-spacing:.5px">'+fmt(base)+'</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-top:3px">'+fmtTax(base)+' w/ HST</div>';
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  if(fuel){ html = '<div style="margin-bottom:10px"><span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;color:#eab308">\u26fd Fuel surcharge: +'+fuel+'% included above</span></div>'+html; }
+  document.getElementById('dash-pricing-display').innerHTML = html;
 }
 
 function initDashPricingDropdown(){
@@ -5133,12 +5192,39 @@ function selectOurArea(area){
   document.getElementById('our-b14').value   = ap.bins&&ap.bins['14 yard'] || '';
   document.getElementById('our-b20').value   = ap.bins&&ap.bins['20 yard'] || '';
   document.getElementById('our-b-fuel').value= ap.binFuel || '';
-  document.getElementById('our-b-dump').value= ap.dumpCharge || '';
   document.getElementById('our-j-min').value    = ap.junk&&ap.junk.min     || '';
   document.getElementById('our-j-quarter').value= ap.junk&&ap.junk.quarter || '';
   document.getElementById('our-j-half').value   = ap.junk&&ap.junk.half    || '';
   document.getElementById('our-j-full').value   = ap.junk&&ap.junk.full    || '';
+  // Multi-day pricing
+  var hasMultiday = !!(ap.bins3day || ap.bins7day);
+  var tog = document.getElementById('our-multiday-toggle');
+  if(tog){ tog.checked = hasMultiday; applyMultidayToggleUI(hasMultiday); }
+  var b3 = ap.bins3day || {};
+  var b7 = ap.bins7day || {};
+  document.getElementById('our-b4-3day').value  = b3['4 yard']  || '';
+  document.getElementById('our-b7-3day').value  = b3['7 yard']  || '';
+  document.getElementById('our-b14-3day').value = b3['14 yard'] || '';
+  document.getElementById('our-b20-3day').value = b3['20 yard'] || '';
+  document.getElementById('our-b4-7day').value  = b7['4 yard']  || '';
+  document.getElementById('our-b7-7day').value  = b7['7 yard']  || '';
+  document.getElementById('our-b14-7day').value = b7['14 yard'] || '';
+  document.getElementById('our-b20-7day').value = b7['20 yard'] || '';
   renderOurAreaTabs();
+}
+
+function toggleMultidayFields(){
+  var on = document.getElementById('our-multiday-toggle').checked;
+  applyMultidayToggleUI(on);
+}
+
+function applyMultidayToggleUI(on){
+  document.getElementById('our-3day-section').style.display = on ? 'block' : 'none';
+  document.getElementById('our-7day-section').style.display = on ? 'block' : 'none';
+  var track = document.getElementById('our-multiday-track');
+  var thumb = document.getElementById('our-multiday-thumb');
+  if(track) track.style.background = on ? 'var(--accent)' : 'var(--border)';
+  if(thumb) thumb.style.transform  = on ? 'translateX(16px)' : 'translateX(0)';
 }
 
 function addOurPricingArea(){
@@ -5204,7 +5290,8 @@ function openEditOurPrices(){
 }
 
 function saveOurPrices(){
-  ourPricesV2[activeOurArea] = {
+  var multidayOn = document.getElementById('our-multiday-toggle').checked;
+  var entry = {
     bins: {
       '4 yard':  document.getElementById('our-b4').value,
       '7 yard':  document.getElementById('our-b7').value,
@@ -5212,7 +5299,6 @@ function saveOurPrices(){
       '20 yard': document.getElementById('our-b20').value
     },
     binFuel: document.getElementById('our-b-fuel').value,
-    dumpCharge: document.getElementById('our-b-dump').value,
     junk: {
       min:     document.getElementById('our-j-min').value,
       quarter: document.getElementById('our-j-quarter').value,
@@ -5220,9 +5306,25 @@ function saveOurPrices(){
       full:    document.getElementById('our-j-full').value
     }
   };
+  if(multidayOn){
+    entry.bins3day = {
+      '4 yard':  document.getElementById('our-b4-3day').value,
+      '7 yard':  document.getElementById('our-b7-3day').value,
+      '14 yard': document.getElementById('our-b14-3day').value,
+      '20 yard': document.getElementById('our-b20-3day').value
+    };
+    entry.bins7day = {
+      '4 yard':  document.getElementById('our-b4-7day').value,
+      '7 yard':  document.getElementById('our-b7-7day').value,
+      '14 yard': document.getElementById('our-b14-7day').value,
+      '20 yard': document.getElementById('our-b20-7day').value
+    };
+  }
+  ourPricesV2[activeOurArea] = entry;
   saveOurPricesData();
   closeM('our-prices-modal');
   renderPricing();
+  renderDashPricing();
   toast('Prices saved for '+activeOurArea+'!');
 }
 
