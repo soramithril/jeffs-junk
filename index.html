@@ -2760,7 +2760,7 @@ async function loadAllFromSupabase() {
       if(!rPrices.error && rPrices.data && rPrices.data.length) {
         ourPricesV2 = {};
         rPrices.data.forEach(function(r){
-          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', binTonne:r.bin_tonne!=null?String(r.bin_tonne):'', bins3day:r.bins3day||null, bins7day:r.bins7day||null};
+          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', binTonne:(r.bins&&r.bins._tonne!=null)?String(r.bins._tonne):'', bins3day:r.bins3day||null, bins7day:r.bins7day||null};
         });
         // Derive pricingAreas entirely from Supabase data — authoritative
         pricingAreas = Object.keys(ourPricesV2);
@@ -4995,12 +4995,15 @@ function saveOurPricesData(){
   try {
     var rows = Object.keys(ourPricesV2).map(function(area){
       var ap = ourPricesV2[area];
+      // Store tonne inside bins JSONB as _tonne — no extra column needed
+      var binsToSave = Object.assign({}, ap.bins||{});
+      if(ap.binTonne) binsToSave._tonne = parseFloat(ap.binTonne);
+      else delete binsToSave._tonne;
       var row = {
         area:     area,
-        bins:     ap.bins     || {},
-        junk:     ap.junk     || {},
-        bin_fuel: ap.binFuel  ? parseFloat(ap.binFuel)  : null,
-        bin_tonne:ap.binTonne ? parseFloat(ap.binTonne) : null
+        bins:     binsToSave,
+        junk:     ap.junk || {},
+        bin_fuel: ap.binFuel ? parseFloat(ap.binFuel) : null
       };
       // Only include multiday columns if they have data — avoids schema errors if columns don't exist
       if(ap.bins3day && Object.keys(ap.bins3day).some(function(k){return ap.bins3day[k];})) row.bins3day = ap.bins3day;
