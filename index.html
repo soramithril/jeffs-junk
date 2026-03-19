@@ -7605,6 +7605,15 @@ function openMergeClients() {
 }
 
 function countClientJobs(cid, name) {
+  // Use the stats cache built from ALL jobs (Supabase) — much more accurate than local jobs array
+  if (_clientStatsCache && _clientStatsCache.statsMap) {
+    var s = _clientStatsCache.statsMap[cid];
+    return s ? s.total : 0;
+  }
+  // Fallback: check client object directly (also populated from Supabase)
+  var c = clients.find(function(x){ return x.cid === cid; });
+  if (c && typeof c._totalJobs === 'number') return c._totalJobs;
+  // Last resort: local jobs array (may be incomplete)
   var nameLower = name ? name.toLowerCase() : '';
   return jobs.filter(function(j){
     if (cid) return j.clientId === cid;
@@ -7772,15 +7781,25 @@ function doMergeClients() {
     }
   });
 
-  // Move all jobs from secondary to primary
+  // Update local jobs array (partial, but keep it consistent)
   jobs.forEach(function(j){
     if (j.clientId === sid) {
       j.clientId = pid;
-      if (j.name && j.name.toLowerCase() === sc.name.toLowerCase()) j.name = pc.name;
     }
   });
 
+  // Update ALL jobs in Supabase directly (local array is incomplete)
+  db.from('jobs').update({ client_cid: pid }).eq('client_cid', sid).then(function(r){
+    if (r.error) console.warn('Merge jobs update error:', r.error.message);
+  });
+
+  // Remove secondary client
   clients = clients.filter(function(c){return c.cid !== sid;});
+
+  // Bust the stats cache so counts reload fresh
+  _clientStatsCache = null;
+  _clientStatsCacheTime = 0;
+
   save(); saveClients(); renderClients(); renderClientSelectOptions();
   closeM('merge-modal');
   toast('✓ Merged ' + sc.name + ' → ' + pc.name);
