@@ -5085,90 +5085,124 @@ function renderDashPricing(){
     return;
   }
   var ap    = getAreaPrices(area);
-  var bins  = ap.bins     || {};
+  var bins  = ap.bins  || {};
   var bins3 = ap.bins3day || null;
   var bins7 = ap.bins7day || null;
   var fuel  = parseFloat(ap.binFuel)  || 0;
   var tonne = parseFloat(ap.binTonne) || 0;
-  var junk  = ap.junk || {};
+  var junk  = ap.junk  || {};
   var binSizes  = ['4 yard','7 yard','14 yard','20 yard'];
-  var tonneOn   = {'14 yard':true, '20 yard':true};
-  var junkTiers = [{k:'min',l:'Min'},{k:'quarter',l:'&#188; Truck'},{k:'half',l:'&#189; Truck'},{k:'full',l:'Full Truck'}];
-  var hasMultiday = !!(bins3 || bins7);
+  var tonneOn   = {'14 yard':true,'20 yard':true};
+  var junkTiers = [{k:'min',l:'Min / Small'},{k:'quarter',l:'&#188; Truck'},{k:'half',l:'&#189; Truck'},{k:'full',l:'Full Truck'}];
 
-  function calcPrice(raw, sz){
-    if(!raw) return null;
-    var v = parseFloat(raw);
-    if(fuel) v = v * (1 + fuel/100);
-    if(tonne && tonneOn[sz]) v = v + tonne;
-    return v;
-  }
-  function fmt(v)    { return v != null ? '$'+v.toFixed(0) : '&#8212;'; }
-  function fmtTax(v) { return v != null ? '$'+(v*TAX).toFixed(2) : '&#8212;'; }
+  // ── Helpers ──────────────────────────────────────
+  function raw(sz){ return parseFloat(bins[sz])||0; }
+  function raw3(sz){ return bins3 ? (parseFloat(bins3[sz])||raw(sz)) : raw(sz); }
+  function raw7(sz){ return bins7 ? (parseFloat(bins7[sz])||raw(sz)) : raw(sz); }
+  function applyFuel(v){ return fuel ? v*(1+fuel/100) : v; }
+  function applyTonne(v,sz){ return (tonne&&tonneOn[sz]) ? v+tonne : v; }
+  function applyTax(v){ return v*TAX; }
+  function sub(baseRaw,sz){ return applyTonne(applyFuel(baseRaw),sz); }
+  function total(baseRaw,sz){ return applyTax(sub(baseRaw,sz)); }
+  function fm(v){ return v>0 ? '$'+v.toFixed(2) : '—'; }
+  function fmRound(v){ return v>0 ? '$'+Math.round(v) : '—'; }
 
-  var cols = ['Standard'];
-  if(hasMultiday){ if(bins3) cols.push('3-Day'); if(bins7) cols.push('7-Day'); }
-  var colColors = {'Standard':'#22c55e','3-Day':'#eab308','7-Day':'#60a5fa'};
-  var colSrcs   = {'Standard':bins, '3-Day':bins3||{}, '7-Day':bins7||{}};
+  // ── Build bin cards ──────────────────────────────
+  var binCards = '';
+  binSizes.forEach(function(sz){
+    var b = raw(sz);
+    if(!b) return;
+    var hasTonne = tonne && tonneOn[sz];
 
-  var tdL = 'padding:10px 10px 10px 0;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;';
-  var tdC = 'padding:10px 8px;text-align:center;border-left:1px solid var(--border);';
+    // Decide which pricing tiers to show
+    var tiers = [{label:'Standard', r:raw(sz)}];
+    if(bins3 && bins3[sz]) tiers.push({label:'3-Day', r:raw3(sz)});
+    if(bins7 && bins7[sz]) tiers.push({label:'7-Day', r:raw7(sz)});
 
-  // ── Surcharge badges
-  var badges = '';
-  if(fuel)  badges += '<span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:5px;padding:2px 8px;font-size:10px;color:#eab308;font-weight:600">&#9981; Fuel +'+fuel+'%</span> ';
-  if(tonne) badges += '<span style="background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);border-radius:5px;padding:2px 8px;font-size:10px;color:#60a5fa;font-weight:600">+ $'+tonne+'/tonne (14 &amp; 20yd)</span>';
-  var badgeHtml = badges ? '<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">'+badges+'</div>' : '';
+    // One breakdown column per tier
+    var tierCols = tiers.map(function(t){
+      var fuelAmt  = fuel  ? applyFuel(t.r)-t.r : 0;
+      var tonneAmt = hasTonne ? tonne : 0;
+      var pretax   = t.r + fuelAmt + tonneAmt;
+      var hst      = pretax*(TAX-1);
+      var tot      = pretax + hst;
+      var isStd    = t.label==='Standard';
+      var colColor = t.label==='3-Day' ? '#eab308' : t.label==='7-Day' ? '#60a5fa' : '#22c55e';
 
-  // ── BIN section
-  var binHtml = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">&#x1F69B; Bin Rental</div>';
-  binHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-bottom:14px">';
-  binHtml += '<thead><tr><th style="'+tdL+'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--border)">Size</th>';
-  cols.forEach(function(col){
-    binHtml += '<th style="padding:0 8px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+colColors[col]+';font-weight:700;border-bottom:2px solid var(--border);white-space:nowrap">'+col+'</th>';
+      var rows = '';
+      // Base price row
+      rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
+        +'<span style="font-size:12px;color:var(--muted)">Base price</span>'
+        +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+fm(t.r)+'</span></div>';
+      // Fuel row — only if fuel set
+      if(fuel){
+        rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
+          +'<span style="font-size:12px;color:var(--muted)">⛽ Fuel (+'+fuel+'%)</span>'
+          +'<span style="font-size:13px;font-weight:600;color:#eab308">+'+fm(fuelAmt)+'</span></div>';
+      }
+      // Tonne row — only for 14/20yd
+      if(hasTonne){
+        rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
+          +'<span style="font-size:12px;color:var(--muted)">&#x1F69B; Tonne fee</span>'
+          +'<span style="font-size:13px;font-weight:600;color:#60a5fa">+'+fm(tonneAmt)+'</span></div>';
+      }
+      // HST row
+      rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dashed var(--border)">'
+        +'<span style="font-size:12px;color:var(--muted)">HST (13%)</span>'
+        +'<span style="font-size:13px;font-weight:600;color:var(--muted)">+'+fm(hst)+'</span></div>';
+      // Total row
+      rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0 2px">'
+        +'<span style="font-size:12px;font-weight:700;color:var(--text)">TOTAL</span>'
+        +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+colColor+';line-height:1;letter-spacing:.5px">'+fm(tot)+'</span></div>';
+
+      // Tier header (only if multiple tiers)
+      var tierHdr = tiers.length > 1
+        ? '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+colColor+';margin-bottom:6px">'+t.label+'</div>'
+        : '';
+
+      return '<div style="flex:1;min-width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">'
+        +tierHdr+rows+'</div>';
+    }).join('');
+
+    binCards += '<div style="margin-bottom:12px">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);margin-bottom:8px">'+sz+'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'+tierCols+'</div>'
+      +'</div>';
   });
-  binHtml += '</tr></thead><tbody>';
-  binSizes.forEach(function(sz, idx){
-    var bg = idx%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
-    binHtml += '<tr style="background:'+bg+'">';
-    var szLabel = sz + (tonne && tonneOn[sz] ? '<span style="font-size:9px;color:#60a5fa;margin-left:4px">+tonne</span>' : '');
-    binHtml += '<td style="'+tdL+'">'+szLabel+'</td>';
-    cols.forEach(function(col){
-      var raw = colSrcs[col][sz] || colSrcs['Standard'][sz];
-      var base = calcPrice(raw, sz);
-      binHtml += '<td style="'+tdC+'">';
-      binHtml += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+colColors[col]+';line-height:1">'+fmt(base)+'</div>';
-      binHtml += '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+fmtTax(base)+' w/HST</div>';
-      binHtml += '</td>';
-    });
-    binHtml += '</tr>';
-  });
-  binHtml += '</tbody></table></div>';
 
-  // ── JUNK section
+  // ── Build junk section ───────────────────────────
+  var junkRows = '';
+  junkTiers.forEach(function(t){
+    if(!junk[t.k]) return;
+    var pre = parseFloat(junk[t.k]);
+    var hst = pre*(TAX-1);
+    var tot = pre+hst;
+    junkRows += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)">'
+      +'<div>'
+        +'<div style="font-size:14px;font-weight:600;color:var(--text)">'+t.l+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+fm(pre)+' + HST</div>'
+      +'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#eab308;letter-spacing:.5px">'+fm(tot)+'</div>'
+      +'</div>';
+  });
+
+  var hasBins = binSizes.some(function(sz){ return raw(sz)>0; });
   var hasJunk = junkTiers.some(function(t){ return junk[t.k]; });
-  var junkHtml = '';
-  if(hasJunk){
-    junkHtml += '<div style="height:1px;background:var(--border);margin:2px 0 10px"></div>';
-    junkHtml += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">&#x1F9F9; Junk Removal</div>';
-    junkHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">';
-    junkHtml += '<thead><tr>';
-    junkHtml += '<th style="'+tdL+'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--border)">Load</th>';
-    junkHtml += '<th style="padding:0 8px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#eab308;font-weight:700;border-bottom:2px solid var(--border)">Price</th>';
-    junkHtml += '</tr></thead><tbody>';
-    junkTiers.forEach(function(t, idx){
-      if(!junk[t.k]) return;
-      var v = parseFloat(junk[t.k]);
-      var bg = idx%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
-      junkHtml += '<tr style="background:'+bg+'">';
-      junkHtml += '<td style="'+tdL+'">'+t.l+'</td>';
-      junkHtml += '<td style="'+tdC+'"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#eab308;line-height:1">'+fmt(v)+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px">'+fmtTax(v)+' w/HST</div></td>';
-      junkHtml += '</tr>';
-    });
-    junkHtml += '</tbody></table></div>';
+
+  var out = '';
+
+  if(hasBins){
+    out += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">&#x1F69B; Bin Rental</div>';
+    out += binCards;
   }
 
-  document.getElementById('dash-pricing-display').innerHTML = badgeHtml + binHtml + junkHtml;
+  if(hasJunk){
+    out += '<div style="height:1px;background:var(--border);margin:4px 0 12px"></div>';
+    out += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">&#x1F9F9; Junk Removal</div>';
+    out += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden">'+junkRows+'</div>';
+  }
+
+  document.getElementById('dash-pricing-display').innerHTML = out || '<div style="color:var(--muted);font-size:13px">No prices set for this area.</div>';
 }
 function initDashPricingDropdown(){
   var sel = document.getElementById('dash-pricing-area');
