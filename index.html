@@ -1049,7 +1049,26 @@ textarea{resize:vertical;min-height:80px;}
   <div class="chart-card dash-section dash-s4" style="margin-bottom:24px;padding:0;overflow:hidden;">
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
-      <select id="dash-pricing-area" onchange="renderDashPricing()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;outline:none;"></select>
+      <div style="position:relative;flex-shrink:0;">
+        <select id="dash-pricing-area" onchange="renderDashPricing()" style="
+          appearance:none;-webkit-appearance:none;
+          background:var(--surface);
+          border:1px solid var(--border-strong);
+          color:var(--text);
+          padding:5px 28px 5px 11px;
+          border-radius:8px;
+          font-family:'DM Sans',sans-serif;
+          font-size:12px;
+          font-weight:600;
+          cursor:pointer;
+          outline:none;
+          box-shadow:0 1px 4px rgba(0,0,0,.06);
+          transition:border-color .15s,box-shadow .15s;
+        " onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(34,197,94,.12)'" onblur="this.style.borderColor='var(--border-strong)';this.style.boxShadow='0 1px 4px rgba(0,0,0,.06)'"></select>
+        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)" width="11" height="7" viewBox="0 0 11 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1L5.5 6L10 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">View Full Pricing →</button>
     </div>
     <div id="dash-pricing-display" style="padding:10px 14px;"></div>
