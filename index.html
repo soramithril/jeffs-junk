@@ -4990,17 +4990,35 @@ function saveCompetitors(){
 }
 function saveOurPricesData(){
   // Sync to Supabase — one row per area
+  // Build core row with guaranteed columns, then add optional columns only if the data exists
+  // This prevents the whole upsert failing when optional columns (bins3day, bins7day) don't exist in the schema
   try {
     var rows = Object.keys(ourPricesV2).map(function(area){
       var ap = ourPricesV2[area];
-      return {area:area, bins:ap.bins||{}, junk:ap.junk||{}, bin_fuel:ap.binFuel?parseFloat(ap.binFuel):null, bin_tonne:ap.binTonne?parseFloat(ap.binTonne):null, bins3day:ap.bins3day||null, bins7day:ap.bins7day||null};
+      var row = {
+        area:     area,
+        bins:     ap.bins     || {},
+        junk:     ap.junk     || {},
+        bin_fuel: ap.binFuel  ? parseFloat(ap.binFuel)  : null,
+        bin_tonne:ap.binTonne ? parseFloat(ap.binTonne) : null
+      };
+      // Only include multiday columns if they have data — avoids schema errors if columns don't exist
+      if(ap.bins3day && Object.keys(ap.bins3day).some(function(k){return ap.bins3day[k];})) row.bins3day = ap.bins3day;
+      if(ap.bins7day && Object.keys(ap.bins7day).some(function(k){return ap.bins7day[k];})) row.bins7day = ap.bins7day;
+      return row;
     });
     if(rows.length){
       db.from('our_prices').upsert(rows,{onConflict:'area'}).then(function(r){
-        if(r.error) console.warn('Our prices sync failed:',r.error.message);
+        if(r.error){
+          console.warn('Our prices sync failed:',r.error.message);
+          toast('⚠ Prices saved locally but Supabase sync failed: '+r.error.message);
+        }
       });
     }
-  } catch(e){ console.warn('Our prices sync error:',e); }
+  } catch(e){
+    console.warn('Our prices sync error:',e);
+    toast('⚠ Prices sync error: '+e.message);
+  }
 }
 function savePricingAreas(){ /* pricingAreas derived from Supabase our_prices — no separate save needed */ }
 function nextCompId(){ return 'c'+(Date.now()%100000); }
@@ -5075,26 +5093,15 @@ function renderDashPricing(){
   var junkTiers = [{k:'min',l:'Min'},{k:'quarter',l:'&#188; Truck'},{k:'half',l:'&#189; Truck'},{k:'full',l:'Full Truck'}];
   var hasMultiday = !!(bins3 || bins7);
 
-  // Build the all-in total: base + fuel% + tonne (if applicable) + HST
-  // Returns the final customer-pays number
-  function calcTotal(raw, sz){
+  function calcPrice(raw, sz){
     if(!raw) return null;
     var v = parseFloat(raw);
-    if(fuel)  v = v * (1 + fuel/100);          // add fuel surcharge
-    if(tonne && tonneOn[sz]) v = v + tonne;     // add tonne fee (14/20yd only)
-    v = v * TAX;                                // add HST
-    return v;
-  }
-  // Pre-tax subtotal (for the breakdown line)
-  function calcSubtotal(raw, sz){
-    if(!raw) return null;
-    var v = parseFloat(raw);
-    if(fuel)  v = v * (1 + fuel/100);
+    if(fuel) v = v * (1 + fuel/100);
     if(tonne && tonneOn[sz]) v = v + tonne;
     return v;
   }
-  function fmtTotal(v){ return v != null ? '$'+v.toFixed(2) : '&#8212;'; }
-  function fmtSub(v)  { return v != null ? '$'+v.toFixed(0) : '&#8212;'; }
+  function fmt(v)    { return v != null ? '$'+v.toFixed(0) : '&#8212;'; }
+  function fmtTax(v) { return v != null ? '$'+(v*TAX).toFixed(2) : '&#8212;'; }
 
   var cols = ['Standard'];
   if(hasMultiday){ if(bins3) cols.push('3-Day'); if(bins7) cols.push('7-Day'); }
@@ -5104,15 +5111,14 @@ function renderDashPricing(){
   var tdL = 'padding:10px 10px 10px 0;font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;';
   var tdC = 'padding:10px 8px;text-align:center;border-left:1px solid var(--border);';
 
-  // ── Surcharge breakdown strip
-  var parts = [];
-  if(fuel)  parts.push('Fuel +'+fuel+'%');
-  if(tonne) parts.push('$'+tonne+'/tonne (14 &amp; 20yd)');
-  parts.push('HST 13%');
-  var badgeHtml = '<div style="margin-bottom:10px;font-size:11px;color:var(--muted)">All-in total includes: <strong style="color:var(--text)">'+parts.join(' &nbsp;+&nbsp; ')+'</strong></div>';
+  // ── Surcharge badges
+  var badges = '';
+  if(fuel)  badges += '<span style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:5px;padding:2px 8px;font-size:10px;color:#eab308;font-weight:600">&#9981; Fuel +'+fuel+'%</span> ';
+  if(tonne) badges += '<span style="background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);border-radius:5px;padding:2px 8px;font-size:10px;color:#60a5fa;font-weight:600">+ $'+tonne+'/tonne (14 &amp; 20yd)</span>';
+  var badgeHtml = badges ? '<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">'+badges+'</div>' : '';
 
   // ── BIN section
-  var binHtml = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">&#x1F69B; Bin Rental &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(all-in price with tax)</span></div>';
+  var binHtml = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">&#x1F69B; Bin Rental</div>';
   binHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-bottom:14px">';
   binHtml += '<thead><tr><th style="'+tdL+'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--border)">Size</th>';
   cols.forEach(function(col){
@@ -5122,23 +5128,14 @@ function renderDashPricing(){
   binSizes.forEach(function(sz, idx){
     var bg = idx%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
     binHtml += '<tr style="background:'+bg+'">';
-    binHtml += '<td style="'+tdL+'">'+sz+'</td>';
+    var szLabel = sz + (tonne && tonneOn[sz] ? '<span style="font-size:9px;color:#60a5fa;margin-left:4px">+tonne</span>' : '');
+    binHtml += '<td style="'+tdL+'">'+szLabel+'</td>';
     cols.forEach(function(col){
-      var raw  = colSrcs[col][sz] || colSrcs['Standard'][sz];
-      var tot  = calcTotal(raw, sz);
-      var sub  = calcSubtotal(raw, sz);
-      // Build breakdown hint: show what makes up the total
-      var hint = '';
-      if(sub != null){
-        var hparts = [];
-        if(fuel)              hparts.push('+'+fuel+'% fuel');
-        if(tonne&&tonneOn[sz]) hparts.push('+$'+tonne+' tonne');
-        hparts.push('+HST');
-        hint = fmtSub(sub)+(hparts.length?' ('+hparts.join(', ')+')':'');
-      }
+      var raw = colSrcs[col][sz] || colSrcs['Standard'][sz];
+      var base = calcPrice(raw, sz);
       binHtml += '<td style="'+tdC+'">';
-      binHtml += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+colColors[col]+';line-height:1;letter-spacing:.5px">'+fmtTotal(tot)+'</div>';
-      if(hint) binHtml += '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+hint+'</div>';
+      binHtml += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+colColors[col]+';line-height:1">'+fmt(base)+'</div>';
+      binHtml += '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+fmtTax(base)+' w/HST</div>';
       binHtml += '</td>';
     });
     binHtml += '</tr>';
@@ -5150,23 +5147,19 @@ function renderDashPricing(){
   var junkHtml = '';
   if(hasJunk){
     junkHtml += '<div style="height:1px;background:var(--border);margin:2px 0 10px"></div>';
-    junkHtml += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">&#x1F9F9; Junk Removal &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(all-in with HST)</span></div>';
+    junkHtml += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">&#x1F9F9; Junk Removal</div>';
     junkHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">';
     junkHtml += '<thead><tr>';
     junkHtml += '<th style="'+tdL+'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:2px solid var(--border)">Load</th>';
-    junkHtml += '<th style="padding:0 8px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#eab308;font-weight:700;border-bottom:2px solid var(--border)">Total (incl. HST)</th>';
+    junkHtml += '<th style="padding:0 8px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#eab308;font-weight:700;border-bottom:2px solid var(--border)">Price</th>';
     junkHtml += '</tr></thead><tbody>';
     junkTiers.forEach(function(t, idx){
       if(!junk[t.k]) return;
-      var pre = parseFloat(junk[t.k]);
-      var tot = pre * TAX;
+      var v = parseFloat(junk[t.k]);
       var bg = idx%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
       junkHtml += '<tr style="background:'+bg+'">';
       junkHtml += '<td style="'+tdL+'">'+t.l+'</td>';
-      junkHtml += '<td style="'+tdC+'">';
-      junkHtml += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#eab308;line-height:1;letter-spacing:.5px">'+fmtTotal(tot)+'</div>';
-      junkHtml += '<div style="font-size:10px;color:var(--muted);margin-top:2px">$'+pre.toFixed(0)+' + HST</div>';
-      junkHtml += '</td>';
+      junkHtml += '<td style="'+tdC+'"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#eab308;line-height:1">'+fmt(v)+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px">'+fmtTax(v)+' w/HST</div></td>';
       junkHtml += '</tr>';
     });
     junkHtml += '</tbody></table></div>';
