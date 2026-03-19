@@ -5086,8 +5086,6 @@ function renderDashPricing(){
   }
   var ap    = getAreaPrices(area);
   var bins  = ap.bins  || {};
-  var bins3 = ap.bins3day || null;
-  var bins7 = ap.bins7day || null;
   var fuel  = parseFloat(ap.binFuel)  || 0;
   var tonne = parseFloat(ap.binTonne) || 0;
   var junk  = ap.junk  || {};
@@ -5095,128 +5093,116 @@ function renderDashPricing(){
   var tonneOn   = {'14 yard':true,'20 yard':true};
   var junkTiers = [{k:'min',l:'Min'},{k:'quarter',l:'1/4 Load'},{k:'half',l:'1/2 Load'},{k:'full',l:'Full Load'}];
 
-  function calcTotal(raw, sz){
-    if(!raw || !parseFloat(raw)) return null;
-    var v = parseFloat(raw);
-    if(fuel) v = v*(1+fuel/100);
-    if(tonne && tonneOn[sz]) v = v+tonne;
-    return v*TAX;
+  // Build the step-by-step total for a bin
+  function buildSteps(rawVal, sz){
+    var base = parseFloat(rawVal)||0;
+    if(!base) return null;
+    var hasTonne = tonne && tonneOn[sz];
+    var afterFuel  = fuel  ? base*(1+fuel/100)     : base;
+    var afterTonne = hasTonne ? afterFuel+tonne      : afterFuel;
+    var hst        = afterTonne*(TAX-1);
+    var total      = afterTonne+hst;
+    return {base:base, afterFuel:afterFuel, afterTonne:afterTonne, hst:hst, total:total, hasTonne:hasTonne};
   }
-  function calcPretax(raw, sz){
-    if(!raw || !parseFloat(raw)) return null;
-    var v = parseFloat(raw);
-    if(fuel) v = v*(1+fuel/100);
-    if(tonne && tonneOn[sz]) v = v+tonne;
-    return v;
-  }
-  function fm(v){ return v!=null ? '$'+v.toFixed(2) : ''; }
-  function fmR(v){ return v!=null ? '$'+Math.round(v) : '—'; }
 
-  var hasMultiday = !!(bins3||bins7);
-  var activeBins  = binSizes.filter(function(sz){ return parseFloat(bins[sz])||0; });
-  var activeJunk  = junkTiers.filter(function(t){ return parseFloat(junk[t.k])||0; });
+  function fmD(v){ return '$'+v.toFixed(2); }
+  function fmR(v){ return '$'+Math.round(v); }
+
+  var activeBins = binSizes.filter(function(sz){ return parseFloat(bins[sz])||0; });
+  var activeJunk = junkTiers.filter(function(t){ return parseFloat(junk[t.k])||0; });
   var hasBins = activeBins.length > 0;
   var hasJunk = activeJunk.length > 0;
 
-  // ── Surcharge pill strip (compact, one line)
-  var pills = '';
-  if(fuel)  pills += '<span style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);border-radius:20px;padding:2px 9px;font-size:11px;color:#eab308;font-weight:600;white-space:nowrap">⛽ Fuel +'+fuel+'%</span>';
-  if(tonne) pills += '<span style="background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.35);border-radius:20px;padding:2px 9px;font-size:11px;color:#60a5fa;font-weight:600;white-space:nowrap">🚛 Tonne $'+tonne+' (14&amp;20yd)</span>';
-  pills += '<span style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.25);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap">HST 13%</span>';
-  var pillHtml = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">'+pills+'</div>';
+  // ── Row style helpers ──────────────────────────────
+  var ROW  = 'display:flex;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);gap:0;';
+  var ROW_LAST = 'display:flex;align-items:center;padding:7px 12px;gap:0;';
 
-  var out = pillHtml;
-
-  // ── Two-column layout: bins left, junk right (if both exist), else full width
-  var layout = '<div style="display:grid;grid-template-columns:'+(hasBins&&hasJunk?'1fr 1fr':'1fr')+';gap:12px">';
-
-  // ── BIN BLOCK ────────────────────────────────────────
-  if(hasBins){
-    var binBlock = '<div>';
-    binBlock += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🚛 Bin Rental</div>';
-
-    // Column headers when multiday
-    if(hasMultiday){
-      var hdrCols = '<div style="display:grid;grid-template-columns:auto'+(bins3?' 1fr':'')+(bins7?' 1fr':'')+(true?' 1fr':'')+'  ;gap:4px;margin-bottom:4px;padding:0 2px">'
-        +'<div style="font-size:9px;color:transparent">Size</div>'
-        +(true?'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#22c55e;text-align:center">Std</div>':'')
-        +(bins3?'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#eab308;text-align:center">3-Day</div>':'')
-        +(bins7?'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#60a5fa;text-align:center">7-Day</div>':'')
-        +'</div>';
-      binBlock += hdrCols;
+  // ── Breakdown steps as inline chips ──────────────
+  // "base → +fuel% → +tonne → +HST = TOTAL"
+  function buildBreakdown(s, color){
+    var steps = '';
+    var sz_chip = function(val, label, col){
+      return '<span style="color:var(--muted);font-size:11px">'+val+'</span>'
+             +'<span style="font-size:10px;color:var(--muted);margin:0 3px">&rarr;</span>';
+    };
+    // Base
+    steps += '<span style="font-size:11px;color:var(--muted)">'+fmR(s.base)+'</span>';
+    // Fuel
+    if(fuel){
+      steps += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
+      steps += '<span style="font-size:11px;color:#eab308">+'+fuel+'%</span>';
     }
+    // Tonne
+    if(s.hasTonne){
+      steps += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
+      steps += '<span style="font-size:11px;color:#60a5fa">+'+fmR(tonne)+' tonne</span>';
+    }
+    // HST
+    steps += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
+    steps += '<span style="font-size:11px;color:var(--muted)">+HST</span>';
+    // = Total
+    steps += '<span style="font-size:10px;color:var(--muted);margin:0 5px">=</span>';
+    steps += '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:'+color+';letter-spacing:.5px;line-height:1">'+fmD(s.total)+'</span>';
+    return steps;
+  }
+
+  var out = '';
+
+  // ── BIN BLOCK ──────────────────────────────────────────────
+  if(hasBins){
+    out += '<div style="margin-bottom:'+(hasJunk?'10px':'0')+'">';
+    // Section label
+    out += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);padding:0 12px;margin-bottom:4px">🚛 Bin Rental</div>';
+    out += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
 
     activeBins.forEach(function(sz, i){
-      var tot  = calcTotal(bins[sz], sz);
-      var tot3 = bins3 ? calcTotal(bins3[sz]||bins[sz], sz) : null;
-      var tot7 = bins7 ? calcTotal(bins7[sz]||bins[sz], sz) : null;
-      var pre  = calcPretax(bins[sz], sz);
-      var hasTonne = tonne && tonneOn[sz];
-      var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.03)';
+      var s = buildSteps(bins[sz], sz);
+      if(!s) return;
+      var isLast = i === activeBins.length-1;
+      var rowStyle = isLast ? ROW_LAST : ROW;
+      var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
 
-      // Breakdown tooltip-style hint
-      var hint = '$'+Math.round(parseFloat(bins[sz]));
-      if(fuel) hint += ' +'+fuel+'%';
-      if(hasTonne) hint += ' +$'+tonne+' tonne';
-      hint += ' +HST';
-
-      var cols = 'auto'+(bins3?' 1fr':'')+(bins7?' 1fr':'')+(true?' 1fr':'');
-      if(!hasMultiday) cols = '1fr auto';
-
-      var row = '<div style="display:grid;grid-template-columns:'+cols+';gap:4px;align-items:center;padding:6px 8px;border-radius:7px;background:'+bg+';margin-bottom:2px">';
-
-      if(hasMultiday){
-        row += '<div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;padding-right:4px">'+sz+'</div>';
-        row += '<div style="text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:#22c55e;line-height:1">'+fmR(tot)+'</div></div>';
-        if(bins3) row += '<div style="text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:#eab308;line-height:1">'+fmR(tot3)+'</div></div>';
-        if(bins7) row += '<div style="text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:#60a5fa;line-height:1">'+fmR(tot7)+'</div></div>';
-      } else {
-        row += '<div>'
-          +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+sz+(hasTonne?'<span style="font-size:9px;color:#60a5fa;margin-left:3px">+tonne</span>':'')+'</div>'
-          +'<div style="font-size:10px;color:var(--muted);margin-top:1px">'+hint+'</div>'
-          +'</div>';
-        row += '<div style="text-align:right">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#22c55e;line-height:1;letter-spacing:.3px">'+fmR(tot)+'</div>'
-          +'<div style="font-size:10px;color:var(--muted)">'+fm(tot)+' exact</div>'
-          +'</div>';
-      }
-      row += '</div>';
-      binBlock += row;
+      out += '<div style="'+rowStyle+'background:'+bg+'">';
+      // Size label — fixed width
+      out += '<div style="width:60px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text)">'+sz+'</div>';
+      // Breakdown steps — fills remaining space
+      out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:1px">'+buildBreakdown(s,'#22c55e')+'</div>';
+      out += '</div>';
     });
 
-    binBlock += '</div>';
-    layout += binBlock;
+    out += '</div></div>';
   }
 
-  // ── JUNK BLOCK ───────────────────────────────────────
+  // ── JUNK BLOCK ─────────────────────────────────────────────
   if(hasJunk){
-    var junkBlock = '<div>';
-    junkBlock += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🧹 Junk Removal</div>';
+    out += '<div>';
+    out += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);padding:0 12px;margin-bottom:4px">🧹 Junk Removal</div>';
+    out += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
 
     activeJunk.forEach(function(t, i){
-      var pre = parseFloat(junk[t.k]);
-      var tot = pre * TAX;
-      var hst = tot - pre;
-      var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.03)';
+      var pre  = parseFloat(junk[t.k]);
+      var hst  = pre*(TAX-1);
+      var tot  = pre+hst;
+      var isLast = i === activeJunk.length-1;
+      var rowStyle = isLast ? ROW_LAST : ROW;
+      var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
 
-      junkBlock += '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;padding:6px 8px;border-radius:7px;background:'+bg+';margin-bottom:2px">'
-        +'<div>'
-          +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+t.l+'</div>'
-          +'<div style="font-size:10px;color:var(--muted);margin-top:1px">$'+Math.round(pre)+' +HST</div>'
-        +'</div>'
-        +'<div style="text-align:right">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#eab308;line-height:1;letter-spacing:.3px">'+fmR(tot)+'</div>'
-          +'<div style="font-size:10px;color:var(--muted)">'+fm(tot)+' exact</div>'
-        +'</div>'
-        +'</div>';
+      out += '<div style="'+rowStyle+'background:'+bg+'">';
+      // Load label
+      out += '<div style="width:72px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text)">'+t.l+'</div>';
+      // Breakdown
+      out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:1px">';
+      out += '<span style="font-size:11px;color:var(--muted)">'+fmR(pre)+'</span>';
+      out += '<span style="font-size:10px;color:var(--muted);margin:0 4px">&rarr;</span>';
+      out += '<span style="font-size:11px;color:var(--muted)">+HST</span>';
+      out += '<span style="font-size:10px;color:var(--muted);margin:0 5px">=</span>';
+      out += '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:#eab308;letter-spacing:.5px;line-height:1">'+fmD(tot)+'</span>';
+      out += '</div>';
+      out += '</div>';
     });
 
-    junkBlock += '</div>';
-    layout += junkBlock;
+    out += '</div></div>';
   }
-
-  layout += '</div>';
-  out += layout;
 
   document.getElementById('dash-pricing-display').innerHTML = out
     || '<div style="color:var(--muted);font-size:13px">No prices set for this area.</div>';
