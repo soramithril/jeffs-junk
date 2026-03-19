@@ -7395,18 +7395,12 @@ applyAdminVisibility();
     <div class="form-grid">
       <div class="form-group">
         <label>Primary Client <span style="font-weight:400;color:var(--muted)">(keep this one)</span></label>
-        <div style="position:relative;">
-          <input type="text" id="merge-primary-search" placeholder="Search by name…" oninput="filterMergeList('primary')" autocomplete="off" style="width:100%;">
-          <div id="merge-primary-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:600;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:0 0 10px 10px;background:var(--surface-solid);box-shadow:0 8px 24px rgba(0,0,0,.25);"></div>
-        </div>
+        <input type="text" id="merge-primary-search" placeholder="Search by name…" oninput="filterMergeList('primary')" autocomplete="off" style="width:100%;">
         <input type="hidden" id="merge-primary">
       </div>
       <div class="form-group">
         <label>Secondary Client <span style="font-weight:400;color:var(--muted)">(will be deleted)</span></label>
-        <div style="position:relative;">
-          <input type="text" id="merge-secondary-search" placeholder="Search by name…" oninput="filterMergeList('secondary')" autocomplete="off" style="width:100%;">
-          <div id="merge-secondary-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:600;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:0 0 10px 10px;background:var(--surface-solid);box-shadow:0 8px 24px rgba(0,0,0,.25);"></div>
-        </div>
+        <input type="text" id="merge-secondary-search" placeholder="Search by name…" oninput="filterMergeList('secondary')" autocomplete="off" style="width:100%;">
         <input type="hidden" id="merge-secondary">
       </div>
     </div>
@@ -7599,8 +7593,8 @@ async function openMergeClients() {
   document.getElementById('merge-secondary-search').value = '';
   document.getElementById('merge-primary').value = '';
   document.getElementById('merge-secondary').value = '';
-  document.getElementById('merge-primary-dropdown').style.display = 'none';
-  document.getElementById('merge-secondary-dropdown').style.display = 'none';
+  hideMergeDropdown('primary');
+  hideMergeDropdown('secondary');
   document.getElementById('merge-preview-empty').style.display = 'block';
   document.getElementById('merge-preview-empty').innerHTML = 'Search and select both clients to preview the merge';
   document.getElementById('merge-preview-diff').style.display = 'none';
@@ -7633,12 +7627,40 @@ function countClientJobs(cid, name) {
   }).length;
 }
 
+// Body-level dropdowns that escape the modal's overflow:auto clipping
+function getMergeDropdown(which) {
+  var id = 'merge-' + which + '-dropdown';
+  var drop = document.getElementById(id);
+  if (!drop) {
+    drop = document.createElement('div');
+    drop.id = id;
+    drop.style.cssText = 'display:none;position:fixed;z-index:9999;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);box-shadow:0 8px 24px rgba(0,0,0,.35);';
+    document.body.appendChild(drop);
+  }
+  return drop;
+}
+
+function positionMergeDropdown(which) {
+  var inp = document.getElementById('merge-' + which + '-search');
+  var drop = getMergeDropdown(which);
+  var r = inp.getBoundingClientRect();
+  drop.style.left  = r.left + 'px';
+  drop.style.top   = (r.bottom + 2) + 'px';
+  drop.style.width = r.width + 'px';
+}
+
+function hideMergeDropdown(which) {
+  var drop = document.getElementById('merge-' + which + '-dropdown');
+  if (drop) drop.style.display = 'none';
+}
+
 async function filterMergeList(which) {
   var q = document.getElementById('merge-' + which + '-search').value.trim();
-  var drop = document.getElementById('merge-' + which + '-dropdown');
+  var drop = getMergeDropdown(which);
 
   if (!q) { drop.style.display = 'none'; return; }
 
+  positionMergeDropdown(which);
   drop.style.display = 'block';
   drop.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
 
@@ -7678,16 +7700,16 @@ function selectMergeClient(which, cid) {
   if (!c) return;
   document.getElementById('merge-' + which + '-search').value = c.name;
   document.getElementById('merge-' + which).value = cid;
-  document.getElementById('merge-' + which + '-dropdown').style.display = 'none';
+  hideMergeDropdown(which);
   updateMergePreview();
 }
 
 // Hide merge dropdowns when clicking outside
 document.addEventListener('click', function(e){
   ['primary','secondary'].forEach(function(w){
-    var wrap = document.getElementById('merge-'+w+'-search');
-    var drop = document.getElementById('merge-'+w+'-dropdown');
-    if (drop && wrap && !wrap.contains(e.target) && !drop.contains(e.target)) {
+    var inp  = document.getElementById('merge-' + w + '-search');
+    var drop = document.getElementById('merge-' + w + '-dropdown');
+    if (drop && inp && !inp.contains(e.target) && !drop.contains(e.target)) {
       drop.style.display = 'none';
     }
   });
