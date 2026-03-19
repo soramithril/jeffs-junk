@@ -7741,10 +7741,13 @@ function updateMergePreview() {
 
   // Field definitions
   var FIELDS = [
-    {key:'phone',   label:'📞 Phone'},
-    {key:'email',   label:'✉️ Email'},
-    {key:'address', label:'📍 Address'},
-    {key:'notes',   label:'📝 Notes'}
+    {key:'name',     label:'👤 Name'},
+    {key:'phone',    label:'📞 Phone'},
+    {key:'email',    label:'✉️ Email'},
+    {key:'address',  label:'📍 Address'},
+    {key:'city',     label:'🏙 City'},
+    {key:'notes',    label:'📝 Notes'},
+    {key:'referral', label:'📣 Referral'}
   ];
 
   // For each field, classify: existing / added / duplicate / removed
@@ -7818,9 +7821,9 @@ function doMergeClients() {
   var sc = clients.find(function(c){return c.cid===sid;});
   if (!pc || !sc) return;
 
-  // Merge contact info — add secondary fields to primary if not already present
-  var fields = ['phone','email','address','notes'];
-  fields.forEach(function(f){
+  // ── Merge scalar fields (phone, email, address, city, notes, referral) ──
+  var scalarFields = ['phone','email','address','city','notes','referral'];
+  scalarFields.forEach(function(f){
     var pVal = (pc[f]||'').trim();
     var sVal = (sc[f]||'').trim();
     if (sVal && pVal.toLowerCase().indexOf(sVal.toLowerCase()) === -1) {
@@ -7828,22 +7831,60 @@ function doMergeClients() {
     }
   });
 
-  // Update local jobs array (partial, but keep it consistent)
-  jobs.forEach(function(j){
-    if (j.clientId === sid) {
-      j.clientId = pid;
+  // ── Merge names[] — all unique contact names ──
+  var pNames = pc.names || [pc.name];
+  var sNames = sc.names || [sc.name];
+  sNames.forEach(function(n){
+    if (n && !pNames.some(function(p){ return p.toLowerCase() === n.toLowerCase(); })) {
+      pNames.push(n);
     }
   });
+  pc.names = pNames;
 
-  // Update ALL jobs in Supabase directly (local array is incomplete)
+  // ── Merge phones[] — dedupe by number ──
+  var pPhones = pc.phones || (pc.phone ? [{num:pc.phone,label:''}] : []);
+  var sPhones = sc.phones || (sc.phone ? [{num:sc.phone,label:''}] : []);
+  sPhones.forEach(function(sp){
+    var spNum = (sp.num||sp||'').toString().replace(/\D/g,'');
+    if (spNum && !pPhones.some(function(pp){
+      return ((pp.num||pp||'').toString().replace(/\D/g,'')) === spNum;
+    })) { pPhones.push(sp); }
+  });
+  pc.phones = pPhones;
+
+  // ── Merge emails[] — dedupe by address ──
+  var pEmails = pc.emails || (pc.email ? [pc.email] : []);
+  var sEmails = sc.emails || (sc.email ? [sc.email] : []);
+  sEmails.forEach(function(se){
+    var seAddr = (se.email||se||'').toLowerCase();
+    if (seAddr && !pEmails.some(function(pe){
+      return (pe.email||pe||'').toLowerCase() === seAddr;
+    })) { pEmails.push(se); }
+  });
+  pc.emails = pEmails;
+
+  // ── Merge addresses[] — dedupe by street ──
+  var pAddrs = pc.addresses || (pc.address ? [{street:pc.address,city:pc.city||''}] : []);
+  var sAddrs = sc.addresses || (sc.address ? [{street:sc.address,city:sc.city||''}] : []);
+  sAddrs.forEach(function(sa){
+    var saStreet = (sa.street||'').toLowerCase().trim();
+    if (saStreet && !pAddrs.some(function(pa){
+      return (pa.street||'').toLowerCase().trim() === saStreet;
+    })) { pAddrs.push(sa); }
+  });
+  pc.addresses = pAddrs;
+
+  // ── Update local jobs (partial array — keep consistent) ──
+  jobs.forEach(function(j){ if (j.clientId === sid) j.clientId = pid; });
+
+  // ── Update ALL jobs in Supabase (local array is incomplete) ──
   db.from('jobs').update({ client_cid: pid }).eq('client_cid', sid).then(function(r){
     if (r.error) console.warn('Merge jobs update error:', r.error.message);
   });
 
-  // Remove secondary client
+  // ── Remove secondary client ──
   clients = clients.filter(function(c){return c.cid !== sid;});
 
-  // Bust the stats cache so counts reload fresh
   _clientStatsCache = null;
   _clientStatsCacheTime = 0;
 
