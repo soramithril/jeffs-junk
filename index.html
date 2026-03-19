@@ -7607,7 +7607,8 @@ function openMergeClients() {
 function countClientJobs(cid, name) {
   var nameLower = name ? name.toLowerCase() : '';
   return jobs.filter(function(j){
-    return j.clientId === cid || (j.name && j.name.toLowerCase() === nameLower);
+    if (cid) return j.clientId === cid;
+    return j.name && j.name.toLowerCase() === nameLower;
   }).length;
 }
 
@@ -7631,8 +7632,9 @@ function filterMergeList(which) {
 
   drop.innerHTML = matches.map(function(c){
     var cnt = countClientJobs(c.cid, c.name);
+    var nameJson = JSON.stringify(c.name);
     return '<div style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;" '
-      + 'onmousedown="selectMergeClient(\''+which+'\',\''+c.cid+'\','+JSON.stringify(c.name).replace(/'/g,"&#39;")+')" '
+      + 'onclick="event.stopPropagation();selectMergeClient(\''+which+'\',\''+c.cid+'\','+nameJson+')" '
       + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
       + '<span>'+c.name+'</span>'
       + '<span style="color:var(--muted);font-size:11px;">'+cnt+' job'+(cnt!==1?'s':'')+'</span>'
@@ -7772,7 +7774,7 @@ function doMergeClients() {
 
   // Move all jobs from secondary to primary
   jobs.forEach(function(j){
-    if (j.clientId === sid || (j.name && j.name.toLowerCase() === sc.name.toLowerCase())) {
+    if (j.clientId === sid) {
       j.clientId = pid;
       if (j.name && j.name.toLowerCase() === sc.name.toLowerCase()) j.name = pc.name;
     }
