@@ -7387,26 +7387,69 @@ applyAdminVisibility();
 
 <!-- ═══════════ MERGE CLIENTS MODAL ═══════════ -->
 <div class="modal-overlay" id="merge-modal">
-  <div class="modal" style="width:560px">
+  <div class="modal" style="width:660px;max-width:98vw;">
     <div class="modal-header">
       <div class="modal-title">🔗 Merge Clients</div>
       <button class="modal-close" onclick="closeM('merge-modal')">&#x2715;</button>
     </div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Select two clients to merge. All jobs from the secondary client will be moved to the primary. The secondary client will be deleted.</div>
     <div class="form-grid">
       <div class="form-group">
-        <label>Primary Client (keep this one)</label>
-        <select id="merge-primary" style="width:100%"><option value="">— Select Client —</option></select>
+        <label>Primary Client <span style="font-weight:400;color:var(--muted)">(keep this one)</span></label>
+        <input type="text" id="merge-primary-search" placeholder="Search by name…" oninput="filterMergeList('primary')" autocomplete="off" style="width:100%;margin-bottom:4px">
+        <div id="merge-primary-dropdown" style="display:none;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);box-shadow:var(--glass-shadow);z-index:10;position:relative;"></div>
+        <input type="hidden" id="merge-primary">
       </div>
       <div class="form-group">
-        <label>Secondary Client (merge into primary)</label>
-        <select id="merge-secondary" style="width:100%"><option value="">— Select Client —</option></select>
+        <label>Secondary Client <span style="font-weight:400;color:var(--muted)">(will be deleted)</span></label>
+        <input type="text" id="merge-secondary-search" placeholder="Search by name…" oninput="filterMergeList('secondary')" autocomplete="off" style="width:100%;margin-bottom:4px">
+        <div id="merge-secondary-dropdown" style="display:none;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);box-shadow:var(--glass-shadow);z-index:10;position:relative;"></div>
+        <input type="hidden" id="merge-secondary">
       </div>
     </div>
-    <div id="merge-preview" style="margin-top:12px;padding:12px;border-radius:8px;background:var(--surface2);font-size:13px;color:var(--muted)">Select both clients to preview merge</div>
-    <div class="form-actions">
+
+    <!-- PREVIEW AREA -->
+    <div id="merge-preview-wrap" style="margin-top:14px;">
+      <div id="merge-preview-empty" style="padding:14px;border-radius:10px;background:var(--surface2);font-size:13px;color:var(--muted);text-align:center;">
+        Search and select both clients to preview the merge
+      </div>
+      <div id="merge-preview-diff" style="display:none;">
+        <!-- Jobs banner -->
+        <div id="merge-jobs-banner" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);margin-bottom:12px;font-size:13px;"></div>
+        <!-- Side-by-side diff cards -->
+        <div style="display:grid;grid-template-columns:1fr 24px 1fr;gap:0;align-items:start;">
+          <!-- Primary card -->
+          <div id="merge-card-primary" style="border:2px solid rgba(34,197,94,0.45);border-radius:10px;overflow:hidden;">
+            <div style="background:rgba(34,197,94,0.10);padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#15803d;display:flex;justify-content:space-between;align-items:center;">
+              <span>✓ PRIMARY — KEPT</span>
+              <span id="merge-primary-jobs-badge" style="font-size:10px;background:rgba(34,197,94,0.2);padding:2px 7px;border-radius:10px;"></span>
+            </div>
+            <div id="merge-primary-body" style="padding:10px 12px;font-size:12px;line-height:1.9;"></div>
+          </div>
+          <!-- Arrow -->
+          <div style="display:flex;align-items:center;justify-content:center;height:100%;padding-top:36px;">
+            <span style="font-size:18px;color:var(--muted);">←</span>
+          </div>
+          <!-- Secondary card -->
+          <div id="merge-card-secondary" style="border:2px solid rgba(239,68,68,0.35);border-radius:10px;overflow:hidden;">
+            <div style="background:rgba(239,68,68,0.07);padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b91c1c;display:flex;justify-content:space-between;align-items:center;">
+              <span>✕ SECONDARY — DELETED</span>
+              <span id="merge-secondary-jobs-badge" style="font-size:10px;background:rgba(239,68,68,0.15);padding:2px 7px;border-radius:10px;"></span>
+            </div>
+            <div id="merge-secondary-body" style="padding:10px 12px;font-size:12px;line-height:1.9;"></div>
+          </div>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted);justify-content:flex-end;">
+          <span><span style="color:#15803d;font-weight:700;">+ green</span> = added from secondary</span>
+          <span><span style="color:var(--muted);">grey</span> = unchanged / already present</span>
+          <span><span style="color:#b91c1c;text-decoration:line-through;">red</span> = removed</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" onclick="closeM('merge-modal')">Cancel</button>
-      <button class="btn btn-danger" onclick="doMergeClients()">🔗 Merge Clients</button>
+      <button class="btn btn-danger" id="merge-confirm-btn" disabled style="opacity:0.45;cursor:not-allowed;" onclick="doMergeClients()">🔗 Merge Clients</button>
     </div>
   </div>
 </div>
@@ -7548,30 +7591,166 @@ function savePresets() {
 // MERGE CLIENTS
 // ═══════════════════════════════════════
 function openMergeClients() {
-  var opts = clients.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(c){
-    var cnt = jobs.filter(function(j){return j.clientId===c.cid||j.name.toLowerCase()===c.name.toLowerCase();}).length;
-    return '<option value="'+c.cid+'">'+c.name+' ('+cnt+' jobs)</option>';
-  }).join('');
-  document.getElementById('merge-primary').innerHTML = '<option value="">— Select Client —</option>' + opts;
-  document.getElementById('merge-secondary').innerHTML = '<option value="">— Select Client —</option>' + opts;
-  document.getElementById('merge-preview').innerHTML = 'Select both clients to preview merge';
+  document.getElementById('merge-primary-search').value = '';
+  document.getElementById('merge-secondary-search').value = '';
+  document.getElementById('merge-primary').value = '';
+  document.getElementById('merge-secondary').value = '';
+  document.getElementById('merge-primary-dropdown').style.display = 'none';
+  document.getElementById('merge-secondary-dropdown').style.display = 'none';
+  document.getElementById('merge-preview-empty').style.display = 'block';
+  document.getElementById('merge-preview-diff').style.display = 'none';
+  var btn = document.getElementById('merge-confirm-btn');
+  btn.disabled = true; btn.style.opacity = '0.45'; btn.style.cursor = 'not-allowed';
   document.getElementById('merge-modal').classList.add('open');
 }
+
+function countClientJobs(cid, name) {
+  var nameLower = name ? name.toLowerCase() : '';
+  return jobs.filter(function(j){
+    return j.clientId === cid || (j.name && j.name.toLowerCase() === nameLower);
+  }).length;
+}
+
+function filterMergeList(which) {
+  var searchId = 'merge-' + which + '-search';
+  var dropId   = 'merge-' + which + '-dropdown';
+  var hiddenId = 'merge-' + which;
+  var query = document.getElementById(searchId).value.trim().toLowerCase();
+  var drop  = document.getElementById(dropId);
+
+  if (!query) { drop.style.display = 'none'; return; }
+
+  var sorted = clients.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+  var matches = sorted.filter(function(c){ return c.name.toLowerCase().includes(query); });
+
+  if (!matches.length) {
+    drop.innerHTML = '<div style="padding:10px 12px;color:var(--muted);font-size:13px;">No clients found</div>';
+    drop.style.display = 'block';
+    return;
+  }
+
+  drop.innerHTML = matches.map(function(c){
+    var cnt = countClientJobs(c.cid, c.name);
+    return '<div style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;" '
+      + 'onmousedown="selectMergeClient(\''+which+'\',\''+c.cid+'\','+JSON.stringify(c.name).replace(/'/g,"&#39;")+')" '
+      + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+      + '<span>'+c.name+'</span>'
+      + '<span style="color:var(--muted);font-size:11px;">'+cnt+' job'+(cnt!==1?'s':'')+'</span>'
+      + '</div>';
+  }).join('');
+  drop.style.display = 'block';
+}
+
+function selectMergeClient(which, cid, name) {
+  document.getElementById('merge-' + which + '-search').value = name;
+  document.getElementById('merge-' + which).value = cid;
+  document.getElementById('merge-' + which + '-dropdown').style.display = 'none';
+  updateMergePreview();
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e){
+  ['primary','secondary'].forEach(function(w){
+    var search = document.getElementById('merge-'+w+'-search');
+    var drop   = document.getElementById('merge-'+w+'-dropdown');
+    if (search && drop && !search.contains(e.target) && !drop.contains(e.target)) {
+      drop.style.display = 'none';
+    }
+  });
+});
 
 function updateMergePreview() {
   var pid = document.getElementById('merge-primary').value;
   var sid = document.getElementById('merge-secondary').value;
-  if (!pid || !sid) { document.getElementById('merge-preview').innerHTML = 'Select both clients to preview merge'; return; }
-  if (pid === sid) { document.getElementById('merge-preview').innerHTML = '<span style="color:#ef4444">Please select two different clients</span>'; return; }
+  var empty = document.getElementById('merge-preview-empty');
+  var diff  = document.getElementById('merge-preview-diff');
+  var btn   = document.getElementById('merge-confirm-btn');
+
+  function hideDiff(msg) {
+    empty.style.display = 'block';
+    empty.innerHTML = msg || 'Search and select both clients to preview the merge';
+    diff.style.display = 'none';
+    btn.disabled = true; btn.style.opacity = '0.45'; btn.style.cursor = 'not-allowed';
+  }
+
+  if (!pid || !sid) { hideDiff(); return; }
+  if (pid === sid) { hideDiff('<span style="color:#ef4444">⚠ Please select two different clients</span>'); return; }
+
   var pc = clients.find(function(c){return c.cid===pid;});
   var sc = clients.find(function(c){return c.cid===sid;});
-  var pjobs = jobs.filter(function(j){return j.clientId===pid||j.name.toLowerCase()===(pc&&pc.name.toLowerCase());}).length;
-  var sjobs = jobs.filter(function(j){return j.clientId===sid||j.name.toLowerCase()===(sc&&sc.name.toLowerCase());}).length;
-  document.getElementById('merge-preview').innerHTML = '<strong>Primary:</strong> '+pc.name+' ('+pjobs+' jobs) <br><strong>Secondary:</strong> '+sc.name+' ('+sjobs+' jobs) → will be merged into primary and deleted<br><strong>Result:</strong> '+pc.name+' will have '+(pjobs+sjobs)+' jobs';
+  if (!pc || !sc) { hideDiff(); return; }
+
+  var pjobs = countClientJobs(pid, pc.name);
+  var sjobs = countClientJobs(sid, sc.name);
+
+  // Field definitions
+  var FIELDS = [
+    {key:'phone',   label:'📞 Phone'},
+    {key:'email',   label:'✉️ Email'},
+    {key:'address', label:'📍 Address'},
+    {key:'notes',   label:'📝 Notes'}
+  ];
+
+  // For each field, classify: existing / added / duplicate / removed
+  // Primary card rows
+  var primaryRows = [];
+  // Secondary card rows
+  var secondaryRows = [];
+
+  FIELDS.forEach(function(f){
+    var pVal = (pc[f.key]||'').trim();
+    var sVal = (sc[f.key]||'').trim();
+    var willAdd = sVal && pVal.toLowerCase().indexOf(sVal.toLowerCase()) === -1;
+
+    // Primary side
+    if (pVal) {
+      primaryRows.push('<div style="display:flex;gap:6px;"><span style="color:var(--muted);min-width:90px;flex-shrink:0;">'+f.label+'</span><span style="color:var(--text);">'+escHtml(pVal)+'</span></div>');
+    }
+    if (willAdd) {
+      // New info coming from secondary — show in green
+      primaryRows.push('<div style="display:flex;gap:6px;"><span style="color:var(--muted);min-width:90px;flex-shrink:0;">'+f.label+'</span><span style="color:#15803d;font-weight:500;">+ '+escHtml(sVal)+'</span></div>');
+    }
+    if (!pVal && !sVal) return; // nothing to show
+
+    // Secondary side
+    if (sVal) {
+      if (willAdd) {
+        // Will be merged into primary — show as moving
+        secondaryRows.push('<div style="display:flex;gap:6px;"><span style="color:var(--muted);min-width:90px;flex-shrink:0;">'+f.label+'</span><span style="color:#b91c1c;text-decoration:line-through;opacity:.7;">'+escHtml(sVal)+'</span></div>');
+      } else {
+        // Duplicate — already on primary, will be dropped
+        secondaryRows.push('<div style="display:flex;gap:6px;"><span style="color:var(--muted);min-width:90px;flex-shrink:0;">'+f.label+'</span><span style="color:var(--muted);font-style:italic;">'+escHtml(sVal)+' <span style="font-size:10px;">(duplicate)</span></span></div>');
+      }
+    }
+  });
+
+  if (!primaryRows.length)   primaryRows.push('<div style="color:var(--muted);font-style:italic;">No contact info</div>');
+  if (!secondaryRows.length) secondaryRows.push('<div style="color:var(--muted);font-style:italic;">No contact info</div>');
+
+  // Jobs banner
+  document.getElementById('merge-jobs-banner').innerHTML =
+    '<span style="font-size:16px;">📋</span>'
+    + '<strong style="color:var(--text);">'+pc.name+'</strong>'
+    + '<span style="color:var(--muted);">'+pjobs+' jobs</span>'
+    + '<span style="font-size:18px;color:var(--accent);">+</span>'
+    + '<strong style="color:var(--text);">'+sc.name+'</strong>'
+    + '<span style="color:var(--muted);">'+sjobs+' jobs</span>'
+    + '<span style="font-size:18px;color:var(--muted);">=</span>'
+    + '<strong style="color:#15803d;font-size:15px;">'+(pjobs+sjobs)+' total jobs</strong>';
+
+  document.getElementById('merge-primary-jobs-badge').textContent   = pjobs + ' → ' + (pjobs+sjobs) + ' jobs';
+  document.getElementById('merge-secondary-jobs-badge').textContent = sjobs + ' jobs moved';
+  document.getElementById('merge-primary-body').innerHTML   = primaryRows.join('');
+  document.getElementById('merge-secondary-body').innerHTML = secondaryRows.join('');
+
+  empty.style.display = 'none';
+  diff.style.display  = 'block';
+  btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
 }
 
-document.getElementById('merge-primary').addEventListener('change', updateMergePreview);
-document.getElementById('merge-secondary').addEventListener('change', updateMergePreview);
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 function doMergeClients() {
   var pid = document.getElementById('merge-primary').value;
@@ -7580,18 +7759,29 @@ function doMergeClients() {
   var pc = clients.find(function(c){return c.cid===pid;});
   var sc = clients.find(function(c){return c.cid===sid;});
   if (!pc || !sc) return;
-  if (!confirm('Merge "' + sc.name + '" into "' + pc.name + '"? This cannot be undone.')) return;
+
+  // Merge contact info — add secondary fields to primary if not already present
+  var fields = ['phone','email','address','notes'];
+  fields.forEach(function(f){
+    var pVal = (pc[f]||'').trim();
+    var sVal = (sc[f]||'').trim();
+    if (sVal && pVal.toLowerCase().indexOf(sVal.toLowerCase()) === -1) {
+      pc[f] = pVal ? pVal + '\n' + sVal : sVal;
+    }
+  });
+
   // Move all jobs from secondary to primary
   jobs.forEach(function(j){
-    if (j.clientId === sid || (j.name&&j.name.toLowerCase()===sc.name.toLowerCase())) {
+    if (j.clientId === sid || (j.name && j.name.toLowerCase() === sc.name.toLowerCase())) {
       j.clientId = pid;
       if (j.name && j.name.toLowerCase() === sc.name.toLowerCase()) j.name = pc.name;
     }
   });
+
   clients = clients.filter(function(c){return c.cid !== sid;});
   save(); saveClients(); renderClients(); renderClientSelectOptions();
   closeM('merge-modal');
-  toast('Clients merged successfully!');
+  toast('✓ Merged ' + sc.name + ' → ' + pc.name);
 }
 
 // ─── FURNITURE BANK DRD ───
