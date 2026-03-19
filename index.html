@@ -362,8 +362,7 @@ body{
 .jdd-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;white-space:nowrap;transition:all .15s;background:none;}
 .jdd-btn .jdd-caret{font-size:9px;opacity:.65;transition:transform .15s;}
 .jdd-wrap.open .jdd-caret{transform:rotate(180deg);}
-.jdd-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:9999;min-width:170px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.16),0 2px 8px rgba(0,0,0,0.08);padding:5px;display:none;overflow:hidden;}
-.jdd-menu.flip-left{left:auto;right:0;}
+.jdd-menu{position:fixed;top:0;left:0;z-index:9999;min-width:180px;background:rgba(255,255,255,0.98);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.10);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.10);padding:5px;display:none;overflow:hidden;}
 .jdd-wrap.open .jdd-menu{display:block;}
 .jdd-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:background .12s;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;}
 .jdd-item:hover{background:rgba(34,197,94,.1);color:var(--accent);}
@@ -1000,7 +999,7 @@ textarea{resize:vertical;min-height:80px;}
   <!-- ROW 2: Today's Jobs hero + Call-Back panel -->
   <div class="dash-section dash-s3" style="display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:24px">
 
-    <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:hidden;">
+    <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
         <div>
           <div id="workload-header" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.2px;">📍 TODAY'S JOBS</div>
@@ -1011,7 +1010,7 @@ textarea{resize:vertical;min-height:80px;}
       <div id="dash-today-jobs" style="padding:12px 16px;"></div>
     </div>
 
-    <div class="chart-card" style="padding:0;overflow:hidden;">
+    <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups · furniture pickups &amp; drop-offs</div>
@@ -1913,6 +1912,13 @@ textarea{resize:vertical;min-height:80px;}
       </select>
     </div>
     <div class="form-group"><label>Plate / Notes</label><input type="text" id="v-notes" placeholder="Plate number or notes" class="form-input"></div>
+    <div class="form-group"><label>Last Oil Change</label>
+      <input type="date" id="v-oil-date" class="form-input" placeholder="Date of last oil change">
+      <div style="margin-top:6px;display:flex;gap:8px;align-items:center">
+        <input type="number" id="v-oil-km" class="form-input" placeholder="KM at last change (optional)" min="0" style="flex:1">
+        <input type="number" id="v-oil-interval" class="form-input" placeholder="Change every (km)" min="0" style="flex:1" title="e.g. 5000 for every 5,000 km">
+      </div>
+    </div>
     <div class="form-group"><label>Yellow Sticker Expiry</label>
       <div style="display:flex;gap:10px">
         <select id="v-sticker-month" class="form-input" style="flex:1">
@@ -2620,7 +2626,7 @@ function saveVehicles() {
   // Sync vehicles to Supabase
   try {
     var rows = vehicles.map(function(v){
-      return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null};
+      return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null, oil_date:v.oilDate||null, oil_km:v.oilKm?parseInt(v.oilKm):null, oil_interval:v.oilInterval?parseInt(v.oilInterval):null};
     });
     if(rows.length) {
       db.from('vehicles').upsert(rows, {onConflict:'vid'}).then(function(r){
@@ -2720,7 +2726,8 @@ async function loadAllFromSupabase() {
       if(!rveh.error && rveh.data) {
         vehicles = rveh.data.map(function(r){
           return {vid:r.vid, name:r.name, type:r.type, color:r.color||'#22c55e', notes:r.notes||'', active:true,
-                  stickerMonth:r.sticker_month||'', stickerYear:r.sticker_year||''};
+                  stickerMonth:r.sticker_month||'', stickerYear:r.sticker_year||'',
+                  oilDate:r.oil_date||'', oilKm:r.oil_km?String(r.oil_km):'', oilInterval:r.oil_interval?String(r.oil_interval):''};
         });
         vehBlocks = {};
         (rvehBlocks.data||[]).forEach(function(r){
@@ -3834,46 +3841,53 @@ async function renderDash(){
       +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:6px;">'+title+' ('+list.length+')</div>'
       +list.map(function(j){
         var cfm = j.confirmed;
-        return '<div style="padding:9px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);display:flex;align-items:center;gap:10px;">'
-          +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
+        var confirmBadge = '';
+        if(j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'){
+          confirmBadge = cfm
+            ? '<span style="font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.12);border-radius:4px;padding:1px 6px;white-space:nowrap">✅ Confirmed</span>'
+            : '<span style="font-size:10px;color:#eab308;font-weight:600;background:rgba(234,179,8,.10);border-radius:4px;padding:1px 6px;white-space:nowrap">📞 Unconfirmed</span>';
+        }
+        var actionBtn = '';
+        if(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'){
+          actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
+            +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.35);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07);flex-shrink:0" onclick="toggleJdd(this.parentElement)">Actions ▾</button>'
+            +'<div class="jdd-menu">'
+              +(!cfm?'<div class="jdd-item" onclick="confirmJob(''+j.id+'',event)">✅ Confirm Pickup</div>':'')
+              +'<div class="jdd-item" onclick="markPickedUp(''+j.id+'',event)">✅ Mark Picked Up</div>'
+              +'<div class="jdd-divider"></div>'
+              +'<div class="jdd-item" onclick="openDetail(''+j.id+'')">📋 Open Details</div>'
+              +(j.phone?'<div class="jdd-item" onclick="window.location='tel:'+j.phone+'';event.stopPropagation()">📞 '+j.phone+'</div>':'')
+            +'</div>'
+          +'</div>';
+        } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
+          var cfmWord = j.service==='Furniture Delivery'?'Drop-Off':'Pickup';
+          actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
+            +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.35);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07);flex-shrink:0" onclick="toggleJdd(this.parentElement)">Confirm '+cfmWord+' ▾</button>'
+            +'<div class="jdd-menu">'
+              +'<div class="jdd-item" onclick="confirmJob(''+j.id+'',event)">✅ Mark Confirmed</div>'
+              +'<div class="jdd-divider"></div>'
+              +'<div class="jdd-item" onclick="openDetail(''+j.id+'')">📋 Open Details</div>'
+              +(j.phone?'<div class="jdd-item" onclick="window.location='tel:'+j.phone+'';event.stopPropagation()">📞 '+j.phone+'</div>':'')
+            +'</div>'
+          +'</div>';
+        }
+        return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);">'
           +'<div style="display:flex;align-items:center;gap:8px;">'
-          +'<strong style="font-size:14px">'+j.name+'</strong>'
-          +(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')
-          +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span>'
-          +'</div>'
-          +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
-          +(j.time?ft(j.time)+' · ':'')+j.id
-          +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
-          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'<span style="margin-left:8px;color:#eab308;font-weight:700">📞 Confirm '+(j.service==='Furniture Delivery'?'drop-off':'pickup')+'</span>'):'')
-          +'</div>'
-          +'</div>'
-          // Quick actions
-          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'
-            ?'<div class="jdd-wrap" onclick="event.stopPropagation()">'
-              +'<div class="jdd-btn" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-size:11px;" onclick="toggleJdd(this.parentElement)">'
-                +'🚚 Actions <span class="jdd-caret">▾</span>'
+            +'<div style="flex:1;cursor:pointer;min-width:0;" onclick="openDetail(''+j.id+'')">'
+              +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px;">'
+                +'<strong style="font-size:13px">'+j.name+'</strong>'
+                +(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')
+                +confirmBadge
+                +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span>'
               +'</div>'
-              +'<div class="jdd-menu flip-left">'
-                +(!cfm?'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Confirm Pickup</div>':'')
-                +'<div class="jdd-item" onclick="markPickedUp(\''+j.id+'\',event)">✅ Mark Picked Up</div>'
-                +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">✏️ Open details</div>'
-                +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:'+j.phone+'\';event.stopPropagation()">📞 Call '+j.phone+'</div>':'')
+              +'<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+                +(j.time?'<strong style="color:var(--text)">'+ft(j.time)+'</strong> · ':'')+j.id
+                +(j.address?' · 📍 '+j.address.split(',')[0]:'')
               +'</div>'
             +'</div>'
-            :((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm
-              ?'<div class="jdd-wrap" onclick="event.stopPropagation()">'
-                +'<div class="jdd-btn" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-size:11px;" onclick="toggleJdd(this.parentElement)">'
-                  +'✅ Confirm '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' <span class="jdd-caret">▾</span>'
-                +'</div>'
-                +'<div class="jdd-menu flip-left">'
-                  +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Confirmed — '+(j.service==='Furniture Delivery'?'drop-off':'pickup')+' done</div>'
-                  +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">✏️ Open details</div>'
-                  +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:'+j.phone+'\';event.stopPropagation()">📞 Call '+j.phone+'</div>':'')
-                +'</div>'
-              +'</div>'
-              :'')
-          )
-          +'</div>';
+            +actionBtn
+          +'</div>'
+        +'</div>';
       }).join('')+'</div>';
   }
   var todayHtml = makeTodayCat('🚛 Bin Deliveries','#22c55e',todayBinDropoffs)
@@ -3901,22 +3915,27 @@ async function renderDash(){
           : fd(j.date);
         var isDelivery = j.service==='Furniture Delivery';
         var cfmLabel = isDelivery?'Drop-Off':'Pickup';
-        return '<div style="padding:8px 10px;border:1px solid rgba(234,179,8,.3);border-left:3px solid #eab308;border-radius:0 8px 8px 0;margin-bottom:7px;background:rgba(234,179,8,.04);display:flex;align-items:center;gap:8px;">'
-          +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-          +'<div style="display:flex;align-items:baseline;gap:6px;"><strong style="font-size:13px">'+j.name+'</strong><span style="font-size:11px;color:var(--muted)">'+dateLabel+'</span></div>'
-          +'<div style="font-size:11px;color:var(--muted);margin-top:1px;">'+j.id+(j.phone?'<span style="margin-left:8px;font-weight:600;color:var(--text)">'+j.phone+'</span>':'')+(j.service?'<span style="margin-left:6px;color:var(--muted)">'+j.service+'</span>':'')+'</div>'
-          +'</div>'
-          +'<div class="jdd-wrap" style="flex-shrink:0" onclick="event.stopPropagation()">'
-            +'<div class="jdd-btn" style="border-color:rgba(34,197,94,.4);color:#22c55e;font-size:11px;" onclick="toggleJdd(this.parentElement)">'
-              +'✅ Confirm '+cfmLabel+' <span class="jdd-caret">▾</span>'
+        return '<div style="padding:8px 10px;border:1px solid rgba(234,179,8,.3);border-left:3px solid #eab308;border-radius:0 8px 8px 0;margin-bottom:6px;background:rgba(234,179,8,.04);">'
+          +'<div style="display:flex;align-items:center;gap:8px;">'
+            +'<div style="flex:1;min-width:0;cursor:pointer" onclick="openDetail(''+j.id+'')">'
+              +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+                +'<strong style="font-size:13px">'+j.name+'</strong>'
+                +dateLabel
+                +(j.phone?'<span style="font-size:11px;font-weight:600;color:var(--text)">'+j.phone+'</span>':'')
+              +'</div>'
+              +'<div style="font-size:11px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+j.id+(j.service?'<span style="margin-left:6px">'+j.service+'</span>':'')+'</div>'
             +'</div>'
-            +'<div class="jdd-menu flip-left">'
-              +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Confirmed — '+cfmLabel+' done</div>'
-              +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">✏️ Open job details</div>'
-              +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:'+j.phone+'\';event.stopPropagation()">📞 Call '+j.phone+'</div>':'')
+            +'<div class="jdd-wrap" style="flex-shrink:0" onclick="event.stopPropagation()">'
+              +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.35);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07)" onclick="toggleJdd(this.parentElement)">Confirm '+cfmLabel+' ▾</button>'
+              +'<div class="jdd-menu">'
+                +'<div class="jdd-item" onclick="confirmJob(''+j.id+'',event)">✅ Mark Confirmed</div>'
+                +'<div class="jdd-divider"></div>'
+                +'<div class="jdd-item" onclick="openDetail(''+j.id+'')">📋 Open Details</div>'
+                +(j.phone?'<div class="jdd-item" onclick="window.location='tel:'+j.phone+'';event.stopPropagation()">📞 '+j.phone+'</div>':'')
+              +'</div>'
             +'</div>'
           +'</div>'
-          +'</div>';
+        +'</div>';
       }).join('');
     }
   }
@@ -3992,19 +4011,20 @@ function jddToggle(e, id, type){
   e.stopPropagation();
   var wrap = e.currentTarget.closest('.jdd-wrap');
   if(!wrap) return;
-  if(_jddOpen && _jddOpen !== wrap){
-    _jddOpen.classList.remove('open');
-    _jddOpen = null;
-  }
+  if(_jddOpen && _jddOpen !== wrap){ _jddOpen.classList.remove('open'); _jddOpen=null; }
   var isOpen = wrap.classList.contains('open');
   if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
-  // Flip menu left-aligned vs right-aligned based on available space
   var menu = wrap.querySelector('.jdd-menu');
-  var rect = wrap.getBoundingClientRect();
-  if(rect.left + 170 > window.innerWidth - 8){
-    menu.classList.add('flip-left');
-  } else {
-    menu.classList.remove('flip-left');
+  if(menu){
+    var btn = wrap.querySelector('.jdd-btn');
+    var rect = (btn||wrap).getBoundingClientRect();
+    var menuW = 192;
+    var top = rect.bottom + 4;
+    var left = rect.left;
+    if(left + menuW > window.innerWidth - 8){ left = rect.right - menuW; }
+    if(top + 200 > window.innerHeight - 8){ top = rect.top - 200; }
+    menu.style.top  = top  + 'px';
+    menu.style.left = left + 'px';
   }
   wrap.classList.add('open');
   _jddOpen = wrap;
@@ -4012,11 +4032,33 @@ function jddToggle(e, id, type){
 document.addEventListener('click', function(){ if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;} });
 function toggleJdd(wrap){
   if(!wrap) return;
-  if(_jddOpen && _jddOpen !== wrap){ _jddOpen.classList.remove('open'); _jddOpen=null; }
+  if(_jddOpen && _jddOpen !== wrap){
+    var om=_jddOpen.querySelector('.jdd-menu');
+    if(om){om.style.display='none';}
+    _jddOpen.classList.remove('open'); _jddOpen=null;
+  }
   var isOpen = wrap.classList.contains('open');
-  if(isOpen){ wrap.classList.remove('open'); _jddOpen=null; return; }
+  if(isOpen){
+    var om=wrap.querySelector('.jdd-menu');
+    if(om) om.style.display='none';
+    wrap.classList.remove('open'); _jddOpen=null; return;
+  }
   var menu = wrap.querySelector('.jdd-menu');
-  if(menu){ var rect=wrap.getBoundingClientRect(); if(rect.left+170>window.innerWidth-8) menu.classList.add('flip-left'); else menu.classList.remove('flip-left'); }
+  if(menu){
+    var btn = wrap.querySelector('.jdd-btn');
+    var rect = (btn||wrap).getBoundingClientRect();
+    var menuW = 192;
+    // Position below the button
+    var top = rect.bottom + 4;
+    var left = rect.left;
+    // Flip left if would go off right edge
+    if(left + menuW > window.innerWidth - 8){ left = rect.right - menuW; }
+    // Flip up if would go off bottom
+    if(top + 160 > window.innerHeight - 8){ top = rect.top - 160; }
+    menu.style.top  = top  + 'px';
+    menu.style.left = left + 'px';
+    menu.style.display = 'none'; // let CSS open class handle it
+  }
   wrap.classList.add('open'); _jddOpen=wrap;
 }
 
@@ -7700,6 +7742,9 @@ function openAddVehicle(){
   document.getElementById('v-notes').value='';
   document.getElementById('v-sticker-month').value='';
   document.getElementById('v-sticker-year').value='';
+  document.getElementById('v-oil-date').value='';
+  document.getElementById('v-oil-km').value='';
+  document.getElementById('v-oil-interval').value='';
   document.getElementById('v-color').value='#ef4444';
   document.querySelectorAll('.veh-color-opt').forEach(function(o){o.classList.remove('selected');if(o.getAttribute('data-color')==='#ef4444')o.classList.add('selected');});
   clearErr('v-name');
@@ -7715,6 +7760,9 @@ function openEditVehicle(vid){
   document.getElementById('v-notes').value=v.notes||'';
   document.getElementById('v-sticker-month').value=v.stickerMonth||'';
   document.getElementById('v-sticker-year').value=v.stickerYear||'';
+  document.getElementById('v-oil-date').value=v.oilDate||'';
+  document.getElementById('v-oil-km').value=v.oilKm||'';
+  document.getElementById('v-oil-interval').value=v.oilInterval||'';
   document.getElementById('v-color').value=v.color||'#ef4444';
   document.querySelectorAll('.veh-color-opt').forEach(function(o){o.classList.remove('selected');if(o.getAttribute('data-color')===(v.color||'#ef4444'))o.classList.add('selected');});
   document.getElementById('vehicle-modal').style.display='flex';
@@ -7727,7 +7775,7 @@ function selectVehColor(c,el){
 function saveVehicle(){
   var name=document.getElementById('v-name').value.trim();
   if(!name){showErr('v-name');return;}
-  var v={vid:editVehicleId||nextVid(),name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),active:true};
+  var v={vid:editVehicleId||nextVid(),name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),oilDate:document.getElementById('v-oil-date').value||'',oilKm:document.getElementById('v-oil-km').value.trim()||'',oilInterval:document.getElementById('v-oil-interval').value.trim()||'',active:true};
   if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?v:x;});}
   else{vehicles.push(v);if(!vehBlocks[v.vid])vehBlocks[v.vid]={};}
   saveVehicles();renderVehicles();
@@ -7814,6 +7862,17 @@ function renderVehicles(){
       +'<div class="veh-card-name" style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+v.color+'"></span>'+v.name+'</div>'
       +'<div class="veh-card-type">'+v.type+(v.notes?' · '+v.notes:'')+'</div>'
       +(v.stickerMonth&&v.stickerYear?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">🟡 Sticker expires: '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(v.stickerMonth,10)-1]+' '+v.stickerYear+'</div>':'')
+      +(function(){
+          if(!v.oilDate) return '';
+          var oilD = new Date(v.oilDate+'T12:00:00');
+          var today2 = new Date();
+          var daysSince = Math.floor((today2-oilD)/(1000*60*60*24));
+          var kmInfo = v.oilKm ? ' · at '+parseInt(v.oilKm).toLocaleString()+' km' : '';
+          var intInfo = v.oilInterval ? ' · next at '+(parseInt(v.oilKm||0)+parseInt(v.oilInterval)).toLocaleString()+' km' : '';
+          var urgency = daysSince > 180 ? '#ef4444' : daysSince > 90 ? '#eab308' : '#22c55e';
+          var icon = daysSince > 180 ? '🔴' : daysSince > 90 ? '🟡' : '🟢';
+          return '<div style="font-size:11px;color:'+urgency+';margin-bottom:4px;font-weight:600">'+icon+' Oil changed: '+fd(v.oilDate)+' ('+daysSince+'d ago'+kmInfo+')'+intInfo+'</div>';
+        })()
       +'</div>'
       +'<div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEditVehicle(\''+v.vid+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="delVehicle(\''+v.vid+'\')">🗑️</button></div>'
       +'</div>'
