@@ -942,12 +942,15 @@ textarea{resize:vertical;min-height:80px;}
 <div id="view-dashboard" class="view active">
 
   <!-- PAGE HEADER -->
-  <div class="page-header">
+  <div class="page-header" style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;">
     <div>
       <div class="page-title">Dashboard</div>
       <div class="page-sub" id="today-lbl"></div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div style="text-align:center;flex-shrink:0;">
+      <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png" alt="Jeff's Junk" style="height:48px;width:auto;object-fit:contain;display:block;margin:0 auto;">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
       <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
