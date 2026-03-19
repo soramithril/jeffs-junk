@@ -7643,7 +7643,7 @@ function filterMergeList(which) {
     var cnt = countClientJobs(c.cid, c.name);
     var nameJson = JSON.stringify(c.name);
     return '<div style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;" '
-      + 'onclick="event.stopPropagation();selectMergeClient(\''+which+'\',\''+c.cid+'\','+nameJson+')" '
+      + 'onmousedown="event.preventDefault();selectMergeClient(\''+which+'\',\''+c.cid+'\','+nameJson+')" '
       + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
       + '<span>'+c.name+'</span>'
       + '<span style="color:var(--muted);font-size:11px;">'+cnt+' job'+(cnt!==1?'s':'')+'</span>'
