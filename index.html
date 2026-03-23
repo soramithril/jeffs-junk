@@ -4388,6 +4388,7 @@ function renderCal(){
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
   var today=new Date();
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
+  var calSvcTag={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
   var g=document.getElementById('cal-grid');
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
   var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
@@ -4395,21 +4396,22 @@ function renderCal(){
     var ds=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     var dj=jobs.filter(function(j){return j.date===ds;});
     var isT=today.getDate()===d&&today.getMonth()===mo&&today.getFullYear()===y;
-    var calNameCounts={};dj.forEach(function(j){calNameCounts[j.name]=(calNameCounts[j.name]||0)+1;});
-    var calSvcTag={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
+    // Show ALL jobs — every job gets its own dot, including multiple from the same client
     var dots=dj.map(function(j){
-      var stag=calNameCounts[j.name]>1?(calSvcTag[j.service]||''):'';
-      return '<div class="cal-dot '+(clsMap[j.service]||'svc-junk')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.service+' · '+j.name+'">'+j.name+(stag?' '+stag:'')+'</div>';
+      var icon=calSvcTag[j.service]||'';
+      return '<div class="cal-dot '+(clsMap[j.service]||'svc-junk')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.service+' · '+j.name+'">'+icon+' '+j.name+'</div>';
     }).join('');
-    var more='';
     // Vehicle blocks for this day
     var vehDots='';
     vehicles.forEach(function(v){
       var b=(vehBlocks[v.vid]||{})[ds];
       if(b){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': '+(b.reason||'Blocked')+(b.notes?' — '+b.notes:'')+'" onclick="event.stopPropagation()">🚫 '+v.name+'</div>';}
     });
-    c+='<div class="cal-day'+(isT?' today':'')+'" data-date="'+ds+'">'+
-      '<div class="cal-day-num">'+d+'</div>'+dots+more+vehDots+'</div>';
+    // Job count badge on the day number
+    var countBadge=dj.length>0?'<span style="float:right;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:0 5px;line-height:16px;margin-top:1px">'+dj.length+'</span>':'';
+    c+='<div class="cal-day'+(isT?' today':'')+'" data-date="'+ds+'" onclick="openCalDayPreview(\''+ds+'\')">'
+      +'<div class="cal-day-num">'+d+countBadge+'</div>'
+      +dots+vehDots+'</div>';
   }
   g.innerHTML=h+c;
   // Attach drag events
@@ -4430,6 +4432,70 @@ function renderCal(){
   });
 }
 function shiftMonth(d){calDate.setMonth(calDate.getMonth()+d);renderCal();}
+
+// ── Calendar day preview modal ──────────────────────────────
+function openCalDayPreview(ds){
+  if(dragJobId) return; // don't open while dragging
+  var dayJobs=jobs.filter(function(j){return j.date===ds;});
+  var dateLabel=new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#eab308','Junk Quote':'#60a5fa','Furniture Pickup':'#ef4444','Furniture Delivery':'#f87171'};
+  var svcIcons={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
+
+  var body;
+  if(!dayJobs.length){
+    body='<div style="text-align:center;padding:32px 16px;color:var(--muted)">'
+      +'<div style="font-size:36px;margin-bottom:10px">📅</div>'
+      +'<div style="font-size:14px">No jobs on this day</div>'
+      +'<button class="btn btn-primary" style="margin-top:16px" onclick="closeM(\'cal-day-modal\');newJob()">+ Book a Job</button>'
+      +'</div>';
+  } else {
+    // Group by service type for a clean layout
+    var groups={};
+    dayJobs.forEach(function(j){ if(!groups[j.service])groups[j.service]=[]; groups[j.service].push(j); });
+    body=Object.keys(groups).map(function(svc){
+      var col=svcColors[svc]||'#22c55e';
+      var icon=svcIcons[svc]||'';
+      var rows=groups[svc].map(function(j){
+        var binBadge=j.binSize?'<span style="font-size:11px;background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 7px;font-weight:600;margin-left:6px">'+j.binSize+'</span>':'';
+        var timeBadge=j.time?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+ft(j.time)+'</span>':'';
+        var priceBadge=j.price?'<span style="font-size:12px;font-weight:700;color:var(--accent);margin-left:auto">'+fm(j.price)+'</span>':'';
+        var statusDot=j.binInstatus==='dropped'?'🚛':j.binInstatus==='pickedup'?'✅':j.status==='Done'?'✅':j.status==='Cancelled'?'🚫':'⏳';
+        return '<div onclick="closeM(\'cal-day-modal\');openDetail(\''+j.id+'\')" '
+          +'style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+col+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer;transition:background .12s" '
+          +'onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'var(--surface2)\'">'
+          +'<span style="font-size:16px">'+statusDot+'</span>'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'
+              +'<strong style="font-size:14px">'+j.name+'</strong>'+binBadge+timeBadge+priceBadge
+            +'</div>'
+            +'<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+              +j.id+(j.address?' · '+j.address.split(',')[0]:'')+(j.phone?' · '+j.phone:'')
+            +'</div>'
+          +'</div>'
+          +'</div>';
+      }).join('');
+      return '<div style="margin-bottom:14px">'
+        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+col+';margin-bottom:6px">'+icon+' '+svc+' ('+groups[svc].length+')</div>'
+        +rows+'</div>';
+    }).join('');
+    body+='<div style="padding-top:12px;border-top:1px solid var(--border)">'
+      +'<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeM(\'cal-day-modal\');newJob()">+ New Job</button>'
+      +'</div>';
+  }
+
+  // Inject modal into DOM once, reuse on subsequent clicks
+  if(!document.getElementById('cal-day-modal')){
+    var div=document.createElement('div');
+    div.className='modal-overlay';
+    div.id='cal-day-modal';
+    div.innerHTML='<div class="modal" style="max-width:520px"><div class="modal-header"><div class="modal-title" id="cal-day-modal-title"></div><button class="modal-close" onclick="closeM(\'cal-day-modal\')">&#x2715;</button></div><div id="cal-day-modal-body" style="max-height:60vh;overflow-y:auto"></div></div>';
+    div.addEventListener('click',function(e){if(e.target===div)closeM('cal-day-modal');});
+    document.body.appendChild(div);
+  }
+  document.getElementById('cal-day-modal-title').textContent=dateLabel;
+  document.getElementById('cal-day-modal-body').innerHTML=body;
+  document.getElementById('cal-day-modal').classList.add('open');
+}
 
 
 function getLastName(name){var parts=(name||'').trim().split(/\s+/);return parts.length>1?parts[parts.length-1]:name;}
@@ -6563,10 +6629,17 @@ function openEdit(id){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
     document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'Pending';
     document.getElementById('f-name').value=j.name||'';document.getElementById('f-phone').value=j.phone||'';
-    // Use resolveAddr to correctly handle cases where address/city fields are swapped
-    var ra=resolveAddr(j);
-    document.getElementById('f-addr').value=ra.street||'';
-    document.getElementById('f-city').value=ra.city||j.city||'';
+    // Extract just the street number+name from the full stored address string.
+    // Stored format is "123 Main St, City, Province, Country" — split on first comma.
+    // The dedicated j.city field is the authoritative city value.
+    var fullAddr = j.address || '';
+    var streetOnly = fullAddr.split(',')[0].trim();
+    // If the first segment has no digits it's probably just a city/province leftover — clear it
+    if(streetOnly && !/\d/.test(streetOnly) && streetOnly.split(' ').length <= 3){
+      streetOnly = '';
+    }
+    document.getElementById('f-addr').value = streetOnly;
+    document.getElementById('f-city').value = j.city || '';
     document.getElementById('f-date').value=j.date||'';document.getElementById('f-time').value=j.time||'';
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
