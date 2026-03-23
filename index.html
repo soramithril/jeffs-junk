@@ -132,6 +132,7 @@ body{
   border:1px solid rgba(0,0,0,0.08)!important;
 }
 .btn-ghost:hover{background:rgba(255,255,255,0.80)!important;}
+.bsz-btn.active{background:rgba(34,197,94,0.18)!important;border-color:var(--accent)!important;color:var(--accent)!important;font-weight:600;}
 /* Glass input fields — scoped to main app only, NOT login screen */
 .main input[type=date], .main input[type=number], .main input[type=text],
 .main input[type=email], .main input[type=tel], .main select, .main textarea,
@@ -2072,7 +2073,7 @@ textarea{resize:vertical;min-height:80px;}
           <div class="form-group"><label>Duration</label><input id="f-bdur" type="text" placeholder="e.g. 7 days"></div>
           <div class="form-group"><label>Drop-off Date</label><input id="f-bdrop" type="date"></div>
           <div class="form-group"><label>Pickup Date</label><input id="f-bpick" type="date"></div>
-          <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option></select></div>
+          <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option><option value="see notes">See Notes</option></select></div>
           <div class="form-group"><label>Bin Status</label><select id="f-binstatus"><option value="">Pending</option><option value="dropped">✅ Dropped Off</option><option value="pickedup">✅ Picked Up</option></select></div>
         </div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
@@ -6641,13 +6642,13 @@ function initBinPicker(existingBid, existingSize){
   // Set size filter if we have a size
   if(existingSize){
     binPickerSzFilter = existingSize;
-    document.querySelectorAll('.bsz-btn').forEach(function(b){
-      b.classList.toggle('active', b.dataset.sz===existingSize||(!existingSize&&b.dataset.sz==='all'));
-    });
   } else {
     binPickerSzFilter = 'all';
-    document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.toggle('active',b.dataset.sz==='all');});
   }
+  // Always update button highlight based on current filter
+  document.querySelectorAll('.bsz-btn').forEach(function(b){
+    b.classList.toggle('active', b.dataset.sz === binPickerSzFilter);
+  });
   renderBinPicker(existingBid||'');
   var sel = document.getElementById('bin-picker-selected');
   if(sel){
