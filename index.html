@@ -1793,7 +1793,7 @@ textarea{resize:vertical;min-height:80px;}
       </div>
       <div class="fleet-table-wrap">
         <table class="fleet-table">
-          <thead><tr><th>Bin #</th><th>Colour</th><th>Size</th><th>Type</th><th>Status</th><th>Damage</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Bin #</th><th>Colour</th><th>Size</th><th>Type</th><th>Status</th><th>Location / Job</th><th>Damage</th><th>Notes</th><th></th></tr></thead>
           <tbody id="fleet-tbody"></tbody>
         </table>
       </div>
@@ -2050,7 +2050,6 @@ textarea{resize:vertical;min-height:80px;}
         </div>
         <input type="hidden" id="f-price" value="">
         <input type="hidden" id="f-paid" value="Unpaid">
-        <div class="form-group full"><label>Notes</label><textarea id="f-notes" placeholder="Job details..."></textarea></div>
       </div>
       <div id="bin-extra" style="display:none;margin-top:16px">
         <div class="divider"></div>
@@ -2076,7 +2075,20 @@ textarea{resize:vertical;min-height:80px;}
           <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option></select></div>
           <div class="form-group"><label>Bin Status</label><select id="f-binstatus"><option value="">Pending</option><option value="dropped">✅ Dropped Off</option><option value="pickedup">✅ Picked Up</option></select></div>
         </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px">
+            <input type="checkbox" id="f-recurring" onchange="document.getElementById('recurring-opts').style.display=this.checked?'block':'none'" style="width:15px;height:15px;accent-color:var(--accent)">
+            ♻️ Recurring Swap — auto-schedule bin swaps
+          </label>
+          <div id="recurring-opts" style="display:none;margin-top:10px">
+            <div class="form-grid">
+              <div class="form-group"><label>Swap Every</label><select id="f-recur-interval"><option value="weekly">Every Week</option><option value="biweekly" selected>Every 2 Weeks</option><option value="3weeks">Every 3 Weeks</option><option value="monthly">Every Month</option></select></div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">When the bin is picked up, a "Schedule Next Swap" button will appear so you can quickly book the next one.</div>
+          </div>
+        </div>
       </div>
+      <div class="form-group full" style="margin-top:16px"><label>Notes</label><textarea id="f-notes" placeholder="Job details..." rows="3"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#ef4444;"></div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeM('job-modal')">Cancel</button>
@@ -2465,6 +2477,9 @@ function dbToJob(r) {
     editedByEmail:  r.edited_by_email  || '',
     createdAt:      r.created_at       || '',
     updatedAt:      r.updated_at       || '',
+    payMethod:      r.pay_method       || '',
+    recurring:      r.recurring        || false,
+    recurInterval:  r.recur_interval   || '',
   };
 }
 
@@ -2521,6 +2536,9 @@ function jobToDb(j) {
     edited_by:        j.editedBy        || null,
     created_by_email: j.createdByEmail  || null,
     edited_by_email:  j.editedByEmail   || null,
+    pay_method:       j.payMethod       || '',
+    recurring:        j.recurring       || false,
+    recur_interval:   j.recurInterval   || '',
   };
 }
 
@@ -3599,10 +3617,15 @@ async function refreshDashJobs(){
       +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:6px;">'+title+' ('+list.length+')</div>'
       +list.map(function(j){
         var cfm=j.confirmed;
+        var legAssignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
+        var legBinDisplay = legAssignedBin
+          ? '<span style="font-size:11px;background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.35);border-radius:5px;padding:1px 7px;font-weight:700">🗳 #'+legAssignedBin.num+(j.binSize?' · '+j.binSize:'')+'</span>'
+          : (j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'');
         return '<div style="padding:9px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);display:flex;align-items:center;gap:10px;">'
           +'<div style="flex:1;cursor:pointer" onclick="openDetail(\'' +j.id+ '\')" >'
-          +'<div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:14px">'+j.name+'</strong>'
-          +(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><strong style="font-size:14px">'+j.name+'</strong>'
+          +legBinDisplay
+          +(j.service==='Bin Rental'&&!j.binBid?'<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\');event.stopPropagation()" style="font-size:10px;color:#eab308;border-color:rgba(234,179,8,.4)">📦 Assign Bin</button>':'')
           +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span></div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
           +(j.time?ft(j.time)+' · ':'')+j.id
@@ -3641,13 +3664,16 @@ async function renderWeekCal(){
 
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
+  var svcTag={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️ Pick','Furniture Delivery':'📦 Del'};
   var html='';
   for(var i=0;i<7;i++){
     var d=new Date(ws);d.setDate(d.getDate()+i);
     var ds=d.toISOString().split('T')[0];
     var isToday=d.getTime()===today.getTime();
     var dJobs=weekJobs.filter(function(j){return j.date===ds;});
-    var chips=dJobs.map(function(j){var cfmCls=j.confirmed?' confirmed':' unconfirmed';return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+j.name+'">'+(j.time?ft(j.time)+' ':'')+j.name+(j.confirmed?'':' 📞')+'</div>';}).join('');
+    // Count how many jobs share the same client name on this day to detect duplicates
+    var nameCounts={};dJobs.forEach(function(j){nameCounts[j.name]=(nameCounts[j.name]||0)+1;});
+    var chips=dJobs.map(function(j){var cfmCls=j.confirmed?' confirmed':' unconfirmed';var tag=nameCounts[j.name]>1?(svcTag[j.service]||''):'';return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+j.service+' · '+j.name+'">'+(j.time?ft(j.time)+' ':'')+j.name+(tag?' · '+tag:'')+(j.confirmed?'':' 📞')+'</div>';}).join('');
     html+='<div class="week-day-col'+(isToday?' today':'')+'\" data-date="'+ds+'"><div class="week-day-hdr"><div class="week-day-name">'+dayNames[d.getDay()]+'</div><div class="week-day-num">'+d.getDate()+'</div></div><div class="week-day-jobs" data-date="'+ds+'">'+(chips||'')+'</div></div>';
   }
   var wg=document.getElementById('week-grid');
@@ -3892,12 +3918,19 @@ async function renderDash(){
             +'</div>'
           +'</div>';
         }
+        var todayAssignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
+        var binDisplay = todayAssignedBin
+          ? '<span style="font-size:11px;background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.35);border-radius:5px;padding:1px 7px;font-weight:700">🗳 #'+todayAssignedBin.num+(j.binSize?' · '+j.binSize:'')+'</span>'
+          : (j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'');
+        var assignBinBtn = (j.service==='Bin Rental' && !j.binBid)
+          ? '<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#eab308;border-color:rgba(234,179,8,.4);white-space:nowrap">📦 Assign Bin</button>'
+          : '';
         return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);">'
           +'<div style="display:flex;align-items:center;gap:8px;">'
             +'<div style="flex:1;cursor:pointer;min-width:0;" onclick="openDetail(\''+j.id+'\')">'
               +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px;">'
                 +'<strong style="font-size:13px">'+j.name+'</strong>'
-                +(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')
+                +binDisplay
                 +confirmBadge
                 +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span>'
               +'</div>'
@@ -3906,6 +3939,7 @@ async function renderDash(){
                 +(j.address?' · 📍 '+j.address.split(',')[0]:'')
               +'</div>'
             +'</div>'
+            +assignBinBtn
             +actionBtn
           +'</div>'
         +'</div>';
@@ -4361,8 +4395,11 @@ function renderCal(){
     var ds=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     var dj=jobs.filter(function(j){return j.date===ds;});
     var isT=today.getDate()===d&&today.getMonth()===mo&&today.getFullYear()===y;
+    var calNameCounts={};dj.forEach(function(j){calNameCounts[j.name]=(calNameCounts[j.name]||0)+1;});
+    var calSvcTag={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
     var dots=dj.map(function(j){
-      return '<div class="cal-dot '+(clsMap[j.service]||'svc-junk')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.name+'">'+j.name+'</div>';
+      var stag=calNameCounts[j.name]>1?(calSvcTag[j.service]||''):'';
+      return '<div class="cal-dot '+(clsMap[j.service]||'svc-junk')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.service+' · '+j.name+'">'+j.name+(stag?' '+stag:'')+'</div>';
     }).join('');
     var more='';
     // Vehicle blocks for this day
@@ -6077,14 +6114,14 @@ function renderFleetTable(){
   list=[].concat(list).sort(function(a,b){var av,bv;if(fleetSort==='size'){av=sizeOrder[a.size]||0;bv=sizeOrder[b.size]||0;}else if(fleetSort==='status'){av=a.status==='out'?0:1;bv=b.status==='out'?0:1;}else{av=(a.num||'').toLowerCase();bv=(b.num||'').toLowerCase();}return av<bv?-fleetSortDir:av>bv?fleetSortDir:0;});
   document.getElementById('fleet-count-lbl').textContent=list.length+' of '+binItems.length+' bins';
   var tbody=document.getElementById('fleet-tbody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="8" class="fleet-empty">No bins match your filter</td></tr>';return;}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9" class="fleet-empty">No bins match your filter</td></tr>';return;}
   var grouped=(fleetF==='all'||fleetF==='green'||fleetF==='black')&&!q;
   var html='';
   if(grouped){
     ['4 yard','7 yard','14 yard','20 yard'].forEach(function(sz){
       var group=list.filter(function(b){return b.size===sz;});if(!group.length)return;
       var inG=group.filter(function(b){return b.status==='in';}).length;
-      html+='<tr class="grp-hdr"><td colspan="8">'+sizePill(sz)+' &nbsp;'+group.length+' bins — <span style="color:#22c55e">'+inG+' in</span> / <span style="color:#ef4444">'+(group.length-inG)+' out</span></td></tr>';
+      html+='<tr class="grp-hdr"><td colspan="9">'+sizePill(sz)+' &nbsp;'+group.length+' bins — <span style="color:#22c55e">'+inG+' in</span> / <span style="color:#ef4444">'+(group.length-inG)+' out</span></td></tr>';
       group.forEach(function(b){html+=makeBinRow(b);});
     });
   } else {list.forEach(function(b){html+=makeBinRow(b);});}
@@ -6097,8 +6134,19 @@ function makeBinRow(b){
   var togLbl=b.status==='in'?'<span class="sdot"></span>In Yard':'<span class="sdot"></span>Out';
   var dmg=b.damage==='damage'?'<span class="dmg-flag">⚠ Dmg</span>':'<span class="dmg-ok">—</span>';
   var rowCls=b.damage==='damage'?' class="row-damaged"':'';
+  // Show current job/location for bins marked 'out'
+  var locationCell='<td style="font-size:11px;max-width:150px"></td>';
+  if(b.status==='out'){
+    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Done'&&j.status!=='Cancelled';});
+    if(curJob){
+      locationCell='<td style="font-size:11px;max-width:150px"><span style="color:#22c55e;cursor:pointer;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block" onclick="openDetail(\''+curJob.id+'\')" title="'+curJob.name+' · '+curJob.address+'">📍 '+curJob.name+'</span><div style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(curJob.address?curJob.address.split(',')[0]:'')+'</div></td>';
+    } else {
+      locationCell='<td style="font-size:11px"><span style="color:#eab308">⚠ Not linked</span></td>';
+    }
+  }
   return '<tr'+rowCls+'><td><span class="bnum '+numCls+'">'+b.num+'</span></td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
+    +locationCell
     +'<td>'+dmg+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
     +'<td><div class="ra"><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.4)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
 }
@@ -6393,6 +6441,9 @@ function newJob(){
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
   ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
+  var recChk=document.getElementById('f-recurring');if(recChk)recChk.checked=false;
+  var recOpts=document.getElementById('recurring-opts');if(recOpts)recOpts.style.display='none';
+  var recInt=document.getElementById('f-recur-interval');if(recInt)recInt.value='biweekly';
   document.getElementById('job-modal').classList.add('open');
 }
 
@@ -6531,6 +6582,13 @@ function openEdit(id){
       initBinPicker(j.binBid||'', j.binSize||'');
     }
     document.getElementById('f-client-select').value=j.clientId||'';
+    // Recurring fields
+    var recChk=document.getElementById('f-recurring');
+    var recOpts=document.getElementById('recurring-opts');
+    if(recChk){recChk.checked=j.recurring||false;}
+    if(recOpts){recOpts.style.display=(j.recurring?'block':'none');}
+    var recInt=document.getElementById('f-recur-interval');
+    if(recInt&&j.recurInterval){recInt.value=j.recurInterval;}
     document.getElementById('job-modal').classList.add('open');
   },150);
 }
@@ -6606,14 +6664,17 @@ async function saveJob(e){
     name:      name,
     phone:     document.getElementById('f-phone').value.trim(),
     address:   fullAddr,
+    city:      city,
     date:      date,
     time:      document.getElementById('f-time').value,
-    price:     '',
-    paid:      'Unpaid',
+    price:     document.getElementById('f-price').value,
+    paid:      document.getElementById('f-paid').value || 'Unpaid',
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
     clientId:  cid || '',
+    recurring: document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false,
+    recurInterval: document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '',
     // Preserve existing tracking if editing, set new if creating
     createdBy:      editId ? (jobs.find(function(j){return j.id===editId;})||{}).createdBy      || userName : userName,
     createdByEmail: editId ? (jobs.find(function(j){return j.id===editId;})||{}).createdByEmail || userEmail : userEmail,
@@ -6720,7 +6781,8 @@ function openDetail(id){
     var bsStatus=j.binInstatus==='dropped'?'<span style="color:#22c55e;font-weight:700">✅ Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="color:#22c55e;font-weight:700">✅ Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
-    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid">'
+    var recurLabel={'weekly':'Every Week','biweekly':'Every 2 Weeks','3weeks':'Every 3 Weeks','monthly':'Every Month'}[j.recurInterval]||j.recurInterval||'';
+    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details'+(j.recurring?'&nbsp;<span style="font-size:11px;background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);border-radius:5px;padding:1px 8px">♻️ Recurring · '+recurLabel+'</span>':'')+'</div><div class="detail-grid">'
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+'</span></div>'
@@ -6764,6 +6826,7 @@ function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">🚚 Mark Picked Up</button>');
+      if(j.service==='Bin Rental'&&j.recurring) btns.push('<button class="btn btn-ghost" onclick="scheduleNextSwap(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(96,165,250,.4);color:#60a5fa">♻️ Schedule Next Swap</button>');
       if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">✔ Mark Done</button>');
       if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 '+confirmLabel+'</button>');}
       return btns.length ? '<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div>' : '';
@@ -6834,6 +6897,34 @@ function markEmailUnsent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=f
 function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';if(j.status==='Pending')j.status='In Progress';}});save();toast('Bin marked as dropped off!');openDetail(id);refresh();}
 function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';if(j.status==='In Progress')j.status='Pending';}});save();toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
 function markBinPickedUp2(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='pickedup';j.status='Done';}});save();toast('Bin marked as picked up!');openDetail(id);refresh();}
+async function scheduleNextSwap(id){
+  var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
+  var intervalDays={'weekly':7,'biweekly':14,'3weeks':21,'monthly':30}[j.recurInterval]||14;
+  var baseDate=j.binPickup||j.date;
+  var nextDate=new Date(baseDate);nextDate.setDate(nextDate.getDate()+intervalDays);
+  var nextDateStr=nextDate.toISOString().split('T')[0];
+  var intervalLabel={'weekly':'1 week','biweekly':'2 weeks','3weeks':'3 weeks','monthly':'1 month'}[j.recurInterval]||'2 weeks';
+  if(!confirm('Schedule next swap for '+fd(nextDateStr)+' ('+intervalLabel+' from current pickup date)?\n\nThis will create a new Bin Rental job for '+j.name+' at the same address.'))return;
+  var newId=await nextIdFromDb('Bin Rental');
+  var swapJob={
+    id:newId,service:'Bin Rental',status:'Pending',name:j.name,phone:j.phone||'',
+    address:j.address||'',city:j.city||'',date:nextDateStr,time:j.time||'',
+    price:'',paid:'Unpaid',payMethod:'',referral:j.referral||'',
+    notes:'Recurring swap ('+intervalLabel+') — from job '+j.id+(j.notes?'\n'+j.notes:''),
+    clientId:j.clientId||'',binSize:j.binSize||'',binBid:'',binDuration:j.binDuration||'',
+    binDropoff:nextDateStr,binPickup:'',binInstatus:'',binSide:j.binSide||'',
+    recurring:true,recurInterval:j.recurInterval||'biweekly',
+    createdBy:'system',createdByEmail:'system',editedBy:'',editedByEmail:''
+  };
+  jobs.push(swapJob);
+  try{
+    var dbRow=jobToDb(swapJob);
+    var res=await db.from('jobs').upsert(dbRow,{onConflict:'job_id'});
+    if(res.error){alert('Error creating swap job: '+res.error.message);return;}
+  }catch(ex){alert('Error: '+ex.message);return;}
+  toast('✅ Next swap booked for '+fd(nextDateStr)+'!');
+  closeM('detail-modal');refresh();
+}
 function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransferRefundSent=true;});save();toast('E-Transfer refund marked as sent!');openDetail(id);refresh();}
 function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});save();toast('Marked as paid!');openDetail(id);refresh();}
 function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});save();toast('Marked complete!');openDetail(id);refresh();}
@@ -6848,7 +6939,7 @@ function toast(msg, type) {
   clearTimeout(t._tid);
   t._tid = setTimeout(function(){ t.classList.remove('show'); }, 3000);
 }
-document.querySelectorAll('.modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('open');});});
+// Overlay click-to-close intentionally disabled — use Cancel/Submit buttons or ✕ to close modals.
 document.addEventListener('click',function(e){
   var res=document.getElementById('f-client-results');
   var inp=document.getElementById('f-client-search');
