@@ -4388,27 +4388,65 @@ function renderCal(){
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
   var today=new Date();
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
-  var calSvcTag={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
   var g=document.getElementById('cal-grid');
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
   var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
+
+  // Build a lookup: date string -> array of cal events
+  // Each event has { job, type } where type = 'dropoff' | 'pickup' | 'job'
+  var calEvents = {}; // ds -> [{j, type, label}]
+  jobs.forEach(function(j){
+    if(j.status==='Cancelled') return;
+    if(j.service==='Bin Rental'){
+      // Drop-off event: use binDropoff date, fall back to j.date
+      var dropDs = j.binDropoff || j.date;
+      if(dropDs){
+        if(!calEvents[dropDs]) calEvents[dropDs]=[];
+        calEvents[dropDs].push({j:j, type:'dropoff'});
+      }
+      // Pickup event: use binPickup date (separate from drop-off)
+      if(j.binPickup && j.binPickup !== dropDs){
+        if(!calEvents[j.binPickup]) calEvents[j.binPickup]=[];
+        calEvents[j.binPickup].push({j:j, type:'pickup'});
+      }
+    } else {
+      // Non-bin jobs just use j.date
+      if(j.date){
+        if(!calEvents[j.date]) calEvents[j.date]=[];
+        calEvents[j.date].push({j:j, type:'job'});
+      }
+    }
+  });
+
   for(var d=1;d<=days;d++){
     var ds=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    var dj=jobs.filter(function(j){return j.date===ds;});
+    var evs=calEvents[ds]||[];
     var isT=today.getDate()===d&&today.getMonth()===mo&&today.getFullYear()===y;
-    // Show ALL jobs — every job gets its own dot, including multiple from the same client
-    var dots=dj.map(function(j){
-      var icon=calSvcTag[j.service]||'';
-      return '<div class="cal-dot '+(clsMap[j.service]||'svc-junk')+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+j.service+' · '+j.name+'">'+icon+' '+j.name+'</div>';
+
+    var dots=evs.map(function(ev){
+      var j=ev.j;
+      var cls=clsMap[j.service]||'svc-junk';
+      var icon, label, titleStr;
+      if(ev.type==='pickup'){
+        icon='🚚'; label=j.name; titleStr='Bin Pickup · '+j.name+(j.binSize?' · '+j.binSize:'');
+        cls='svc-bin';
+      } else if(ev.type==='dropoff'){
+        icon='🚛'; label=j.name; titleStr='Bin Drop-off · '+j.name+(j.binSize?' · '+j.binSize:'');
+      } else {
+        var iconMap={'Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
+        icon=iconMap[j.service]||''; label=j.name; titleStr=j.service+' · '+j.name;
+      }
+      return '<div class="cal-dot '+cls+'" draggable="true" data-jid="'+j.id+'" data-evtype="'+ev.type+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+titleStr+'">'+icon+' '+label+'</div>';
     }).join('');
+
     // Vehicle blocks for this day
     var vehDots='';
     vehicles.forEach(function(v){
       var b=(vehBlocks[v.vid]||{})[ds];
       if(b){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': '+(b.reason||'Blocked')+(b.notes?' — '+b.notes:'')+'" onclick="event.stopPropagation()">🚫 '+v.name+'</div>';}
     });
-    // Job count badge on the day number
-    var countBadge=dj.length>0?'<span style="float:right;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:0 5px;line-height:16px;margin-top:1px">'+dj.length+'</span>':'';
+
+    var countBadge=evs.length>0?'<span style="float:right;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:0 5px;line-height:16px;margin-top:1px">'+evs.length+'</span>':'';
     c+='<div class="cal-day'+(isT?' today':'')+'" data-date="'+ds+'" onclick="openCalDayPreview(\''+ds+'\')">'
       +'<div class="cal-day-num">'+d+countBadge+'</div>'
       +dots+vehDots+'</div>';
@@ -4436,46 +4474,69 @@ function shiftMonth(d){calDate.setMonth(calDate.getMonth()+d);renderCal();}
 // ── Calendar day preview modal ──────────────────────────────
 function openCalDayPreview(ds){
   if(dragJobId) return; // don't open while dragging
-  var dayJobs=jobs.filter(function(j){return j.date===ds;});
+
+  // Build events for this day — same logic as renderCal
+  var evs=[];
+  jobs.forEach(function(j){
+    if(j.status==='Cancelled') return;
+    if(j.service==='Bin Rental'){
+      var dropDs=j.binDropoff||j.date;
+      if(dropDs===ds) evs.push({j:j,type:'dropoff'});
+      if(j.binPickup===ds && j.binPickup!==dropDs) evs.push({j:j,type:'pickup'});
+    } else {
+      if(j.date===ds) evs.push({j:j,type:'job'});
+    }
+  });
+
   var dateLabel=new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#eab308','Junk Quote':'#60a5fa','Furniture Pickup':'#ef4444','Furniture Delivery':'#f87171'};
-  var svcIcons={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
 
   var body;
-  if(!dayJobs.length){
+  if(!evs.length){
     body='<div style="text-align:center;padding:32px 16px;color:var(--muted)">'
       +'<div style="font-size:36px;margin-bottom:10px">📅</div>'
       +'<div style="font-size:14px">No jobs on this day</div>'
       +'<button class="btn btn-primary" style="margin-top:16px" onclick="closeM(\'cal-day-modal\');newJob()">+ Book a Job</button>'
       +'</div>';
   } else {
-    // Group by service type for a clean layout
-    var groups={};
-    dayJobs.forEach(function(j){ if(!groups[j.service])groups[j.service]=[]; groups[j.service].push(j); });
-    body=Object.keys(groups).map(function(svc){
-      var col=svcColors[svc]||'#22c55e';
-      var icon=svcIcons[svc]||'';
-      var rows=groups[svc].map(function(j){
+    // Group into sections: Bin Drop-offs, Bin Pickups, then other services
+    var sections=[
+      {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#22c55e', evs:evs.filter(function(e){return e.type==='dropoff';})},
+      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#4ade80', evs:evs.filter(function(e){return e.type==='pickup';})},
+      {key:'junk',    label:'🗑️ Junk Removal',   col:'#eab308', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
+      {key:'quote',   label:'📋 Junk Quotes',    col:'#60a5fa', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
+      {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#ef4444', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
+      {key:'furnd',   label:'📦 Furniture Delivery',col:'#f87171',evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
+    ].filter(function(s){return s.evs.length>0;});
+
+    body=sections.map(function(sec){
+      var rows=sec.evs.map(function(ev){
+        var j=ev.j;
         var binBadge=j.binSize?'<span style="font-size:11px;background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 7px;font-weight:600;margin-left:6px">'+j.binSize+'</span>':'';
         var timeBadge=j.time?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+ft(j.time)+'</span>':'';
         var priceBadge=j.price?'<span style="font-size:12px;font-weight:700;color:var(--accent);margin-left:auto">'+fm(j.price)+'</span>':'';
-        var statusDot=j.binInstatus==='dropped'?'🚛':j.binInstatus==='pickedup'?'✅':j.status==='Done'?'✅':j.status==='Cancelled'?'🚫':'⏳';
+        var cfmBadge=(ev.type==='pickup'||ev.type==='dropoff'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')
+          ?(j.confirmed
+            ?'<span style="font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:1px 6px;margin-left:4px">✅ Confirmed</span>'
+            :'<span style="font-size:10px;color:#eab308;font-weight:600;background:rgba(234,179,8,.08);border-radius:4px;padding:1px 6px;margin-left:4px">📞 Unconfirmed</span>')
+          :'';
+        var extraInfo='';
+        if(ev.type==='dropoff') extraInfo='<span style="font-size:11px;color:var(--muted);margin-left:6px">Drop-off'+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</span>';
+        if(ev.type==='pickup')  extraInfo='<span style="font-size:11px;color:var(--muted);margin-left:6px">Pickup'+(j.binDropoff?' · Was dropped: '+fd(j.binDropoff):'')+'</span>';
         return '<div onclick="closeM(\'cal-day-modal\');openDetail(\''+j.id+'\')" '
-          +'style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+col+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer;transition:background .12s" '
+          +'style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+sec.col+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer;transition:background .12s" '
           +'onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'var(--surface2)\'">'
-          +'<span style="font-size:16px">'+statusDot+'</span>'
           +'<div style="flex:1;min-width:0">'
             +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'
-              +'<strong style="font-size:14px">'+j.name+'</strong>'+binBadge+timeBadge+priceBadge
+              +'<strong style="font-size:14px">'+j.name+'</strong>'+binBadge+cfmBadge+timeBadge+priceBadge
             +'</div>'
             +'<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-              +j.id+(j.address?' · '+j.address.split(',')[0]:'')+(j.phone?' · '+j.phone:'')
+              +j.id+extraInfo+(j.address?' · '+j.address.split(',')[0]:'')+(j.phone?' · '+j.phone:'')
             +'</div>'
           +'</div>'
           +'</div>';
       }).join('');
       return '<div style="margin-bottom:14px">'
-        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+col+';margin-bottom:6px">'+icon+' '+svc+' ('+groups[svc].length+')</div>'
+        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+sec.col+';margin-bottom:6px">'+sec.label+' ('+sec.evs.length+')</div>'
         +rows+'</div>';
     }).join('');
     body+='<div style="padding-top:12px;border-top:1px solid var(--border)">'
@@ -4488,7 +4549,7 @@ function openCalDayPreview(ds){
     var div=document.createElement('div');
     div.className='modal-overlay';
     div.id='cal-day-modal';
-    div.innerHTML='<div class="modal" style="max-width:520px"><div class="modal-header"><div class="modal-title" id="cal-day-modal-title"></div><button class="modal-close" onclick="closeM(\'cal-day-modal\')">&#x2715;</button></div><div id="cal-day-modal-body" style="max-height:60vh;overflow-y:auto"></div></div>';
+    div.innerHTML='<div class="modal" style="max-width:520px"><div class="modal-header"><div class="modal-title" id="cal-day-modal-title"></div><button class="modal-close" onclick="closeM(\'cal-day-modal\')">&#x2715;</button></div><div id="cal-day-modal-body" style="max-height:65vh;overflow-y:auto;padding-right:2px"></div></div>';
     div.addEventListener('click',function(e){if(e.target===div)closeM('cal-day-modal');});
     document.body.appendChild(div);
   }
