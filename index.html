@@ -2331,7 +2331,7 @@ function _scheduleRealtimeRefresh(){
 db.channel('realtime-all')
   .on('postgres_changes', {event:'*', schema:'public', table:'jobs'}, _scheduleRealtimeRefresh)
   .on('postgres_changes', {event:'*', schema:'public', table:'clients'}, _scheduleRealtimeRefresh)
-  .on('postgres_changes', {event:'*', schema:'public', table:'bin_inventory'}, _scheduleRealtimeRefresh)
+  .on('postgres_changes', {event:'*', schema:'public', table:'bin_items'}, _scheduleRealtimeRefresh)
   .subscribe();
 
 // ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
