@@ -418,6 +418,7 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:820px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:36px;transform:translateY(16px);transition:transform .2s;}
 .modal-overlay.open .modal{transform:translateY(0);}
+.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1.5px;color:var(--accent);}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:44px;height:44px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
@@ -447,8 +448,8 @@ textarea{resize:vertical;min-height:80px;}
 .calendar-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
 .cal-month{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:2px;color:var(--text);}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:auto;gap:2px;background:var(--border);border-radius:12px;overflow:hidden;}
-.cal-day-header{background:var(--surface2);padding:10px;text-align:center;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
-.cal-day{background:var(--surface);min-height:130px;height:auto;padding:10px;transition:background .12s;cursor:pointer;}
+.cal-day-header{background:var(--surface2);padding:10px;text-align:center;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);min-width:0;}
+.cal-day{background:var(--surface);min-height:130px;height:auto;padding:10px;transition:background .12s;cursor:pointer;min-width:0;overflow:hidden;}
 .cal-day:hover{background:var(--surface2);}
 .cal-day.empty{background:var(--surface2);opacity:.4;cursor:default;}
 .cal-day.today{background:rgba(34,197,94,.07);}
@@ -693,6 +694,7 @@ textarea{resize:vertical;min-height:80px;}
   /* ── DASHBOARD MOBILE FIXES ── */
   /* Side-by-side hero: stack to 1 col on mobile */
   .dash-section.dash-s1{grid-template-columns:1fr!important;}
+  .dash-section.dash-s3{grid-template-columns:1fr!important;}
   /* Bin size cards: 2 cols instead of 4 */
   #dash-bin-by-size{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
   /* Today's Jobs + Workload / Overdue + Long Bins: stack to 1 col */
@@ -988,7 +990,7 @@ textarea{resize:vertical;min-height:80px;}
         </div>
         <button class="btn btn-ghost btn-sm" onclick="go('jobs')">All Jobs →</button>
       </div>
-      <div id="dash-today-jobs" style="padding:12px 16px;max-height:500px;overflow-y:auto"></div>
+      <div id="dash-today-jobs" style="padding:12px 16px"></div>
     </div>
 
   </div>
@@ -1013,8 +1015,8 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ROW 2: Pickup Confirmations -->
-  <div class="dash-section dash-s3" style="margin-bottom:24px">
+  <!-- ROW 2: Pickup Confirmations + Bins Currently Out side-by-side -->
+  <div class="dash-section dash-s3" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
     <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
@@ -1022,10 +1024,6 @@ textarea{resize:vertical;min-height:80px;}
       </div>
       <div id="dash-callback-list" style="padding:10px 12px;"></div>
     </div>
-  </div>
-
-  <!-- ROW: Bins Currently Out -->
-  <div class="dash-section dash-s4" style="margin-bottom:24px">
     <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div>
@@ -1034,7 +1032,7 @@ textarea{resize:vertical;min-height:80px;}
         </div>
         <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
       </div>
-      <div id="dash-bins-out-list" style="padding:10px 12px;max-height:400px;overflow-y:auto"></div>
+      <div id="dash-bins-out-list" style="padding:10px 12px;"></div>
     </div>
   </div>
 
@@ -2006,7 +2004,7 @@ textarea{resize:vertical;min-height:80px;}
 </main>
 
 <!-- ═══════════ JOB MODAL ═══════════ -->
-<div class="modal-overlay" id="job-modal">
+<div class="modal-overlay fullpage" id="job-modal">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-ttl">New Job</div>
@@ -2232,7 +2230,7 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 
-<div class="modal-overlay" id="client-modal">
+<div class="modal-overlay fullpage" id="client-modal">
   <div class="modal" style="width:780px">
     <div class="modal-header">
       <div class="modal-title" id="client-modal-ttl">Add Client</div>
