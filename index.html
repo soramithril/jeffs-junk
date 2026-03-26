@@ -567,7 +567,7 @@ textarea{resize:vertical;min-height:80px;}
 .ra-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px;transition:all .12s;}
 .ra-btn:hover{border-color:var(--accent);color:var(--accent);}
 .ra-btn.del:hover{border-color:#ef4444;color:#ef4444;}
-.fleet-table .grp-hdr td{background:var(--surface2);padding:6px 12px;font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);}
+.fleet-table .grp-hdr td{background:var(--surface2);padding:14px 16px;font-size:14px;text-transform:uppercase;letter-spacing:1.3px;color:var(--text);font-weight:700;border-bottom:2px solid var(--border);border-top:2px solid var(--border);}
 .fleet-empty{text-align:center;padding:40px;color:var(--muted);}
 
 /* ── AVAILABILITY TIMELINE ── */
@@ -3868,7 +3868,7 @@ async function renderDash(){
     rTomorrowJobs, rUnconfirmed14
   ] = await Promise.all([
     db.from('jobs').select('*',{count:'exact',head:true}),
-    db.from('jobs').select('*',{count:'exact',head:true}).eq('status','In Progress'),
+    db.from('jobs').select('*',{count:'exact',head:true}).not('status','in','("Done","Cancelled")'),
     db.from('jobs').select('*',{count:'exact',head:true}).eq('status','Done'),
     db.from('jobs').select('*',{count:'exact',head:true}).neq('paid','Paid').neq('status','Cancelled'),
     db.from('jobs').select('price').gte('date',monthStart).neq('status','Cancelled'),
@@ -4124,24 +4124,43 @@ async function renderDash(){
   if(upcomingHdrEl) upcomingHdrEl.textContent='';
 }
 
-function renderDashBinsOut(){
+async function renderDashBinsOut(){
   var el=document.getElementById('dash-bins-out-list');if(!el)return;
   var outBins=binItems.filter(function(b){return b.status==='out';});
   if(!outBins.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">All bins are in the yard</div>';return;}
+  // Fetch the most recent job for each out bin directly from DB
+  var bids=outBins.map(function(b){return b.bid;});
+  var r=await db.from('jobs').select('*').in('bin_bid',bids).order('date',{ascending:false});
+  var binJobMap={};
+  (r.data||[]).forEach(function(row){
+    var j=dbToJob(row);
+    // Prefer active job, but keep most recent as fallback
+    if(!binJobMap[j.binBid]) binJobMap[j.binBid]={active:null,last:j};
+    if(j.status!=='Done'&&j.status!=='Cancelled') binJobMap[j.binBid].active=j;
+  });
   el.innerHTML=outBins.map(function(b){
-    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Done'&&j.status!=='Cancelled';});
-    var name=curJob?curJob.name:'Unknown';
-    var addr=curJob?(curJob.address||'').split(',')[0]:'';
-    var city=curJob?curJob.city:'';
-    var phone=curJob?curJob.phone:'';
-    var dropDate=curJob?(curJob.binDropoff||curJob.date):'';
-    var pickDate=curJob?curJob.binPickup:'';
+    var entry=binJobMap[b.bid];
+    var curJob=entry?entry.active:null;
+    var lastJob=entry?entry.last:null;
+    var job=curJob||lastJob;
+    var isStale=!curJob&&!!lastJob;
+    var name=job?job.name:null;
+    var addr=job?(job.address||'').split(',')[0]:'';
+    var city=job?job.city:'';
+    var phone=job?job.phone:'';
+    var dropDate=job?(job.binDropoff||job.date):'';
+    var pickDate=job?job.binPickup:'';
     var daysOut='';
     if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
-    return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #ef4444;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="'+(curJob?'openDetail(\''+curJob.id+'\')':'')+'">'
+    // Name display: active job, stale job (greyed), or not linked
+    var nameHtml;
+    if(curJob){ nameHtml='<strong style="font-size:13px">'+name+'</strong>'; }
+    else if(lastJob){ nameHtml='<span style="font-size:13px;color:var(--muted)" title="Last job is completed — bin may need to be returned to yard">'+name+' <span style="font-size:10px;background:rgba(239,68,68,.1);color:#ef4444;padding:1px 6px;border-radius:4px">Job Done</span></span>'; }
+    else { nameHtml='<span style="font-size:12px;color:var(--muted);font-style:italic">Not linked to a job</span> <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:11px;padding:2px 8px">🔗 Link</button>'; }
+    return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+(curJob?'#ef4444':isStale?'#f59e0b':'var(--muted)')+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="'+(job?'openDetail(\''+job.id+'\')':'')+'">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:12px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+' · '+b.size+'</span>'
-        +'<strong style="font-size:13px">'+name+'</strong>'
+        +nameHtml
         +(phone?'<span style="font-size:11px;color:var(--muted)">'+phone+'</span>':'')
         +(daysOut?'<span style="font-size:11px;color:var(--muted);margin-left:auto">'+daysOut+'</span>':'')
       +'</div>'
@@ -4341,9 +4360,11 @@ function jddSetDrop(id, newStatus, e){
   toast('🚛 '+label);
 }
 
-function confirmedHtml(id, confirmed, service){
+function confirmedHtml(id, confirmed, service, status, binInstatus){
   var needsConfirm = service==='Bin Rental'||service==='Furniture Pickup'||service==='Furniture Delivery';
   if(!needsConfirm) return '<td class="jcell-confirm"></td>';
+  // Hide confirm button for Done/Cancelled jobs or already picked-up bins
+  if(status==='Done'||status==='Cancelled'||binInstatus==='pickedup') return '<td class="jcell-confirm"></td>';
   var label = service==='Furniture Delivery' ? 'Drop-Off' : 'Pickup';
   var isConf = !!confirmed;
 
@@ -4389,9 +4410,9 @@ function makeJobRowNoSvc(j){
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
-    +confirmedHtml(j.id,j.confirmed,j.service)
+    +confirmedHtml(j.id,j.confirmed,j.service,j.status,j.binInstatus)
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#ef4444;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#ef4444;border-color:rgba(239,68,68,.3)" title="Cancel job">🚫</button>')
@@ -4405,9 +4426,9 @@ function makeJobRowWithSvc(j){
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
-    +'<td style="font-size:14px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+( resolveAddr(j).display||'—')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
-    +confirmedHtml(j.id,j.confirmed,j.service)
+    +confirmedHtml(j.id,j.confirmed,j.service,j.status,j.binInstatus)
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#ef4444;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#ef4444;border-color:rgba(239,68,68,.3)" title="Cancel job">🚫</button>')
@@ -4419,7 +4440,7 @@ function makeCancelledRow(j){
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
-    +'<td style="font-size:13px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(resolveAddr(j).display||'—')+'</td>'
+    +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Restore job">↩ Restore</button>'
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
@@ -4432,7 +4453,7 @@ function makeCancelledRowWithSvc(j){
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
-    +'<td style="font-size:13px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(resolveAddr(j).display||'—')+'</td>'
+    +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Restore job">↩ Restore</button>'
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
