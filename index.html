@@ -841,6 +841,49 @@ textarea{resize:vertical;min-height:80px;}
   outline:none;transition:border-color .2s,box-shadow .2s;
 }
 #login-card-inner input:focus{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15);}
+
+/* ═══ ANIMATION SYSTEM ═══ */
+
+/* ── Keyframes ── */
+@keyframes modalSlideUp{from{opacity:0;transform:translateY(40px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes modalScaleIn{from{opacity:0;transform:scale(0.94);}to{opacity:1;transform:scale(1);}}
+@keyframes rowFlash{0%{background:rgba(34,197,94,.25);}100%{background:transparent;}}
+@keyframes subtlePulse{0%,100%{box-shadow:var(--glass-shadow);}50%{box-shadow:var(--glass-shadow),0 0 0 2px rgba(34,197,94,.12);}}
+
+/* ── Button press feedback ── */
+.btn:active{transform:scale(0.96)!important;transition-duration:0.06s!important;}
+
+/* ── Card hover lifts ── */
+.client-card{transition:border-color .2s,transform .2s ease,box-shadow .2s ease;}
+.client-card:hover{transform:translateY(-2px);box-shadow:var(--glass-shadow-lg);}
+.veh-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s;}
+.veh-card:hover{transform:translateY(-2px);box-shadow:var(--glass-shadow-lg);border-color:var(--border-strong);}
+.dash-section{transition:transform .2s ease,box-shadow .2s ease;}
+
+/* ── Enhanced modal entrances ── */
+.modal-overlay .modal{transform:translateY(16px) scale(0.97);transition:transform .25s cubic-bezier(.22,1,.36,1),opacity .25s ease;}
+.modal-overlay.open .modal{transform:translateY(0) scale(1);animation:modalScaleIn .25s cubic-bezier(.22,1,.36,1) both;}
+.modal-overlay.fullpage .modal{transform:translateY(100vh)!important;transition:transform .32s cubic-bezier(.22,1,.36,1)!important;}
+.modal-overlay.fullpage.open .modal{transform:translateY(0)!important;animation:modalSlideUp .32s cubic-bezier(.22,1,.36,1) both!important;}
+
+/* ── Table row flash for new jobs ── */
+.job-row.row-flash{animation:rowFlash .8s ease-out;}
+
+/* ── Nav item polish ── */
+.nav-item{transition:background .18s ease,color .18s ease,transform .12s ease;}
+.nav-item:active{transform:scale(0.97);}
+
+/* ── Smooth focus rings ── */
+.form-input:focus,input:focus,select:focus,textarea:focus{transition:border-color .2s ease,box-shadow .2s ease;}
+
+/* ── Toast enhanced entrance ── */
+.toast{transition:transform .35s cubic-bezier(.22,1,.36,1),opacity .35s ease;}
+.toast.show{transform:translateY(0) scale(1);}
+.toast:not(.show){transform:translateY(20px) scale(0.95);}
+
+/* ── Skeleton loading pulse ── */
+.skel-pulse{background:linear-gradient(90deg,rgba(0,0,0,.04) 25%,rgba(0,0,0,.08) 50%,rgba(0,0,0,.04) 75%);background-size:200% 100%;animation:skelShimmer 1.5s ease infinite;border-radius:8px;}
+@keyframes skelShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 </style>
 
 <!-- ─── LOGIN SCREEN ─── -->
@@ -7179,6 +7222,11 @@ async function saveJob(e){
   _saveJobLock = false;
   closeM('job-modal');
   loadJobsPage(jobsPage);
+  // Flash the new/updated row
+  setTimeout(function(){
+    var row=document.querySelector('tr.job-row[data-jid="'+job.id+'"]');
+    if(row){row.classList.add('row-flash');row.addEventListener('animationend',function(){row.classList.remove('row-flash');},{once:true});}
+  },120);
 }
 function delJob(id){
   if(!confirm('Delete this job?'))return;
