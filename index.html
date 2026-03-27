@@ -309,6 +309,11 @@ body{
 .bin-book-btn{margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,transform .12s,box-shadow .15s;will-change:transform;}
 .bin-book-btn:hover{background:rgba(34,197,94,.22);box-shadow:0 4px 14px rgba(34,197,94,.28);transform:translateY(-2px);}
 .bin-book-btn:active{transform:scale(.95);box-shadow:none;background:rgba(34,197,94,.3);}
+.bin-dur-btn{flex:1;padding:5px 0;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.06);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s;}
+.bin-dur-btn:hover{background:rgba(34,197,94,.18);}
+.bin-quick-dur{padding:8px 14px;border-radius:8px;border:1px solid rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap;}
+.bin-quick-dur:hover{background:rgba(34,197,94,.25);transform:translateY(-1px);}
+.bin-quick-dur:active{transform:scale(.96);}
 .bin-stat-value{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:1px;line-height:1;}
 .bin-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
 .bin-stat-card.out .bin-stat-value{color:#ef4444;}.bin-stat-card.in .bin-stat-value{color:#22c55e;}
@@ -422,8 +427,8 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:820px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:36px;transform:translateY(16px);transition:transform .2s;}
 .modal-overlay.open .modal{transform:translateY(0);}
-.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;}
-.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;}
+.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:linear-gradient(180deg,rgba(34,197,94,.03) 0%,var(--surface) 15%);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid rgba(34,197,94,.2);}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1.5px;color:var(--accent);}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:44px;height:44px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
 .modal-close:hover{background:rgba(239,68,68,.1);color:#ef4444;border-color:rgba(239,68,68,.3);}
@@ -432,14 +437,14 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 .form-group.full{grid-column:1/-1;}
 label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;}
 input,select,textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color .15s;width:100%;}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,197,94,.12);}
 input.field-error,select.field-error,textarea.field-error{border-color:#ef4444!important;background:rgba(239,68,68,.06)!important;animation:shake .3s ease;}
 @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-4px);}75%{transform:translateX(4px);}}
 .field-error-msg{font-size:11px;color:#ef4444;margin-top:3px;display:none;}
 .field-error-msg.show{display:block;}
 select option{background:var(--surface2);}
 textarea{resize:vertical;min-height:80px;}
-.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);flex-wrap:wrap;}
+.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:2px solid rgba(34,197,94,.15);flex-wrap:wrap;}
 .divider{height:1px;background:var(--border);margin:20px 0;}
 .detail-section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);}
 .detail-section:last-child{border-bottom:none;margin-bottom:0;}
@@ -2125,24 +2130,32 @@ textarea{resize:vertical;min-height:80px;}
         <input type="hidden" id="f-paid" value="Unpaid">
       </div>
       <div id="bin-extra" style="display:none;margin-top:16px">
-        <div class="divider"></div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:12px">🚛 Bin Details</div>
+        <div style="height:2px;background:linear-gradient(90deg,var(--accent),rgba(34,197,94,.1));border-radius:2px;margin-bottom:16px"></div>
+        <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:14px;font-weight:700">🚛 Bin Details</div>
         <!-- Hidden: actual bin_bid and bin_size are set by the picker below -->
         <input type="hidden" id="f-bsize">
-        <div class="form-group" style="margin-bottom:14px">
-          <label>Select Bin <span style="color:#ef4444">*</span></label>
-          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn active" data-sz="all" onclick="filterBinPicker('all',this)">All</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="filterBinPicker('4 yard',this)">4 yd</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="filterBinPicker('7 yard',this)">7 yd</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="filterBinPicker('14 yard',this)">14 yd</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="filterBinPicker('20 yard',this)">20 yd</button>
+
+        <!-- Select Bin — collapsed by default -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
+            <span id="bin-picker-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg);color:var(--accent)">▶</span>
+            <label style="cursor:pointer;margin:0;color:var(--accent)">Select Bin</label>
           </div>
-          <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:200px;overflow-y:auto;padding:4px 0"></div>
-          <div id="bin-picker-selected" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.4);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
+          <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.4);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
+          <div id="bin-picker-collapse" style="display:none">
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-ghost btn-sm bsz-btn active" data-sz="all" onclick="filterBinPicker('all',this)">All</button>
+              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="filterBinPicker('4 yard',this)">4 yd</button>
+              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="filterBinPicker('7 yard',this)">7 yd</button>
+              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="filterBinPicker('14 yard',this)">14 yd</button>
+              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="filterBinPicker('20 yard',this)">20 yd</button>
+            </div>
+            <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:200px;overflow-y:auto;padding:4px 0"></div>
+          </div>
         </div>
+
         <div id="material-type-wrap" style="display:none;margin-bottom:14px">
-          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">Material Type <span style="font-size:11px;color:var(--muted)">(4 & 7 yard only)</span></label>
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;color:var(--accent)">Material Type <span style="font-size:11px;color:var(--muted)">(4 & 7 yard only)</span></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Concrete" onclick="selectMaterial('Concrete',this)">Concrete</button>
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Dirt" onclick="selectMaterial('Dirt',this)">Dirt</button>
@@ -2150,18 +2163,26 @@ textarea{resize:vertical;min-height:80px;}
           </div>
           <input type="hidden" id="f-material-type" value="">
         </div>
-        <div class="form-grid">
-          <div class="form-group"><label>Duration</label><input id="f-bdur" type="text" placeholder="e.g. 7 days"></div>
-          <div class="form-group"><label>Drop-off Date</label><input id="f-bdrop" type="date"></div>
+
+        <!-- Dates row: Drop-off and Pickup side by side -->
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="form-group"><label>Drop-off Date</label><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()"></div>
           <div class="form-group"><label>Pickup Date</label><input id="f-bpick" type="date"></div>
+        </div>
+
+        <!-- Duration + Quick presets inline -->
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:100px"><label>Duration</label><input id="f-bdur" type="text" placeholder="e.g. 7 days"></div>
+          <div style="display:flex;gap:6px;padding-bottom:1px">
+            <button type="button" class="bin-quick-dur" onclick="setBinDuration(3)">3 Days</button>
+            <button type="button" class="bin-quick-dur" onclick="setBinDuration(7)">7 Days</button>
+            <button type="button" class="bin-quick-dur" onclick="setBinDuration(30)">1 Month</button>
+          </div>
+        </div>
+
+        <div class="form-grid" style="margin-bottom:14px">
           <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option><option value="see notes">See Notes</option></select></div>
           <div class="form-group"><label>Bin Status</label><select id="f-binstatus"><option value="">Pending</option><option value="dropped">✅ Dropped Off</option><option value="pickedup">✅ Picked Up</option></select></div>
-        </div>
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-          <span style="font-size:11px;color:var(--muted);align-self:center">Quick duration:</span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setBinDuration(3)">3 Days</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setBinDuration(7)">7 Days</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setBinDuration(30)">1 Month</button>
         </div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px">
@@ -3766,6 +3787,11 @@ async function refreshDashBinStats(){
       +'<div style="flex:1;padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
       +'</div>'
       +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn">📅 Book</button>'
+      +'<div style="display:flex;gap:4px;margin-top:6px">'
+      +'<button onclick="bookBin(\''+s+'\',3)" class="bin-dur-btn">3 Days</button>'
+      +'<button onclick="bookBin(\''+s+'\',7)" class="bin-dur-btn">7 Days</button>'
+      +'<button onclick="bookBin(\''+s+'\',30)" class="bin-dur-btn">1 Mo</button>'
+      +'</div>'
       +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
@@ -7125,6 +7151,9 @@ function newJob(){
   var junkRecOpts=document.getElementById('junk-recurring-opts');if(junkRecOpts)junkRecOpts.style.display='none';
   var junkRecInt=document.getElementById('f-junk-recur-interval');if(junkRecInt)junkRecInt.value='biweekly';
   var junkRecExtra=document.getElementById('junk-recurring-extra');if(junkRecExtra)junkRecExtra.style.display='none';
+  window._binPresetDays=0;
+  var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='none';
+  var bpa=document.getElementById('bin-picker-arrow');if(bpa)bpa.style.transform='rotate(0deg)';
   document.getElementById('job-modal').classList.add('open');
 }
 
@@ -7217,6 +7246,14 @@ function setBinDuration(days){
   document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
   var label=days===30?'1 month':days+' days';
   document.getElementById('f-bdur').value=label;
+  window._binPresetDays=days;
+}
+function applyBinPresetDuration(){
+  var days=window._binPresetDays;if(!days)return;
+  var drop=document.getElementById('f-bdrop').value;if(!drop)return;
+  var d=new Date(drop+'T12:00:00');
+  d.setDate(d.getDate()+days);
+  document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
 }
 
 function initBinPicker(existingBid, existingSize){
@@ -7256,13 +7293,19 @@ function initBinPicker(existingBid, existingSize){
   }
 }
 
-function bookBin(size){
+function bookBin(size, presetDays){
   go('jobs');
   newJob();
   document.getElementById('f-svc').value='Bin Rental';
   document.getElementById('f-svc').dispatchEvent(new Event('change'));
   setTimeout(function(){
     initBinPicker('', size);
+    if(presetDays){
+      // Store preset so it auto-fills when drop-off date is set
+      window._binPresetDays=presetDays;
+      var label=presetDays===30?'1 month':presetDays+' days';
+      document.getElementById('f-bdur').value=label;
+    }
   },100);
 }
 function openEdit(id){
@@ -7296,6 +7339,9 @@ function openEdit(id){
       document.getElementById('f-bpick').value=j.binPickup||'';
       document.getElementById('f-bside').value=j.binSide||'';
       document.getElementById('f-binstatus').value=j.binInstatus||'';
+      // Expand bin picker when editing
+      var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='block';
+      var bpa=document.getElementById('bin-picker-arrow');if(bpa)bpa.style.transform='rotate(90deg)';
       initBinPicker(j.binBid||'', j.binSize||'');
       var matEl=document.getElementById('f-material-type');
       if(matEl)matEl.value=j.materialType||'';
