@@ -347,6 +347,10 @@ body{
 .cat-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;display:flex;align-items:center;gap:8px;}
 .cat-count{font-size:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:500;}
 .cat-section .table-wrap{border-radius:0 0 10px 10px;}
+.cat-section-header{cursor:pointer;user-select:none;transition:opacity .15s;}
+.cat-section-header .collapse-arrow{display:inline-block;transition:transform .2s;margin-right:6px;font-size:12px;}
+.cat-section-header.collapsed .collapse-arrow{transform:rotate(-90deg);}
+.cat-section-header.collapsed + .table-wrap{display:none!important;}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
@@ -1038,6 +1042,30 @@ textarea{resize:vertical;min-height:80px;}
 
   </div>
 
+  <!-- ROW: Pricing + Vehicle Status -->
+  <div class="dash-section dash-s1b" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
+    <!-- LEFT: My Pricing (moved here) -->
+    <div class="chart-card" style="padding:0;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
+        <div style="position:relative;flex-shrink:0;">
+          <select id="dash-pricing-area" onchange="renderDashPricing()" style="appearance:none;-webkit-appearance:none;background:var(--surface);border:1px solid var(--border-strong);color:var(--text);padding:5px 28px 5px 11px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;outline:none;box-shadow:0 1px 4px rgba(0,0,0,.06);"></select>
+          <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)" width="11" height="7" viewBox="0 0 11 7" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5.5 6L10 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">View Full Pricing →</button>
+      </div>
+      <div id="dash-pricing-display" style="padding:10px 14px;"></div>
+    </div>
+    <!-- RIGHT: Vehicle Status -->
+    <div class="chart-card" style="padding:0;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">🚗 VEHICLE STATUS</div>
+        <button class="btn btn-ghost btn-sm" onclick="go('vehicles')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">Manage Vehicles →</button>
+      </div>
+      <div id="dash-vehicle-status" style="padding:10px 14px;"></div>
+    </div>
+  </div>
+
   <!-- ROW 1: hidden stubs to keep JS happy -->
   <div style="display:none">
     <div id="dash-stat-today"></div>
@@ -1113,37 +1141,6 @@ textarea{resize:vertical;min-height:80px;}
       </div>
       <div id="dash-long-bins" style="padding:10px 12px;"></div>
     </div>
-  </div>
-
-
-
-  <!-- MY PRICING DASHBOARD CARD -->
-  <div class="chart-card dash-section dash-s4" style="margin-bottom:24px;padding:0;overflow:hidden;">
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
-      <div style="position:relative;flex-shrink:0;">
-        <select id="dash-pricing-area" onchange="renderDashPricing()" style="
-          appearance:none;-webkit-appearance:none;
-          background:var(--surface);
-          border:1px solid var(--border-strong);
-          color:var(--text);
-          padding:5px 28px 5px 11px;
-          border-radius:8px;
-          font-family:'DM Sans',sans-serif;
-          font-size:12px;
-          font-weight:600;
-          cursor:pointer;
-          outline:none;
-          box-shadow:0 1px 4px rgba(0,0,0,.06);
-          transition:border-color .15s,box-shadow .15s;
-        " onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(34,197,94,.12)'" onblur="this.style.borderColor='var(--border-strong)';this.style.boxShadow='0 1px 4px rgba(0,0,0,.06)'"></select>
-        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)" width="11" height="7" viewBox="0 0 11 7" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 1L5.5 6L10 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">View Full Pricing →</button>
-    </div>
-    <div id="dash-pricing-display" style="padding:10px 14px;"></div>
   </div>
 
   <!-- Hidden stubs so old JS writes don't throw errors -->
@@ -1225,19 +1222,19 @@ textarea{resize:vertical;min-height:80px;}
   <div id="jobs-pagination-top"></div>
   <div id="jobs-cat-view">
     <div class="cat-section">
-      <div class="cat-section-header bin"><div class="cat-title">Bin Rentals</div><span class="cat-count" id="jobs-bin-count">0 jobs</span></div>
+      <div class="cat-section-header bin" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">Bin Rentals</div><span class="cat-count" id="jobs-bin-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
-      <div class="cat-section-header junk"><div class="cat-title">Junk Removal</div><span class="cat-count" id="jobs-junk-count">0 jobs</span></div>
+      <div class="cat-section-header junk" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">Junk Removal</div><span class="cat-count" id="jobs-junk-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
-      <div class="cat-section-header quote"><div class="cat-title">📋 Junk Quotes</div><span class="cat-count" id="jobs-quote-count">0 quotes</span></div>
+      <div class="cat-section-header quote" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">📋 Junk Quotes</div><span class="cat-count" id="jobs-quote-count">0 quotes</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
-      <div class="cat-section-header furn"><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
+      <div class="cat-section-header furn" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
     <div id="jobs-cancelled-section" style="display:none">
@@ -1290,7 +1287,9 @@ textarea{resize:vertical;min-height:80px;}
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:7px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
     <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-right:2px;">Key:</span>
-    <span style="font-size:11px;font-weight:600;color:#22c55e;">🚛 Bin</span>
+    <span style="font-size:11px;font-weight:600;color:#22c55e;">🚛 Bin Drop-off</span>
+    <span style="color:var(--border)">·</span>
+    <span style="font-size:11px;font-weight:600;color:#4ade80;">🚚 Bin Pick-up</span>
     <span style="color:var(--border)">·</span>
     <span style="font-size:11px;font-weight:600;color:#eab308;">🧹 Junk</span>
     <span style="color:var(--border)">·</span>
@@ -1829,6 +1828,7 @@ textarea{resize:vertical;min-height:80px;}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="openBinImport()" title="Import bins from CSV">📥 Import CSV</button>
+      <button class="btn btn-ghost" onclick="openBinHistoryImport()" title="Import legacy bin history">📜 Import History</button>
       <button class="btn btn-primary" onclick="openAddBin()">+ Add Bin</button>
     </div>
   </div>
@@ -2138,12 +2138,27 @@ textarea{resize:vertical;min-height:80px;}
           <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:200px;overflow-y:auto;padding:4px 0"></div>
           <div id="bin-picker-selected" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.4);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
         </div>
+        <div id="material-type-wrap" style="display:none;margin-bottom:14px">
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">Material Type <span style="font-size:11px;color:var(--muted)">(4 & 7 yard only)</span></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Concrete" onclick="selectMaterial('Concrete',this)">Concrete</button>
+            <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Dirt" onclick="selectMaterial('Dirt',this)">Dirt</button>
+            <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="See Notes" onclick="selectMaterial('See Notes',this)">See Notes</button>
+          </div>
+          <input type="hidden" id="f-material-type" value="">
+        </div>
         <div class="form-grid">
           <div class="form-group"><label>Duration</label><input id="f-bdur" type="text" placeholder="e.g. 7 days"></div>
           <div class="form-group"><label>Drop-off Date</label><input id="f-bdrop" type="date"></div>
           <div class="form-group"><label>Pickup Date</label><input id="f-bpick" type="date"></div>
           <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option><option value="see notes">See Notes</option></select></div>
           <div class="form-group"><label>Bin Status</label><select id="f-binstatus"><option value="">Pending</option><option value="dropped">✅ Dropped Off</option><option value="pickedup">✅ Picked Up</option></select></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--muted);align-self:center">Quick duration:</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setBinDuration(3)">3 Days</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setBinDuration(7)">7 Days</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setBinDuration(30)">1 Month</button>
         </div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px">
@@ -2171,6 +2186,7 @@ textarea{resize:vertical;min-height:80px;}
           <div style="font-size:11px;color:var(--muted);margin-top:4px">When the job is marked done, you can quickly schedule the next visit.</div>
         </div>
       </div>
+      <div id="tools-needed-wrap" style="display:none" class="form-group full"><label>Tools Needed</label><input id="f-tools" type="text" placeholder="e.g. Dolly, Straps, Mattress Bag..."></div>
       <div class="form-group full" style="margin-top:16px"><label>Notes</label><textarea id="f-notes" placeholder="Job details..." rows="3"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#ef4444;"></div>
       <div class="form-actions">
@@ -2242,6 +2258,17 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 </div>
 
+<!-- ═══════════ ASSIGN BIN MODAL ═══════════ -->
+<div class="modal-overlay" id="assign-bin-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <div class="modal-title">📦 Assign Bin</div>
+      <button class="modal-close" onclick="closeM('assign-bin-modal')">&#x2715;</button>
+    </div>
+    <div id="assign-bin-body" style="max-height:60vh;overflow-y:auto;padding:4px 0"></div>
+  </div>
+</div>
+
 <!-- ═══════════ BIN CSV IMPORT MODAL ═══════════ -->
 <div class="modal-overlay" id="bin-import-modal">
   <div class="modal" style="width:560px">
@@ -2272,6 +2299,30 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 </div>
 
+<!-- ═══════════ BIN HISTORY IMPORT MODAL ═══════════ -->
+<div class="modal-overlay" id="bin-history-import-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <div class="modal-title">📜 Import Bin History</div>
+      <button class="modal-close" onclick="closeM('bin-history-import-modal')">&#x2715;</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Import legacy bin rental history. Each row = one historical rental.</p>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--muted);margin-bottom:12px;font-family:monospace;line-height:1.8">
+        <strong style="color:var(--text)">Required:</strong> bin_num<br>
+        <strong style="color:var(--text)">Optional:</strong> bin_size, customer_name, customer_phone, job_address, city, dropoff_date, pickup_date, material_type, notes<br>
+        <strong style="color:var(--text)">Example:</strong> bin_num,bin_size,customer_name,dropoff_date,pickup_date<br>
+        14YD-GREEN-1,14 yard,John Smith,2025-01-15,2025-01-22
+      </div>
+      <textarea id="bin-history-csv-text" placeholder="Paste CSV here..." style="width:100%;height:200px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;font-size:12px;padding:10px;resize:vertical;outline:none"></textarea>
+      <div id="bin-history-import-preview" style="margin-top:10px;font-size:12px;color:var(--accent)"></div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeM('bin-history-import-modal')">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="doBinHistoryImport()">Import History</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay fullpage" id="client-modal">
   <div class="modal" style="width:780px">
@@ -2624,6 +2675,9 @@ function dbToJob(r) {
     payMethod:      r.pay_method       || '',
     recurring:      r.recurring        || false,
     recurInterval:  r.recur_interval   || '',
+    materialType: r.material_type || '',
+    toolsNeeded: r.tools_needed || '',
+    emailConfirmed: r.email_confirmed || false,
   };
 }
 
@@ -2684,6 +2738,9 @@ function jobToDb(j) {
     pay_method:       j.payMethod       || '',
     recurring:        j.recurring       || false,
     recur_interval:   j.recurInterval   || '',
+    material_type: j.materialType || '',
+    tools_needed: j.toolsNeeded || '',
+    email_confirmed: j.emailConfirmed || false,
   };
 }
 
@@ -2811,7 +2868,7 @@ function saveVehicles() {
   // Sync vehicles to Supabase
   try {
     var rows = vehicles.map(function(v){
-      return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null, oil_date:v.oilDate||null, oil_km:v.oilKm?parseInt(v.oilKm):null, oil_interval:v.oilInterval?parseInt(v.oilInterval):null};
+      return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null, oil_date:v.oilDate||null, oil_km:v.oilKm?parseInt(v.oilKm):null, oil_interval:v.oilInterval?parseInt(v.oilInterval):null, vehicle_status:v.vehicleStatus||'Available'};
     });
     if(rows.length) {
       db.from('vehicles').upsert(rows, {onConflict:'vid'}).then(function(r){
@@ -2912,7 +2969,8 @@ async function loadAllFromSupabase() {
         vehicles = rveh.data.map(function(r){
           return {vid:r.vid, name:r.name, type:r.type, color:r.color||'#22c55e', notes:r.notes||'', active:true,
                   stickerMonth:r.sticker_month||'', stickerYear:r.sticker_year||'',
-                  oilDate:r.oil_date||'', oilKm:r.oil_km?String(r.oil_km):'', oilInterval:r.oil_interval?String(r.oil_interval):''};
+                  oilDate:r.oil_date||'', oilKm:r.oil_km?String(r.oil_km):'', oilInterval:r.oil_interval?String(r.oil_interval):'',
+                  vehicleStatus:r.vehicle_status||'Available'};
         });
         vehBlocks = {};
         (rvehBlocks.data||[]).forEach(function(r){
@@ -3681,7 +3739,12 @@ async function refreshDashBinStats(){
 
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
-    return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+'">'
+    var imgUrl='';
+    if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
+    else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
+    else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
+    var bgStyle=imgUrl?'background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:bottom right;background-size:80px auto;opacity:0.85;':'';
+    return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';'+bgStyle+'">'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:#22c55e;margin-bottom:2px;text-shadow:0 4px 16px rgba(34,197,94,.25)">'+inY+'</div>'
       +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
@@ -3697,6 +3760,46 @@ async function refreshDashBinStats(){
 // Legacy aliases — any old calls route to the new Supabase-powered function
 function updateDashBinStats(){refreshDashBinStats();}
 function updateDashBinStatsDirect(){refreshDashBinStats();}
+
+function renderDashVehicleStatus(){
+  var el=document.getElementById('dash-vehicle-status');if(!el)return;
+  if(!vehicles.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:12px">No vehicles</div>';return;}
+  var html='<div style="display:flex;flex-direction:column;gap:8px">';
+  vehicles.forEach(function(v){
+    var status=v.vehicleStatus||'Available';
+    var statusCol='#22c55e';var statusIcon='✓';
+    if(status==='Booked Out'){statusCol='#eab308';statusIcon='⚠';}
+    else if(status==='In Shop'){statusCol='#ef4444';statusIcon='X';}
+    var btnsHtml='';
+    if(status==='Available'){
+      btnsHtml='<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Booked Out\')">Mark Booked Out</button>'
+        +'<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'In Shop\')">Mark In Shop</button>';
+    }else if(status==='Booked Out'){
+      btnsHtml='<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Available</button>';
+    }else if(status==='In Shop'){
+      btnsHtml='<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Operational</button>';
+    }
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)">'
+      +'<div><div style="font-weight:600;font-size:13px">'+v.name+'</div><div style="font-size:11px;color:var(--muted)">'+v.type+'</div></div>'
+      +'<div style="display:flex;gap:4px;align-items:center">'
+      +'<span class="badge" style="background:'+statusCol+'22;color:'+statusCol+';padding:4px 8px;font-size:11px;font-weight:600">'+statusIcon+' '+status+'</span>'
+      +'<div style="display:flex;gap:4px">'+btnsHtml+'</div>'
+      +'</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function changeVehicleStatus(vid,newStatus){
+  var v=vehicles.find(function(vv){return vv.vid===vid;});
+  if(!v)return;
+  v.vehicleStatus=newStatus;
+  db.from('vehicles').update({vehicle_status:newStatus}).eq('vid',vid).then(function(r){
+    if(r.error)console.warn('Update vehicle status failed:',r.error.message);
+  });
+  renderDashVehicleStatus();
+}
 
 // Refresh just the Today's Jobs panel for whatever date the picker is on
 async function refreshDashJobs(){
@@ -3952,6 +4055,7 @@ async function renderDash(){
 
   // Bin stats (delegated)
   refreshDashBinStats();
+  renderDashVehicleStatus();
 
   // ── Today's jobs ──────────────────────────────────────────
   var todayJobs        = (rTodayJobs.data||[]).map(dbToJob);
@@ -4503,6 +4607,9 @@ function makeCancelledRowWithSvc(j){
     +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
     +'</div></td></tr>';
 }
+function toggleCatSection(el){
+  el.classList.toggle('collapsed');
+}
 function renderJobs(){
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
@@ -4668,13 +4775,13 @@ function renderCal(){
       var cls=clsMap[j.service]||'svc-junk';
       var icon, label, titleStr;
       if(ev.type==='pickup'){
-        icon='🚚'; label=j.name; titleStr='Bin Pickup · '+j.name+(j.binSize?' · '+j.binSize:'');
+        icon='🚚'; label=j.name; titleStr='Bin Pickup · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
         cls='svc-bin';
       } else if(ev.type==='dropoff'){
-        icon='🚛'; label=j.name; titleStr='Bin Drop-off · '+j.name+(j.binSize?' · '+j.binSize:'');
+        icon='🚛'; label=j.name; titleStr='Bin Drop-off · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
       } else {
         var iconMap={'Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
-        icon=iconMap[j.service]||''; label=j.name; titleStr=j.service+' · '+j.name;
+        icon=iconMap[j.service]||''; label=j.name; titleStr=j.service+' · '+j.name+(j.toolsNeeded?' · 🔧 '+j.toolsNeeded:'');
       }
       var timeStr=j.time?ft(j.time)+' ':'';
       return '<div class="cal-dot '+cls+'" draggable="true" data-jid="'+j.id+'" data-evtype="'+ev.type+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+titleStr+'">'+icon+' '+timeStr+label+(j.address?' · '+(j.address||'').split(',')[0].substring(0,18):'')+'</div>';
@@ -6519,7 +6626,7 @@ function makeBinRow(b){
       locationCell='<td style="font-size:11px"><span style="color:#eab308">⚠ Not linked</span> <button class="ra-btn" style="font-size:10px;padding:2px 6px;color:#60a5fa;border-color:rgba(96,165,250,.4)" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')">🔗 Link</button></td>';
     }
   }
-  return '<tr'+rowCls+'><td><span class="bnum '+numCls+'">'+b.num+'</span></td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
+  return '<tr'+rowCls+'><td><span class="bnum '+numCls+'" style="cursor:pointer" onclick="event.stopPropagation();openBinHistory(\''+b.bid+'\')">'+b.num+'</span></td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
     +locationCell
     +'<td>'+dmg+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
@@ -6739,6 +6846,44 @@ async function openBinHistory(bid){
       +'</div>';
     }).join('');
 }
+
+async function openAssignBinPicker(jobId){
+  var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
+  closeM('detail-modal');
+  var size=j.binSize;
+  var availBins=binItems.filter(function(b){return b.status==='in'&&(!size||b.size===size);});
+  var html='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Showing '+availBins.length+' available'+(size?' '+size:'')+' bins</div>';
+  if(!availBins.length){html+='<div style="text-align:center;padding:20px;color:var(--muted)">No available bins of this size</div>';}
+  else{
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">';
+    availBins.forEach(function(b){
+      html+='<div style="padding:10px;border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\'" onclick="doAssignBin(\''+jobId+'\',\''+b.bid+'\')">'
+        +'<div style="font-weight:700;font-size:14px">#'+b.num+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+b.size+'</div>'
+        +'<div style="font-size:10px;color:'+(b.color==='green'?'#22c55e':'#888')+'">'+b.color+'</div>'
+        +'</div>';
+    });
+    html+='</div>';
+  }
+  document.getElementById('assign-bin-body').innerHTML=html;
+  document.getElementById('assign-bin-modal').classList.add('open');
+  window._assignBinJobId=jobId;
+}
+
+async function doAssignBin(jobId,bid){
+  var b=binItems.find(function(bi){return bi.bid===bid;});
+  var j=jobs.find(function(jj){return jj.id===jobId;});
+  if(!j||!b)return;
+  j.binBid=bid;
+  j.binSize=b.size;
+  b.status='out';
+  saveBins();
+  saveSingleJob(j);
+  closeM('assign-bin-modal');
+  toast('Bin #'+b.num+' assigned to '+jobId+'!');
+  openDetail(jobId);
+}
+
 function openAddBin(){
   editBinId=null;document.getElementById('bin-modal-ttl').textContent='Add Bin';document.getElementById('bin-save-btn').textContent='Add Bin';
   document.getElementById('bi-num').value='';document.getElementById('bi-type').value='regular';document.getElementById('bi-size').value='14 yard';
@@ -6815,6 +6960,45 @@ function previewBinCsv(){
   if(!rows.length){el.style.color='var(--muted)';el.textContent='No valid rows found.';return;}
   el.style.color='var(--accent)';el.textContent='✓ '+rows.length+' bin'+(rows.length!==1?'s':'')+' ready to import.';
 }
+function openBinHistoryImport(){
+  document.getElementById('bin-history-csv-text').value='';
+  document.getElementById('bin-history-import-preview').textContent='';
+  document.getElementById('bin-history-import-modal').classList.add('open');
+}
+
+async function doBinHistoryImport(){
+  var csv=document.getElementById('bin-history-csv-text').value.trim();
+  if(!csv){toast('Paste CSV data first','warn');return;}
+  var lines=csv.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  if(lines.length<2){toast('Need header row + at least one data row','warn');return;}
+  var headers=lines[0].split(',').map(function(h){return h.trim().toLowerCase().replace(/\s+/g,'_');});
+  var rows=[];
+  for(var i=1;i<lines.length;i++){
+    var vals=lines[i].split(',').map(function(v){return v.trim();});
+    var row={};
+    headers.forEach(function(h,idx){row[h]=vals[idx]||'';});
+    if(!row.bin_num)continue;
+    rows.push({
+      bin_num:row.bin_num||'',
+      bin_size:row.bin_size||'',
+      customer_name:row.customer_name||'',
+      customer_phone:row.customer_phone||'',
+      job_address:row.job_address||'',
+      city:row.city||'',
+      dropoff_date:row.dropoff_date||null,
+      pickup_date:row.pickup_date||null,
+      material_type:row.material_type||'',
+      notes:row.notes||'',
+      source:'legacy'
+    });
+  }
+  if(!rows.length){toast('No valid rows found','warn');return;}
+  var res=await db.from('bin_history').insert(rows);
+  if(res.error){toast('Import error: '+res.error.message,'error');return;}
+  toast(rows.length+' history records imported!');
+  closeM('bin-history-import-modal');
+}
+
 function doBinCsvImport(){
   var raw=document.getElementById('bin-csv-text').value;
   var rows=parseBinCsv(raw);
@@ -6884,6 +7068,7 @@ function toggleBin(){
   document.getElementById('bin-extra').style.display=isBin?'block':'none';
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
+  document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
   if(isBin) setTimeout(function(){initBinPicker('','');},50);
 }
 function newJob(){
@@ -6895,7 +7080,10 @@ function newJob(){
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];document.getElementById('f-time').value='';
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
-  document.getElementById('f-notes').value='';document.getElementById('bin-extra').style.display='none';
+  document.getElementById('f-notes').value='';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
+  document.getElementById('f-tools').value='';
+  document.getElementById('f-material-type').value='';
+  document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   document.getElementById('f-client-select').value='';
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
@@ -6960,6 +7148,7 @@ function selectBinFromPicker(bid){
     sel.innerHTML = '✅ Selected: <strong>'+b.num+'</strong> · '+b.size+(b.color?' · '+(b.color==='green'?'🟢 Green':'⚫ Black'):'');
     sel.dataset.bid = bid;
   }
+  showMaterialType();
 }
 
 function filterBinPicker(sz, el){
@@ -6973,6 +7162,33 @@ function filterBinPicker(sz, el){
 function getPickedBinBid(){
   var sel = document.getElementById('bin-picker-selected');
   return sel&&sel.style.display!=='none'&&sel.dataset.bid ? sel.dataset.bid : '';
+}
+
+function selectMaterial(val, btn){
+  document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
+  btn.classList.add('active');
+  btn.style.background='rgba(34,197,94,.15)';
+  btn.style.color='#22c55e';
+  document.getElementById('f-material-type').value=val;
+}
+function showMaterialType(){
+  var sz=document.getElementById('f-bsize').value;
+  var wrap=document.getElementById('material-type-wrap');
+  if(!wrap)return;
+  var pickedBid=getPickedBinBid?getPickedBinBid():'';
+  var pickedBin=pickedBid?binItems.find(function(b){return b.bid===pickedBid;}):null;
+  var effectiveSize=pickedBin?pickedBin.size:sz;
+  wrap.style.display=(effectiveSize==='4 yard'||effectiveSize==='7 yard')?'block':'none';
+}
+
+function setBinDuration(days){
+  var drop=document.getElementById('f-bdrop').value;
+  if(!drop){toast('Set drop-off date first','warn');return;}
+  var d=new Date(drop+'T12:00:00');
+  d.setDate(d.getDate()+days);
+  document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
+  var label=days===30?'1 month':days+' days';
+  document.getElementById('f-bdur').value=label;
 }
 
 function initBinPicker(existingBid, existingSize){
@@ -7044,6 +7260,7 @@ function openEdit(id){
     document.getElementById('f-paymethod').value=j.payMethod||'';
     document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
+    document.getElementById('tools-needed-wrap').style.display=(j.service==='Junk Removal')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
     if(j.service==='Bin Rental'){
       document.getElementById('f-bdur').value=j.binDuration||'';
@@ -7052,7 +7269,12 @@ function openEdit(id){
       document.getElementById('f-bside').value=j.binSide||'';
       document.getElementById('f-binstatus').value=j.binInstatus||'';
       initBinPicker(j.binBid||'', j.binSize||'');
+      var matEl=document.getElementById('f-material-type');
+      if(matEl)matEl.value=j.materialType||'';
+      document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';if(b.getAttribute('data-mat')===j.materialType){b.classList.add('active');b.style.background='rgba(34,197,94,.15)';b.style.color='#22c55e';}});
+      showMaterialType();
     }
+    document.getElementById('f-tools').value=j.toolsNeeded||'';
     document.getElementById('f-client-select').value=j.clientId||'';
     // Recurring fields
     var recChk=document.getElementById('f-recurring');
@@ -7145,6 +7367,7 @@ async function saveJob(e){
     referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
     clientId:  cid || '',
+    toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
     recurInterval: svc==='Bin Rental' ? (document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '') : (svc==='Junk Removal' ? (document.getElementById('f-junk-recur-interval') ? document.getElementById('f-junk-recur-interval').value : '') : ''),
     // Preserve existing tracking if editing, set new if creating
@@ -7164,6 +7387,7 @@ async function saveJob(e){
     job.binPickup   = document.getElementById('f-bpick').value;
     job.binSide     = document.getElementById('f-bside').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
+    job.materialType = document.getElementById('f-material-type').value;
     // Sync binItems: if a bin was previously assigned to this job, release it first
     if(editId){
       var oldJob = jobs.find(function(x){return x.id===editId;});
@@ -7266,7 +7490,8 @@ function openDetail(id){
       +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' Side':'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
-      +'</div></div>';
+      +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
+      +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.4);color:#22c55e;width:100%">📦 Assign Bin</button></div>')+'</div>';
   }
   // Show recurring badge for non-bin services
   if(j.recurring&&j.service!=='Bin Rental'){
@@ -7282,13 +7507,15 @@ function openDetail(id){
       +'</div>';
   }
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
+  var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(96,165,250,.15);color:#60a5fa">📧 Email Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
-    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+'</div></div>'
+    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address||'—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
+    +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:#eab308">'+j.toolsNeeded+'</p></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:#eab308;font-weight:600">'+j.editedBy+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
@@ -7314,6 +7541,7 @@ function openDetail(id){
       }
       if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">✔ Mark Done</button>');
       if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.4);color:#22c55e">📞 '+confirmLabel+'</button>');}
+      if(!j.emailConfirmed){btns.push('<button class="btn btn-ghost" onclick="markEmailConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(96,165,250,.4);color:#60a5fa">📧 Email Confirm</button>');}
       return btns.length ? '<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div>' : '';
     }())
 
@@ -7327,6 +7555,15 @@ function openDetail(id){
   document.getElementById('detail-modal').classList.add('open');
 }
 function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});save();toast('Customer marked as confirmed!');refresh();}
+
+function markEmailConfirmed(id){
+  jobs.forEach(function(j){if(j.id===id)j.emailConfirmed=true;});
+  save();toast('Email confirmation sent!');openDetail(id);refresh();
+}
+function markEmailUnconfirmed(id){
+  jobs.forEach(function(j){if(j.id===id)j.emailConfirmed=false;});
+  save();toast('Email confirmation removed.');openDetail(id);refresh();
+}
 
 function newJobForClient(cid){
   var cl=clients.find(function(c){return c.cid===cid;});
