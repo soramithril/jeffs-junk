@@ -968,11 +968,13 @@ textarea{resize:vertical;min-height:80px;}
     <button class="nav-item" onclick="go('binmap')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></span><span>Bin Map</span></button>
     <button class="nav-item" onclick="go('vehicles')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-2"/><circle cx="9" cy="17" r="2"/><circle cx="20" cy="17" r="2"/></svg></span><span>Vehicles</span></button>
     <button class="nav-item" onclick="go('furniturebank')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1H6v-1a2 2 0 0 0-4 0z"/><line x1="6" y1="18" x2="6" y2="21"/><line x1="18" y1="18" x2="18" y2="21"/></svg></span><span>Furniture Bank</span></button>
-    <div class="nav-label" style="margin-top:16px">Analytics</div>
+    <div class="nav-label" style="margin-top:16px;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-analytics')">Analytics <span id="nav-analytics-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▶</span></div>
+    <div id="nav-analytics" style="display:none">
     <button class="nav-item" onclick="go('analytics')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Analytics</span></button>
     <button class="nav-item" onclick="go('utilization')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span>Bin Utilization</span></button>
     <button class="nav-item" onclick="go('pricing')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Competition Pricing</span></button>
     <button class="nav-item" onclick="go('advisor')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span>AI Advisor</span></button>
+    </div>
   </div>
   <div class="sidebar-footer">
     <div class="stats-mini">
@@ -3611,13 +3613,22 @@ function animateView(viewEl){
 }
 
 var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','furniturebank','analytics','revenue','utilization','pricing','advisor'];
+function toggleNavSection(id){
+  var sec=document.getElementById(id);if(!sec)return;
+  var arrow=document.getElementById(id+'-arrow');
+  var open=sec.style.display!=='none';
+  sec.style.display=open?'none':'block';
+  if(arrow)arrow.style.transform=open?'rotate(-90deg)':'rotate(90deg)';
+}
 function go(name){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var el=document.getElementById('view-'+name);
   if(el) el.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){
-    if(n.getAttribute('onclick')==="go('"+name+"')") n.classList.add('active');
+    if(n.getAttribute('onclick')==="go('"+name+"')"){n.classList.add('active');
+      var parent=n.parentElement;if(parent&&parent.id&&parent.style.display==='none'){parent.style.display='block';var arrow=document.getElementById(parent.id+'-arrow');if(arrow)arrow.style.transform='rotate(90deg)';}
+    }
   });
   render(name);
   if(el) animateView(el);
@@ -3744,7 +3755,7 @@ async function refreshDashBinStats(){
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
-    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:360px;height:360px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.15;pointer-events:none"></div>':'';
+    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.13;pointer-events:none"></div>':'';
     return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
       +watermark
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
