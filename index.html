@@ -3743,8 +3743,9 @@ async function refreshDashBinStats(){
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
-    var bgStyle=imgUrl?'background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:bottom right;background-size:80px auto;opacity:0.85;':'';
-    return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';'+bgStyle+'">'
+    var watermark=imgUrl?'<div style="position:absolute;bottom:0;right:0;width:100px;height:100px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:bottom right;background-size:contain;opacity:0.15;pointer-events:none"></div>':'';
+    return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
+      +watermark
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:#22c55e;margin-bottom:2px;text-shadow:0 4px 16px rgba(34,197,94,.25)">'+inY+'</div>'
       +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
@@ -3763,32 +3764,37 @@ function updateDashBinStatsDirect(){refreshDashBinStats();}
 
 function renderDashVehicleStatus(){
   var el=document.getElementById('dash-vehicle-status');if(!el)return;
-  if(!vehicles.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:12px">No vehicles</div>';return;}
-  var html='<div style="display:flex;flex-direction:column;gap:8px">';
-  vehicles.forEach(function(v){
+  if(!vehicles.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:12px">No vehicles added yet</div>';return;}
+  el.innerHTML=vehicles.map(function(v){
     var status=v.vehicleStatus||'Available';
-    var statusCol='#22c55e';var statusIcon='✓';
-    if(status==='Booked Out'){statusCol='#eab308';statusIcon='⚠';}
-    else if(status==='In Shop'){statusCol='#ef4444';statusIcon='X';}
-    var btnsHtml='';
+    var statusCol,statusLabel,statusBg;
+    if(status==='Booked Out'){statusCol='#eab308';statusLabel='Booked Out';statusBg='rgba(234,179,8,.12)';}
+    else if(status==='In Shop'){statusCol='#ef4444';statusLabel='In Shop';statusBg='rgba(239,68,68,.1)';}
+    else{statusCol='#22c55e';statusLabel='Available';statusBg='rgba(34,197,94,.08)';}
+    var actionBtn='';
     if(status==='Available'){
-      btnsHtml='<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Booked Out\')">Mark Booked Out</button>'
-        +'<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'In Shop\')">Mark In Shop</button>';
+      actionBtn='<div style="display:flex;gap:4px;margin-top:6px">'
+        +'<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;color:#eab308;border-color:rgba(234,179,8,.4);flex:1" onclick="changeVehicleStatus(\''+v.vid+'\',\'Booked Out\')">Booked Out</button>'
+        +'<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);flex:1" onclick="changeVehicleStatus(\''+v.vid+'\',\'In Shop\')">In Shop</button>'
+        +'</div>';
     }else if(status==='Booked Out'){
-      btnsHtml='<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Available</button>';
+      actionBtn='<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:#22c55e;border-color:rgba(34,197,94,.4);width:100%;margin-top:6px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Available</button>';
     }else if(status==='In Shop'){
-      btnsHtml='<button class="btn btn-ghost btn-xs" style="font-size:10px;padding:2px 8px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Operational</button>';
+      actionBtn='<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:#22c55e;border-color:rgba(34,197,94,.4);width:100%;margin-top:6px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Operational</button>';
     }
-    html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)">'
-      +'<div><div style="font-weight:600;font-size:13px">'+v.name+'</div><div style="font-size:11px;color:var(--muted)">'+v.type+'</div></div>'
-      +'<div style="display:flex;gap:4px;align-items:center">'
-      +'<span class="badge" style="background:'+statusCol+'22;color:'+statusCol+';padding:4px 8px;font-size:11px;font-weight:600">'+statusIcon+' '+status+'</span>'
-      +'<div style="display:flex;gap:4px">'+btnsHtml+'</div>'
+    return '<div style="padding:10px 12px;background:'+statusBg+';border-radius:8px;border:1px solid var(--border);margin-bottom:6px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between">'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+v.color+'"></span>'
+      +'<div><div style="font-weight:600;font-size:13px">'+v.name+'</div><div style="font-size:10px;color:var(--muted)">'+v.type+'</div></div>'
       +'</div>'
+      +'<span style="font-size:11px;font-weight:700;color:'+statusCol+';background:'+statusCol+'18;padding:3px 10px;border-radius:12px;white-space:nowrap">'+statusLabel+'</span>'
+      +'</div>'
+      +(status==='In Shop'?'<div style="font-size:10px;color:#ef4444;margin-top:4px;font-style:italic">Auto-blocked on calendar until marked operational</div>':'')
+      +(status==='Booked Out'?'<div style="font-size:10px;color:#eab308;margin-top:4px;font-style:italic">Stays booked until manually cleared</div>':'')
+      +actionBtn
       +'</div>';
-  });
-  html+='</div>';
-  el.innerHTML=html;
+  }).join('');
 }
 
 function changeVehicleStatus(vid,newStatus){
@@ -3799,6 +3805,8 @@ function changeVehicleStatus(vid,newStatus){
     if(r.error)console.warn('Update vehicle status failed:',r.error.message);
   });
   renderDashVehicleStatus();
+  // Re-render calendar so blocks show/hide immediately
+  renderCal();
 }
 
 // Refresh just the Today's Jobs panel for whatever date the picker is on
@@ -4734,6 +4742,7 @@ function renderCal(){
   document.getElementById('cal-lbl').textContent=new Date(y,mo,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
   var today=new Date();
+  var todayISO=today.toISOString().split('T')[0];
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
   var g=document.getElementById('cal-grid');
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
@@ -4787,11 +4796,15 @@ function renderCal(){
       return '<div class="cal-dot '+cls+'" draggable="true" data-jid="'+j.id+'" data-evtype="'+ev.type+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+titleStr+'">'+icon+' '+timeStr+label+(j.address?' · '+(j.address||'').split(',')[0].substring(0,18):'')+'</div>';
     }).join('');
 
-    // Vehicle blocks for this day
+    // Vehicle blocks for this day (explicit blocks + In Shop auto-block)
     var vehDots='';
     vehicles.forEach(function(v){
       var b=(vehBlocks[v.vid]||{})[ds];
+      var inShop=(v.vehicleStatus==='In Shop');
+      var bookedOut=(v.vehicleStatus==='Booked Out');
       if(b){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': '+(b.reason||'Blocked')+(b.notes?' — '+b.notes:'')+'" onclick="event.stopPropagation()">🚫 '+v.name+'</div>';}
+      else if(inShop&&ds>=todayISO){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': In Shop / Not Operational" onclick="event.stopPropagation()">🔧 '+v.name+'</div>';}
+      else if(bookedOut&&ds>=todayISO){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': Booked Out" onclick="event.stopPropagation()">📋 '+v.name+'</div>';}
     });
 
     var countBadge=evs.length>0?'<span style="float:right;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:0 5px;line-height:16px;margin-top:1px">'+evs.length+'</span>':'';
@@ -9175,9 +9188,19 @@ function checkVehicleAvailability(serviceType, dateStr){
   if(!required)return {ok:true};
   var matching=vehicles.filter(function(v){return v.type===required;});
   if(!matching.length)return {ok:true};
-  var allBlocked=matching.every(function(v){return !!(vehBlocks[v.vid]&&vehBlocks[v.vid][dateStr]);});
+  var allBlocked=matching.every(function(v){
+    if(vehBlocks[v.vid]&&vehBlocks[v.vid][dateStr])return true;
+    if(v.vehicleStatus==='In Shop'||v.vehicleStatus==='Booked Out')return true;
+    return false;
+  });
   if(allBlocked){
-    var reasons=matching.map(function(v){var b=vehBlocks[v.vid][dateStr];return v.name+(b&&b.reason?' ('+b.reason+')':'');}).join(', ');
+    var reasons=matching.map(function(v){
+      var b=vehBlocks[v.vid]&&vehBlocks[v.vid][dateStr];
+      if(b)return v.name+(b.reason?' ('+b.reason+')':'');
+      if(v.vehicleStatus==='In Shop')return v.name+' (In Shop)';
+      if(v.vehicleStatus==='Booked Out')return v.name+' (Booked Out)';
+      return v.name;
+    }).join(', ');
     return {ok:false,msg:'⚠️ No '+required+' available on '+fd(dateStr)+'!\n'+reasons+'\n\nProceed anyway?'};
   }
   return {ok:true};
