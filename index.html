@@ -1005,7 +1005,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- VEHICLE STATUS STRIP -->
-  <div id="dash-vehicle-strip" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+  <div id="dash-vehicle-strip" style="position:relative;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
     <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;white-space:nowrap">🚗 Vehicles</div>
     <div id="dash-vehicle-status" style="display:flex;gap:8px;flex-wrap:wrap;flex:1"></div>
     <button class="btn btn-ghost btn-sm" onclick="go('vehicles')" style="font-size:10px;padding:3px 8px;white-space:nowrap">Manage →</button>
@@ -1124,7 +1124,7 @@ textarea{resize:vertical;min-height:80px;}
   </div>
 
   <!-- ROW 3: Overdue + Bins Out Long -->
-  <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+  <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
     <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🔴 OVERDUE PICKUPS</div>
