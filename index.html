@@ -311,9 +311,10 @@ body{
 .bin-book-btn:active{transform:scale(.95);box-shadow:none;background:rgba(34,197,94,.3);}
 .bin-dur-btn{flex:1;padding:5px 0;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.06);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s;}
 .bin-dur-btn:hover{background:rgba(34,197,94,.18);}
-.bin-quick-dur{padding:8px 14px;border-radius:8px;border:1px solid rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap;}
-.bin-quick-dur:hover{background:rgba(34,197,94,.25);transform:translateY(-1px);}
+.bin-quick-dur{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .1s;white-space:nowrap;}
+.bin-quick-dur:hover{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.4);color:#22c55e;transform:translateY(-1px);}
 .bin-quick-dur:active{transform:scale(.96);}
+.bin-quick-dur.active{background:#22c55e;color:#fff;border-color:#22c55e;}
 .bin-stat-value{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:1px;line-height:1;}
 .bin-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
 .bin-stat-card.out .bin-stat-value{color:#ef4444;}.bin-stat-card.in .bin-stat-value{color:#22c55e;}
@@ -427,7 +428,7 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:820px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:36px;transform:translateY(16px);transition:transform .2s;}
 .modal-overlay.open .modal{transform:translateY(0);}
-.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:linear-gradient(180deg,rgba(34,197,94,.03) 0%,var(--surface) 15%);}
+.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:var(--surface);overflow-y:auto;}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid rgba(34,197,94,.2);}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1.5px;color:var(--accent);}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:44px;height:44px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
@@ -773,8 +774,7 @@ textarea{resize:vertical;min-height:80px;}
   line-height:1.4;
 }
 .atab:hover{ color:var(--text); }
-.atab.active{ color:#0a0a0a; font-weight:600; }
-.atab.active{ color:#fff; }
+.atab.active{ color:#fff; font-weight:600; background:#22c55e; border-radius:999px; }
 
 /* The sliding green pill behind the active tab */
 .atabs-highlight{
@@ -1056,9 +1056,9 @@ textarea{resize:vertical;min-height:80px;}
 
   </div>
 
-  <!-- ROW: Pricing + Vehicle Status -->
+  <!-- ROW: Pricing + Pickup Confirmations side-by-side -->
   <div class="dash-section dash-s1b" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
-    <!-- LEFT: My Pricing (moved here) -->
+    <!-- LEFT: My Pricing -->
     <div class="chart-card" style="padding:0;overflow:hidden;">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
@@ -1070,8 +1070,14 @@ textarea{resize:vertical;min-height:80px;}
       </div>
       <div id="dash-pricing-display" style="padding:10px 14px;"></div>
     </div>
-    <!-- RIGHT: empty (Vehicle Status moved to top strip) -->
-    <div></div>
+    <!-- RIGHT: Pickup Confirmations -->
+    <div class="chart-card" style="padding:0;overflow:visible;">
+      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups · furniture pickups &amp; drop-offs</div>
+      </div>
+      <div id="dash-callback-list" style="padding:10px 12px;"></div>
+    </div>
   </div>
 
   <!-- ROW 1: hidden stubs to keep JS happy -->
@@ -1094,15 +1100,8 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ROW 2: Pickup Confirmations + Bins Currently Out side-by-side -->
-  <div class="dash-section dash-s3" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
-    <div class="chart-card" style="padding:0;overflow:visible;">
-      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups · furniture pickups &amp; drop-offs</div>
-      </div>
-      <div id="dash-callback-list" style="padding:10px 12px;"></div>
-    </div>
+  <!-- ROW 2: Bins Currently Out — full width -->
+  <div class="dash-section dash-s3" style="margin-bottom:24px;">
     <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div>
@@ -3803,25 +3802,23 @@ function updateDashBinStatsDirect(){refreshDashBinStats();}
 function renderDashVehicleStatus(){
   var el=document.getElementById('dash-vehicle-status');if(!el)return;
   if(!vehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
+  var todayS=todayStr();
   el.innerHTML=vehicles.map(function(v){
-    var status=v.vehicleStatus||'Available';
-    var statusCol,statusIcon,statusTip;
-    if(status==='Booked Out'){statusCol='#eab308';statusIcon='📋';statusTip='Booked Out — click to change';}
-    else if(status==='In Shop'){statusCol='#ef4444';statusIcon='🔧';statusTip='In Shop — auto-blocked on calendar';}
-    else{statusCol='#22c55e';statusIcon='';statusTip='Available — click to change';}
+    // Derive status from blocked days (single source of truth)
+    var blocks=vehBlocks[v.vid]||{};
+    var todayBlock=blocks[todayS];
+    var status,statusCol,statusIcon,statusTip;
+    if(todayBlock){
+      status=todayBlock.reason||'Blocked';
+      statusCol='#ef4444';statusIcon='🔧';statusTip=status+(todayBlock.notes?' — '+todayBlock.notes:'')+' · click to manage';
+    } else {
+      status='Available';statusCol='#22c55e';statusIcon='';statusTip='Available · click to manage blocked days';
+    }
     var dotColor=statusCol;
-    // Build dropdown menu for status change
-    var menuId='veh-menu-'+v.vid;
-    var menu='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:130px;box-shadow:0 4px 12px rgba(0,0,0,.2);margin-top:4px">'
-      +(status!=='Available'?'<div style="padding:5px 10px;font-size:11px;cursor:pointer;border-radius:4px;white-space:nowrap;color:#22c55e" onmouseenter="this.style.background=\'rgba(34,197,94,.1)\'" onmouseleave="this.style.background=\'none\'" onclick="event.stopPropagation();changeVehicleStatus(\''+v.vid+'\',\'Available\');closeVehMenus()">✅ Available</div>':'')
-      +(status!=='Booked Out'?'<div style="padding:5px 10px;font-size:11px;cursor:pointer;border-radius:4px;white-space:nowrap;color:#eab308" onmouseenter="this.style.background=\'rgba(234,179,8,.1)\'" onmouseleave="this.style.background=\'none\'" onclick="event.stopPropagation();changeVehicleStatus(\''+v.vid+'\',\'Booked Out\');closeVehMenus()">📋 Booked Out</div>':'')
-      +(status!=='In Shop'?'<div style="padding:5px 10px;font-size:11px;cursor:pointer;border-radius:4px;white-space:nowrap;color:#ef4444" onmouseenter="this.style.background=\'rgba(239,68,68,.1)\'" onmouseleave="this.style.background=\'none\'" onclick="event.stopPropagation();changeVehicleStatus(\''+v.vid+'\',\'In Shop\');closeVehMenus()">🔧 In Shop</div>':'')
-      +'</div>';
-    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="toggleVehMenu(\''+menuId+'\')">'
+    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="go(\'vehicles\')">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
       +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
       +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
-      +menu
       +'</div>';
   }).join('');
 }
@@ -4837,15 +4834,11 @@ function renderCal(){
       return '<div class="cal-dot '+cls+'" draggable="true" data-jid="'+j.id+'" data-evtype="'+ev.type+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+titleStr+'">'+icon+' '+timeStr+label+(j.address?' · '+(j.address||'').split(',')[0].substring(0,18):'')+'</div>';
     }).join('');
 
-    // Vehicle blocks for this day (explicit blocks + In Shop auto-block)
+    // Vehicle blocks for this day (from blocking days system only)
     var vehDots='';
     vehicles.forEach(function(v){
       var b=(vehBlocks[v.vid]||{})[ds];
-      var inShop=(v.vehicleStatus==='In Shop');
-      var bookedOut=(v.vehicleStatus==='Booked Out');
       if(b){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': '+(b.reason||'Blocked')+(b.notes?' — '+b.notes:'')+'" onclick="event.stopPropagation()">🚫 '+v.name+'</div>';}
-      else if(inShop&&ds>=todayISO){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': In Shop / Not Operational" onclick="event.stopPropagation()">🔧 '+v.name+'</div>';}
-      else if(bookedOut&&ds>=todayISO){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': Booked Out" onclick="event.stopPropagation()">📋 '+v.name+'</div>';}
     });
 
     var countBadge=evs.length>0?'<span style="float:right;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:0 5px;line-height:16px;margin-top:1px">'+evs.length+'</span>':'';
@@ -7123,7 +7116,12 @@ function toggleBin(){
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
-  if(isBin) setTimeout(function(){initBinPicker('','');},50);
+  if(isBin){
+    // Auto-fill drop-off date to today if empty
+    var bdrop=document.getElementById('f-bdrop');
+    if(bdrop&&!bdrop.value) bdrop.value=new Date().toISOString().split('T')[0];
+    setTimeout(function(){initBinPicker('','');},50);
+  }
 }
 function newJob(){
   editId=null;
@@ -7152,6 +7150,7 @@ function newJob(){
   var junkRecInt=document.getElementById('f-junk-recur-interval');if(junkRecInt)junkRecInt.value='biweekly';
   var junkRecExtra=document.getElementById('junk-recurring-extra');if(junkRecExtra)junkRecExtra.style.display='none';
   window._binPresetDays=0;
+  document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
   var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='none';
   var bpa=document.getElementById('bin-picker-arrow');if(bpa)bpa.style.transform='rotate(0deg)';
   document.getElementById('job-modal').classList.add('open');
@@ -7239,14 +7238,20 @@ function showMaterialType(){
 }
 
 function setBinDuration(days){
-  var drop=document.getElementById('f-bdrop').value;
-  if(!drop){toast('Set drop-off date first','warn');return;}
+  var bdrop=document.getElementById('f-bdrop');
+  if(!bdrop.value) bdrop.value=new Date().toISOString().split('T')[0];
+  var drop=bdrop.value;
   var d=new Date(drop+'T12:00:00');
   d.setDate(d.getDate()+days);
   document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
   var label=days===30?'1 month':days+' days';
   document.getElementById('f-bdur').value=label;
   window._binPresetDays=days;
+  // Highlight active duration button
+  document.querySelectorAll('.bin-quick-dur').forEach(function(b){
+    var btnDays=b.textContent.trim()==='1 Month'?30:parseInt(b.textContent);
+    b.classList.toggle('active',btnDays===days);
+  });
 }
 function applyBinPresetDuration(){
   var days=window._binPresetDays;if(!days)return;
@@ -7301,10 +7306,8 @@ function bookBin(size, presetDays){
   setTimeout(function(){
     initBinPicker('', size);
     if(presetDays){
-      // Store preset so it auto-fills when drop-off date is set
-      window._binPresetDays=presetDays;
-      var label=presetDays===30?'1 month':presetDays+' days';
-      document.getElementById('f-bdur').value=label;
+      // Auto-fill drop-off to today and calculate pickup
+      setBinDuration(presetDays);
     }
   },100);
 }
@@ -9251,15 +9254,12 @@ function checkVehicleAvailability(serviceType, dateStr){
   if(!matching.length)return {ok:true};
   var allBlocked=matching.every(function(v){
     if(vehBlocks[v.vid]&&vehBlocks[v.vid][dateStr])return true;
-    if(v.vehicleStatus==='In Shop'||v.vehicleStatus==='Booked Out')return true;
     return false;
   });
   if(allBlocked){
     var reasons=matching.map(function(v){
       var b=vehBlocks[v.vid]&&vehBlocks[v.vid][dateStr];
       if(b)return v.name+(b.reason?' ('+b.reason+')':'');
-      if(v.vehicleStatus==='In Shop')return v.name+' (In Shop)';
-      if(v.vehicleStatus==='Booked Out')return v.name+' (Booked Out)';
       return v.name;
     }).join(', ');
     return {ok:false,msg:'⚠️ No '+required+' available on '+fd(dateStr)+'!\n'+reasons+'\n\nProceed anyway?'};
