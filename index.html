@@ -1002,6 +1002,13 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
+  <!-- VEHICLE STATUS STRIP -->
+  <div id="dash-vehicle-strip" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;white-space:nowrap">🚗 Vehicles</div>
+    <div id="dash-vehicle-status" style="display:flex;gap:8px;flex-wrap:wrap;flex:1"></div>
+    <button class="btn btn-ghost btn-sm" onclick="go('vehicles')" style="font-size:10px;padding:3px 8px;white-space:nowrap">Manage →</button>
+  </div>
+
   <!-- ROW HERO: Bin Fleet (left) + Today's Jobs (right) — side by side -->
   <div class="dash-section dash-s1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
 
@@ -1056,14 +1063,8 @@ textarea{resize:vertical;min-height:80px;}
       </div>
       <div id="dash-pricing-display" style="padding:10px 14px;"></div>
     </div>
-    <!-- RIGHT: Vehicle Status -->
-    <div class="chart-card" style="padding:0;overflow:hidden;">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">🚗 VEHICLE STATUS</div>
-        <button class="btn btn-ghost btn-sm" onclick="go('vehicles')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">Manage Vehicles →</button>
-      </div>
-      <div id="dash-vehicle-status" style="padding:10px 14px;"></div>
-    </div>
+    <!-- RIGHT: empty (Vehicle Status moved to top strip) -->
+    <div></div>
   </div>
 
   <!-- ROW 1: hidden stubs to keep JS happy -->
@@ -3743,11 +3744,11 @@ async function refreshDashBinStats(){
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
-    var watermark=imgUrl?'<div style="position:absolute;bottom:0;right:0;width:100px;height:100px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:bottom right;background-size:contain;opacity:0.15;pointer-events:none"></div>':'';
+    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.15;pointer-events:none"></div>':'';
     return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
       +watermark
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900">'+s.toUpperCase()+'</div>'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:#22c55e;margin-bottom:2px;text-shadow:0 4px 16px rgba(34,197,94,.25)">'+inY+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:#22c55e;margin-bottom:2px;text-shadow:0 4px 16px rgba(34,197,94,.25);position:relative;z-index:1">'+inY+'</div>'
       +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
       +'<div style="display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);padding-top:10px">'
       +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#ef4444;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
@@ -3764,38 +3765,41 @@ function updateDashBinStatsDirect(){refreshDashBinStats();}
 
 function renderDashVehicleStatus(){
   var el=document.getElementById('dash-vehicle-status');if(!el)return;
-  if(!vehicles.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:12px">No vehicles added yet</div>';return;}
+  if(!vehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
   el.innerHTML=vehicles.map(function(v){
     var status=v.vehicleStatus||'Available';
-    var statusCol,statusLabel,statusBg;
-    if(status==='Booked Out'){statusCol='#eab308';statusLabel='Booked Out';statusBg='rgba(234,179,8,.12)';}
-    else if(status==='In Shop'){statusCol='#ef4444';statusLabel='In Shop';statusBg='rgba(239,68,68,.1)';}
-    else{statusCol='#22c55e';statusLabel='Available';statusBg='rgba(34,197,94,.08)';}
-    var actionBtn='';
-    if(status==='Available'){
-      actionBtn='<div style="display:flex;gap:4px;margin-top:6px">'
-        +'<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;color:#eab308;border-color:rgba(234,179,8,.4);flex:1" onclick="changeVehicleStatus(\''+v.vid+'\',\'Booked Out\')">Booked Out</button>'
-        +'<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);flex:1" onclick="changeVehicleStatus(\''+v.vid+'\',\'In Shop\')">In Shop</button>'
-        +'</div>';
-    }else if(status==='Booked Out'){
-      actionBtn='<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:#22c55e;border-color:rgba(34,197,94,.4);width:100%;margin-top:6px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Available</button>';
-    }else if(status==='In Shop'){
-      actionBtn='<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:#22c55e;border-color:rgba(34,197,94,.4);width:100%;margin-top:6px" onclick="changeVehicleStatus(\''+v.vid+'\',\'Available\')">Mark Operational</button>';
-    }
-    return '<div style="padding:10px 12px;background:'+statusBg+';border-radius:8px;border:1px solid var(--border);margin-bottom:6px">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between">'
-      +'<div style="display:flex;align-items:center;gap:8px">'
-      +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+v.color+'"></span>'
-      +'<div><div style="font-weight:600;font-size:13px">'+v.name+'</div><div style="font-size:10px;color:var(--muted)">'+v.type+'</div></div>'
-      +'</div>'
-      +'<span style="font-size:11px;font-weight:700;color:'+statusCol+';background:'+statusCol+'18;padding:3px 10px;border-radius:12px;white-space:nowrap">'+statusLabel+'</span>'
-      +'</div>'
-      +(status==='In Shop'?'<div style="font-size:10px;color:#ef4444;margin-top:4px;font-style:italic">Auto-blocked on calendar until marked operational</div>':'')
-      +(status==='Booked Out'?'<div style="font-size:10px;color:#eab308;margin-top:4px;font-style:italic">Stays booked until manually cleared</div>':'')
-      +actionBtn
+    var statusCol,statusIcon,statusTip;
+    if(status==='Booked Out'){statusCol='#eab308';statusIcon='📋';statusTip='Booked Out — click to change';}
+    else if(status==='In Shop'){statusCol='#ef4444';statusIcon='🔧';statusTip='In Shop — auto-blocked on calendar';}
+    else{statusCol='#22c55e';statusIcon='';statusTip='Available — click to change';}
+    var dotColor=statusCol;
+    // Build dropdown menu for status change
+    var menuId='veh-menu-'+v.vid;
+    var menu='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:130px;box-shadow:0 4px 12px rgba(0,0,0,.2);margin-top:4px">'
+      +(status!=='Available'?'<div style="padding:5px 10px;font-size:11px;cursor:pointer;border-radius:4px;white-space:nowrap;color:#22c55e" onmouseenter="this.style.background=\'rgba(34,197,94,.1)\'" onmouseleave="this.style.background=\'none\'" onclick="event.stopPropagation();changeVehicleStatus(\''+v.vid+'\',\'Available\');closeVehMenus()">✅ Available</div>':'')
+      +(status!=='Booked Out'?'<div style="padding:5px 10px;font-size:11px;cursor:pointer;border-radius:4px;white-space:nowrap;color:#eab308" onmouseenter="this.style.background=\'rgba(234,179,8,.1)\'" onmouseleave="this.style.background=\'none\'" onclick="event.stopPropagation();changeVehicleStatus(\''+v.vid+'\',\'Booked Out\');closeVehMenus()">📋 Booked Out</div>':'')
+      +(status!=='In Shop'?'<div style="padding:5px 10px;font-size:11px;cursor:pointer;border-radius:4px;white-space:nowrap;color:#ef4444" onmouseenter="this.style.background=\'rgba(239,68,68,.1)\'" onmouseleave="this.style.background=\'none\'" onclick="event.stopPropagation();changeVehicleStatus(\''+v.vid+'\',\'In Shop\');closeVehMenus()">🔧 In Shop</div>':'')
+      +'</div>';
+    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="toggleVehMenu(\''+menuId+'\')">'
+      +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
+      +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
+      +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
+      +menu
       +'</div>';
   }).join('');
 }
+function toggleVehMenu(menuId){
+  var m=document.getElementById(menuId);if(!m)return;
+  var wasOpen=m.style.display!=='none';
+  closeVehMenus();
+  if(!wasOpen)m.style.display='block';
+}
+function closeVehMenus(){
+  document.querySelectorAll('[id^="veh-menu-"]').forEach(function(el){el.style.display='none';});
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('[id^="veh-menu-"]')&&!e.target.closest('#dash-vehicle-status'))closeVehMenus();
+});
 
 function changeVehicleStatus(vid,newStatus){
   var v=vehicles.find(function(vv){return vv.vid===vid;});
