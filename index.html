@@ -311,7 +311,7 @@ body{
 .bin-book-btn:active{transform:scale(.95);box-shadow:none;background:rgba(34,197,94,.3);}
 .bin-dur-btn{flex:1;padding:5px 0;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.06);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s;}
 .bin-dur-btn:hover{background:rgba(34,197,94,.18);}
-.bin-quick-dur{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .1s;white-space:nowrap;}
+.bin-quick-dur{padding:12px 20px;border-radius:10px;border:2px solid rgba(34,197,94,.4);background:rgba(34,197,94,.08);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .1s;white-space:nowrap;}
 .bin-quick-dur:hover{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.4);color:#22c55e;transform:translateY(-1px);}
 .bin-quick-dur:active{transform:scale(.96);}
 .bin-quick-dur.active{background:#22c55e;color:#fff;border-color:#22c55e;}
@@ -424,8 +424,9 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 .svc-delivery{background:rgba(239,68,68,.12);color:var(--c-furn);}
 
 /* ── MODAL ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
+body.modal-open,body:has(.modal-overlay.open){overflow:hidden;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:820px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:36px;transform:translateY(16px);transition:transform .2s;}
 .modal-overlay.open .modal{transform:translateY(0);}
 .modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:var(--surface);overflow-y:auto;}
@@ -2089,17 +2090,17 @@ textarea{resize:vertical;min-height:80px;}
           <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
         </div>
         <input type="hidden" id="f-status" value="Pending">
-        <div class="form-group"><label>Customer Name <span style="color:#ef4444">*</span></label><input id="f-name" type="text" placeholder="Full name" oninput="clearErr('f-name')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-name">Customer name is required.</div></div>
-        <div class="form-group"><label>Phone</label><input id="f-phone" type="tel" placeholder="(123) 456-7890"></div>
+        <div class="form-group"><label>Customer Name <span style="color:#ef4444">*</span></label><input id="f-name" type="text" oninput="clearErr('f-name')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-name">Customer name is required.</div></div>
+        <div class="form-group"><label>Phone</label><input id="f-phone" type="tel"></div>
         <div class="form-group full">
           <label>Street Address</label>
           <div id="f-addr-picker" style="display:none;margin-bottom:8px">
             <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%">
             </select>
           </div>
-          <input id="f-addr" type="text" placeholder="123 Main St" onblur="this.value=toTitleCase(this.value)">
+          <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
         </div>
-        <div class="form-group"><label>City <span style="color:#ef4444">*</span></label><input id="f-city" type="text" placeholder="Barrie" oninput="clearErr('f-city')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
+        <div class="form-group"><label>City <span style="color:#ef4444">*</span></label><input id="f-city" type="text" oninput="clearErr('f-city')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
         <div class="form-group"><label>Province</label><input id="f-province" type="text" value="Ontario" readonly style="opacity:.6;cursor:not-allowed"></div>
         <div class="form-group"><label>Country</label><input id="f-country" type="text" value="Canada" readonly style="opacity:.6;cursor:not-allowed"></div>
         <div class="form-group"><label>Date <span style="color:#ef4444">*</span></label><input id="f-date" type="date" oninput="clearErr('f-date')"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
@@ -2109,7 +2110,9 @@ textarea{resize:vertical;min-height:80px;}
           <select id="f-referral" oninput="clearErr('f-referral')">
             <option value="">— Choose source —</option>
             <option>Google</option><option>Word of Mouth</option><option>Facebook</option>
-            <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option><option>Other</option>
+            <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option>
+            <option>Furniture Bank Lead</option><option>Home Show</option><option>City Bus</option>
+            <option>Community Partner Cards</option><option>Website</option><option>Other</option>
           </select>
           <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
         </div>
@@ -2149,7 +2152,7 @@ textarea{resize:vertical;min-height:80px;}
               <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="filterBinPicker('14 yard',this)">14 yd</button>
               <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="filterBinPicker('20 yard',this)">20 yd</button>
             </div>
-            <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:200px;overflow-y:auto;padding:4px 0"></div>
+            <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;padding:4px 0"></div>
           </div>
         </div>
 
@@ -2171,11 +2174,11 @@ textarea{resize:vertical;min-height:80px;}
 
         <!-- Duration + Quick presets inline -->
         <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
-          <div class="form-group" style="flex:1;min-width:100px"><label>Duration</label><input id="f-bdur" type="text" placeholder="e.g. 7 days"></div>
-          <div style="display:flex;gap:6px;padding-bottom:1px">
-            <button type="button" class="bin-quick-dur" onclick="setBinDuration(3)">3 Days</button>
-            <button type="button" class="bin-quick-dur" onclick="setBinDuration(7)">7 Days</button>
-            <button type="button" class="bin-quick-dur" onclick="setBinDuration(30)">1 Month</button>
+          <div class="form-group" style="flex:0 0 80px;min-width:80px"><label>Duration</label><input id="f-bdur" type="text" placeholder="" style="text-align:center;font-size:13px;padding:8px 6px"></div>
+          <div style="display:flex;gap:8px;padding-bottom:1px;flex:1">
+            <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(3)">3 Days</button>
+            <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(7)">7 Days</button>
+            <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(30)">1 Month</button>
           </div>
         </div>
 
@@ -2209,8 +2212,8 @@ textarea{resize:vertical;min-height:80px;}
           <div style="font-size:11px;color:var(--muted);margin-top:4px">When the job is marked done, you can quickly schedule the next visit.</div>
         </div>
       </div>
-      <div id="tools-needed-wrap" style="display:none" class="form-group full"><label>Tools Needed</label><input id="f-tools" type="text" placeholder="e.g. Dolly, Straps, Mattress Bag..."></div>
-      <div class="form-group full" style="margin-top:16px"><label>Notes</label><textarea id="f-notes" placeholder="Job details..." rows="3"></textarea></div>
+      <div id="tools-needed-wrap" style="display:none" class="form-group full"><label>Tools Needed</label><input id="f-tools" type="text" placeholder=""></div>
+      <div class="form-group full" style="margin-top:16px"><label>Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#ef4444;"></div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeM('job-modal')">Cancel</button>
@@ -2378,7 +2381,9 @@ textarea{resize:vertical;min-height:80px;}
           <select id="c-referral">
             <option value="">— Choose source —</option>
             <option>Google</option><option>Word of Mouth</option><option>Facebook</option>
-            <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option><option>Other</option>
+            <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option>
+            <option>Furniture Bank Lead</option><option>Home Show</option><option>City Bus</option>
+            <option>Community Partner Cards</option><option>Website</option><option>Other</option>
           </select>
           <div class="field-error-msg" id="err-c-referral">Referral source is required.</div>
         </div>
@@ -2910,13 +2915,42 @@ function saveVehBlocks(vid) {
       if(r.error){ console.warn('vehBlocks delete failed:', r.error.message); return; }
       if(!dates.length) return;
       var rows = dates.map(function(d){
-        return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||''};
+        return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null};
       });
       db.from('vehicle_blocks').insert(rows).then(function(r2){
         if(r2.error) console.warn('vehBlocks insert failed:', r2.error.message);
       });
     });
   } catch(e){ console.warn('vehBlocks sync error:',e); }
+}
+
+/** Extend open-ended vehicle blocks to include today. Called on data load. */
+function extendOpenBlocks(){
+  var today=todayStr();
+  var changed=[];
+  Object.keys(vehBlocks).forEach(function(vid){
+    var blocks=vehBlocks[vid];
+    // Find the latest open-ended block for this vehicle
+    var openDates=Object.keys(blocks).filter(function(d){return blocks[d].openEnded;}).sort();
+    if(!openDates.length)return;
+    var openFrom=blocks[openDates[0]].openFrom||openDates[0];
+    var reason=blocks[openDates[0]].reason;
+    var notes=blocks[openDates[0]].notes;
+    // Fill in any missing days from openFrom to today
+    var cur=new Date(openFrom+'T12:00:00');
+    var end=new Date(today+'T12:00:00');
+    var added=false;
+    while(cur<=end){
+      var ds=cur.toISOString().split('T')[0];
+      if(!blocks[ds]){
+        blocks[ds]={reason:reason,notes:notes,openEnded:true,openFrom:openFrom};
+        added=true;
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+    if(added)changed.push(vid);
+  });
+  changed.forEach(function(vid){saveVehBlocks(vid);});
 }
 
 function saveGeo() {
@@ -2998,12 +3032,13 @@ async function loadAllFromSupabase() {
         vehBlocks = {};
         (rvehBlocks.data||[]).forEach(function(r){
           if(!vehBlocks[r.vid]) vehBlocks[r.vid] = {};
-          vehBlocks[r.vid][r.date] = {reason:r.reason||'', notes:r.notes||''};
+          vehBlocks[r.vid][r.date] = {reason:r.reason||'', notes:r.notes||'', openEnded:!!r.open_ended, openFrom:r.open_from||null};
         });
       }
     } catch(e) {
       console.warn('Vehicles load error:', e);
     }
+    extendOpenBlocks();
 
     // Clients now load on-demand via search — no background loading needed
     clients = [];
@@ -3775,7 +3810,7 @@ async function refreshDashBinStats(){
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
-    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.13;pointer-events:none"></div>':'';
+    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.11;pointer-events:none"></div>':'';
     return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
       +watermark
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
@@ -3815,12 +3850,41 @@ function renderDashVehicleStatus(){
       status='Available';statusCol='#22c55e';statusIcon='';statusTip='Available · click to manage blocked days';
     }
     var dotColor=statusCol;
-    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="go(\'vehicles\')">'
+    var menuId='veh-menu-'+v.vid;
+    var menuHtml='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;min-width:180px;overflow:hidden">'
+      +(todayBlock
+        ?'<div style="padding:8px 14px;font-size:12px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'rgba(34,197,94,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();markVehicleOperational(\''+v.vid+'\')">✅ Mark Operational</div>'
+        :'<div style="padding:8px 14px;font-size:12px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'rgba(239,68,68,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();markVehicleNotOperational(\''+v.vid+'\')">🔧 Not Operational</div>')
+      +'<div style="padding:8px 14px;font-size:12px;cursor:pointer;border-top:1px solid var(--border);transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeVehMenus();go(\'vehicles\')">📋 Manage Vehicles</div>'
+    +'</div>';
+    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="event.stopPropagation();toggleVehMenu(\''+menuId+'\')">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
       +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
       +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
+      +menuHtml
       +'</div>';
   }).join('');
+}
+
+function markVehicleNotOperational(vid){
+  closeVehMenus();
+  var today=todayStr();
+  if(!vehBlocks[vid])vehBlocks[vid]={};
+  vehBlocks[vid][today]={reason:'Service / Repair',notes:'Marked not operational from dashboard',openEnded:true,openFrom:today};
+  saveVehBlocks(vid);renderDashVehicleStatus();renderCal();
+  toast('Vehicle marked not operational (ongoing until you mark it operational).');
+}
+function markVehicleOperational(vid){
+  closeVehMenus();
+  var today=todayStr();
+  if(!vehBlocks[vid])return;
+  // Remove today's block and all future open-ended blocks
+  var toRemove=Object.keys(vehBlocks[vid]).filter(function(d){return d>=today&&vehBlocks[vid][d].openEnded;});
+  toRemove.forEach(function(d){delete vehBlocks[vid][d];});
+  // Also clear today even if not open-ended
+  if(vehBlocks[vid][today])delete vehBlocks[vid][today];
+  saveVehBlocks(vid);renderDashVehicleStatus();renderCal();
+  toast('Vehicle marked operational.');
 }
 function toggleVehMenu(menuId){
   var m=document.getElementById(menuId);if(!m)return;
@@ -4331,7 +4395,16 @@ async function renderDashBinsOut(){
     if(!binJobMap[j.binBid]) binJobMap[j.binBid]={active:null,last:j};
     if(j.status!=='Done'&&j.status!=='Cancelled') binJobMap[j.binBid].active=j;
   });
-  el.innerHTML=outBins.map(function(b){
+  // Group bins by size
+  var grouped={};
+  outBins.forEach(function(b){
+    if(!grouped[b.size]) grouped[b.size]=[];
+    grouped[b.size].push(b);
+  });
+  var sizeOrder=['4 yard','7 yard','14 yard','20 yard'];
+  var sizeKeys=Object.keys(grouped).sort(function(a,b){return (sizeOrder.indexOf(a)===-1?99:sizeOrder.indexOf(a))-(sizeOrder.indexOf(b)===-1?99:sizeOrder.indexOf(b));});
+
+  function renderBinCard(b){
     var entry=binJobMap[b.bid];
     var curJob=entry?entry.active:null;
     var lastJob=entry?entry.last:null;
@@ -4345,21 +4418,29 @@ async function renderDashBinsOut(){
     var pickDate=job?job.binPickup:'';
     var daysOut='';
     if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
-    // Name display: active job, stale job (greyed), or not linked
     var nameHtml;
     if(curJob){ nameHtml='<strong style="font-size:13px">'+name+'</strong>'; }
     else if(lastJob){ nameHtml='<span style="font-size:13px;color:var(--muted)" title="Last job is completed — bin may need to be returned to yard">'+name+' <span style="font-size:10px;background:rgba(239,68,68,.1);color:#ef4444;padding:1px 6px;border-radius:4px">Job Done</span></span>'; }
     else { nameHtml='<span style="font-size:12px;color:var(--muted);font-style:italic">Not linked to a job</span> <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:11px;padding:2px 8px">🔗 Link</button>'; }
     return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+(curJob?'#ef4444':isStale?'#f59e0b':'var(--muted)')+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="'+(job?'openDetail(\''+job.id+'\')':'')+'">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        +'<span style="font-size:12px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+' · '+b.size+'</span>'
+        +'<span style="font-size:12px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+'</span>'
         +nameHtml
         +(phone?'<span style="font-size:11px;color:var(--muted)">'+phone+'</span>':'')
         +(daysOut?'<span style="font-size:11px;color:var(--muted);margin-left:auto">'+daysOut+'</span>':'')
       +'</div>'
       +(addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+addr+(city?' · '+city:'')+(pickDate?' · Pickup: '+fd(pickDate):'')+'</div>':'')
     +'</div>';
-  }).join('');
+  }
+
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">'
+    +sizeKeys.map(function(sz){
+      return '<div>'
+        +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--border)">'+sz+' <span style="font-size:11px;font-weight:600;color:var(--accent)">('+grouped[sz].length+')</span></div>'
+        +grouped[sz].map(renderBinCard).join('')
+      +'</div>';
+    }).join('')
+  +'</div>';
 }
 
 // ── CONFIRM JOB quick action ──────────────────────────────
@@ -7107,7 +7188,8 @@ function validateClient(){
 }
 
 // ─── JOB MODALS ───
-function closeM(id){document.getElementById(id).classList.remove('open');}
+function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
+function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
 function toggleBin(){
   var svc=document.getElementById('f-svc').value;
   var isBin=svc==='Bin Rental';
@@ -9151,20 +9233,21 @@ function addVehDateRange(vid){
     toast('⚠ End date can\'t be before the start date.');return;
   }
   if(toEl)toEl.style.borderColor='';
-  if(!to)to=from;
   if(!vehBlocks[vid])vehBlocks[vid]={};
   var reason=reasonEl?reasonEl.value:'Service / Repair';
   var notes=notesEl?notesEl.value.trim():'';
+  var openEnded=!to;
+  if(!to)to=todayStr();
   var cur=new Date(from+'T12:00:00');
   var end=new Date(to+'T12:00:00');
   var count=0;
   while(cur<=end){
     var ds=cur.toISOString().split('T')[0];
-    vehBlocks[vid][ds]={reason:reason,notes:notes};
+    vehBlocks[vid][ds]={reason:reason,notes:notes,openEnded:openEnded,openFrom:openEnded?from:undefined};
     cur.setDate(cur.getDate()+1);count++;
   }
   saveVehBlocks(vid);renderVehicles();
-  toast(count+' day'+(count!==1?'s':'')+' blocked for vehicle.');
+  toast(count+' day'+(count!==1?'s':'')+' blocked'+(openEnded?' (ongoing until manually ended)':'')+' for vehicle.');
 }
 function removeVehBlock(vid,date){
   if(!vehBlocks[vid])return;
