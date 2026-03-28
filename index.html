@@ -311,10 +311,11 @@ body{
 .bin-book-btn:active{transform:scale(.95);box-shadow:none;background:rgba(34,197,94,.3);}
 .bin-dur-btn{flex:1;padding:5px 0;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.06);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s;}
 .bin-dur-btn:hover{background:rgba(34,197,94,.18);}
-.bin-quick-dur{padding:12px 20px;border-radius:10px;border:2px solid rgba(34,197,94,.4);background:rgba(34,197,94,.08);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s,transform .1s;white-space:nowrap;}
-.bin-quick-dur:hover{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.4);color:#22c55e;transform:translateY(-1px);}
-.bin-quick-dur:active{transform:scale(.96);}
-.bin-quick-dur.active{background:#22c55e;color:#fff;border-color:#22c55e;}
+.bin-quick-dur{padding:12px 20px;border-radius:10px;border:2px solid rgba(34,197,94,.35);background:rgba(34,197,94,.06);color:#22c55e;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);white-space:nowrap;}
+.bin-quick-dur:hover{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.6);color:#16a34a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(34,197,94,.2);}
+.bin-quick-dur:active{transform:scale(.95);box-shadow:none;}
+.bin-quick-dur.active{background:#22c55e;color:#fff;border-color:#22c55e;box-shadow:0 4px 14px rgba(34,197,94,.35);transform:translateY(-1px);}
+@keyframes durPop{0%{transform:scale(.95)}50%{transform:scale(1.05)}100%{transform:scale(1) translateY(-1px)}}
 .bin-stat-value{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:1px;line-height:1;}
 .bin-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
 .bin-stat-card.out .bin-stat-value{color:#ef4444;}.bin-stat-card.in .bin-stat-value{color:#22c55e;}
@@ -3810,7 +3811,7 @@ async function refreshDashBinStats(){
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
-    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.11;pointer-events:none"></div>':'';
+    var watermark=imgUrl?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.30;pointer-events:none"></div>':'';
     return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
       +watermark
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
@@ -4422,14 +4423,16 @@ async function renderDashBinsOut(){
     if(curJob){ nameHtml='<strong style="font-size:13px">'+name+'</strong>'; }
     else if(lastJob){ nameHtml='<span style="font-size:13px;color:var(--muted)" title="Last job is completed — bin may need to be returned to yard">'+name+' <span style="font-size:10px;background:rgba(239,68,68,.1);color:#ef4444;padding:1px 6px;border-radius:4px">Job Done</span></span>'; }
     else { nameHtml='<span style="font-size:12px;color:var(--muted);font-style:italic">Not linked to a job</span> <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:11px;padding:2px 8px">🔗 Link</button>'; }
+    var pickupBtn=curJob?'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dashMarkPickedUp(\''+job.id+'\',\''+b.bid+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(34,197,94,.35);color:#22c55e;border-radius:6px;margin-left:auto;flex-shrink:0">✅ Picked Up</button>':'';
     return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+(curJob?'#ef4444':isStale?'#f59e0b':'var(--muted)')+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="'+(job?'openDetail(\''+job.id+'\')':'')+'">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:12px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+'</span>'
         +nameHtml
         +(phone?'<span style="font-size:11px;color:var(--muted)">'+phone+'</span>':'')
-        +(daysOut?'<span style="font-size:11px;color:var(--muted);margin-left:auto">'+daysOut+'</span>':'')
+        +(daysOut&&!pickupBtn?'<span style="font-size:11px;color:var(--muted);margin-left:auto">'+daysOut+'</span>':'')
+        +pickupBtn
       +'</div>'
-      +(addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+addr+(city?' · '+city:'')+(pickDate?' · Pickup: '+fd(pickDate):'')+'</div>':'')
+      +(addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+addr+(city?' · '+city:'')+(daysOut?' · '+daysOut:'')+(pickDate?' · Pickup: '+fd(pickDate):'')+'</div>':'')
     +'</div>';
   }
 
@@ -7208,6 +7211,7 @@ function toggleBin(){
 function newJob(){
   editId=null;
   _selectedClientObj=null;
+  window._binPresetDays=null;
   document.getElementById('modal-ttl').textContent='New Job';document.getElementById('save-btn').textContent='Save Job';
   document.getElementById('f-svc').value='';document.getElementById('f-status').value='Pending';
   document.getElementById('f-name').value='';document.getElementById('f-phone').value='';
@@ -7320,6 +7324,14 @@ function showMaterialType(){
 }
 
 function setBinDuration(days){
+  // Toggle off if same duration clicked again
+  if(window._binPresetDays===days){
+    window._binPresetDays=null;
+    document.getElementById('f-bdur').value='';
+    document.getElementById('f-bpick').value='';
+    document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
+    return;
+  }
   var bdrop=document.getElementById('f-bdrop');
   if(!bdrop.value) bdrop.value=new Date().toISOString().split('T')[0];
   var drop=bdrop.value;
@@ -7329,10 +7341,12 @@ function setBinDuration(days){
   var label=days===30?'1 month':days+' days';
   document.getElementById('f-bdur').value=label;
   window._binPresetDays=days;
-  // Highlight active duration button
+  // Highlight active duration button with animation
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){
     var btnDays=b.textContent.trim()==='1 Month'?30:parseInt(b.textContent);
-    b.classList.toggle('active',btnDays===days);
+    var isActive=btnDays===days;
+    b.classList.toggle('active',isActive);
+    if(isActive){b.style.animation='durPop .3s ease';setTimeout(function(){b.style.animation='';},300);}
   });
 }
 function applyBinPresetDuration(){
@@ -7388,10 +7402,10 @@ function bookBin(size, presetDays){
   setTimeout(function(){
     initBinPicker('', size);
     if(presetDays){
-      // Auto-fill drop-off to today and calculate pickup
+      window._binPresetDays=null; // Reset so setBinDuration doesn't toggle off
       setBinDuration(presetDays);
     }
-  },100);
+  },200);
 }
 function openEdit(id){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
@@ -7837,6 +7851,11 @@ function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransfer
 function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});save();toast('Marked as paid!');openDetail(id);refresh();}
 function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});save();toast('Marked complete!');openDetail(id);refresh();}
 function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.status='Done';j.binInstatus='pickedup';}});save();toast('Bin marked picked up!');refresh();}
+function dashMarkPickedUp(jobId,bid){
+  jobs.forEach(function(j){if(j.id===jobId){j.status='Done';j.binInstatus='pickedup';}});
+  binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
+  save();saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
+}
 function toast(msg, type) {
   var t = document.getElementById('toast');
   var isErr  = type === 'error'  || msg.indexOf('⚠') === 0 || msg.indexOf('⚠️') === 0 || msg.indexOf('Error') >= 0;
