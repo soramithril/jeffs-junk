@@ -1017,13 +1017,13 @@ textarea{resize:vertical;min-height:80px;}
       <div class="page-sub" id="today-lbl"></div>
     </div>
     <!-- Total Fleet Card — centered between title and button -->
-    <div id="dash-fleet-header" style="display:flex;align-items:center;gap:32px;padding:10px 52px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;">
-      <div style="display:flex;align-items:center;gap:28px;">
-        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:#ef4444" id="s-bins-out-fleet">0</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Out</div></div>
-        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:#22c55e" id="s-bins-in">0</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Yard</div></div>
-        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--text)" id="s-bins-total">0</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Total</div></div>
+    <div id="dash-fleet-header" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 48px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;">
+      <div style="display:flex;align-items:center;gap:32px;">
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:#ef4444" id="s-bins-out-fleet">0</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Out</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:#22c55e" id="s-bins-in">0</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Yard</div></div>
+        <div style="text-align:center"><div style="font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--text)" id="s-bins-total">0</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">Total</div></div>
       </div>
-      <div style="width:220px">
+      <div style="width:100%">
         <div style="height:6px;background:rgba(0,0,0,0.07);border-radius:3px"><div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:3px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
         <div id="s-bins-pct-lbl" style="font-size:9px;color:var(--muted);text-align:center;margin-top:2px">0% deployed</div>
       </div>
@@ -1139,7 +1139,7 @@ textarea{resize:vertical;min-height:80px;}
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🏆 DRIVER LEADERBOARD</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Safety &amp; efficiency scores from Geotab</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Safety scores &amp; event breakdown from Geotab</div>
         </div>
         <div style="position:relative;flex-shrink:0;">
           <select id="leaderboard-period" onchange="renderDriverLeaderboard()" style="appearance:none;-webkit-appearance:none;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:#15803d;padding:5px 28px 5px 10px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;outline:none;">
@@ -3994,6 +3994,9 @@ async function renderDriverLeaderboard(){
   var fromDate=new Date();fromDate.setDate(fromDate.getDate()-days);
   var fromStr=fromDate.toISOString().split('T')[0];
 
+  // Show loading state
+  el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">Loading...</div>';
+
   var res=await db.from('driver_scores').select('*').gte('period_date',fromStr).order('period_date',{ascending:false});
   var rows=res.data||[];
 
@@ -4001,30 +4004,30 @@ async function renderDriverLeaderboard(){
   var vidSet={};vehicles.forEach(function(v){vidSet[v.vid]=true;});
   rows=rows.filter(function(r){return vidSet[r.vid];});
 
+  var periodLabel=days===1?'Yesterday':(days+' Days');
+
   if(!rows.length){
-    el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No driver data yet. Scores are collected from Geotab every 6 hours.</div>';
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No safety data for '+periodLabel+'. Scores are collected from Geotab every 6 hours.</div>';
     return;
   }
 
   // Aggregate by vid
   var byVid={};
   rows.forEach(function(r){
-    if(!byVid[r.vid]) byVid[r.vid]={vid:r.vid,name:r.driver_name,days:0,safety:0,efficiency:0,overall:0,harshBrake:0,harshAccel:0,speeding:0,seatbelt:0,distance:0,idleMin:0,driveMin:0};
+    if(!byVid[r.vid]) byVid[r.vid]={vid:r.vid,name:r.driver_name,days:0,safety:0,harshBrake:0,harshAccel:0,speeding:0,seatbelt:0,distance:0,driveMin:0,idleMin:0};
     var d=byVid[r.vid];
     d.days++;d.name=r.driver_name||d.name;
-    d.safety+=Number(r.safety_score);d.efficiency+=Number(r.efficiency_score);
+    d.safety+=Number(r.safety_score);
     d.harshBrake+=r.harsh_braking;d.harshAccel+=r.harsh_accel;d.speeding+=r.speeding_events;d.seatbelt+=r.seatbelt_off;
-    d.distance+=Number(r.distance_km);d.idleMin+=r.idle_minutes;d.driveMin+=r.drive_minutes;
+    d.distance+=Number(r.distance_km);d.driveMin+=r.drive_minutes;d.idleMin+=r.idle_minutes;
   });
 
   var drivers=Object.values(byVid).map(function(d){
     d.avgSafety=d.days?Math.round(d.safety/d.days*10)/10:0;
-    d.avgEfficiency=d.days?Math.round(d.efficiency/d.days*10)/10:0;
-    // Overall: safety 65%, efficiency 35% (no productivity)
-    d.avgOverall=d.days?Math.round((d.avgSafety*0.65+d.avgEfficiency*0.35)*10)/10:0;
+    d.totalEvents=d.harshBrake+d.harshAccel+d.speeding+d.seatbelt;
     return d;
   });
-  drivers.sort(function(a,b){return b.avgOverall-a.avgOverall;});
+  drivers.sort(function(a,b){return b.avgSafety-a.avgSafety;});
 
   // Match vehicle colors
   var vehMap={};vehicles.forEach(function(v){vehMap[v.vid]={name:v.name,color:v.color};});
@@ -4033,46 +4036,52 @@ async function renderDriverLeaderboard(){
   el.innerHTML=drivers.map(function(d,i){
     var v=vehMap[d.vid]||{name:d.name,color:'#22c55e'};
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var scoreColor=d.avgOverall>=80?'#22c55e':d.avgOverall>=60?'#eab308':'#ef4444';
-    var safeColor=d.avgSafety>=80?'#22c55e':d.avgSafety>=60?'#eab308':'#ef4444';
-    var effColor=d.avgEfficiency>=80?'#22c55e':d.avgEfficiency>=60?'#eab308':'#ef4444';
-    var totalEvents=d.harshBrake+d.harshAccel+d.speeding+d.seatbelt;
+    var safeColor=d.avgSafety>=90?'#22c55e':d.avgSafety>=70?'#eab308':'#ef4444';
 
-    // Safety event breakdown rows
-    var safetyRows='';
-    if(d.harshBrake) safetyRows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0"><span>Hard Braking</span><span style="font-weight:700;color:#ef4444">'+d.harshBrake+'</span></div>';
-    if(d.harshAccel) safetyRows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0"><span>Hard Acceleration</span><span style="font-weight:700;color:#f97316">'+d.harshAccel+'</span></div>';
-    if(d.speeding) safetyRows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0"><span>Speeding</span><span style="font-weight:700;color:#eab308">'+d.speeding+'</span></div>';
-    if(d.seatbelt) safetyRows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0"><span>Seatbelt Off</span><span style="font-weight:700;color:#ef4444">'+d.seatbelt+'</span></div>';
-    if(!totalEvents) safetyRows='<div style="color:#22c55e;font-weight:600;text-align:center;padding:2px 0">Clean record</div>';
+    // Build event bars — always show all 4 categories
+    function evtRow(label,count,color,icon){
+      var barW=count?Math.min(100,count*15):0;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+        +'<div style="width:14px;text-align:center;font-size:11px">'+icon+'</div>'
+        +'<div style="width:100px;font-size:11px;color:var(--muted)">'+label+'</div>'
+        +'<div style="flex:1;height:6px;background:rgba(0,0,0,.05);border-radius:3px;min-width:60px"><div style="height:100%;width:'+barW+'%;background:'+color+';border-radius:3px;transition:width .3s"></div></div>'
+        +'<div style="width:28px;text-align:right;font-weight:700;font-size:12px;color:'+(count?color:'var(--muted)')+'">'+count+'</div>'
+      +'</div>';
+    }
 
-    return '<div style="display:flex;align-items:stretch;gap:0;border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--surface2);overflow:hidden;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 2px 12px rgba(34,197,94,.1)\'" onmouseout="this.style.boxShadow=\'none\'">'
-      // Left: rank + driver info
-      +'<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;flex:1;min-width:0">'
+    var evtHtml=evtRow('Hard Braking',d.harshBrake,'#ef4444','🛑')
+      +evtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
+      +evtRow('Speeding',d.speeding,'#eab308','🏎️')
+      +evtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓');
+
+    var cleanBadge=d.totalEvents===0?'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(34,197,94,.1);color:#16a34a;font-size:10px;font-weight:700;letter-spacing:.3px">✓ CLEAN RECORD</div>':'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(239,68,68,.08);color:#ef4444;font-size:10px;font-weight:700;letter-spacing:.3px">'+d.totalEvents+' event'+(d.totalEvents!==1?'s':'')+'</div>';
+
+    return '<div style="border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--surface2);overflow:hidden;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 2px 12px rgba(34,197,94,.1)\'" onmouseout="this.style.boxShadow=\'none\'">'
+      // Top row: rank, name, score
+      +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">'
         +'<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center">'+medal+'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:'+(v.color||'#22c55e')+'"></span>'+(v.name||d.name)+'</div>'
-          +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+Math.round(d.distance)+' km · '+d.days+' day'+(d.days!==1?'s':'')+(d.driveMin?' · '+Math.round(d.driveMin)+' min driving':'')+'</div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+Math.round(d.distance)+' km · '+d.days+' day'+(d.days!==1?'s':'')+(d.driveMin?' · '+Math.round(d.driveMin)+' min driving':'')+'</div>'
+        +'</div>'
+        +'<div style="text-align:center;flex-shrink:0">'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;color:'+safeColor+';line-height:1">'+d.avgSafety+'</div>'
+          +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Safety Score</div>'
         +'</div>'
       +'</div>'
-      // Center: Safety + Efficiency scores
-      +'<div style="display:flex;align-items:center;gap:16px;padding:14px 16px;border-left:1px solid var(--border)">'
-        +'<div style="text-align:center;min-width:58px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Safety</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+safeColor+';line-height:1.1">'+d.avgSafety+'</div></div>'
-        +'<div style="text-align:center;min-width:58px"><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Efficiency</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+effColor+';line-height:1.1">'+d.avgEfficiency+'</div></div>'
-      +'</div>'
-      // Overall score
-      +'<div style="text-align:center;min-width:72px;flex-shrink:0;border-left:1px solid var(--border);padding:14px 16px;display:flex;flex-direction:column;justify-content:center">'
-        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:34px;color:'+scoreColor+';line-height:1">'+d.avgOverall+'</div>'
-        +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Overall</div>'
-      +'</div>'
-      // Safety events detail panel
-      +'<div style="min-width:130px;flex-shrink:0;font-size:11px;color:var(--muted);border-left:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;justify-content:center;gap:1px;background:rgba(0,0,0,.015)">'
-        +'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;color:var(--muted)">Safety Events</div>'
-        +safetyRows
+      // Bottom row: event breakdown
+      +'<div style="padding:6px 16px 12px 58px;border-top:1px solid var(--border);background:rgba(0,0,0,.01)">'
+        +evtHtml
+        +cleanBadge
       +'</div>'
     +'</div>';
   }).join('');
 }
+// Ensure dropdown change fires even if inline onchange fails
+document.addEventListener('DOMContentLoaded',function(){
+  var sel=document.getElementById('leaderboard-period');
+  if(sel)sel.addEventListener('change',function(){renderDriverLeaderboard();});
+});
 
 async function renderDashMaintAlert(){
   var el=document.getElementById('dash-maint-alert');if(!el)return;
