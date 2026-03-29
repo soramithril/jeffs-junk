@@ -660,6 +660,16 @@ textarea{resize:vertical;min-height:80px;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.toast-error{border-color:#ef4444!important;color:#ef4444!important;background:#fff5f5!important;}
 .toast.toast-warn{border-color:#eab308!important;color:#eab308!important;background:#fefce8!important;}
+.bin-notify{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-100%);z-index:10000;padding:14px 28px;border-radius:0 0 14px 14px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.18);transition:transform .4s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;gap:10px;max-width:500px;cursor:pointer;}
+.bin-notify.show{transform:translateX(-50%) translateY(0);}
+.bin-notify.dropped{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:2px solid #15803d;border-top:none;}
+.bin-notify.pickedup{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:2px solid #1d4ed8;border-top:none;}
+.bin-notify .bn-icon{font-size:22px;flex-shrink:0;}
+.bin-notify .bn-body{display:flex;flex-direction:column;gap:1px;}
+.bin-notify .bn-title{font-size:14px;font-weight:700;letter-spacing:.3px;}
+.bin-notify .bn-sub{font-size:12px;opacity:.85;font-weight:500;}
+@keyframes binNotifyPulse{0%,100%{box-shadow:0 8px 32px rgba(0,0,0,.18)}50%{box-shadow:0 8px 32px rgba(34,197,94,.4)}}
+.bin-notify.show{animation:binNotifyPulse 2s ease 1;}
 .section-lbl{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
 
 
@@ -1018,6 +1028,9 @@ textarea{resize:vertical;min-height:80px;}
     <button class="btn btn-ghost btn-sm" onclick="go('vehicles')" style="font-size:10px;padding:3px 8px;white-space:nowrap">Manage →</button>
   </div>
 
+  <!-- MAINTENANCE ALERT BANNER -->
+  <div id="dash-maint-alert" style="display:none;margin-bottom:16px;padding:10px 16px;border-radius:10px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);font-size:13px;color:var(--text)"></div>
+
   <!-- ROW HERO: Bin Fleet (left) + Today's Jobs (right) — side by side -->
   <div class="dash-section dash-s1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
 
@@ -1113,6 +1126,24 @@ textarea{resize:vertical;min-height:80px;}
         <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
       </div>
       <div id="dash-bins-out-list" style="padding:10px 12px;"></div>
+    </div>
+  </div>
+
+  <!-- ROW: Driver Leaderboard -->
+  <div class="dash-section" style="margin-bottom:24px;">
+    <div class="chart-card" style="padding:0;overflow:visible;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🏆 DRIVER LEADERBOARD</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">7-day rolling scores from Geotab · Safety (50%) + Efficiency (25%) + Productivity (25%)</div>
+        </div>
+        <select id="leaderboard-period" onchange="renderDriverLeaderboard()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif">
+          <option value="7">Last 7 Days</option>
+          <option value="14">Last 14 Days</option>
+          <option value="30">Last 30 Days</option>
+        </select>
+      </div>
+      <div id="dash-leaderboard" style="padding:12px 16px;"></div>
     </div>
   </div>
 
@@ -2416,6 +2447,7 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="bin-notify" id="bin-notify"><span class="bn-icon"></span><div class="bn-body"><span class="bn-title"></span><span class="bn-sub"></span></div></div>
 
 <script>
 // ═══════════════════════════════════════
@@ -2454,6 +2486,41 @@ db.channel('realtime-all')
   .on('postgres_changes', {event:'*', schema:'public', table:'clients'}, _scheduleRealtimeRefresh)
   .on('postgres_changes', {event:'*', schema:'public', table:'bin_items'}, _scheduleRealtimeRefresh)
   .subscribe();
+
+// ── Bin Drop/Pickup Notification Banner ──
+db.channel('bin-status-notify')
+  .on('postgres_changes', {event:'UPDATE', schema:'public', table:'jobs', filter:'service=eq.Bin Rental'}, function(payload){
+    var newRow=payload.new, oldRow=payload.old;
+    if(!newRow||!oldRow) return;
+    var newStatus=newRow.bin_instatus||'';
+    var oldStatus=oldRow.bin_instatus||'';
+    if(newStatus===oldStatus) return;
+    if(newStatus!=='dropped'&&newStatus!=='pickedup') return;
+    showBinNotify(newStatus, newRow.customer_name||'Unknown', newRow.bin_bid||'', newRow.address||'', newRow.city||'', newRow.job_id||'');
+  })
+  .subscribe();
+
+function showBinNotify(status, name, binBid, addr, city, jobId){
+  var el=document.getElementById('bin-notify');if(!el)return;
+  var isDropped=status==='dropped';
+  el.className='bin-notify '+(isDropped?'dropped':'pickedup');
+  el.querySelector('.bn-icon').textContent=isDropped?'📦':'🚛';
+  var binLabel=binBid||'Bin';
+  // Try to find bin number from binItems
+  var binObj=binItems.find(function(b){return b.bid===binBid;});
+  if(binObj) binLabel=binObj.num+(binObj.size?' · '+binObj.size:'');
+  el.querySelector('.bn-title').textContent=isDropped
+    ? 'Bin Dropped Off — '+binLabel
+    : 'Bin Picked Up — '+binLabel;
+  var location=(addr||'').split(',')[0];
+  if(city&&location) location+=' · '+city;
+  el.querySelector('.bn-sub').textContent=name+(location?' — '+location:'');
+  el.onclick=function(){el.classList.remove('show');if(jobId)openDetail(jobId);};
+  // Show
+  clearTimeout(el._tid);
+  el.classList.add('show');
+  el._tid=setTimeout(function(){el.classList.remove('show');},8000);
+}
 
 // ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
 
@@ -3702,7 +3769,7 @@ function render(name){
   else if(name==='binmap') renderMap();
   else if(name==='advisor') renderAdvisor();
   else if(name==='bininventory') renderBinInventory();
-  else if(name==='vehicles'){renderVehicles();}
+  else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderMaintSections);}
   else if(name==='furniturebank'){renderDRD();}
 }
 function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
@@ -3910,6 +3977,103 @@ function changeVehicleStatus(vid,newStatus){
   renderDashVehicleStatus();
   // Re-render calendar so blocks show/hide immediately
   renderCal();
+}
+
+async function renderDriverLeaderboard(){
+  var el=document.getElementById('dash-leaderboard');if(!el)return;
+  var periodEl=document.getElementById('leaderboard-period');
+  var days=periodEl?parseInt(periodEl.value):7;
+  var fromDate=new Date();fromDate.setDate(fromDate.getDate()-days);
+  var fromStr=fromDate.toISOString().split('T')[0];
+
+  var res=await db.from('driver_scores').select('*').gte('period_date',fromStr).order('period_date',{ascending:false});
+  var rows=res.data||[];
+
+  if(!rows.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No driver data yet. Scores are collected from Geotab every 6 hours.</div>';
+    return;
+  }
+
+  // Aggregate by vid
+  var byVid={};
+  rows.forEach(function(r){
+    if(!byVid[r.vid]) byVid[r.vid]={vid:r.vid,name:r.driver_name,days:0,safety:0,efficiency:0,productivity:0,overall:0,harshBrake:0,harshAccel:0,speeding:0,seatbelt:0,distance:0,idleMin:0,driveMin:0};
+    var d=byVid[r.vid];
+    d.days++;d.name=r.driver_name||d.name;
+    d.safety+=Number(r.safety_score);d.efficiency+=Number(r.efficiency_score);d.productivity+=Number(r.productivity_score);d.overall+=Number(r.overall_score);
+    d.harshBrake+=r.harsh_braking;d.harshAccel+=r.harsh_accel;d.speeding+=r.speeding_events;d.seatbelt+=r.seatbelt_off;
+    d.distance+=Number(r.distance_km);d.idleMin+=r.idle_minutes;d.driveMin+=r.drive_minutes;
+  });
+
+  var drivers=Object.values(byVid).map(function(d){
+    d.avgSafety=d.days?Math.round(d.safety/d.days*10)/10:0;
+    d.avgEfficiency=d.days?Math.round(d.efficiency/d.days*10)/10:0;
+    d.avgProductivity=d.days?Math.round(d.productivity/d.days*10)/10:0;
+    d.avgOverall=d.days?Math.round(d.overall/d.days*10)/10:0;
+    return d;
+  });
+  drivers.sort(function(a,b){return b.avgOverall-a.avgOverall;});
+
+  // Match vehicle colors
+  var vehMap={};vehicles.forEach(function(v){vehMap[v.vid]={name:v.name,color:v.color};});
+
+  var medals=['🥇','🥈','🥉'];
+  el.innerHTML=drivers.map(function(d,i){
+    var v=vehMap[d.vid]||{name:d.name,color:'#22c55e'};
+    var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
+    var scoreColor=d.avgOverall>=80?'#22c55e':d.avgOverall>=60?'#eab308':'#ef4444';
+    var safeColor=d.avgSafety>=80?'#22c55e':d.avgSafety>=60?'#eab308':'#ef4444';
+    var effColor=d.avgEfficiency>=80?'#22c55e':d.avgEfficiency>=60?'#eab308':'#ef4444';
+    var prodColor=d.avgProductivity>=80?'#22c55e':d.avgProductivity>=60?'#eab308':'#ef4444';
+    var totalEvents=d.harshBrake+d.harshAccel+d.speeding+d.seatbelt;
+
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface2);transition:background .15s" onmouseover="this.style.background=\'rgba(34,197,94,.04)\'" onmouseout="this.style.background=\'var(--surface2)\'">'
+      // Rank
+      +'<div style="font-size:20px;flex-shrink:0;width:28px;text-align:center">'+medal+'</div>'
+      // Driver name & vehicle
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:'+(v.color||'#22c55e')+'"></span>'+(v.name||d.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+Math.round(d.distance)+' km driven · '+d.days+' day'+(d.days!==1?'s':'')+'</div>'
+      +'</div>'
+      // Score bars
+      +'<div style="display:flex;gap:12px;align-items:center;flex-shrink:0">'
+        +'<div style="text-align:center;min-width:55px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Safety</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+safeColor+'">'+d.avgSafety+'</div></div>'
+        +'<div style="text-align:center;min-width:55px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Efficiency</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+effColor+'">'+d.avgEfficiency+'</div></div>'
+        +'<div style="text-align:center;min-width:55px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Productivity</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+prodColor+'">'+d.avgProductivity+'</div></div>'
+      +'</div>'
+      // Overall score (big)
+      +'<div style="text-align:center;min-width:70px;flex-shrink:0;border-left:1px solid var(--border);padding-left:12px">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;color:'+scoreColor+';line-height:1">'+d.avgOverall+'</div>'
+      +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Overall</div>'
+      +'</div>'
+      // Safety events detail
+      +'<div style="min-width:90px;flex-shrink:0;font-size:11px;color:var(--muted);border-left:1px solid var(--border);padding-left:12px">'
+      +(d.harshBrake?'<div>Hard brake: <strong style="color:var(--text)">'+d.harshBrake+'</strong></div>':'')
+      +(d.speeding?'<div>Speeding: <strong style="color:var(--text)">'+d.speeding+'</strong></div>':'')
+      +(d.harshAccel?'<div>Hard accel: <strong style="color:var(--text)">'+d.harshAccel+'</strong></div>':'')
+      +(!totalEvents?'<div style="color:#22c55e;font-weight:600">Clean record ✓</div>':'')
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+async function renderDashMaintAlert(){
+  var el=document.getElementById('dash-maint-alert');if(!el)return;
+  var res=await db.from('maintenance_schedules').select('*,vehicle_odometers(odometer_km)').in('status',['due','overdue']);
+  // fallback: just query maintenance_schedules
+  var mRes=await db.from('maintenance_schedules').select('*').in('status',['due','overdue']);
+  var alerts=mRes.data||[];
+  if(!alerts.length){el.style.display='none';return;}
+  // match to vehicle names
+  var vehMap={};vehicles.forEach(function(v){vehMap[v.vid]=v.name;});
+  var html='<div style="font-weight:700;margin-bottom:6px">🔧 Maintenance Alerts</div>';
+  html+=alerts.map(function(a){
+    var icon=a.status==='overdue'?'🔴':'🟡';
+    var vName=vehMap[a.vid]||a.vid;
+    return '<div style="font-size:12px;margin-bottom:2px">'+icon+' <strong>'+vName+'</strong> — '+a.maintenance_type+' is '+(a.status==='overdue'?'<span style="color:#ef4444;font-weight:700">OVERDUE</span>':'<span style="color:#eab308;font-weight:700">DUE SOON</span>')+(a.next_due_km?' (due at '+a.next_due_km.toLocaleString()+' km)':'')+'</div>';
+  }).join('');
+  el.innerHTML=html;
+  el.style.display='block';
 }
 
 // Refresh just the Today's Jobs panel for whatever date the picker is on
@@ -4167,6 +4331,8 @@ async function renderDash(){
   // Bin stats (delegated)
   refreshDashBinStats();
   renderDashVehicleStatus();
+  renderDashMaintAlert();
+  renderDriverLeaderboard();
 
   // ── Today's jobs ──────────────────────────────────────────
   var todayJobs        = (rTodayJobs.data||[]).map(dbToJob);
@@ -9318,6 +9484,8 @@ function renderVehicles(){
       +'</div>'
       +'<div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEditVehicle(\''+v.vid+'\')">✏️</button><button class="btn btn-danger btn-sm" onclick="delVehicle(\''+v.vid+'\')">🗑️</button></div>'
       +'</div>'
+      // Maintenance schedules section
+      +'<div id="maint-section-'+v.vid+'" style="margin-bottom:12px"></div>'
       // Stats
       +'<div style="display:flex;gap:20px;margin-bottom:14px">'
       +'<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+v.color+'">'+upcoming.length+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Upcoming</div></div>'
@@ -9343,6 +9511,108 @@ function renderVehicles(){
       +'</div>'
       +'</div>';
   }).join('');
+}
+
+// ── Maintenance Schedules ──
+var _maintCache={};
+async function loadMaintenanceForVehicles(){
+  var res=await db.from('maintenance_schedules').select('*');
+  _maintCache={};
+  (res.data||[]).forEach(function(r){
+    if(!_maintCache[r.vid])_maintCache[r.vid]=[];
+    _maintCache[r.vid].push(r);
+  });
+  // Also load odometer readings
+  var oRes=await db.from('vehicle_odometers').select('*');
+  window._odometerCache={};
+  (oRes.data||[]).forEach(function(r){window._odometerCache[r.vid]=r;});
+}
+
+function renderMaintSections(){
+  vehicles.forEach(function(v){
+    var el=document.getElementById('maint-section-'+v.vid);
+    if(!el)return;
+    var scheds=_maintCache[v.vid]||[];
+    var odo=window._odometerCache&&window._odometerCache[v.vid];
+    var odoKm=odo?odo.odometer_km:null;
+
+    var html='<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">🔧 Maintenance</div>'
+      +(odoKm!==null?'<div style="font-size:11px;color:var(--muted)">Odometer: <strong style="color:var(--text)">'+odoKm.toLocaleString()+' km</strong></div>':'')
+      +'</div>';
+
+    if(scheds.length){
+      html+=scheds.map(function(s){
+        var statusColor=s.status==='overdue'?'#ef4444':s.status==='due'?'#eab308':'#22c55e';
+        var statusIcon=s.status==='overdue'?'🔴':s.status==='due'?'🟡':'🟢';
+        var kmLeft=s.next_due_km&&odoKm!==null?(s.next_due_km-odoKm):null;
+        var kmText=kmLeft!==null?(kmLeft>0?kmLeft.toLocaleString()+' km remaining':'OVERDUE by '+Math.abs(kmLeft).toLocaleString()+' km'):'';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:6px;background:'+statusColor+'0d;border-left:3px solid '+statusColor+';margin-bottom:4px">'
+          +'<div>'
+          +'<span style="font-size:12px;font-weight:600">'+statusIcon+' '+s.maintenance_type+'</span>'
+          +'<span style="font-size:11px;color:var(--muted);margin-left:8px">every '+s.interval_km.toLocaleString()+' km</span>'
+          +(kmText?'<div style="font-size:11px;color:'+statusColor+';font-weight:600;margin-top:1px">'+kmText+'</div>':'')
+          +(s.last_service_date?'<div style="font-size:10px;color:var(--muted)">Last: '+fd(s.last_service_date)+' at '+(s.last_service_km||0).toLocaleString()+' km</div>':'')
+          +'</div>'
+          +'<div style="display:flex;gap:4px">'
+          +'<button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+s.id+'\',\''+v.vid+'\')" style="font-size:10px;padding:2px 8px;color:#22c55e" title="Mark as serviced">✅ Done</button>'
+          +'<button onclick="delMaintSchedule(\''+s.id+'\',\''+v.vid+'\')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px" title="Remove">✕</button>'
+          +'</div></div>';
+      }).join('');
+    } else {
+      html+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">No maintenance schedules set up.</div>';
+    }
+
+    // Add maintenance form
+    html+='<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:flex-end">'
+      +'<select id="maint-type-'+v.vid+'" style="flex:1;min-width:120px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:\'DM Sans\',sans-serif">'
+      +'<option>Oil Change</option><option>Tire Rotation</option><option>Brake Inspection</option><option>Transmission Fluid</option><option>Air Filter</option><option>Custom</option>'
+      +'</select>'
+      +'<input type="number" id="maint-km-'+v.vid+'" placeholder="Interval (km)" style="width:110px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:\'DM Sans\',sans-serif">'
+      +'<button class="btn btn-primary" style="font-size:12px;padding:5px 12px" onclick="addMaintSchedule(\''+v.vid+'\')">+ Add</button>'
+      +'</div></div>';
+
+    el.innerHTML=html;
+  });
+}
+
+async function addMaintSchedule(vid){
+  var typeEl=document.getElementById('maint-type-'+vid);
+  var kmEl=document.getElementById('maint-km-'+vid);
+  var type=typeEl?typeEl.value:'';
+  var km=kmEl?parseInt(kmEl.value):0;
+  if(!km||km<100){toast('⚠ Enter a valid km interval (at least 100 km)','warn');return;}
+  if(type==='Custom'){type=prompt('Enter maintenance type name:');if(!type)return;}
+  var odo=window._odometerCache&&window._odometerCache[vid];
+  var currentKm=odo?odo.odometer_km:0;
+  var row={vid:vid,maintenance_type:type,interval_km:km,last_service_km:currentKm,last_service_date:todayStr(),next_due_km:currentKm+km,status:'ok'};
+  var res=await db.from('maintenance_schedules').insert(row).select();
+  if(res.error){toast('⚠ Error: '+res.error.message,'error');return;}
+  if(!_maintCache[vid])_maintCache[vid]=[];
+  _maintCache[vid].push(res.data[0]);
+  renderMaintSections();
+  toast('Maintenance schedule added!');
+}
+
+async function markMaintDone(schedId,vid){
+  var odo=window._odometerCache&&window._odometerCache[vid];
+  var currentKm=odo?odo.odometer_km:0;
+  if(!currentKm){var input=prompt('Enter current odometer reading (km):');if(!input)return;currentKm=parseInt(input)||0;}
+  var today=todayStr();
+  await db.from('maintenance_schedules').update({last_service_km:currentKm,last_service_date:today,next_due_km:currentKm+(_maintCache[vid]||[]).find(function(s){return s.id===schedId;}).interval_km,status:'ok',updated_at:new Date().toISOString()}).eq('id',schedId);
+  // Update local cache
+  (_maintCache[vid]||[]).forEach(function(s){if(s.id===schedId){s.last_service_km=currentKm;s.last_service_date=today;s.status='ok';s.next_due_km=currentKm+s.interval_km;}});
+  renderMaintSections();
+  toast('Service marked complete!');
+}
+
+async function delMaintSchedule(schedId,vid){
+  if(!confirm('Remove this maintenance schedule?'))return;
+  await db.from('maintenance_schedules').delete().eq('id',schedId);
+  _maintCache[vid]=(_maintCache[vid]||[]).filter(function(s){return s.id!==schedId;});
+  renderMaintSections();
+  toast('Maintenance schedule removed.');
 }
 
 // Check if a vehicle type is available on a given date
