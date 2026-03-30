@@ -3121,8 +3121,12 @@ async function loadAllFromSupabase() {
     }
     extendOpenBlocks();
 
-    // Clients now load on-demand via search — no background loading needed
+    // Background-load all clients so emails/phones are available on job rows
     clients = [];
+    try {
+      var rcAll = await db.from('clients').select('*').order('name');
+      if (rcAll.data) rcAll.data.forEach(function(c){ clients.push(dbToClient(c)); });
+    } catch(e){ console.warn('Clients background load error:', e); }
 
     // Load competitors and our_prices from Supabase (authoritative source)
     showLoading('Loading pricing data...', 88);
