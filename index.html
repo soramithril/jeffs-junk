@@ -10029,9 +10029,19 @@ async function printBinRental(jobId) {
       });
     }
 
-    // Look up client for email
-    var cl = j.clientId ? clients.find(function(c) { return c.cid === j.clientId; }) : null;
-    var email = cl && cl.emails && cl.emails.length ? cl.emails[0] : '';
+    // Look up client for email — fetch from Supabase to ensure emails are included
+    var email = '';
+    if (j.clientId) {
+      var clLocal = clients.find(function(c) { return c.cid === j.clientId; });
+      if (clLocal && clLocal.emails && clLocal.emails.length) {
+        email = clLocal.emails[0];
+      } else if (clLocal && clLocal.email) {
+        email = clLocal.email;
+      } else {
+        var cr = await db.from('clients').select('emails,email').eq('cid', j.clientId).single();
+        if (cr.data) email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
+      }
+    }
 
     // Look up assigned bin
     var assignedBin = j.binBid ? binItems.find(function(b) { return b.bid === j.binBid; }) : null;
