@@ -3092,8 +3092,8 @@ function saveGeo() {
 function showLoading(msg, pct) {
   var el = document.getElementById('sb-loading');
   if (el) { el.style.display='flex'; }
-  var _bgVids=['CrwMzyyEdF4','XIqzlgfQQeY','gAUfXQ-mYNM','k8AqT3Un_HM','RC4gECuQ7Do'];var _bgPick=_bgVids[Math.floor(Math.random()*_bgVids.length)];var _bgStart=Math.floor(Math.random()*120);
-  var f1Frame=document.getElementById('f1-bg-video');if(f1Frame&&!f1Frame.src.includes('youtube'))f1Frame.src='https://www.youtube.com/embed/'+_bgPick+'?autoplay=1&mute=1&loop=1&playlist='+_bgPick+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+_bgStart;
+  var _bgVids=[{id:'CrwMzyyEdF4',min:30,max:180},{id:'XIqzlgfQQeY',min:20,max:150},{id:'gAUfXQ-mYNM',min:15,max:120},{id:'k8AqT3Un_HM',min:25,max:160},{id:'RC4gECuQ7Do',min:30,max:200}];var _bgPick=_bgVids[Math.floor(Math.random()*_bgVids.length)];var _bgStart=_bgPick.min+Math.floor(Math.random()*(_bgPick.max-_bgPick.min));
+  var f1Frame=document.getElementById('f1-bg-video');if(f1Frame&&!f1Frame.src.includes('youtube'))f1Frame.src='https://www.youtube.com/embed/'+_bgPick.id+'?autoplay=1&mute=1&loop=1&playlist='+_bgPick.id+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+_bgStart;
   var msgEl = document.getElementById('sb-loading-msg');
   if (msgEl) msgEl.textContent = msg || 'Loading...';
   if (pct !== undefined) setLoadProgress(pct);
