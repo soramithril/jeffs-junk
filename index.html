@@ -900,7 +900,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ─── LOADING SCREEN ─── -->
 <div id="sb-loading" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#0a0a0a;">
   <div style="position:absolute;inset:0;overflow:hidden;filter:blur(8px) brightness(.4);transform:scale(1.1);">
-    <iframe id="f1-bg-video" style="position:absolute;top:50%;left:50%;width:180%;height:180%;transform:translate(-50%,-50%);pointer-events:none;border:none;" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe>
+    <iframe id="f1-bg-video" style="position:absolute;inset:-20%;width:140%;height:140%;pointer-events:none;border:none;object-fit:cover;" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe>
   </div>
   <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
        alt="Jeff's Junk"
@@ -3092,7 +3092,7 @@ function saveGeo() {
 function showLoading(msg, pct) {
   var el = document.getElementById('sb-loading');
   if (el) { el.style.display='flex'; }
-  var _bgVids=['RC4gECuQ7Do','WWEs82u37Mw','omyFBmQwx9o'];var _bgPick=_bgVids[Math.floor(Math.random()*_bgVids.length)];var _bgStart=Math.floor(Math.random()*120);
+  var _bgVids=['CrwMzyyEdF4','XIqzlgfQQeY','gAUfXQ-mYNM','k8AqT3Un_HM','RC4gECuQ7Do'];var _bgPick=_bgVids[Math.floor(Math.random()*_bgVids.length)];var _bgStart=Math.floor(Math.random()*120);
   var f1Frame=document.getElementById('f1-bg-video');if(f1Frame&&!f1Frame.src.includes('youtube'))f1Frame.src='https://www.youtube.com/embed/'+_bgPick+'?autoplay=1&mute=1&loop=1&playlist='+_bgPick+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+_bgStart;
   var msgEl = document.getElementById('sb-loading-msg');
   if (msgEl) msgEl.textContent = msg || 'Loading...';
