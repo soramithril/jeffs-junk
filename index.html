@@ -5256,7 +5256,7 @@ async function clientSearchLive(q){
   box.style.display='block';
   box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
   try{
-    var r=await db.from('clients').select('cid,name,names,phone,phones,address,city,referral')
+    var r=await db.from('clients').select('*')
       .or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%')
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#ef4444;font-size:13px">Search error: '+r.error.message+'</div>';return;}
@@ -5574,7 +5574,7 @@ async function loadClientsPage() {
     var jobBatches = [];
     for(var j=0; j<Math.max(Math.ceil(totalJobs/BATCH),1); j++) jobBatches.push(j);
     var jobResults = await Promise.all(jobBatches.map(function(i){
-      return db.from('jobs').select('client_cid,name,service,price,date')
+      return db.from('jobs').select('*')
         .neq('status','Cancelled').range(i*BATCH, Math.min((i+1)*BATCH-1, totalJobs-1));
     }));
     var allJobRows = [];
@@ -6493,7 +6493,7 @@ async function renderAnalytics(){
     var startS=start?start.toISOString().split('T')[0]:null;
     var endS=end?end.toISOString().split('T')[0]:null;
     while(true){
-      var q=db.from('jobs').select('job_id,service,status,name,address,city,date,price,referral,bin_size')
+      var q=db.from('jobs').select('*')
         .order('date',{ascending:false}).range(from,from+pageSize-1);
       if(startS)q=q.gte('date',startS);
       if(endS)q=q.lte('date',endS);
@@ -8881,7 +8881,7 @@ async function filterMergeList(which) {
   drop.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
 
   try {
-    var r = await db.from('clients').select('cid,name,phone,city')
+    var r = await db.from('clients').select('*')
       .or('name.ilike.%' + q + '%,phone.ilike.%' + q + '%')
       .order('name').limit(15);
 
