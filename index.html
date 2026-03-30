@@ -2200,14 +2200,25 @@ function onYouTubeIframeAPIReady(){
       <div id="bin-extra" style="display:none;margin-top:16px">
         <div style="height:2px;background:linear-gradient(90deg,var(--accent),rgba(34,197,94,.08));border-radius:2px;margin-bottom:16px"></div>
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:14px;font-weight:700">🚛 Bin Details</div>
-        <!-- Hidden: actual bin_bid and bin_size are set by the picker below -->
+        <!-- Hidden: actual bin_bid and bin_size are set by the picker or size buttons -->
         <input type="hidden" id="f-bsize">
 
-        <!-- Select Bin — collapsed by default -->
+        <!-- Bin Size Selection — always visible -->
+        <div style="margin-bottom:14px">
+          <label style="font-size:13px;font-weight:600;margin-bottom:8px;display:block">Bin Size <span style="color:#dc3545">*</span></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="bin-size-btns">
+            <button type="button" class="btn btn-ghost btn-sm bin-sz-pick" data-sz="4 yard" onclick="pickBinSize('4 yard',this)">4 Yard</button>
+            <button type="button" class="btn btn-ghost btn-sm bin-sz-pick" data-sz="7 yard" onclick="pickBinSize('7 yard',this)">7 Yard</button>
+            <button type="button" class="btn btn-ghost btn-sm bin-sz-pick" data-sz="14 yard" onclick="pickBinSize('14 yard',this)">14 Yard</button>
+            <button type="button" class="btn btn-ghost btn-sm bin-sz-pick" data-sz="20 yard" onclick="pickBinSize('20 yard',this)">20 Yard</button>
+          </div>
+        </div>
+
+        <!-- Select Specific Bin — collapsed by default, optional -->
         <div style="margin-bottom:14px">
           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
             <span id="bin-picker-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg);color:var(--accent)">▶</span>
-            <label style="cursor:pointer;margin:0;color:var(--accent)">Select Bin</label>
+            <label style="cursor:pointer;margin:0;color:var(--accent)">Assign Specific Bin <span style="font-size:11px;color:var(--muted);font-weight:400">(optional)</span></label>
           </div>
           <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
           <div id="bin-picker-collapse" style="display:none">
@@ -7604,6 +7615,7 @@ function newJob(){
   document.getElementById('f-tools').value='';
   document.getElementById('f-material-type').value='';
   document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
+  document.querySelectorAll('.bin-sz-pick').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';b.style.borderColor='';});
   document.getElementById('f-client-select').value='';
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
@@ -7663,7 +7675,15 @@ function selectBinFromPicker(bid){
   var b = binItems.find(function(x){return x.bid===bid;});
   if(!b) return;
   document.getElementById('f-bsize').value = b.size;
-  // Highlight selected
+  // Highlight the size button to match
+  document.querySelectorAll('.bin-sz-pick').forEach(function(btn){
+    var match=btn.dataset.sz===b.size;
+    btn.classList.toggle('active',match);
+    btn.style.background=match?'rgba(34,197,94,.15)':'';
+    btn.style.color=match?'#22c55e':'';
+    btn.style.borderColor=match?'rgba(34,197,94,.5)':'';
+  });
+  // Highlight selected bin card
   renderBinPicker(bid);
   // Show selected label
   var sel = document.getElementById('bin-picker-selected');
@@ -7681,6 +7701,22 @@ function filterBinPicker(sz, el){
   if(el) el.classList.add('active');
   var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
   renderBinPicker(currentBid||'');
+}
+
+function pickBinSize(sz, btn){
+  document.querySelectorAll('.bin-sz-pick').forEach(function(b){
+    b.classList.remove('active');
+    b.style.background='';b.style.color='';b.style.borderColor='';
+  });
+  btn.classList.add('active');
+  btn.style.background='rgba(34,197,94,.15)';
+  btn.style.color='#22c55e';
+  btn.style.borderColor='rgba(34,197,94,.5)';
+  document.getElementById('f-bsize').value=sz;
+  // Auto-filter the bin picker grid to match
+  filterBinPicker(sz);
+  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.toggle('active',b.dataset.sz===sz);});
+  showMaterialType();
 }
 
 function getPickedBinBid(){
@@ -7746,7 +7782,15 @@ function initBinPicker(existingBid, existingSize){
   } else {
     binPickerSzFilter = 'all';
   }
-  // Always update button highlight based on current filter
+  // Highlight size buttons
+  document.querySelectorAll('.bin-sz-pick').forEach(function(btn){
+    var match=existingSize&&btn.dataset.sz===existingSize;
+    btn.classList.toggle('active',match);
+    btn.style.background=match?'rgba(34,197,94,.15)':'';
+    btn.style.color=match?'#22c55e':'';
+    btn.style.borderColor=match?'rgba(34,197,94,.5)':'';
+  });
+  // Always update bin picker filter buttons
   document.querySelectorAll('.bsz-btn').forEach(function(b){
     b.classList.toggle('active', b.dataset.sz === binPickerSzFilter);
   });
@@ -7782,6 +7826,7 @@ function bookBin(size, presetDays){
   document.getElementById('f-svc').value='Bin Rental';
   document.getElementById('f-svc').dispatchEvent(new Event('change'));
   setTimeout(function(){
+    document.getElementById('f-bsize').value=size;
     initBinPicker('', size);
     if(presetDays){
       window._binPresetDays=null; // Reset so setBinDuration doesn't toggle off
@@ -7883,7 +7928,7 @@ async function saveJob(e){
   if(!date)     { showErr('f-date');     errs.push('Date is required.'); }
   if(!city)     { showErr('f-city');     errs.push('City is required (e.g. Barrie).'); }
   if(!referral) { showErr('f-referral'); errs.push('Referral source is required.'); }
-  if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); }
+  if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required — please select a size.'); }
 
   if(errs.length) {
     if(banner) {
