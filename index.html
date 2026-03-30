@@ -10176,7 +10176,7 @@ async function printBinRental(jobId) {
 
     // ── BIN PLACEMENT (wrap text to stay on the lines) ──
     var placementText = side + (j.notes ? ' — ' + j.notes : '');
-    var maxWidth = 480; // points available from x=105 to right margin
+    var maxWidth = 370; // stop before Subtotal/HST/Total labels on the right
     var lineHeight = 13;
     var placementY = 673;
     if (placementText) {
