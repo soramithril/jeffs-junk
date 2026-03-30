@@ -4877,12 +4877,13 @@ function emailHtml(id, sent){
     return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:#60a5fa;white-space:nowrap">📧 Sent</button>';
   return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(96,165,250,.3);color:#60a5fa;white-space:nowrap">📧 Email</button>';
 }
+function jobEmail(j){var cl=j.clientId?clients.find(function(c){return c.cid===j.clientId;}):null;if(!cl)return '';return (cl.emails&&cl.emails[0])?cl.emails[0]:(cl.email||'');}
 function makeJobRowNoSvc(j){
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
@@ -4897,7 +4898,7 @@ function makeJobRowWithSvc(j){
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
@@ -4912,7 +4913,7 @@ function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-
 function makeCancelledRow(j){
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
@@ -4924,7 +4925,7 @@ function makeCancelledRow(j){
 function makeCancelledRowWithSvc(j){
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
