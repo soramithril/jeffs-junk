@@ -7846,6 +7846,7 @@ async function saveJob(e){
 
   // Primary name for backward compat and UI display
   var name=names.length?names[0]:'';
+  var svc      = document.getElementById('f-svc').value;
   var date     = document.getElementById('f-date').value;
   var city     = toTitleCase(document.getElementById('f-city').value.trim());
   var referral = document.getElementById('f-referral').value;
