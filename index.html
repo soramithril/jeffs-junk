@@ -647,13 +647,11 @@ textarea{resize:vertical;min-height:80px;}
   .stat-icon{font-size:18px;margin-bottom:8px;}
 
   /* ── DASHBOARD MOBILE FIXES ── */
-  /* Side-by-side hero: stack to 1 col on mobile */
-  .dash-section.dash-s1{grid-template-columns:1fr!important;}
-  .dash-section.dash-s3{grid-template-columns:1fr!important;}
+  /* Stack ALL dashboard grid sections to single column */
+  .dash-section{grid-template-columns:1fr!important;}
+  .dash-2col{grid-template-columns:1fr!important;}
   /* Bin size cards: 2 cols instead of 4 */
   #dash-bin-by-size{grid-template-columns:repeat(2,1fr)!important;gap:10px!important;}
-  /* Today's Jobs + Workload / Overdue + Long Bins: stack to 1 col */
-  .dash-2col{grid-template-columns:1fr!important;}
   /* Bin date picker row: wrap nicely */
   .dash-date-row{flex-wrap:wrap;gap:8px;}
   /* Page header new job button full width on mobile */
