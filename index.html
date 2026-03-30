@@ -26,17 +26,13 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
-  background:var(--bg);
-  background-image:
-    radial-gradient(ellipse 120% 60% at 10% -20%, rgba(28,128,81,0.35) 0%, transparent 50%),
-    radial-gradient(ellipse 80% 80% at 90% 10%, rgba(34,197,94,0.25) 0%, transparent 45%),
-    radial-gradient(ellipse 100% 50% at 50% 50%, rgba(74,222,128,0.18) 0%, transparent 55%),
-    radial-gradient(ellipse 90% 70% at 15% 80%, rgba(28,128,81,0.22) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 60% at 75% 90%, rgba(34,197,94,0.20) 0%, transparent 45%),
-    radial-gradient(ellipse 60% 40% at 40% 20%, rgba(255,255,255,0.70) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 50% at 70% 55%, rgba(255,255,255,0.50) 0%, transparent 45%);
-  background-attachment:fixed;
+  background:#ffffff;
   color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 900' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%231C8051' stop-opacity='0.55'/%3E%3Cstop offset='100%25' stop-color='%2322c55e' stop-opacity='0.3'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%2322c55e' stop-opacity='0.45'/%3E%3Cstop offset='100%25' stop-color='%234ade80' stop-opacity='0.2'/%3E%3C/linearGradient%3E%3ClinearGradient id='g3' x1='0.5' y1='1' x2='0.5' y2='0'%3E%3Cstop offset='0%25' stop-color='%231C8051' stop-opacity='0.5'/%3E%3Cstop offset='100%25' stop-color='%2386efac' stop-opacity='0.15'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,120 C200,20 400,180 720,100 C1040,20 1280,160 1440,80 L1440,0 L0,0 Z' fill='url(%23g1)'/%3E%3Cpath d='M0,250 C180,180 360,300 600,220 C840,140 1100,280 1440,200 L1440,80 C1280,160 1040,20 720,100 C400,180 200,20 0,120 Z' fill='url(%23g2)' opacity='0.6'/%3E%3Cpath d='M0,900 C240,820 480,880 720,830 C960,780 1200,850 1440,790 L1440,900 Z' fill='url(%23g3)'/%3E%3Cpath d='M0,780 C300,720 500,800 750,740 C1000,680 1200,760 1440,700 L1440,790 C1200,850 960,780 720,830 C480,880 240,820 0,900 Z' fill='url(%23g2)' opacity='0.5'/%3E%3Cpath d='M0,400 C160,370 320,420 500,380 C680,340 800,400 1000,370 C1200,340 1350,390 1440,360 L1440,340 C1350,370 1200,320 1000,350 C800,380 680,320 500,360 C320,400 160,350 0,380 Z' fill='%231C8051' opacity='0.12'/%3E%3Ccircle cx='200' cy='300' r='180' fill='%2322c55e' opacity='0.07'/%3E%3Ccircle cx='1200' cy='500' r='220' fill='%231C8051' opacity='0.06'/%3E%3Ccircle cx='700' cy='150' r='120' fill='%234ade80' opacity='0.08'/%3E%3C/svg%3E") no-repeat center/cover;
 }
 
 /* ── MOBILE HEADER ── */
@@ -435,12 +431,12 @@ tbody td{padding:16px 18px;font-size:15px;vertical-align:middle;}
 
 /* ── MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
-.modal-overlay.fullpage{background:#ffffff;backdrop-filter:none;-webkit-backdrop-filter:none;}
+.modal-overlay.fullpage{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
 body.modal-open,body:has(.modal-overlay.open){overflow:hidden;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:820px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:36px;transform:translateY(16px);transition:transform .2s;}
 .modal-overlay.open .modal{transform:translateY(0);}
-.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:#ffffff;overflow-y:auto;}
+.modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:transparent;overflow-y:auto;}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid rgba(34,197,94,.2);}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1.5px;color:var(--accent);}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:44px;height:44px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
@@ -2448,7 +2444,7 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <div class="modal-overlay fullpage" id="client-modal">
-  <div class="modal" style="width:780px;background:#ffffff">
+  <div class="modal" style="width:780px">
     <div class="modal-header">
       <div class="modal-title" id="client-modal-ttl">Add Client</div>
       <button class="modal-close" onclick="closeM('client-modal')">&#x2715;</button>
