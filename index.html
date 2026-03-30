@@ -5702,7 +5702,7 @@ function renderClientsList(list) {
       +'<div class="client-avatar">'+initials+'</div>'
       +'<div class="client-info">'
       +'<div class="client-name">'+name+'</div>'
-      +'<div class="client-meta">'+(row.phone||'')+(row.city?' · '+row.city:'')+(row.referral?' · '+row.referral:'')+'</div>'
+      +'<div class="client-meta">'+(row.phone||'')+(row.city?' · '+row.city:'')+((row.emails&&row.emails[0])||row.email?' · '+(row.emails&&row.emails[0]?row.emails[0]:(row.email||'')):'')+(row.referral?' · '+row.referral:'')+'</div>'
       +'<div class="client-stats">'
       +(bins?'<span class="client-stat cs-bin">🚛 '+bins+' bin'+(bins!==1?'s':'')+'</span>':'')
       +(junk?'<span class="client-stat cs-junk">🧹 '+junk+' junk</span>':'')
