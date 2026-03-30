@@ -4227,24 +4227,47 @@ async function renderWeekCal(){
   var opts={month:'short',day:'numeric'};
   document.getElementById('week-lbl').textContent=ws.toLocaleDateString('en-US',opts)+' – '+we.toLocaleDateString('en-US',opts);
 
-  // Fetch this week's jobs from Supabase
-  var r = await db.from('jobs').select('*').gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
-  var weekJobs = (r.data||[]).map(dbToJob);
+  // Fetch this week's jobs: by job date OR by bin_pickup date falling in this week
+  var rByDate = db.from('jobs').select('*').gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
+  var rByPickup = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_pickup',wsS).lte('bin_pickup',weS).neq('status','Cancelled');
+  var results = await Promise.all([rByDate, rByPickup]);
+  var seen = {};
+  var weekJobs = [];
+  (results[0].data||[]).concat(results[1].data||[]).forEach(function(row){
+    if(!seen[row.id]){ seen[row.id]=true; weekJobs.push(dbToJob(row)); }
+  });
   // Cache in local jobs array
   weekJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
+  // Build event lookup: date -> [{j, type}] matching full calendar logic
+  var weekEvents = {};
+  weekJobs.forEach(function(j){
+    if(j.service==='Bin Rental'){
+      var dropDs = j.binDropoff || j.date;
+      if(dropDs){ if(!weekEvents[dropDs]) weekEvents[dropDs]=[]; weekEvents[dropDs].push({j:j, type:'dropoff'}); }
+      if(j.binPickup && j.binPickup !== dropDs){ if(!weekEvents[j.binPickup]) weekEvents[j.binPickup]=[]; weekEvents[j.binPickup].push({j:j, type:'pickup'}); }
+    } else {
+      if(j.date){ if(!weekEvents[j.date]) weekEvents[j.date]=[]; weekEvents[j.date].push({j:j, type:'job'}); }
+    }
+  });
+
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
-  var svcTag={'Bin Rental':'🚛','Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️ Pick','Furniture Delivery':'📦 Del'};
   var html='';
   for(var i=0;i<7;i++){
     var d=new Date(ws);d.setDate(d.getDate()+i);
     var ds=d.toISOString().split('T')[0];
     var isToday=d.getTime()===today.getTime();
-    var dJobs=weekJobs.filter(function(j){return j.date===ds;});
-    // Count how many jobs share the same client name on this day to detect duplicates
-    var nameCounts={};dJobs.forEach(function(j){nameCounts[j.name]=(nameCounts[j.name]||0)+1;});
-    var chips=dJobs.map(function(j){var cfmCls=j.confirmed?' confirmed':' unconfirmed';var tag=nameCounts[j.name]>1?(svcTag[j.service]||''):'';return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+j.service+' · '+j.name+'">'+(j.time?ft(j.time)+' ':'')+j.name+(tag?' · '+tag:'')+(j.confirmed?'':' 📞')+'</div>';}).join('');
+    var dayEvs=weekEvents[ds]||[];
+    var chips=dayEvs.map(function(ev){
+      var j=ev.j;var cfmCls=j.confirmed?' confirmed':' unconfirmed';
+      var icon='', label=j.name;
+      if(ev.type==='pickup'){ icon='🚚 '; }
+      else if(ev.type==='dropoff'){ icon='🚛 '; }
+      else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 '};icon=iconMap[j.service]||''; }
+      var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
+      return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(j.time?ft(j.time)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
+    }).join('');
     html+='<div class="week-day-col'+(isToday?' today':'')+'\" data-date="'+ds+'"><div class="week-day-hdr"><div class="week-day-name">'+dayNames[d.getDay()]+'</div><div class="week-day-num">'+d.getDate()+'</div></div><div class="week-day-jobs" data-date="'+ds+'">'+(chips||'')+'</div></div>';
   }
   var wg=document.getElementById('week-grid');
