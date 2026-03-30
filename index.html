@@ -2222,13 +2222,6 @@ function onYouTubeIframeAPIReady(){
           </div>
           <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
           <div id="bin-picker-collapse" style="display:none">
-            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn active" data-sz="all" onclick="filterBinPicker('all',this)">All</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="filterBinPicker('4 yard',this)">4 yd</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="filterBinPicker('7 yard',this)">7 yd</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="filterBinPicker('14 yard',this)">14 yd</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="filterBinPicker('20 yard',this)">20 yd</button>
-            </div>
             <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;padding:4px 0"></div>
           </div>
         </div>
@@ -7695,10 +7688,8 @@ function selectBinFromPicker(bid){
   showMaterialType();
 }
 
-function filterBinPicker(sz, el){
+function filterBinPicker(sz){
   binPickerSzFilter = sz;
-  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');});
-  if(el) el.classList.add('active');
   var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
   renderBinPicker(currentBid||'');
 }
@@ -7789,10 +7780,6 @@ function initBinPicker(existingBid, existingSize){
     btn.style.background=match?'rgba(34,197,94,.15)':'';
     btn.style.color=match?'#22c55e':'';
     btn.style.borderColor=match?'rgba(34,197,94,.5)':'';
-  });
-  // Always update bin picker filter buttons
-  document.querySelectorAll('.bsz-btn').forEach(function(b){
-    b.classList.toggle('active', b.dataset.sz === binPickerSzFilter);
   });
   renderBinPicker(existingBid||'');
   var sel = document.getElementById('bin-picker-selected');
