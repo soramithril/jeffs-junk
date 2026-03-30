@@ -10029,22 +10029,23 @@ async function printBinRental(jobId) {
       });
     }
 
-    // Look up client for email — fetch from Supabase to ensure emails are included
+    // Look up full client data — always fetch from Supabase to ensure all fields are included
     var email = '';
+    var clientPhones = [];
     if (j.clientId) {
-      var clLocal = clients.find(function(c) { return c.cid === j.clientId; });
-      if (clLocal && clLocal.emails && clLocal.emails.length) {
-        email = clLocal.emails[0];
-      } else if (clLocal && clLocal.email) {
-        email = clLocal.email;
-      } else {
-        var cr = await db.from('clients').select('emails,email').eq('cid', j.clientId).single();
-        if (cr.data) email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
+      var cr = await db.from('clients').select('*').eq('cid', j.clientId).single();
+      if (cr.data) {
+        email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
+        clientPhones = cr.data.phones || [];
       }
     }
 
-    // Look up assigned bin
+    // Look up assigned bin — fetch from Supabase if not in local cache
     var assignedBin = j.binBid ? binItems.find(function(b) { return b.bid === j.binBid; }) : null;
+    if (!assignedBin && j.binBid) {
+      var br = await db.from('bin_items').select('*').eq('bid', j.binBid).single();
+      if (br.data) assignedBin = br.data;
+    }
     var binNum = assignedBin ? assignedBin.num : '';
     var binSize = assignedBin ? assignedBin.size : (j.binSize || '');
 
@@ -10066,7 +10067,15 @@ async function printBinRental(jobId) {
     // ── LEFT COLUMN: Customer Info ──
     drawText(j.name, 55, 115);
     drawText(street, 65, 135);
+    // Home # — use second phone if available
+    if (clientPhones.length > 1) drawText(clientPhones[1].num || clientPhones[1], 65, 155);
     drawText(j.phone, 55, 175);        // Cell #
+    // Office # — use third phone + ext if available
+    if (clientPhones.length > 2) {
+      drawText(clientPhones[2].num || clientPhones[2], 65, 193);
+      var officeExt = clientPhones[2].ext || '';
+      if (officeExt) drawText(officeExt, 258, 192);
+    }
     drawText(email, 55, 213);
 
     // ── RIGHT COLUMN: Bin Info ──
@@ -10085,6 +10094,13 @@ async function printBinRental(jobId) {
     drawText(duration, 200, 299);
     // Line total
     drawText('$' + price.toFixed(2), 530, 293);
+
+    // Deposit row in table (row 4, after extra days rented)
+    var deposit = parseFloat(j.deposit) || 0;
+    if (deposit > 0) {
+      drawText('DEPOSIT' + (j.depositPaid ? ' (PAID)' : ''), 130, 395);
+      drawText('$' + deposit.toFixed(2), 530, 395);
+    }
 
     // ── PAYMENT TYPE ──
     drawText(j.payMethod || '', 130, 599);
