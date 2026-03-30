@@ -593,16 +593,20 @@ textarea{resize:vertical;min-height:80px;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.toast-error{border-color:#dc3545!important;color:#dc3545!important;background:#fff5f5!important;}
 .toast.toast-warn{border-color:#e67e22!important;color:#e67e22!important;background:#fefce8!important;}
-.bin-notify{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-100%);z-index:10000;padding:14px 28px;border-radius:0 0 14px 14px;font-size:14px;font-weight:600;font-family:'Inter',sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.18);transition:transform .4s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;gap:10px;max-width:500px;cursor:pointer;}
+.bin-notify{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-120%);z-index:10000;padding:22px 36px;border-radius:0 0 18px 18px;font-weight:600;font-family:'Inter',sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.25);transition:transform .5s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;gap:16px;min-width:420px;max-width:600px;cursor:pointer;}
 .bin-notify.show{transform:translateX(-50%) translateY(0);}
-.bin-notify.dropped{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:2px solid #15803d;border-top:none;}
-.bin-notify.pickedup{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:2px solid #1d4ed8;border-top:none;}
-.bin-notify .bn-icon{font-size:22px;flex-shrink:0;}
-.bin-notify .bn-body{display:flex;flex-direction:column;gap:1px;}
-.bin-notify .bn-title{font-size:14px;font-weight:700;letter-spacing:.3px;}
-.bin-notify .bn-sub{font-size:12px;opacity:.85;font-weight:500;}
-@keyframes binNotifyPulse{0%,100%{box-shadow:0 8px 32px rgba(0,0,0,.18)}50%{box-shadow:0 8px 32px rgba(34,197,94,.3)}}
-.bin-notify.show{animation:binNotifyPulse 2s ease 1;}
+.bin-notify.dropped{background:linear-gradient(135deg,#22c55e,#16a34a,#22c55e);background-size:200% 200%;color:#fff;border:3px solid #15803d;border-top:none;}
+.bin-notify.pickedup{background:linear-gradient(135deg,#3b82f6,#2563eb,#3b82f6);background-size:200% 200%;color:#fff;border:3px solid #1d4ed8;border-top:none;}
+.bin-notify .bn-icon{font-size:38px;flex-shrink:0;animation:bnIconBounce 1s ease 2;}
+.bin-notify .bn-body{display:flex;flex-direction:column;gap:3px;}
+.bin-notify .bn-title{font-size:18px;font-weight:800;letter-spacing:.3px;text-shadow:0 1px 3px rgba(0,0,0,.15);}
+.bin-notify .bn-sub{font-size:14px;opacity:.9;font-weight:500;}
+@keyframes bnIconBounce{0%,100%{transform:scale(1)}25%{transform:scale(1.3)}50%{transform:scale(0.9)}75%{transform:scale(1.15)}}
+@keyframes bnGlow{0%,100%{box-shadow:0 12px 48px rgba(0,0,0,.25)}50%{box-shadow:0 12px 48px rgba(0,0,0,.25),0 0 30px rgba(34,197,94,.4),0 0 60px rgba(34,197,94,.15)}}
+@keyframes bnGlowBlue{0%,100%{box-shadow:0 12px 48px rgba(0,0,0,.25)}50%{box-shadow:0 12px 48px rgba(0,0,0,.25),0 0 30px rgba(59,130,246,.4),0 0 60px rgba(59,130,246,.15)}}
+@keyframes bnShimmer{0%{background-position:200% 50%}100%{background-position:0% 50%}}
+.bin-notify.show.dropped{animation:bnGlow 1.5s ease infinite,bnShimmer 3s ease infinite;}
+.bin-notify.show.pickedup{animation:bnGlowBlue 1.5s ease infinite,bnShimmer 3s ease infinite;}
 .section-lbl{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
 
 
@@ -2528,7 +2532,7 @@ function showBinNotify(status, name, binBid, addr, city, jobId){
   // Show
   clearTimeout(el._tid);
   el.classList.add('show');
-  el._tid=setTimeout(function(){el.classList.remove('show');},8000);
+  el._tid=setTimeout(function(){el.classList.remove('show');},15000);
 }
 
 // ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
