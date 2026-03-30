@@ -763,6 +763,8 @@ textarea{resize:vertical;min-height:80px;}
   .atabs-wrap{ flex-wrap:nowrap; overflow-x:auto; max-width:100%; }
   #jobs-filters-area > div { flex-wrap:wrap; }
 }
+
+@keyframes loadBgShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -898,7 +900,7 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <!-- ─── LOADING SCREEN ─── -->
-<div id="sb-loading" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#0a0a0a;">
+<div id="sb-loading" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,#0a0a0a 100%);background-size:400% 400%;animation:loadBgShift 3s ease infinite;">
   <div style="position:absolute;inset:0;overflow:hidden;filter:blur(8px) brightness(.4);transform:scale(1.1);">
     <iframe id="f1-bg-video" style="position:absolute;inset:-20%;width:140%;height:140%;pointer-events:none;border:none;object-fit:cover;" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe>
   </div>
@@ -910,6 +912,14 @@ textarea{resize:vertical;min-height:80px;}
   </div>
   <p id="sb-loading-msg" style="color:#9ca3af;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;min-height:20px;position:relative;z-index:1;"></p>
 </div>
+
+<script>
+(function(){
+  var v={id:'CrwMzyyEdF4',min:34,max:77};
+  var s=v.min+Math.floor(Math.random()*(v.max-v.min));
+  document.getElementById('f1-bg-video').src='https://www.youtube.com/embed/'+v.id+'?autoplay=1&mute=1&loop=1&playlist='+v.id+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+s;
+})();
+</script>
 
 <!-- ─── MOBILE HEADER ─── -->
 <div class="mobile-header">
@@ -2160,7 +2170,7 @@ textarea{resize:vertical;min-height:80px;}
             </select>
             <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="display:none">
             <label>Payment Method</label>
             <select id="f-paymethod">
               <option value="">— Not set —</option>
@@ -3092,8 +3102,6 @@ function saveGeo() {
 function showLoading(msg, pct) {
   var el = document.getElementById('sb-loading');
   if (el) { el.style.display='flex'; }
-  var _bgVids=[{id:'CrwMzyyEdF4',min:34,max:77}];var _bgPick=_bgVids[Math.floor(Math.random()*_bgVids.length)];var _bgStart=_bgPick.min+Math.floor(Math.random()*(_bgPick.max-_bgPick.min));
-  var f1Frame=document.getElementById('f1-bg-video');if(f1Frame&&!f1Frame.src.includes('youtube'))f1Frame.src='https://www.youtube.com/embed/'+_bgPick.id+'?autoplay=1&mute=1&loop=1&playlist='+_bgPick.id+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+_bgStart;
   var msgEl = document.getElementById('sb-loading-msg');
   if (msgEl) msgEl.textContent = msg || 'Loading...';
   if (pct !== undefined) setLoadProgress(pct);
@@ -3828,7 +3836,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','furniturebank','analytics','revenue','utilization','pricing','advisor'];
+var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','furniturebank','analytics','utilization','pricing','advisor'];
 function toggleNavSection(id){
   var sec=document.getElementById(id);if(!sec)return;
   var arrow=document.getElementById(id+'-arrow');
@@ -3856,7 +3864,6 @@ function render(name){
   else if(name==='calendar') renderCal();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
   else if(name==='analytics'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
-  else if(name==='revenue') renderRevenue();
   else if(name==='utilization') renderUtilization();
   else if(name==='pricing') renderPricing();
   else if(name==='binmap') renderMap();
@@ -4264,7 +4271,7 @@ async function refreshDashJobs(){
           +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><strong style="font-size:14px">'+j.name+'</strong>'
           +legBinDisplay
           +(j.service==='Bin Rental'&&!j.binBid?'<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\');event.stopPropagation()" style="font-size:10px;color:#e67e22;border-color:rgba(230,126,34,.4)">📦 Assign Bin</button>':'')
-          +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span></div>'
+          +'</div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
           +(j.time?ft(j.time)+' · ':'')+j.id
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
@@ -4395,12 +4402,12 @@ async function renderWeekCal(){
 function shiftWeek(n){weekOffset+=n;renderWeekCal();}
 function goToday(){weekOffset=0;renderWeekCal();}
 function makeDashRows(list){
-  if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
+  if(!list.length) return '<tr><td colspan="3" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
 function makeDashRowsFurn(list){
-  if(!list.length) return '<tr><td colspan="5" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td><td>'+fm(j.price)+'</td></tr>';}).join('');
+  if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
 function renderDashLongBins(){
   var threshold=parseInt((document.getElementById('dash-days-threshold')||{}).value)||7;
@@ -4633,7 +4640,6 @@ async function renderDash(){
                 +'<strong style="font-size:13px">'+j.name+'</strong>'
                 +binDisplay
                 +confirmBadge
-                +'<span style="font-size:12px;color:var(--accent);font-weight:700;margin-left:auto">'+fm(j.price)+'</span>'
               +'</div>'
               +'<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
                 +(j.time?'<strong style="color:var(--text)">'+ft(j.time)+'</strong> · ':'')+j.id
@@ -5330,7 +5336,7 @@ function openCalDayPreview(ds){
         var j=ev.j;
         var binBadge=j.binSize?'<span style="font-size:11px;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:5px;padding:1px 7px;font-weight:600;margin-left:6px">'+j.binSize+'</span>':'';
         var timeBadge=j.time?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+ft(j.time)+'</span>':'';
-        var priceBadge=j.price?'<span style="font-size:12px;font-weight:700;color:var(--accent);margin-left:auto">'+fm(j.price)+'</span>':'';
+        var priceBadge='';
         var cfmBadge=(ev.type==='pickup'||ev.type==='dropoff'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')
           ?(j.confirmed
             ?'<span style="font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.08);border-radius:4px;padding:1px 6px;margin-left:4px">✅ Confirmed</span>'
@@ -8401,19 +8407,14 @@ function renderToday(){
     var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
     return days>=threshold;
   });
-  var unpaidJobs=jobs.filter(function(j){return j.paid!=='Paid'&&j.status!=='Cancelled';});
-  var todayRev=todayJobs.reduce(function(s,j){return s+(parseFloat(j.price)||0);},0);
   var statsHtml='<div class="stat-card c-green"><div class="stat-icon">📋</div><div class="stat-value">'+todayJobs.length+'</div><div class="stat-label">Scheduled Today</div></div>'
-    +'<div class="stat-card c-red"><div class="stat-icon">⚠️</div><div class="stat-value">'+overdueJobs.length+'</div><div class="stat-label">Overdue Pickups</div></div>'
-    +'<div class="stat-card c-yellow"><div class="stat-icon">⏳</div><div class="stat-value">'+unpaidJobs.length+'</div><div class="stat-label">Unpaid Invoices</div></div>'
-    +'<div class="stat-card c-green"><div class="stat-icon">💰</div><div class="stat-value">$'+todayRev.toFixed(0)+'</div><div class="stat-label">Revenue Expected</div></div>';
+    +'<div class="stat-card c-red"><div class="stat-icon">⚠️</div><div class="stat-value">'+overdueJobs.length+'</div><div class="stat-label">Overdue Pickups</div></div>';
   document.getElementById('today-stats').innerHTML=statsHtml;
   // Today's jobs
   var el=document.getElementById('today-jobs-list');
   el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
     +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+j.name+'</strong></div>'
     +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(j.time?' · '+ft(j.time):'')+'</div>'
-    +'<div style="font-size:12px;color:var(--muted)">'+fm(j.price)+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No jobs scheduled today</div>';
   // Overdue
   var od=document.getElementById('today-overdue-list');
@@ -8433,13 +8434,6 @@ function renderToday(){
     +'<strong>'+j.name+'</strong><span style="margin-left:8px;color:#e67e22;font-size:12px;font-weight:700">'+days+' days out</span>'
     +'<div style="font-size:12px;color:var(--muted)">'+(j.binSize||'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No bins out that long</div>';
-  // Unpaid
-  var up=document.getElementById('today-unpaid-list');
-  up.innerHTML=unpaidJobs.length?unpaidJobs.slice(0,8).map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-    +'<div style="display:flex;justify-content:space-between"><strong>'+j.name+'</strong><span style="color:#e67e22;font-weight:700">'+fm(j.price)+'</span></div>'
-    +'<div style="font-size:12px;color:var(--muted)">'+j.id+' · '+fd(j.date)+'</div>'
-    +'</div>';}).join('')+(unpaidJobs.length>8?'<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">+'+(unpaidJobs.length-8)+' more</div>':'')
-    :'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ All jobs paid up!</div>';
   // Crew workload
   var cr=document.getElementById('today-crew');
   var svcCount={'Bin Rental':0,'Junk Removal':0,'Furniture Pickup':0,'Furniture Delivery':0};
