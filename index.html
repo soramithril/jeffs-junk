@@ -2135,8 +2135,22 @@ textarea{resize:vertical;min-height:80px;}
           <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
         </div>
         <input type="hidden" id="f-status" value="Pending">
-        <div class="form-group"><label>Customer Name <span style="color:#ef4444">*</span></label><input id="f-name" type="text" oninput="clearErr('f-name')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-name">Customer name is required.</div></div>
-        <div class="form-group"><label>Phone</label><input id="f-phone" type="tel"></div>
+        <div class="form-group full" style="margin-top:12px">
+          <label>Contact Name(s) <span style="color:#ef4444">*</span></label>
+          <div id="f-names-wrap"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:6px">+ Add Another Name</button>
+          <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
+        </div>
+        <div class="form-group full" style="margin-top:12px">
+          <label>Phone(s)</label>
+          <div id="f-phones-wrap"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:6px">+ Add Another Phone</button>
+        </div>
+        <div class="form-group full" style="margin-top:12px">
+          <label>Email(s)</label>
+          <div id="f-emails-wrap"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobEmail()" style="margin-top:6px">+ Add Another Email</button>
+        </div>
         <div class="form-group full">
           <label>Street Address</label>
           <div id="f-addr-picker" style="display:none;margin-bottom:8px">
@@ -2819,7 +2833,10 @@ function jobToDb(j) {
     service:     j.service     || 'Bin Rental',
     status:      j.status      || 'Pending',
     name:        j.name        || '',
+    names:       j.names       || [],
     phone:       j.phone       || '',
+    phones:      j.phones      || [],
+    emails:      j.emails      || [],
     address:     j.address     || '',
     city:        j.city        || '',
     date:        j.date        || null,
@@ -2866,6 +2883,7 @@ function clientToDb(c) {
     email:    c.email   || '',
     emails:   c.emails  || [],
     address:  c.address || '',
+    addresses: c.addresses || [],
     city:     c.city    || '',
     referral: c.referral || '',
     notes:    c.notes   || '',
@@ -3382,8 +3400,8 @@ var editClientId = null;
 function _clientNameRow(val){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
-function _clientPhoneRow(num,ext){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+function _clientPhoneRow(num,ext,type){
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="c-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientEmailRow(val){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="email" class="c-email-inp" placeholder="email@example.com" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
@@ -3412,19 +3430,34 @@ function _attachClientAddressAutocompletes() {
   });
 }
 function addClientName(){document.getElementById('c-names-wrap').insertAdjacentHTML('beforeend',_clientNameRow(''));}
-function addClientPhone(){document.getElementById('c-phones-wrap').insertAdjacentHTML('beforeend',_clientPhoneRow('',''));}
+function addClientPhone(){document.getElementById('c-phones-wrap').insertAdjacentHTML('beforeend',_clientPhoneRow('','','cell'));}
 function addClientEmail(){document.getElementById('c-emails-wrap').insertAdjacentHTML('beforeend',_clientEmailRow(''));}
 function addClientAddress(){
   document.getElementById('c-addresses-wrap').insertAdjacentHTML('beforeend',_clientAddressRow('','Barrie',true));
   _attachClientAddressAutocompletes();
 }
+
+// ─── JOB FORM HELPERS (reuse client helpers + job-specific ones) ───
+function _jobNameRow(val){
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+}
+function _jobPhoneRow(num,ext,type){
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="f-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="f-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="f-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+}
+function _jobEmailRow(val){
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="email" class="f-email-inp" placeholder="email@example.com" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+}
+function addJobName(){document.getElementById('f-names-wrap').insertAdjacentHTML('beforeend',_jobNameRow(''));}
+function addJobPhone(){document.getElementById('f-phones-wrap').insertAdjacentHTML('beforeend',_jobPhoneRow('','','cell'));}
+function addJobEmail(){document.getElementById('f-emails-wrap').insertAdjacentHTML('beforeend',_jobEmailRow(''));}
+
 function openAddClient(){
   try{
     editClientId=null;
     document.getElementById('client-modal-ttl').textContent='Add Client';
     document.getElementById('client-save-btn').textContent='Add Client';
     document.getElementById('c-names-wrap').innerHTML=_clientNameRow('');
-    document.getElementById('c-phones-wrap').innerHTML=_clientPhoneRow('','');
+    document.getElementById('c-phones-wrap').innerHTML=_clientPhoneRow('','','cell');
     document.getElementById('c-emails-wrap').innerHTML=_clientEmailRow('');
     document.getElementById('c-addresses-wrap').innerHTML=_clientAddressRow('','Barrie',false);
     document.getElementById('c-referral').value='';
@@ -3446,7 +3479,7 @@ function editClient(cid){
   document.getElementById('c-names-wrap').innerHTML=names.map(function(n){return _clientNameRow(n);}).join('');
   // Phones
   var phones=cl.phones&&cl.phones.length?cl.phones:(cl.phone?[{num:cl.phone,ext:''}]:[]);
-  document.getElementById('c-phones-wrap').innerHTML=phones.length?phones.map(function(p){return _clientPhoneRow(p.num||p,p.ext||'');}).join(''):_clientPhoneRow('','');
+  document.getElementById('c-phones-wrap').innerHTML=phones.length?phones.map(function(p){return _clientPhoneRow(p.num||p,p.ext||'',p.type||'cell');}).join(''):_clientPhoneRow('','','cell');
   // Emails
   var emails=cl.emails&&cl.emails.length?cl.emails:(cl.email?[cl.email]:[]);
   document.getElementById('c-emails-wrap').innerHTML=emails.length?emails.map(function(e){return _clientEmailRow(e);}).join(''):_clientEmailRow('');
@@ -3480,11 +3513,12 @@ async function saveClient(e){
   var refErrEl=document.getElementById('err-c-referral');
   if(!refVal){if(refErrEl)refErrEl.style.display='block';return;}
   if(refErrEl)refErrEl.style.display='none';
-  // Collect phones
+  // Collect phones with types
   var phoneRows=document.querySelectorAll('#c-phones-wrap .c-phone-inp');
   var extRows=document.querySelectorAll('#c-phones-wrap .c-ext-inp');
+  var typeRows=document.querySelectorAll('#c-phones-wrap .c-phone-type-sel');
   var phones=[];
-  [].slice.call(phoneRows).forEach(function(el,i){var num=el.value.trim();if(num)phones.push({num:num,ext:extRows[i]?extRows[i].value.trim():''});});
+  [].slice.call(phoneRows).forEach(function(el,i){var num=el.value.trim();if(num)phones.push({num:num,ext:extRows[i]?extRows[i].value.trim():'',type:typeRows[i]?typeRows[i].value:'cell'});});
   // Collect emails
   var emailEls=document.querySelectorAll('#c-emails-wrap .c-email-inp');
   var emails=[].slice.call(emailEls).map(function(el){return el.value.trim();}).filter(Boolean);
@@ -5328,8 +5362,9 @@ function clearClientSelection(){
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');
   if(badge)badge.style.display='none';
-  document.getElementById('f-name').value='';
-  document.getElementById('f-phone').value='';
+  document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
+  document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
+  document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
   document.getElementById('f-addr').value='';
   document.getElementById('f-city').value='';
   var picker=document.getElementById('f-addr-picker');
@@ -5342,8 +5377,15 @@ function fillClientFromSelect(cid){
   if(!cid) return;
   var cl=clients.find(function(c){return c.cid===cid;});
   if(!cl) return;
-  document.getElementById('f-name').value = cl.name || '';
-  document.getElementById('f-phone').value = cl.phone || (cl.phones&&cl.phones[0]?(cl.phones[0].num||''):'');
+  // Populate multi-name field
+  var names=cl.names&&cl.names.length?cl.names:[cl.name||''];
+  document.getElementById('f-names-wrap').innerHTML=names.map(function(n){return _jobNameRow(n);}).join('');
+  // Populate multi-phone field
+  var phones=cl.phones&&cl.phones.length?cl.phones:(cl.phone?[{num:cl.phone,ext:'',type:'cell'}]:[]);
+  document.getElementById('f-phones-wrap').innerHTML=phones.length?phones.map(function(p){return _jobPhoneRow(p.num||p,p.ext||'',p.type||'cell');}).join(''):_jobPhoneRow('','','cell');
+  // Populate multi-email field
+  var emails=cl.emails&&cl.emails.length?cl.emails:(cl.email?[cl.email]:[]);
+  document.getElementById('f-emails-wrap').innerHTML=emails.length?emails.map(function(e){return _jobEmailRow(e);}).join(''):_jobEmailRow('');
   if(cl.referral) document.getElementById('f-referral').value = cl.referral;
 
   // Build address list
@@ -5739,7 +5781,19 @@ function renderClientsList(list) {
       +'<div class="client-avatar">'+initials+'</div>'
       +'<div class="client-info">'
       +'<div class="client-name">'+name+'</div>'
-      +'<div class="client-meta">'+(row.phone||'')+(row.city?' · '+row.city:'')+((row.emails&&row.emails[0])||row.email?' · '+(row.emails&&row.emails[0]?row.emails[0]:(row.email||'')):'')+(row.referral?' · '+row.referral:'')+'</div>'
+      +'<div class="client-meta">'+(function(){
+        var phones=(row.phones||[]).filter(function(p){return p&&p.num;});
+        if(!phones.length&&row.phone) phones=[{num:row.phone,ext:'',type:'cell'}];
+        var phonesDisplay=phones.map(function(p){
+          var icon=p.type==='home'?'🏠':p.type==='office'?'🏢':'📱';
+          return icon+' '+p.num;
+        }).join(' · ');
+        return phonesDisplay;
+      })()+
+      (row.city?' · '+row.city:'')+
+      ((row.emails&&row.emails[0])||row.email?' · '+(row.emails&&row.emails[0]?row.emails[0]:(row.email||'')):'')+
+      (row.referral?' · '+row.referral:'')+
+      '</div>'
       +'<div class="client-stats">'
       +(bins?'<span class="client-stat cs-bin">🚛 '+bins+' bin'+(bins!==1?'s':'')+'</span>':'')
       +(junk?'<span class="client-stat cs-junk">🧹 '+junk+' junk</span>':'')
@@ -5820,7 +5874,10 @@ async function openClientDetail(cid){
   var emails=(cl.emails||[]).filter(Boolean);
   if(!emails.length&&cl.email) emails=[cl.email];
   var namesHtml=names.length>1?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">All Names</div>'+names.map(function(n){return'<div>'+n+'</div>';}).join(''):'';
-  var phonesHtml=phones.map(function(p){return'<div>'+p.num+(p.ext?' <span style="color:var(--accent)">x'+p.ext+'</span>':'')+'</div>';}).join('')||'—';
+  var phonesHtml=phones.map(function(p){
+    var icon=p.type==='home'?'🏠':p.type==='office'?'🏢':'📱';
+    return'<div>'+icon+' '+p.num+(p.ext?' <span style="color:var(--accent)">x'+p.ext+'</span>':'')+'</div>';
+  }).join('')||'—';
   var emailsHtml=emails.map(function(e){return'<div><a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a></div>';}).join('')||'—';
   document.getElementById('cdet-body').innerHTML =
     (cl.blacklisted?'<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#ef4444;font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
@@ -7448,7 +7505,9 @@ function newJob(){
   window._binPresetDays=null;
   document.getElementById('modal-ttl').textContent='New Job';document.getElementById('save-btn').textContent='Save Job';
   document.getElementById('f-svc').value='';document.getElementById('f-status').value='Pending';
-  document.getElementById('f-name').value='';document.getElementById('f-phone').value='';
+  document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
+  document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
+  document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];document.getElementById('f-time').value='';
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
@@ -7461,7 +7520,7 @@ function newJob(){
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
-  ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-city'].forEach(clearErr);
   var recChk=document.getElementById('f-recurring');if(recChk)recChk.checked=false;
   var recOpts=document.getElementById('recurring-opts');if(recOpts)recOpts.style.display='none';
   var recInt=document.getElementById('f-recur-interval');if(recInt)recInt.value='biweekly';
@@ -7647,7 +7706,9 @@ function openEdit(id){
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
     document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'Pending';
-    document.getElementById('f-name').value=j.name||'';document.getElementById('f-phone').value=j.phone||'';
+    document.getElementById('f-names-wrap').innerHTML=_jobNameRow(j.name||'');
+    document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow(j.phone||'','','cell');
+    document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
     // Extract just the street number+name from the full stored address string.
     // Stored format is "123 Main St, City, Province, Country" — split on first comma.
     // The dedicated j.city field is the authoritative city value.
@@ -7702,24 +7763,33 @@ async function saveJob(e){
   var banner = document.getElementById('job-form-errors');
   if(banner) { banner.style.display='none'; banner.textContent=''; }
 
-  // Read values
-  var svc      = document.getElementById('f-svc').value;
-  var name     = toTitleCase(document.getElementById('f-name').value.trim());
+  // Collect contact names, phones, emails
+  var nameEls=document.querySelectorAll('#f-names-wrap .f-name-inp');
+  var names=[].slice.call(nameEls).map(function(el){var v=toTitleCase(el.value.trim());el.value=v;return v;}).filter(Boolean);
+  var phoneInps=document.querySelectorAll('#f-phones-wrap .f-phone-inp');
+  var phoneTypeEls=document.querySelectorAll('#f-phones-wrap .f-phone-type-sel');
+  var phoneExtEls=document.querySelectorAll('#f-phones-wrap .f-ext-inp');
+  var phones=[];
+  [].slice.call(phoneInps).forEach(function(el,i){var num=el.value.trim();if(num)phones.push({num:num,ext:phoneExtEls[i]?phoneExtEls[i].value.trim():'',type:phoneTypeEls[i]?phoneTypeEls[i].value:'cell'});});
+  var emailEls=document.querySelectorAll('#f-emails-wrap .f-email-inp');
+  var emails=[].slice.call(emailEls).map(function(el){return el.value.trim();}).filter(Boolean);
+
+  // Primary name for backward compat and UI display
+  var name=names.length?names[0]:'';
   var date     = document.getElementById('f-date').value;
   var city     = toTitleCase(document.getElementById('f-city').value.trim());
   var referral = document.getElementById('f-referral').value;
 
-  // Write Title Case back to fields
-  document.getElementById('f-name').value = name;
+  // Write Title Case back to city field
   document.getElementById('f-city').value = city;
 
   // Clear previous field errors
-  ['f-svc','f-name','f-date','f-city','f-referral'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-city','f-referral'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
   if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); }
-  if(!name)     { showErr('f-name');     errs.push('Customer name is required.'); }
+  if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); }
   if(!date)     { showErr('f-date');     errs.push('Date is required.'); }
   if(!city)     { showErr('f-city');     errs.push('City is required (e.g. Barrie).'); }
   if(!referral) { showErr('f-referral'); errs.push('Referral source is required.'); }
@@ -7759,12 +7829,20 @@ async function saveJob(e){
   var userEmail = currentUser ? currentUser.email : 'Unknown';
   var userName  = userEmail.split('@')[0];
 
+  // Use first cell phone, or first phone if no cell phone
+  var primaryPhone='';
+  var cellPhone=phones.find(function(p){return p.type==='cell'||!p.type;});
+  primaryPhone=cellPhone?cellPhone.num:(phones.length?phones[0].num:'');
+
   var job = {
     id:        editId || await nextIdFromDb(svc),
     service:   svc,
     status:    document.getElementById('f-status').value,
     name:      name,
-    phone:     document.getElementById('f-phone').value.trim(),
+    names:     names,
+    phones:    phones,
+    emails:    emails,
+    phone:     primaryPhone,
     address:   fullAddr,
     city:      city,
     date:      date,
@@ -7819,9 +7897,49 @@ async function saveJob(e){
   if(!cid && job.name){
     var exists = clients.some(function(c){return c.name.toLowerCase()===job.name.toLowerCase();});
     if(!exists){
-      clients.push({cid:nextClientId(),name:job.name,phone:job.phone||'',email:'',address:job.address||'',city:city,referral:job.referral||'',notes:''});
-      saveClients();
+      // Generate new client ID
+      var maxR=await db.from('clients').select('cid').order('cid',{ascending:false}).limit(1);
+      var maxCid=maxR.data&&maxR.data.length?maxR.data[0].cid:'CL-0000';
+      var maxNum=parseInt((maxCid||'').replace('CL-',''))||0;
+      var newCid='CL-'+String(maxNum+1).padStart(4,'0');
+      // Create full client with all the job data
+      var newClient={
+        cid:newCid,
+        name:names[0]||'',names:names,
+        phone:primaryPhone,phones:phones,
+        email:emails[0]||'',emails:emails,
+        address:street?street+', '+city+', ON, Canada':city+', ON, Canada',
+        city:city,addresses:[{street:street,city:city}],
+        referral:job.referral||'',
+        notes:''
+      };
+      clients.push(newClient);
+      saveSingleClient(newClient);
       renderClientSelectOptions();
+      // Update job to link to the new client
+      cid=newCid;
+      job.clientId=cid;
+    }
+  }
+
+  // If client selected, update with any new names/phones/emails entered
+  if(cid && names.length){
+    var cl=clients.find(function(c){return c.cid===cid;});
+    if(cl){
+      // Update names if new ones added
+      if(!cl.names||!cl.names.length) cl.names=[cl.name||''];
+      names.forEach(function(n){if(!cl.names.find(function(x){return x.toLowerCase()===n.toLowerCase();})){cl.names.push(n);}});
+      cl.name=cl.names[0]||'';
+      // Update phones if new ones added
+      if(!cl.phones||!cl.phones.length) cl.phones=cl.phone?[{num:cl.phone,ext:'',type:'cell'}]:[];
+      phones.forEach(function(p){if(!cl.phones.find(function(x){return x.num===p.num;})){cl.phones.push(p);}});
+      cl.phone=primaryPhone;
+      // Update emails if new ones added
+      if(!cl.emails||!cl.emails.length) cl.emails=cl.email?[cl.email]:[];
+      emails.forEach(function(e){if(!cl.emails.find(function(x){return x===e;})){cl.emails.push(e);}});
+      cl.email=cl.emails[0]||'';
+      // Save back to DB
+      saveSingleClient(cl);
     }
   }
 
@@ -10138,14 +10256,17 @@ async function printBinRental(jobId) {
     // ── LEFT COLUMN: Customer Info ──
     drawText(j.name, 55, 112);
     drawText(street, 65, 132);
-    // Home # — use second phone if available
-    if (clientPhones.length > 1) drawText(clientPhones[1].num || clientPhones[1], 65, 152);
-    drawText(j.phone, 55, 172);        // Cell #
-    // Office # — use third phone + ext if available
-    if (clientPhones.length > 2) {
-      drawText(clientPhones[2].num || clientPhones[2], 65, 190);
-      var officeExt = clientPhones[2].ext || '';
-      if (officeExt) drawText(officeExt, 258, 189);
+    // Find home phone by type
+    var homePhone = clientPhones.find(function(p) { return p && p.type === 'home'; });
+    if (homePhone) drawText(homePhone.num, 65, 152);
+    // Cell phone
+    var cellPhone = clientPhones.find(function(p) { return p && (p.type === 'cell' || !p.type); });
+    drawText(cellPhone ? cellPhone.num : (j.phone || ''), 55, 172);
+    // Office phone + ext
+    var officePhone = clientPhones.find(function(p) { return p && p.type === 'office'; });
+    if (officePhone) {
+      drawText(officePhone.num, 65, 190);
+      if (officePhone.ext) drawText(officePhone.ext, 258, 189);
     }
     drawText(email, 55, 210);
 
