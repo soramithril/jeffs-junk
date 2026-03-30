@@ -253,10 +253,18 @@ body{
 .bin-stat-card.out .bin-stat-value{color:#dc3545;}.bin-stat-card.in .bin-stat-value{color:#22c55e;}
 
 /* ── WEEK CALENDAR ── */
-.week-cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:32px;}
+.week-cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:auto;margin-bottom:32px;}
 .week-cal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface2);}
 .week-cal-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:var(--text);}
-.week-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.week-time-grid{display:grid;grid-template-columns:54px repeat(7,1fr);font-size:12px;}
+.week-time-label{padding:4px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600;border-right:1px solid var(--border);border-bottom:1px solid rgba(0,0,0,.04);display:flex;align-items:flex-start;justify-content:flex-end;min-height:28px;}
+.week-day-hdr-cell{text-align:center;padding:8px 4px;border-bottom:2px solid var(--border);font-weight:600;}
+.week-day-hdr-cell.today{background:var(--accent-light);}
+.week-day-hdr-cell .week-day-name{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+.week-day-hdr-cell .week-day-num{font-size:18px;font-weight:700;color:var(--text);}
+.week-day-hdr-cell.today .week-day-num{color:var(--accent);}
+.week-time-cell{border-bottom:1px solid rgba(0,0,0,.04);border-right:1px solid rgba(0,0,0,.04);padding:2px 3px;min-height:28px;position:relative;}
+.week-time-cell.allday{background:var(--surface2);min-height:auto;padding:4px 3px;}
 .week-day-col{border-right:1px solid var(--border);min-height:110px;}
 .week-day-col:last-child{border-right:none;}
 .week-day-hdr{padding:10px 10px 8px;border-bottom:1px solid var(--border);background:var(--surface2);text-align:center;}
@@ -593,20 +601,31 @@ textarea{resize:vertical;min-height:80px;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.toast-error{border-color:#dc3545!important;color:#dc3545!important;background:#fff5f5!important;}
 .toast.toast-warn{border-color:#e67e22!important;color:#e67e22!important;background:#fefce8!important;}
-.bin-notify{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-120%);z-index:10000;padding:22px 36px;border-radius:0 0 18px 18px;font-weight:600;font-family:'Inter',sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.25);transition:transform .5s cubic-bezier(.22,1,.36,1);display:flex;align-items:center;gap:16px;min-width:420px;max-width:600px;cursor:pointer;}
-.bin-notify.show{transform:translateX(-50%) translateY(0);}
-.bin-notify.dropped{background:linear-gradient(135deg,#22c55e,#16a34a,#22c55e);background-size:200% 200%;color:#fff;border:3px solid #15803d;border-top:none;}
-.bin-notify.pickedup{background:linear-gradient(135deg,#3b82f6,#2563eb,#3b82f6);background-size:200% 200%;color:#fff;border:3px solid #1d4ed8;border-top:none;}
-.bin-notify .bn-icon{font-size:38px;flex-shrink:0;animation:bnIconBounce 1s ease 2;}
-.bin-notify .bn-body{display:flex;flex-direction:column;gap:3px;}
-.bin-notify .bn-title{font-size:18px;font-weight:800;letter-spacing:.3px;text-shadow:0 1px 3px rgba(0,0,0,.15);}
-.bin-notify .bn-sub{font-size:14px;opacity:.9;font-weight:500;}
+/* Bin Notification Modal */
+.bin-notify-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.bin-notify-overlay.show{display:flex;}
+.bin-notify-modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:40px 48px;text-align:center;max-width:520px;width:90%;animation:bnModalIn .4s cubic-bezier(.22,1,.36,1);}
+.bin-notify-modal.dropped{border-top:5px solid #22c55e;}
+.bin-notify-modal.pickedup{border-top:5px solid #3b82f6;}
+.bin-notify-modal .bn-icon{font-size:64px;margin-bottom:12px;display:block;animation:bnIconBounce 1s ease 2;}
+.bin-notify-modal .bn-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.bin-notify-modal .bn-sub{font-size:15px;color:var(--text-secondary);margin-bottom:24px;display:block;}
+.bin-notify-modal .bn-ok{padding:10px 48px;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;transition:all var(--transition);font-family:'Inter',sans-serif;}
+.bin-notify-modal.dropped .bn-ok{background:#22c55e;color:#fff;}
+.bin-notify-modal.dropped .bn-ok:hover{background:#16a34a;}
+.bin-notify-modal.pickedup .bn-ok{background:#3b82f6;color:#fff;}
+.bin-notify-modal.pickedup .bn-ok:hover{background:#2563eb;}
+@keyframes bnModalIn{0%{opacity:0;transform:scale(.9) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
 @keyframes bnIconBounce{0%,100%{transform:scale(1)}25%{transform:scale(1.3)}50%{transform:scale(0.9)}75%{transform:scale(1.15)}}
-@keyframes bnGlow{0%,100%{box-shadow:0 12px 48px rgba(0,0,0,.25)}50%{box-shadow:0 12px 48px rgba(0,0,0,.25),0 0 30px rgba(34,197,94,.4),0 0 60px rgba(34,197,94,.15)}}
-@keyframes bnGlowBlue{0%,100%{box-shadow:0 12px 48px rgba(0,0,0,.25)}50%{box-shadow:0 12px 48px rgba(0,0,0,.25),0 0 30px rgba(59,130,246,.4),0 0 60px rgba(59,130,246,.15)}}
-@keyframes bnShimmer{0%{background-position:200% 50%}100%{background-position:0% 50%}}
-.bin-notify.show.dropped{animation:bnGlow 1.5s ease infinite,bnShimmer 3s ease infinite;}
-.bin-notify.show.pickedup{animation:bnGlowBlue 1.5s ease infinite,bnShimmer 3s ease infinite;}
+/* Bin Extend Popup */
+.extend-popup{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:12px;z-index:100;min-width:220px;display:none;}
+.extend-popup.open{display:block;}
+.extend-quick-btns{display:flex;gap:6px;margin-bottom:8px;}
+.extend-quick-btns button{flex:1;padding:6px 4px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all var(--transition);}
+.extend-quick-btns button:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
+.extend-date-row{display:flex;align-items:center;gap:6px;}
+.extend-date-row input[type=date]{flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Inter',sans-serif;}
+.extend-date-row button{padding:5px 12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;}
 .section-lbl{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
 
 
@@ -879,15 +898,17 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <!-- ─── LOADING SCREEN ─── -->
-<div id="sb-loading" class="jj-screen-bg" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+<div id="sb-loading" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#0a0a0a;">
+  <div style="position:absolute;inset:0;overflow:hidden;filter:blur(8px) brightness(.4);transform:scale(1.1);">
+    <iframe id="f1-bg-video" style="position:absolute;top:50%;left:50%;width:180%;height:180%;transform:translate(-50%,-50%);pointer-events:none;border:none;" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe>
+  </div>
   <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
        alt="Jeff's Junk"
-       style="width:200px;max-width:70%;animation:logoFadeIn 0.9s cubic-bezier(0.16,1,0.3,1) both;">
-  <!-- Progress bar track -->
-  <div style="width:280px;height:6px;background:rgba(34,197,94,.12);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.15);">
+       style="width:200px;max-width:70%;animation:logoFadeIn 0.9s cubic-bezier(0.16,1,0.3,1) both;position:relative;z-index:1;">
+  <div style="width:280px;height:6px;background:rgba(34,197,94,.12);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.15);position:relative;z-index:1;">
     <div id="load-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px;transition:width .4s ease;"></div>
   </div>
-  <p id="sb-loading-msg" style="color:#4b5563;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;min-height:20px;"></p>
+  <p id="sb-loading-msg" style="color:#9ca3af;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;min-height:20px;position:relative;z-index:1;"></p>
 </div>
 
 <!-- ─── MOBILE HEADER ─── -->
@@ -1068,28 +1089,6 @@ textarea{resize:vertical;min-height:80px;}
     </div>
   </div>
 
-  <!-- ROW: Driver Leaderboard -->
-  <div class="dash-section" style="margin-bottom:24px;">
-    <div class="chart-card" style="padding:0;overflow:visible;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🏆 DRIVER LEADERBOARD</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Safety scores &amp; event breakdown from Geotab</div>
-        </div>
-        <div style="position:relative;flex-shrink:0;">
-          <select id="leaderboard-period" onchange="renderDriverLeaderboard()" style="appearance:none;-webkit-appearance:none;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.25);color:#15803d;padding:5px 28px 5px 10px;border-radius:8px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;outline:none;">
-            <option value="1">Yesterday</option>
-            <option value="7" selected>7 Days</option>
-            <option value="14">14 Days</option>
-            <option value="30">30 Days</option>
-          </select>
-          <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#15803d" width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-      </div>
-      <div id="dash-leaderboard" style="padding:12px 16px;"></div>
-    </div>
-  </div>
-
   <!-- ROW 5: Week Calendar -->
   <div class="week-cal-wrap dash-section dash-s5">
     <div class="week-cal-header">
@@ -1123,6 +1122,28 @@ textarea{resize:vertical;min-height:80px;}
         </div>
       </div>
       <div id="dash-long-bins" style="padding:10px 12px;"></div>
+    </div>
+  </div>
+
+  <!-- ROW: Driver Leaderboard -->
+  <div class="dash-section" style="margin-bottom:24px;">
+    <div class="chart-card" style="padding:0;overflow:visible;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🏆 DRIVER LEADERBOARD</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Safety scores &amp; event breakdown from Geotab</div>
+        </div>
+        <div style="position:relative;flex-shrink:0;">
+          <select id="leaderboard-period" onchange="renderDriverLeaderboard()" style="appearance:none;-webkit-appearance:none;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.25);color:#15803d;padding:5px 28px 5px 10px;border-radius:8px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;outline:none;">
+            <option value="1">Yesterday</option>
+            <option value="7" selected>7 Days</option>
+            <option value="14">14 Days</option>
+            <option value="30">30 Days</option>
+          </select>
+          <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#15803d" width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div id="dash-leaderboard" style="padding:12px 16px;"></div>
     </div>
   </div>
 
@@ -2460,7 +2481,14 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="bin-notify" id="bin-notify"><span class="bn-icon"></span><div class="bn-body"><span class="bn-title"></span><span class="bn-sub"></span></div></div>
+<div class="bin-notify-overlay" id="bin-notify-overlay">
+  <div class="bin-notify-modal" id="bin-notify-modal">
+    <span class="bn-icon" id="bn-icon"></span>
+    <div class="bn-title" id="bn-title"></div>
+    <span class="bn-sub" id="bn-sub"></span>
+    <button class="bn-ok" id="bn-ok" onclick="dismissBinNotify()">OK</button>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════
@@ -2513,26 +2541,42 @@ db.channel('bin-status-notify')
   })
   .subscribe();
 
+var _binNotifyQueue=[];
+var _binNotifyShowing=false;
 function showBinNotify(status, name, binBid, addr, city, jobId){
-  var el=document.getElementById('bin-notify');if(!el)return;
-  var isDropped=status==='dropped';
-  el.className='bin-notify '+(isDropped?'dropped':'pickedup');
-  el.querySelector('.bn-icon').textContent=isDropped?'📦':'🚛';
-  var binLabel=binBid||'Bin';
-  // Try to find bin number from binItems
-  var binObj=binItems.find(function(b){return b.bid===binBid;});
+  _binNotifyQueue.push({status:status,name:name,binBid:binBid,addr:addr,city:city,jobId:jobId});
+  if(!_binNotifyShowing) _showNextBinNotify();
+}
+function _showNextBinNotify(){
+  if(!_binNotifyQueue.length){_binNotifyShowing=false;return;}
+  _binNotifyShowing=true;
+  var n=_binNotifyQueue.shift();
+  var overlay=document.getElementById('bin-notify-overlay');
+  var modal=document.getElementById('bin-notify-modal');
+  var icon=document.getElementById('bn-icon');
+  var title=document.getElementById('bn-title');
+  var sub=document.getElementById('bn-sub');
+  if(!overlay)return;
+  var isDropped=n.status==='dropped';
+  modal.className='bin-notify-modal '+(isDropped?'dropped':'pickedup');
+  icon.textContent=isDropped?'📦':'🚛';
+  var binLabel=n.binBid||'Bin';
+  var binObj=binItems.find(function(b){return b.bid===n.binBid;});
   if(binObj) binLabel=binObj.num+(binObj.size?' · '+binObj.size:'');
-  el.querySelector('.bn-title').textContent=isDropped
-    ? 'Bin Dropped Off — '+binLabel
-    : 'Bin Picked Up — '+binLabel;
-  var location=(addr||'').split(',')[0];
-  if(city&&location) location+=' · '+city;
-  el.querySelector('.bn-sub').textContent=name+(location?' — '+location:'');
-  el.onclick=function(){el.classList.remove('show');if(jobId)openDetail(jobId);};
-  // Show
-  clearTimeout(el._tid);
-  el.classList.add('show');
-  el._tid=setTimeout(function(){el.classList.remove('show');},15000);
+  title.textContent=isDropped?'Bin Dropped Off — '+binLabel:'Bin Picked Up — '+binLabel;
+  var location=(n.addr||'').split(',')[0];
+  if(n.city&&location) location+=' · '+n.city;
+  sub.textContent=n.name+(location?' — '+location:'');
+  overlay.dataset.jobId=n.jobId||'';
+  overlay.classList.add('show');
+}
+function dismissBinNotify(){
+  var overlay=document.getElementById('bin-notify-overlay');
+  if(!overlay)return;
+  var jobId=overlay.dataset.jobId;
+  overlay.classList.remove('show');
+  if(jobId)openDetail(jobId);
+  setTimeout(function(){_showNextBinNotify();},300);
 }
 
 // ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
@@ -3048,6 +3092,8 @@ function saveGeo() {
 function showLoading(msg, pct) {
   var el = document.getElementById('sb-loading');
   if (el) { el.style.display='flex'; }
+  var _bgVids=['RC4gECuQ7Do','WWEs82u37Mw','omyFBmQwx9o'];var _bgPick=_bgVids[Math.floor(Math.random()*_bgVids.length)];var _bgStart=Math.floor(Math.random()*120);
+  var f1Frame=document.getElementById('f1-bg-video');if(f1Frame&&!f1Frame.src.includes('youtube'))f1Frame.src='https://www.youtube.com/embed/'+_bgPick+'?autoplay=1&mute=1&loop=1&playlist='+_bgPick+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+_bgStart;
   var msgEl = document.getElementById('sb-loading-msg');
   if (msgEl) msgEl.textContent = msg || 'Loading...';
   if (pct !== undefined) setLoadProgress(pct);
@@ -3061,6 +3107,7 @@ function hideLoading() {
   setTimeout(function(){
     var el = document.getElementById('sb-loading');
     if (el) el.style.display='none';
+    var f1Frame=document.getElementById('f1-bg-video');if(f1Frame)f1Frame.src='';
     setLoadProgress(0);
   }, 350);
 }
@@ -4273,34 +4320,71 @@ async function renderWeekCal(){
 
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
-  var html='';
+  var hours=[];for(var h=8;h<=17;h++)hours.push(h);
+
+  function chipHtml(ev){
+    var j=ev.j;var cfmCls=j.confirmed?' confirmed':' unconfirmed';
+    var icon='', label=j.name;
+    if(ev.type==='pickup'){ icon='🚚 '; }
+    else if(ev.type==='dropoff'){ icon='🚛 '; }
+    else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 '};icon=iconMap[j.service]||''; }
+    var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
+    return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(j.time?ft(j.time)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
+  }
+
+  // Build header row
+  var html='<div class="week-time-grid">';
+  // Header: time label + day names
+  html+='<div class="week-time-label" style="border-bottom:2px solid var(--border)"></div>';
+  for(var i=0;i<7;i++){
+    var d=new Date(ws);d.setDate(d.getDate()+i);
+    var isToday=d.getTime()===today.getTime();
+    html+='<div class="week-day-hdr-cell'+(isToday?' today':'')+'" data-date="'+d.toISOString().split('T')[0]+'"><div class="week-day-name">'+dayNames[d.getDay()]+'</div><div class="week-day-num">'+d.getDate()+'</div></div>';
+  }
+  // All-day row
+  html+='<div class="week-time-label" style="font-size:10px;color:var(--muted)">All Day</div>';
   for(var i=0;i<7;i++){
     var d=new Date(ws);d.setDate(d.getDate()+i);
     var ds=d.toISOString().split('T')[0];
-    var isToday=d.getTime()===today.getTime();
     var dayEvs=weekEvents[ds]||[];
-    var chips=dayEvs.map(function(ev){
-      var j=ev.j;var cfmCls=j.confirmed?' confirmed':' unconfirmed';
-      var icon='', label=j.name;
-      if(ev.type==='pickup'){ icon='🚚 '; }
-      else if(ev.type==='dropoff'){ icon='🚛 '; }
-      else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 '};icon=iconMap[j.service]||''; }
-      var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
-      return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(j.time?ft(j.time)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
-    }).join('');
-    html+='<div class="week-day-col'+(isToday?' today':'')+'\" data-date="'+ds+'"><div class="week-day-hdr"><div class="week-day-name">'+dayNames[d.getDay()]+'</div><div class="week-day-num">'+d.getDate()+'</div></div><div class="week-day-jobs" data-date="'+ds+'">'+(chips||'')+'</div></div>';
+    var allDayChips=dayEvs.filter(function(ev){
+      if(ev.j.service==='Bin Rental'&&!ev.j.time)return true;
+      if(!ev.j.time)return true;
+      return false;
+    }).map(chipHtml).join('');
+    html+='<div class="week-time-cell allday" data-date="'+ds+'">'+allDayChips+'</div>';
   }
+  // Hour rows
+  for(var hi=0;hi<hours.length;hi++){
+    var hr=hours[hi];
+    var hrLabel=hr<=12?(hr===12?'12 PM':hr+' AM'):(hr-12)+' PM';
+    html+='<div class="week-time-label">'+hrLabel+'</div>';
+    for(var i=0;i<7;i++){
+      var d=new Date(ws);d.setDate(d.getDate()+i);
+      var ds=d.toISOString().split('T')[0];
+      var dayEvs=weekEvents[ds]||[];
+      var hourChips=dayEvs.filter(function(ev){
+        if(!ev.j.time)return false;
+        if(ev.j.service==='Bin Rental'&&!ev.j.time)return false;
+        var parts=ev.j.time.split(':');
+        var jobHr=parseInt(parts[0]);
+        return jobHr===hr;
+      }).map(chipHtml).join('');
+      html+='<div class="week-time-cell" data-date="'+ds+'" data-hour="'+hr+'">'+hourChips+'</div>';
+    }
+  }
+  html+='</div>';
   var wg=document.getElementById('week-grid');
   wg.innerHTML=html;
   wg.querySelectorAll('.week-job-chip[draggable]').forEach(function(chip){
     chip.addEventListener('dragstart',function(e){dragJobId=chip.getAttribute('data-jid');chip.style.opacity='0.4';e.dataTransfer.effectAllowed='move';});
     chip.addEventListener('dragend',function(){chip.style.opacity='';dragJobId=null;});
   });
-  wg.querySelectorAll('.week-day-col').forEach(function(col){
-    col.addEventListener('dragover',function(e){if(dragJobId){e.preventDefault();col.style.background='rgba(34,197,94,.13)';col.style.outline='2px dashed var(--accent)';}});
-    col.addEventListener('dragleave',function(){col.style.background='';col.style.outline='';});
+  wg.querySelectorAll('.week-time-cell,.week-day-hdr-cell').forEach(function(col){
+    col.addEventListener('dragover',function(e){if(dragJobId){e.preventDefault();col.style.background='rgba(34,197,94,.13)';}});
+    col.addEventListener('dragleave',function(){col.style.background='';});
     col.addEventListener('drop',function(e){
-      e.preventDefault();col.style.background='';col.style.outline='';
+      e.preventDefault();col.style.background='';
       var newDate=col.getAttribute('data-date');
       if(!dragJobId||!newDate)return;
       jobs.forEach(function(j){if(j.id===dragJobId)j.date=newDate;});
@@ -4674,12 +4758,12 @@ async function renderDashBinsOut(){
     if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
     var nameHtml;
     if(curJob){ nameHtml='<strong style="font-size:13px">'+name+'</strong>'; }
-    else if(lastJob){ nameHtml='<span style="font-size:13px;color:var(--muted)" title="Last job is completed — bin may need to be returned to yard">'+name+' <span style="font-size:10px;background:rgba(220,53,69,.1);color:#dc3545;padding:1px 6px;border-radius:4px">Job Done</span></span>'; }
+    else if(lastJob){ nameHtml='<span style="font-size:13px;color:var(--muted);text-decoration:line-through;opacity:.6" title="Previous customer — bin needs reassigning or returning to yard">'+name+'</span> <span style="font-size:10px;background:rgba(230,126,34,.12);color:#e67e22;padding:2px 8px;border-radius:4px;font-weight:700">Needs Return</span> <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:11px;padding:2px 8px">🔗 Reassign</button>'; }
     else { nameHtml='<span style="font-size:12px;color:var(--muted);font-style:italic">Not linked to a job</span> <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:11px;padding:2px 8px">🔗 Link</button>'; }
     var pickupBtn=curJob?'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dashMarkPickedUp(\''+job.id+'\',\''+b.bid+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(34,197,94,.3);color:#22c55e;border-radius:6px;margin-left:auto;flex-shrink:0">✅ Picked Up</button>':'';
     return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+(curJob?'#dc3545':isStale?'#e67e22':'var(--muted)')+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="'+(job?'openDetail(\''+job.id+'\')':'')+'">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        +'<span style="font-size:12px;background:rgba(220,53,69,.12);color:#dc3545;border:1px solid rgba(220,53,69,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+'</span>'
+        +'<span style="font-size:12px;background:'+(curJob?'rgba(220,53,69,.12)':isStale?'rgba(230,126,34,.12)':'rgba(134,142,150,.12)')+';color:'+(curJob?'#dc3545':isStale?'#e67e22':'var(--muted)')+';border:1px solid '+(curJob?'rgba(220,53,69,.35)':isStale?'rgba(230,126,34,.35)':'rgba(134,142,150,.35)')+';border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+'</span>'
         +nameHtml
         +(phone?'<span style="font-size:11px;color:var(--muted)">'+phone+'</span>':'')
         +(daysOut&&!pickupBtn?'<span style="font-size:11px;color:var(--muted);margin-left:auto">'+daysOut+'</span>':'')
@@ -8035,36 +8119,50 @@ function openDetail(id){
       +'</div></div>':'')
     +'<div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px;display:flex;flex-direction:column;gap:10px">'
 
-    // ── Row 1: primary action + email + print ──
+    // ── Row 1: Primary Actions ──
     +'<div style="display:flex;gap:10px">'
     +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')" style="flex:1;justify-content:center">✏️ Edit Job</button>'
     +'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>'
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
     +'</div>'
 
-    // ── Row 2: workflow / status actions (only those relevant to this job) ──
+    // ── Row 2: Customer Confirmation ──
+    +(function(){
+      var cbtns=[];
+      if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){
+        var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';
+        cbtns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">📞 '+confirmLabel+'</button>');
+      }
+      if(!j.emailConfirmed){
+        cbtns.push('<button class="btn btn-ghost" onclick="markEmailConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Email Sent</button>');
+      }
+      return cbtns.length ? '<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">Customer Confirmation</div><div style="display:flex;gap:10px">'+cbtns.join('')+'</div></div>' : '';
+    }())
+
+    // ── Row 3: Bin / Job Actions ──
     +(function(){
       var btns=[];
       if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e;font-weight:700">⚡ Convert to Job</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
+      if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22;position:relative">📅 Extend Pickup</button>');
       if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
       if(j.recurring){
-        if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="scheduleNextSwap(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Schedule Next Swap</button>');
-        else if(j.service==='Junk Removal') btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Schedule Next Visit</button>');
+        if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="scheduleNextSwap(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Swap</button>');
+        else if(j.service==='Junk Removal') btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
       }
       if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">✔ Mark Done</button>');
-      if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';btns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">📞 '+confirmLabel+'</button>');}
-      if(!j.emailConfirmed){btns.push('<button class="btn btn-ghost" onclick="markEmailConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Email Confirm</button>');}
-      return btns.length ? '<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div>' : '';
+      var sectionLabel=j.service==='Bin Rental'?'Bin Actions':'Job Actions';
+      return btns.length ? '<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">'+sectionLabel+'</div><div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div></div>' : '';
     }())
 
-    // ── Row 3: destructive actions ──
+    // ── Row 4: Danger Zone ──
+    +'<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">Danger Zone</div>'
     +'<div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--border)">'
     +(j.status!=='Cancelled'?'<button class="btn btn-ghost" onclick="cancelJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.3);color:#dc3545">🚫 Cancel Job</button>':'')
     +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')" style="flex:1;justify-content:center">🗑️ Delete</button>'
-    +'</div>'
+    +'</div></div>'
 
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
@@ -8101,6 +8199,48 @@ async function swapOutBin(id){
 }
 
 function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});save();toast('Customer marked as confirmed!');refresh();}
+
+function openExtendPopup(jobId, e){
+  if(e)e.stopPropagation();
+  var existing=document.querySelector('.extend-popup.open');
+  if(existing){existing.classList.remove('open');if(existing.dataset.jid===jobId)return;}
+  var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
+  var curPickup=j.binPickup||todayStr();
+  var pop=document.createElement('div');
+  pop.className='extend-popup open';
+  pop.dataset.jid=jobId;
+  pop.onclick=function(ev){ev.stopPropagation();};
+  pop.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Extend Pickup</div>'
+    +'<div class="extend-quick-btns">'
+    +'<button onclick="extendBin(\''+jobId+'\',1)">+1 Day</button>'
+    +'<button onclick="extendBin(\''+jobId+'\',2)">+2 Days</button>'
+    +'<button onclick="extendBin(\''+jobId+'\',3)">+3 Days</button>'
+    +'</div>'
+    +'<div class="extend-date-row">'
+    +'<input type="date" id="extend-date-'+jobId+'" value="'+curPickup+'" min="'+todayStr()+'">'
+    +'<button onclick="extendBinToDate(\''+jobId+'\')">Set</button>'
+    +'</div>';
+  var btn=e?e.currentTarget:null;
+  if(btn){btn.style.position='relative';btn.appendChild(pop);}
+  setTimeout(function(){document.addEventListener('click',function closeExtend(){pop.classList.remove('open');setTimeout(function(){if(pop.parentNode)pop.parentNode.removeChild(pop);},200);document.removeEventListener('click',closeExtend);});},10);
+}
+function extendBin(jobId, days){
+  var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
+  var cur=j.binPickup?new Date(j.binPickup+'T12:00:00'):new Date();
+  cur.setDate(cur.getDate()+days);
+  j.binPickup=cur.toISOString().split('T')[0];
+  save();toast('Pickup extended to '+fd(j.binPickup));
+  var pop=document.querySelector('.extend-popup.open');if(pop)pop.classList.remove('open');
+  refresh();
+}
+function extendBinToDate(jobId){
+  var inp=document.getElementById('extend-date-'+jobId);if(!inp||!inp.value)return;
+  var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
+  j.binPickup=inp.value;
+  save();toast('Pickup extended to '+fd(j.binPickup));
+  var pop=document.querySelector('.extend-popup.open');if(pop)pop.classList.remove('open');
+  refresh();
+}
 
 function markEmailConfirmed(id){
   jobs.forEach(function(j){if(j.id===id)j.emailConfirmed=true;});
