@@ -2124,34 +2124,53 @@ textarea{resize:vertical;min-height:80px;}
           <button type="button" onclick="clearClientSelection()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">✕</button>
         </div>
       </div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Service Type <span style="color:#ef4444">*</span></label>
-          <select id="f-svc" onchange="toggleBin();clearErr('f-svc')">
-            <option value="">Select...</option>
-            <option>Bin Rental</option><option>Junk Removal</option><option>Junk Quote</option>
-            <option>Furniture Pickup</option><option>Furniture Delivery</option>
-          </select>
-          <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
+      <!-- ── Service Type ── -->
+      <div style="margin-bottom:20px">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Service Type <span style="color:#ef4444">*</span></label>
+            <select id="f-svc" onchange="toggleBin();clearErr('f-svc')">
+              <option value="">Select...</option>
+              <option>Bin Rental</option><option>Junk Removal</option><option>Junk Quote</option>
+              <option>Furniture Pickup</option><option>Furniture Delivery</option>
+            </select>
+            <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
+          </div>
+          <input type="hidden" id="f-status" value="Pending">
         </div>
-        <input type="hidden" id="f-status" value="Pending">
-        <div class="form-group full" style="margin-top:12px">
+      </div>
+
+      <!-- ── Contact Info Section ── -->
+      <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.18);border-radius:12px;padding:16px 18px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:18px">👤</span>
+          <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#3b82f6">Contact Information</span>
+        </div>
+        <div class="form-group full" style="margin-bottom:14px">
           <label>Contact Name(s) <span style="color:#ef4444">*</span></label>
           <div id="f-names-wrap"></div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:6px">+ Add Another Name</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:6px;color:#3b82f6;border-color:rgba(59,130,246,.3)">+ Add Another Name</button>
           <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
         </div>
-        <div class="form-group full" style="margin-top:12px">
+        <div class="form-group full" style="margin-bottom:14px">
           <label>Phone(s)</label>
           <div id="f-phones-wrap"></div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:6px">+ Add Another Phone</button>
-        </div>
-        <div class="form-group full" style="margin-top:12px">
-          <label>Email(s)</label>
-          <div id="f-emails-wrap"></div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobEmail()" style="margin-top:6px">+ Add Another Email</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:6px;color:#3b82f6;border-color:rgba(59,130,246,.3)">+ Add Another Phone</button>
         </div>
         <div class="form-group full">
+          <label>Email(s)</label>
+          <div id="f-emails-wrap"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobEmail()" style="margin-top:6px;color:#3b82f6;border-color:rgba(59,130,246,.3)">+ Add Another Email</button>
+        </div>
+      </div>
+
+      <!-- ── Location Section ── -->
+      <div style="background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);border-radius:12px;padding:16px 18px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:18px">📍</span>
+          <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#a855f7">Location</span>
+        </div>
+        <div class="form-group full" style="margin-bottom:14px">
           <label>Street Address</label>
           <div id="f-addr-picker" style="display:none;margin-bottom:8px">
             <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%">
@@ -2159,33 +2178,55 @@ textarea{resize:vertical;min-height:80px;}
           </div>
           <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
         </div>
-        <div class="form-group"><label>City <span style="color:#ef4444">*</span></label><input id="f-city" type="text" oninput="clearErr('f-city')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
-        <div class="form-group"><label>Province</label><input id="f-province" type="text" value="Ontario" readonly style="opacity:.6;cursor:not-allowed"></div>
-        <div class="form-group"><label>Country</label><input id="f-country" type="text" value="Canada" readonly style="opacity:.6;cursor:not-allowed"></div>
-        <div class="form-group"><label>Date <span style="color:#ef4444">*</span></label><input id="f-date" type="date" oninput="clearErr('f-date')"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
-        <div class="form-group"><label>Time</label><input id="f-time" type="time"></div>
-        <div class="form-group">
-          <label>Referral Source <span style="color:#ef4444">*</span></label>
-          <select id="f-referral" oninput="clearErr('f-referral')">
-            <option value="">— Choose source —</option>
-            <option>Google</option><option>Word of Mouth</option><option>Facebook</option>
-            <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option>
-            <option>Furniture Bank Lead</option><option>Home Show</option><option>City Bus</option>
-            <option>Community Partner Cards</option><option>Website</option><option>Other</option>
-          </select>
-          <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
+        <div class="form-grid">
+          <div class="form-group"><label>City <span style="color:#ef4444">*</span></label><input id="f-city" type="text" oninput="clearErr('f-city')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
+          <div class="form-group"><label>Province</label><input id="f-province" type="text" value="Ontario" readonly style="opacity:.6;cursor:not-allowed"></div>
+          <div class="form-group"><label>Country</label><input id="f-country" type="text" value="Canada" readonly style="opacity:.6;cursor:not-allowed"></div>
         </div>
-        <div class="form-group">
-          <label>Payment Method</label>
-          <select id="f-paymethod">
-            <option value="">— Not set —</option>
-            <option value="Cash">Cash</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="Debit">Debit</option>
-            <option value="E-Transfer">E-Transfer</option>
-            <option value="Cheque">Cheque</option>
-            <option value="Invoice">Invoice</option>
-          </select>
+      </div>
+
+      <!-- ── Scheduling Section ── -->
+      <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.18);border-radius:12px;padding:16px 18px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:18px">📅</span>
+          <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f59e0b">Scheduling</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Date <span style="color:#ef4444">*</span></label><input id="f-date" type="date" oninput="clearErr('f-date')"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
+          <div class="form-group"><label>Time</label><input id="f-time" type="time"></div>
+        </div>
+      </div>
+
+      <!-- ── Details Section ── -->
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);border-radius:12px;padding:16px 18px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <span style="font-size:18px">📋</span>
+          <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22c55e">Details</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Referral Source <span style="color:#ef4444">*</span></label>
+            <select id="f-referral" oninput="clearErr('f-referral')">
+              <option value="">— Choose source —</option>
+              <option>Google</option><option>Word of Mouth</option><option>Facebook</option>
+              <option>Instagram</option><option>Kijiji</option><option>Repeat Customer</option>
+              <option>Furniture Bank Lead</option><option>Home Show</option><option>City Bus</option>
+              <option>Community Partner Cards</option><option>Website</option><option>Other</option>
+            </select>
+            <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
+          </div>
+          <div class="form-group">
+            <label>Payment Method</label>
+            <select id="f-paymethod">
+              <option value="">— Not set —</option>
+              <option value="Cash">Cash</option>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit">Debit</option>
+              <option value="E-Transfer">E-Transfer</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Invoice">Invoice</option>
+            </select>
+          </div>
         </div>
         <input type="hidden" id="f-price" value="">
         <input type="hidden" id="f-paid" value="Unpaid">
