@@ -9635,19 +9635,19 @@ async function drdDownloadPDF() {
     if(document.getElementById('drd-src-rp').checked)  drawAt(441, 659, 'X', {size:12, bold:true});
 
     // ── Header fields ──
-    drawAt(160, 632, document.getElementById('drd-opp').value.trim());
-    drawAt(540, 632, document.getElementById('drd-date').value);
-    drawAt(390, 621, document.getElementById('drd-tax').value);
+    drawAt(160, 635, document.getElementById('drd-opp').value.trim());
+    drawAt(540, 638, document.getElementById('drd-date').value);
+    drawAt(390, 625, document.getElementById('drd-tax').value);
 
     // ── Donor info ──
-    drawAt(323, 558, document.getElementById('drd-name').value.trim(), {bold:true});
-    drawAt(323, 534, document.getElementById('drd-addr').value.trim());
-    drawAt(323, 486, document.getElementById('drd-city').value.trim());
-    drawAt(323, 462, document.getElementById('drd-postal').value.trim());
-    drawAt(323, 438, document.getElementById('drd-email').value.trim());
-    drawAt(323, 414, document.getElementById('drd-phone').value.trim());
-    drawAt(323, 397, document.getElementById('drd-contact').value.trim());
-    drawAt(465, 397, document.getElementById('drd-contact-info').value.trim());
+    drawAt(323, 561, document.getElementById('drd-name').value.trim(), {bold:true});
+    drawAt(323, 537, document.getElementById('drd-addr').value.trim());
+    drawAt(323, 489, document.getElementById('drd-city').value.trim());
+    drawAt(323, 465, document.getElementById('drd-postal').value.trim());
+    drawAt(323, 441, document.getElementById('drd-email').value.trim());
+    drawAt(323, 417, document.getElementById('drd-phone').value.trim());
+    drawAt(323, 403, document.getElementById('drd-contact').value.trim());
+    drawAt(465, 403, document.getElementById('drd-contact-info').value.trim());
 
     // ── Item quantities ──
     // 4 columns, 23 rows each (except col4 has 4 regular items)
