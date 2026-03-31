@@ -9593,12 +9593,14 @@ async function drdDownloadPDF() {
     setField('Untitled6', document.getElementById('drd-date').value);
 
     // ── Donor information ──
+    // Untitled7=Name, Untitled9=Addr line1, Untitled8=Addr line2 (skip),
+    // Untitled11=City, Untitled10=Postal, Untitled12=Email, Untitled13=Phone
     setField('Untitled7',  document.getElementById('drd-name').value.trim());
     setField('Untitled9',  document.getElementById('drd-addr').value.trim());
-    setField('Untitled8',  document.getElementById('drd-city').value.trim());
-    setField('Untitled11', document.getElementById('drd-postal').value.trim());
-    setField('Untitled10', document.getElementById('drd-email').value.trim());
-    setField('Untitled12', document.getElementById('drd-phone').value.trim());
+    setField('Untitled11', document.getElementById('drd-city').value.trim());
+    setField('Untitled10', document.getElementById('drd-postal').value.trim());
+    setField('Untitled12', document.getElementById('drd-email').value.trim());
+    setField('Untitled13', document.getElementById('drd-phone').value.trim());
     setField('Untitled16', document.getElementById('drd-contact').value.trim());
     setField('Untitled15', document.getElementById('drd-contact-info').value.trim());
 
