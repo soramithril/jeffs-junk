@@ -2788,6 +2788,8 @@ var vehicles = [];
 var vehBlocks = {};
 var binItems = [];
 var clients = [];
+var crewMembers = [];
+var vehicleAssignments = {}; // { vid: [{id, crewMemberId, name}] } for today
 var geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){}
 
@@ -3181,6 +3183,21 @@ async function loadAllFromSupabase() {
       console.warn('Vehicles load error:', e);
     }
     extendOpenBlocks();
+
+    // Load crew members + today's vehicle assignments
+    showLoading('Loading crew...', 80);
+    try {
+      var rCrew = await db.from('crew_members').select('*').eq('active', true).order('name');
+      crewMembers = (rCrew.data || []).map(function(r){ return {id:r.id, name:r.name}; });
+      var todayISO = todayStr();
+      var rAssign = await db.from('vehicle_assignments').select('*').eq('assignment_date', todayISO);
+      vehicleAssignments = {};
+      (rAssign.data || []).forEach(function(r){
+        if(!vehicleAssignments[r.vid]) vehicleAssignments[r.vid] = [];
+        var crew = crewMembers.find(function(c){ return c.id === r.crew_member_id; });
+        vehicleAssignments[r.vid].push({id:r.id, crewMemberId:r.crew_member_id, name:crew?crew.name:'Unknown'});
+      });
+    } catch(e){ console.warn('Crew/assignments load error:', e); }
 
     // Background-load ALL clients (Supabase caps at 1000 per request, so paginate)
     clients = [];
@@ -4007,7 +4024,6 @@ function renderDashVehicleStatus(){
   if(!vehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
   var todayS=todayStr();
   el.innerHTML=vehicles.map(function(v){
-    // Derive status from blocked days (single source of truth)
     var blocks=vehBlocks[v.vid]||{};
     var todayBlock=blocks[todayS];
     var status,statusCol,statusIcon,statusTip;
@@ -4015,19 +4031,39 @@ function renderDashVehicleStatus(){
       status=todayBlock.reason||'Blocked';
       statusCol='#dc3545';statusIcon='🔧';statusTip=status+(todayBlock.notes?' — '+todayBlock.notes:'')+' · click to manage';
     } else {
-      status='Available';statusCol='#22c55e';statusIcon='';statusTip='Available · click to manage blocked days';
+      status='Available';statusCol='#22c55e';statusIcon='';statusTip='Available · click to manage';
     }
     var dotColor=statusCol;
     var menuId='veh-menu-'+v.vid;
-    var menuHtml='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;min-width:180px;overflow:hidden">'
+
+    // Assigned crew for today
+    var assigned=vehicleAssignments[v.vid]||[];
+    var crewNames=assigned.map(function(a){return a.name;}).join(', ');
+
+    // Build crew assignment options for the dropdown
+    var crewOpts=crewMembers.map(function(c){
+      var isAssigned=assigned.some(function(a){return a.crewMemberId===c.id;});
+      return '<div style="padding:6px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();toggleCrewAssignment(\''+v.vid+'\',\''+c.id+'\')">'
+        +'<span style="width:16px;text-align:center">'+(isAssigned?'✓':'')+'</span>'
+        +'<span>'+c.name+'</span>'
+        +'</div>';
+    }).join('');
+    var crewSection=crewMembers.length
+      ?'<div style="border-top:1px solid var(--border);padding:4px 14px 2px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Assign Crew</div>'+crewOpts
+        +'<div style="padding:6px 14px;font-size:11px;cursor:pointer;border-top:1px solid var(--border);color:var(--accent);transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeVehMenus();openCrewManager()">+ Manage Crew</div>'
+      :'<div style="padding:8px 14px;font-size:11px;cursor:pointer;border-top:1px solid var(--border);color:var(--accent);transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeVehMenus();openCrewManager()">+ Add Crew Members</div>';
+
+    var menuHtml='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;min-width:200px;overflow:hidden;max-height:320px;overflow-y:auto">'
       +(todayBlock
         ?'<div style="padding:8px 14px;font-size:12px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'rgba(34,197,94,.07)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();markVehicleOperational(\''+v.vid+'\')">✅ Mark Operational</div>'
         :'<div style="padding:8px 14px;font-size:12px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'rgba(220,53,69,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();markVehicleNotOperational(\''+v.vid+'\')">🔧 Not Operational</div>')
+      +crewSection
       +'<div style="padding:8px 14px;font-size:12px;cursor:pointer;border-top:1px solid var(--border);transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeVehMenus();go(\'vehicles\')">📋 Manage Vehicles</div>'
     +'</div>';
     return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="event.stopPropagation();toggleVehMenu(\''+menuId+'\')">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
       +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
+      +(crewNames?'<span style="font-size:10px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis">'+crewNames+'</span>':'')
       +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
       +menuHtml
       +'</div>';
@@ -4066,6 +4102,82 @@ function closeVehMenus(){
 document.addEventListener('click',function(e){
   if(!e.target.closest('[id^="veh-menu-"]')&&!e.target.closest('#dash-vehicle-status'))closeVehMenus();
 });
+
+// ── Crew Assignment (toggle a crew member on/off a vehicle for today) ──
+function toggleCrewAssignment(vid, crewId){
+  var todayISO=todayStr();
+  if(!vehicleAssignments[vid]) vehicleAssignments[vid]=[];
+  var idx=vehicleAssignments[vid].findIndex(function(a){return a.crewMemberId===crewId;});
+  if(idx>=0){
+    // Remove assignment
+    var rec=vehicleAssignments[vid][idx];
+    vehicleAssignments[vid].splice(idx,1);
+    db.from('vehicle_assignments').delete().eq('vid',vid).eq('crew_member_id',crewId).eq('assignment_date',todayISO).then(function(r){
+      if(r.error) console.warn('Remove assignment failed:',r.error.message);
+    });
+  } else {
+    // Add assignment
+    var crew=crewMembers.find(function(c){return c.id===crewId;});
+    vehicleAssignments[vid].push({id:null, crewMemberId:crewId, name:crew?crew.name:'Unknown'});
+    db.from('vehicle_assignments').insert({vid:vid, crew_member_id:crewId, assignment_date:todayISO}).then(function(r){
+      if(r.error) console.warn('Add assignment failed:',r.error.message);
+    });
+  }
+  renderDashVehicleStatus();
+}
+
+// ── Crew Manager Modal ──
+function openCrewManager(){
+  var html='<div class="modal-overlay open" id="crew-modal-overlay" onclick="if(event.target===this)closeCrewManager()">'
+    +'<div style="background:var(--surface);border-radius:14px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:16px;font-weight:700;margin-bottom:16px">Manage Crew Members</div>'
+    +'<div id="crew-list" style="margin-bottom:12px"></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<input id="crew-new-name" type="text" placeholder="New crew member name" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px" onkeydown="if(event.key===\'Enter\')addCrewMember()">'
+    +'<button class="btn btn-primary" onclick="addCrewMember()" style="font-size:12px;padding:6px 14px">Add</button>'
+    +'</div>'
+    +'<div style="text-align:right;margin-top:16px"><button class="btn btn-ghost" onclick="closeCrewManager()">Done</button></div>'
+    +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+  renderCrewList();
+}
+function closeCrewManager(){
+  var el=document.getElementById('crew-modal-overlay');
+  if(el)el.remove();
+  renderDashVehicleStatus();
+}
+function renderCrewList(){
+  var el=document.getElementById('crew-list');if(!el)return;
+  if(!crewMembers.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">No crew members yet. Add one below.</div>';return;}
+  el.innerHTML=crewMembers.map(function(c){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:13px">'+c.name+'</span>'
+      +'<button style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px;padding:2px 6px" onclick="removeCrewMember(\''+c.id+'\')" title="Remove">×</button>'
+      +'</div>';
+  }).join('');
+}
+function addCrewMember(){
+  var input=document.getElementById('crew-new-name');if(!input)return;
+  var name=input.value.trim();if(!name)return;
+  input.value='';
+  db.from('crew_members').insert({name:name}).select().then(function(r){
+    if(r.error){toast('Failed to add: '+r.error.message);return;}
+    if(r.data&&r.data[0]) crewMembers.push({id:r.data[0].id, name:r.data[0].name});
+    renderCrewList();
+  });
+}
+function removeCrewMember(id){
+  if(!confirm('Remove this crew member?'))return;
+  crewMembers=crewMembers.filter(function(c){return c.id!==id;});
+  // Remove from all today's assignments
+  Object.keys(vehicleAssignments).forEach(function(vid){
+    vehicleAssignments[vid]=vehicleAssignments[vid].filter(function(a){return a.crewMemberId!==id;});
+  });
+  db.from('crew_members').update({active:false}).eq('id',id).then(function(r){
+    if(r.error) console.warn('Remove crew failed:',r.error.message);
+  });
+  renderCrewList();
+}
 
 function changeVehicleStatus(vid,newStatus){
   var v=vehicles.find(function(vv){return vv.vid===vid;});
