@@ -9678,7 +9678,7 @@ async function drdDownloadPDF() {
     // Other item rows start at about y=210 and go down by 11
     var otherNames = document.querySelectorAll('#drd-other-rows .drd-other-name');
     var otherQtys  = document.querySelectorAll('#drd-other-rows .drd-other-qty');
-    var otherStartY = 210;
+    var otherStartY = 199;
     for(var oi = 0; oi < otherNames.length && oi < 8; oi++) {
       var oName = otherNames[oi].value.trim();
       var oQty  = parseInt(otherQtys[oi].value) || 0;
