@@ -9630,9 +9630,9 @@ async function drdDownloadPDF() {
     }
 
     // ── Donation Source checkmarks ──
-    if(document.getElementById('drd-src-fb').checked)  drawAt(31, 639, 'X', {size:12, bold:true});
-    if(document.getElementById('drd-src-jj').checked)  drawAt(248, 639, 'X', {size:12, bold:true});
-    if(document.getElementById('drd-src-rp').checked)  drawAt(436, 639, 'X', {size:12, bold:true});
+    if(document.getElementById('drd-src-fb').checked)  drawAt(31, 646, 'X', {size:12, bold:true});
+    if(document.getElementById('drd-src-jj').checked)  drawAt(248, 646, 'X', {size:12, bold:true});
+    if(document.getElementById('drd-src-rp').checked)  drawAt(436, 646, 'X', {size:12, bold:true});
 
     // ── Header fields ──
     drawAt(160, 635, document.getElementById('drd-opp').value.trim());
@@ -9640,20 +9640,20 @@ async function drdDownloadPDF() {
     drawAt(390, 625, document.getElementById('drd-tax').value);
 
     // ── Donor info ──
-    drawAt(323, 561, document.getElementById('drd-name').value.trim(), {bold:true});
-    drawAt(323, 537, document.getElementById('drd-addr').value.trim());
-    drawAt(323, 489, document.getElementById('drd-city').value.trim());
-    drawAt(323, 465, document.getElementById('drd-postal').value.trim());
-    drawAt(323, 441, document.getElementById('drd-email').value.trim());
-    drawAt(323, 417, document.getElementById('drd-phone').value.trim());
-    drawAt(323, 403, document.getElementById('drd-contact').value.trim());
-    drawAt(465, 403, document.getElementById('drd-contact-info').value.trim());
+    drawAt(323, 566, document.getElementById('drd-name').value.trim(), {bold:true});
+    drawAt(323, 542, document.getElementById('drd-addr').value.trim());
+    drawAt(323, 494, document.getElementById('drd-city').value.trim());
+    drawAt(323, 470, document.getElementById('drd-postal').value.trim());
+    drawAt(323, 446, document.getElementById('drd-email').value.trim());
+    drawAt(323, 422, document.getElementById('drd-phone').value.trim());
+    drawAt(323, 388, document.getElementById('drd-contact').value.trim());
+    drawAt(465, 388, document.getElementById('drd-contact-info').value.trim());
 
     // ── Item quantities ──
     // 4 columns, 23 rows each (except col4 has 4 regular items)
     // Col 1: DRD_ITEMS[0-22], Col 2: [23-45], Col 3: [46-68], Col 4: [69-72]
     var qtyX = [132, 278, 432, 582];
-    var firstY = 323.3;
+    var firstY = 328.3;
     var rowStep = 11.0;
 
     for(var i = 0; i < DRD_ITEMS.length; i++) {
@@ -9678,7 +9678,7 @@ async function drdDownloadPDF() {
     // Other item rows start at about y=210 and go down by 11
     var otherNames = document.querySelectorAll('#drd-other-rows .drd-other-name');
     var otherQtys  = document.querySelectorAll('#drd-other-rows .drd-other-qty');
-    var otherStartY = 207;
+    var otherStartY = 204;
     for(var oi = 0; oi < otherNames.length && oi < 8; oi++) {
       var oName = otherNames[oi].value.trim();
       var oQty  = parseInt(otherQtys[oi].value) || 0;
