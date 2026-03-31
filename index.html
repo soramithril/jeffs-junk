@@ -1339,7 +1339,7 @@ function onYouTubeIframeAPIReady(){
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="drdClear()">Clear Form</button>
-      <button class="btn btn-ghost" onclick="drdDownloadPDF()" id="drd-pdf-btn">⬇️ Download Filled PDF</button>
+      <button class="btn btn-ghost" onclick="drdDownloadPDF()" id="drd-pdf-btn">📄 View Filled PDF</button>
       <button class="btn btn-primary" onclick="drdSend()">📧 Email DRD</button>
     </div>
   </div>
@@ -1393,7 +1393,7 @@ function onYouTubeIframeAPIReady(){
       <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
         <div class="form-group" style="margin:0"><label>Date DRD Form Emailed</label><input type="date" id="drd-emailed-date" class="form-input"></div>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn btn-ghost" onclick="drdDownloadPDF()" style="flex:1">⬇️ Download PDF</button>
+          <button class="btn btn-ghost" onclick="drdDownloadPDF()" style="flex:1">📄 View PDF</button>
           <button class="btn btn-primary" onclick="drdSend()" style="flex:1">📧 Email DRD</button>
         </div>
       </div>
@@ -9697,29 +9697,21 @@ async function drdDownloadPDF() {
     drawAt(530, 58, numItems);
     drawAt(540, 35, giftAmt);
 
-    // ── Download ──
+    // ── Open in new tab ──
     var outBytes = await pdfDoc.save();
     var blob = new Blob([outBytes], {type:'application/pdf'});
     var url  = URL.createObjectURL(blob);
-    var a    = document.createElement('a');
-    var donorSlug = (document.getElementById('drd-name').value.trim()||'donor').replace(/\s+/g,'-');
-    var dateSlug  = document.getElementById('drd-date').value || 'undated';
-    a.href = url;
-    a.download = 'DRD-' + donorSlug + '-' + dateSlug + '.pdf';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    window.open(url, '_blank');
 
     var ed = document.getElementById('drd-emailed-date');
     if(ed && !ed.value) ed.value = todayStr();
-    toast('✅ DRD PDF downloaded!');
+    toast('✅ DRD PDF opened in new tab!');
 
   } catch(err) {
     toast('⚠ PDF error: ' + err.message);
     console.error(err);
   } finally {
-    if(btn){ btn.textContent='⬇️ Download Filled PDF'; btn.disabled=false; }
+    if(btn){ btn.textContent='📄 View Filled PDF'; btn.disabled=false; }
   }
 }
 // ─── VEHICLES ───
