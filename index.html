@@ -9701,7 +9701,13 @@ async function drdDownloadPDF() {
     var outBytes = await pdfDoc.save();
     var blob = new Blob([outBytes], {type:'application/pdf'});
     var url  = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    var a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
     var ed = document.getElementById('drd-emailed-date');
     if(ed && !ed.value) ed.value = todayStr();
