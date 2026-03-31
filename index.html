@@ -9630,9 +9630,9 @@ async function drdDownloadPDF() {
     }
 
     // ── Donation Source checkmarks ──
-    if(document.getElementById('drd-src-fb').checked)  drawAt(36, 659, '✓', {size:12, bold:true});
-    if(document.getElementById('drd-src-jj').checked)  drawAt(253, 659, '✓', {size:12, bold:true});
-    if(document.getElementById('drd-src-rp').checked)  drawAt(441, 659, '✓', {size:12, bold:true});
+    if(document.getElementById('drd-src-fb').checked)  drawAt(36, 659, 'X', {size:12, bold:true});
+    if(document.getElementById('drd-src-jj').checked)  drawAt(253, 659, 'X', {size:12, bold:true});
+    if(document.getElementById('drd-src-rp').checked)  drawAt(441, 659, 'X', {size:12, bold:true});
 
     // ── Header fields ──
     drawAt(160, 632, document.getElementById('drd-opp').value.trim());
