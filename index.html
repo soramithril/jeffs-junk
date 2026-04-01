@@ -617,6 +617,26 @@ textarea{resize:vertical;min-height:80px;}
 .bin-notify-modal.pickedup .bn-ok:hover{background:#2563eb;}
 @keyframes bnModalIn{0%{opacity:0;transform:scale(.9) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
 @keyframes bnIconBounce{0%,100%{transform:scale(1)}25%{transform:scale(1.3)}50%{transform:scale(0.9)}75%{transform:scale(1.15)}}
+.notif-bell{position:relative;background:none;border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;cursor:pointer;font-size:18px;line-height:1;transition:all .15s;}
+.notif-bell:hover{background:var(--surface2);}
+.notif-bell .notif-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:#dc3545;color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 4px;font-family:'Inter',sans-serif;}
+.notif-bell .notif-badge.has{display:flex;}
+.notif-panel{display:none;position:absolute;top:100%;right:0;margin-top:8px;width:380px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:200;}
+.notif-panel.open{display:block;}
+.notif-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;}
+.notif-panel-header span{font-size:14px;font-weight:700;color:var(--text);}
+.notif-panel-clear{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;font-family:'Inter',sans-serif;padding:4px 8px;border-radius:4px;}
+.notif-panel-clear:hover{color:var(--text);background:var(--surface2);}
+.notif-item{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
+.notif-item:hover{background:var(--surface2);}
+.notif-item:last-child{border-bottom:none;}
+.notif-item .ni-icon{font-size:24px;flex-shrink:0;margin-top:2px;}
+.notif-item .ni-body{flex:1;min-width:0;}
+.notif-item .ni-title{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.notif-item .ni-sub{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.notif-item .ni-time{font-size:10px;color:var(--muted);white-space:nowrap;flex-shrink:0;margin-top:2px;}
+.notif-item.unread{background:rgba(34,197,94,.04);}
+.notif-empty{padding:32px 16px;text-align:center;color:var(--muted);font-size:13px;}
 /* Bin Extend Popup */
 .extend-popup{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:12px;z-index:100;min-width:220px;display:none;}
 .extend-popup.open{display:block;}
@@ -992,6 +1012,13 @@ textarea{resize:vertical;min-height:80px;}
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
+      <div style="position:relative" id="notif-wrap">
+        <button class="notif-bell" onclick="toggleNotifPanel()" title="Geofence Notifications">🔔<span class="notif-badge" id="notif-badge">0</span></button>
+        <div class="notif-panel" id="notif-panel">
+          <div class="notif-panel-header"><span>Bin Notifications</span><button class="notif-panel-clear" onclick="clearNotifPanel()">Clear all</button></div>
+          <div id="notif-list"><div class="notif-empty">No recent notifications</div></div>
+        </div>
+      </div>
       <button class="btn btn-primary" onclick="newJob()">+ New Job</button>
     </div>
   </div>
@@ -2585,6 +2612,101 @@ function dismissBinNotify(){
   if(jobId)openDetail(jobId);
   setTimeout(function(){_showNextBinNotify();},300);
 }
+
+// ── Notification History Panel ──
+
+var _notifItems = [];
+var _notifLastSeen = localStorage.getItem('notif-last-seen') || '2000-01-01T00:00:00Z';
+
+function toggleNotifPanel(){
+  var panel = document.getElementById('notif-panel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')){
+    // Mark all as seen
+    _notifLastSeen = new Date().toISOString();
+    localStorage.setItem('notif-last-seen', _notifLastSeen);
+    updateNotifBadge();
+  }
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', function(e){
+  var wrap = document.getElementById('notif-wrap');
+  var panel = document.getElementById('notif-panel');
+  if(wrap && panel && !wrap.contains(e.target)){
+    panel.classList.remove('open');
+  }
+});
+
+function updateNotifBadge(){
+  var badge = document.getElementById('notif-badge');
+  if(!badge) return;
+  var unseen = _notifItems.filter(function(n){ return n.created_at > _notifLastSeen; }).length;
+  badge.textContent = unseen > 99 ? '99+' : String(unseen);
+  badge.classList.toggle('has', unseen > 0);
+}
+
+function renderNotifList(){
+  var list = document.getElementById('notif-list');
+  if(!list) return;
+  if(!_notifItems.length){
+    list.innerHTML = '<div class="notif-empty">No recent notifications</div>';
+    updateNotifBadge();
+    return;
+  }
+  list.innerHTML = _notifItems.map(function(n){
+    var isDropped = n.status === 'dropped';
+    var icon = isDropped ? '📦' : '🚛';
+    var label = isDropped ? 'Bin Dropped Off' : 'Bin Picked Up';
+    var binLabel = n.bin_bid || '';
+    var bi = binItems.find(function(b){ return b.bid === n.bin_bid; });
+    if(bi) binLabel = bi.num + (bi.size ? ' · ' + bi.size : '');
+    if(binLabel) label += ' — ' + binLabel;
+    var loc = (n.address || '').split(',')[0];
+    if(n.city && loc) loc += ' · ' + n.city;
+    var sub = (n.customer_name || 'Unknown') + (loc ? ' — ' + loc : '');
+    var ago = timeAgo(n.created_at);
+    var unread = n.created_at > _notifLastSeen ? ' unread' : '';
+    return '<div class="notif-item' + unread + '" onclick="openDetail(\'' + n.job_id + '\');document.getElementById(\'notif-panel\').classList.remove(\'open\');">'
+      + '<span class="ni-icon">' + icon + '</span>'
+      + '<div class="ni-body"><div class="ni-title">' + label + '</div><div class="ni-sub">' + sub + '</div></div>'
+      + '<span class="ni-time">' + ago + '</span>'
+      + '</div>';
+  }).join('');
+  updateNotifBadge();
+}
+
+function timeAgo(iso){
+  var diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if(diff < 60) return 'Just now';
+  if(diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if(diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+function clearNotifPanel(){
+  _notifItems = [];
+  renderNotifList();
+}
+
+// Load notification history on startup (last 48 hours)
+(async function loadNotifHistory(){
+  var cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  var { data } = await db.from('geofence_notifications').select('*').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(50);
+  if(data && data.length){
+    _notifItems = data;
+    renderNotifList();
+  }
+})();
+
+// Subscribe to new notifications in realtime
+db.channel('notif-history')
+  .on('postgres_changes', {event:'INSERT', schema:'public', table:'geofence_notifications'}, function(payload){
+    _notifItems.unshift(payload.new);
+    if(_notifItems.length > 50) _notifItems.pop();
+    renderNotifList();
+  })
+  .subscribe();
 
 // ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
 
