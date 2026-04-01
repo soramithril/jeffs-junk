@@ -2190,21 +2190,22 @@ textarea{resize:vertical;min-height:80px;}
         <!-- Hidden: actual bin_bid and bin_size are set by the picker below -->
         <input type="hidden" id="f-bsize">
 
-        <!-- Select Bin — collapsed by default -->
+        <!-- Bin Size selector — always visible -->
         <div style="margin-bottom:14px">
-          <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
-            <span id="bin-picker-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg);color:var(--accent)">▶</span>
-            <label style="cursor:pointer;margin:0;color:var(--accent)">Select Bin</label>
+          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;color:var(--accent)">Bin Size</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="selectBinSize('4 yard',this)">4 yd</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="selectBinSize('7 yard',this)">7 yd</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="selectBinSize('14 yard',this)">14 yd</button>
+            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="selectBinSize('20 yard',this)">20 yd</button>
           </div>
           <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
+          <!-- Assign specific bin — collapsed by default -->
+          <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
+            <span id="bin-picker-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg);color:var(--accent)">▶</span>
+            <label style="cursor:pointer;margin:0;color:var(--accent)">Assign Specific Bin</label>
+          </div>
           <div id="bin-picker-collapse" style="display:none">
-            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn active" data-sz="all" onclick="filterBinPicker('all',this)">All</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="filterBinPicker('4 yard',this)">4 yd</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="filterBinPicker('7 yard',this)">7 yd</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="filterBinPicker('14 yard',this)">14 yd</button>
-              <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="filterBinPicker('20 yard',this)">20 yd</button>
-            </div>
             <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;padding:4px 0"></div>
           </div>
         </div>
@@ -7718,6 +7719,10 @@ function newJob(){
   var junkRecExtra=document.getElementById('junk-recurring-extra');if(junkRecExtra)junkRecExtra.style.display='none';
   window._binPresetDays=0;
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
+  document.getElementById('f-bsize').value='';
+  binPickerSzFilter='all';
+  var bps=document.getElementById('bin-picker-selected');if(bps){bps.style.display='none';bps.innerHTML='';delete bps.dataset.bid;}
   var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='none';
   var bpa=document.getElementById('bin-picker-arrow');if(bpa)bpa.style.transform='rotate(0deg)';
   document.getElementById('job-modal').classList.add('open');
@@ -7774,10 +7779,26 @@ function selectBinFromPicker(bid){
   showMaterialType();
 }
 
+function selectBinSize(sz, el){
+  // Set bin size on the hidden field — this is enough to save the job
+  document.getElementById('f-bsize').value = sz;
+  // Highlight the selected size button
+  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
+  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='#22c55e';}
+  // Filter the bin grid to this size
+  binPickerSzFilter = sz;
+  var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
+  renderBinPicker(currentBid||'');
+  // Show material type if applicable
+  showMaterialType();
+  // Auto-save the job — yard size button is the confirm action
+  saveJob(new Event('submit'));
+}
+
 function filterBinPicker(sz, el){
   binPickerSzFilter = sz;
-  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');});
-  if(el) el.classList.add('active');
+  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
+  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='#22c55e';}
   var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
   renderBinPicker(currentBid||'');
 }
@@ -7847,8 +7868,13 @@ function initBinPicker(existingBid, existingSize){
   }
   // Always update button highlight based on current filter
   document.querySelectorAll('.bsz-btn').forEach(function(b){
-    b.classList.toggle('active', b.dataset.sz === binPickerSzFilter);
+    var match = b.dataset.sz === binPickerSzFilter;
+    b.classList.toggle('active', match);
+    b.style.background = match ? 'rgba(34,197,94,.12)' : '';
+    b.style.color = match ? '#22c55e' : '';
   });
+  // Set f-bsize so the job can save with just a size selected
+  if(existingSize) document.getElementById('f-bsize').value = existingSize;
   renderBinPicker(existingBid||'');
   var sel = document.getElementById('bin-picker-selected');
   if(sel){
