@@ -902,7 +902,9 @@ textarea{resize:vertical;min-height:80px;}
 <!-- ─── LOADING SCREEN ─── -->
 <div id="sb-loading" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,#0a0a0a 100%);background-size:400% 400%;animation:loadBgShift 3s ease infinite;">
   <div style="position:absolute;inset:0;overflow:hidden;filter:blur(8px) brightness(.4);transform:scale(1.1);">
-    <iframe id="f1-bg-video" style="position:absolute;inset:-20%;width:140%;height:140%;pointer-events:none;border:none;object-fit:cover;" src="" allow="autoplay;encrypted-media" allowfullscreen></iframe>
+    <video id="f1-bg-video" autoplay muted loop playsinline style="position:absolute;inset:-20%;width:140%;height:140%;pointer-events:none;border:none;object-fit:cover;">
+      <source src="assets/intro-bg.mp4" type="video/mp4">
+    </video>
   </div>
   <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
        alt="Jeff's Junk"
@@ -913,13 +915,6 @@ textarea{resize:vertical;min-height:80px;}
   <p id="sb-loading-msg" style="color:#9ca3af;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;min-height:20px;position:relative;z-index:1;"></p>
 </div>
 
-<script>
-(function(){
-  var v={id:'CrwMzyyEdF4',min:34,max:77};
-  var s=v.min+Math.floor(Math.random()*(v.max-v.min));
-  document.getElementById('f1-bg-video').src='https://www.youtube.com/embed/'+v.id+'?autoplay=1&mute=1&loop=1&playlist='+v.id+'&controls=0&showinfo=0&modestbranding=1&rel=0&start='+s;
-})();
-</script>
 
 <!-- ─── MOBILE HEADER ─── -->
 <div class="mobile-header">
@@ -3118,7 +3113,7 @@ function hideLoading() {
   setTimeout(function(){
     var el = document.getElementById('sb-loading');
     if (el) el.style.display='none';
-    var f1Frame=document.getElementById('f1-bg-video');if(f1Frame)f1Frame.src='';
+    var f1Vid=document.getElementById('f1-bg-video');if(f1Vid){f1Vid.pause();f1Vid.removeAttribute('src');f1Vid.load();}
     setLoadProgress(0);
   }, 350);
 }
