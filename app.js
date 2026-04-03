@@ -877,44 +877,43 @@ async function loadAllFromSupabase() {
     } catch(e){ console.warn('Email presets load error:',e); }
 
     hideLoading();
-    // ── Auto-mark bins as dropped when their dropoff date has passed ──
+    // ── Auto-mark bins as dropped/pickedup when dates have passed ──
     _suppressBinNotify = true;
-    var today2 = todayStr();
-    var pastDropJobs = await db.from('jobs').select('job_id,bin_bid')
-      .eq('service','Bin Rental')
-      .or('bin_instatus.is.null,bin_instatus.eq.')
-      .not('bin_dropoff','is',null)
-      .lte('bin_dropoff', today2);
-    if (pastDropJobs.data && pastDropJobs.data.length) {
-      var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
-      await db.from('jobs').update({bin_instatus:'dropped',status:'In Progress'}).in('job_id',dropIds);
-      // Sync bin_items.status to 'out' for assigned bins
-      var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
-      if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
-      binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
-      jobs.forEach(function(j){
-        if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
-          { j.binInstatus='dropped'; j.status='In Progress'; }
-      });
-    }
-    // ── Auto-mark bins as picked up when their pickup date has passed ──
-    var pastBinJobs = await db.from('jobs').select('job_id,bin_bid')
-      .eq('service','Bin Rental')
-      .neq('bin_instatus','pickedup')
-      .not('bin_pickup','is',null)
-      .lt('bin_pickup', today2);
-    if (pastBinJobs.data && pastBinJobs.data.length) {
-      var ids = pastBinJobs.data.map(function(r){return r.job_id;});
-      await db.from('jobs').update({bin_instatus:'pickedup'}).in('job_id',ids);
-      // Sync bin_items.status to 'in' for assigned bins
-      var pickBids = pastBinJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
-      if(pickBids.length) await db.from('bin_items').update({status:'in'}).in('bid',pickBids);
-      binItems.forEach(function(b){ if(pickBids.indexOf(b.bid)>=0) b.status='in'; });
-      jobs.forEach(function(j){
-        if(j.service==='Bin Rental'&&j.binPickup&&j.binPickup<today2&&j.binInstatus!=='pickedup')
-          j.binInstatus='pickedup';
-      });
-    }
+    try {
+      var today2 = todayStr();
+      var pastDropJobs = await db.from('jobs').select('job_id,bin_bid')
+        .eq('service','Bin Rental')
+        .or('bin_instatus.is.null,bin_instatus.eq.')
+        .not('bin_dropoff','is',null)
+        .lte('bin_dropoff', today2);
+      if (pastDropJobs.data && pastDropJobs.data.length) {
+        var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
+        await db.from('jobs').update({bin_instatus:'dropped',status:'In Progress'}).in('job_id',dropIds);
+        var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
+        if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
+        binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
+        jobs.forEach(function(j){
+          if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
+            { j.binInstatus='dropped'; j.status='In Progress'; }
+        });
+      }
+      var pastBinJobs = await db.from('jobs').select('job_id,bin_bid')
+        .eq('service','Bin Rental')
+        .neq('bin_instatus','pickedup')
+        .not('bin_pickup','is',null)
+        .lt('bin_pickup', today2);
+      if (pastBinJobs.data && pastBinJobs.data.length) {
+        var ids = pastBinJobs.data.map(function(r){return r.job_id;});
+        await db.from('jobs').update({bin_instatus:'pickedup'}).in('job_id',ids);
+        var pickBids = pastBinJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
+        if(pickBids.length) await db.from('bin_items').update({status:'in'}).in('bid',pickBids);
+        binItems.forEach(function(b){ if(pickBids.indexOf(b.bid)>=0) b.status='in'; });
+        jobs.forEach(function(j){
+          if(j.service==='Bin Rental'&&j.binPickup&&j.binPickup<today2&&j.binInstatus!=='pickedup')
+            j.binInstatus='pickedup';
+        });
+      }
+    } catch(e){ console.warn('Auto-mark error:',e); }
     _suppressBinNotify = false;
     renderDash();
     initDashPricingDropdown();
