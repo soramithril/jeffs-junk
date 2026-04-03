@@ -2201,16 +2201,18 @@ function makeDashRowsFurn(list){
   if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
   return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
-function renderDashLongBins(){
+async function renderDashLongBins(){
   var threshold=parseInt((document.getElementById('dash-days-threshold')||{}).value)||7;
-  var todayS=todayStr();
-  var longBins=jobs.filter(function(j){
-    if(j.service!=='Bin Rental'||j.status==='Done'||j.status==='Cancelled')return false;
-    if(j.binInstatus==='pickedup')return false;
-    var drop=j.binDropoff||j.date;if(!drop)return false;
-    var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
-    return days>=threshold;
-  });
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-threshold);
+  var cutoffS=cutoff.toISOString().split('T')[0];
+  // Fetch all dropped bins where dropoff/date is older than threshold
+  var rLong=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').lte('bin_dropoff',cutoffS);
+  var longBins=(rLong.data||[]).map(dbToJob);
+  // Also catch dropped bins with no bin_dropoff but old job date
+  var rLong2=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').is('bin_dropoff',null).lte('date',cutoffS);
+  (rLong2.data||[]).forEach(function(row){var j=dbToJob(row);if(!longBins.find(function(x){return x.id===j.id;}))longBins.push(j);});
+  // Merge into local jobs array
+  longBins.forEach(function(j){if(!jobs.find(function(x){return x.id===j.id;}))jobs.push(j);});
   document.getElementById('dash-long-bins').innerHTML=longBins.length
     ?longBins.map(function(j){
       var drop=j.binDropoff||j.date;
@@ -2270,7 +2272,7 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
-    db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).neq('bin_instatus','pickedup').lt('bin_pickup',todayS).not('bin_pickup','is',null),
+    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').lt('bin_pickup',todayS).not('bin_pickup','is',null),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
@@ -6359,7 +6361,7 @@ function renderToday(){
   var todayS=todayStr();
   document.getElementById('today-view-lbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   var todayJobs=jobs.filter(function(j){return j.date===todayS&&j.status!=='Cancelled'&&j.status!=='Done';});
-  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status==='In Progress'&&j.binInstatus!=='pickedup'&&j.binPickup&&j.binPickup<todayS;});
+  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<todayS;});
   var threshold=parseInt(document.getElementById('today-days-threshold')&&document.getElementById('today-days-threshold').value)||7;
   var longBins=jobs.filter(function(j){
     if(j.service!=='Bin Rental'||j.status==='Done'||j.status==='Cancelled')return false;
