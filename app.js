@@ -2368,7 +2368,7 @@ async function renderDash(){
           ? '<span style="font-size:11px;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 7px;font-weight:700">🗳 #'+todayAssignedBin.num+(j.binSize?' · '+j.binSize:'')+'</span>'
           : (j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'');
         var assignBinBtn = (j.service==='Bin Rental' && !j.binBid)
-          ? '<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign Bin</button>'
+          ? '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign Bin</button>'
           : '';
         return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+color+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);">'
           +'<div style="display:flex;align-items:center;gap:8px;">'
@@ -5071,29 +5071,56 @@ async function openBinHistory(bid){
   var body=document.getElementById('bin-history-body');
   body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading history...</div>';
   document.getElementById('bin-history-modal').classList.add('open');
-  // Query all jobs that ever had this bin assigned
-  var res=await db.from('jobs').select('*').eq('bin_bid',bid).order('date',{ascending:false});
-  var histJobs=(res.data||[]).map(dbToJob);
-  if(!histJobs.length){body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📭</div>No job history found for this bin</div>';return;}
-  body.innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+histJobs.length+' job'+(histJobs.length!==1?'s':'')+' found</div>'
-    +histJobs.map(function(j){
-      var statusCol=j.status==='Done'?'#22c55e':j.status==='Cancelled'?'#dc3545':'#e67e22';
-      return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="closeM(\'bin-history-modal\');openDetail(\''+j.id+'\')">'
+  // Query jobs + bin_history table in parallel
+  var jobRes=db.from('jobs').select('*').eq('bin_bid',bid).order('date',{ascending:false});
+  var histRes=db.from('bin_history').select('*').eq('bin_num',bid).order('dropoff_date',{ascending:false});
+  var results=await Promise.all([jobRes,histRes]);
+  var histJobs=(results[0].data||[]).map(dbToJob);
+  var histRecords=results[1].data||[];
+  // Deduplicate: bin_history records that share a job_id with a job are skipped
+  var jobIds=new Set(histJobs.map(function(j){return j.id;}));
+  var extraRecords=histRecords.filter(function(h){return !h.job_id||!jobIds.has(h.job_id);});
+  var totalCount=histJobs.length+extraRecords.length;
+  if(!totalCount){body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📭</div>No history found for this bin</div>';return;}
+  var html='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+totalCount+' record'+(totalCount!==1?'s':'')+' found</div>';
+  html+=histJobs.map(function(j){
+    var statusCol=j.status==='Done'?'#22c55e':j.status==='Cancelled'?'#dc3545':'#e67e22';
+    return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="closeM(\'bin-history-modal\');openDetail(\''+j.id+'\')">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:#22c55e;border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
+        +'<strong style="font-size:13px">'+j.name+'</strong>'
+        +'<span style="font-size:11px;color:var(--muted)">'+fd(j.date)+'</span>'
+        +'<span style="font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;background:'+statusCol+'22;color:'+statusCol+'">'+j.status+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:3px">'
+        +(j.address?'📍 '+j.address.split(',')[0]:'')
+        +(j.city?' · '+j.city:'')
+        +(j.phone?' · '+j.phone:'')
+        +(j.binDropoff?' · Drop: '+fd(j.binDropoff):'')
+        +(j.binPickup?' · Pick: '+fd(j.binPickup):'')
+      +'</div>'
+    +'</div>';
+  }).join('');
+  if(extraRecords.length){
+    html+='<div style="font-size:11px;color:var(--muted);margin:12px 0 8px;border-top:1px solid var(--border);padding-top:10px">Archived History</div>';
+    html+=extraRecords.map(function(h){
+      return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid #6b7280;border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2)">'
         +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-          +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:#22c55e;border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
-          +'<strong style="font-size:13px">'+j.name+'</strong>'
-          +'<span style="font-size:11px;color:var(--muted)">'+fd(j.date)+'</span>'
-          +'<span style="font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;background:'+statusCol+'22;color:'+statusCol+'">'+j.status+'</span>'
+          +(h.job_id?'<span style="font-size:11px;background:rgba(107,114,128,.1);color:#6b7280;border-radius:4px;padding:1px 7px;font-weight:700">'+h.job_id+'</span>':'')
+          +'<strong style="font-size:13px">'+(h.customer_name||'Unknown')+'</strong>'
+          +(h.dropoff_date?'<span style="font-size:11px;color:var(--muted)">'+fd(h.dropoff_date)+'</span>':'')
         +'</div>'
         +'<div style="font-size:11px;color:var(--muted);margin-top:3px">'
-          +(j.address?'📍 '+j.address.split(',')[0]:'')
-          +(j.city?' · '+j.city:'')
-          +(j.phone?' · '+j.phone:'')
-          +(j.binDropoff?' · Drop: '+fd(j.binDropoff):'')
-          +(j.binPickup?' · Pick: '+fd(j.binPickup):'')
+          +(h.job_address?'📍 '+h.job_address.split(',')[0]:'')
+          +(h.city?' · '+h.city:'')
+          +(h.dropoff_date?' · Drop: '+fd(h.dropoff_date):'')
+          +(h.pickup_date?' · Pick: '+fd(h.pickup_date):'')
+          +(h.material_type?' · '+h.material_type:'')
         +'</div>'
       +'</div>';
     }).join('');
+  }
+  body.innerHTML=html;
 }
 
 async function openAssignBinPicker(jobId){
@@ -6085,9 +6112,24 @@ function convertQuoteToJob(quoteId){
 function markUnconfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});save();toast('Confirmation removed.');refresh();}
 function markEmailSent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});save();toast('Email marked as sent!');refresh();}
 function markEmailUnsent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=false;});save();toast('Email status cleared.');refresh();}
+function writeBinHistory(j){
+  if(!j||j.service!=='Bin Rental'||!j.binBid)return;
+  db.from('bin_history').insert({
+    bin_num:j.binBid,bin_size:j.binSize||'',customer_name:j.name||'',
+    customer_phone:j.phone||'',job_address:j.address||'',city:j.city||'',
+    dropoff_date:j.binDropoff||null,pickup_date:j.binPickup||new Date().toISOString().split('T')[0],
+    material_type:j.materialType||'',notes:j.notes||'',job_id:j.id,source:'dashboard'
+  }).then(function(r){if(r.error)console.error('bin_history write failed:',r.error.message);});
+}
 function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';if(j.status==='Pending')j.status='In Progress';}});save();toast('Bin marked as dropped off!');openDetail(id);refresh();}
 function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';if(j.status==='In Progress')j.status='Pending';}});save();toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
-function markBinPickedUp2(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='pickedup';j.status='Done';}});save();toast('Bin marked as picked up!');openDetail(id);refresh();}
+function markBinPickedUp2(id){
+  var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
+  j.binInstatus='pickedup';j.status='Done';
+  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
+  writeBinHistory(j);
+  save();toast('Bin marked as picked up!');openDetail(id);refresh();
+}
 async function scheduleNextSwap(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   var intervalDays={'weekly':7,'biweekly':14,'3weeks':21,'monthly':30}[j.recurInterval]||14;
@@ -6148,7 +6190,8 @@ function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});sav
 function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});save();toast('Marked complete!');openDetail(id);refresh();}
 function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.status='Done';j.binInstatus='pickedup';}});save();toast('Bin marked picked up!');refresh();}
 function dashMarkPickedUp(jobId,bid){
-  jobs.forEach(function(j){if(j.id===jobId){j.status='Done';j.binInstatus='pickedup';}});
+  var j=jobs.find(function(jj){return jj.id===jobId;});
+  if(j){j.status='Done';j.binInstatus='pickedup';writeBinHistory(j);}
   binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
   save();saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
 }
