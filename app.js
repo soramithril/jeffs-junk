@@ -8058,7 +8058,6 @@ async function printBinRental(jobId) {
     drawText(binSize, 390, 110);        // Size
     drawText(fmtDate(j.binDropoff), 440, 130);  // Drop Off Date
     drawText(fmtDate(j.binPickup), 430, 150);   // Pick Up Date
-    drawText('Wood Under Bin:  ☐ Yes  ☐ No', 365, 170);
 
     // ── TABLE: Line Items ──
     var price = parseFloat(j.price) || 0;
@@ -8075,6 +8074,9 @@ async function printBinRental(jobId) {
       drawText('DEPOSIT' + (j.depositPaid ? ' (PAID)' : ''), 130, 392);
       drawText('$' + deposit.toFixed(2), 530, 392);
     }
+
+    // ── WOOD UNDER BIN (row below Picked Up By) ──
+    drawText('WOOD UNDER BIN', 42, 478);
 
     // ── PAYMENT TYPE ──
     drawText(j.payMethod || '', 130, 596);
