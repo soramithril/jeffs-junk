@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=11">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -198,9 +198,16 @@
     <div class="chart-card" style="padding:0;overflow:hidden;">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
-        <div style="position:relative;flex-shrink:0;">
-          <select id="dash-pricing-area" onchange="renderDashPricing()" style="appearance:none;-webkit-appearance:none;background:var(--surface);border:1px solid var(--border-strong);color:var(--text);padding:5px 28px 5px 11px;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;outline:none;box-shadow:0 1px 4px rgba(0,0,0,.06);"></select>
+        <div id="dash-pricing-dd" style="position:relative;flex-shrink:0;">
+          <button id="dash-pricing-btn" onclick="togglePricingDD()" style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border-strong);color:var(--text);padding:5px 28px 5px 11px;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;outline:none;box-shadow:0 1px 4px rgba(0,0,0,.06);white-space:nowrap">
+            <span id="dash-pricing-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0"></span>
+            <span id="dash-pricing-label">Select area</span>
+          </button>
           <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)" width="11" height="7" viewBox="0 0 11 7" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5.5 6L10 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div id="dash-pricing-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;max-height:320px;overflow-y:auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:999;padding:4px 0">
+            <input id="dash-pricing-search" type="text" placeholder="Search town..." style="width:calc(100% - 16px);margin:4px 8px 6px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;background:var(--surface2);color:var(--text);outline:none" oninput="filterPricingDD(this.value)">
+            <div id="dash-pricing-list"></div>
+          </div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="go('pricing')" style="font-size:11px;padding:4px 10px;margin-left:auto;white-space:nowrap;">View Full Pricing →</button>
       </div>
@@ -1756,6 +1763,6 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

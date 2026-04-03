@@ -3936,10 +3936,8 @@ function renderPricing(){
 
 function renderDashPricing(){
   var TAX = 1.13;
-  var sel = document.getElementById('dash-pricing-area');
-  if(!sel) return;
-  if(!sel.options.length) initDashPricingDropdown();
-  var area = sel.value || pricingAreas[0] || '';
+  if(!_pricingDDArea && pricingAreas.length) initDashPricingDropdown();
+  var area = _pricingDDArea || pricingAreas[0] || '';
   if(!area){
     document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing &#x2192;</button></div>';
     return;
@@ -4009,38 +4007,70 @@ function renderDashPricing(){
 
   document.getElementById('dash-pricing-display').innerHTML = out;
 }
-function buildTownToAreaMap(){
-  var map = {};
-  pricingAreas.forEach(function(area){
-    var ap = getAreaPrices(area);
-    if(ap.towns){
-      ap.towns.split(',').forEach(function(t){
-        var town = t.trim();
-        if(town) map[town] = area;
-      });
-    }
-  });
-  return map;
-}
-function initDashPricingDropdown(){
-  var sel = document.getElementById('dash-pricing-area');
-  if(!sel) return;
-  var html = '';
-  pricingAreas.forEach(function(area){
+var _pricingDDArea = '';
+var _areaColors = {};
+var _AREA_PALETTE = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+function _buildPricingItems(){
+  var items = [];
+  pricingAreas.forEach(function(area, ai){
+    _areaColors[area] = _AREA_PALETTE[ai % _AREA_PALETTE.length];
     var ap = getAreaPrices(area);
     var towns = ap.towns ? ap.towns.split(',').map(function(t){return t.trim();}).filter(Boolean) : [];
     if(towns.length > 1){
-      html += '<optgroup label="'+area+'">';
-      towns.forEach(function(t){ html += '<option value="'+area+'">'+t+'</option>'; });
-      html += '</optgroup>';
+      towns.forEach(function(t){ items.push({label:t, area:area}); });
     } else {
-      html += '<option value="'+area+'">'+area+'</option>';
+      items.push({label:area, area:area});
     }
   });
-  sel.innerHTML = html;
-  if(pricingAreas.length) sel.value = pricingAreas[0];
+  items.sort(function(a,b){ return a.label.toLowerCase() < b.label.toLowerCase() ? -1 : 1; });
+  return items;
+}
+function initDashPricingDropdown(){
+  var list = document.getElementById('dash-pricing-list');
+  if(!list) return;
+  var items = _buildPricingItems();
+  list.innerHTML = items.map(function(it){
+    var c = _areaColors[it.area];
+    return '<div class="pricing-dd-item" data-area="'+it.area+'" data-label="'+it.label.toLowerCase()+'" onclick="pickPricingArea(\''+it.area+'\',\''+it.label.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;transition:background .1s">'
+      +'<span style="width:8px;height:8px;border-radius:50%;background:'+c+';flex-shrink:0"></span>'
+      +'<span style="flex:1;color:var(--text)">'+it.label+'</span>'
+      +'<span style="font-size:10px;color:var(--muted)">'+it.area+'</span>'
+      +'</div>';
+  }).join('');
+  if(items.length) pickPricingArea(items[0].area, items[0].label);
+}
+function togglePricingDD(){
+  var menu = document.getElementById('dash-pricing-menu');
+  var open = menu.style.display === 'none';
+  menu.style.display = open ? 'block' : 'none';
+  if(open){
+    var si = document.getElementById('dash-pricing-search');
+    if(si){ si.value=''; filterPricingDD(''); si.focus(); }
+  }
+}
+function filterPricingDD(q){
+  q = q.toLowerCase();
+  document.querySelectorAll('.pricing-dd-item').forEach(function(el){
+    var match = !q || el.getAttribute('data-label').indexOf(q) >= 0 || el.getAttribute('data-area').toLowerCase().indexOf(q) >= 0;
+    el.style.display = match ? 'flex' : 'none';
+  });
+}
+function pickPricingArea(area, label){
+  _pricingDDArea = area;
+  var btn = document.getElementById('dash-pricing-label');
+  var dot = document.getElementById('dash-pricing-dot');
+  if(btn) btn.textContent = label || area;
+  if(dot) dot.style.background = _areaColors[area] || 'var(--muted)';
+  document.getElementById('dash-pricing-menu').style.display = 'none';
   renderDashPricing();
 }
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e){
+  var dd = document.getElementById('dash-pricing-dd');
+  if(dd && !dd.contains(e.target)){
+    document.getElementById('dash-pricing-menu').style.display = 'none';
+  }
+});
 
 
 function renderPricingGrids(){
