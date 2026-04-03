@@ -80,6 +80,8 @@ db.channel('bin-status-notify')
     var oldStatus=oldRow.bin_instatus||'';
     if(newStatus===oldStatus) return;
     if(newStatus!=='dropped'&&newStatus!=='pickedup') return;
+    // Skip shop address — truck traffic there is constant and not real drops/pickups
+    if((newRow.address||'').toLowerCase().indexOf('92 davidson')!==-1) return;
     showBinNotify(newStatus, newRow.name||'Unknown', newRow.bin_bid||'', newRow.address||'', newRow.city||'', newRow.job_id||'');
   })
   .subscribe();
@@ -209,7 +211,7 @@ function clearNotifPanel(){
   var cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
   var { data } = await db.from('geofence_notifications').select('*').gte('created_at', cutoff).order('created_at', { ascending: false }).limit(50);
   if(data && data.length){
-    _notifItems = data;
+    _notifItems = data.filter(function(n){return (n.address||'').toLowerCase().indexOf('92 davidson')===-1;});
     renderNotifList();
   }
 })();
@@ -217,6 +219,7 @@ function clearNotifPanel(){
 // Subscribe to new notifications in realtime
 db.channel('notif-history')
   .on('postgres_changes', {event:'INSERT', schema:'public', table:'geofence_notifications'}, function(payload){
+    if((payload.new.address||'').toLowerCase().indexOf('92 davidson')!==-1) return;
     _notifItems.unshift(payload.new);
     if(_notifItems.length > 50) _notifItems.pop();
     renderNotifList();
