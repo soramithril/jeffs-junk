@@ -2270,7 +2270,7 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
-    db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).lt('bin_pickup',todayS).not('bin_pickup','is',null),
+    db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).neq('bin_instatus','pickedup').lt('bin_pickup',todayS).not('bin_pickup','is',null),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
@@ -6359,7 +6359,7 @@ function renderToday(){
   var todayS=todayStr();
   document.getElementById('today-view-lbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   var todayJobs=jobs.filter(function(j){return j.date===todayS&&j.status!=='Cancelled'&&j.status!=='Done';});
-  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status==='In Progress'&&j.binPickup&&j.binPickup<todayS;});
+  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status==='In Progress'&&j.binInstatus!=='pickedup'&&j.binPickup&&j.binPickup<todayS;});
   var threshold=parseInt(document.getElementById('today-days-threshold')&&document.getElementById('today-days-threshold').value)||7;
   var longBins=jobs.filter(function(j){
     if(j.service!=='Bin Rental'||j.status==='Done'||j.status==='Cancelled')return false;
