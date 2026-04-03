@@ -1631,7 +1631,10 @@
     <span class="bn-icon" id="bn-icon"></span>
     <div class="bn-title" id="bn-title"></div>
     <span class="bn-sub" id="bn-sub"></span>
-    <button class="bn-ok" id="bn-ok" onclick="dismissBinNotify()">OK</button>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:4px">
+      <button class="bn-ok" id="bn-assign" style="display:none;background:#e67e22;flex:1">📦 Assign Bin</button>
+      <button class="bn-ok" id="bn-ok" onclick="dismissBinNotify()" style="flex:1">OK</button>
+    </div>
   </div>
 </div>
 
@@ -1763,6 +1766,6 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
