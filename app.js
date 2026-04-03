@@ -4733,31 +4733,45 @@ async function renderMap(){
   document.getElementById('map-spinner').style.display='none';
   mapPins.forEach(function(p){try{p.marker.remove();}catch(e){}});mapPins=[];
   if(!binJobs.length){setTimeout(function(){try{leafMap.invalidateSize();}catch(e){}},300);return;}
-  var bounds=[],idx=0;
-  function next(){
-    if(idx>=binJobs.length){
-      if(bounds.length===1)leafMap.setView(bounds[0],14);
-      else if(bounds.length>1)leafMap.fitBounds(bounds,{padding:[50,50],maxZoom:14});
-      else leafMap.setView([44.39,-79.69],10);
-      setTimeout(function(){try{leafMap.invalidateSize();}catch(e){}},300);return;
-    }
-    var j=binJobs[idx++];
+  var bounds=[];
+  function addPin(j, geo) {
     var ra=resolveAddr(j);
-    if(!ra.geocodeStr){next();return;}
-    geocode(ra.geocodeStr,function(geo){
-      if(geo){
-        var popup='<div class="p-id">'+j.id+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
-          +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
-          +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'')+'</div>'
-          +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
-        var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
-        marker.on('click',function(){highlightRow(j.id);});
-        mapPins.push({id:j.id,marker:marker,lat:geo.lat,lng:geo.lng});bounds.push([geo.lat,geo.lng]);
-      }
-      setTimeout(next,300);
-    });
+    var popup='<div class="p-id">'+j.id+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
+      +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'')+'</div>'
+      +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
+    var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
+    marker.on('click',function(){highlightRow(j.id);});
+    mapPins.push({id:j.id,marker:marker,lat:geo.lat,lng:geo.lng});bounds.push([geo.lat,geo.lng]);
   }
-  next();
+  function fitMap() {
+    if(bounds.length===1)leafMap.setView(bounds[0],14);
+    else if(bounds.length>1)leafMap.fitBounds(bounds,{padding:[50,50],maxZoom:14});
+    else leafMap.setView([44.39,-79.69],10);
+    setTimeout(function(){try{leafMap.invalidateSize();}catch(e){}},300);
+  }
+  // Process cached addresses instantly, queue uncached for rate-limited geocoding
+  var uncached = [];
+  binJobs.forEach(function(j) {
+    var ra = resolveAddr(j);
+    if (!ra.geocodeStr) return;
+    if (geoCache[ra.geocodeStr]) { addPin(j, geoCache[ra.geocodeStr]); }
+    else { uncached.push(j); }
+  });
+  if (!uncached.length) { fitMap(); }
+  else {
+    var idx = 0;
+    function next() {
+      if (idx >= uncached.length) { fitMap(); return; }
+      var j = uncached[idx++];
+      var ra = resolveAddr(j);
+      geocode(ra.geocodeStr, function(geo) {
+        if (geo) addPin(j, geo);
+        setTimeout(next, 300);
+      });
+    }
+    next();
+  }
 }
 function highlightRow(id){document.querySelectorAll('.bin-row').forEach(function(r){r.classList.remove('on');});var r=document.getElementById('br-'+id);if(r){r.classList.add('on');r.scrollIntoView({behavior:'smooth',block:'nearest'});}}
 function flyTo(id){var pin=null;mapPins.forEach(function(p){if(p.id===id)pin=p;});if(pin){leafMap.setView([pin.lat,pin.lng],15,{animate:true});pin.marker.openPopup();}highlightRow(id);}
@@ -8044,6 +8058,7 @@ async function printBinRental(jobId) {
     drawText(binSize, 390, 110);        // Size
     drawText(fmtDate(j.binDropoff), 440, 130);  // Drop Off Date
     drawText(fmtDate(j.binPickup), 430, 150);   // Pick Up Date
+    drawText('Wood Under Bin:  ☐ Yes  ☐ No', 365, 170);
 
     // ── TABLE: Line Items ──
     var price = parseFloat(j.price) || 0;
