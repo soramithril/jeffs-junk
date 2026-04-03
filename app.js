@@ -920,7 +920,7 @@ async function loadAllFromSupabase() {
         });
       }
     } catch(e){ console.warn('Auto-mark error:',e); }
-    _suppressBinNotify = false;
+    setTimeout(function(){ _suppressBinNotify = false; }, 5000);
     renderDash();
     initDashPricingDropdown();
     toast('✓ Dashboard ready');
