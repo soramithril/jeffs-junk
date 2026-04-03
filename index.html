@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=9">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -855,43 +855,21 @@
     </div>
 
     <div class="divider"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Bin Rental</div>
-      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--muted)">
-        <span>3 &amp; 7 Day Pricing</span>
-        <span style="position:relative;display:inline-block;width:34px;height:18px">
-          <input type="checkbox" id="our-multiday-toggle" onchange="toggleMultidayFields();" style="opacity:0;width:0;height:0;position:absolute">
-          <span id="our-multiday-track" style="position:absolute;inset:0;border-radius:9px;background:var(--border);transition:background .2s;cursor:pointer" onclick="document.getElementById('our-multiday-toggle').click()"></span>
-          <span id="our-multiday-thumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.25)"></span>
-        </span>
-      </label>
-    </div>
-    <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">Standard (7-day default)</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px">Bin Rental</div>
+    <div id="our-towns-display" style="font-size:11px;color:var(--muted);margin-bottom:10px;font-style:italic"></div>
+    <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">Small Bins (4 &amp; 7 yard)</div>
     <div class="form-grid" style="margin-bottom:12px">
-      <div class="form-group"><label>4 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>7 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>4 Yard Dirt</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4dirt" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>4 Yard Concrete</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4conc" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>7 Yard Dirt</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7dirt" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>7 Yard Concrete</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7conc" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+    </div>
+    <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">Large Bins (14 &amp; 20 yard)</div>
+    <div class="form-grid" style="margin-bottom:12px">
       <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
       <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-    </div>
-    <!-- 3-day pricing -->
-    <div id="our-3day-section" style="display:none;margin-bottom:12px">
-      <div style="font-size:10px;font-weight:600;color:#e67e22;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">🗓️ 3-Day Price <span style="font-weight:400;color:var(--muted);text-transform:none;font-size:10px">(leave blank = same as standard)</span></div>
-      <div class="form-grid">
-        <div class="form-group"><label>4 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-        <div class="form-group"><label>7 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-        <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-        <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20-3day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-      </div>
-    </div>
-    <!-- 7-day pricing -->
-    <div id="our-7day-section" style="display:none;margin-bottom:12px">
-      <div style="font-size:10px;font-weight:600;color:#0d6efd;margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">🗓️ 7-Day Price <span style="font-weight:400;color:var(--muted);text-transform:none;font-size:10px">(leave blank = same as standard)</span></div>
-      <div class="form-grid">
-        <div class="form-group"><label>4 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-        <div class="form-group"><label>7 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-        <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-        <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20-7day" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-      </div>
+      <div class="form-group"><label>Monthly 14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-bm14" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
+      <div class="form-group"><label>Monthly 20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-bm20" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
     </div>
     <div class="form-grid" style="margin-bottom:4px">
       <div class="form-group"><label>Fuel Surcharge</label><div style="position:relative"><input id="our-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
@@ -1778,6 +1756,6 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

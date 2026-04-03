@@ -857,7 +857,7 @@ async function loadAllFromSupabase() {
       if(!rPrices.error && rPrices.data && rPrices.data.length) {
         ourPricesV2 = {};
         rPrices.data.forEach(function(r){
-          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', binTonne:(r.bins&&r.bins._tonne!=null)?String(r.bins._tonne):'', bins3day:r.bins3day||null, bins7day:r.bins7day||null};
+          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binFuel:r.bin_fuel!=null?String(r.bin_fuel):'', binTonne:(r.bins&&r.bins._tonne!=null)?String(r.bins._tonne):'', towns:r.towns||''};
         });
         // Derive pricingAreas entirely from Supabase data — authoritative
         pricingAreas = Object.keys(ourPricesV2);
@@ -3861,11 +3861,9 @@ function saveOurPricesData(){
         area:     area,
         bins:     binsToSave,
         junk:     ap.junk || {},
-        bin_fuel: ap.binFuel ? parseFloat(ap.binFuel) : null
+        bin_fuel: ap.binFuel ? parseFloat(ap.binFuel) : null,
+        towns:    ap.towns || ''
       };
-      // Only include multiday columns if they have data — avoids schema errors if columns don't exist
-      if(ap.bins3day && Object.keys(ap.bins3day).some(function(k){return ap.bins3day[k];})) row.bins3day = ap.bins3day;
-      if(ap.bins7day && Object.keys(ap.bins7day).some(function(k){return ap.bins7day[k];})) row.bins7day = ap.bins7day;
       return row;
     });
     if(rows.length){
@@ -3883,7 +3881,7 @@ function saveOurPricesData(){
 }
 function savePricingAreas(){ /* pricingAreas derived from Supabase our_prices — no separate save needed */ }
 function nextCompId(){ return 'c'+(Date.now()%100000); }
-function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binFuel:'',binTonne:''}; }
+function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binFuel:'',binTonne:'',towns:''}; }
 
 function setPricingCat(cat,el){
   pricingCat=cat;
@@ -3895,17 +3893,23 @@ function setPricingCat(cat,el){
 }
 
 function renderPricing(){
-  // Render our prices summary grouped by area
+  var allBinKeys = ['4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','14 yard','20 yard','monthly 14 yard','monthly 20 yard'];
+  var shortLabels = {'4 yard dirt':'4yd Dirt','4 yard concrete':'4yd Conc','7 yard dirt':'7yd Dirt','7 yard concrete':'7yd Conc','14 yard':'14yd','20 yard':'20yd','monthly 14 yard':'Mo 14yd','monthly 20 yard':'Mo 20yd'};
   var html = pricingAreas.map(function(area){
     var ap = getAreaPrices(area);
-    var binCells = ['4 yard','7 yard','14 yard','20 yard'].map(function(s){
-      var v = ap.bins&&ap.bins[s] ? '$'+ap.bins[s] : '<span style="color:var(--muted)">—</span>';
-      return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 14px;min-width:76px">'
-        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:var(--accent);line-height:1">'+v+'</div>'
-        +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+s+'</div></div>';
+    var activeBins = allBinKeys.filter(function(k){ return ap.bins&&ap.bins[k]; });
+    var binCells = activeBins.map(function(s){
+      var v = '$'+ap.bins[s];
+      var isMonthly = s.indexOf('monthly')===0;
+      var border = isMonthly ? 'rgba(139,92,246,.3)' : 'rgba(34,197,94,.2)';
+      var color = isMonthly ? '#8b5cf6' : 'var(--accent)';
+      return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid '+border+';border-radius:8px;padding:10px 14px;min-width:76px">'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'+color+';line-height:1">'+v+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+(shortLabels[s]||s)+'</div></div>';
     }).join('');
     var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#e67e22;margin-left:8px">⛽ +'+ap.binFuel+'% fuel</span>' : '';
     var tonneBadge = ap.binTonne ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(13,110,253,.1);border:1px solid rgba(13,110,253,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#0d6efd;margin-left:4px">+$'+ap.binTonne+'/tonne (14&amp;20yd)</span>' : '';
+    var townsLine = ap.towns ? '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-style:italic">'+ap.towns+'</div>' : '';
     var junkCells = [{k:'min',l:'Min'},{k:'quarter',l:'¼'},{k:'half',l:'½'},{k:'full',l:'Full'}].map(function(t){
       var v = ap.junk&&ap.junk[t.k] ? '$'+ap.junk[t.k] : '<span style="color:var(--muted)">—</span>';
       return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(230,126,34,.25);border-radius:8px;padding:10px 14px;min-width:64px">'
@@ -3913,17 +3917,17 @@ function renderPricing(){
         +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:4px">'+t.l+'</div></div>';
     }).join('');
     return '<div style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
       +'<span style="display:inline-block;width:3px;height:14px;background:var(--accent);border-radius:2px"></span>'
       +'<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">📍 '+area+'</span>'
       +fuelBadge+tonneBadge
       +'<button onclick="deleteOurArea(\''+area+'\')" style="margin-left:auto;background:none;border:1px solid rgba(220,53,69,.3);color:#dc3545;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;opacity:.7" title="Delete area">🗑️ Delete</button>'
       +'</div>'
+      +townsLine
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+binCells+'</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+junkCells+'</div>'
       +'</div>';
   });
-  // Separate with dividers
   document.getElementById('our-prices-display').innerHTML = html.length
     ? html.join('<div style="height:1px;background:var(--border);margin:16px 0"></div>')
     : '<div style="text-align:center;padding:32px 16px;color:var(--muted)"><div style="font-size:28px;margin-bottom:10px;opacity:.5">💰</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)">No pricing areas set up yet</div><div style="font-size:13px">Click "Edit Our Prices" to add your first area and pricing.</div></div>';
@@ -3944,11 +3948,10 @@ function renderDashPricing(){
   }
   var ap    = getAreaPrices(area);
   var bins  = ap.bins  || {};
-  var bins3 = ap.bins3day || null;
-  var bins7 = ap.bins7day || null;
   var fuel  = parseFloat(ap.binFuel)  || 0;
   var tonne = parseFloat(ap.binTonne) || 0;
-  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
+  var allBinKeys = ['4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','14 yard','20 yard','monthly 14 yard','monthly 20 yard'];
+  var shortLabels = {'4 yard dirt':'4yd Dirt','4 yard concrete':'4yd Conc','7 yard dirt':'7yd Dirt','7 yard concrete':'7yd Conc','14 yard':'14yd','20 yard':'20yd','monthly 14 yard':'Mo 14yd','monthly 20 yard':'Mo 20yd'};
   var tonneOn  = {'14 yard':true,'20 yard':true};
 
   function calcTotal(raw, sz){
@@ -3961,20 +3964,18 @@ function renderDashPricing(){
   function fmD(v){ return '$'+v.toFixed(2); }
   function fmR(v){ return '$'+Math.round(v); }
 
-  var activeBins = binSizes.filter(function(sz){ return parseFloat(bins[sz])||0; });
+  var activeBins = allBinKeys.filter(function(sz){ return parseFloat(bins[sz])||0; });
   if(!activeBins.length){
     document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px">No bin prices set for this area.</div>';
     return;
   }
 
-  // Surcharge pills — compact, only shown if applicable
   var pills = '';
   if(fuel)  pills += '<span style="background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.3);border-radius:20px;padding:1px 8px;font-size:11px;color:#e67e22;font-weight:600">⛽ +'+fuel+'% fuel</span> ';
   if(tonne) pills += '<span style="background:rgba(13,110,253,.12);border:1px solid rgba(13,110,253,.3);border-radius:20px;padding:1px 8px;font-size:11px;color:#0d6efd;font-weight:600">🚛 $'+tonne+'/tonne (14&amp;20yd)</span> ';
   pills += '<span style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.2);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--muted);font-weight:500">+HST 13%</span>';
   var out = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+pills+'</div>';
 
-  // Bin rows — one per line, label | breakdown → total
   out += '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">';
   activeBins.forEach(function(sz, i){
     var tot = calcTotal(bins[sz], sz);
@@ -3983,8 +3984,9 @@ function renderDashPricing(){
     var isLast = i === activeBins.length-1;
     var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
     var border = isLast ? '' : 'border-bottom:1px solid var(--border);';
+    var isMonthly = sz.indexOf('monthly')===0;
+    var labelColor = isMonthly ? '#8b5cf6' : 'var(--text)';
 
-    // Breakdown string
     var bd = '<span style="font-size:12px;color:var(--muted)">'+fmR(base)+'</span>';
     if(fuel){
       bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
@@ -3999,9 +4001,7 @@ function renderDashPricing(){
     bd += '<span style="font-size:12px;color:var(--muted);margin:0 5px">=</span>';
 
     out += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:'+bg+';'+border+'">';
-    // Size
-    out += '<div style="width:52px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--text)">'+sz+'</div>';
-    // Breakdown + total
+    out += '<div style="width:72px;flex-shrink:0;font-size:13px;font-weight:700;color:'+labelColor+'">'+(shortLabels[sz]||sz)+'</div>';
     out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+bd
       +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#22c55e;line-height:1;letter-spacing:.3px">'+fmD(tot)+'</span>'
       +'</div>';
@@ -4022,7 +4022,8 @@ function initDashPricingDropdown(){
 
 function renderPricingGrids(){
   var TAX_RATE = 1.13; // Ontario HST 13%
-  var binSizes = ['4 yard','7 yard','14 yard','20 yard'];
+  var binSizes = ['4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','14 yard','20 yard','monthly 14 yard','monthly 20 yard'];
+  var shortLabels = {'4 yard dirt':'4yd Dirt','4 yard concrete':'4yd Conc','7 yard dirt':'7yd Dirt','7 yard concrete':'7yd Conc','14 yard':'14yd','20 yard':'20yd','monthly 14 yard':'Mo 14yd','monthly 20 yard':'Mo 20yd'};
   var junkTiers = [{k:'min',l:'Min/Small'},{k:'quarter',l:'¼ Truck'},{k:'half',l:'½ Truck'},{k:'full',l:'Full Truck'}];
 
   function fmtWithTax(v){ return v ? '$'+(parseFloat(v)*TAX_RATE).toFixed(2) : '—'; }
@@ -4059,7 +4060,7 @@ function renderPricingGrids(){
     var binHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
       +'<thead><tr>'
       +'<th style="'+thLeft()+'">Company</th>'
-      +binSizes.map(function(s){return'<th style="'+thStyle()+'">'+s+'<br><span style="font-size:9px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">pre-tax / w/tax</span></th>';}).join('')
+      +binSizes.map(function(s){return'<th style="'+thStyle()+'">'+(shortLabels[s]||s)+'<br><span style="font-size:9px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">pre-tax / w/tax</span></th>';}).join('')
       +'<th style="'+thStyle()+'">⛽ Fuel</th>'
       +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
@@ -4141,46 +4142,25 @@ function selectOurArea(area){
   activeOurArea = area;
   document.getElementById('our-area-label').textContent = area;
   var ap = getAreaPrices(area);
-  document.getElementById('our-b4').value    = ap.bins&&ap.bins['4 yard']  || '';
-  document.getElementById('our-b7').value    = ap.bins&&ap.bins['7 yard']  || '';
+  document.getElementById('our-b4dirt').value = ap.bins&&ap.bins['4 yard dirt']  || '';
+  document.getElementById('our-b4conc').value = ap.bins&&ap.bins['4 yard concrete']  || '';
+  document.getElementById('our-b7dirt').value = ap.bins&&ap.bins['7 yard dirt']  || '';
+  document.getElementById('our-b7conc').value = ap.bins&&ap.bins['7 yard concrete']  || '';
   document.getElementById('our-b14').value   = ap.bins&&ap.bins['14 yard'] || '';
   document.getElementById('our-b20').value   = ap.bins&&ap.bins['20 yard'] || '';
+  document.getElementById('our-bm14').value  = ap.bins&&ap.bins['monthly 14 yard'] || '';
+  document.getElementById('our-bm20').value  = ap.bins&&ap.bins['monthly 20 yard'] || '';
   document.getElementById('our-b-fuel').value= ap.binFuel || '';
   document.getElementById('our-b-tonne').value= ap.binTonne || '';
   document.getElementById('our-j-min').value    = ap.junk&&ap.junk.min     || '';
   document.getElementById('our-j-quarter').value= ap.junk&&ap.junk.quarter || '';
   document.getElementById('our-j-half').value   = ap.junk&&ap.junk.half    || '';
   document.getElementById('our-j-full').value   = ap.junk&&ap.junk.full    || '';
-  // Multi-day pricing
-  var hasMultiday = !!(ap.bins3day || ap.bins7day);
-  var tog = document.getElementById('our-multiday-toggle');
-  if(tog){ tog.checked = hasMultiday; applyMultidayToggleUI(hasMultiday); }
-  var b3 = ap.bins3day || {};
-  var b7 = ap.bins7day || {};
-  document.getElementById('our-b4-3day').value  = b3['4 yard']  || '';
-  document.getElementById('our-b7-3day').value  = b3['7 yard']  || '';
-  document.getElementById('our-b14-3day').value = b3['14 yard'] || '';
-  document.getElementById('our-b20-3day').value = b3['20 yard'] || '';
-  document.getElementById('our-b4-7day').value  = b7['4 yard']  || '';
-  document.getElementById('our-b7-7day').value  = b7['7 yard']  || '';
-  document.getElementById('our-b14-7day').value = b7['14 yard'] || '';
-  document.getElementById('our-b20-7day').value = b7['20 yard'] || '';
+  var townsEl = document.getElementById('our-towns-display');
+  if(townsEl) townsEl.textContent = ap.towns ? 'Towns: '+ap.towns : '';
   renderOurAreaTabs();
 }
 
-function toggleMultidayFields(){
-  var on = document.getElementById('our-multiday-toggle').checked;
-  applyMultidayToggleUI(on);
-}
-
-function applyMultidayToggleUI(on){
-  document.getElementById('our-3day-section').style.display = on ? 'block' : 'none';
-  document.getElementById('our-7day-section').style.display = on ? 'block' : 'none';
-  var track = document.getElementById('our-multiday-track');
-  var thumb = document.getElementById('our-multiday-thumb');
-  if(track) track.style.background = on ? 'var(--accent)' : 'var(--border)';
-  if(thumb) thumb.style.transform  = on ? 'translateX(16px)' : 'translateX(0)';
-}
 
 function addOurPricingArea(){
   var name = prompt('New area name (e.g. "Barrie", "Innisfil", "Orillia"):');
@@ -4245,13 +4225,17 @@ function openEditOurPrices(){
 }
 
 function saveOurPrices(){
-  var multidayOn = document.getElementById('our-multiday-toggle').checked;
+  var prev = ourPricesV2[activeOurArea] || {};
   var entry = {
     bins: {
-      '4 yard':  document.getElementById('our-b4').value,
-      '7 yard':  document.getElementById('our-b7').value,
-      '14 yard': document.getElementById('our-b14').value,
-      '20 yard': document.getElementById('our-b20').value
+      '4 yard dirt':       document.getElementById('our-b4dirt').value,
+      '4 yard concrete':   document.getElementById('our-b4conc').value,
+      '7 yard dirt':       document.getElementById('our-b7dirt').value,
+      '7 yard concrete':   document.getElementById('our-b7conc').value,
+      '14 yard':           document.getElementById('our-b14').value,
+      '20 yard':           document.getElementById('our-b20').value,
+      'monthly 14 yard':   document.getElementById('our-bm14').value,
+      'monthly 20 yard':   document.getElementById('our-bm20').value
     },
     binFuel: document.getElementById('our-b-fuel').value,
     binTonne: document.getElementById('our-b-tonne').value,
@@ -4260,22 +4244,9 @@ function saveOurPrices(){
       quarter: document.getElementById('our-j-quarter').value,
       half:    document.getElementById('our-j-half').value,
       full:    document.getElementById('our-j-full').value
-    }
+    },
+    towns: prev.towns || ''
   };
-  if(multidayOn){
-    entry.bins3day = {
-      '4 yard':  document.getElementById('our-b4-3day').value,
-      '7 yard':  document.getElementById('our-b7-3day').value,
-      '14 yard': document.getElementById('our-b14-3day').value,
-      '20 yard': document.getElementById('our-b20-3day').value
-    };
-    entry.bins7day = {
-      '4 yard':  document.getElementById('our-b4-7day').value,
-      '7 yard':  document.getElementById('our-b7-7day').value,
-      '14 yard': document.getElementById('our-b14-7day').value,
-      '20 yard': document.getElementById('our-b20-7day').value
-    };
-  }
   ourPricesV2[activeOurArea] = entry;
   saveOurPricesData();
   closeM('our-prices-modal');
