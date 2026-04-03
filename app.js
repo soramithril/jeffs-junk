@@ -579,13 +579,33 @@ function updateSidebarStats() {
   var el2 = document.getElementById('m-bins'); if(el2) el2.textContent = binsOut;
 }
 function save() {
-  // Save all jobs that changed — for simplicity upsert all in background
-  if (!jobs.length) return;
-  _clientStatsCache = null; // invalidate client stats cache
+  // DEPRECATED — kept as no-op so nothing breaks if called by accident
+  console.warn('save() called — this is a no-op now. Use patchJob() instead.');
   updateSidebarStats();
-  var batch = jobs.map(jobToDb);
-  db.from('jobs').upsert(batch, {onConflict:'job_id'}).then(function(r){
-    if(r.error) console.error('Save jobs error:', r.error.message);
+}
+
+// Surgical update: only writes the fields you pass for one job
+function patchJob(jobId, fields) {
+  _clientStatsCache = null;
+  updateSidebarStats();
+  // Map camelCase JS keys to snake_case DB columns
+  var keyMap = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
+    status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
+    binDropoff:'bin_dropoff', paid:'paid', etransferRefundSent:'etransfer_refund_sent',
+    binBid:'bin_bid', binSide:'bin_side', price:'price', notes:'notes', phone:'phone',
+    name:'name', address:'address', city:'city', service:'service', binSize:'bin_size',
+    binDuration:'bin_duration', time:'time', referral:'referral', payMethod:'pay_method',
+    recurring:'recurring', recurInterval:'recur_interval', materialType:'material_type',
+    toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
+    depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
+    clientId:'client_cid'};
+  var dbFields = {};
+  Object.keys(fields).forEach(function(k){
+    var col = keyMap[k] || k;
+    dbFields[col] = fields[k];
+  });
+  db.from('jobs').update(dbFields).eq('job_id', jobId).then(function(r){
+    if(r.error) console.error('patchJob error ('+jobId+'):', r.error.message);
   });
 }
 
@@ -2174,7 +2194,7 @@ async function renderWeekCal(){
       var newDate=col.getAttribute('data-date');
       if(!dragJobId||!newDate)return;
       jobs.forEach(function(j){if(j.id===dragJobId)j.date=newDate;});
-      save();toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash();
+      patchJob(dragJobId,{date:newDate});toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash();
     });
   });
 }
@@ -2754,7 +2774,7 @@ function jddSetDrop(id, newStatus, e){
   if(e) e.stopPropagation();
   if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;}
   jobs.forEach(function(j){ if(j.id===id) j.binInstatus=newStatus; });
-  save();
+  patchJob(id,{binInstatus:newStatus});
   // Surgical DOM update — re-render just the drop status cell
   var row = document.querySelector('tr[data-jid="'+id+'"]');
   if(row){
@@ -2791,8 +2811,9 @@ function confirmedHtml(id, confirmed, service, status, binInstatus){
 function cycleStatus(id,e){
   if(e)e.stopPropagation();
   var order=['Pending','In Progress','Done'];
-  jobs.forEach(function(j){if(j.id===id){var i=order.indexOf(j.status);j.status=order[(i+1)%order.length];}});
-  save();toast('Status updated!');refresh();
+  var newStatus;
+  jobs.forEach(function(j){if(j.id===id){var i=order.indexOf(j.status);j.status=order[(i+1)%order.length];newStatus=j.status;}});
+  patchJob(id,{status:newStatus});toast('Status updated!');refresh();
 }
 function cycleBinDrop(id,e){
   if(e)e.stopPropagation();
@@ -2802,7 +2823,8 @@ function cycleBinDrop(id,e){
     else if(j.binInstatus==='dropped')j.binInstatus='pickedup';
     else j.binInstatus='';
   });
-  save();refresh();
+  var j2=jobs.find(function(x){return x.id===id;});
+  patchJob(id,{binInstatus:j2?j2.binInstatus:''});refresh();
 }
 function emailHtml(id, sent){
   if(sent)
@@ -2965,19 +2987,19 @@ function renderJobs(){
       var action = btn.getAttribute('data-action');
       if(action==='confirm'){
         jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});
-        save(); toast('✅ Confirmed!');
+        patchJob(id,{confirmed:true}); toast('✅ Confirmed!');
         row.querySelector('.jcell-confirm').outerHTML = confirmedHtml(id,true, (jobs.find(function(j){return j.id===id;})||{}).service||'Bin Rental');
       } else if(action==='unconfirm'){
         jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});
-        save(); toast('Confirmation removed.');
+        patchJob(id,{confirmed:false}); toast('Confirmation removed.');
         row.querySelector('.jcell-confirm').outerHTML = confirmedHtml(id,false, (jobs.find(function(j){return j.id===id;})||{}).service||'Bin Rental');
       } else if(action==='emailsent'){
         jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});
-        save(); toast('Email marked sent!');
+        patchJob(id,{emailSent:true}); toast('Email marked sent!');
         row.querySelector('.jcell-email').innerHTML = emailHtml(id,true);
       } else if(action==='emailunsent'){
         jobs.forEach(function(j){if(j.id===id)j.emailSent=false;});
-        save(); toast('Email cleared.');
+        patchJob(id,{emailSent:false}); toast('Email cleared.');
         row.querySelector('.jcell-email').innerHTML = emailHtml(id,false);
       } else if(action==='edit'){
         openEdit(id);
@@ -3116,7 +3138,7 @@ async function renderCal(){
       var newDate=cell.getAttribute('data-date');
       if(!dragJobId||!newDate)return;
       jobs.forEach(function(j){if(j.id===dragJobId)j.date=newDate;});
-      save();toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash();
+      patchJob(dragJobId,{date:newDate});toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash();
     });
   });
 }
@@ -6134,7 +6156,7 @@ async function swapOutBin(id){
   refresh();
 }
 
-function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});save();toast('Customer marked as confirmed!');refresh();}
+function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});patchJob(id,{confirmed:true});toast('Customer marked as confirmed!');refresh();}
 
 function openExtendPopup(jobId, e){
   if(e)e.stopPropagation();
@@ -6165,7 +6187,7 @@ function extendBin(jobId, days){
   var cur=j.binPickup?new Date(j.binPickup+'T12:00:00'):new Date();
   cur.setDate(cur.getDate()+days);
   j.binPickup=cur.toISOString().split('T')[0];
-  save();toast('Pickup extended to '+fd(j.binPickup));
+  patchJob(jobId,{binPickup:j.binPickup});toast('Pickup extended to '+fd(j.binPickup));
   var pop=document.querySelector('.extend-popup.open');if(pop)pop.classList.remove('open');
   refresh();
 }
@@ -6173,18 +6195,18 @@ function extendBinToDate(jobId){
   var inp=document.getElementById('extend-date-'+jobId);if(!inp||!inp.value)return;
   var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
   j.binPickup=inp.value;
-  save();toast('Pickup extended to '+fd(j.binPickup));
+  patchJob(jobId,{binPickup:j.binPickup});toast('Pickup extended to '+fd(j.binPickup));
   var pop=document.querySelector('.extend-popup.open');if(pop)pop.classList.remove('open');
   refresh();
 }
 
 function markEmailConfirmed(id){
   jobs.forEach(function(j){if(j.id===id)j.emailConfirmed=true;});
-  save();toast('Email confirmation sent!');openDetail(id);refresh();
+  patchJob(id,{emailConfirmed:true});toast('Email confirmation sent!');openDetail(id);refresh();
 }
 function markEmailUnconfirmed(id){
   jobs.forEach(function(j){if(j.id===id)j.emailConfirmed=false;});
-  save();toast('Email confirmation removed.');openDetail(id);refresh();
+  patchJob(id,{emailConfirmed:false});toast('Email confirmation removed.');openDetail(id);refresh();
 }
 
 function newJobForClient(cid){
@@ -6235,9 +6257,9 @@ function convertQuoteToJob(quoteId){
   ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
   document.getElementById('job-modal').classList.add('open');
 }
-function markUnconfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});save();toast('Confirmation removed.');refresh();}
-function markEmailSent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});save();toast('Email marked as sent!');refresh();}
-function markEmailUnsent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=false;});save();toast('Email status cleared.');refresh();}
+function markUnconfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});patchJob(id,{confirmed:false});toast('Confirmation removed.');refresh();}
+function markEmailSent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});patchJob(id,{emailSent:true});toast('Email marked as sent!');refresh();}
+function markEmailUnsent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=false;});patchJob(id,{emailSent:false});toast('Email status cleared.');refresh();}
 function writeBinHistory(j){
   if(!j||j.service!=='Bin Rental'||!j.binBid)return;
   db.from('bin_history').insert({
@@ -6247,14 +6269,14 @@ function writeBinHistory(j){
     material_type:j.materialType||'',notes:j.notes||'',job_id:j.id,source:'dashboard'
   }).then(function(r){if(r.error)console.error('bin_history write failed:',r.error.message);});
 }
-function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';if(j.status==='Pending')j.status='In Progress';}});save();toast('Bin marked as dropped off!');openDetail(id);refresh();}
-function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';if(j.status==='In Progress')j.status='Pending';}});save();toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
+function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';if(j.status==='Pending')j.status='In Progress';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:'dropped',status:j2?j2.status:'In Progress'});toast('Bin marked as dropped off!');openDetail(id);refresh();}
+function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';if(j.status==='In Progress')j.status='Pending';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:'',status:j2?j2.status:'Pending'});toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
 function markBinPickedUp2(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   j.binInstatus='pickedup';j.status='Done';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
   writeBinHistory(j);
-  save();toast('Bin marked as picked up!');openDetail(id);refresh();
+  patchJob(id,{binInstatus:'pickedup',status:'Done'});toast('Bin marked as picked up!');openDetail(id);refresh();
 }
 async function scheduleNextSwap(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
@@ -6311,15 +6333,15 @@ async function scheduleNextRecurringJob(id){
   toast('Next '+j.service+' booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
 }
-function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransferRefundSent=true;});save();toast('E-Transfer refund marked as sent!');openDetail(id);refresh();}
-function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});save();toast('Marked as paid!');openDetail(id);refresh();}
-function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});save();toast('Marked complete!');openDetail(id);refresh();}
-function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.status='Done';j.binInstatus='pickedup';}});save();toast('Bin marked picked up!');refresh();}
+function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransferRefundSent=true;});patchJob(id,{etransferRefundSent:true});toast('E-Transfer refund marked as sent!');openDetail(id);refresh();}
+function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});patchJob(id,{paid:'Paid'});toast('Marked as paid!');openDetail(id);refresh();}
+function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});patchJob(id,{status:'Done'});toast('Marked complete!');openDetail(id);refresh();}
+function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.status='Done';j.binInstatus='pickedup';}});patchJob(id,{status:'Done',binInstatus:'pickedup'});toast('Bin marked picked up!');refresh();}
 function dashMarkPickedUp(jobId,bid){
   var j=jobs.find(function(jj){return jj.id===jobId;});
   if(j){j.status='Done';j.binInstatus='pickedup';writeBinHistory(j);}
   binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
-  save();saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
+  patchJob(jobId,{status:'Done',binInstatus:'pickedup'});saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
 }
 function toast(msg, type) {
   var t = document.getElementById('toast');
@@ -6888,7 +6910,7 @@ function sendEmail() {
   window.open(mailto, '_blank');
   if (emailJobId) {
     jobs.forEach(function(j){if(j.id===emailJobId)j.emailSent=true;});
-    save();
+    patchJob(emailJobId,{emailSent:true});
     document.getElementById('email-sent-note').style.display = 'block';
     toast('Email client opened!');
   }
@@ -7232,7 +7254,7 @@ function doMergeClients() {
   _clientStatsCache = null;
   _clientStatsCacheTime = 0;
 
-  save(); saveClients(); renderClients(); renderClientSelectOptions();
+  updateSidebarStats(); saveClients(); renderClients(); renderClientSelectOptions();
   closeM('merge-modal');
   toast('✓ Merged ' + sc.name + ' → ' + pc.name);
 }
