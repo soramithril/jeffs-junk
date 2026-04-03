@@ -598,6 +598,23 @@ function save() {
 function patchJob(jobId, fields) {
   _clientStatsCache = null;
   updateSidebarStats();
+  // Log changes to job_changes
+  var labelMap = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid'};
+  var oldJob = jobs.find(function(j){return j.id===jobId;});
+  var changeRows = [];
+  var userEmail = currentUser ? currentUser.email : 'system';
+  Object.keys(fields).forEach(function(k){
+    if(k==='editedBy'||k==='editedByEmail') return;
+    var label = labelMap[k] || k;
+    var oldVal = oldJob ? String(oldJob[k]||'') : '';
+    var newVal = String(fields[k]||'');
+    if(oldVal !== newVal) changeRows.push({job_id:jobId, field_name:label, old_value:oldVal, new_value:newVal, changed_by:userEmail});
+  });
+  if(changeRows.length){
+    db.from('job_changes').insert(changeRows).then(function(r){
+      if(r.error) console.warn('job_changes insert error:', r.error.message);
+    });
+  }
   // Map camelCase JS keys to snake_case DB columns
   var keyMap = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
     status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
@@ -5981,7 +5998,20 @@ async function saveJob(e){
     }
   }
 
+  // Build change log before replacing the old job
+  var changeRows = [];
   if(editId){
+    var oldJob = jobs.find(function(j){return j.id===editId;});
+    if(oldJob){
+      var trackFields = {service:'Service',status:'Status',name:'Name',phone:'Phone',address:'Address',city:'City',date:'Date',time:'Time',price:'Price',paid:'Paid',payMethod:'Pay Method',notes:'Notes',referral:'Referral',binSize:'Bin Size',binDuration:'Duration',binDropoff:'Drop-off',binPickup:'Pickup',binSide:'Driveway Side',binInstatus:'Bin Status',materialType:'Material',toolsNeeded:'Tools Needed',recurring:'Recurring',recurInterval:'Recur Interval'};
+      Object.keys(trackFields).forEach(function(k){
+        var oldVal = String(oldJob[k]||'');
+        var newVal = String(job[k]||'');
+        if(oldVal !== newVal){
+          changeRows.push({job_id:editId, field_name:trackFields[k], old_value:oldVal, new_value:newVal, changed_by:userEmail});
+        }
+      });
+    }
     var idx = jobs.findIndex(function(j){return j.id===editId;});
     if(idx >= 0) jobs[idx] = job; else jobs.push(job);
     toast('Job updated!');
@@ -5999,6 +6029,12 @@ async function saveJob(e){
       alert('\u274c Error saving job: ' + dbRes.error.message);
       console.error('saveJob error:', dbRes.error);
       _saveJobLock = false; return;
+    }
+    // Log field-level changes
+    if(changeRows.length){
+      db.from('job_changes').insert(changeRows).then(function(r){
+        if(r.error) console.warn('job_changes insert error:', r.error.message);
+      });
     }
     _clientStatsCache = null;
     toast('\u2705 ' + job.id + ' saved!');
@@ -6086,6 +6122,10 @@ function openDetail(id){
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:#e67e22;font-weight:600">'+j.editedBy+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +'</div></div>':'')
+    +'<div class="detail-section"><div class="detail-section-title" style="cursor:pointer;user-select:none" onclick="toggleJobHistory(\''+j.id+'\')">'
+    +'📜 Edit History <span id="history-toggle-'+j.id+'" style="font-size:11px;color:var(--muted);margin-left:6px">▶ Show</span></div>'
+    +'<div id="job-history-'+j.id+'" style="display:none;max-height:300px;overflow-y:auto"></div></div>'
+
     +'<div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px;display:flex;flex-direction:column;gap:10px">'
 
     // ── Row 1: Primary Actions ──
@@ -6135,6 +6175,48 @@ function openDetail(id){
 
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
+}
+
+function toggleJobHistory(jobId){
+  var wrap = document.getElementById('job-history-'+jobId);
+  var toggle = document.getElementById('history-toggle-'+jobId);
+  if(!wrap) return;
+  if(wrap.style.display === 'none'){
+    wrap.style.display = 'block';
+    toggle.textContent = '▼ Hide';
+    wrap.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px">Loading...</div>';
+    db.from('job_changes').select('*').eq('job_id', jobId).order('changed_at', {ascending:false}).then(function(r){
+      if(r.error || !r.data || !r.data.length){
+        wrap.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:13px">No edit history yet.</div>';
+        return;
+      }
+      // Group changes by timestamp (same second = same edit)
+      var groups = [];
+      var lastKey = '';
+      r.data.forEach(function(c){
+        var key = (c.changed_at||'').substring(0,19) + '|' + (c.changed_by||'');
+        if(key !== lastKey){ groups.push({at:c.changed_at, by:c.changed_by, changes:[]}); lastKey = key; }
+        groups[groups.length-1].changes.push(c);
+      });
+      var html = groups.map(function(g){
+        var who = (g.by||'system').split('@')[0];
+        var when = new Date(g.at).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        var lines = g.changes.map(function(c){
+          return '<div style="font-size:12px;color:var(--fg);padding:2px 0">'
+            +'<span style="color:var(--muted)">'+c.field_name+':</span> '
+            +'<span style="text-decoration:line-through;opacity:.5">'+(c.old_value||'(empty)')+'</span>'
+            +' → <span style="font-weight:600">'+(c.new_value||'(empty)')+'</span></div>';
+        }).join('');
+        return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
+          +'<div style="font-size:12px;margin-bottom:4px"><strong style="color:#e67e22">'+who+'</strong> <span style="color:var(--muted)">— '+when+'</span></div>'
+          +lines+'</div>';
+      }).join('');
+      wrap.innerHTML = html;
+    });
+  } else {
+    wrap.style.display = 'none';
+    toggle.textContent = '▶ Show';
+  }
 }
 
 async function swapOutBin(id){
