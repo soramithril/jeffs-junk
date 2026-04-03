@@ -3938,9 +3938,7 @@ function renderDashPricing(){
   var TAX = 1.13;
   var sel = document.getElementById('dash-pricing-area');
   if(!sel) return;
-  if(sel.options.length !== pricingAreas.length){
-    sel.innerHTML = pricingAreas.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
-  }
+  if(!sel.options.length) initDashPricingDropdown();
   var area = sel.value || pricingAreas[0] || '';
   if(!area){
     document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px">No pricing areas set up. <button class="btn btn-ghost btn-sm" onclick="go(\'pricing\')">Set up pricing &#x2192;</button></div>';
@@ -4011,10 +4009,35 @@ function renderDashPricing(){
 
   document.getElementById('dash-pricing-display').innerHTML = out;
 }
+function buildTownToAreaMap(){
+  var map = {};
+  pricingAreas.forEach(function(area){
+    var ap = getAreaPrices(area);
+    if(ap.towns){
+      ap.towns.split(',').forEach(function(t){
+        var town = t.trim();
+        if(town) map[town] = area;
+      });
+    }
+  });
+  return map;
+}
 function initDashPricingDropdown(){
   var sel = document.getElementById('dash-pricing-area');
   if(!sel) return;
-  sel.innerHTML = pricingAreas.map(function(a){ return '<option value="'+a+'">'+a+'</option>'; }).join('');
+  var html = '';
+  pricingAreas.forEach(function(area){
+    var ap = getAreaPrices(area);
+    var towns = ap.towns ? ap.towns.split(',').map(function(t){return t.trim();}).filter(Boolean) : [];
+    if(towns.length > 1){
+      html += '<optgroup label="'+area+'">';
+      towns.forEach(function(t){ html += '<option value="'+area+'">'+t+'</option>'; });
+      html += '</optgroup>';
+    } else {
+      html += '<option value="'+area+'">'+area+'</option>';
+    }
+  });
+  sel.innerHTML = html;
   if(pricingAreas.length) sel.value = pricingAreas[0];
   renderDashPricing();
 }
