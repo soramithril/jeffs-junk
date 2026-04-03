@@ -51,14 +51,15 @@ function _isUserBusy(){
 }
 function _scheduleRealtimeRefresh(){
   clearTimeout(_rtDebounce);
-  _rtDebounce = setTimeout(function(){
+  _rtDebounce = setTimeout(async function(){
     if(_isUserBusy()){
-      // Retry in 3s — user is busy
       _scheduleRealtimeRefresh();
       return;
     }
-    // Invalidate client stats cache so next render gets fresh data
     _clientStatsCacheTime = 0;
+    // Reload binItems so deployed-bin counts stay in sync
+    var rb = await db.from('bin_items').select('*');
+    if(rb.data) binItems = rb.data;
     refresh();
   }, 1500);
 }
@@ -421,6 +422,7 @@ try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){
 var editId = null, editBinId = null;
 var calDate = new Date();
 var svcF = 'all', searchF = '', invF = 'all', jobStatusF = 'all', jobDateF = 'all', binDropF = 'all';
+var jobSort = 'date', jobSortDir = -1; // -1 = newest first
 var weekOffset = 0, tlOffset = 0;
 var analyticsPeriod = 'week', analyticsCompare = 'none';
 var clientSearchF = '';
@@ -873,8 +875,22 @@ async function loadAllFromSupabase() {
     } catch(e){ console.warn('Email presets load error:',e); }
 
     hideLoading();
-    // ── Auto-mark bins as picked up only when their pickup date has passed ──
+    // ── Auto-mark bins as dropped when their dropoff date has passed ──
     var today2 = todayStr();
+    var pastDropJobs = await db.from('jobs').select('job_id')
+      .eq('service','Bin Rental')
+      .or('bin_instatus.is.null,bin_instatus.eq.')
+      .not('bin_dropoff','is',null)
+      .lte('bin_dropoff', today2);
+    if (pastDropJobs.data && pastDropJobs.data.length) {
+      var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
+      await db.from('jobs').update({bin_instatus:'dropped',status:'In Progress'}).in('job_id',dropIds);
+      jobs.forEach(function(j){
+        if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
+          { j.binInstatus='dropped'; j.status='In Progress'; }
+      });
+    }
+    // ── Auto-mark bins as picked up when their pickup date has passed ──
     var pastBinJobs = await db.from('jobs').select('job_id')
       .eq('service','Bin Rental')
       .neq('bin_instatus','pickedup')
@@ -1705,12 +1721,12 @@ function markVehicleNotOperational(vid){
 }
 function markVehicleOperational(vid){
   closeVehMenus();
-  var today=todayStr();
   if(!vehBlocks[vid])return;
-  // Remove today's block and all future open-ended blocks
-  var toRemove=Object.keys(vehBlocks[vid]).filter(function(d){return d>=today&&vehBlocks[vid][d].openEnded;});
+  // Remove ALL open-ended blocks (past + present + future) so extendOpenBlocks won't recreate them
+  var toRemove=Object.keys(vehBlocks[vid]).filter(function(d){return vehBlocks[vid][d].openEnded;});
   toRemove.forEach(function(d){delete vehBlocks[vid][d];});
   // Also clear today even if not open-ended
+  var today=todayStr();
   if(vehBlocks[vid][today])delete vehBlocks[vid][today];
   saveVehBlocks(vid);renderDashVehicleStatus();renderCal();
   toast('Vehicle marked operational.');
@@ -2038,13 +2054,14 @@ async function renderWeekCal(){
   var opts={month:'short',day:'numeric'};
   document.getElementById('week-lbl').textContent=ws.toLocaleDateString('en-US',opts)+' – '+we.toLocaleDateString('en-US',opts);
 
-  // Fetch this week's jobs: by job date OR by bin_pickup date falling in this week
+  // Fetch this week's jobs: by job date, bin_dropoff, or bin_pickup falling in this week
   var rByDate = db.from('jobs').select('*').gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
+  var rByDropoff = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_dropoff',wsS).lte('bin_dropoff',weS).neq('status','Cancelled');
   var rByPickup = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_pickup',wsS).lte('bin_pickup',weS).neq('status','Cancelled');
-  var results = await Promise.all([rByDate, rByPickup]);
+  var results = await Promise.all([rByDate, rByDropoff, rByPickup]);
   var seen = {};
   var weekJobs = [];
-  (results[0].data||[]).concat(results[1].data||[]).forEach(function(row){
+  (results[0].data||[]).concat(results[1].data||[]).concat(results[2].data||[]).forEach(function(row){
     if(!seen[row.id]){ seen[row.id]=true; weekJobs.push(dbToJob(row)); }
   });
   // Cache in local jobs array
@@ -2821,6 +2838,23 @@ function makeCancelledRowWithSvc(j){
 function toggleCatSection(el){
   el.classList.toggle('collapsed');
 }
+function toggleJobSort(field){
+  if(jobSort===field){jobSortDir=jobSortDir*-1;}else{jobSort=field;jobSortDir=field==='date'?-1:1;}
+  renderJobs();
+}
+function sortJobList(arr){
+  var dir=jobSortDir;
+  var field=jobSort;
+  return arr.sort(function(a,b){
+    var va,vb;
+    if(field==='id'){va=a.id;vb=b.id;var na=parseInt(va.replace(/\D/g,'')),nb=parseInt(vb.replace(/\D/g,''));if(!isNaN(na)&&!isNaN(nb))return (na-nb)*dir;return va<vb?-dir:va>vb?dir:0;}
+    if(field==='name'){va=(a.name||'').toLowerCase();vb=(b.name||'').toLowerCase();return va<vb?-dir:va>vb?dir:0;}
+    if(field==='date'){return (new Date(a.date)-new Date(b.date))*dir;}
+    if(field==='address'){va=(a.address||'').toLowerCase();vb=(b.address||'').toLowerCase();return va<vb?-dir:va>vb?dir:0;}
+    if(field==='service'){va=(a.service||'');vb=(b.service||'');return va<vb?-dir:va>vb?dir:0;}
+    return 0;
+  });
+}
 function renderJobs(){
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
@@ -2833,7 +2867,7 @@ function renderJobs(){
     if(binDropF==='pickedup')return j.binInstatus==='pickedup';
     return true;
   }
-  var all=[].concat(jobs).sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+  var all=sortJobList([].concat(jobs));
 
   // Show/hide cancelled section
   var cancelledSection = document.getElementById('jobs-cancelled-section');
@@ -2940,7 +2974,7 @@ function renderJobs(){
 
 // ─── CALENDAR ───
 var dragJobId=null;
-function renderCal(){
+async function renderCal(){
   var y=calDate.getFullYear(),mo=calDate.getMonth();
   document.getElementById('cal-lbl').textContent=new Date(y,mo,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
@@ -2951,10 +2985,29 @@ function renderCal(){
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
   var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
 
+  // Load jobs for this month from DB so calendar shows ALL jobs
+  var monthStart=y+'-'+String(mo+1).padStart(2,'0')+'-01';
+  var monthEnd=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(days).padStart(2,'0');
+  var calJobsList=[];
+  try{
+    // Get all jobs with date, bin_dropoff, or bin_pickup in this month
+    var [rDate, rDrop, rPick] = await Promise.all([
+      db.from('jobs').select('*').neq('status','Cancelled').gte('date',monthStart).lte('date',monthEnd),
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',monthStart).lte('bin_dropoff',monthEnd),
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd)
+    ]);
+    var seen={};
+    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[])].forEach(function(arr){
+      arr.forEach(function(row){
+        if(!seen[row.id||row.job_id]){seen[row.id||row.job_id]=true;calJobsList.push(dbToJob(row));}
+      });
+    });
+  }catch(e){console.warn('Calendar load error:',e);calJobsList=jobs;}
+
   // Build a lookup: date string -> array of cal events
   // Each event has { job, type } where type = 'dropoff' | 'pickup' | 'job'
   var calEvents = {}; // ds -> [{j, type, label}]
-  jobs.forEach(function(j){
+  calJobsList.forEach(function(j){
     if(j.status==='Cancelled') return;
     if(j.service==='Bin Rental'){
       // Drop-off event: use binDropoff date, fall back to j.date
@@ -3032,21 +3085,32 @@ function renderCal(){
 function shiftMonth(d){calDate.setMonth(calDate.getMonth()+d);renderCal();}
 
 // ── Calendar day preview modal ──────────────────────────────
-function openCalDayPreview(ds){
+async function openCalDayPreview(ds){
   if(dragJobId) return; // don't open while dragging
 
-  // Build events for this day — same logic as renderCal
+  // Load jobs for this day from DB so we show ALL jobs
   var evs=[];
-  jobs.forEach(function(j){
-    if(j.status==='Cancelled') return;
-    if(j.service==='Bin Rental'){
-      var dropDs=j.binDropoff||j.date;
-      if(dropDs===ds) evs.push({j:j,type:'dropoff'});
-      if(j.binPickup===ds && j.binPickup!==dropDs) evs.push({j:j,type:'pickup'});
-    } else {
-      if(j.date===ds) evs.push({j:j,type:'job'});
-    }
-  });
+  try{
+    var [rDate,rDrop,rPick]=await Promise.all([
+      db.from('jobs').select('*').neq('status','Cancelled').eq('date',ds),
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',ds),
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds)
+    ]);
+    var seen={};var dayJobs=[];
+    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[])].forEach(function(arr){
+      arr.forEach(function(row){if(!seen[row.id||row.job_id]){seen[row.id||row.job_id]=true;dayJobs.push(dbToJob(row));}});
+    });
+    dayJobs.forEach(function(j){
+      if(j.status==='Cancelled')return;
+      if(j.service==='Bin Rental'){
+        var dropDs=j.binDropoff||j.date;
+        if(dropDs===ds) evs.push({j:j,type:'dropoff'});
+        if(j.binPickup===ds&&j.binPickup!==dropDs) evs.push({j:j,type:'pickup'});
+      }else{
+        if(j.date===ds) evs.push({j:j,type:'job'});
+      }
+    });
+  }catch(e){console.warn('Day preview load error:',e);}
 
   var dateLabel=new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 

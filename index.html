@@ -388,19 +388,19 @@
   <div id="jobs-cat-view">
     <div class="cat-section">
       <div class="cat-section-header bin" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">Bin Rentals</div><span class="cat-count" id="jobs-bin-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-bin-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header junk" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">Junk Removal</div><span class="cat-count" id="jobs-junk-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-junk-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header quote" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">📋 Junk Quotes</div><span class="cat-count" id="jobs-quote-count">0 quotes</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-quote-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
       <div class="cat-section-header furn" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('service')">Service</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
     <div id="jobs-cancelled-section" style="display:none">
       <div class="cat-section">
@@ -431,7 +431,7 @@
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
-    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
+    <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('service')">Service</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
   </div>
   <div id="jobs-pagination-bottom"></div>
 </div>
