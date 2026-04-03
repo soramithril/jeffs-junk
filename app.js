@@ -877,7 +877,7 @@ async function loadAllFromSupabase() {
     hideLoading();
     // ── Auto-mark bins as dropped when their dropoff date has passed ──
     var today2 = todayStr();
-    var pastDropJobs = await db.from('jobs').select('job_id')
+    var pastDropJobs = await db.from('jobs').select('job_id,bin_bid')
       .eq('service','Bin Rental')
       .or('bin_instatus.is.null,bin_instatus.eq.')
       .not('bin_dropoff','is',null)
@@ -885,13 +885,17 @@ async function loadAllFromSupabase() {
     if (pastDropJobs.data && pastDropJobs.data.length) {
       var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
       await db.from('jobs').update({bin_instatus:'dropped',status:'In Progress'}).in('job_id',dropIds);
+      // Sync bin_items.status to 'out' for assigned bins
+      var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
+      if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
+      binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
       jobs.forEach(function(j){
         if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
           { j.binInstatus='dropped'; j.status='In Progress'; }
       });
     }
     // ── Auto-mark bins as picked up when their pickup date has passed ──
-    var pastBinJobs = await db.from('jobs').select('job_id')
+    var pastBinJobs = await db.from('jobs').select('job_id,bin_bid')
       .eq('service','Bin Rental')
       .neq('bin_instatus','pickedup')
       .not('bin_pickup','is',null)
@@ -899,6 +903,10 @@ async function loadAllFromSupabase() {
     if (pastBinJobs.data && pastBinJobs.data.length) {
       var ids = pastBinJobs.data.map(function(r){return r.job_id;});
       await db.from('jobs').update({bin_instatus:'pickedup'}).in('job_id',ids);
+      // Sync bin_items.status to 'in' for assigned bins
+      var pickBids = pastBinJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
+      if(pickBids.length) await db.from('bin_items').update({status:'in'}).in('bid',pickBids);
+      binItems.forEach(function(b){ if(pickBids.indexOf(b.bid)>=0) b.status='in'; });
       jobs.forEach(function(j){
         if(j.service==='Bin Rental'&&j.binPickup&&j.binPickup<today2&&j.binInstatus!=='pickedup')
           j.binInstatus='pickedup';
@@ -1608,27 +1616,32 @@ async function refreshDashBinStats(){
     var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% deployed';
   },50);
 
-  // ── Per-size cards — same logic as renderUtilization's per-size loop ──────
+  // ── Per-size cards — use binItems.status for today, job-based for other dates ──
   var sizeTotal={};
   sizes.forEach(function(s){sizeTotal[s]=binItems.filter(function(b){return b.size===s;}).length;});
   var sizeOut={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
-  jobs.forEach(function(j){
-    if(j.service!=='Bin Rental')return;
-    if(j.status==='Cancelled')return;
-    if(j.binInstatus==='pickedup')return;
-    var drop=j.binDropoff||j.date;
-    var pick=j.binPickup;
-    if(!drop)return;
-    var active;
-    if(pick){
-      active=dateStr>=drop&&dateStr<=pick;
-    } else {
-      var dropD=new Date(drop+'T12:00:00');
-      var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
-      active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
-    }
-    if(active&&sizeOut.hasOwnProperty(j.binSize))sizeOut[j.binSize]++;
-  });
+  if(dateStr===today){
+    // Use bin_items.status directly — single source of truth for today
+    binItems.forEach(function(b){ if(b.status==='out'&&sizeOut.hasOwnProperty(b.size))sizeOut[b.size]++; });
+  } else {
+    jobs.forEach(function(j){
+      if(j.service!=='Bin Rental')return;
+      if(j.status==='Cancelled')return;
+      if(j.binInstatus==='pickedup')return;
+      var drop=j.binDropoff||j.date;
+      var pick=j.binPickup;
+      if(!drop)return;
+      var active;
+      if(pick){
+        active=dateStr>=drop&&dateStr<=pick;
+      } else {
+        var dropD=new Date(drop+'T12:00:00');
+        var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
+        active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
+      }
+      if(active&&sizeOut.hasOwnProperty(j.binSize))sizeOut[j.binSize]++;
+    });
+  }
 
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
