@@ -1094,13 +1094,6 @@ async function loadBinJobsThenRender() {
   renderBinInventory();
 }
 
-function nextId(svc){
-  if(svc==='Bin Rental'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('BIN-');}).map(function(j){return parseInt(j.id.replace('BIN-',''))||0;});return 'BIN-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
-  if(svc==='Junk Removal'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('JUNK-');}).map(function(j){return parseInt(j.id.replace('JUNK-',''))||0;});return 'JUNK-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
-  if(svc==='Junk Quote'){var n=jobs.filter(function(j){return j.id&&j.id.startsWith('QT-');}).map(function(j){return parseInt(j.id.replace('QT-',''))||0;});return 'QT-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');}
-  var n=jobs.filter(function(j){return j.id&&j.id.startsWith('FB-');}).map(function(j){return parseInt(j.id.replace('FB-',''))||0;});return 'FB-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(5,'0');
-}
-
 var _saveJobLock = false;
 async function nextIdFromDb(svc) {
   try {
@@ -4127,7 +4120,7 @@ function renderPricingGrids(){
     var withtax = '$'+(parseFloat(val)*TAX_RATE).toFixed(2);
     if(!ourVal) return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700">'+pretax+'</div><div style="font-size:11px;color:var(--muted)">'+withtax+' w/tax</div></td>';
     var diff = parseFloat(val)-parseFloat(ourVal);
-    var pct = Math.round(diff/parseFloat(ourVal)*100);
+    var pct = parseFloat(ourVal) ? Math.round(diff/parseFloat(ourVal)*100) : 0;
     var color = diff>0?'#22c55e':diff<0?'#dc3545':'var(--muted)';
     var arrow = diff>0?'▲':diff<0?'▼':'=';
     return '<td style="padding:10px 14px;text-align:center">'
