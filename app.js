@@ -70,8 +70,10 @@ db.channel('realtime-all')
   .subscribe();
 
 // ── Bin Drop/Pickup Notification Banner ──
+var _suppressBinNotify = false;
 db.channel('bin-status-notify')
   .on('postgres_changes', {event:'UPDATE', schema:'public', table:'jobs', filter:'service=eq.Bin Rental'}, function(payload){
+    if(_suppressBinNotify) return;
     var newRow=payload.new, oldRow=payload.old;
     if(!newRow||!oldRow) return;
     var newStatus=newRow.bin_instatus||'';
@@ -876,6 +878,7 @@ async function loadAllFromSupabase() {
 
     hideLoading();
     // ── Auto-mark bins as dropped when their dropoff date has passed ──
+    _suppressBinNotify = true;
     var today2 = todayStr();
     var pastDropJobs = await db.from('jobs').select('job_id,bin_bid')
       .eq('service','Bin Rental')
@@ -912,6 +915,7 @@ async function loadAllFromSupabase() {
           j.binInstatus='pickedup';
       });
     }
+    _suppressBinNotify = false;
     renderDash();
     initDashPricingDropdown();
     toast('✓ Dashboard ready');
