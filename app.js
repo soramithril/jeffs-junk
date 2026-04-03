@@ -3269,7 +3269,7 @@ async function openCalDayPreview(ds){
 
 
 function getLastName(name){var parts=(name||'').trim().split(/\s+/);return parts.length>1?parts[parts.length-1]:name;}
-function getClientRevenue(cid,name){return jobs.filter(function(j){return cid?j.clientId===cid:(j.name&&j.name.toLowerCase()===name.toLowerCase());}).reduce(function(s,j){return s+(parseFloat(j.price)||0);},0);}
+
 function getClientLastJobDate(cid,name){var cjobs=jobs.filter(function(j){return cid?j.clientId===cid:(j.name&&j.name.toLowerCase()===name.toLowerCase());});if(!cjobs.length)return null;return cjobs.map(function(j){return j.date;}).sort().pop();}
 
 // ─── CLIENTS ───
@@ -3523,7 +3523,7 @@ function applyRangeToClients(allClients) {
 
 function exportClientList() {
   if (!_allClientsFiltered.length) { toast('No clients to export.'); return; }
-  var rows = [['Name','Phone','City','Email','Total Jobs','Bins','Junk','Furniture','Lifetime Revenue','Last Job']];
+  var rows = [['Name','Phone','City','Email','Total Jobs','Bins','Junk','Furniture','Last Job']];
   _allClientsFiltered.forEach(function(c) {
     rows.push([
       c.name || '',
@@ -3534,7 +3534,6 @@ function exportClientList() {
       c._bins  || 0,
       c._junk  || 0,
       c._furn  || 0,
-      (c._totalRev || 0).toFixed(2),
       c._lastDate || ''
     ]);
   });
@@ -3632,10 +3631,9 @@ async function loadClientsPage() {
     allJobRows.forEach(function(row){
       var cid = row.client_cid || (row.name ? nameToCid[row.name.trim().toLowerCase()] : null);
       if(!cid) return;
-      if(!statsMap[cid]) statsMap[cid]={total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
+      if(!statsMap[cid]) statsMap[cid]={total:0,lastDate:null,bins:0,junk:0,furn:0};
       var s = statsMap[cid];
       s.total++;
-      s.revenue += parseFloat(row.price)||0;
       if(!s.lastDate||row.date>s.lastDate) s.lastDate=row.date;
       if(row.service==='Bin Rental') s.bins++;
       else if(row.service==='Junk Removal') s.junk++;
@@ -3652,9 +3650,8 @@ async function loadClientsPage() {
   // ── 5. Merge stats into client objects ─────────────────────────────────────
   var allClients = allClientRows.map(function(row){
     var c = dbToClient(row);
-    var s = statsMap[c.cid]||{total:0,revenue:0,lastDate:null,bins:0,junk:0,furn:0};
+    var s = statsMap[c.cid]||{total:0,lastDate:null,bins:0,junk:0,furn:0};
     c._totalJobs = s.total;
-    c._totalRev  = s.revenue;
     c._lastDate  = s.lastDate;
     c._bins = s.bins; c._junk = s.junk; c._furn = s.furn;
     return c;
@@ -3679,7 +3676,6 @@ async function loadClientsPage() {
   // ── 7. Sort ────────────────────────────────────────────────────────────────
   allClients.sort(function(a,b){
     if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
-    if(clientSort==='revenue') return b._totalRev  - a._totalRev;
     if(clientSort==='recent'){
       // Use last job date; fall back to client created_at for new clients with no jobs
       var aDate = a._lastDate || a.createdAt || '';
@@ -3728,7 +3724,6 @@ function renderClientsList(list) {
   var today6mo = new Date(Date.now()-180*86400000).toISOString().split('T')[0];
   el.innerHTML = list.map(function(row){
     var totalJobs = row._totalJobs !== undefined ? row._totalJobs : (row.total_jobs||0);
-    var totalRev  = row._totalRev  !== undefined ? row._totalRev  : (row.total_revenue||0);
     var lastDate  = row._lastDate  !== undefined ? row._lastDate  : (row.last_job_date||null);
     var bins      = row._bins      !== undefined ? row._bins      : (row.bin_count||0);
     var junk      = row._junk      !== undefined ? row._junk      : (row.junk_count||0);
@@ -3763,7 +3758,7 @@ function renderClientsList(list) {
       +(totalJobs===0?'<span class="client-stat" style="background:rgba(255,255,255,.05);color:var(--muted)">No jobs yet</span>':'<span class="client-stat cs-total" style="font-size:17px;padding:4px 12px">'+totalJobs+' jobs</span>')
       +(loyalty?'<span style="font-size:13px;color:var(--muted);margin-left:2px">'+loyalty+'</span>':'')
       +dormantBadge+blacklistBadge+'</div>'
-      +(totalRev>0?'<div style="font-size:12px;color:var(--accent);margin-top:4px;font-weight:600">💰 $'+Math.round(totalRev).toLocaleString()+' lifetime'+(lastDate?' · Last: '+fd(lastDate):'')+'</div>':'')
+      +(lastDate?'<div style="font-size:12px;color:var(--muted);margin-top:4px">Last: '+fd(lastDate)+'</div>':'')
       +'</div>'
       +'<div class="client-actions"><button class="btn btn-ghost btn-sm" onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')">✏️</button>'
       +'<button class="btn btn-danger btn-sm" onclick="event.preventDefault();event.stopPropagation();delClient(\''+cid+'\')">🗑️</button></div>'
@@ -3810,7 +3805,6 @@ async function openClientDetail(cid){
   clientJobs.sort(function(a,b){return b.date.localeCompare(a.date);});
   clientJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
-  var totalRev = clientJobs.reduce(function(s,j){return s+(parseFloat(j.price)||0);},0);
   var bins = clientJobs.filter(function(j){return j.service==='Bin Rental';}).length;
   var junk = clientJobs.filter(function(j){return j.service==='Junk Removal';}).length;
   var furn = clientJobs.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';}).length;
@@ -3857,7 +3851,6 @@ async function openClientDetail(cid){
     +(bins?'<span class="client-stat cs-bin">🚛 '+bins+' Bins</span>':'')
     +(junk?'<span class="client-stat cs-junk">🧹 '+junk+' Junk</span>':'')
     +(furn?'<span class="client-stat cs-furn">🛋️ '+furn+' Furn</span>':'')
-    +(totalRev>0?'<span style="font-size:13px;color:var(--accent);font-weight:700">💰 $'+Math.round(totalRev).toLocaleString()+' lifetime</span>':'')
     +'<span style="font-size:12px;color:var(--muted)">'+loyalty+'</span>'
     +'</div>'
     +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Bin Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
@@ -6504,87 +6497,6 @@ function renderToday(){
 }
 
 // ─── REVENUE INTELLIGENCE ───
-function renderRevenue(){
-  var revByType={};var avgTicket={};var revBySize={};var revByCity={};
-  jobs.forEach(function(j){
-    var v=parseFloat(j.price)||0;
-    var t=j.service||'Unknown';
-    revByType[t]=(revByType[t]||0)+v;
-    if(!avgTicket[t])avgTicket[t]={sum:0,cnt:0};avgTicket[t].sum+=v;avgTicket[t].cnt++;
-    if(j.service==='Bin Rental'&&j.binSize){revBySize[j.binSize]=(revBySize[j.binSize]||0)+v;}
-    var city=extractCity(j.address,j.city);revByCity[city]=(revByCity[city]||0)+v;
-  });
-  var totalRev=Object.values(revByType).reduce(function(s,v){return s+v;},0);
-  var totalJobs=jobs.length;
-  var avgVal=totalJobs?totalRev/totalJobs:0;
-  // Metrics
-  document.getElementById('rev-metrics').innerHTML=
-    '<div class="metric-box"><div class="metric-val" id="rvm-rev" style="color:var(--accent)">$0</div><div class="metric-lbl">Total Revenue</div></div>'
-    +'<div class="metric-box"><div class="metric-val" id="rvm-avg">$0</div><div class="metric-lbl">Avg Ticket Size</div></div>'
-    +'<div class="metric-box"><div class="metric-val" id="rvm-jobs">0</div><div class="metric-lbl">Total Jobs</div></div>'
-    +'<div class="metric-box"><div class="metric-val" id="rvm-clients">0</div><div class="metric-lbl">Total Clients</div></div>';
-  requestAnimationFrame(function(){
-    animCount(document.getElementById('rvm-rev'),Math.round(totalRev),'$');
-    animCount(document.getElementById('rvm-avg'),Math.round(avgVal),'$');
-    animCount(document.getElementById('rvm-jobs'),totalJobs);
-    animCount(document.getElementById('rvm-clients'),clients.length);
-  });
-  // Alerts
-  var alerts=[];
-  var oneMonthAgo=new Date(Date.now()-30*86400000).toISOString().split('T')[0];
-  var twoMonthsAgo=new Date(Date.now()-60*86400000).toISOString().split('T')[0];
-  var thisMonth=jobs.filter(function(j){return j.date>=oneMonthAgo;});
-  var lastMonth=jobs.filter(function(j){return j.date>=twoMonthsAgo&&j.date<oneMonthAgo;});
-  var furnThis=thisMonth.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';}).length;
-  var furnLast=lastMonth.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';}).length;
-  if(furnLast>0){var furnPct=Math.round((furnThis-furnLast)/furnLast*100);alerts.push({color:furnPct<0?'#dc3545':'#22c55e',icon:furnPct<0?'🔻':'📈',msg:'Furniture jobs '+(furnPct>=0?'+':'')+furnPct+'% this month vs last month'});}
-  var repeatClients=clients.filter(function(c){return getClientJobStats(c.cid,c.name).total>1;}).length;
-  var repeatPct=clients.length?Math.round(repeatClients/clients.length*100):0;
-  alerts.push({color:'#22c55e',icon:'🔁',msg:repeatPct+'% of clients are repeat customers ('+repeatClients+'/'+clients.length+')'});
-  var binJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.binDropoff&&j.binPickup;});
-  if(binJobs.length){var avgDur=binJobs.reduce(function(s,j){return s+Math.max(0,Math.floor((new Date(j.binPickup)-new Date(j.binDropoff))/86400000));},0)/binJobs.length;alerts.push({color:'#e67e22',icon:'⏱️',msg:'Average bin rental duration: '+avgDur.toFixed(1)+' days'});}
-  document.getElementById('rev-alerts').innerHTML=alerts.map(function(a){return'<div style="padding:10px 16px;border-radius:8px;border-left:4px solid '+a.color+';background:var(--surface);margin-bottom:8px;font-size:13px">'+a.icon+' <strong>'+a.msg+'</strong></div>';}).join('');
-  // Bar charts
-  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#e67e22','Furniture Pickup':'#dc3545','Furniture Delivery':'#e76f7e'};
-  var svcData=Object.keys(revByType).sort(function(a,b){return revByType[b]-revByType[a];}).map(function(k){return{key:k,val:Math.round(revByType[k]),display:'$'+Math.round(revByType[k])};});
-  document.getElementById('rev-by-svc').innerHTML=makeBarChart(svcData,function(k){return svcColors[k]||'#22c55e';});
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
-  var sizeData=Object.keys(revBySize).sort(function(a,b){return revBySize[b]-revBySize[a];}).map(function(k){return{key:k,val:Math.round(revBySize[k])};});
-  document.getElementById('rev-by-size').innerHTML=sizeData.length?makeBarChart(sizeData,function(k){return sizeColors[k]||'#22c55e';}):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">No bin rental data</div>';
-  var cityData=Object.keys(revByCity).sort(function(a,b){return revByCity[b]-revByCity[a];}).slice(0,8).map(function(k){return{key:k,val:Math.round(revByCity[k])};});
-  document.getElementById('rev-by-city').innerHTML=makeBarChart(cityData,function(){return '#22c55e';});
-  var ticketData=Object.keys(avgTicket).sort(function(a,b){return (avgTicket[b].sum/avgTicket[b].cnt)-(avgTicket[a].sum/avgTicket[a].cnt);}).map(function(k){return{key:k,val:Math.round(avgTicket[k].sum/avgTicket[k].cnt)};});
-  document.getElementById('rev-avg-ticket').innerHTML=makeBarChart(ticketData,function(k){return svcColors[k]||'#22c55e';});
-  requestAnimationFrame(function(){['rev-by-svc','rev-by-size','rev-by-city','rev-avg-ticket'].forEach(function(id){animateBars(document.getElementById(id));});});
-  // Revenue over time
-  var now2=new Date();var months=[];
-  for(var i=11;i>=0;i--){var d=new Date(now2.getFullYear(),now2.getMonth()-i,1);months.push({label:d.toLocaleDateString('en-US',{month:'short'}),year:d.getFullYear(),month:d.getMonth(),rev:0});}
-  jobs.forEach(function(j){var d=new Date(j.date);months.forEach(function(m){if(d.getFullYear()===m.year&&d.getMonth()===m.month)m.rev+=parseFloat(j.price)||0;});});
-  var maxR=Math.max.apply(null,months.map(function(m){return m.rev;}))||1;
-  document.getElementById('rev-over-time').innerHTML=months.map(function(m){var h=Math.round(m.rev/maxR*120);return'<div style="flex:1;display:flex;flex-direction:column;align-items:center"><div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:120px"><div style="width:100%;height:'+h+'px;background:#22c55e;border-radius:2px 2px 0 0;min-height:'+(m.rev?2:0)+'px"></div></div><div style="font-size:10px;color:var(--muted);text-align:center;margin-top:2px">$'+Math.round(m.rev)+'</div></div>';}).join('');
-  document.getElementById('rev-time-labels').innerHTML=months.map(function(m){return'<div style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+m.label+'</div>';}).join('');
-  // Top clients CLV
-  var clvList=clients.map(function(c){var stats=getClientJobStats(c.cid,c.name);var rev=getClientRevenue(c.cid,c.name);return{c:c,stats:stats,rev:rev,avgVal:stats.total?rev/stats.total:0,lastDate:getClientLastJobDate(c.cid,c.name)};}).filter(function(x){return x.stats.total>0;}).sort(function(a,b){return b.rev-a.rev;});
-  var today6mo=new Date(Date.now()-180*86400000).toISOString().split('T')[0];
-  document.getElementById('rev-top-clients').innerHTML='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'
-    +'<th style="text-align:left;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">#</th>'
-    +'<th style="text-align:left;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Client</th>'
-    +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Total Rev</th>'
-    +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Jobs</th>'
-    +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Avg Job</th>'
-    +'<th style="text-align:right;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Last Job</th>'
-    +'<th style="text-align:center;padding:8px 12px;font-size:11px;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border)">Activity</th>'
-    +'</tr></thead><tbody>'
-    +clvList.slice(0,10).map(function(x,i){var dormant=x.lastDate&&x.lastDate<today6mo;return'<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="openClientDetail(\''+x.c.cid+'\')">'
-    +'<td style="padding:8px 12px;font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--muted)">'+(i+1)+'</td>'
-    +'<td style="padding:8px 12px"><strong>'+x.c.name+'</strong><div style="font-size:11px;color:var(--muted)">'+(x.c.city||'')+'</div></td>'
-    +'<td style="padding:8px 12px;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--accent)">$'+x.rev.toFixed(0)+'</td>'
-    +'<td style="padding:8px 12px;text-align:right">'+x.stats.total+'</td>'
-    +'<td style="padding:8px 12px;text-align:right">$'+x.avgVal.toFixed(0)+'</td>'
-    +'<td style="padding:8px 12px;text-align:right;font-size:12px;color:var(--muted)">'+(x.lastDate?fd(x.lastDate):'—')+'</td>'
-    +'<td style="padding:8px 12px;text-align:center">'+(dormant?'<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:rgba(220,53,69,.12);color:#dc3545">😴 Dormant</span>':'<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:rgba(34,197,94,.1);color:#22c55e">✅ Active</span>')+'</td>'
-    +'</tr>';}).join('')+'</tbody></table></div>';
-}
 
 // ─── BIN UTILIZATION ───
 function renderUtilization(){
@@ -6606,7 +6518,6 @@ function renderUtilization(){
   var rentedBySize={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
   var rentedByCity={};
   var durationBySize={'4 yard':[],  '7 yard':[], '14 yard':[], '20 yard':[]};
-  var revBySize={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
   var turnoverBySize={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
   var binsUsed30={}; // bid or address used in last 30 days
 
@@ -6615,8 +6526,6 @@ function renderUtilization(){
     var drop=j.binDropoff||j.date;var pick=j.binPickup||today2;
     if(!drop)return;
     var sz=j.binSize||'unknown';
-    // Revenue by size
-    if(revBySize.hasOwnProperty(sz))revBySize[sz]+=(parseFloat(j.price)||0);
     // Turnover (jobs in 90-day window)
     if(drop>=winStart||pick>=winStart){
       if(turnoverBySize.hasOwnProperty(sz))turnoverBySize[sz]++;
@@ -6639,7 +6548,6 @@ function renderUtilization(){
   });
 
   var utilPct=totalPossibleDays?Math.round(rentedDays/totalPossibleDays*100):0;
-  var totalRev=Object.values(revBySize).reduce(function(s,v){return s+v;},0);
   var avgDurAll=Object.values(durationBySize).reduce(function(a,arr){return a.concat(arr);}, []);
   var avgDur=avgDurAll.length?Math.round(avgDurAll.reduce(function(s,v){return s+v;},0)/avgDurAll.length*10)/10:0;
 
@@ -6682,14 +6590,10 @@ function renderUtilization(){
   var durData=Object.keys(durationBySize).filter(function(k){return durationBySize[k].length>0;}).map(function(k){var avg=Math.round(durationBySize[k].reduce(function(s,v){return s+v;},0)/durationBySize[k].length*10)/10;return{key:k,val:avg};}).sort(function(a,b){return b.val-a.val;});
   document.getElementById('util-avg-duration').innerHTML=makeBarChart(durData,function(k){return sizeColors[k]||'#22c55e';},function(v){return v+'d';});
 
-  // Revenue by size
-  var revData=Object.keys(revBySize).filter(function(k){return revBySize[k]>0;}).map(function(k){return{key:k,val:Math.round(revBySize[k])};}).sort(function(a,b){return b.val-a.val;});
-  document.getElementById('util-rev-size').innerHTML=makeBarChart(revData,function(k){return sizeColors[k]||'#22c55e';},function(v){return '$'+v;});
-
   // Turnover (# rentals per size in 90d)
   var turnData=Object.keys(turnoverBySize).filter(function(k){return turnoverBySize[k]>0;}).map(function(k){return{key:k,val:turnoverBySize[k]};}).sort(function(a,b){return b.val-a.val;});
   document.getElementById('util-turnover').innerHTML=makeBarChart(turnData,function(k){return sizeColors[k]||'#22c55e';},function(v){return v+' rentals';});
-  requestAnimationFrame(function(){['util-by-size','util-by-city','util-avg-duration','util-rev-size','util-turnover'].forEach(function(id){animateBars(document.getElementById(id));});});
+  requestAnimationFrame(function(){['util-by-size','util-by-city','util-avg-duration','util-turnover'].forEach(function(id){animateBars(document.getElementById(id));});});
 
   // Idle bins panel
   var idleEl=document.getElementById('util-idle');
@@ -6711,8 +6615,6 @@ function renderUtilization(){
   // Best performing size
   var bestSize=sizeData.length?sizeData[0].key:'N/A';
   var bestSizePct=sizeData.length?sizeData[0].val:0;
-  var mostRevSize=revData.length?revData[0].key:'N/A';
-
   document.getElementById('util-summary').innerHTML=
     '<div style="padding:16px;border-radius:10px;background:var(--surface2);margin-bottom:16px">'
     +'<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+recommendation+'</div>'
@@ -6728,13 +6630,12 @@ function renderUtilization(){
         +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;color:'+(sizeColors[sz]||'#22c55e')+'">'+pct+'%</div>'
         +'<div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:4px">'+sz+'</div>'
         +'<div style="font-size:11px;color:var(--muted)">'+cnt+' bins · '+inYard+' in yard</div>'
-        +'<div style="font-size:11px;color:var(--muted)">'+turnoverBySize[sz]+' rentals · $'+(Math.round(revBySize[sz]||0))+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+turnoverBySize[sz]+' rentals</div>'
         +'</div>';
     }).join('')
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
     +'<div style="background:var(--surface2);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">🏆 HIGHEST UTILIZATION</div><div style="font-size:15px;font-weight:600">'+bestSize+'</div><div style="font-size:13px;color:var(--accent)">'+bestSizePct+'% utilized</div></div>'
-    +'<div style="background:var(--surface2);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">💰 MOST REVENUE</div><div style="font-size:15px;font-weight:600">'+mostRevSize+'</div><div style="font-size:13px;color:var(--accent)">$'+Math.round(revBySize[mostRevSize]||0)+'</div></div>'
     +'<div style="background:var(--surface2);border-radius:8px;padding:12px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">⏱️ AVG RENTAL LENGTH</div><div style="font-size:15px;font-weight:600">'+avgDur+' days</div><div style="font-size:13px;color:var(--muted)">across all sizes</div></div>'
     +'</div>';
 }
@@ -6752,7 +6653,6 @@ renderClientSelectOptions();
 //  AUTH SYSTEM — Supabase Login
 // ═══════════════════════════════════════
 var currentUser = null;
-var adminUnlocked = false;
 var canDelete = false;
 var appLoaded = false;
 
@@ -6791,7 +6691,6 @@ db.auth.onAuthStateChange(function(event, session) {
   }
   if (event === 'SIGNED_OUT') {
     currentUser = null;
-    adminUnlocked = false;
     canDelete = false;
     appLoaded = false;
     document.getElementById('login-screen').style.display = 'flex';
@@ -6887,18 +6786,13 @@ async function doLogin() {
 function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
-  // Check if owner/admin role for revenue access
-  db.from('user_profiles').select('role,can_see_revenue,can_delete,username').eq('id', currentUser.id).single().then(function(r) {
-    if (r.data && r.data.can_see_revenue) {
-      adminUnlocked = true;
-    }
+  db.from('user_profiles').select('role,can_delete,username').eq('id', currentUser.id).single().then(function(r) {
     if (r.data && r.data.can_delete) {
       canDelete = true;
     }
     if (r.data && r.data.username) {
       currentUser.displayName = r.data.username;
     }
-    applyAdminVisibility();
     applyDeleteVisibility();
   });
   document.getElementById('login-screen').style.display = 'none';
@@ -6907,26 +6801,6 @@ function onLoginSuccess() {
   if (lbl) lbl.textContent = 'Sign Out';
   if (icon) icon.textContent = '👤';
   loadAllFromSupabase();
-}
-
-function applyAdminVisibility() {
-  document.querySelectorAll('.admin-only').forEach(function(el) {
-    el.style.display = adminUnlocked ? '' : 'none';
-  });
-  var btn = document.getElementById('admin-btn');
-  var icon = document.getElementById('admin-btn-icon');
-  var lbl  = document.getElementById('admin-btn-label');
-  if (!btn) return;
-  if (adminUnlocked) {
-    btn.style.borderColor = 'var(--accent)';
-    btn.style.color = 'var(--accent)';
-  } else {
-    btn.style.borderColor = 'var(--border)';
-    btn.style.color = 'var(--muted)';
-  }
-  if (!adminUnlocked && document.getElementById('view-revenue') && document.getElementById('view-revenue').classList.contains('active')) {
-    go('dashboard');
-  }
 }
 
 function applyDeleteVisibility() {
@@ -6942,18 +6816,6 @@ function handleAdminBtn() {
     db.auth.signOut();
   }
 }
-
-// Revenue page guard
-var _origGo = go;
-go = function(name) {
-  if (name === 'revenue' && !adminUnlocked) {
-    toast('⚠ You need owner access to view revenue.');
-    return;
-  }
-  _origGo(name);
-};
-
-applyAdminVisibility();
 
 // ═══════════════════════════════════════
 // EMAIL SYSTEM
@@ -8114,19 +7976,18 @@ async function runAdvisor(){
       });
     }
 
-    // 20yd duration — longer is GOOD because customers pay $20/day overage
+    // 20yd duration insight
     if(dur20 >= 8){
-      var extraRevPer20 = Math.max(0,dur20-7)*20;
       recs.push({category:'FLEET',priority:'LOW',status:'positive',
-        title:'20 Yard Bins Averaging '+dur20+' Day Rentals — Extra Revenue',
-        detail:'20 yard bins average '+dur20+' days per rental vs '+dur14+' days for 14 yard bins. With your $20/day overage fee, each 20yd rental generates roughly $'+extraRevPer20+' in extra-day charges. Longer rentals = consistent recurring revenue from overage fees.',
-        action:'Keep marketing the overage policy clearly at booking so customers understand the fee. Consider whether adding more 20yd bins to the fleet would capture unmet demand and generate more overage revenue.'
+        title:'20 Yard Bins Averaging '+dur20+' Day Rentals',
+        detail:'20 yard bins average '+dur20+' days per rental vs '+dur14+' days for 14 yard bins. Longer rentals keep bins out and working.',
+        action:'Keep marketing the overage policy clearly at booking so customers understand the fee. Consider whether adding more 20yd bins to the fleet would capture unmet demand.'
       });
     } else if(dur20 > 0 && dur20 < 5){
       recs.push({category:'FLEET',priority:'MEDIUM',status:'opportunity',
         title:'20 Yard Bins Returning Quickly ('+dur20+' days avg)',
-        detail:'20 yard bins average only '+dur20+' days — customers are returning them before the standard rental period. You\'re missing potential overage revenue at $20/day.',
-        action:'Consider whether your messaging about rental duration is making customers rush returns. Longer rentals benefit you financially.'
+        detail:'20 yard bins average only '+dur20+' days — customers are returning them before the standard rental period.',
+        action:'Consider whether your messaging about rental duration is making customers rush returns.'
       });
     }
 
@@ -8184,22 +8045,6 @@ async function runAdvisor(){
     }
 
     // ── Additional deeper insights ──────────────────────────────
-
-    // Revenue per bin size insight
-    var sizes=['4 yard','7 yard','14 yard','20 yard'];
-    var revBySz={};
-    sizes.forEach(function(s){
-      var sJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.binSize===s&&j.status!=='Cancelled';});
-      revBySz[s]=sJobs.reduce(function(sum,j){return sum+(parseFloat(j.price)||0);},0);
-    });
-    var topRevSize=sizes.reduce(function(a,b){return (revBySz[a]||0)>(revBySz[b]||0)?a:b;});
-    if(revBySz[topRevSize]>1000){
-      recs.push({category:'REVENUE',priority:'LOW',status:'positive',
-        title:topRevSize.replace(' yard',' Yard')+' Bins Generate Most Revenue — $'+Math.round(revBySz[topRevSize]).toLocaleString(),
-        detail:'Revenue by bin size: '+sizes.map(function(s){return s.replace(' yard','yd')+': $'+Math.round(revBySz[s]||0).toLocaleString();}).join(', ')+'. Focus fleet investment and marketing on your highest-revenue sizes.',
-        action:'Ensure your top revenue size always has availability. Track lost bookings where customers wanted a '+topRevSize+' but none were available.'
-      });
-    }
 
     // Busiest day of week insight
     var dayCount=[0,0,0,0,0,0,0];
