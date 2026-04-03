@@ -2157,8 +2157,9 @@ async function renderWeekCal(){
     if(ev.type==='pickup'){ icon='🚚 '; }
     else if(ev.type==='dropoff'){ icon='🚛 '; }
     else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 '};icon=iconMap[j.service]||''; }
+    var chipCls = ev.type==='pickup' ? 'svc-pickup' : (clsMap[j.service]||'');
     var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
-    return '<div class="week-job-chip '+(clsMap[j.service]||'')+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(j.time?ft(j.time)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
+    return '<div class="week-job-chip '+chipCls+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(j.time?ft(j.time)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
   }
 
   // Build header row
@@ -3126,7 +3127,7 @@ async function renderCal(){
       var icon, label, titleStr;
       if(ev.type==='pickup'){
         icon='🚚'; label=j.name; titleStr='Bin Pickup · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
-        cls='svc-bin';
+        cls='svc-pickup';
       } else if(ev.type==='dropoff'){
         icon='🚛'; label=j.name; titleStr='Bin Drop-off · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
       } else {
@@ -3210,7 +3211,7 @@ async function openCalDayPreview(ds){
     // Group into sections: Bin Drop-offs, Bin Pickups, then other services
     var sections=[
       {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#22c55e', evs:evs.filter(function(e){return e.type==='dropoff';})},
-      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#4ade80', evs:evs.filter(function(e){return e.type==='pickup';})},
+      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='pickup';})},
       {key:'junk',    label:'🗑️ Junk Removal',   col:'#e67e22', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
       {key:'quote',   label:'📋 Junk Quotes',    col:'#0d6efd', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
       {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#dc3545', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
