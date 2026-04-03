@@ -111,7 +111,7 @@ function _showNextBinNotify(){
   if(n.city&&location) location+=' · '+n.city;
   sub.textContent=n.name+(location?' — '+location:'');
   overlay.dataset.jobId=n.jobId||'';
-  // Show/hide assign bin button — only show on drop when no bin assigned
+  // Show assign bin button on drop when no bin assigned
   var assignBtn=document.getElementById('bn-assign');
   if(assignBtn){
     if(isDropped&&!n.binBid&&n.jobId){assignBtn.style.display='';assignBtn.onclick=function(){dismissBinNotify(true);openAssignBinPicker(n.jobId);};}
