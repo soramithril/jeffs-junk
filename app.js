@@ -574,8 +574,7 @@ function clientToDb(c) {
 // ── Save functions (write to Supabase) ─────────────────────
 function updateSidebarStats() {
   var active = jobs.filter(function(j){ return j.status !== 'Cancelled' && j.status !== 'Done'; }).length;
-  var todayS = todayStr();
-  var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped' && (!j.binPickup || j.binPickup >= todayS); }).length;
+  var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped'; }).length;
   var el = document.getElementById('m-active'); if(el) el.textContent = active;
   var el2 = document.getElementById('m-bins'); if(el2) el2.textContent = binsOut;
 }
@@ -2267,7 +2266,7 @@ async function renderDash(){
     db.from('jobs').select('*').eq('date',todayS).neq('status','Cancelled').order('time'),
     db.from('jobs').select('*',{count:'exact',head:true}).gte('date',weekStartS).neq('status','Cancelled'),
     db.from('jobs').select('price').gte('date',weekStartS).neq('status','Cancelled'),
-    db.from('jobs').select('bin_instatus,bin_size').eq('service','Bin Rental').eq('bin_instatus','dropped').or('bin_pickup.is.null,bin_pickup.gte.'+todayS),
+    db.from('jobs').select('bin_instatus,bin_size').eq('service','Bin Rental').eq('bin_instatus','dropped'),
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
