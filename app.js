@@ -80,7 +80,7 @@ db.channel('bin-status-notify')
     var oldStatus=oldRow.bin_instatus||'';
     if(newStatus===oldStatus) return;
     if(newStatus!=='dropped'&&newStatus!=='pickedup') return;
-    showBinNotify(newStatus, newRow.customer_name||'Unknown', newRow.bin_bid||'', newRow.address||'', newRow.city||'', newRow.job_id||'');
+    showBinNotify(newStatus, newRow.name||'Unknown', newRow.bin_bid||'', newRow.address||'', newRow.city||'', newRow.job_id||'');
   })
   .subscribe();
 
