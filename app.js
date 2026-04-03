@@ -2937,6 +2937,12 @@ function renderJobs(){
     document.getElementById('jobs-cancelled-junk-tbody').innerHTML=crJunk.length?crJunk.map(makeCancelledRow).join(''):emptyJobRow(5);
     document.getElementById('jobs-cancelled-quote-tbody').innerHTML=crQuote.length?crQuote.map(makeCancelledRow).join(''):emptyJobRow(5);
     document.getElementById('jobs-cancelled-furn-tbody').innerHTML=crFurn.length?crFurn.map(makeCancelledRowWithSvc).join(''):emptyJobRow(6);
+  } else if(svcF==='Recurring'){
+    if(cancelledSection) cancelledSection.style.display='none';
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
+    document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
+    var filt=all.filter(function(j){return j.recurring&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   } else {
     if(cancelledSection) cancelledSection.style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
