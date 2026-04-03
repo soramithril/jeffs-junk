@@ -1296,10 +1296,8 @@
             <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
           </div>
           <div class="form-group" style="margin-bottom:10px"><label>City <span style="color:#dc3545">*</span></label><input id="f-city" type="text" oninput="clearErr('f-city')" onblur="this.value=toTitleCase(this.value)"><div class="field-error-msg" id="err-f-city">City is required.</div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="form-group"><label>Province</label><input id="f-province" type="text" value="Ontario" readonly style="opacity:.6;cursor:not-allowed"></div>
-            <div class="form-group"><label>Country</label><input id="f-country" type="text" value="Canada" readonly style="opacity:.6;cursor:not-allowed"></div>
-          </div>
+          <input id="f-province" type="hidden" value="Ontario">
+          <input id="f-country" type="hidden" value="Canada">
         </div>
       </div>
 
@@ -1366,6 +1364,7 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Concrete" onclick="selectMaterial('Concrete',this)">Concrete</button>
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Dirt" onclick="selectMaterial('Dirt',this)">Dirt</button>
+            <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Wood" onclick="selectMaterial('Wood',this)">Wood</button>
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="See Notes" onclick="selectMaterial('See Notes',this)">See Notes</button>
           </div>
           <input type="hidden" id="f-material-type" value="">

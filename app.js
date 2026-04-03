@@ -5,6 +5,39 @@ var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── Phone number auto-formatting (705-555-5555) ──────────────────────────
+function formatPhoneInput(e) {
+  var input = e.target;
+  var digits = input.value.replace(/\D/g, '');
+  // Cap at 11 digits (1 + area + number)
+  if (digits.length > 11) digits = digits.slice(0, 11);
+  var formatted = '';
+  if (digits.length <= 3) {
+    formatted = digits;
+  } else if (digits.length <= 6) {
+    formatted = digits.slice(0, 3) + '-' + digits.slice(3);
+  } else if (digits.length <= 10) {
+    formatted = digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6);
+  } else {
+    // 11 digits: 1-705-555-5555
+    formatted = digits.slice(0, 1) + '-' + digits.slice(1, 4) + '-' + digits.slice(4, 7) + '-' + digits.slice(7);
+  }
+  var pos = input.selectionStart;
+  var oldLen = input.value.length;
+  input.value = formatted;
+  // Keep cursor in a reasonable spot
+  var newLen = formatted.length;
+  input.setSelectionRange(pos + (newLen - oldLen), pos + (newLen - oldLen));
+}
+// Attach to all current and future phone inputs via event delegation
+document.addEventListener('input', function(e) {
+  if (e.target.classList.contains('c-phone-inp') ||
+      e.target.classList.contains('f-phone-inp') ||
+      e.target.id === 'drd-phone') {
+    formatPhoneInput(e);
+  }
+});
+
 // ── Real-Time Updates ─────────────────────────────────────────────────────
 // Auto-refresh dashboard when other users make changes, without disrupting
 // a user who is mid-action (modal open, input focused, etc.)
@@ -5617,7 +5650,7 @@ async function saveJob(e){
 
   var cid    = document.getElementById('f-client-select').value;
   var street = document.getElementById('f-addr').value.trim();
-  var fullAddr = street ? (street+', '+city+', ON, Canada') : (city+', ON, Canada');
+  var fullAddr = street || '';
 
   // If client selected and user entered a new address via the picker, save it to the client
   if(cid&&_selectedClientObj&&street){
@@ -5843,7 +5876,7 @@ function openDetail(id){
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(13,110,253,.15);color:#0d6efd">📧 Email Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div></div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(j.address||'—')+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
@@ -6622,7 +6655,7 @@ function fillEmailTemplate(template, j) {
     .replace(/{binSize}/g, j.binSize || 'bin')
     .replace(/{date}/g, fd(j.date) || '')
     .replace(/{time}/g, time)
-    .replace(/{address}/g, j.address || '')
+    .replace(/{address}/g, ((j.address||'')+(j.city?', '+j.city:'')) || '')
     .replace(/{price}/g, fm(j.price) || '')
     .replace(/{side}/g, side);
 }
