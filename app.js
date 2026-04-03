@@ -5882,7 +5882,7 @@ async function saveJob(e){
     }
   }
   var userEmail = currentUser ? currentUser.email : 'Unknown';
-  var userName  = userEmail.split('@')[0];
+  var userName  = (currentUser && currentUser.displayName) ? currentUser.displayName : userEmail.split('@')[0];
 
   // Use first cell phone, or first phone if no cell phone
   var primaryPhone='';
@@ -6763,7 +6763,7 @@ db.auth.getSession().then(function(r) {
     onLoginSuccess();
   } else {
     document.getElementById('login-screen').style.display = 'flex';
-    setTimeout(function(){ document.getElementById('login-email').focus(); }, 100);
+    setTimeout(function(){ document.getElementById('login-username').focus(); }, 100);
   }
 });
 
@@ -6795,17 +6795,17 @@ db.auth.onAuthStateChange(function(event, session) {
     canDelete = false;
     appLoaded = false;
     document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('login-email').focus();
+    document.getElementById('login-username').focus();
     applyDeleteVisibility();
   }
 });
 
 async function doLogin() {
-  var email = document.getElementById('login-email').value.trim();
+  var username = document.getElementById('login-username').value.trim();
   var pass  = document.getElementById('login-password').value;
   var errEl = document.getElementById('login-error');
   var btn   = document.getElementById('login-btn');
-  if (!email || !pass) { errEl.textContent = 'Please enter your email and password.'; return; }
+  if (!username || !pass) { errEl.textContent = 'Please enter your username and password.'; return; }
   errEl.textContent = '';
   btn.textContent = 'Signing in...';
   btn.style.background = '#16a34a';
@@ -6835,6 +6835,22 @@ async function doLogin() {
     loginFail('⚠ Connection timed out. Check your internet and try again.');
   }, 12000);
 
+  // Look up email from username
+  var emailRes;
+  try {
+    emailRes = await db.rpc('get_email_by_username', { lookup_username: username });
+  } catch(ex) {
+    clearTimeout(timer);
+    loginFail('⚠ Network error: ' + ex.message);
+    return;
+  }
+  if (!emailRes.data) {
+    clearTimeout(timer);
+    loginFail('⚠ Username not found.');
+    return;
+  }
+  var email = emailRes.data;
+
   var r;
   try {
     r = await db.auth.signInWithPassword({ email: email, password: pass });
@@ -6852,7 +6868,7 @@ async function doLogin() {
   if (r.error) {
     var msg = r.error.message || 'Unknown error';
     // Make common errors human-readable
-    if (msg.toLowerCase().includes('invalid login')) msg = 'Invalid email or password.';
+    if (msg.toLowerCase().includes('invalid login')) msg = 'Invalid username or password.';
     else if (msg.toLowerCase().includes('email not confirmed')) msg = 'Please confirm your email address first.';
     else if (msg.toLowerCase().includes('too many requests')) msg = 'Too many attempts — wait a minute and try again.';
     loginFail('⚠ ' + msg);
@@ -6872,12 +6888,15 @@ function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
   // Check if owner/admin role for revenue access
-  db.from('user_profiles').select('role,can_see_revenue,can_delete').eq('id', currentUser.id).single().then(function(r) {
+  db.from('user_profiles').select('role,can_see_revenue,can_delete,username').eq('id', currentUser.id).single().then(function(r) {
     if (r.data && r.data.can_see_revenue) {
       adminUnlocked = true;
     }
     if (r.data && r.data.can_delete) {
       canDelete = true;
+    }
+    if (r.data && r.data.username) {
+      currentUser.displayName = r.data.username;
     }
     applyAdminVisibility();
     applyDeleteVisibility();
