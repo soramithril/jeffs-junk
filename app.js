@@ -5,6 +5,16 @@ var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── Session-expiry guard: signs out on auth errors ──
+function handleSupabaseError(r) {
+  if (r.error && (r.error.message === 'JWT expired' || r.error.code === 'PGRST301' || r.error.message === 'Invalid Refresh Token: Refresh Token Not Found' || (r.error.status === 401))) {
+    toast('⚠ Session expired — please sign in again.');
+    db.auth.signOut();
+    return true;
+  }
+  return false;
+}
+
 // ── Phone number auto-formatting (705-555-5555) ──────────────────────────
 function formatPhoneInput(e) {
   var input = e.target;
@@ -617,6 +627,7 @@ function saveSingleJob(j) {
 }
 
 function deleteJobFromDb(jobId) {
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   db.from('jobs').delete().eq('job_id', jobId).then(function(r){
     if(r.error) console.error('Delete job error:', r.error.message);
   });
@@ -637,12 +648,14 @@ function saveSingleClient(c) {
 }
 
 function deleteClientFromDb(cid) {
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   db.from('clients').delete().eq('cid', cid).then(function(r){
     if(r.error) console.error('Delete client error:', r.error.message);
   });
 }
 
 function delClient(cid) {
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this client? This cannot be undone.')) return;
   clients = clients.filter(function(c){ return c.cid !== cid; });
   deleteClientFromDb(cid);
@@ -4262,6 +4275,7 @@ function addOurPricingArea(){
 }
 
 function deleteOurArea(area){
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete area "'+area+'" and its prices?')) return;
   pricingAreas = pricingAreas.filter(function(a){return a!==area;});
   delete ourPricesV2[area];
@@ -4423,6 +4437,7 @@ function saveCompetitor(){
 }
 
 function deleteCompetitor(id){
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this competitor?')) return;
   competitors = competitors.filter(function(c){return c.id!==id;});
   saveCompetitors();
@@ -6002,6 +6017,7 @@ async function saveJob(e){
   },120);
 }
 function delJob(id){
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this job?'))return;
   jobs=jobs.filter(function(j){return j.id!==id;});
   deleteJobFromDb(id);
@@ -6655,6 +6671,7 @@ renderClientSelectOptions();
 // ═══════════════════════════════════════
 var currentUser = null;
 var adminUnlocked = false;
+var canDelete = false;
 var appLoaded = false;
 
 // Check if already logged in on page load
@@ -6667,6 +6684,17 @@ db.auth.getSession().then(function(r) {
     setTimeout(function(){ document.getElementById('login-email').focus(); }, 100);
   }
 });
+
+// Periodic session check — signs out if token expired (catches stale tabs)
+setInterval(function() {
+  if (!currentUser) return;
+  db.auth.getSession().then(function(r) {
+    if (!r.data || !r.data.session) {
+      toast('⚠ Session expired — please sign in again.');
+      db.auth.signOut();
+    }
+  });
+}, 60000); // check every 60 seconds
 
 // Listen for auth changes (e.g. session expiry)
 db.auth.onAuthStateChange(function(event, session) {
@@ -6682,9 +6710,11 @@ db.auth.onAuthStateChange(function(event, session) {
   if (event === 'SIGNED_OUT') {
     currentUser = null;
     adminUnlocked = false;
+    canDelete = false;
     appLoaded = false;
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-email').focus();
+    applyDeleteVisibility();
   }
 });
 
@@ -6760,11 +6790,15 @@ function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
   // Check if owner/admin role for revenue access
-  db.from('user_profiles').select('role,can_see_revenue').eq('id', currentUser.id).single().then(function(r) {
+  db.from('user_profiles').select('role,can_see_revenue,can_delete').eq('id', currentUser.id).single().then(function(r) {
     if (r.data && r.data.can_see_revenue) {
       adminUnlocked = true;
     }
+    if (r.data && r.data.can_delete) {
+      canDelete = true;
+    }
     applyAdminVisibility();
+    applyDeleteVisibility();
   });
   document.getElementById('login-screen').style.display = 'none';
   var lbl = document.getElementById('admin-btn-label');
@@ -6792,6 +6826,12 @@ function applyAdminVisibility() {
   if (!adminUnlocked && document.getElementById('view-revenue') && document.getElementById('view-revenue').classList.contains('active')) {
     go('dashboard');
   }
+}
+
+function applyDeleteVisibility() {
+  document.querySelectorAll('.delete-only').forEach(function(el) {
+    el.style.display = canDelete ? '' : 'none';
+  });
 }
 
 function handleAdminBtn() {
@@ -7584,6 +7624,7 @@ function saveVehicle(){
   toast(editVehicleId?'Vehicle updated!':'Vehicle added!');
 }
 function delVehicle(vid){
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this vehicle? All blocked dates will be removed.'))return;
   vehicles=vehicles.filter(function(v){return v.vid!==vid;});
   delete vehBlocks[vid];
@@ -7802,6 +7843,7 @@ async function markMaintDone(schedId,vid){
 }
 
 async function delMaintSchedule(schedId,vid){
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Remove this maintenance schedule?'))return;
   await db.from('maintenance_schedules').delete().eq('id',schedId);
   _maintCache[vid]=(_maintCache[vid]||[]).filter(function(s){return s.id!==schedId;});
