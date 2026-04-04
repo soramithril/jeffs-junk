@@ -679,6 +679,7 @@ function delClient(cid) {
 
 function saveBins() {
   if (!binItems.length) {
+    if (!confirm('This will delete ALL bins from the database. Are you sure?')) return;
     db.from('bin_items').delete().neq('bid','__none__')
       .then(function(r){ if(r.error) { console.error('Clear bins error:', r.error.message); toast('⚠ Error clearing bins: ' + r.error.message); } });
     return;
@@ -972,8 +973,6 @@ async function loadAllFromSupabase() {
     renderDash();
     initDashPricingDropdown();
     toast('✓ Dashboard ready');
-    // Background: fix any jobs still missing phone/client_cid
-    backfillJobPhones();
 
   } catch(e) {
     hideLoading();
@@ -1122,30 +1121,20 @@ async function loadBinJobsThenRender() {
 var _saveJobLock = false;
 async function nextIdFromDb(svc) {
   try {
-    // Fetch every job_id from Supabase with no limit, parse all as integers, take the max
-    var r = await db.from('jobs').select('job_id').limit(100000);
-    var maxNum = 0;
+    // Use per-service database sequence for atomic, collision-free IDs
+    var r = await db.rpc('next_job_id', { service_type: svc || 'Bin Rental' });
     if (!r.error && r.data) {
-      r.data.forEach(function(row) {
-        var n = parseInt((row.job_id || ''), 10);
-        if (!isNaN(n) && n > maxNum) maxNum = n;
-      });
+      console.log('[nextIdFromDb] sequence (' + svc + ') → ' + r.data);
+      return String(r.data);
     }
-    // Also check local cache
-    jobs.forEach(function(j) {
-      var n = parseInt(j.id, 10);
-      if (!isNaN(n) && n > maxNum) maxNum = n;
-    });
-    var next = String(maxNum + 1);
-    console.log('[nextIdFromDb] maxNum=' + maxNum + ' → ' + next);
-    return next;
+    console.warn('[nextIdFromDb] rpc failed, falling back:', r.error);
   } catch(ex) {
     console.warn('[nextIdFromDb] error:', ex);
-    // Last resort: use local cache only
-    var maxNum = 0;
-    jobs.forEach(function(j) { var n = parseInt(j.id, 10); if (!isNaN(n) && n > maxNum) maxNum = n; });
-    return String(maxNum + 1);
   }
+  // Fallback: local cache only (unlikely to be needed)
+  var maxNum = 0;
+  jobs.forEach(function(j) { var n = parseInt(j.id, 10); if (!isNaN(n) && n > maxNum) maxNum = n; });
+  return String(maxNum + 1);
 }
 
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
@@ -5615,8 +5604,6 @@ function selectBinSize(sz, el){
   renderBinPicker(currentBid||'');
   // Show material type if applicable
   showMaterialType();
-  // Auto-save the job — yard size button is the confirm action
-  saveJob(new Event('submit'));
 }
 
 function filterBinPicker(sz, el){
@@ -5796,6 +5783,7 @@ async function saveJob(e){
   if(e && e.preventDefault) e.preventDefault();
   if(_saveJobLock){ console.warn("saveJob already running"); return; }
   _saveJobLock = true;
+  try {
 
   // Clear error banner
   var banner = document.getElementById('job-form-errors');
@@ -6037,6 +6025,8 @@ async function saveJob(e){
     var row=document.querySelector('tr.job-row[data-jid="'+job.id+'"]');
     if(row){row.classList.add('row-flash');row.addEventListener('animationend',function(){row.classList.remove('row-flash');},{once:true});}
   },120);
+
+  } finally { _saveJobLock = false; }
 }
 function delJob(id){
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
@@ -6202,6 +6192,9 @@ function toggleJobHistory(jobId){
           +lines+'</div>';
       }).join('');
       wrap.innerHTML = html;
+    }).catch(function(err){
+      console.error('Failed to load job history:', err);
+      wrap.innerHTML = '<div style="text-align:center;color:var(--red);padding:12px;font-size:13px">Failed to load edit history.</div>';
     });
   } else {
     wrap.style.display = 'none';
