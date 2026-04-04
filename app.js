@@ -82,17 +82,12 @@ db.channel('realtime-all')
 // ── Bin Drop/Pickup Notification Banner ──
 var _suppressBinNotify = false;
 db.channel('bin-status-notify')
-  .on('postgres_changes', {event:'UPDATE', schema:'public', table:'jobs', filter:'service=eq.Bin Rental'}, function(payload){
+  .on('postgres_changes', {event:'INSERT', schema:'public', table:'geofence_notifications'}, function(payload){
     if(_suppressBinNotify) return;
-    var newRow=payload.new, oldRow=payload.old;
-    if(!newRow||!oldRow) return;
-    var newStatus=newRow.bin_instatus||'';
-    var oldStatus=oldRow.bin_instatus||'';
-    if(newStatus===oldStatus) return;
-    if(newStatus!=='dropped'&&newStatus!=='pickedup') return;
-    // Skip shop address — truck traffic there is constant and not real drops/pickups
-    if((newRow.address||'').toLowerCase().indexOf('92 davidson')!==-1) return;
-    showBinNotify(newStatus, newRow.name||'Unknown', newRow.bin_bid||'', newRow.address||'', newRow.city||'', newRow.job_id||'');
+    var n=payload.new;
+    if(!n) return;
+    if((n.address||'').toLowerCase().indexOf('92 davidson')!==-1) return;
+    showBinNotify(n.status, n.customer_name||'Unknown', n.bin_bid||'', n.address||'', n.city||'', n.job_id||'');
   })
   .subscribe();
 
@@ -2554,70 +2549,71 @@ async function renderDashBinsOut(){
   // Get all active dropped bin rental jobs — these are the bins currently out
   var droppedRes=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled').order('bin_dropoff');
   var droppedJobs=(droppedRes.data||[]).map(dbToJob);
-  // Also get binItems marked 'out' with no active dropped job (stale/unlinked)
-  var outBins=binItems.filter(function(b){return b.status==='out';});
-  var assignedBids={};
-  droppedJobs.forEach(function(j){if(j.binBid)assignedBids[j.binBid]=true;});
-  var unlinkedBins=outBins.filter(function(b){return !assignedBids[b.bid];});
 
-  if(!droppedJobs.length&&!unlinkedBins.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">All bins are in the yard</div>';return;}
+  // Split into assigned (has bin) and unassigned (no bin)
+  var assignedJobs=droppedJobs.filter(function(j){return !!j.binBid;});
+  var unassignedJobs=droppedJobs.filter(function(j){return !j.binBid;});
 
-  // Group by size
+  if(!assignedJobs.length&&!unassignedJobs.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">All bins are in the yard</div>';return;}
+
+  // Group assigned jobs by size
   var grouped={};
-  droppedJobs.forEach(function(j){
+  assignedJobs.forEach(function(j){
     var sz=j.binSize||'Unknown';
     if(!grouped[sz])grouped[sz]=[];
-    grouped[sz].push({type:'job',job:j});
-  });
-  unlinkedBins.forEach(function(b){
-    var sz=b.size||'Unknown';
-    if(!grouped[sz])grouped[sz]=[];
-    grouped[sz].push({type:'bin',bin:b});
+    grouped[sz].push(j);
   });
   var sizeOrder=['4 yard','7 yard','14 yard','20 yard','Unknown'];
   var sizeKeys=Object.keys(grouped).sort(function(a,b){return (sizeOrder.indexOf(a)===-1?99:sizeOrder.indexOf(a))-(sizeOrder.indexOf(b)===-1?99:sizeOrder.indexOf(b));});
 
-  function renderOutCard(item){
-    if(item.type==='job'){
-      var j=item.job;
-      var binLabel=j.binBid?j.binBid:'No bin #';
-      var binBg=j.binBid?'rgba(220,53,69,.12)':'rgba(230,126,34,.12)';
-      var binClr=j.binBid?'#dc3545':'#e67e22';
-      var binBorder=j.binBid?'rgba(220,53,69,.35)':'rgba(230,126,34,.35)';
-      var borderLeft=j.binBid?'#dc3545':'#e67e22';
-      var daysOut='';
-      var dropDate=j.binDropoff||j.date;
-      if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
-      var pickupBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(34,197,94,.3);color:#22c55e;border-radius:6px;margin-left:auto;flex-shrink:0">✅ Picked Up</button>';
-      return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid '+borderLeft+';border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-          +'<span style="font-size:12px;background:'+binBg+';color:'+binClr+';border:1px solid '+binBorder+';border-radius:5px;padding:1px 7px;font-weight:700">'+binLabel+'</span>'
-          +'<strong style="font-size:13px">'+j.name+'</strong>'
-          +(j.phone?'<span style="font-size:11px;color:var(--muted)">'+j.phone+'</span>':'')
-          +pickupBtn
-        +'</div>'
-        +'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+(daysOut?' · '+daysOut:'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
-      +'</div>';
-    } else {
-      var b=item.bin;
-      return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid var(--muted);border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2)">'
-        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-          +'<span style="font-size:12px;background:rgba(134,142,150,.12);color:var(--muted);border:1px solid rgba(134,142,150,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+b.num+'</span>'
-          +'<span style="font-size:12px;color:var(--muted);font-style:italic">Not linked to a job</span>'
-          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:11px;padding:2px 8px">🔗 Link</button>'
-        +'</div>'
-      +'</div>';
-    }
+  function renderAssignedCard(j){
+    var daysOut='';
+    var dropDate=j.binDropoff||j.date;
+    if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
+    var pickupBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(34,197,94,.3);color:#22c55e;border-radius:6px;margin-left:auto;flex-shrink:0">✅ Picked Up</button>';
+    return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #dc3545;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<span style="font-size:12px;background:rgba(220,53,69,.12);color:#dc3545;border:1px solid rgba(220,53,69,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+j.binBid+'</span>'
+        +'<strong style="font-size:13px">'+j.name+'</strong>'
+        +(j.phone?'<span style="font-size:11px;color:var(--muted)">'+j.phone+'</span>':'')
+        +pickupBtn
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+(daysOut?' · '+daysOut:'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
+    +'</div>';
   }
 
-  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">'
-    +sizeKeys.map(function(sz){
-      return '<div>'
-        +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--border)">'+sz+' <span style="font-size:11px;font-weight:600;color:var(--accent)">('+grouped[sz].length+')</span></div>'
-        +grouped[sz].map(renderOutCard).join('')
-      +'</div>';
-    }).join('')
-  +'</div>';
+  function renderUnassignedCard(j){
+    var daysOut='';
+    var dropDate=j.binDropoff||j.date;
+    if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
+    var assignBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAssignBinPicker(\''+j.id+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(230,126,34,.3);color:#e67e22;border-radius:6px;margin-left:auto;flex-shrink:0">Assign Bin</button>';
+    return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #e67e22;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<strong style="font-size:13px">'+j.name+'</strong>'
+        +(j.phone?'<span style="font-size:11px;color:var(--muted)">'+j.phone+'</span>':'')
+        +assignBtn
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+(j.binSize?' · '+j.binSize:'')+(daysOut?' · '+daysOut:'')+'</div>'
+    +'</div>';
+  }
+
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">';
+  // Unassigned column first if there are any
+  if(unassignedJobs.length){
+    html+='<div>'
+      +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e67e22;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #e67e22">No Bin Assigned <span style="font-size:11px;font-weight:600">('+unassignedJobs.length+')</span></div>'
+      +unassignedJobs.map(renderUnassignedCard).join('')
+    +'</div>';
+  }
+  // Then size-grouped assigned bins
+  html+=sizeKeys.map(function(sz){
+    return '<div>'
+      +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--border)">'+sz+' <span style="font-size:11px;font-weight:600;color:var(--accent)">('+grouped[sz].length+')</span></div>'
+      +grouped[sz].map(renderAssignedCard).join('')
+    +'</div>';
+  }).join('');
+  html+='</div>';
+  el.innerHTML=html;
 }
 
 // ── CONFIRM JOB quick action ──────────────────────────────
@@ -4977,7 +4973,7 @@ function renderBinInventory(){
   binItems.forEach(function(b){
     if(b.status==='in')inYard++;else outJob++;
     if(b.damage==='damage')damaged++;
-    if(b.color==='green')green++;else black++;
+    if(b.color==='green')green++;else if(b.color==='black')black++;
     if(b.size==='4 yard')s4++;else if(b.size==='7 yard')s7++;else if(b.size==='14 yard')s14++;else s20++;
   });
   var cn={'all':total,'in':inYard,'out':outJob,'damage':damaged,'green':green,'black':black,'4':s4,'7':s7,'14':s14,'20':s20};
@@ -6500,7 +6496,7 @@ function renderToday(){
 // ─── REVENUE INTELLIGENCE ───
 
 // ─── BIN UTILIZATION ───
-function renderUtilization(){
+async function renderUtilization(){
   var today2=todayStr();
   var windowDays=90;
   var window30=30;
@@ -6509,6 +6505,17 @@ function renderUtilization(){
   var totalBinCount=binItems.length;
   var totalPossibleDays=totalBinCount*windowDays;
   var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+
+  // Fetch all bin rental jobs from Supabase (not the limited in-memory set)
+  var utilJobs=[];
+  var pg=0;
+  while(true){
+    var r=await db.from('jobs').select('job_id,service,status,date,bin_size,bin_dropoff,bin_pickup,bin_bid,bin_instatus,name,address,city').eq('service','Bin Rental').neq('status','Cancelled').range(pg*1000,pg*1000+999);
+    if(r.error||!r.data||!r.data.length)break;
+    r.data.forEach(function(row){utilJobs.push({service:'Bin Rental',date:row.date||'',binSize:row.bin_size||'',binDropoff:row.bin_dropoff||'',binPickup:row.bin_pickup||'',binBid:row.bin_bid||'',binInstatus:row.bin_instatus||'',name:row.name||'',address:row.address||'',city:row.city||''});});
+    if(r.data.length<1000)break;
+    pg++;
+  }
 
   // Per-size bin counts
   var sizePossible={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
@@ -6522,8 +6529,7 @@ function renderUtilization(){
   var turnoverBySize={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
   var binsUsed30={}; // bid or address used in last 30 days
 
-  jobs.forEach(function(j){
-    if(j.service!=='Bin Rental')return;
+  utilJobs.forEach(function(j){
     var drop=j.binDropoff||j.date;var pick=j.binPickup||today2;
     if(!drop)return;
     var sz=j.binSize||'unknown';
@@ -6554,8 +6560,7 @@ function renderUtilization(){
 
   // Idle bins: bins in fleet that had zero rentals in 30 days
   var idleBins=binItems.filter(function(b){
-    var wasUsed=jobs.some(function(j){
-      if(j.service!=='Bin Rental')return false;
+    var wasUsed=utilJobs.some(function(j){
       var drop=j.binDropoff||j.date;var pick=j.binPickup||today2;
       return (drop>=win30Start||pick>=win30Start)&&(j.binSize===b.size);
     });
