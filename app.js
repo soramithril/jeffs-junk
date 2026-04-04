@@ -1623,13 +1623,12 @@ async function refreshDashBinStats(){
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
 
-  // ── Load bin jobs exactly as loadBinJobsThenRender does ───────────────────
+  // ── Load dropped bin jobs for counting ───────────────────
   try {
     var [rActive, rUpcoming] = await Promise.all([
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
-        .neq('status','Cancelled')
-        .neq('bin_instatus','pickedup'),
+        .eq('bin_instatus','dropped'),
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
