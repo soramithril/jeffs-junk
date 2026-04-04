@@ -455,7 +455,7 @@ function dbToJob(r) {
   return {
     id:         r.job_id,
     service:    r.service,
-    status:     r.status     || 'Pending',
+    status:     r.status     || '',
     name:       r.name       || '',
     phone:      r.phone      || '',
     address:    r.address    || '',
@@ -521,7 +521,7 @@ function jobToDb(j) {
   return {
     job_id:      j.id,
     service:     j.service     || 'Bin Rental',
-    status:      j.status      || 'Pending',
+    status:      j.status      || '',
     name:        j.name        || '',
     names:       j.names       || [],
     phone:       j.phone       || '',
@@ -583,7 +583,7 @@ function clientToDb(c) {
 
 // ── Save functions (write to Supabase) ─────────────────────
 function updateSidebarStats() {
-  var active = jobs.filter(function(j){ return j.status !== 'Cancelled' && j.status !== 'Done'; }).length;
+  var active = jobs.filter(function(j){ return j.status !== 'Cancelled'; }).length;
   var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped'; }).length;
   var el = document.getElementById('m-active'); if(el) el.textContent = active;
   var el2 = document.getElementById('m-bins'); if(el2) el2.textContent = binsOut;
@@ -947,13 +947,13 @@ async function loadAllFromSupabase() {
         .lte('bin_dropoff', today2);
       if (pastDropJobs.data && pastDropJobs.data.length) {
         var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
-        await db.from('jobs').update({bin_instatus:'dropped',status:'In Progress'}).in('job_id',dropIds);
+        await db.from('jobs').update({bin_instatus:'dropped'}).in('job_id',dropIds);
         var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
         if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
         binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
         jobs.forEach(function(j){
           if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
-            { j.binInstatus='dropped'; j.status='In Progress'; }
+            { j.binInstatus='dropped'; }
         });
       }
       var pastBinJobs = await db.from('jobs').select('job_id,bin_bid')
@@ -1091,12 +1091,12 @@ render = function(name) {
 async function loadBinJobsThenRender() {
   try {
     var today = todayStr();
-    // Fetch all bin jobs that are: active (In Progress/Pending) OR have a future/current pickup date
+    // Fetch all bin jobs that are: not cancelled, not picked up OR have a future/current pickup date
     var [rActive, rUpcoming] = await Promise.all([
-      // Currently active: In Progress or Pending, not picked up
+      // Currently active: not cancelled, not picked up
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
-        .in('status',['In Progress','Pending'])
+        .neq('status','Cancelled')
         .neq('bin_instatus','pickedup'),
       // Has a bin_pickup date on or after today (bin still out or scheduled)
       db.from('jobs').select('*')
@@ -1596,7 +1596,7 @@ function render(name){
 function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
 
 // ─── BADGES ───
-function stb(s){var cls={Pending:'badge-pending','In Progress':'badge-progress',Done:'badge-done',Cancelled:'badge-cancelled'};var dot={Pending:'🟡','In Progress':'🔵',Done:'🟢',Cancelled:'⚪'};return '<span class="badge '+(cls[s]||'badge-pending')+'">'+(dot[s]||'🟡')+' '+s+'</span>';}
+function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
 function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
 function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 
@@ -1628,7 +1628,7 @@ async function refreshDashBinStats(){
     var [rActive, rUpcoming] = await Promise.all([
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
-        .in('status',['In Progress','Pending'])
+        .neq('status','Cancelled')
         .neq('bin_instatus','pickedup'),
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
@@ -1658,7 +1658,7 @@ async function refreshDashBinStats(){
   if(dateStr===today){
     // Count from loaded jobs: every dropped, non-cancelled bin rental = out
     var droppedJobs=jobs.filter(function(j){
-      return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.status!=='Done'&&j.status!=='Cancelled';
+      return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.status!=='Cancelled';
     });
     binsOut=droppedJobs.length;
     binsIn=Math.max(0,totalBins-binsOut);
@@ -2292,8 +2292,8 @@ async function renderDash(){
     rTomorrowJobs, rUnconfirmed14
   ] = await Promise.all([
     db.from('jobs').select('*',{count:'exact',head:true}),
-    db.from('jobs').select('*',{count:'exact',head:true}).not('status','in','("Done","Cancelled")'),
-    db.from('jobs').select('*',{count:'exact',head:true}).eq('status','Done'),
+    db.from('jobs').select('*',{count:'exact',head:true}).neq('status','Cancelled'),
+    db.from('jobs').select('*',{count:'exact',head:true}).eq('status','Cancelled'),
     db.from('jobs').select('*',{count:'exact',head:true}).neq('paid','Paid').neq('status','Cancelled'),
     db.from('jobs').select('price').gte('date',monthStart).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('date',todayS).neq('status','Cancelled').order('time'),
@@ -2315,7 +2315,7 @@ async function renderDash(){
   // Write hidden stat IDs that other code may reference
   var total      = rTotal.count||0;
   var active     = rActive.count||0;
-  var done       = rDone.count||0;
+  var done       = rDone.count||0; // now holds cancelled count
   var unpaidCount= rUnpaid.count||0;
   var monthRev   = (rMonthRev.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
   var weekJobs   = rWeekJobs.count||0;
@@ -2553,7 +2553,7 @@ async function renderDash(){
 async function renderDashBinsOut(){
   var el=document.getElementById('dash-bins-out-list');if(!el)return;
   // Get all active dropped bin rental jobs — these are the bins currently out
-  var droppedRes=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').not('status','in','("Done","Cancelled")').order('bin_dropoff');
+  var droppedRes=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled').order('bin_dropoff');
   var droppedJobs=(droppedRes.data||[]).map(dbToJob);
   // Also get binItems marked 'out' with no active dropped job (stale/unlinked)
   var outBins=binItems.filter(function(b){return b.status==='out';});
@@ -2674,7 +2674,7 @@ function renderJobsBinsOut(){
   var outBins=binItems.filter(function(b){return b.status==='out';});
   if(!outBins.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">All bins are currently in the yard</div>';return;}
   el.innerHTML='<div style="display:grid;gap:6px">'+outBins.map(function(b){
-    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Done'&&j.status!=='Cancelled';});
+    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Cancelled';});
     var name=curJob?curJob.name:'Unknown';
     var addr=curJob?(curJob.address||'').split(',')[0]:'';
     var city=curJob?curJob.city:'';
@@ -2816,7 +2816,7 @@ function confirmedHtml(id, confirmed, service, status, binInstatus){
   var needsConfirm = service==='Bin Rental'||service==='Furniture Pickup'||service==='Furniture Delivery';
   if(!needsConfirm) return '<td class="jcell-confirm"></td>';
   // Hide confirm button for Done/Cancelled jobs or already picked-up bins
-  if(status==='Done'||status==='Cancelled'||binInstatus==='pickedup') return '<td class="jcell-confirm"></td>';
+  if(status==='Cancelled'||binInstatus==='pickedup') return '<td class="jcell-confirm"></td>';
   var label = service==='Furniture Delivery' ? 'Drop-Off' : 'Pickup';
   var isConf = !!confirmed;
 
@@ -2836,10 +2836,7 @@ function confirmedHtml(id, confirmed, service, status, binInstatus){
 }
 function cycleStatus(id,e){
   if(e)e.stopPropagation();
-  var order=['Pending','In Progress','Done'];
-  var newStatus;
-  jobs.forEach(function(j){if(j.id===id){var i=order.indexOf(j.status);j.status=order[(i+1)%order.length];newStatus=j.status;}});
-  patchJob(id,{status:newStatus});toast('Status updated!');refresh();
+  // Status cycling disabled
 }
 function cycleBinDrop(id,e){
   if(e)e.stopPropagation();
@@ -3044,7 +3041,7 @@ function renderJobs(){
         }
       } else if(action==='uncancel'){
         var ju=jobs.find(function(x){return x.id===id;});
-        if(ju){ju.status='Pending';saveSingleJob(ju);toast('Job restored to Pending.');loadJobsPage(jobsPage);}
+        if(ju){ju.status='';saveSingleJob(ju);toast('Job restored.');loadJobsPage(jobsPage);}
       }
       return;
     }
@@ -4855,7 +4852,7 @@ function geocode(addr,cb){
     .catch(function(){cb(null);});
 }
 function pinIcon(status){
-  var c={Pending:'#22c55e','In Progress':'#4ade80',Done:'#7cc9a0',Cancelled:'#666666'}[status]||'#22c55e';
+  var c=status==='Cancelled'?'#666666':'#22c55e';
   var html='<div style="position:relative;width:30px;height:40px"><svg viewBox="0 0 30 40" width="30" height="40" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))"><path d="M15 0C6.7 0 0 6.7 0 15 0 25.5 15 40 15 40S30 25.5 30 15C30 6.7 23.3 0 15 0z" fill="'+c+'"/><circle cx="15" cy="15" r="7" fill="rgba(0,0,0,.2)"/></svg><div style="position:absolute;top:7px;left:7px;font-size:13px">🚛</div></div>';
   return L.divIcon({html:html,iconSize:[30,40],iconAnchor:[15,40],popupAnchor:[0,-42],className:''});
 }
@@ -5037,7 +5034,7 @@ function makeBinRow(b){
   // Show current job/location for bins marked 'out'
   var locationCell='<td style="font-size:11px;max-width:150px"></td>';
   if(b.status==='out'){
-    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Done'&&j.status!=='Cancelled';});
+    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Cancelled';});
     if(curJob){
       locationCell='<td style="font-size:11px;max-width:150px"><span style="color:#22c55e;cursor:pointer;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block" onclick="openDetail(\''+curJob.id+'\')" title="'+curJob.name+' · '+curJob.address+'">📍 '+curJob.name+'</span><div style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(curJob.address?curJob.address.split(',')[0]:'')+'</div></td>';
     } else {
@@ -5193,7 +5190,7 @@ async function openLinkBinToJob(bid){
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading active bin jobs...</div>';
   document.getElementById('link-bin-modal').classList.add('open');
   // Fetch active bin rental jobs that don't have a bin assigned yet, or match size
-  var res=await db.from('jobs').select('*').eq('service','Bin Rental').in('status',['In Progress','Pending']).neq('bin_instatus','pickedup').order('date',{ascending:false});
+  var res=await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').order('date',{ascending:false});
   _linkBinJobs=(res.data||[]).map(dbToJob);
   renderLinkBinJobs(_linkBinJobs);
 }
@@ -5253,7 +5250,7 @@ async function openBinHistory(bid){
   if(!totalCount){body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📭</div>No history found for this bin</div>';return;}
   var html='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+totalCount+' record'+(totalCount!==1?'s':'')+' found</div>';
   html+=histJobs.map(function(j){
-    var statusCol=j.status==='Done'?'#22c55e':j.status==='Cancelled'?'#dc3545':'#e67e22';
+    var statusCol=j.status==='Cancelled'?'#dc3545':'#22c55e';
     return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="closeM(\'bin-history-modal\');openDetail(\''+j.id+'\')">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:#22c55e;border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
@@ -5527,7 +5524,7 @@ function newJob(){
   _selectedClientObj=null;
   window._binPresetDays=null;
   document.getElementById('modal-ttl').textContent='New Job';document.getElementById('save-btn').textContent='Save Job';
-  document.getElementById('f-svc').value='';document.getElementById('f-status').value='Pending';
+  document.getElementById('f-svc').value='';document.getElementById('f-status').value='';
   document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
   document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
@@ -5753,7 +5750,7 @@ function openEdit(id){
   editId=id;closeM('detail-modal');renderClientSelectOptions();
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
-    document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'Pending';
+    document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'';
     document.getElementById('f-names-wrap').innerHTML=_jobNameRow(j.name||'');
     document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow(j.phone||'','','cell');
     document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
@@ -5843,6 +5840,8 @@ async function saveJob(e){
   if(!city)     { showErr('f-city');     errs.push('City is required (e.g. Barrie).'); }
   if(!referral) { showErr('f-referral'); errs.push('Referral source is required.'); }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); }
+  var timeVal=document.getElementById('f-time').value;
+  if(timeVal){var hr=parseInt(timeVal.split(':')[0]);if(hr<6||hr>=19){showErr('f-time');errs.push('Time must be between 6:00 AM and 7:00 PM.');}}
 
   if(errs.length) {
     if(banner) {
@@ -6068,8 +6067,13 @@ function cancelJob(id){
   closeM('detail-modal');
   refresh();
 }
-function openDetail(id){
-  var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
+async function openDetail(id){
+  var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});
+  if(!j){
+    var r=await db.from('jobs').select('*').eq('job_id',id).single();
+    if(r.error||!r.data)return;
+    j=dbToJob(r.data);
+  }
   document.getElementById('det-ttl').textContent=j.id;
   var bin='';
   if(j.service==='Bin Rental'){
@@ -6097,7 +6101,7 @@ function openDetail(id){
   var paymentInfo='';
   if(j.payMethod){paymentInfo='<div class="detail-item"><label>Method</label><span>'+j.payMethod+'</span></div>';}
   var etransferNote='';
-  if(j.payMethod==='E-Transfer'&&j.status==='Done'){
+  if(j.payMethod==='E-Transfer'&&j.binInstatus==='pickedup'){
     etransferNote='<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(230,126,34,.07);border:1px solid rgba(230,126,34,.3);font-size:13px">'
       +(j.etransferRefundSent?'<span style="color:#22c55e">✅ E-Transfer refund sent to customer</span>':'<span style="color:#e67e22">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
       +'</div>';
@@ -6155,7 +6159,6 @@ function openDetail(id){
         if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="scheduleNextSwap(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Swap</button>');
         else if(j.service==='Junk Removal') btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
       }
-      if(j.service!=='Bin Rental'&&j.status!=='Done') btns.push('<button class="btn btn-ghost" onclick="markDone(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">✔ Mark Done</button>');
       var sectionLabel=j.service==='Bin Rental'?'Bin Actions':'Job Actions';
       return btns.length ? '<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">'+sectionLabel+'</div><div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div></div>' : '';
     }())
@@ -6223,7 +6226,7 @@ async function swapOutBin(id){
   var newId=await nextIdFromDb('Bin Rental');
   var today=todayStr();
   var newJob={
-    id:newId, service:'Bin Rental', status:'Pending',
+    id:newId, service:'Bin Rental', status:'',
     name:j.name, phone:j.phone, address:j.address, city:j.city,
     date:today, time:j.time, price:j.price, paid:'Unpaid',
     notes:'Swap out from job '+j.id+(j.notes?' — '+j.notes:''),
@@ -6321,7 +6324,7 @@ function convertQuoteToJob(quoteId){
   document.getElementById('modal-ttl').textContent='Convert Quote → New Job';
   document.getElementById('save-btn').textContent='Create Job';
   document.getElementById('f-svc').value='Junk Removal';
-  document.getElementById('f-status').value='Pending';
+  document.getElementById('f-status').value='';
   document.getElementById('f-name').value=q.name||'';
   document.getElementById('f-phone').value=q.phone||'';
   var addrParts=(q.address||'').split(',').map(function(p){return p.trim();});
@@ -6356,14 +6359,14 @@ function writeBinHistory(j){
     material_type:j.materialType||'',notes:j.notes||'',job_id:j.id,source:'dashboard'
   }).then(function(r){if(r.error)console.error('bin_history write failed:',r.error.message);});
 }
-function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';if(j.status==='Pending')j.status='In Progress';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:'dropped',status:j2?j2.status:'In Progress'});toast('Bin marked as dropped off!');openDetail(id);refresh();}
-function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';if(j.status==='In Progress')j.status='Pending';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:'',status:j2?j2.status:'Pending'});toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
+function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:'dropped'});toast('Bin marked as dropped off!');openDetail(id);refresh();}
+function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:''});toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
 function markBinPickedUp2(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
-  j.binInstatus='pickedup';j.status='Done';
+  j.binInstatus='pickedup';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
   writeBinHistory(j);
-  patchJob(id,{binInstatus:'pickedup',status:'Done'});toast('Bin marked as picked up!');openDetail(id);refresh();
+  patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
 }
 async function scheduleNextSwap(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
@@ -6375,7 +6378,7 @@ async function scheduleNextSwap(id){
   if(!confirm('Schedule next swap for '+fd(nextDateStr)+' ('+intervalLabel+' from current pickup date)?\n\nThis will create a new Bin Rental job for '+j.name+' at the same address.'))return;
   var newId=await nextIdFromDb('Bin Rental');
   var swapJob={
-    id:newId,service:'Bin Rental',status:'Pending',name:j.name,phone:j.phone||'',
+    id:newId,service:'Bin Rental',status:'',name:j.name,phone:j.phone||'',
     address:j.address||'',city:j.city||'',date:nextDateStr,time:j.time||'',
     price:'',paid:'Unpaid',payMethod:'',referral:j.referral||'',
     notes:'Recurring swap ('+intervalLabel+') — from job '+j.id+(j.notes?'\n'+j.notes:''),
@@ -6403,7 +6406,7 @@ async function scheduleNextRecurringJob(id){
   if(!confirm('Schedule next '+j.service+' for '+fd(nextDateStr)+' ('+intervalLabel+' from last job)?\n\nThis will create a new job for '+j.name+' at the same address.'))return;
   var newId=await nextIdFromDb(j.service);
   var newJob={
-    id:newId,service:j.service,status:'Pending',name:j.name,phone:j.phone||'',
+    id:newId,service:j.service,status:'',name:j.name,phone:j.phone||'',
     address:j.address||'',city:j.city||'',date:nextDateStr,time:j.time||'',
     price:j.price||'',paid:'Unpaid',payMethod:'',referral:j.referral||'',
     notes:'Recurring ('+intervalLabel+') — from job '+j.id+(j.notes?'\n'+j.notes:''),
@@ -6422,13 +6425,13 @@ async function scheduleNextRecurringJob(id){
 }
 function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransferRefundSent=true;});patchJob(id,{etransferRefundSent:true});toast('E-Transfer refund marked as sent!');openDetail(id);refresh();}
 function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});patchJob(id,{paid:'Paid'});toast('Marked as paid!');openDetail(id);refresh();}
-function markDone(id){jobs.forEach(function(j){if(j.id===id)j.status='Done';});patchJob(id,{status:'Done'});toast('Marked complete!');openDetail(id);refresh();}
-function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.status='Done';j.binInstatus='pickedup';}});patchJob(id,{status:'Done',binInstatus:'pickedup'});toast('Bin marked picked up!');refresh();}
+function markDone(id){}
+function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.binInstatus='pickedup';}});patchJob(id,{binInstatus:'pickedup'});toast('Bin marked picked up!');refresh();}
 function dashMarkPickedUp(jobId,bid){
   var j=jobs.find(function(jj){return jj.id===jobId;});
-  if(j){j.status='Done';j.binInstatus='pickedup';writeBinHistory(j);}
+  if(j){j.binInstatus='pickedup';writeBinHistory(j);}
   binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
-  patchJob(jobId,{status:'Done',binInstatus:'pickedup'});saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
+  patchJob(jobId,{binInstatus:'pickedup'});saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
 }
 function toast(msg, type) {
   var t = document.getElementById('toast');
@@ -6452,11 +6455,11 @@ document.addEventListener('click',function(e){
 function renderToday(){
   var todayS=todayStr();
   document.getElementById('today-view-lbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  var todayJobs=jobs.filter(function(j){return j.date===todayS&&j.status!=='Cancelled'&&j.status!=='Done';});
+  var todayJobs=jobs.filter(function(j){return j.date===todayS&&j.status!=='Cancelled';});
   var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<todayS;});
   var threshold=parseInt(document.getElementById('today-days-threshold')&&document.getElementById('today-days-threshold').value)||7;
   var longBins=jobs.filter(function(j){
-    if(j.service!=='Bin Rental'||j.status==='Done'||j.status==='Cancelled')return false;
+    if(j.service!=='Bin Rental'||j.status==='Cancelled')return false;
     var drop=j.binDropoff||j.date;if(!drop)return false;
     var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
     return days>=threshold;
