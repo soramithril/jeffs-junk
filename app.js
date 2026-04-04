@@ -4865,8 +4865,7 @@ async function renderMap(){
   try {
     var rMap = await db.from('jobs').select('*')
       .eq('service','Bin Rental')
-      .neq('status','Cancelled')
-      .neq('bin_instatus','pickedup');
+      .eq('bin_instatus','dropped');
     var mapBinRows = (rMap.data || []).map(dbToJob);
     mapBinRows.forEach(function(j){
       var idx=jobs.findIndex(function(x){return x.id===j.id;});
@@ -4874,12 +4873,11 @@ async function renderMap(){
     });
   } catch(e){ console.warn('Map bin load error:',e); }
 
-  // Show all bins that are physically out — not cancelled, not picked up
+  // Show all bins that are physically out — only dropped bins
   var today = todayStr();
   var binJobs = jobs.filter(function(j){
     if(j.service!=='Bin Rental') return false;
-    if(j.status==='Cancelled') return false;
-    if(j.binInstatus==='pickedup') return false;
+    if(j.binInstatus!=='dropped') return false;
     return true;
   });
   document.getElementById('bin-cnt').textContent=binJobs.length;
