@@ -7731,8 +7731,9 @@ function renderVehicles(){
         }).join('');
         var summaryLine=ranges.length+' repair'+(ranges.length!==1?'s':'')+(totalCost>0?' · Total: $'+totalCost.toFixed(2):'');
         return '<div style="margin-bottom:12px">'
-          +'<div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span.hist-arrow\').textContent=this.nextElementSibling.style.display===\'none\'?\'▸\':\'▾\'" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;cursor:pointer;user-select:none">'
-          +'🔧 Service History <span class="hist-arrow">▸</span> <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">'+summaryLine+'</span></div>'
+          +'<div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span.hist-arrow\').textContent=this.nextElementSibling.style.display===\'none\'?\'▸\':\'▾\'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);cursor:pointer;user-select:none;transition:background .15s" onmouseenter="this.style.background=\'rgba(34,197,94,.15)\'" onmouseleave="this.style.background=\'rgba(34,197,94,.08)\'">'
+          +'<div style="display:flex;align-items:center;gap:6px"><span style="font-size:14px">🔧</span><span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text)">Service History</span><span style="font-size:11px;color:var(--muted)">'+summaryLine+'</span></div>'
+          +'<span class="hist-arrow" style="font-size:14px;color:var(--muted);transition:transform .15s">▸</span></div>'
           +'<div style="display:none;max-height:200px;overflow-y:auto">'+rows+'</div>'
           +'</div>';
       })()
