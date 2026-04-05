@@ -742,7 +742,7 @@ function saveVehBlocks(vid) {
       if(r.error){ console.warn('vehBlocks delete failed:', r.error.message); return; }
       if(!dates.length) return;
       var rows = dates.map(function(d){
-        return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null};
+        return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null, cost:blocks[d].cost!=null?blocks[d].cost:null};
       });
       db.from('vehicle_blocks').insert(rows).then(function(r2){
         if(r2.error) console.warn('vehBlocks insert failed:', r2.error.message);
@@ -860,7 +860,7 @@ async function loadAllFromSupabase() {
         vehBlocks = {};
         (rvehBlocks.data||[]).forEach(function(r){
           if(!vehBlocks[r.vid]) vehBlocks[r.vid] = {};
-          vehBlocks[r.vid][r.date] = {reason:r.reason||'', notes:r.notes||'', openEnded:!!r.open_ended, openFrom:r.open_from||null};
+          vehBlocks[r.vid][r.date] = {reason:r.reason||'', notes:r.notes||'', openEnded:!!r.open_ended, openFrom:r.open_from||null, cost:r.cost!=null?Number(r.cost):null};
         });
       }
     } catch(e) {
@@ -7618,6 +7618,9 @@ function addVehDateRange(vid){
   if(!vehBlocks[vid])vehBlocks[vid]={};
   var reason=reasonEl?reasonEl.value:'Service / Repair';
   var notes=notesEl?notesEl.value.trim():'';
+  var costEl=document.getElementById('veh-cost-'+vid);
+  var costVal=costEl&&costEl.value?parseFloat(costEl.value):null;
+  if(costVal!==null&&isNaN(costVal))costVal=null;
   var openEnded=!to;
   if(!to)to=todayStr();
   var cur=new Date(from+'T12:00:00');
@@ -7625,7 +7628,7 @@ function addVehDateRange(vid){
   var count=0;
   while(cur<=end){
     var ds=cur.toISOString().split('T')[0];
-    vehBlocks[vid][ds]={reason:reason,notes:notes,openEnded:openEnded,openFrom:openEnded?from:undefined};
+    vehBlocks[vid][ds]={reason:reason,notes:notes,openEnded:openEnded,openFrom:openEnded?from:undefined,cost:costVal};
     cur.setDate(cur.getDate()+1);count++;
   }
   saveVehBlocks(vid);renderVehicles();
@@ -7693,6 +7696,46 @@ function renderVehicles(){
         ?'<div style="margin-bottom:12px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">🚫 Blocked Days</div>'+upcomingRows+'</div>'
         :'<div style="font-size:12px;color:var(--muted);margin-bottom:12px">No upcoming blocked days.</div>'
       )
+      // Service History (collapsible)
+      +(function(){
+        var serviceBlocks=past.filter(function(d){return blocks[d].reason==='Service / Repair';}).sort().reverse();
+        if(!serviceBlocks.length) return '';
+        // Group consecutive dates with same notes+cost into ranges
+        var ranges=[];
+        serviceBlocks.forEach(function(d){
+          var b=blocks[d];
+          var key=(b.notes||'')+'|'+(b.cost!=null?b.cost:'');
+          var last=ranges.length?ranges[ranges.length-1]:null;
+          if(last&&last.key===key){
+            var prevD=new Date(last.dates[last.dates.length-1]+'T12:00:00');
+            var curD=new Date(d+'T12:00:00');
+            var diff=Math.abs((prevD-curD)/(1000*60*60*24));
+            if(diff<=1){last.dates.push(d);return;}
+          }
+          ranges.push({key:key,notes:b.notes||'',cost:b.cost,dates:[d]});
+        });
+        var totalCost=0;
+        var rows=ranges.map(function(r){
+          var startD=r.dates[r.dates.length-1];
+          var endD=r.dates[0];
+          var days=r.dates.length;
+          if(r.cost!=null)totalCost+=r.cost;
+          var costStr=r.cost!=null?'<span style="font-weight:600;color:#22c55e">$'+r.cost.toFixed(2)+'</span>':'<span style="color:var(--muted)">—</span>';
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:6px;background:rgba(0,0,0,.03);margin-bottom:3px">'
+            +'<div><span style="font-weight:600;font-size:12px">'+fd(startD)+(days>1?' → '+fd(endD):'')+'</span>'
+            +'<span style="font-size:11px;color:var(--muted);margin-left:6px">('+days+'d)</span>'
+            +(r.notes?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+r.notes+'</span>':'')
+            +'</div>'
+            +'<div>'+costStr+'</div>'
+            +'</div>';
+        }).join('');
+        var summaryLine=ranges.length+' repair'+(ranges.length!==1?'s':'')+(totalCost>0?' · Total: $'+totalCost.toFixed(2):'');
+        return '<div style="margin-bottom:12px">'
+          +'<div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span.hist-arrow\').textContent=this.nextElementSibling.style.display===\'none\'?\'▸\':\'▾\'" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;cursor:pointer;user-select:none">'
+          +'🔧 Service History <span class="hist-arrow">▸</span> <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">'+summaryLine+'</span></div>'
+          +'<div style="display:none;max-height:200px;overflow-y:auto">'+rows+'</div>'
+          +'</div>';
+      })()
       // Add dates form
       +'<div style="border-top:1px solid var(--border);padding-top:12px">'
       +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Add Days Off</div>'
@@ -7703,7 +7746,8 @@ function renderVehicles(){
       +'<select id="veh-reason-'+v.vid+'" class="form-input" style="margin-bottom:6px;font-size:12px;padding:6px 10px">'
       +'<option>Service / Repair</option><option>Personal Use</option><option>Out of Area</option><option>Other</option>'
       +'</select>'
-      +'<input type="text" id="veh-notes-'+v.vid+'" placeholder="Notes (optional)" class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:8px">'
+      +'<input type="text" id="veh-notes-'+v.vid+'" placeholder="Notes (optional)" class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:6px">'
+      +'<input type="number" id="veh-cost-'+v.vid+'" placeholder="Repair cost ($)" min="0" step="0.01" class="form-input" style="font-size:12px;padding:6px 10px;margin-bottom:8px">'
       +'<button class="btn btn-primary" style="width:100%;font-size:13px" onclick="addVehDateRange(\''+v.vid+'\')">+ Block These Days</button>'
       +'</div>'
       +'</div>';
