@@ -5775,28 +5775,32 @@ function openEdit(id){
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
     document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
-    var drdData=_parseDrdData(j);
+    var drdData=null;
+    try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
     if(j.service==='Furniture Pickup' && drdData){
       document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');
       document.getElementById('items-wrap').style.display='none';
     } else {
-      var itemLines=(j.items||'').split(/\r?\n/).filter(function(s){return s.trim().length>0;});
+      var rawItems=(drdData?'':(j.items||''));
+      var itemLines=rawItems.split(/\r?\n/).filter(function(s){return s.trim().length>0;});
       document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s.trim());}).join(''):_jobItemRow('');
       var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
       document.getElementById('items-wrap').style.display=hasItems?'block':'none';
     }
     // Show DRD inline for Furniture Pickup
-    var drdWrap=document.getElementById('drd-inline-wrap');
-    if(drdWrap){
-      _clearDrdModal();
-      if(j.service==='Furniture Pickup'){
-        drdWrap.style.display='block';
-        renderDrdModalGrid();
-        if(drdData) _fillDrdModal(drdData);
-      } else {
-        drdWrap.style.display='none';
+    try{
+      var drdWrap=document.getElementById('drd-inline-wrap');
+      if(drdWrap){
+        _clearDrdModal();
+        if(j.service==='Furniture Pickup'){
+          drdWrap.style.display='block';
+          renderDrdModalGrid();
+          if(drdData) _fillDrdModal(drdData);
+        } else {
+          drdWrap.style.display='none';
+        }
       }
-    }
+    }catch(e){console.error('DRD modal error:',e);}
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
     document.getElementById('tools-needed-wrap').style.display=(j.service==='Junk Removal')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
