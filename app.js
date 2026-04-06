@@ -580,9 +580,10 @@ function clientToDb(c) {
 
 // ── Save functions (write to Supabase) ─────────────────────
 function updateSidebarStats() {
-  var active = jobs.filter(function(j){ return j.status !== 'Cancelled'; }).length;
+  var today = new Date(); var day = today.getDay(); var mon = new Date(today); mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1)); mon.setHours(0,0,0,0); var sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+  var weekJobs = jobs.filter(function(j){ if(!j.date || j.status === 'Cancelled') return false; var d = new Date(j.date + 'T00:00:00'); return d >= mon && d <= sun; }).length;
   var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped'; }).length;
-  var el = document.getElementById('m-active'); if(el) el.textContent = active;
+  var el = document.getElementById('m-active'); if(el) el.textContent = weekJobs;
   var el2 = document.getElementById('m-bins'); if(el2) el2.textContent = binsOut;
 }
 function save() {
@@ -2315,7 +2316,7 @@ async function renderDash(){
   animCount(document.getElementById('s-done'),done,'','',700);
   animCount(document.getElementById('s-unpaid'),unpaidCount,'','',700);
   animCount(document.getElementById('s-month-rev'),Math.round(monthRev),'$','',700);
-  document.getElementById('m-active').textContent=active;
+  document.getElementById('m-active').textContent=weekJobs;
   var wjEl=document.getElementById('s-week-jobs');if(wjEl)animCount(wjEl,weekJobs);
   var wrEl=document.getElementById('s-week-rev');if(wrEl)animCount(wrEl,Math.round(weekRev),'$');
   var osEl=document.getElementById('s-outstanding');if(osEl)animCount(osEl,Math.round(outstanding),'$');
