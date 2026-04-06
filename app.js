@@ -1546,7 +1546,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','furniturebank','analytics','utilization','pricing','advisor'];
+var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','analytics','utilization','pricing','advisor'];
 function toggleNavSection(id){
   var sec=document.getElementById(id);if(!sec)return;
   var arrow=document.getElementById(id+'-arrow');
@@ -1580,7 +1580,6 @@ function render(name){
   else if(name==='advisor') renderAdvisor();
   else if(name==='bininventory') renderBinInventory();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderMaintSections);}
-  else if(name==='furniturebank'){renderDRD();}
 }
 function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
 
@@ -5501,6 +5500,11 @@ function toggleBin(){
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
+  var drdWrap=document.getElementById('drd-inline-wrap');
+  if(drdWrap){
+    drdWrap.style.display=(svc==='Furniture Pickup')?'block':'none';
+    if(svc==='Furniture Pickup') renderDrdModalGrid();
+  }
   if(isBin){
     // Auto-fill drop-off date to today if empty
     var bdrop=document.getElementById('f-bdrop');
@@ -5535,6 +5539,7 @@ function newJob(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];document.getElementById('f-time').value='';
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
   document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
+  _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   document.getElementById('f-tools').value='';
   document.getElementById('f-material-type').value='';
   document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
@@ -5770,10 +5775,28 @@ function openEdit(id){
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
     document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
-    var itemLines=(j.items||'').split(/\r?\n/).filter(function(s){return s.trim().length>0;});
-    document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s.trim());}).join(''):_jobItemRow('');
-    var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
-    document.getElementById('items-wrap').style.display=hasItems?'block':'none';
+    var drdData=_parseDrdData(j);
+    if(j.service==='Furniture Pickup' && drdData){
+      document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');
+      document.getElementById('items-wrap').style.display='none';
+    } else {
+      var itemLines=(j.items||'').split(/\r?\n/).filter(function(s){return s.trim().length>0;});
+      document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s.trim());}).join(''):_jobItemRow('');
+      var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
+      document.getElementById('items-wrap').style.display=hasItems?'block':'none';
+    }
+    // Show DRD inline for Furniture Pickup
+    var drdWrap=document.getElementById('drd-inline-wrap');
+    if(drdWrap){
+      _clearDrdModal();
+      if(j.service==='Furniture Pickup'){
+        drdWrap.style.display='block';
+        renderDrdModalGrid();
+        if(drdData) _fillDrdModal(drdData);
+      } else {
+        drdWrap.style.display='none';
+      }
+    }
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
     document.getElementById('tools-needed-wrap').style.display=(j.service==='Junk Removal')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
@@ -5906,7 +5929,7 @@ async function saveJob(e){
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
-    items:     [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
+    items:     svc==='Furniture Pickup' ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
@@ -7577,6 +7600,110 @@ function doMergeClients() {
 }
 
 // ─── FURNITURE BANK DRD ───
+// ─── DRD MODAL INLINE HELPERS ───
+function renderDrdModalGrid(){
+  var g=document.getElementById('drd-m-items-grid');
+  if(!g)return;
+  if(g.children.length) return; // already rendered
+  g.innerHTML=DRD_ITEMS.map(function(item,i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);gap:6px">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+      +'<div style="font-size:9px;color:var(--muted)">$'+item.val+'</div></div>'
+      +'<input type="number" id="drd-m-qty-'+i+'" min="0" placeholder="0" style="width:46px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 4px;border-radius:6px;font-size:12px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
+      +'</div>';
+  }).join('');
+  var otherRows=document.getElementById('drd-m-other-rows');
+  if(otherRows&&!otherRows.children.length) drdModalAddOtherRow();
+  drdModalRecalc();
+}
+function drdModalRecalc(){
+  var totalItems=0,totalVal=0;
+  DRD_ITEMS.forEach(function(item,i){
+    var el=document.getElementById('drd-m-qty-'+i);
+    var q=el?(parseInt(el.value)||0):0;
+    totalItems+=q;totalVal+=q*item.val;
+  });
+  var otherQtys=document.querySelectorAll('.drd-m-other-qty');
+  otherQtys.forEach(function(el){totalItems+=(parseInt(el.value)||0);});
+  var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent=totalItems;
+  var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
+}
+function drdModalAddOtherRow(){
+  var wrap=document.getElementById('drd-m-other-rows');if(!wrap)return;
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;gap:8px;margin-bottom:4px;align-items:center';
+  row.innerHTML='<input type="text" class="drd-m-other-name form-input" placeholder="Item name" style="flex:1;font-size:12px;padding:5px 8px">'
+    +'<input type="number" class="drd-m-other-qty" min="0" placeholder="Qty" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
+    +'<button type="button" onclick="this.parentElement.remove();drdModalRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>';
+  wrap.appendChild(row);
+}
+function _collectDrdFromModal(){
+  var sources=[];
+  if(document.getElementById('drd-m-src-fb')&&document.getElementById('drd-m-src-fb').checked) sources.push('fb');
+  if(document.getElementById('drd-m-src-jj')&&document.getElementById('drd-m-src-jj').checked) sources.push('jj');
+  if(document.getElementById('drd-m-src-rp')&&document.getElementById('drd-m-src-rp').checked) sources.push('rp');
+  var quantities=[];
+  DRD_ITEMS.forEach(function(_,i){
+    var el=document.getElementById('drd-m-qty-'+i);
+    quantities.push(el?(parseInt(el.value)||0):0);
+  });
+  var otherItems=[];
+  var names=document.querySelectorAll('.drd-m-other-name');
+  var qtys=document.querySelectorAll('.drd-m-other-qty');
+  for(var i=0;i<names.length;i++){
+    var n=names[i].value.trim();
+    var q=parseInt(qtys[i]?qtys[i].value:0)||0;
+    if(n||q) otherItems.push({name:n,qty:q});
+  }
+  return {
+    sources:sources,
+    opp:(document.getElementById('drd-m-opp')||{}).value||'',
+    tax:(document.getElementById('drd-m-tax')||{}).value||'YES',
+    quantities:quantities,
+    otherItems:otherItems,
+    emailedDate:(document.getElementById('drd-m-emailed')||{}).value||'',
+    postal:'',
+    email:'',
+    contact:'',
+    contactInfo:''
+  };
+}
+function _clearDrdModal(){
+  var g=document.getElementById('drd-m-items-grid');if(g)g.innerHTML='';
+  var o=document.getElementById('drd-m-other-rows');if(o)o.innerHTML='';
+  var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=true;
+  var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=false;
+  var rp=document.getElementById('drd-m-src-rp');if(rp)rp.checked=false;
+  var opp=document.getElementById('drd-m-opp');if(opp)opp.value='';
+  var tax=document.getElementById('drd-m-tax');if(tax)tax.value='YES';
+  var dt=document.getElementById('drd-m-date');if(dt)dt.value='';
+  var em=document.getElementById('drd-m-emailed');if(em)em.value='';
+  var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent='0';
+  var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$0.00';
+}
+function _fillDrdModal(drd){
+  if(!drd)return;
+  var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=(drd.sources||[]).indexOf('fb')>=0;
+  var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=(drd.sources||[]).indexOf('jj')>=0;
+  var rp=document.getElementById('drd-m-src-rp');if(rp)rp.checked=(drd.sources||[]).indexOf('rp')>=0;
+  var opp=document.getElementById('drd-m-opp');if(opp)opp.value=drd.opp||'';
+  var tax=document.getElementById('drd-m-tax');if(tax)tax.value=drd.tax||'YES';
+  var dt=document.getElementById('drd-m-date');if(dt)dt.value=drd.emailedDate?'':'';//donation date not stored separately
+  var em=document.getElementById('drd-m-emailed');if(em)em.value=drd.emailedDate||'';
+  (drd.quantities||[]).forEach(function(q,i){
+    var el=document.getElementById('drd-m-qty-'+i);
+    if(el&&q) el.value=q;
+  });
+  (drd.otherItems||[]).forEach(function(oi){
+    drdModalAddOtherRow();
+    var names=document.querySelectorAll('.drd-m-other-name');
+    var qtys=document.querySelectorAll('.drd-m-other-qty');
+    if(names.length){names[names.length-1].value=oi.name||'';}
+    if(qtys.length){qtys[qtys.length-1].value=oi.qty||0;}
+  });
+  drdModalRecalc();
+}
+
 var DRD_ITEMS = [
   {name:'Air Conditioner',val:100},{name:'Armchair',val:100},{name:'Armoire',val:200},
   {name:'Artificial Plant',val:50},{name:'Bag of Linens',val:25},{name:'Bar Fridge',val:100},
