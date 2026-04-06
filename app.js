@@ -8303,7 +8303,7 @@ async function printBinRental(jobId) {
     // ── BIN PLACEMENT (wrap text to stay on the lines) ──
     var placementText = side + (j.notes ? ' — ' + j.notes : '');
     var maxWidth = 310; // stop before Subtotal/HST/Total labels on the right
-    var lineHeight = 20;
+    var lineHeight = 30;
     var placementY = 673;
     if (placementText) {
       var words = placementText.split(' ');
@@ -8313,14 +8313,14 @@ async function printBinRental(jobId) {
         var testLine = line ? line + ' ' + words[wi] : words[wi];
         var testWidth = font.widthOfTextAtSize(testLine, 10);
         if (testWidth > maxWidth && line) {
-          drawText(line, 105, placementY + lineNum * lineHeight);
+          drawText(line, lineNum === 0 ? 105 : 80, placementY + lineNum * lineHeight);
           line = words[wi];
           lineNum++;
         } else {
           line = testLine;
         }
       }
-      if (line) drawText(line, 105, placementY + lineNum * lineHeight);
+      if (line) drawText(line, lineNum === 0 ? 105 : 80, placementY + lineNum * lineHeight);
     }
 
     // Generate and open
@@ -8403,13 +8403,14 @@ function _drawCustomerInfo(page, font, fontBold, H, j, clientPhones, email) {
 }
 
 // Item row baselines (yFromTop) — 9 rows per page, matching template horizontal lines
-var _FORM_ITEM_ROWS = [343, 377, 411, 446, 480, 513];
+var _FORM_ITEM_ROWS = [358, 392, 426, 461, 495, 528];
 
 // Draw items on a page; items is array of strings (descriptions from notes)
 // Pass showUnit=true for FB forms (4 cols), false for Junk Removal (3 cols)
-function _drawItemsOnPage(page, font, H, items, startIdx) {
+function _drawItemsOnPage(page, font, H, items, startIdx, yOffset) {
   var black = PDFLib.rgb(0,0,0);
   var drawn = 0;
+  var off = yOffset || 0;
   for (var k = 0; k < _FORM_ITEM_ROWS.length && (startIdx + drawn) < items.length; k++) {
     var desc = items[startIdx + drawn];
     // Truncate long descriptions to fit description column (~270pt wide)
@@ -8417,7 +8418,7 @@ function _drawItemsOnPage(page, font, H, items, startIdx) {
     while (desc.length > 0 && font.widthOfTextAtSize(desc, 10) > maxW) {
       desc = desc.slice(0, -1);
     }
-    page.drawText(desc, { x: 127, y: H - _FORM_ITEM_ROWS[k], size: 10, font: font, color: black });
+    page.drawText(desc, { x: 127, y: H - (_FORM_ITEM_ROWS[k] + off), size: 10, font: font, color: black });
     drawn++;
   }
   return drawn;
@@ -8445,9 +8446,9 @@ async function printJunkRemoval(jobId) {
     _drawCustomerInfo(page, font, fontBold, H, j, cd.clientPhones, cd.email);
 
     // Right column
-    dt(j.binSize || '', 410, 167);                    // Bin Size
-    dt(_fmtDate(j.date), 478, 190);                   // Junk Removal Date
-    dt(_fmtTime(j.time), 478, 208);                   // Junk Removal Time
+    dt(j.binSize || '', 410, 159);                    // Bin Size
+    dt(_fmtDate(j.date), 478, 182);                   // Junk Removal Date
+    dt(_fmtTime(j.time), 478, 200);                   // Junk Removal Time
 
     // Line total at top of quoted price row
     var price = parseFloat(j.price) || 0;
@@ -8465,9 +8466,9 @@ async function printJunkRemoval(jobId) {
       var copied = await pdfDoc.copyPages(srcDoc, [0]);
       var newPage = pdfDoc.addPage(copied[0]);
       _drawCustomerInfo(newPage, font, fontBold, H, j, cd.clientPhones, cd.email);
-      newPage.drawText(j.binSize || '', { x: 410, y: H - 167, size: 10, font: font, color: black });
-      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 190, size: 10, font: font, color: black });
-      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 208, size: 10, font: font, color: black });
+      newPage.drawText(j.binSize || '', { x: 410, y: H - 159, size: 10, font: font, color: black });
+      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 182, size: 10, font: font, color: black });
+      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 200, size: 10, font: font, color: black });
       idx += _drawItemsOnPage(newPage, font, H, items, idx);
     }
 
@@ -8508,11 +8509,11 @@ async function _printFbForm(jobId, kind) {
     function drawHeader(pg) {
       _drawCustomerInfo(pg, font, fontBold, H, j, cd.clientPhones, cd.email);
       if (isDropOff) {
-        pg.drawText(_fmtDate(j.date), { x: 432, y: H - 180, size: 10, font: font, color: black });
-        pg.drawText(_fmtTime(j.time), { x: 431, y: H - 199, size: 10, font: font, color: black });
+        pg.drawText(_fmtDate(j.date), { x: 432, y: H - 188, size: 10, font: font, color: black });
+        pg.drawText(_fmtTime(j.time), { x: 431, y: H - 207, size: 10, font: font, color: black });
       } else {
-        pg.drawText(_fmtDate(j.date), { x: 424, y: H - 175, size: 10, font: font, color: black });
-        pg.drawText(_fmtTime(j.time), { x: 389, y: H - 194, size: 10, font: font, color: black });
+        pg.drawText(_fmtDate(j.date), { x: 424, y: H - 183, size: 10, font: font, color: black });
+        pg.drawText(_fmtTime(j.time), { x: 389, y: H - 201, size: 10, font: font, color: black });
         if (j.payMethod) pg.drawText(j.payMethod, { x: 130, y: H - 598, size: 10, font: font, color: black });
       }
     }
@@ -8520,7 +8521,8 @@ async function _printFbForm(jobId, kind) {
     drawHeader(page);
 
     var items = _notesToItems(j.notes);
-    var printed = _drawItemsOnPage(page, font, H, items, 0);
+    var itemYOff = isDropOff ? 2 : 0;
+    var printed = _drawItemsOnPage(page, font, H, items, 0, itemYOff);
     var idx = printed;
     while (idx < items.length) {
       var srcBytes = Uint8Array.from(atob(b64), function(c){return c.charCodeAt(0);});
@@ -8528,7 +8530,7 @@ async function _printFbForm(jobId, kind) {
       var copied = await pdfDoc.copyPages(srcDoc, [0]);
       var newPage = pdfDoc.addPage(copied[0]);
       drawHeader(newPage);
-      idx += _drawItemsOnPage(newPage, font, H, items, idx);
+      idx += _drawItemsOnPage(newPage, font, H, items, idx, itemYOff);
     }
 
     var filledBytes = await pdfDoc.save();
