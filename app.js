@@ -465,7 +465,9 @@ function dbToJob(r) {
     binSize:    r.bin_size   || '',
     binDuration:r.bin_duration || '',
     binDropoff: r.bin_dropoff || '',
+    binDropoffTime: r.bin_dropoff_time || '',
     binPickup:  r.bin_pickup  || '',
+    binPickupTime: r.bin_pickup_time || '',
     binInstatus:r.bin_instatus || '',
     binSide:    r.bin_side   || '',
     binBid:     r.bin_bid    || '',
@@ -535,7 +537,9 @@ function jobToDb(j) {
     bin_size:    j.binSize     || '',
     bin_duration:j.binDuration || '',
     bin_dropoff: j.binDropoff  || null,
+    bin_dropoff_time: j.binDropoffTime || '',
     bin_pickup:  j.binPickup   || null,
+    bin_pickup_time: j.binPickupTime || '',
     bin_instatus:j.binInstatus || '',
     bin_side:    j.binSide     || '',
     bin_bid:     j.binBid      || '',
@@ -5536,7 +5540,7 @@ function newJob(){
   document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];document.getElementById('f-time').value='';
+  var now=new Date();document.getElementById('f-date').value=now.toISOString().split('T')[0];document.getElementById('f-time').value=now.toTimeString().slice(0,5);
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
   document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
@@ -5557,6 +5561,8 @@ function newJob(){
   var junkRecInt=document.getElementById('f-junk-recur-interval');if(junkRecInt)junkRecInt.value='biweekly';
   var junkRecExtra=document.getElementById('junk-recurring-extra');if(junkRecExtra)junkRecExtra.style.display='none';
   window._binPresetDays=0;
+  var bdtEl=document.getElementById('f-bdrop-time');if(bdtEl)bdtEl.value='';
+  var bptEl=document.getElementById('f-bpick-time');if(bptEl)bptEl.value='';
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   document.getElementById('f-bsize').value='';
@@ -5807,7 +5813,9 @@ function openEdit(id){
     if(j.service==='Bin Rental'){
       document.getElementById('f-bdur').value=j.binDuration||'';
       document.getElementById('f-bdrop').value=j.binDropoff||'';
+      document.getElementById('f-bdrop-time').value=j.binDropoffTime||'';
       document.getElementById('f-bpick').value=j.binPickup||'';
+      document.getElementById('f-bpick-time').value=j.binPickupTime||'';
       document.getElementById('f-bside').value=j.binSide||'';
       document.getElementById('f-binstatus').value=j.binInstatus||'';
       // Expand bin picker when editing
@@ -5874,7 +5882,6 @@ async function saveJob(e){
   if(!referral) { showErr('f-referral'); errs.push('Referral source is required.'); }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); }
   var timeVal=document.getElementById('f-time').value;
-  if(timeVal){var hr=parseInt(timeVal.split(':')[0]);if(hr<6||hr>=19){showErr('f-time');errs.push('Time must be between 6:00 AM and 7:00 PM.');}}
 
   if(errs.length) {
     if(banner) {
@@ -5952,7 +5959,9 @@ async function saveJob(e){
     job.binSize     = pickedBin ? pickedBin.size : (document.getElementById('f-bsize').value||'');
     job.binDuration = document.getElementById('f-bdur').value;
     job.binDropoff  = document.getElementById('f-bdrop').value;
+    job.binDropoffTime = document.getElementById('f-bdrop-time').value;
     job.binPickup   = document.getElementById('f-bpick').value;
+    job.binPickupTime = document.getElementById('f-bpick-time').value;
     job.binSide     = document.getElementById('f-bside').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
     job.materialType = document.getElementById('f-material-type').value;
@@ -6030,7 +6039,7 @@ async function saveJob(e){
   if(editId){
     var oldJob = jobs.find(function(j){return j.id===editId;});
     if(oldJob){
-      var trackFields = {service:'Service',status:'Status',name:'Name',phone:'Phone',address:'Address',city:'City',date:'Date',time:'Time',price:'Price',paid:'Paid',payMethod:'Pay Method',notes:'Notes',referral:'Referral',binSize:'Bin Size',binDuration:'Duration',binDropoff:'Drop-off',binPickup:'Pickup',binSide:'Driveway Side',binInstatus:'Bin Status',materialType:'Material',toolsNeeded:'Tools Needed',recurring:'Recurring',recurInterval:'Recur Interval'};
+      var trackFields = {service:'Service',status:'Status',name:'Name',phone:'Phone',address:'Address',city:'City',date:'Date',time:'Time',price:'Price',paid:'Paid',payMethod:'Pay Method',notes:'Notes',referral:'Referral',binSize:'Bin Size',binDuration:'Duration',binDropoff:'Drop-off',binDropoffTime:'Drop-off Time',binPickup:'Pickup',binPickupTime:'Pickup Time',binSide:'Driveway Side',binInstatus:'Bin Status',materialType:'Material',toolsNeeded:'Tools Needed',recurring:'Recurring',recurInterval:'Recur Interval'};
       Object.keys(trackFields).forEach(function(k){
         var oldVal = String(oldJob[k]||'');
         var newVal = String(job[k]||'');
@@ -6128,8 +6137,8 @@ async function openDetail(id){
     bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details'+(j.recurring?'&nbsp;<span style="font-size:11px;background:rgba(13,110,253,.15);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 8px">♻️ Recurring · '+recurLabel+'</span>':'')+'</div><div class="detail-grid">'
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
-      +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+'</span></div>'
-      +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+'</span></div>'
+      +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
+      +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' Side':'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
@@ -6663,8 +6672,8 @@ function convertQuoteToJob(quoteId){
   var addrParts=(q.address||'').split(',').map(function(p){return p.trim();});
   document.getElementById('f-addr').value=addrParts[0]||'';
   document.getElementById('f-city').value=q.city||(addrParts[1]||'');
-  document.getElementById('f-date').value=q.date||new Date().toISOString().split('T')[0];
-  document.getElementById('f-time').value=q.time||'';
+  var qnow=new Date();document.getElementById('f-date').value=qnow.toISOString().split('T')[0];
+  document.getElementById('f-time').value=qnow.toTimeString().slice(0,5);
   document.getElementById('f-price').value=q.price||'';
   document.getElementById('f-paid').value=q.paid||'Unpaid';
   document.getElementById('f-paymethod').value=q.payMethod||'';

@@ -1164,8 +1164,8 @@
           <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label>Date <span style="color:#dc3545">*</span></label><input id="f-date" type="date" oninput="clearErr('f-date')"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
-          <div class="form-group"><label>Time</label><input id="f-time" type="time" min="06:00" max="19:00"><div class="field-error-msg" id="err-f-time">Must be 6 AM – 7 PM.</div></div>
+          <div class="form-group"><label>Created Date</label><input id="f-date" type="date" readonly style="opacity:.7;pointer-events:none"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
+          <div class="form-group"><label>Created Time</label><input id="f-time" type="time" readonly style="opacity:.7;pointer-events:none"><div class="field-error-msg" id="err-f-time"></div></div>
         </div>
       </div>
 
@@ -1283,8 +1283,8 @@
 
         <!-- Dates row: Drop-off and Pickup side by side -->
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>Drop-off Date</label><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()"></div>
-          <div class="form-group"><label>Pickup Date</label><input id="f-bpick" type="date"></div>
+          <div class="form-group"><label>Drop-off Date</label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div></div>
+          <div class="form-group"><label>Pickup Date</label><div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div></div>
         </div>
 
         <!-- Duration + Quick presets inline -->
