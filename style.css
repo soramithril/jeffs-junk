@@ -639,6 +639,9 @@ textarea{resize:vertical;min-height:80px;}
 .extend-quick-btns button:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
 .extend-date-row{display:flex;align-items:center;gap:6px;}
 .extend-date-row input[type=date]{flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Inter',sans-serif;}
+input[type=date],input[type=time]{cursor:pointer;}
+input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{position:absolute;top:0;left:0;right:0;bottom:0;width:auto;height:auto;opacity:0;cursor:pointer;}
+input[type=date],input[type=time]{position:relative;}
 .extend-date-row button{padding:5px 12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;}
 .section-lbl{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
 
