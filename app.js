@@ -460,6 +460,7 @@ function dbToJob(r) {
     price:      r.price != null ? String(r.price) : '',
     paid:       r.paid       || 'Unpaid',
     notes:      r.notes      || '',
+    items:      r.items      || '',
     referral:   r.referral   || '',
     confirmed:  r.confirmed  || false,
     emailSent:  r.email_sent || false,
@@ -529,6 +530,7 @@ function jobToDb(j) {
     price:       j.price !== '' && j.price != null ? parseFloat(j.price) : null,
     paid:        j.paid        || 'Unpaid',
     notes:       j.notes       || '',
+    items:       j.items       || '',
     referral:    j.referral    || '',
     confirmed:   j.confirmed   || false,
     email_sent:  j.emailSent   || false,
@@ -5490,7 +5492,9 @@ function toggleBin(){
   var svc=document.getElementById('f-svc').value;
   var isBin=svc==='Bin Rental';
   var isJunk=svc==='Junk Removal';
+  var hasItems=isJunk||svc==='Furniture Delivery'||svc==='Furniture Pickup';
   document.getElementById('bin-extra').style.display=isBin?'block':'none';
+  document.getElementById('items-wrap').style.display=hasItems?'block':'none';
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
@@ -5513,7 +5517,7 @@ function newJob(){
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];document.getElementById('f-time').value='';
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
-  document.getElementById('f-notes').value='';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
+  document.getElementById('f-notes').value='';document.getElementById('f-items').value='';document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
   document.getElementById('f-tools').value='';
   document.getElementById('f-material-type').value='';
   document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
@@ -5749,6 +5753,9 @@ function openEdit(id){
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
     document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
+    document.getElementById('f-items').value=j.items||'';
+    var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
+    document.getElementById('items-wrap').style.display=hasItems?'block':'none';
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
     document.getElementById('tools-needed-wrap').style.display=(j.service==='Junk Removal')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
@@ -5881,6 +5888,7 @@ async function saveJob(e){
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
+    items:     document.getElementById('f-items').value.trim(),
     clientId:  cid || '',
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
@@ -8454,8 +8462,8 @@ async function printJunkRemoval(jobId) {
     var price = parseFloat(j.price) || 0;
     if (price > 0) dt('$' + price.toFixed(2), 525, 296);
 
-    // Items list from notes (rows of table)
-    var items = _notesToItems(j.notes);
+    // Items list (rows of table)
+    var items = _notesToItems(j.items);
     var printed = _drawItemsOnPage(page, font, H, items, 0);
 
     // Overflow pages if items > 9
@@ -8520,7 +8528,7 @@ async function _printFbForm(jobId, kind) {
 
     drawHeader(page);
 
-    var items = _notesToItems(j.notes);
+    var items = _notesToItems(j.items);
     var itemYOff = isDropOff ? 2 : 0;
     var printed = _drawItemsOnPage(page, font, H, items, 0, itemYOff);
     var idx = printed;
