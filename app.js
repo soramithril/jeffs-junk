@@ -8446,9 +8446,9 @@ async function printJunkRemoval(jobId) {
     _drawCustomerInfo(page, font, fontBold, H, j, cd.clientPhones, cd.email);
 
     // Right column
-    dt(j.binSize || '', 410, 159);                    // Bin Size
-    dt(_fmtDate(j.date), 478, 182);                   // Junk Removal Date
-    dt(_fmtTime(j.time), 478, 200);                   // Junk Removal Time
+    dt(j.binSize || '', 410, 156);                    // Bin Size
+    dt(_fmtDate(j.date), 478, 177);                   // Junk Removal Date
+    dt(_fmtTime(j.time), 478, 195);                   // Junk Removal Time
 
     // Line total at top of quoted price row
     var price = parseFloat(j.price) || 0;
@@ -8466,9 +8466,9 @@ async function printJunkRemoval(jobId) {
       var copied = await pdfDoc.copyPages(srcDoc, [0]);
       var newPage = pdfDoc.addPage(copied[0]);
       _drawCustomerInfo(newPage, font, fontBold, H, j, cd.clientPhones, cd.email);
-      newPage.drawText(j.binSize || '', { x: 410, y: H - 159, size: 10, font: font, color: black });
-      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 182, size: 10, font: font, color: black });
-      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 200, size: 10, font: font, color: black });
+      newPage.drawText(j.binSize || '', { x: 410, y: H - 156, size: 10, font: font, color: black });
+      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 177, size: 10, font: font, color: black });
+      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 195, size: 10, font: font, color: black });
       idx += _drawItemsOnPage(newPage, font, H, items, idx);
     }
 
@@ -8509,11 +8509,11 @@ async function _printFbForm(jobId, kind) {
     function drawHeader(pg) {
       _drawCustomerInfo(pg, font, fontBold, H, j, cd.clientPhones, cd.email);
       if (isDropOff) {
-        pg.drawText(_fmtDate(j.date), { x: 432, y: H - 188, size: 10, font: font, color: black });
-        pg.drawText(_fmtTime(j.time), { x: 431, y: H - 207, size: 10, font: font, color: black });
+        pg.drawText(_fmtDate(j.date), { x: 432, y: H - 189, size: 10, font: font, color: black });
+        pg.drawText(_fmtTime(j.time), { x: 431, y: H - 208, size: 10, font: font, color: black });
       } else {
-        pg.drawText(_fmtDate(j.date), { x: 424, y: H - 183, size: 10, font: font, color: black });
-        pg.drawText(_fmtTime(j.time), { x: 389, y: H - 201, size: 10, font: font, color: black });
+        pg.drawText(_fmtDate(j.date), { x: 424, y: H - 184, size: 10, font: font, color: black });
+        pg.drawText(_fmtTime(j.time), { x: 389, y: H - 202, size: 10, font: font, color: black });
         if (j.payMethod) pg.drawText(j.payMethod, { x: 130, y: H - 598, size: 10, font: font, color: black });
       }
     }
