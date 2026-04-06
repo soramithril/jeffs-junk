@@ -8445,9 +8445,9 @@ async function printJunkRemoval(jobId) {
     _drawCustomerInfo(page, font, fontBold, H, j, cd.clientPhones, cd.email);
 
     // Right column
-    dt(j.binSize || '', 410, 142);                    // Bin Size
-    dt(_fmtDate(j.date), 478, 162);                   // Junk Removal Date
-    dt(_fmtTime(j.time), 478, 180);                   // Junk Removal Time
+    dt(j.binSize || '', 410, 152);                    // Bin Size
+    dt(_fmtDate(j.date), 478, 172);                   // Junk Removal Date
+    dt(_fmtTime(j.time), 478, 190);                   // Junk Removal Time
 
     // Line total at top of quoted price row
     var price = parseFloat(j.price) || 0;
@@ -8465,9 +8465,9 @@ async function printJunkRemoval(jobId) {
       var copied = await pdfDoc.copyPages(srcDoc, [0]);
       var newPage = pdfDoc.addPage(copied[0]);
       _drawCustomerInfo(newPage, font, fontBold, H, j, cd.clientPhones, cd.email);
-      newPage.drawText(j.binSize || '', { x: 410, y: H - 142, size: 10, font: font, color: black });
-      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 162, size: 10, font: font, color: black });
-      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 180, size: 10, font: font, color: black });
+      newPage.drawText(j.binSize || '', { x: 410, y: H - 152, size: 10, font: font, color: black });
+      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 172, size: 10, font: font, color: black });
+      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 190, size: 10, font: font, color: black });
       idx += _drawItemsOnPage(newPage, font, H, items, idx);
     }
 
