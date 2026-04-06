@@ -118,20 +118,18 @@ function _showNextBinNotify(){
   if(n.city&&location) location+=' · '+n.city;
   sub.textContent=n.name+(location?' — '+location:'');
   overlay.dataset.jobId=n.jobId||'';
-  // Show assign bin button on drop when no bin assigned
+  // Show assign bin button on all drops
   var assignBtn=document.getElementById('bn-assign');
   if(assignBtn){
-    if(isDropped&&!n.binBid&&n.jobId){assignBtn.style.display='';assignBtn.onclick=function(){dismissBinNotify(true);openAssignBinPicker(n.jobId);};}
+    if(isDropped&&n.jobId){assignBtn.style.display='';assignBtn.onclick=function(){dismissBinNotify();openAssignBinPicker(n.jobId);};}
     else{assignBtn.style.display='none';}
   }
   overlay.classList.add('show');
 }
-function dismissBinNotify(skipOpen){
+function dismissBinNotify(){
   var overlay=document.getElementById('bin-notify-overlay');
   if(!overlay)return;
-  var jobId=overlay.dataset.jobId;
   overlay.classList.remove('show');
-  if(!skipOpen&&jobId)openDetail(jobId);
   setTimeout(function(){_showNextBinNotify();},300);
 }
 
