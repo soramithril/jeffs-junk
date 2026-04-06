@@ -5507,6 +5507,20 @@ function toggleBin(){
     if(bdrop&&!bdrop.value) bdrop.value=new Date().toISOString().split('T')[0];
     setTimeout(function(){initBinPicker('','');},50);
   }
+  // Auto-fill email for Furniture Delivery new jobs
+  if(svc==='Furniture Delivery' && !editId){
+    var emailInps=document.querySelectorAll('#f-emails-wrap .f-email-inp');
+    if(emailInps.length>0 && !emailInps[0].value){
+      emailInps[0].value='warehouse@redwoodparkcommunities.com';
+    } else if(emailInps.length===0){
+      // Add an email row with the default
+      addJobEmail();
+      setTimeout(function(){
+        var newInps=document.querySelectorAll('#f-emails-wrap .f-email-inp');
+        if(newInps.length>0) newInps[0].value='warehouse@redwoodparkcommunities.com';
+      },50);
+    }
+  }
 }
 function newJob(){
   editId=null;
@@ -6029,14 +6043,21 @@ async function saveJob(e){
     console.error(ex);
     _saveJobLock = false; return;
   }
+  var wasNewJob = !changeRows.length && !errs; // true if this was a create, not edit
+  var savedJobId = job.id;
   _saveJobLock = false;
   closeM('job-modal');
   loadJobsPage(jobsPage);
-  // Flash the new/updated row
-  setTimeout(function(){
-    var row=document.querySelector('tr.job-row[data-jid="'+job.id+'"]');
-    if(row){row.classList.add('row-flash');row.addEventListener('animationend',function(){row.classList.remove('row-flash');},{once:true});}
-  },120);
+  // If new job, open the detail modal so user can print
+  if(wasNewJob){
+    setTimeout(function(){ openDetail(savedJobId); },250);
+  } else {
+    // Flash the new/updated row
+    setTimeout(function(){
+      var row=document.querySelector('tr.job-row[data-jid="'+savedJobId+'"]');
+      if(row){row.classList.add('row-flash');row.addEventListener('animationend',function(){row.classList.remove('row-flash');},{once:true});}
+    },120);
+  }
 
   } finally { _saveJobLock = false; }
 }
@@ -6111,6 +6132,7 @@ async function openDetail(id){
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
     +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:#e67e22">'+j.toolsNeeded+'</p></div>':'')
+    +(j.service==='Furniture Pickup'?'<div id="drd-detail-section"></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:#e67e22;font-weight:600">'+j.editedBy+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
@@ -6127,6 +6149,7 @@ async function openDetail(id){
     +'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>'
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">🖨️ Print Form</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button>':'')
     +'</div>'
@@ -6170,9 +6193,291 @@ async function openDetail(id){
 
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
+  // Render embedded DRD form for Furniture Pickup jobs
+  if(j.service==='Furniture Pickup'){
+    setTimeout(function(){ renderDrdInDetail(j); },50);
+  }
 }
 
 function toggleJobHistory(jobId){
+
+// ── DRD embedded in Furniture Pickup job detail ──
+function _parseDrdData(j){
+  // Try to parse DRD data from items field
+  try{
+    if(j.items && j.items.charAt(0)==='{'){
+      var d=JSON.parse(j.items);
+      if(d.drd) return d.drd;
+    }
+  }catch(e){}
+  return null;
+}
+
+function renderDrdInDetail(j){
+  var wrap=document.getElementById('drd-detail-section');
+  if(!wrap) return;
+  var drd=_parseDrdData(j)||{};
+  var sources=drd.sources||['fb'];
+  var opp=drd.opp||'';
+  var tax=drd.tax||'YES';
+  var qtys=drd.quantities||[];
+  var otherItems=drd.otherItems||[];
+  var emailedDate=drd.emailedDate||'';
+  // Auto-fill from job
+  var donorName=j.name||'';
+  var donorAddr=j.address||'';
+  var donorCity=j.city||'';
+  var donorPostal=drd.postal||'';
+  var donorEmail='';
+  var donorPhone=j.phone||'';
+  var donorContact=drd.contact||'';
+  var donorContactInfo=drd.contactInfo||'';
+  // Try to get email from client
+  if(j.clientId){
+    var cl=clients.find(function(c){return c.cid===j.clientId;});
+    if(cl){
+      donorEmail=cl.email||'';
+      if(!donorPostal && cl.address){
+        var parts=cl.address.split(',');
+        if(parts.length>=4) donorPostal=parts[parts.length-2]?parts[parts.length-2].trim():'';
+      }
+    }
+  }
+  if(drd.email) donorEmail=drd.email;
+
+  var html='<div class="detail-section" style="border:2px solid rgba(168,85,247,.3);border-radius:12px;padding:16px;margin-top:12px;background:rgba(168,85,247,.03)">'
+    +'<div class="detail-section-title" style="color:#a855f7;font-size:15px;margin-bottom:12px">📋 Donation Receiving Document (DRD)</div>';
+
+  // Source & Header
+  html+='<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-fb"'+(sources.indexOf('fb')>=0?' checked':'')+' style="accent-color:#a855f7"> FB</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-jj"'+(sources.indexOf('jj')>=0?' checked':'')+' style="accent-color:#a855f7"> JJ</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-rp"'+(sources.indexOf('rp')>=0?' checked':'')+' style="accent-color:#a855f7"> RP</label>'
+    +'</div>';
+
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">FB Opportunity #</label><input type="text" id="drd-d-opp" class="form-input" value="'+_esc(opp)+'" placeholder="FB-2026-001" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Tax Receipt?</label><select id="drd-d-tax" class="form-input" style="font-size:12px;padding:6px 8px"><option value="YES"'+(tax==='YES'?' selected':'')+'>YES</option><option value="NO"'+(tax==='NO'?' selected':'')+'>NO</option></select></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Donation Date</label><input type="date" id="drd-d-date" class="form-input" value="'+(j.date||'')+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'</div>';
+
+  // Donor Info (auto-filled from job)
+  html+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">👤 Donor Information</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +'<div class="form-group" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Name</label><input type="text" id="drd-d-name" class="form-input" value="'+_esc(donorName)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Address</label><input type="text" id="drd-d-addr" class="form-input" value="'+_esc(donorAddr)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">City</label><input type="text" id="drd-d-city" class="form-input" value="'+_esc(donorCity)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Postal Code</label><input type="text" id="drd-d-postal" class="form-input" value="'+_esc(donorPostal)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Email</label><input type="email" id="drd-d-email" class="form-input" value="'+_esc(donorEmail)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Phone</label><input type="tel" id="drd-d-phone" class="form-input" value="'+_esc(donorPhone)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Contact Person</label><input type="text" id="drd-d-contact" class="form-input" value="'+_esc(donorContact)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Contact Info</label><input type="text" id="drd-d-contactinfo" class="form-input" value="'+_esc(donorContactInfo)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'</div></div>';
+
+  // Items Grid
+  html+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px">'
+    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">📦 Donated Items</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:10px" id="drd-d-items-grid">';
+  DRD_ITEMS.forEach(function(item,i){
+    var qty=qtys[i]||0;
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);gap:6px">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+      +'<div style="font-size:9px;color:var(--muted)">$'+item.val+'</div></div>'
+      +'<input type="number" id="drd-d-qty-'+i+'" min="0" value="'+(qty||'')+'" placeholder="0" style="width:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 4px;border-radius:4px;font-size:12px;font-weight:700;text-align:center" oninput="drdDetailRecalc()">'
+      +'</div>';
+  });
+  html+='</div>';
+  // Other items
+  html+='<div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>'
+    +'<div id="drd-d-other-rows">';
+  if(otherItems.length){
+    otherItems.forEach(function(oi,idx){
+      html+='<div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:4px">'
+        +'<input type="text" class="form-input drd-d-other-name" value="'+_esc(oi.name||'')+'" placeholder="Item" style="font-size:12px;padding:4px 8px">'
+        +'<input type="number" class="form-input drd-d-other-qty" value="'+(oi.qty||'')+'" placeholder="0" min="0" style="font-size:12px;padding:4px 8px;width:60px;text-align:center" oninput="drdDetailRecalc()">'
+        +'</div>';
+    });
+  } else {
+    html+='<div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:4px">'
+      +'<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px">'
+      +'<input type="number" class="form-input drd-d-other-qty" placeholder="0" min="0" style="font-size:12px;padding:4px 8px;width:60px;text-align:center" oninput="drdDetailRecalc()">'
+      +'</div>';
+  }
+  html+='</div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="drdDetailAddOtherRow()" style="margin-top:4px;font-size:11px">+ Add Row</button>'
+    +'</div>';
+
+  // Totals
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">'
+    +'<div style="display:flex;gap:30px">'
+    +'<div><div style="font-size:10px;text-transform:uppercase;color:var(--muted)">Items</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#a855f7;line-height:1" id="drd-d-total-items">0</div></div>'
+    +'<div><div style="font-size:10px;text-transform:uppercase;color:var(--muted)">Value</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#a855f7;line-height:1" id="drd-d-total-value">$0.00</div></div>'
+    +'</div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">Date DRD Emailed</label><input type="date" id="drd-d-emailed" class="form-input" value="'+_esc(emailedDate)+'" style="font-size:12px;padding:4px 8px"></div>'
+    +'</div>';
+
+  // Action buttons
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn btn-primary" onclick="saveDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center">💾 Save DRD Data</button>'
+    +'<button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>'
+    +'</div>';
+
+  html+='</div>';
+  wrap.innerHTML=html;
+  drdDetailRecalc();
+}
+
+function _esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function drdDetailAddOtherRow(){
+  var wrap=document.getElementById('drd-d-other-rows');if(!wrap)return;
+  var row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:4px';
+  row.innerHTML='<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px">'
+    +'<input type="number" class="form-input drd-d-other-qty" placeholder="0" min="0" style="font-size:12px;padding:4px 8px;width:60px;text-align:center" oninput="drdDetailRecalc()">';
+  wrap.appendChild(row);
+}
+
+function drdDetailRecalc(){
+  var totalItems=0,totalVal=0;
+  DRD_ITEMS.forEach(function(item,i){
+    var el=document.getElementById('drd-d-qty-'+i);
+    var qty=el?(parseInt(el.value)||0):0;
+    totalItems+=qty; totalVal+=qty*item.val;
+  });
+  document.querySelectorAll('.drd-d-other-qty').forEach(function(el){totalItems+=parseInt(el.value)||0;});
+  var ti=document.getElementById('drd-d-total-items');
+  var tv=document.getElementById('drd-d-total-value');
+  if(ti)ti.textContent=totalItems;
+  if(tv)tv.textContent='$'+totalVal.toFixed(2);
+}
+
+function _collectDrdFromDetail(){
+  var sources=[];
+  if(document.getElementById('drd-d-src-fb')&&document.getElementById('drd-d-src-fb').checked) sources.push('fb');
+  if(document.getElementById('drd-d-src-jj')&&document.getElementById('drd-d-src-jj').checked) sources.push('jj');
+  if(document.getElementById('drd-d-src-rp')&&document.getElementById('drd-d-src-rp').checked) sources.push('rp');
+  var quantities=[];
+  DRD_ITEMS.forEach(function(_,i){
+    var el=document.getElementById('drd-d-qty-'+i);
+    quantities.push(el?(parseInt(el.value)||0):0);
+  });
+  var otherItems=[];
+  var names=document.querySelectorAll('.drd-d-other-name');
+  var qtys=document.querySelectorAll('.drd-d-other-qty');
+  for(var i=0;i<names.length;i++){
+    var n=names[i].value.trim();
+    var q=parseInt(qtys[i]?qtys[i].value:0)||0;
+    if(n||q) otherItems.push({name:n,qty:q});
+  }
+  return {
+    sources:sources,
+    opp:(document.getElementById('drd-d-opp')||{}).value||'',
+    tax:(document.getElementById('drd-d-tax')||{}).value||'YES',
+    quantities:quantities,
+    otherItems:otherItems,
+    emailedDate:(document.getElementById('drd-d-emailed')||{}).value||'',
+    postal:(document.getElementById('drd-d-postal')||{}).value||'',
+    email:(document.getElementById('drd-d-email')||{}).value||'',
+    contact:(document.getElementById('drd-d-contact')||{}).value||'',
+    contactInfo:(document.getElementById('drd-d-contactinfo')||{}).value||''
+  };
+}
+
+async function saveDrdForJob(jobId){
+  var j=jobs.find(function(jj){return jj.id===jobId;});
+  if(!j){toast('Job not found','error');return;}
+  var drdData=_collectDrdFromDetail();
+  j.items=JSON.stringify({drd:drdData});
+  await patchJob(jobId,{items:j.items});
+  toast('DRD data saved for '+jobId+'!');
+}
+
+async function printDrdForJob(jobId){
+  var j=jobs.find(function(jj){return jj.id===jobId;});
+  if(!j){toast('Job not found','error');return;}
+  // Collect current DRD form values
+  var drdData=_collectDrdFromDetail();
+  try{
+    var pdfBytes=Uint8Array.from(atob(DRD_FORM_B64),function(c){return c.charCodeAt(0);});
+    var pdfDoc=await PDFLib.PDFDocument.load(pdfBytes);
+    var form=pdfDoc.getForm();
+    function setField(name,value){try{if(!value&&value!==0)return;form.getTextField(name).setText(String(value));}catch(e){}}
+    function checkBox(name){try{form.getCheckBox(name).check();}catch(e){}}
+    // Sources
+    if(drdData.sources.indexOf('fb')>=0)checkBox('Untitled1');
+    if(drdData.sources.indexOf('jj')>=0)checkBox('Untitled2');
+    if(drdData.sources.indexOf('rp')>=0)checkBox('Untitled3');
+    // Header
+    setField('Untitled4',drdData.opp);
+    setField('Untitled5',drdData.tax);
+    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'');
+    // Donor
+    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'');
+    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'');
+    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'');
+    setField('Untitled10',drdData.postal);
+    setField('Untitled12',drdData.email);
+    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'');
+    setField('Untitled14',drdData.contact);
+    setField('Untitled15',drdData.contactInfo);
+    // Item quantities - same field mapping as original drdDownloadPDF
+    var QTY_FIELDS=[
+      'Untitled18','Untitled19','Untitled20','Untitled21','Untitled22',
+      'Untitled23','Untitled24','Untitled25','Untitled26','Untitled27',
+      'Untitled28','Untitled29','Untitled30','Untitled31','Untitled32',
+      'Untitled33','Untitled34','Untitled35','Untitled36','Untitled37',
+      'Untitled38','Untitled39','Untitled40',
+      'Untitled90','Untitled89','Untitled88','Untitled87','Untitled86',
+      'Untitled85','Untitled84','Untitled83','Untitled82','Untitled81',
+      'Untitled80','Untitled79','Untitled78','Untitled77','Untitled76',
+      'Untitled75','Untitled74','Untitled73','Untitled72','Untitled71',
+      'Untitled70','Untitled69','Untitled45',
+      'Untitled68','Untitled67','Untitled66','Untitled65','Untitled64',
+      'Untitled63','Untitled62','Untitled61','Untitled60','Untitled59',
+      'Untitled58','Untitled57','Untitled56','Untitled55','Untitled54',
+      'Untitled53','Untitled52','Untitled51','Untitled50','Untitled49',
+      'Untitled48','Untitled47','Untitled46',
+      'Untitled91','Untitled92','Untitled93','Untitled94'
+    ];
+    for(var i=0;i<DRD_ITEMS.length&&i<QTY_FIELDS.length;i++){
+      var qty=drdData.quantities[i]||0;
+      if(qty>0)setField(QTY_FIELDS[i],String(qty));
+    }
+    // Other items
+    var OTHER_NAME_FIELDS=['Untitled130','Untitled131','Untitled132','Untitled133','Untitled134','Untitled135','Untitled136','Untitled137','Untitled138','Untitled139','Untitled140','Untitled141','Untitled142','Untitled143','Untitled144','Untitled145','Untitled146'];
+    var OTHER_QTY_FIELDS=['Untitled95','Untitled96','Untitled97','Untitled98','Untitled99','Untitled100','Untitled101','Untitled102','Untitled103','Untitled104','Untitled105','Untitled106','Untitled107','Untitled108','Untitled109','Untitled110','Untitled111'];
+    var oi=0;
+    drdData.otherItems.forEach(function(item){
+      if(oi>=OTHER_NAME_FIELDS.length)return;
+      if(item.name||item.qty>0){
+        setField(OTHER_NAME_FIELDS[oi],item.name);
+        if(item.qty>0)setField(OTHER_QTY_FIELDS[oi],String(item.qty));
+        oi++;
+      }
+    });
+    // Totals
+    var totalItems=0,totalVal=0;
+    DRD_ITEMS.forEach(function(item,idx){var q=drdData.quantities[idx]||0;totalItems+=q;totalVal+=q*item.val;});
+    drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;});
+    setField('Untitled41',drdData.emailedDate||'');
+    setField('Untitled42',String(totalItems));
+    setField('Untitled43',totalVal.toFixed(2));
+    // Flatten and open
+    form.flatten();
+    var filledBytes=await pdfDoc.save();
+    var blob=new Blob([filledBytes],{type:'application/pdf'});
+    window.open(URL.createObjectURL(blob),'_blank');
+    toast('DRD form generated for '+jobId+'!');
+  }catch(err){
+    console.error('DRD PDF error:',err);
+    toast('Error generating DRD: '+err.message,'error');
+  }
+}
+
+
   var wrap = document.getElementById('job-history-'+jobId);
   var toggle = document.getElementById('history-toggle-'+jobId);
   if(!wrap) return;
@@ -8441,7 +8746,7 @@ async function printJunkRemoval(jobId) {
   var j = null;
   jobs.forEach(function(jj){ if (jj.id === jobId) j = jj; });
   if (!j) { toast('Job not found'); return; }
-  if (j.service !== 'Junk Removal') { toast('Print only available for Junk Removal'); return; }
+  if (j.service !== 'Junk Removal' && j.service !== 'Junk Quote') { toast('Print only available for Junk Removal / Junk Quote'); return; }
   try {
     var pdfBytes = Uint8Array.from(atob(JUNK_REMOVAL_PDF_B64), function(c){return c.charCodeAt(0);});
     var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
@@ -8496,6 +8801,8 @@ async function printJunkRemoval(jobId) {
     toast('Error generating PDF: ' + err.message);
   }
 }
+
+async function printJunkQuote(jobId) { return printJunkRemoval(jobId); }
 
 // ── Shared FB Form Print (Drop Off / Pick Up) ──
 async function _printFbForm(jobId, kind) {
