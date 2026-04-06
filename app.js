@@ -8703,7 +8703,7 @@ async function printBinRental(jobId) {
 
     // ── LEFT COLUMN: Customer Info ──
     drawText(j.name, 55, 112);
-    drawText(street, 65, 132);
+    drawText(street + (city ? ', ' + city : ''), 65, 132);
     // Find home phone by type
     var homePhone = clientPhones.find(function(p) { return p && p.type === 'home'; });
     if (homePhone) drawText(homePhone.num, 65, 152);
@@ -8833,7 +8833,8 @@ function _drawCustomerInfo(page, font, fontBold, H, j, clientPhones, email) {
     page.drawText(String(text), { x: x, y: H - yFromTop, size: size || 10, font: font, color: black });
   }
   dt(j.name, 55, 112);
-  dt(j.address || '', 65, 132);
+  var addrWithCity = (j.address || '') + (j.city ? ', ' + j.city : '');
+  dt(addrWithCity, 65, 132);
   var homePhone = clientPhones.find(function(p){return p && p.type === 'home';});
   if (homePhone) dt(homePhone.num, 65, 152);
   var cellPhone = clientPhones.find(function(p){return p && (p.type === 'cell' || !p.type);});
