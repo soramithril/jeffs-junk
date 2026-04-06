@@ -1198,6 +1198,10 @@ function _jobEmailRow(val){
 function addJobName(){document.getElementById('f-names-wrap').insertAdjacentHTML('beforeend',_jobNameRow(''));}
 function addJobPhone(){document.getElementById('f-phones-wrap').insertAdjacentHTML('beforeend',_jobPhoneRow('','','cell'));}
 function addJobEmail(){document.getElementById('f-emails-wrap').insertAdjacentHTML('beforeend',_jobEmailRow(''));}
+function _jobItemRow(val){
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-item-inp" placeholder="e.g. Couch, Dining table, Box of books" value="'+(val||'').replace(/"/g,'&quot;')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+}
+function addJobItem(){document.getElementById('f-items-wrap').insertAdjacentHTML('beforeend',_jobItemRow(''));var rows=document.querySelectorAll('.f-item-inp');if(rows.length)rows[rows.length-1].focus();}
 
 function openAddClient(){
   try{
@@ -5517,7 +5521,7 @@ function newJob(){
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];document.getElementById('f-time').value='';
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
-  document.getElementById('f-notes').value='';document.getElementById('f-items').value='';document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
+  document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
   document.getElementById('f-tools').value='';
   document.getElementById('f-material-type').value='';
   document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
@@ -5753,7 +5757,8 @@ function openEdit(id){
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
     document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
-    document.getElementById('f-items').value=j.items||'';
+    var itemLines=(j.items||'').split(/\r?\n/).filter(function(s){return s.trim().length>0;});
+    document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s.trim());}).join(''):_jobItemRow('');
     var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
     document.getElementById('items-wrap').style.display=hasItems?'block':'none';
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
@@ -5888,7 +5893,7 @@ async function saveJob(e){
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral,
     notes:     document.getElementById('f-notes').value.trim(),
-    items:     document.getElementById('f-items').value.trim(),
+    items:     [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
