@@ -3816,6 +3816,7 @@ function renderClientsList(list) {
       +'<div class="client-avatar">'+initials+'</div>'
       +'<div class="client-info">'
       +'<div class="client-name">'+name+'</div>'
+      +(row.businessName?'<div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:1px">🏢 '+row.businessName+'</div>':'')
       +'<div class="client-meta">'+(function(){
         var phones=(row.phones||[]).filter(function(p){return p&&p.num;});
         if(!phones.length&&row.phone) phones=[{num:row.phone,ext:'',type:'cell'}];
