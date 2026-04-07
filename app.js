@@ -5886,7 +5886,7 @@ function openEdit(id){
     try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
     if(j.service==='Furniture Pickup' && drdData){
       document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');
-      document.getElementById('items-wrap').style.display='none';
+      document.getElementById('items-wrap').style.display='block';
     } else {
       var rawItems=(drdData?'':(j.items||''));
       var itemLines=rawItems.split(/\r?\n/).filter(function(s){return s.trim().length>0;});
@@ -7756,12 +7756,34 @@ function drdModalRecalc(){
   otherQtys.forEach(function(el){totalItems+=(parseInt(el.value)||0);});
   var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent=totalItems;
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
+  _syncDrdToJobItems();
+}
+function _syncDrdToJobItems(){
+  var lines=[];
+  DRD_ITEMS.forEach(function(item,i){
+    var el=document.getElementById('drd-m-qty-'+i);
+    var q=el?(parseInt(el.value)||0):0;
+    if(q>0) lines.push(item.name+(q>1?' x'+q:''));
+  });
+  var names=document.querySelectorAll('.drd-m-other-name');
+  var qtys=document.querySelectorAll('.drd-m-other-qty');
+  for(var i=0;i<names.length;i++){
+    var n=names[i].value.trim();
+    var q=parseInt(qtys[i]?qtys[i].value:0)||0;
+    if(n) lines.push(n+(q>1?' x'+q:''));
+  }
+  var wrap=document.getElementById('f-items-wrap');
+  if(!wrap)return;
+  if(lines.length){
+    wrap.innerHTML=lines.map(function(l){return _jobItemRow(l);}).join('');
+    document.getElementById('items-wrap').style.display='block';
+  }
 }
 function drdModalAddOtherRow(){
   var wrap=document.getElementById('drd-m-other-rows');if(!wrap)return;
   var row=document.createElement('div');
   row.style.cssText='display:flex;gap:8px;margin-bottom:4px;align-items:center';
-  row.innerHTML='<input type="text" class="drd-m-other-name form-input" placeholder="Item name" style="flex:1;font-size:12px;padding:5px 8px">'
+  row.innerHTML='<input type="text" class="drd-m-other-name form-input" placeholder="Item name" style="flex:1;font-size:12px;padding:5px 8px" oninput="drdModalRecalc()">'
     +'<input type="number" class="drd-m-other-qty" min="0" placeholder="Qty" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
     +'<button type="button" onclick="this.parentElement.remove();drdModalRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
