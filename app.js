@@ -1551,6 +1551,10 @@ function animateView(viewEl){
 }
 
 var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','analytics','utilization','pricing','advisor'];
+var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
+function canAccessAnalytics(){
+  return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
+}
 function toggleNavSection(id){
   var sec=document.getElementById(id);if(!sec)return;
   var arrow=document.getElementById(id+'-arrow');
@@ -1559,6 +1563,10 @@ function toggleNavSection(id){
   if(arrow)arrow.style.transform=open?'rotate(-90deg)':'rotate(90deg)';
 }
 function go(name){
+  var restricted=['analytics','utilization','pricing','advisor'];
+  if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
+    toast('⚠ You don\'t have access to this page.');return;
+  }
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var el=document.getElementById('view-'+name);
@@ -4548,6 +4556,56 @@ function delta(curr,prev){
   var pct=Math.round((curr-prev)/prev*100),up=pct>=0;
   return'<span style="font-size:12px;font-weight:700;color:'+(up?'#22c55e':'#dc3545')+';margin-left:6px">'+(up?'▲':'▼')+' '+(up?'+':'')+pct+'%</span>';
 }
+async function renderYoyTracker(){
+  var wrap=document.getElementById('yoy-tracker');
+  if(!wrap)return;
+  var now=new Date();
+  var y=now.getFullYear(), m=now.getMonth();
+  var thisStart=new Date(y,m,1).toISOString().split('T')[0];
+  var thisEnd=new Date(y,m+1,0).toISOString().split('T')[0];
+  var lastStart=new Date(y-1,m,1).toISOString().split('T')[0];
+  var lastEnd=new Date(y-1,m+1,0).toISOString().split('T')[0];
+  var monthName=now.toLocaleString('default',{month:'long'});
+
+  var rThis=await db.from('jobs').select('service').neq('status','Cancelled')
+    .gte('date',thisStart).lte('date',thisEnd);
+  var rLast=await db.from('jobs').select('service').neq('status','Cancelled')
+    .gte('date',lastStart).lte('date',lastEnd);
+  var thisJobs=rThis.data||[];var lastJobs=rLast.data||[];
+
+  function count(arr,svc){return arr.filter(function(j){return j.service===svc;}).length;}
+  var services=[
+    {key:'Bin Rental',label:'Bins',icon:'🚛',color:'#e67e22'},
+    {key:'Junk Removal',label:'Junk',icon:'🗑️',color:'#4ade80'},
+    {key:'Furniture Pickup',label:'Furniture',icon:'🛋️',color:'#dc3545'}
+  ];
+
+  wrap.innerHTML=services.map(function(s){
+    var cur=count(thisJobs,s.key);
+    var target=count(lastJobs,s.key);
+    var pct=target>0?Math.min(Math.round(cur/target*100),100):((cur>0)?100:0);
+    var beat=cur>=target&&target>0;
+    var diff=cur-target;
+    var diffLabel=target===0?(cur>0?cur+' booked':'No data last year'):(diff>=0?'<span style="color:#22c55e;font-weight:700">+'+diff+' ahead</span>':'<span style="color:#dc3545;font-weight:700">'+Math.abs(diff)+' to go</span>');
+    var barColor=beat?'#22c55e':s.color;
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:160px;flex:1;max-width:220px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+        +'<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+s.icon+' '+s.label+'</span>'
+        +(beat?'<span style="font-size:10px;background:rgba(34,197,94,.15);color:#22c55e;border-radius:4px;padding:1px 6px;font-weight:700">BEAT!</span>':'')
+      +'</div>'
+      +'<div style="display:flex;align-items:baseline;gap:4px;margin-bottom:4px">'
+        +'<span style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--text);line-height:1">'+cur+'</span>'
+        +'<span style="font-size:12px;color:var(--muted)">/ '+target+'</span>'
+        +'<span style="font-size:10px;color:var(--muted)">last '+monthName+'</span>'
+      +'</div>'
+      +'<div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:4px">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:3px;transition:width .6s ease"></div>'
+      +'</div>'
+      +'<div style="font-size:11px">'+diffLabel+'</div>'
+    +'</div>';
+  }).join('');
+}
+
 async function renderAnalytics(){
   var dates=getAnalyticsDates();
   var pageSize=1000;
@@ -4829,6 +4887,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   }
 }
 function initAnalytics(){
+  renderYoyTracker();
   setAnalyticsPeriod('week',document.getElementById('af-week'));
 }
 // ─── BIN MAP ───
@@ -7149,6 +7208,7 @@ function onLoginSuccess() {
       currentUser.displayName = r.data.username;
     }
     applyDeleteVisibility();
+    applyAnalyticsVisibility();
   });
   document.getElementById('login-screen').style.display = 'none';
   var lbl = document.getElementById('admin-btn-label');
@@ -7162,6 +7222,16 @@ function applyDeleteVisibility() {
   document.querySelectorAll('.delete-only').forEach(function(el) {
     el.style.display = canDelete ? '' : 'none';
   });
+}
+function applyAnalyticsVisibility(){
+  var nav=document.getElementById('nav-analytics');
+  var navLabel=nav?nav.previousElementSibling:null;
+  if(canAccessAnalytics()){
+    if(navLabel)navLabel.style.display='';
+  } else {
+    if(nav)nav.style.display='none';
+    if(navLabel)navLabel.style.display='none';
+  }
 }
 
 function handleAdminBtn() {
