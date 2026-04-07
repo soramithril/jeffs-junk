@@ -1566,7 +1566,7 @@ function toggleNavSection(id){
   if(arrow)arrow.style.transform=open?'rotate(-90deg)':'rotate(90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','pricing','advisor'];
+  var restricted=['analytics','utilization','advisor'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2305,7 +2305,7 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
-    db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').or('bin_pickup.lt.'+todayS+',bin_pickup.is.null').eq('bin_instatus','dropped'),
+    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled').or('bin_pickup.lt.'+todayS+',bin_pickup.is.null'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
@@ -5849,7 +5849,12 @@ function openEdit(id){
     document.getElementById('f-date').value=j.date||'';document.getElementById('f-time').value=j.time||'';
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
-    document.getElementById('f-referral').value=j.referral||'';document.getElementById('f-notes').value=j.notes||'';
+    var refSel=document.getElementById('f-referral');
+    var refVal=j.referral||'';
+    refSel.value=refVal;
+    // If the saved referral doesn't match any dropdown option, add it so it's preserved
+    if(refVal&&refSel.value!==refVal){var opt=document.createElement('option');opt.value=refVal;opt.textContent=refVal;refSel.appendChild(opt);refSel.value=refVal;}
+    document.getElementById('f-notes').value=j.notes||'';
     var drdData=null;
     try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
     if(j.service==='Furniture Pickup' && drdData){
@@ -5948,7 +5953,7 @@ async function saveJob(e){
   if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); }
   if(!date)     { showErr('f-date');     errs.push('Date is required.'); }
   if(!city)     { showErr('f-city');     errs.push('City is required (e.g. Barrie).'); }
-  if(!referral) { showErr('f-referral'); errs.push('Referral source is required.'); }
+  if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); }
   var timeVal=document.getElementById('f-time').value;
 
@@ -6007,7 +6012,7 @@ async function saveJob(e){
     price:     document.getElementById('f-price').value,
     paid:      document.getElementById('f-paid').value || 'Unpaid',
     payMethod: document.getElementById('f-paymethod').value,
-    referral:  referral,
+    referral:  referral || (editId ? (jobs.find(function(j){return j.id===editId;})||{}).referral || '' : ''),
     notes:     document.getElementById('f-notes').value.trim(),
     items:     svc==='Furniture Pickup' ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
