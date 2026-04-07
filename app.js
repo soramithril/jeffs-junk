@@ -5650,13 +5650,21 @@ function toggleBin(){
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
-  // Make time field editable for Junk Quote
+  // Make date+time fields editable for Junk Quote and Junk Removal
+  var needsSchedule=svc==='Junk Quote'||svc==='Junk Removal';
+  var dateEl=document.getElementById('f-date');
   var timeEl=document.getElementById('f-time');
+  if(dateEl){
+    dateEl.readOnly=!needsSchedule;
+    dateEl.style.opacity=needsSchedule?'1':'.7';
+    dateEl.style.pointerEvents=needsSchedule?'auto':'none';
+    dateEl.previousElementSibling.textContent=needsSchedule?'Scheduled Date':'Created Date';
+  }
   if(timeEl){
-    var editable=svc==='Junk Quote';
-    timeEl.readOnly=!editable;
-    timeEl.style.opacity=editable?'1':'.7';
-    timeEl.style.pointerEvents=editable?'auto':'none';
+    timeEl.readOnly=!needsSchedule;
+    timeEl.style.opacity=needsSchedule?'1':'.7';
+    timeEl.style.pointerEvents=needsSchedule?'auto':'none';
+    timeEl.previousElementSibling.textContent=needsSchedule?'Scheduled Time':'Created Time';
   }
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
   var fbWrap=document.getElementById('fb-schedule-wrap');
