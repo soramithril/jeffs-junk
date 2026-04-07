@@ -1209,7 +1209,52 @@ function addJobName(){document.getElementById('f-names-wrap').insertAdjacentHTML
 function addJobPhone(){document.getElementById('f-phones-wrap').insertAdjacentHTML('beforeend',_jobPhoneRow('','','cell'));}
 function addJobEmail(){document.getElementById('f-emails-wrap').insertAdjacentHTML('beforeend',_jobEmailRow(''));}
 function _jobItemRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-item-inp" placeholder="e.g. Couch, Dining table, Box of books" value="'+(val||'').replace(/"/g,'&quot;')+'" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addJobItem();}" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px;position:relative"><input type="text" class="f-item-inp" placeholder="e.g. Couch, Dining table, Box of books" value="'+(val||'').replace(/"/g,'&quot;')+'" onkeydown="_itemInpKey(event)" oninput="_itemInpAC(this)" onfocus="_itemInpAC(this)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+}
+function _itemInpKey(e){
+  var dd=e.target.parentNode.querySelector('.item-ac-dd');
+  if(e.key==='Enter'){
+    e.preventDefault();
+    // If dropdown open, pick highlighted or first match
+    if(dd&&dd.style.display!=='none'){
+      var active=dd.querySelector('.item-ac-active')||dd.querySelector('.item-ac-opt');
+      if(active){e.target.value=active.textContent;dd.style.display='none';addJobItem();return;}
+    }
+    addJobItem();return;
+  }
+  if(dd&&dd.style.display!=='none'){
+    var opts=[].slice.call(dd.querySelectorAll('.item-ac-opt'));
+    var idx=opts.findIndex(function(o){return o.classList.contains('item-ac-active');});
+    if(e.key==='ArrowDown'){e.preventDefault();opts.forEach(function(o){o.classList.remove('item-ac-active');});var ni=idx<opts.length-1?idx+1:0;opts[ni].classList.add('item-ac-active');opts[ni].scrollIntoView({block:'nearest'});}
+    if(e.key==='ArrowUp'){e.preventDefault();opts.forEach(function(o){o.classList.remove('item-ac-active');});var pi=idx>0?idx-1:opts.length-1;opts[pi].classList.add('item-ac-active');opts[pi].scrollIntoView({block:'nearest'});}
+    if(e.key==='Tab'&&opts.length){e.preventDefault();var sel=dd.querySelector('.item-ac-active')||opts[0];e.target.value=sel.textContent;dd.style.display='none';}
+    if(e.key==='Escape'){dd.style.display='none';}
+  }
+}
+function _itemInpAC(inp){
+  var val=inp.value.trim().toLowerCase();
+  var dd=inp.parentNode.querySelector('.item-ac-dd');
+  if(!dd){
+    dd=document.createElement('div');dd.className='item-ac-dd';
+    dd.style.cssText='position:absolute;top:100%;left:0;right:40px;z-index:999;background:var(--surface2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.15)';
+    inp.parentNode.appendChild(dd);
+  }
+  if(!val||val.length<1){dd.style.display='none';return;}
+  if(typeof DRD_ITEMS==='undefined'){dd.style.display='none';return;}
+  var matches=DRD_ITEMS.filter(function(item){return item.name.toLowerCase().indexOf(val)>=0;}).slice(0,8);
+  if(!matches.length){dd.style.display='none';return;}
+  dd.innerHTML=matches.map(function(m,i){
+    return '<div class="item-ac-opt'+(i===0?' item-ac-active':'')+'" onmousedown="_itemAcPick(this)" style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);font-family:\'DM Sans\',sans-serif;border-bottom:1px solid var(--border)" onmouseover="this.parentNode.querySelectorAll(\'.item-ac-opt\').forEach(function(o){o.classList.remove(\'item-ac-active\')});this.classList.add(\'item-ac-active\')">'+m.name+'</div>';
+  }).join('');
+  dd.style.display='block';
+  // Close dropdown on blur
+  inp.onblur=function(){setTimeout(function(){dd.style.display='none';},150);};
+}
+function _itemAcPick(opt){
+  var inp=opt.closest('.item-ac-dd').parentNode.querySelector('.f-item-inp');
+  inp.value=opt.textContent;
+  opt.closest('.item-ac-dd').style.display='none';
+  inp.focus();
 }
 function addJobItem(){document.getElementById('f-items-wrap').insertAdjacentHTML('beforeend',_jobItemRow(''));var rows=document.querySelectorAll('.f-item-inp');if(rows.length)rows[rows.length-1].focus();}
 
