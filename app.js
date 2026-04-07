@@ -5822,9 +5822,16 @@ function openEdit(id){
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
     document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'';
-    document.getElementById('f-names-wrap').innerHTML=_jobNameRow(j.name||'');
-    document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow(j.phone||'','','cell');
-    document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
+    // Populate names from job's names array, falling back to single name
+    var editNames=j.names&&j.names.length?j.names:[j.name||''];
+    document.getElementById('f-names-wrap').innerHTML=editNames.map(function(n){return _jobNameRow(n);}).join('')||_jobNameRow('');
+    // Populate phones from job's phones array, falling back to single phone
+    var editPhones=j.phones&&j.phones.length?j.phones:(j.phone?[{num:j.phone,ext:'',type:'cell'}]:[]);
+    document.getElementById('f-phones-wrap').innerHTML=editPhones.length?editPhones.map(function(p){return _jobPhoneRow(p.num||p,p.ext||'',p.type||'cell');}).join(''):_jobPhoneRow('','','cell');
+    // Populate emails from job's emails array, then client, then empty
+    var editEmails=j.emails&&j.emails.length?j.emails:[];
+    if(!editEmails.length&&j.clientId){var ecl=clients.find(function(c){return c.cid===j.clientId;});if(ecl){editEmails=ecl.emails&&ecl.emails.length?ecl.emails:(ecl.email?[ecl.email]:[]);}}
+    document.getElementById('f-emails-wrap').innerHTML=editEmails.length?editEmails.map(function(e){return _jobEmailRow(e);}).join(''):_jobEmailRow('');
     // Extract just the street number+name from the full stored address string.
     // Stored format is "123 Main St, City, Province, Country" — split on first comma.
     // The dedicated j.city field is the authoritative city value.
