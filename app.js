@@ -2305,7 +2305,7 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
-    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').lt('bin_pickup',todayS).not('bin_pickup','is',null),
+    db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').or('bin_pickup.lt.'+todayS+',bin_pickup.is.null').eq('bin_instatus','dropped'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
@@ -2534,7 +2534,7 @@ async function renderDash(){
     ? overdueJobs.map(function(j){return'<div style="padding:8px 10px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:8px;background:rgba(220,53,69,.04);display:flex;align-items:center;gap:8px;">'
       +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
       +'<strong style="color:#dc3545">'+j.name+'</strong>'
-      +'<div style="font-size:12px;color:var(--muted);margin-top:1px;">Pickup was: '+fd(j.binPickup)+(j.binSize?' · '+j.binSize:'')+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:1px;">'+(j.binPickup?'Pickup was: '+fd(j.binPickup):'No pickup date set')+(j.binSize?' · '+j.binSize:'')+'</div>'
       +'</div>'
       +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>'
       +'</div>';}).join('')
