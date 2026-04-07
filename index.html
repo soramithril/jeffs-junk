@@ -1331,6 +1331,17 @@
           <div style="font-size:11px;color:var(--muted);margin-top:4px">When the job is marked done, you can quickly schedule the next visit.</div>
         </div>
       </div>
+      <!-- Junk Schedule (Quote / Removal) -->
+      <div id="junk-schedule-wrap" style="display:none;margin-top:16px;background:rgba(230,126,34,.08);border:1.5px solid rgba(230,126,34,.3);border-radius:12px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <span style="font-size:15px">📅</span>
+          <span id="junk-schedule-label" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e67e22">Job Schedule</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
+          <div class="form-group"><label id="junk-time-label">Job Time</label><input id="f-junk-time" type="time"></div>
+        </div>
+      </div>
       <!-- Furniture Bank Schedule (Delivery / Pickup) -->
       <div id="fb-schedule-wrap" style="display:none;margin-top:16px;background:rgba(220,53,69,.08);border:1.5px solid rgba(220,53,69,.3);border-radius:12px;padding:14px 16px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">

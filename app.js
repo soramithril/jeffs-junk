@@ -494,6 +494,8 @@ function dbToJob(r) {
     businessName: r.business_name || '',
     fbDate: r.fb_date || '',
     fbTime: r.fb_time || '',
+    junkDate: r.junk_date || '',
+    junkTime: r.junk_time || '',
   };
 }
 
@@ -568,6 +570,8 @@ function jobToDb(j) {
     business_name: j.businessName || '',
     fb_date: j.fbDate || null,
     fb_time: j.fbTime || '',
+    junk_date: j.junkDate || null,
+    junk_time: j.junkTime || '',
   };
 }
 
@@ -5650,21 +5654,17 @@ function toggleBin(){
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
-  // Make date+time fields editable for Junk Quote and Junk Removal
-  var needsSchedule=svc==='Junk Quote'||svc==='Junk Removal';
-  var dateEl=document.getElementById('f-date');
-  var timeEl=document.getElementById('f-time');
-  if(dateEl){
-    dateEl.readOnly=!needsSchedule;
-    dateEl.style.opacity=needsSchedule?'1':'.7';
-    dateEl.style.pointerEvents=needsSchedule?'auto':'none';
-    dateEl.previousElementSibling.textContent=needsSchedule?'Scheduled Date':'Created Date';
-  }
-  if(timeEl){
-    timeEl.readOnly=!needsSchedule;
-    timeEl.style.opacity=needsSchedule?'1':'.7';
-    timeEl.style.pointerEvents=needsSchedule?'auto':'none';
-    timeEl.previousElementSibling.textContent=needsSchedule?'Scheduled Time':'Created Time';
+  // Show junk schedule section for Junk Quote and Junk Removal
+  var junkSchedWrap=document.getElementById('junk-schedule-wrap');
+  if(junkSchedWrap){
+    var isJunkSched=svc==='Junk Quote'||svc==='Junk Removal';
+    junkSchedWrap.style.display=isJunkSched?'block':'none';
+    if(isJunkSched){
+      var isQuote=svc==='Junk Quote';
+      document.getElementById('junk-schedule-label').textContent=isQuote?'Quote Schedule':'Job Schedule';
+      document.getElementById('junk-date-label').textContent=isQuote?'Quote Date':'Job Date';
+      document.getElementById('junk-time-label').textContent=isQuote?'Quote Time':'Job Time';
+    }
   }
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
   var fbWrap=document.getElementById('fb-schedule-wrap');
@@ -5718,6 +5718,8 @@ function newJob(){
   document.getElementById('f-business-name').value='';
   document.getElementById('f-fb-date').value='';document.getElementById('f-fb-time').value='';
   document.getElementById('fb-schedule-wrap').style.display='none';
+  document.getElementById('f-junk-date').value='';document.getElementById('f-junk-time').value='';
+  document.getElementById('junk-schedule-wrap').style.display='none';
   document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   document.getElementById('f-tools').value='';
@@ -5970,6 +5972,15 @@ function openEdit(id){
     if(refVal&&refSel.value!==refVal){var opt=document.createElement('option');opt.value=refVal;opt.textContent=refVal;refSel.appendChild(opt);refSel.value=refVal;}
     document.getElementById('f-business-name').value=j.businessName||'';
     document.getElementById('f-fb-date').value=j.fbDate||'';document.getElementById('f-fb-time').value=j.fbTime||'';
+    document.getElementById('f-junk-date').value=j.junkDate||'';document.getElementById('f-junk-time').value=j.junkTime||'';
+    var isJunkSchedEdit=j.service==='Junk Quote'||j.service==='Junk Removal';
+    document.getElementById('junk-schedule-wrap').style.display=isJunkSchedEdit?'block':'none';
+    if(isJunkSchedEdit){
+      var isQEdit=j.service==='Junk Quote';
+      document.getElementById('junk-schedule-label').textContent=isQEdit?'Quote Schedule':'Job Schedule';
+      document.getElementById('junk-date-label').textContent=isQEdit?'Quote Date':'Job Date';
+      document.getElementById('junk-time-label').textContent=isQEdit?'Quote Time':'Job Time';
+    }
     var isFurnEdit=j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
     document.getElementById('fb-schedule-wrap').style.display=isFurnEdit?'block':'none';
     if(isFurnEdit){
@@ -6143,6 +6154,8 @@ async function saveJob(e){
     businessName: document.getElementById('f-business-name').value.trim(),
     fbDate: document.getElementById('f-fb-date').value,
     fbTime: document.getElementById('f-fb-time').value,
+    junkDate: document.getElementById('f-junk-date').value,
+    junkTime: document.getElementById('f-junk-time').value,
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
     recurInterval: svc==='Bin Rental' ? (document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '') : (svc==='Junk Removal' ? (document.getElementById('f-junk-recur-interval') ? document.getElementById('f-junk-recur-interval').value : '') : ''),
@@ -6369,6 +6382,7 @@ async function openDetail(id){
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div>'
     +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&(j.fbDate||j.fbTime)?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
+    +((j.service==='Junk Quote'||j.service==='Junk Removal')&&(j.junkDate||j.junkTime)?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>':'')
     +'</div></div>'
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
@@ -9167,8 +9181,8 @@ async function printJunkRemoval(jobId) {
 
     // Right column
     dt(j.binSize || '', 410, 154);                    // Bin Size
-    dt(_fmtDate(j.date), 478, 174);                   // Junk Removal Date
-    dt(_fmtTime(j.time), 478, 192);                   // Junk Removal Time
+    dt(_fmtDate(j.junkDate || j.date), 478, 174);      // Junk Removal Date
+    dt(_fmtTime(j.junkTime || j.time), 478, 192);     // Junk Removal Time
 
     // Line total at top of quoted price row
     var price = parseFloat(j.price) || 0;
