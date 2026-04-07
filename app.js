@@ -4577,7 +4577,7 @@ async function renderYoyTracker(){
   var services=[
     {key:'Bin Rental',label:'Bins',icon:'🚛',color:'#e67e22'},
     {key:'Junk Removal',label:'Junk',icon:'🗑️',color:'#4ade80'},
-    {key:'Furniture Pickup',label:'Furniture',icon:'🛋️',color:'#dc3545'}
+    {key:'Furniture Pickup',label:'Furniture Pickups',icon:'🛋️',color:'#dc3545'}
   ];
 
   wrap.innerHTML=services.map(function(s){
