@@ -1188,6 +1188,10 @@
             <div id="f-phones-wrap"></div>
             <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:4px;color:#3b82f6;border-color:rgba(59,130,246,.3);font-size:12px;padding:4px 10px">+ Phone</button>
           </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Business Name</label>
+            <input type="text" id="f-business-name" placeholder="Business name (optional)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px">
+          </div>
           <div class="form-group">
             <label>Email(s)</label>
             <div id="f-emails-wrap"></div>
@@ -1509,7 +1513,11 @@
         </div>
         <div id="c-names-wrap" style="margin-bottom:6px"></div>
         <div class="field-error-msg" id="err-c-name" style="margin-bottom:4px">At least one name is required.</div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="addClientName()" style="color:#3b82f6;border-color:rgba(59,130,246,.3);font-size:12px;padding:4px 10px;margin-bottom:14px">+ Name</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addClientName()" style="color:#3b82f6;border-color:rgba(59,130,246,.3);font-size:12px;padding:4px 10px;margin-bottom:8px">+ Name</button>
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">Business Name</label>
+          <input type="text" id="c-business-name" placeholder="Business name (optional)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px">
+        </div>
 
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
           <span style="font-size:15px">📞</span>

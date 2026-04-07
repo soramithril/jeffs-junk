@@ -491,6 +491,7 @@ function dbToJob(r) {
     toolsNeeded: r.tools_needed || '',
     emailConfirmed: r.email_confirmed || false,
     swapCount: r.swap_count || 0,
+    businessName: r.business_name || '',
   };
 }
 
@@ -500,6 +501,7 @@ function dbToClient(r) {
   return {
     cid:      r.cid,
     name:     r.name    || '',
+    businessName: r.business_name || '',
     names:    r.names   || [r.name || ''],
     phone:    r.phone   || '',
     phones:   r.phones  || [],
@@ -561,6 +563,7 @@ function jobToDb(j) {
     tools_needed: j.toolsNeeded || '',
     email_confirmed: j.emailConfirmed || false,
     swap_count: j.swapCount || 0,
+    business_name: j.businessName || '',
   };
 }
 
@@ -569,6 +572,7 @@ function clientToDb(c) {
   return {
     cid:      c.cid,
     name:     c.name    || '',
+    business_name: c.businessName || '',
     names:    c.names   || [c.name || ''],
     phone:    c.phone   || '',
     phones:   c.phones  || [],
@@ -1218,6 +1222,7 @@ function openAddClient(){
     document.getElementById('c-phones-wrap').innerHTML=_clientPhoneRow('','','cell');
     document.getElementById('c-emails-wrap').innerHTML=_clientEmailRow('');
     document.getElementById('c-addresses-wrap').innerHTML=_clientAddressRow('','Barrie',false);
+    document.getElementById('c-business-name').value='';
     document.getElementById('c-referral').value='';
     document.getElementById('c-notes').value='';
     var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=false;
@@ -1247,6 +1252,7 @@ function editClient(cid){
   addrWrap.innerHTML='';
   addrs.forEach(function(a,i){addrWrap.insertAdjacentHTML('beforeend',_clientAddressRow(a.street||'',a.city||'Barrie',i>0));});
   setTimeout(_attachClientAddressAutocompletes, 50);
+  document.getElementById('c-business-name').value=cl.businessName||'';
   document.getElementById('c-referral').value=cl.referral||'';
   document.getElementById('c-notes').value=cl.notes||'';
   var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=cl.blacklisted||false;
@@ -1307,6 +1313,7 @@ async function saveClient(e){
   var cl={
     cid:cid,
     name:names[0],names:names,
+    businessName:document.getElementById('c-business-name').value.trim(),
     phone:phones.length?phones[0].num:'',phones:phones,
     email:emails[0]||'',emails:emails,
     address:fullAddr,city:primaryAddr.city||'Barrie',addresses:addresses,
@@ -3365,6 +3372,7 @@ function fillClientFromSelect(cid){
   // Populate multi-email field
   var emails=cl.emails&&cl.emails.length?cl.emails:(cl.email?[cl.email]:[]);
   document.getElementById('f-emails-wrap').innerHTML=emails.length?emails.map(function(e){return _jobEmailRow(e);}).join(''):_jobEmailRow('');
+  document.getElementById('f-business-name').value=cl.businessName||'';
   if(cl.referral) document.getElementById('f-referral').value = cl.referral;
 
   // Build address list
@@ -3856,6 +3864,7 @@ async function openClientDetail(cid){
     (cl.blacklisted?'<div style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#dc3545;font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
     +'<div class="detail-section"><div class="detail-grid">'
     +(namesHtml?'<div class="detail-item" style="grid-column:1/-1"><label>Contact Names</label><span>'+namesHtml+'</span></div>':'')
+    +(cl.businessName?'<div class="detail-item" style="grid-column:1/-1"><label>Business Name</label><span>'+cl.businessName+'</span></div>':'')
     +'<div class="detail-item"><label>Phone(s)</label><span>'+phonesHtml+'</span></div>'
     +'<div class="detail-item"><label>Email(s)</label><span>'+emailsHtml+'</span></div>'
     +'<div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(cl.address||'—')+'</span></div>'
@@ -5620,6 +5629,7 @@ function newJob(){
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   var now=new Date();document.getElementById('f-date').value=now.toISOString().split('T')[0];document.getElementById('f-time').value=now.toTimeString().slice(0,5);
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
+  document.getElementById('f-business-name').value='';
   document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   document.getElementById('f-tools').value='';
@@ -5870,6 +5880,7 @@ function openEdit(id){
     refSel.value=refVal;
     // If the saved referral doesn't match any dropdown option, add it so it's preserved
     if(refVal&&refSel.value!==refVal){var opt=document.createElement('option');opt.value=refVal;opt.textContent=refVal;refSel.appendChild(opt);refSel.value=refVal;}
+    document.getElementById('f-business-name').value=j.businessName||'';
     document.getElementById('f-notes').value=j.notes||'';
     var drdData=null;
     try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
@@ -6032,6 +6043,7 @@ async function saveJob(e){
     notes:     document.getElementById('f-notes').value.trim(),
     items:     svc==='Furniture Pickup' ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
+    businessName: document.getElementById('f-business-name').value.trim(),
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
     recurInterval: svc==='Bin Rental' ? (document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '') : (svc==='Junk Removal' ? (document.getElementById('f-junk-recur-interval') ? document.getElementById('f-junk-recur-interval').value : '') : ''),
@@ -6087,6 +6099,7 @@ async function saveJob(e){
       var newClient={
         cid:newCid,
         name:names[0]||'',names:names,
+        businessName:job.businessName||'',
         phone:primaryPhone,phones:phones,
         email:emails[0]||'',emails:emails,
         address:street?street+', '+city+', ON, Canada':city+', ON, Canada',
@@ -6119,6 +6132,8 @@ async function saveJob(e){
       if(!cl.emails||!cl.emails.length) cl.emails=cl.email?[cl.email]:[];
       emails.forEach(function(e){if(!cl.emails.find(function(x){return x===e;})){cl.emails.push(e);}});
       cl.email=cl.emails[0]||'';
+      // Update business name if provided on job
+      if(job.businessName) cl.businessName=job.businessName;
       // Save back to DB
       saveSingleClient(cl);
     }
@@ -6252,7 +6267,7 @@ async function openDetail(id){
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(13,110,253,.15);color:#0d6efd">📧 Email Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div></div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
@@ -8816,7 +8831,8 @@ async function printBinRental(jobId) {
     var side = j.binSide ? j.binSide.charAt(0).toUpperCase() + j.binSide.slice(1) + ' Side' : '';
 
     // ── LEFT COLUMN: Customer Info ──
-    drawText(j.name, 55, 112);
+    var nameLine = j.name + (j.businessName ? ' — ' + j.businessName : '');
+    drawText(nameLine, 55, 112);
     drawText(street + (city ? ', ' + city : ''), 65, 132);
     // Find home phone by type
     var homePhone = clientPhones.find(function(p) { return p && p.type === 'home'; });
@@ -8967,7 +8983,8 @@ function _drawCustomerInfo(page, font, fontBold, H, j, clientPhones, email) {
     if (!text) return;
     page.drawText(String(text), { x: x, y: H - yFromTop, size: size || 10, font: font, color: black });
   }
-  dt(j.name, 55, 112);
+  var custNameLine = j.name + (j.businessName ? ' — ' + j.businessName : '');
+  dt(custNameLine, 55, 112);
   var addrWithCity = (j.address || '') + (j.city ? ', ' + j.city : '');
   dt(addrWithCity, 65, 132);
   var homePhone = clientPhones.find(function(p){return p && p.type === 'home';});
