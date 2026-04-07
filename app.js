@@ -5626,6 +5626,16 @@ function validateClient(){
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
 function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    var openModals=document.querySelectorAll('.modal-overlay.open');
+    if(openModals.length){
+      var last=openModals[openModals.length-1];
+      last.classList.remove('open');
+      document.body.classList.remove('modal-open');
+    }
+  }
+});
 function toggleBin(){
   var svc=document.getElementById('f-svc').value;
   var isBin=svc==='Bin Rental';
