@@ -2574,34 +2574,50 @@ async function renderDashBinsOut(){
   var sizeOrder=['4 yard','7 yard','14 yard','20 yard','Unknown'];
   var sizeKeys=Object.keys(grouped).sort(function(a,b){return (sizeOrder.indexOf(a)===-1?99:sizeOrder.indexOf(a))-(sizeOrder.indexOf(b)===-1?99:sizeOrder.indexOf(b));});
 
+  function _daysOutBadge(dropDate){
+    if(!dropDate)return '';
+    var d0=new Date(dropDate+'T12:00:00'),now=new Date();
+    var days=Math.max(0,Math.floor((now-d0)/86400000));
+    var bg,color,border;
+    if(days>=14){bg='rgba(220,53,69,.15)';color='#dc3545';border='rgba(220,53,69,.4)';}
+    else if(days>=7){bg='rgba(230,126,34,.15)';color='#e67e22';border='rgba(230,126,34,.4)';}
+    else{bg='rgba(34,197,94,.12)';color='#22c55e';border='rgba(34,197,94,.35)';}
+    return '<span style="font-size:11px;font-weight:700;background:'+bg+';color:'+color+';border:1px solid '+border+';border-radius:5px;padding:1px 7px;white-space:nowrap">'+days+' day'+(days!==1?'s':'')+'</span>';
+  }
   function renderAssignedCard(j){
-    var daysOut='';
     var dropDate=j.binDropoff||j.date;
-    if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
+    var daysBadge=_daysOutBadge(dropDate);
     var pickupBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(34,197,94,.3);color:#22c55e;border-radius:6px;margin-left:auto;flex-shrink:0">✅ Picked Up</button>';
     return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #dc3545;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:12px;background:rgba(220,53,69,.12);color:#dc3545;border:1px solid rgba(220,53,69,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+j.binBid+'</span>'
         +'<strong style="font-size:13px">'+j.name+'</strong>'
-        +(j.phone?'<span style="font-size:11px;color:var(--muted)">'+j.phone+'</span>':'')
+        +daysBadge
         +pickupBtn
       +'</div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+(daysOut?' · '+daysOut:'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
+      +'<div style="font-size:11px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'
+        +(j.phone?'<span style="color:#0d6efd;font-weight:600">📞 '+j.phone+'</span>':'')
+        +'<span style="color:var(--muted)">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+'</span>'
+        +(j.binPickup?'<span style="color:#9b59b6;font-weight:600">🗓 Pickup: '+fd(j.binPickup)+'</span>':'')
+      +'</div>'
     +'</div>';
   }
 
   function renderUnassignedCard(j){
-    var daysOut='';
     var dropDate=j.binDropoff||j.date;
-    if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days';}
+    var daysBadge=_daysOutBadge(dropDate);
     var assignBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAssignBinPicker(\''+j.id+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(230,126,34,.3);color:#e67e22;border-radius:6px;margin-left:auto;flex-shrink:0">Assign Bin</button>';
     return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #e67e22;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<strong style="font-size:13px">'+j.name+'</strong>'
-        +(j.phone?'<span style="font-size:11px;color:var(--muted)">'+j.phone+'</span>':'')
+        +(j.binSize?'<span style="font-size:11px;font-weight:600;background:rgba(13,110,253,.12);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 7px">'+j.binSize+'</span>':'')
+        +daysBadge
         +assignBtn
       +'</div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+(j.binSize?' · '+j.binSize:'')+(daysOut?' · '+daysOut:'')+'</div>'
+      +'<div style="font-size:11px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'
+        +(j.phone?'<span style="color:#0d6efd;font-weight:600">📞 '+j.phone+'</span>':'')
+        +'<span style="color:var(--muted)">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+'</span>'
+      +'</div>'
     +'</div>';
   }
 
@@ -7240,7 +7256,7 @@ function applyDeleteVisibility() {
 }
 function applyAnalyticsVisibility(){
   var nav=document.getElementById('nav-analytics');
-  var navLabel=nav?nav.previousElementSibling:null;
+  var navLabel=document.getElementById('nav-analytics-label');
   if(canAccessAnalytics()){
     if(navLabel)navLabel.style.display='';
   } else {
