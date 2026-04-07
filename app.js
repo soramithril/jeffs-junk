@@ -7818,14 +7818,14 @@ function _syncDrdToJobItems(){
   DRD_ITEMS.forEach(function(item,i){
     var el=document.getElementById('drd-m-qty-'+i);
     var q=el?(parseInt(el.value)||0):0;
-    if(q>0) lines.push(item.name+(q>1?' x'+q:''));
+    if(q>0) lines.push(item.name+' x '+q);
   });
   var names=document.querySelectorAll('.drd-m-other-name');
   var qtys=document.querySelectorAll('.drd-m-other-qty');
   for(var i=0;i<names.length;i++){
     var n=names[i].value.trim();
     var q=parseInt(qtys[i]?qtys[i].value:0)||0;
-    if(n) lines.push(n+(q>1?' x'+q:''));
+    if(n) lines.push(n+(q?' x '+q:''));
   }
   var wrap=document.getElementById('f-items-wrap');
   if(!wrap)return;
