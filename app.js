@@ -450,7 +450,10 @@ function dbToJob(r) {
     service:    r.service,
     status:     r.status     || '',
     name:       r.name       || '',
+    names:      r.names      || [],
     phone:      r.phone      || '',
+    phones:     r.phones     || [],
+    emails:     r.emails     || [],
     address:    r.address    || '',
     city:       r.city       || '',
     date:       r.date       || '',
@@ -6228,7 +6231,7 @@ async function openDetail(id){
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(13,110,253,.15);color:#0d6efd">📧 Email Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div></div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div><div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
@@ -8887,6 +8890,10 @@ async function _loadFormClientData(j) {
       email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
       clientPhones = cr.data.phones || [];
     }
+  }
+  // Fallback: if no email from client, check the job's own emails array
+  if (!email) {
+    email = (j.emails && j.emails.length) ? j.emails[0] : '';
   }
   return { email: email, clientPhones: clientPhones };
 }
