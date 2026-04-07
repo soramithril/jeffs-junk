@@ -8905,6 +8905,23 @@ function _fmtTime(t) {
 // Parse notes into a list of items (one per non-empty line)
 function _notesToItems(notes) {
   if (!notes) return [];
+  // If items field contains DRD JSON, extract item descriptions from it
+  if (notes.charAt(0) === '{') {
+    try {
+      var d = JSON.parse(notes);
+      if (d.drd) {
+        var result = [];
+        var qtys = d.drd.quantities || [];
+        for (var i = 0; i < DRD_ITEMS.length && i < qtys.length; i++) {
+          if (qtys[i] > 0) result.push(qtys[i] + ' x ' + DRD_ITEMS[i].name);
+        }
+        (d.drd.otherItems || []).forEach(function(oi) {
+          if (oi.name) result.push((oi.qty || 1) + ' x ' + oi.name);
+        });
+        return result;
+      }
+    } catch (e) {}
+  }
   return notes.split(/\r?\n/).map(function(s){return s.trim();}).filter(function(s){return s.length>0;});
 }
 
