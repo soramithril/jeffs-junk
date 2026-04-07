@@ -492,6 +492,8 @@ function dbToJob(r) {
     emailConfirmed: r.email_confirmed || false,
     swapCount: r.swap_count || 0,
     businessName: r.business_name || '',
+    fbDate: r.fb_date || '',
+    fbTime: r.fb_time || '',
   };
 }
 
@@ -564,6 +566,8 @@ function jobToDb(j) {
     email_confirmed: j.emailConfirmed || false,
     swap_count: j.swapCount || 0,
     business_name: j.businessName || '',
+    fb_date: j.fbDate || null,
+    fb_time: j.fbTime || '',
   };
 }
 
@@ -5646,6 +5650,25 @@ function toggleBin(){
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
+  // Make time field editable for Junk Quote
+  var timeEl=document.getElementById('f-time');
+  if(timeEl){
+    var editable=svc==='Junk Quote';
+    timeEl.readOnly=!editable;
+    timeEl.style.opacity=editable?'1':'.7';
+    timeEl.style.pointerEvents=editable?'auto':'none';
+  }
+  var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
+  var fbWrap=document.getElementById('fb-schedule-wrap');
+  if(fbWrap){
+    fbWrap.style.display=isFurn?'block':'none';
+    if(isFurn){
+      var isDeliv=svc==='Furniture Delivery';
+      document.getElementById('fb-schedule-label').textContent=isDeliv?'Delivery Schedule':'Pickup Schedule';
+      document.getElementById('fb-date-label').textContent=isDeliv?'Delivery Date':'Pickup Date';
+      document.getElementById('fb-time-label').textContent=isDeliv?'Delivery Time':'Pickup Time';
+    }
+  }
   var drdWrap=document.getElementById('drd-inline-wrap');
   if(drdWrap){
     drdWrap.style.display=(svc==='Furniture Pickup')?'block':'none';
@@ -5685,6 +5708,8 @@ function newJob(){
   var now=new Date();document.getElementById('f-date').value=now.toISOString().split('T')[0];document.getElementById('f-time').value=now.toTimeString().slice(0,5);
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
   document.getElementById('f-business-name').value='';
+  document.getElementById('f-fb-date').value='';document.getElementById('f-fb-time').value='';
+  document.getElementById('fb-schedule-wrap').style.display='none';
   document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   document.getElementById('f-tools').value='';
@@ -5936,6 +5961,15 @@ function openEdit(id){
     // If the saved referral doesn't match any dropdown option, add it so it's preserved
     if(refVal&&refSel.value!==refVal){var opt=document.createElement('option');opt.value=refVal;opt.textContent=refVal;refSel.appendChild(opt);refSel.value=refVal;}
     document.getElementById('f-business-name').value=j.businessName||'';
+    document.getElementById('f-fb-date').value=j.fbDate||'';document.getElementById('f-fb-time').value=j.fbTime||'';
+    var isFurnEdit=j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
+    document.getElementById('fb-schedule-wrap').style.display=isFurnEdit?'block':'none';
+    if(isFurnEdit){
+      var isDelivEdit=j.service==='Furniture Delivery';
+      document.getElementById('fb-schedule-label').textContent=isDelivEdit?'Delivery Schedule':'Pickup Schedule';
+      document.getElementById('fb-date-label').textContent=isDelivEdit?'Delivery Date':'Pickup Date';
+      document.getElementById('fb-time-label').textContent=isDelivEdit?'Delivery Time':'Pickup Time';
+    }
     document.getElementById('f-notes').value=j.notes||'';
     var drdData=null;
     try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
@@ -6099,6 +6133,8 @@ async function saveJob(e){
     items:     svc==='Furniture Pickup' ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
     businessName: document.getElementById('f-business-name').value.trim(),
+    fbDate: document.getElementById('f-fb-date').value,
+    fbTime: document.getElementById('f-fb-time').value,
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
     recurInterval: svc==='Bin Rental' ? (document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '') : (svc==='Junk Removal' ? (document.getElementById('f-junk-recur-interval') ? document.getElementById('f-junk-recur-interval').value : '') : ''),
@@ -6323,7 +6359,9 @@ async function openDetail(id){
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
-    +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div>'
+    +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&(j.fbDate||j.fbTime)?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
+    +'</div></div>'
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
@@ -9182,14 +9220,16 @@ async function _printFbForm(jobId, kind) {
 
     var cd = await _loadFormClientData(j);
 
+    var fbD = j.fbDate || j.date;
+    var fbT = j.fbTime || j.time;
     function drawHeader(pg) {
       _drawCustomerInfo(pg, font, fontBold, H, j, cd.clientPhones, cd.email);
       if (isDropOff) {
-        pg.drawText(_fmtDate(j.date), { x: 432, y: H - 189, size: 10, font: font, color: black });
-        pg.drawText(_fmtTime(j.time), { x: 431, y: H - 208, size: 10, font: font, color: black });
+        pg.drawText(_fmtDate(fbD), { x: 432, y: H - 189, size: 10, font: font, color: black });
+        pg.drawText(_fmtTime(fbT), { x: 431, y: H - 208, size: 10, font: font, color: black });
       } else {
-        pg.drawText(_fmtDate(j.date), { x: 424, y: H - 184, size: 10, font: font, color: black });
-        pg.drawText(_fmtTime(j.time), { x: 389, y: H - 202, size: 10, font: font, color: black });
+        pg.drawText(_fmtDate(fbD), { x: 424, y: H - 184, size: 10, font: font, color: black });
+        pg.drawText(_fmtTime(fbT), { x: 389, y: H - 202, size: 10, font: font, color: black });
         if (j.payMethod) pg.drawText(j.payMethod, { x: 130, y: H - 598, size: 10, font: font, color: black });
       }
     }

@@ -1331,6 +1331,17 @@
           <div style="font-size:11px;color:var(--muted);margin-top:4px">When the job is marked done, you can quickly schedule the next visit.</div>
         </div>
       </div>
+      <!-- Furniture Bank Schedule (Delivery / Pickup) -->
+      <div id="fb-schedule-wrap" style="display:none;margin-top:16px;background:rgba(220,53,69,.08);border:1.5px solid rgba(220,53,69,.3);border-radius:12px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <span style="font-size:15px">🛋️</span>
+          <span id="fb-schedule-label" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#dc3545">Delivery Schedule</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label id="fb-date-label">Delivery Date</label><input id="f-fb-date" type="date"></div>
+          <div class="form-group"><label id="fb-time-label">Delivery Time</label><input id="f-fb-time" type="time"></div>
+        </div>
+      </div>
       <div id="tools-needed-wrap" style="display:none" class="form-group full"><label>Tools Needed</label><input id="f-tools" type="text" placeholder=""></div>
       <div id="items-wrap" class="form-group full" style="margin-top:16px;display:none"><label>Items</label><div id="f-items-wrap"></div><button type="button" onclick="addJobItem()" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px">+ Add Item</button></div>
       <!-- DRD Inline Section (Furniture Pickup only) -->
