@@ -7485,6 +7485,12 @@ db.auth.onAuthStateChange(function(event, session) {
     appLoaded = false;
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-username').focus();
+    var uw = document.getElementById('logged-in-user');
+    if (uw) uw.style.display = 'none';
+    var lbl = document.getElementById('admin-btn-label');
+    var icon = document.getElementById('admin-btn-icon');
+    if (lbl) lbl.textContent = 'Admin Login';
+    if (icon) icon.textContent = '🔒';
     applyDeleteVisibility();
   }
 });
@@ -7582,6 +7588,10 @@ function onLoginSuccess() {
     }
     if (r.data && r.data.username) {
       currentUser.displayName = r.data.username;
+      var unEl = document.getElementById('logged-in-username');
+      var wrap = document.getElementById('logged-in-user');
+      if (unEl) unEl.textContent = r.data.username;
+      if (wrap) wrap.style.display = '';
     }
     applyDeleteVisibility();
     applyAnalyticsVisibility();
