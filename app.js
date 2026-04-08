@@ -7366,7 +7366,13 @@ db.auth.onAuthStateChange(function(event, session) {
     onLoginSuccess();
     return;
   }
+  if (event === 'TOKEN_REFRESHED' && !session) {
+    toast('⚠ Session expired — please sign in again.');
+    db.auth.signOut();
+    return;
+  }
   if (event === 'SIGNED_OUT') {
+    clearTimeout(_inactivityTimer);
     currentUser = null;
     canDelete = false;
     appLoaded = false;
@@ -7474,6 +7480,7 @@ function onLoginSuccess() {
     applyAnalyticsVisibility();
   });
   document.getElementById('login-screen').style.display = 'none';
+  resetInactivityTimer();
   var lbl = document.getElementById('admin-btn-label');
   var icon = document.getElementById('admin-btn-icon');
   if (lbl) lbl.textContent = 'Sign Out';
@@ -7504,6 +7511,24 @@ function handleAdminBtn() {
     db.auth.signOut();
   }
 }
+
+// ── 30-minute inactivity auto-logout ──
+var _inactivityTimer = null;
+var INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
+
+function resetInactivityTimer() {
+  clearTimeout(_inactivityTimer);
+  if (!currentUser) return;
+  _inactivityTimer = setTimeout(function() {
+    if (!currentUser) return;
+    toast('⚠ Signed out due to inactivity.');
+    db.auth.signOut();
+  }, INACTIVITY_LIMIT);
+}
+
+['mousedown','keydown','touchstart','scroll'].forEach(function(evt) {
+  document.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
 
 // ═══════════════════════════════════════
 // EMAIL SYSTEM
