@@ -6509,7 +6509,7 @@ async function openDetail(id){
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">🖨️ Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button>':'')
-    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button>':'')
+    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
     +'</div>'
 
     // ── Row 2: Customer Confirmation ──
