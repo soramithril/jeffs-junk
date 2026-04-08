@@ -429,6 +429,7 @@ var vehBlocks = {};
 var binItems = [];
 var clients = [];
 var crewMembers = [];
+var referralSources = [];
 var vehicleAssignments = {}; // { vid: [{id, crewMemberId, name}] } for today
 var geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){}
@@ -504,6 +505,36 @@ function jobSchedDate(j) {
   if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbDate || j.date;
   if (j.service === 'Junk Removal' || j.service === 'Junk Quote') return j.junkDate || j.date;
   return j.date;
+}
+
+// ── Referral source dropdown helpers ─────────────────────────
+function populateReferralDropdowns(){
+  ['f-referral','c-referral'].forEach(function(selId){
+    var sel=document.getElementById(selId);if(!sel)return;
+    var curVal=sel.value;
+    sel.innerHTML='<option value="">— Choose source —</option>';
+    referralSources.forEach(function(src){
+      sel.innerHTML+='<option>'+src+'</option>';
+    });
+    sel.innerHTML+='<option value="__add_new__">+ Add new source…</option>';
+    if(curVal) sel.value=curVal;
+  });
+}
+
+async function addReferralSource(selectId){
+  var name=prompt('Enter new referral source name:');
+  if(!name||!name.trim())return document.getElementById(selectId).value='';
+  name=name.trim();
+  if(referralSources.indexOf(name)>=0){
+    document.getElementById(selectId).value=name;return;
+  }
+  var res=await db.from('referral_sources').insert({name:name});
+  if(res.error){toast('Error saving referral source: '+res.error.message,'error');document.getElementById(selectId).value='';return;}
+  referralSources.push(name);
+  referralSources.sort();
+  populateReferralDropdowns();
+  document.getElementById(selectId).value=name;
+  toast('Referral source "'+name+'" added!');
 }
 
 // ── Map Supabase DB row → local client object ──────────────
@@ -958,6 +989,15 @@ async function loadAllFromSupabase() {
       }
     } catch(e){ console.warn('Email presets load error:',e); }
 
+    // Load referral sources from Supabase
+    try {
+      var rRef = await db.from('referral_sources').select('name').order('name');
+      if(!rRef.error && rRef.data) {
+        referralSources = rRef.data.map(function(r){return r.name;});
+        populateReferralDropdowns();
+      }
+    } catch(e){ console.warn('Referral sources load error:',e); }
+
     hideLoading();
     // ── Auto-mark bins as dropped/pickedup when dates have passed ──
     _suppressBinNotify = true;
@@ -1334,6 +1374,7 @@ async function saveClient(e){
   if(errEl)errEl.style.display='none';
   // Validate referral
   var refVal=document.getElementById('c-referral').value;
+  if(refVal==='__add_new__') refVal='';
   var refErrEl=document.getElementById('err-c-referral');
   if(!refVal){if(refErrEl)refErrEl.style.display='block';return;}
   if(refErrEl)refErrEl.style.display='none';
@@ -6209,6 +6250,7 @@ async function saveJob(e){
   var date     = document.getElementById('f-date').value;
   var city     = toTitleCase(document.getElementById('f-city').value.trim());
   var referral = document.getElementById('f-referral').value;
+  if(referral==='__add_new__') referral='';
 
   // Write Title Case back to city field
   document.getElementById('f-city').value = city;
@@ -6299,6 +6341,14 @@ async function saveJob(e){
     editedBy:       editId ? userName  : '',
     editedByEmail:  editId ? userEmail : '',
   };
+
+  // Auto-populate scheduling dates from main date if not set
+  if((svc==='Furniture Delivery'||svc==='Furniture Pickup') && !job.fbDate && job.date){
+    job.fbDate = job.date;
+  }
+  if((svc==='Junk Removal'||svc==='Junk Quote') && !job.junkDate && job.date){
+    job.junkDate = job.date;
+  }
 
   if(svc==='Bin Rental'){
     var pickedBid = getPickedBinBid();
@@ -6512,12 +6562,14 @@ async function openDetail(id){
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.12);color:#22c55e">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(13,110,253,.15);color:#0d6efd">📧 Email Confirmed</span>':'';
   document.getElementById('det-body').innerHTML=
-    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div></div>'
+    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:6px">Created '+fd(j.date)+(j.time?' · '+ft(j.time):'')+'</div>'
+    +'</div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
-    +'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid"><div class="detail-item"><label>Date</label><span>'+fd(j.date)+'</span></div><div class="detail-item"><label>Time</label><span>'+(j.time?ft(j.time):'—')+'</span></div>'
-    +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&(j.fbDate||j.fbTime)?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
-    +((j.service==='Junk Quote'||j.service==='Junk Removal')&&(j.junkDate||j.junkTime)?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>':'')
-    +'</div></div>'
+    +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
+    +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
+    +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>':'')
+    +'</div></div>':'')
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
