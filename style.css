@@ -44,12 +44,12 @@ body{
 
 /* ── SIDEBAR ── */
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:150;padding:0 0 24px;transition:transform .25s;}
-.logo{padding:28px 24px 24px;border-bottom:1px solid var(--border);}
+.logo{padding:20px 24px 16px;border-bottom:1px solid var(--border);}
 .logo-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--accent);line-height:1;}
 .logo-sub{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:500;}
-.nav{padding:20px 12px;flex:1;overflow-y:auto;}
-.nav-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:0 12px;margin-bottom:8px;margin-top:16px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text-secondary);transition:all var(--transition);border:none;background:none;width:100%;text-align:left;}
+.nav{padding:12px 12px;flex:1;overflow-y:auto;}
+.nav-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:0 12px;margin-bottom:4px;margin-top:12px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text-secondary);transition:all var(--transition);border:none;background:none;width:100%;text-align:left;}
 .nav-item:hover{background:var(--surface2);color:var(--text);}
 .nav-item.active{background:var(--accent-light);color:var(--accent);font-weight:600;}
 .nav-item .icon{font-size:16px;width:20px;text-align:center;}
