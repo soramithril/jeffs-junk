@@ -2313,7 +2313,7 @@ async function refreshDashJobs(){
           +(j.service==='Bin Rental'&&!j.binBid?'<button class="btn btn-ghost btn-sm" onclick="openEdit(\''+j.id+'\');event.stopPropagation()" style="font-size:10px;color:#e67e22;border-color:rgba(230,126,34,.4)">📦 Assign Bin</button>':'')
           +'</div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'
-          +(j.time?ft(j.time)+' · ':'')+j.id
+          +(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?ft(st)+' · ':'';})()+j.id
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
           +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'<span style="margin-left:8px;color:#e67e22;font-weight:700">📞 Confirm '+(j.service==='Furniture Delivery'?'drop-off':'pickup')+'</span>'):'')
           +'</div></div>'
@@ -2515,7 +2515,8 @@ async function renderDash(){
     rTodayJobs, rWeekJobs, rWeekRev,
     rBinCounts, rJunkCount, rFurnCount,
     rOutstanding, rOverdue, rBinPickupsToday, rBinDropoffsToday,
-    rTomorrowJobs, rUnconfirmed14
+    rTomorrowJobs, rUnconfirmed14,
+    rTodayFurn, rTodayJunk
   ] = await Promise.all([
     db.from('jobs').select('*',{count:'exact',head:true}),
     db.from('jobs').select('*',{count:'exact',head:true}).neq('status','Cancelled'),
@@ -2535,7 +2536,10 @@ async function renderDash(){
     // Tomorrow's jobs
     db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
     // Bin Rentals with upcoming pickup + Furniture jobs with upcoming date — unconfirmed (for call-back list)
-    db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup','Furniture Delivery']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time')
+    db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup','Furniture Delivery']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time'),
+    // Furniture/junk by their scheduled dates for today
+    db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+todayS+',and(fb_date.is.null,date.eq.'+todayS+')'),
+    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')')
   ]);
 
   // Write hidden stat IDs that other code may reference
@@ -2575,10 +2579,14 @@ async function renderDash(){
   todayBinDropoffs = dedup(todayBinDropoffs);
   todayBinPickups  = dedup(todayBinPickups);
 
-  var todayJunkRemovals = todayJobs.filter(function(j){return j.service==='Junk Removal';});
-  var todayJunkQuotes   = todayJobs.filter(function(j){return j.service==='Junk Quote';});
-  var todayFurnPickups  = todayJobs.filter(function(j){return j.service==='Furniture Pickup';});
-  var todayFurnDelivs   = todayJobs.filter(function(j){return j.service==='Furniture Delivery';});
+  // Use dedicated fb_date/junk_date queries for furniture and junk (not created date)
+  var todayFurnAll      = (rTodayFurn.data||[]).map(dbToJob);
+  var todayJunkAll      = (rTodayJunk.data||[]).map(dbToJob);
+  todayFurnAll.concat(todayJunkAll).forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
+  var todayJunkRemovals = dedup(todayJunkAll.filter(function(j){return j.service==='Junk Removal';}));
+  var todayJunkQuotes   = dedup(todayJunkAll.filter(function(j){return j.service==='Junk Quote';}));
+  var todayFurnPickups  = dedup(todayFurnAll.filter(function(j){return j.service==='Furniture Pickup';}));
+  var todayFurnDelivs   = dedup(todayFurnAll.filter(function(j){return j.service==='Furniture Delivery';}));
 
   var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs));
   var totalTodayCount = allToday.length;
@@ -2693,7 +2701,10 @@ async function renderDash(){
                 +confirmBadge
               +'</div>'
               +'<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-                +(j.time?'<strong style="color:var(--text)">'+ft(j.time)+'</strong> · ':'')+j.id
+                +(function(){
+                  var st = j.service==='Bin Rental' ? (j.binDropoffTime||j.binPickupTime) : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime : (j.service==='Junk Removal'||j.service==='Junk Quote') ? j.junkTime : '';
+                  return st ? '<strong style="color:var(--text)">'+ft(st)+'</strong> · ' : '';
+                })()+j.id
                 +(j.address?' · 📍 '+j.address.split(',')[0]:'')
               +'</div>'
             +'</div>'
@@ -2721,11 +2732,12 @@ async function renderDash(){
       cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All pickups &amp; drop-offs confirmed</div>';
     } else {
       cbEl.innerHTML = callbackJobs.map(function(j){
-        var isToday = j.date===todayS;
-        var isTom   = j.date===tomorrowS;
+        var sd = jobSchedDate(j);
+        var isToday = sd===todayS;
+        var isTom   = sd===tomorrowS;
         var dateLabel = isToday?'<span style="color:#dc3545;font-weight:700">TODAY</span>'
           : isTom?'<span style="color:#e67e22;font-weight:700">Tomorrow</span>'
-          : fd(j.date);
+          : fd(sd);
         var isDelivery = j.service==='Furniture Delivery';
         var cfmLabel = isDelivery?'Drop-Off':'Pickup';
         return '<div style="padding:8px 10px;border:1px solid rgba(230,126,34,.3);border-left:3px solid #e67e22;border-radius:0 8px 8px 0;margin-bottom:6px;background:rgba(230,126,34,.04);">'
@@ -7230,7 +7242,7 @@ function renderToday(){
   var el=document.getElementById('today-jobs-list');
   el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
     +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+j.name+'</strong></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(j.time?' · '+ft(j.time):'')+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?' · '+ft(st):'';})()+' · '+j.id+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No jobs scheduled today</div>';
   // Overdue
   var od=document.getElementById('today-overdue-list');
