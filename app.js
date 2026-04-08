@@ -499,6 +499,13 @@ function dbToJob(r) {
   };
 }
 
+// Return the effective scheduled date for a job (delivery/pickup/quote date, not created date)
+function jobSchedDate(j) {
+  if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbDate || j.date;
+  if (j.service === 'Junk Removal' || j.service === 'Junk Quote') return j.junkDate || j.date;
+  return j.date;
+}
+
 // ── Map Supabase DB row → local client object ──────────────
 function dbToClient(r) {
   var street=(r.address||'').split(',')[0].trim();
@@ -1395,12 +1402,14 @@ function jobIdCls(id,svc){
   if(id&&id.startsWith('BIN-'))return 'job-id-bin';
   if(id&&id.startsWith('JUNK-'))return 'job-id-junk';
   if(id&&id.startsWith('QT-'))return 'job-id-quote';
+  if(id&&id.startsWith('FB-')&&svc==='Furniture Delivery')return 'job-id-furn-del';
   if(id&&id.startsWith('FB-'))return 'job-id-furn';
   // fallback by service type
   if(svc==='Bin Rental')return 'job-id-bin';
   if(svc==='Junk Removal')return 'job-id-junk';
   if(svc==='Junk Quote')return 'job-id-quote';
-  if(svc==='Furniture Pickup'||svc==='Furniture Delivery')return 'job-id-furn';
+  if(svc==='Furniture Pickup')return 'job-id-furn';
+  if(svc==='Furniture Delivery')return 'job-id-furn-del';
   return 'job-id-bin';
 }
 function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d;}
@@ -1660,7 +1669,7 @@ function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id
 
 // ─── BADGES ───
 function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
-function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
+function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
 function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 
 // ─── DASHBOARD ───
@@ -2191,18 +2200,23 @@ async function refreshDashJobs(){
   if(wHdr) wHdr.textContent = '📍 ' + dateLbl;
 
   // Fetch jobs for the selected date
-  var [rJobs, rPickups, rDropoffs] = await Promise.all([
+  // Furniture uses fb_date, Junk uses junk_date, Bin Rental uses bin_dropoff/bin_pickup, others use date
+  var [rJobs, rPickups, rDropoffs, rFurn, rJunk] = await Promise.all([
     db.from('jobs').select('*').eq('date', dateS).neq('status','Cancelled').order('time'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', dateS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
-    db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+dateS+',and(bin_dropoff.is.null,date.eq.'+dateS+')')
+    db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+dateS+',and(bin_dropoff.is.null,date.eq.'+dateS+')'),
+    db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+dateS+',and(fb_date.is.null,date.eq.'+dateS+')'),
+    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+dateS+',and(junk_date.is.null,date.eq.'+dateS+')')
   ]);
 
   var dayJobs      = (rJobs.data||[]).map(dbToJob);
   var dayPickups   = (rPickups.data||[]).map(dbToJob);
   var dayDropoffs  = (rDropoffs.data||[]).map(dbToJob);
+  var dayFurn      = (rFurn.data||[]).map(dbToJob);
+  var dayJunk      = (rJunk.data||[]).map(dbToJob);
 
   // Cache in local jobs array
-  dayJobs.concat(dayPickups).concat(dayDropoffs).forEach(function(j){
+  dayJobs.concat(dayPickups).concat(dayDropoffs).concat(dayFurn).concat(dayJunk).forEach(function(j){
     if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j);
   });
 
@@ -2210,10 +2224,11 @@ async function refreshDashJobs(){
   dayDropoffs = dedup(dayDropoffs);
   dayPickups  = dedup(dayPickups);
 
-  var junkRemovals = dayJobs.filter(function(j){return j.service==='Junk Removal';});
-  var junkQuotes   = dayJobs.filter(function(j){return j.service==='Junk Quote';});
-  var furnPickups  = dayJobs.filter(function(j){return j.service==='Furniture Pickup';});
-  var furnDelivs   = dayJobs.filter(function(j){return j.service==='Furniture Delivery';});
+  // Use fb_date/junk_date queries for furniture and junk categories
+  var furnPickups  = dedup(dayFurn.filter(function(j){return j.service==='Furniture Pickup';}));
+  var furnDelivs   = dedup(dayFurn.filter(function(j){return j.service==='Furniture Delivery';}));
+  var junkRemovals = dedup(dayJunk.filter(function(j){return j.service==='Junk Removal';}));
+  var junkQuotes   = dedup(dayJunk.filter(function(j){return j.service==='Junk Quote';}));
 
   var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(furnPickups).concat(furnDelivs));
   var total = allDay.length;
@@ -2268,11 +2283,11 @@ async function refreshDashJobs(){
   }
 
   var html = makeCat('🚛 Bin Deliveries','#22c55e',dayDropoffs)
-    +makeCat('🚚 Bin Pickups','#4ade80',dayPickups)
-    +makeCat('Junk Removals','#e67e22',junkRemovals)
+    +makeCat('🚚 Bin Pickups','#dc3545',dayPickups)
+    +makeCat('Junk Removals','#eab308',junkRemovals)
     +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes)
-    +makeCat('🛋️ Furniture Pickups','#dc3545',furnPickups)
-    +makeCat('📦 Furniture Deliveries','#e76f7e',furnDelivs);
+    +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups)
+    +makeCat('📦 Furniture Deliveries','#f97316',furnDelivs);
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -2285,14 +2300,16 @@ async function renderWeekCal(){
   var opts={month:'short',day:'numeric'};
   document.getElementById('week-lbl').textContent=ws.toLocaleDateString('en-US',opts)+' – '+we.toLocaleDateString('en-US',opts);
 
-  // Fetch this week's jobs: by job date, bin_dropoff, or bin_pickup falling in this week
+  // Fetch this week's jobs: by job date, bin_dropoff, bin_pickup, fb_date, or junk_date falling in this week
   var rByDate = db.from('jobs').select('*').gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
   var rByDropoff = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_dropoff',wsS).lte('bin_dropoff',weS).neq('status','Cancelled');
   var rByPickup = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_pickup',wsS).lte('bin_pickup',weS).neq('status','Cancelled');
-  var results = await Promise.all([rByDate, rByDropoff, rByPickup]);
+  var rByFbDate = db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).gte('fb_date',wsS).lte('fb_date',weS).neq('status','Cancelled');
+  var rByJunkDate = db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).gte('junk_date',wsS).lte('junk_date',weS).neq('status','Cancelled');
+  var results = await Promise.all([rByDate, rByDropoff, rByPickup, rByFbDate, rByJunkDate]);
   var seen = {};
   var weekJobs = [];
-  (results[0].data||[]).concat(results[1].data||[]).concat(results[2].data||[]).forEach(function(row){
+  (results[0].data||[]).concat(results[1].data||[]).concat(results[2].data||[]).concat(results[3].data||[]).concat(results[4].data||[]).forEach(function(row){
     if(!seen[row.id]){ seen[row.id]=true; weekJobs.push(dbToJob(row)); }
   });
   // Cache in local jobs array
@@ -2306,12 +2323,12 @@ async function renderWeekCal(){
       if(dropDs){ if(!weekEvents[dropDs]) weekEvents[dropDs]=[]; weekEvents[dropDs].push({j:j, type:'dropoff'}); }
       if(j.binPickup && j.binPickup !== dropDs){ if(!weekEvents[j.binPickup]) weekEvents[j.binPickup]=[]; weekEvents[j.binPickup].push({j:j, type:'pickup'}); }
     } else {
-      if(j.date){ if(!weekEvents[j.date]) weekEvents[j.date]=[]; weekEvents[j.date].push({j:j, type:'job'}); }
+      var schedDs = jobSchedDate(j); if(schedDs){ if(!weekEvents[schedDs]) weekEvents[schedDs]=[]; weekEvents[schedDs].push({j:j, type:'job'}); }
     }
   });
 
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
+  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};
   var hours=[];for(var h=8;h<=17;h++)hours.push(h);
 
   function chipHtml(ev){
@@ -2380,8 +2397,13 @@ async function renderWeekCal(){
       e.preventDefault();col.style.background='';
       var newDate=col.getAttribute('data-date');
       if(!dragJobId||!newDate)return;
-      jobs.forEach(function(j){if(j.id===dragJobId)j.date=newDate;});
-      patchJob(dragJobId,{date:newDate});toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash();
+      var dragJob=jobs.find(function(j){return j.id===dragJobId;});
+      if(!dragJob)return;
+      var patch={};
+      if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
+      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
+      else{patch={date:newDate};dragJob.date=newDate;}
+      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash();
     });
   });
 }
@@ -2641,11 +2663,11 @@ async function renderDash(){
       }).join('')+'</div>';
   }
   var todayHtml = makeTodayCat('🚛 Bin Deliveries','#22c55e',todayBinDropoffs)
-    +makeTodayCat('🚚 Bin Pickups','#4ade80',todayBinPickups)
-    +makeTodayCat('Junk Removals','#e67e22',todayJunkRemovals)
+    +makeTodayCat('🚚 Bin Pickups','#dc3545',todayBinPickups)
+    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals)
     +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes)
-    +makeTodayCat('🛋️ Furniture Pickups','#dc3545',todayFurnPickups)
-    +makeTodayCat('📦 Furniture Deliveries','#e76f7e',todayFurnDelivs);
+    +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups)
+    +makeTodayCat('📦 Furniture Deliveries','#f97316',todayFurnDelivs);
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||'<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs today 🎉</div>';
 
@@ -3243,7 +3265,7 @@ async function renderCal(){
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
   var today=new Date();
   var todayISO=today.toISOString().split('T')[0];
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn'};
+  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};
   var g=document.getElementById('cal-grid');
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
   var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
@@ -3253,14 +3275,16 @@ async function renderCal(){
   var monthEnd=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(days).padStart(2,'0');
   var calJobsList=[];
   try{
-    // Get all jobs with date, bin_dropoff, or bin_pickup in this month
-    var [rDate, rDrop, rPick] = await Promise.all([
+    // Get all jobs with date, bin_dropoff, bin_pickup, fb_date, or junk_date in this month
+    var [rDate, rDrop, rPick, rFbDate, rJunkDate] = await Promise.all([
       db.from('jobs').select('*').neq('status','Cancelled').gte('date',monthStart).lte('date',monthEnd),
       db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',monthStart).lte('bin_dropoff',monthEnd),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd)
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd),
+      db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').gte('fb_date',monthStart).lte('fb_date',monthEnd),
+      db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').gte('junk_date',monthStart).lte('junk_date',monthEnd)
     ]);
     var seen={};
-    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[])].forEach(function(arr){
+    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFbDate.data||[]),(rJunkDate.data||[])].forEach(function(arr){
       arr.forEach(function(row){
         if(!seen[row.id||row.job_id]){seen[row.id||row.job_id]=true;calJobsList.push(dbToJob(row));}
       });
@@ -3285,10 +3309,11 @@ async function renderCal(){
         calEvents[j.binPickup].push({j:j, type:'pickup'});
       }
     } else {
-      // Non-bin jobs just use j.date
-      if(j.date){
-        if(!calEvents[j.date]) calEvents[j.date]=[];
-        calEvents[j.date].push({j:j, type:'job'});
+      // Non-bin jobs use scheduled date (fb_date for furniture, junk_date for junk, fallback to date)
+      var schedDs = jobSchedDate(j);
+      if(schedDs){
+        if(!calEvents[schedDs]) calEvents[schedDs]=[];
+        calEvents[schedDs].push({j:j, type:'job'});
       }
     }
   });
@@ -3340,8 +3365,13 @@ async function renderCal(){
       e.preventDefault();cell.classList.remove('drag-over');
       var newDate=cell.getAttribute('data-date');
       if(!dragJobId||!newDate)return;
-      jobs.forEach(function(j){if(j.id===dragJobId)j.date=newDate;});
-      patchJob(dragJobId,{date:newDate});toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash();
+      var dragJob=jobs.find(function(j){return j.id===dragJobId;});
+      if(!dragJob)return;
+      var patch={};
+      if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
+      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
+      else{patch={date:newDate};dragJob.date=newDate;}
+      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash();
     });
   });
 }
@@ -3354,13 +3384,15 @@ async function openCalDayPreview(ds){
   // Load jobs for this day from DB so we show ALL jobs
   var evs=[];
   try{
-    var [rDate,rDrop,rPick]=await Promise.all([
+    var [rDate,rDrop,rPick,rFb,rJk]=await Promise.all([
       db.from('jobs').select('*').neq('status','Cancelled').eq('date',ds),
       db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',ds),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds)
+      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds),
+      db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+ds+',and(fb_date.is.null,date.eq.'+ds+')'),
+      db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+ds+',and(junk_date.is.null,date.eq.'+ds+')')
     ]);
     var seen={};var dayJobs=[];
-    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[])].forEach(function(arr){
+    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFb.data||[]),(rJk.data||[])].forEach(function(arr){
       arr.forEach(function(row){if(!seen[row.id||row.job_id]){seen[row.id||row.job_id]=true;dayJobs.push(dbToJob(row));}});
     });
     dayJobs.forEach(function(j){
@@ -3370,7 +3402,7 @@ async function openCalDayPreview(ds){
         if(dropDs===ds) evs.push({j:j,type:'dropoff'});
         if(j.binPickup===ds&&j.binPickup!==dropDs) evs.push({j:j,type:'pickup'});
       }else{
-        if(j.date===ds) evs.push({j:j,type:'job'});
+        if(jobSchedDate(j)===ds) evs.push({j:j,type:'job'});
       }
     });
   }catch(e){console.warn('Day preview load error:',e);}
@@ -3388,11 +3420,11 @@ async function openCalDayPreview(ds){
     // Group into sections: Bin Drop-offs, Bin Pickups, then other services
     var sections=[
       {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#22c55e', evs:evs.filter(function(e){return e.type==='dropoff';})},
-      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='pickup';})},
-      {key:'junk',    label:'🗑️ Junk Removal',   col:'#e67e22', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
+      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#dc3545', evs:evs.filter(function(e){return e.type==='pickup';})},
+      {key:'junk',    label:'🗑️ Junk Removal',   col:'#eab308', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
       {key:'quote',   label:'📋 Junk Quotes',    col:'#0d6efd', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
-      {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#dc3545', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
-      {key:'furnd',   label:'📦 Furniture Delivery',col:'#e76f7e',evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
+      {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
+      {key:'furnd',   label:'📦 Furniture Delivery',col:'#f97316',evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
     ].filter(function(s){return s.evs.length>0;});
 
     body=sections.map(function(sec){
@@ -4758,9 +4790,9 @@ async function renderYoyTracker(){
 
   function count(arr,svc){return arr.filter(function(j){return j.service===svc;}).length;}
   var services=[
-    {key:'Bin Rental',label:'Bins',icon:'🚛',color:'#e67e22'},
-    {key:'Junk Removal',label:'Junk',icon:'🗑️',color:'#4ade80'},
-    {key:'Furniture Pickup',label:'Furniture Pickups',icon:'🛋️',color:'#dc3545'}
+    {key:'Bin Rental',label:'Bins',icon:'🚛',color:'#22c55e'},
+    {key:'Junk Removal',label:'Junk',icon:'🗑️',color:'#eab308'},
+    {key:'Furniture Pickup',label:'Furniture Pickups',icon:'🛋️',color:'#8b5cf6'}
   ];
 
   wrap.innerHTML=services.map(function(s){
@@ -4843,10 +4875,10 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   }
   document.getElementById('analytics-metrics').innerHTML=
     mbox('am-jobs',aJobs.length,bJobs.length,'var(--accent)','Total Jobs')
-    +mbox('am-bins',aBin,bBin,'#e67e22','Bin Rentals')
-    +mbox('am-junk',aJunk,bJunk,'#4ade80','Junk Removal')
-    +mbox('am-furnp',aFP,bFP,'#dc3545','Furniture Pickup')
-    +mbox('am-furnd',aFD,bFD,'#e76f7e','Furniture Delivery');
+    +mbox('am-bins',aBin,bBin,'#22c55e','Bin Rentals')
+    +mbox('am-junk',aJunk,bJunk,'#eab308','Junk Removal')
+    +mbox('am-furnp',aFP,bFP,'#8b5cf6','Furniture Pickup')
+    +mbox('am-furnd',aFD,bFD,'#f97316','Furniture Delivery');
 
   // ── Month-over-Month summary ─────────────────────────────────
   (function(){
@@ -6506,10 +6538,10 @@ async function openDetail(id){
     +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')" style="flex:1;justify-content:center">✏️ Edit Job</button>'
     +'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>'
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
-    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">🖨️ Print Form</button>':'')
-    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">🖨️ Print Form</button>':'')
-    +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button>':'')
-    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
+    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
+    +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
+    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
     +'</div>'
 
     // ── Row 2: Customer Confirmation ──
@@ -6694,15 +6726,19 @@ function renderDrdInDetail(j){
     +'<div id="drd-d-other-rows">';
   if(otherItems.length){
     otherItems.forEach(function(oi,idx){
-      html+='<div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:4px">'
-        +'<input type="text" class="form-input drd-d-other-name" value="'+_esc(oi.name||'')+'" placeholder="Item" style="font-size:12px;padding:4px 8px">'
-        +'<input type="number" class="form-input drd-d-other-qty" value="'+(oi.qty||'')+'" placeholder="0" min="0" style="font-size:12px;padding:4px 8px;width:60px;text-align:center" oninput="drdDetailRecalc()">'
+      html+='<div style="display:flex;gap:6px;margin-bottom:4px;align-items:center">'
+        +'<input type="text" class="form-input drd-d-other-name" value="'+_esc(oi.name||'')+'" placeholder="Item" style="font-size:12px;padding:4px 8px;flex:1">'
+        +'<input type="number" class="form-input drd-d-other-qty" value="'+(oi.qty||'')+'" placeholder="Qty" min="0" style="font-size:12px;padding:4px 8px;width:55px;text-align:center" oninput="drdDetailRecalc()">'
+        +'<input type="number" class="form-input drd-d-other-val" value="'+(oi.val||'')+'" placeholder="$" min="0" step="0.01" style="font-size:12px;padding:4px 8px;width:70px;text-align:center" oninput="drdDetailRecalc()">'
+        +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>'
         +'</div>';
     });
   } else {
-    html+='<div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:4px">'
-      +'<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px">'
-      +'<input type="number" class="form-input drd-d-other-qty" placeholder="0" min="0" style="font-size:12px;padding:4px 8px;width:60px;text-align:center" oninput="drdDetailRecalc()">'
+    html+='<div style="display:flex;gap:6px;margin-bottom:4px;align-items:center">'
+      +'<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px;flex:1">'
+      +'<input type="number" class="form-input drd-d-other-qty" placeholder="Qty" min="0" style="font-size:12px;padding:4px 8px;width:55px;text-align:center" oninput="drdDetailRecalc()">'
+      +'<input type="number" class="form-input drd-d-other-val" placeholder="$" min="0" step="0.01" style="font-size:12px;padding:4px 8px;width:70px;text-align:center" oninput="drdDetailRecalc()">'
+      +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>'
       +'</div>';
   }
   html+='</div>'
@@ -6734,9 +6770,11 @@ function _esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function drdDetailAddOtherRow(){
   var wrap=document.getElementById('drd-d-other-rows');if(!wrap)return;
   var row=document.createElement('div');
-  row.style.cssText='display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:4px';
-  row.innerHTML='<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px">'
-    +'<input type="number" class="form-input drd-d-other-qty" placeholder="0" min="0" style="font-size:12px;padding:4px 8px;width:60px;text-align:center" oninput="drdDetailRecalc()">';
+  row.style.cssText='display:flex;gap:6px;margin-bottom:4px;align-items:center';
+  row.innerHTML='<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px;flex:1">'
+    +'<input type="number" class="form-input drd-d-other-qty" placeholder="Qty" min="0" style="font-size:12px;padding:4px 8px;width:55px;text-align:center" oninput="drdDetailRecalc()">'
+    +'<input type="number" class="form-input drd-d-other-val" placeholder="$" min="0" step="0.01" style="font-size:12px;padding:4px 8px;width:70px;text-align:center" oninput="drdDetailRecalc()">'
+    +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
 
@@ -6747,7 +6785,13 @@ function drdDetailRecalc(){
     var qty=el?(parseInt(el.value)||0):0;
     totalItems+=qty; totalVal+=qty*item.val;
   });
-  document.querySelectorAll('.drd-d-other-qty').forEach(function(el){totalItems+=parseInt(el.value)||0;});
+  var otherQtys=document.querySelectorAll('.drd-d-other-qty');
+  var otherVals=document.querySelectorAll('.drd-d-other-val');
+  otherQtys.forEach(function(el,i){
+    var qty=parseInt(el.value)||0;
+    var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
+    totalItems+=qty; totalVal+=qty*val;
+  });
   var ti=document.getElementById('drd-d-total-items');
   var tv=document.getElementById('drd-d-total-value');
   if(ti)ti.textContent=totalItems;
@@ -6767,10 +6811,12 @@ function _collectDrdFromDetail(){
   var otherItems=[];
   var names=document.querySelectorAll('.drd-d-other-name');
   var qtys=document.querySelectorAll('.drd-d-other-qty');
+  var vals=document.querySelectorAll('.drd-d-other-val');
   for(var i=0;i<names.length;i++){
     var n=names[i].value.trim();
     var q=parseInt(qtys[i]?qtys[i].value:0)||0;
-    if(n||q) otherItems.push({name:n,qty:q});
+    var v=parseFloat(vals[i]?vals[i].value:0)||0;
+    if(n||q) otherItems.push({name:n,qty:q,val:v});
   }
   return {
     sources:sources,
@@ -6861,7 +6907,7 @@ async function printDrdForJob(jobId){
     // Totals
     var totalItems=0,totalVal=0;
     DRD_ITEMS.forEach(function(item,idx){var q=drdData.quantities[idx]||0;totalItems+=q;totalVal+=q*item.val;});
-    drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;});
+    drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;totalVal+=(oi.qty||0)*(oi.val||0);});
     setField('Untitled41',drdData.emailedDate||'');
     setField('Untitled42',String(totalItems));
     setField('Untitled43',totalVal.toFixed(2));
@@ -7116,7 +7162,7 @@ document.addEventListener('click',function(e){
 function renderToday(){
   var todayS=todayStr();
   document.getElementById('today-view-lbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  var todayJobs=jobs.filter(function(j){return j.date===todayS&&j.status!=='Cancelled';});
+  var todayJobs=jobs.filter(function(j){return jobSchedDate(j)===todayS&&j.status!=='Cancelled';});
   var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<todayS;});
   var threshold=parseInt(document.getElementById('today-days-threshold')&&document.getElementById('today-days-threshold').value)||7;
   var longBins=jobs.filter(function(j){
@@ -7157,7 +7203,7 @@ function renderToday(){
   var svcCount={'Bin Rental':0,'Junk Removal':0,'Furniture Pickup':0,'Furniture Delivery':0};
   todayJobs.forEach(function(j){if(svcCount.hasOwnProperty(j.service))svcCount[j.service]++;});
   var svcIcons={'Bin Rental':'🚛','Junk Removal':'🧹','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
-  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#e67e22','Furniture Pickup':'#dc3545','Furniture Delivery':'#dc3545'};
+  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#eab308','Furniture Pickup':'#8b5cf6','Furniture Delivery':'#f97316'};
   cr.innerHTML=Object.keys(svcCount).map(function(k){var v=svcCount[k];return'<div class="bar-row"><div class="bar-label">'+svcIcons[k]+' '+k.split(' ')[0]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(v/Math.max.apply(null,Object.values(svcCount))||0,v>0?0.1:0)*100+'%;background:'+svcColors[k]+'"><span class="bar-fill-label">'+v+'</span></div></div></div>';}).join('');
 }
 
@@ -7536,23 +7582,23 @@ var emailPresets = {};
 var defaultPresets = {
   bin_dropoff: {
     subject: 'Your Bin Rental – Drop-off Confirmation',
-    body: 'Hi {name},\n\nThis is a confirmation that your {binSize} bin will be dropped off on {date}{time}.\n\nPlease ensure there is adequate space in your driveway{side}.\n\nIf you have any questions, please don\'t hesitate to call us!\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThis is a confirmation that your {binSize} bin will be dropped off on {dropoffDate}.\n\nRental duration: {duration}\nScheduled pick-up: {pickupDate}\n\nPlease ensure there is adequate space in your driveway{side}.\n\nIf you have any questions, please don\'t hesitate to call us!\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   },
   bin_pickup: {
     subject: 'Your Bin Rental – Pick-up Scheduled',
-    body: 'Hi {name},\n\nThis is a reminder that we will be picking up your bin on {date}{time}.\n\nPlease ensure the bin is accessible and nothing is blocking it.\n\nThank you for using Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThis is a reminder that we will be picking up your bin on {pickupDate}.\n\nPlease ensure the bin is accessible and nothing is blocking it.\n\nThank you for using Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   },
   junk_removal: {
     subject: 'Your Junk Removal – Appointment Confirmation',
-    body: 'Hi {name},\n\nThis is a confirmation of your junk removal appointment on {date}{time}.\n\nAddress: {address}\n\nPlease have the items accessible for our crew.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThis is a confirmation of your junk removal appointment on {date}.\n\nAddress: {address}\n\nPlease have the items accessible for our crew.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   },
   furniture_bank: {
     subject: 'Furniture Bank Appointment Confirmation',
-    body: 'Hi {name},\n\nThis is a confirmation of your furniture bank appointment on {date}{time}.\n\nAddress: {address}\n\nPlease ensure the furniture is ready and accessible.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThis is a confirmation of your furniture bank appointment on {date}.\n\nAddress: {address}\n\nPlease ensure the furniture is ready and accessible.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   },
   junk_quote: {
     subject: 'Your Junk Removal Quote',
-    body: 'Hi {name},\n\nThank you for requesting a junk removal quote.\n\nWe have scheduled a quote visit for {date}{time}.\n\nAddress: {address}\n\nOur team will assess the items and provide you with a detailed quote on site.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThank you for requesting a junk removal quote.\n\nWe have scheduled a quote visit for {date}.\n\nAddress: {address}\n\nOur team will assess the items and provide you with a detailed quote on site.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   }
 };
 
@@ -7562,12 +7608,18 @@ function getPreset(key) {
 
 function fillEmailTemplate(template, j) {
   var side = j.binSide ? ' (' + j.binSide + ' side)' : '';
-  var time = j.time ? ' at ' + ft(j.time) : '';
+  // Use the correct scheduled date based on service type
+  var schedDate = jobSchedDate(j);
+  var dropoffDate = j.binDropoff || j.date || '';
+  var pickupDate = j.binPickup || '';
+  var duration = j.binDuration || '';
   return template
     .replace(/{name}/g, j.name || '')
     .replace(/{binSize}/g, j.binSize || 'bin')
-    .replace(/{date}/g, fd(j.date) || '')
-    .replace(/{time}/g, time)
+    .replace(/{date}/g, fd(schedDate) || '')
+    .replace(/{dropoffDate}/g, fd(dropoffDate) || '')
+    .replace(/{pickupDate}/g, fd(pickupDate) || 'TBD')
+    .replace(/{duration}/g, duration)
     .replace(/{address}/g, ((j.address||'')+(j.city?', '+j.city:'')) || '')
     .replace(/{price}/g, fm(j.price) || '')
     .replace(/{side}/g, side);
@@ -7617,10 +7669,10 @@ function sendEmail() {
   var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.open(mailto, '_blank');
   if (emailJobId) {
-    jobs.forEach(function(j){if(j.id===emailJobId)j.emailSent=true;});
-    patchJob(emailJobId,{emailSent:true});
+    jobs.forEach(function(j){if(j.id===emailJobId){j.emailSent=true;j.emailConfirmed=true;}});
+    patchJob(emailJobId,{emailSent:true,emailConfirmed:true});
     document.getElementById('email-sent-note').style.display = 'block';
-    toast('Email client opened!');
+    toast('Email client opened & marked as sent!');
   }
 }
 
@@ -7992,7 +8044,12 @@ function drdModalRecalc(){
     totalItems+=q;totalVal+=q*item.val;
   });
   var otherQtys=document.querySelectorAll('.drd-m-other-qty');
-  otherQtys.forEach(function(el){totalItems+=(parseInt(el.value)||0);});
+  var otherVals=document.querySelectorAll('.drd-m-other-val');
+  otherQtys.forEach(function(el,i){
+    var qty=parseInt(el.value)||0;
+    var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
+    totalItems+=qty;totalVal+=qty*val;
+  });
   var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent=totalItems;
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
   _syncDrdToJobItems();
@@ -8023,7 +8080,8 @@ function drdModalAddOtherRow(){
   var row=document.createElement('div');
   row.style.cssText='display:flex;gap:8px;margin-bottom:4px;align-items:center';
   row.innerHTML='<input type="text" class="drd-m-other-name form-input" placeholder="Item name" style="flex:1;font-size:12px;padding:5px 8px" oninput="drdModalRecalc()">'
-    +'<input type="number" class="drd-m-other-qty" min="0" placeholder="Qty" style="width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
+    +'<input type="number" class="drd-m-other-qty" min="0" placeholder="Qty" style="width:55px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
+    +'<input type="number" class="drd-m-other-val" min="0" step="0.01" placeholder="$" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
     +'<button type="button" onclick="this.parentElement.remove();drdModalRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
@@ -8040,10 +8098,12 @@ function _collectDrdFromModal(){
   var otherItems=[];
   var names=document.querySelectorAll('.drd-m-other-name');
   var qtys=document.querySelectorAll('.drd-m-other-qty');
+  var vals=document.querySelectorAll('.drd-m-other-val');
   for(var i=0;i<names.length;i++){
     var n=names[i].value.trim();
     var q=parseInt(qtys[i]?qtys[i].value:0)||0;
-    if(n||q) otherItems.push({name:n,qty:q});
+    var v=parseFloat(vals[i]?vals[i].value:0)||0;
+    if(n||q) otherItems.push({name:n,qty:q,val:v});
   }
   return {
     sources:sources,
@@ -8088,8 +8148,10 @@ function _fillDrdModal(drd){
     drdModalAddOtherRow();
     var names=document.querySelectorAll('.drd-m-other-name');
     var qtys=document.querySelectorAll('.drd-m-other-qty');
+    var vals=document.querySelectorAll('.drd-m-other-val');
     if(names.length){names[names.length-1].value=oi.name||'';}
     if(qtys.length){qtys[qtys.length-1].value=oi.qty||0;}
+    if(vals.length){vals[vals.length-1].value=oi.val||0;}
   });
   drdModalRecalc();
 }
@@ -8141,9 +8203,11 @@ function renderDRD(){
 function drdAddOtherRow(){
   var wrap=document.getElementById('drd-other-rows');if(!wrap)return;
   var row=document.createElement('div');
-  row.style.cssText='display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:6px;align-items:center';
-  row.innerHTML='<input type="text" class="form-input drd-other-name" placeholder="Item description" style="font-size:13px;padding:6px 10px">'
-    +'<input type="number" class="form-input drd-other-qty" placeholder="0" min="0" style="font-size:13px;padding:6px 10px;width:70px;text-align:center" oninput="drdRecalc()">';
+  row.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';
+  row.innerHTML='<input type="text" class="form-input drd-other-name" placeholder="Item description" style="font-size:13px;padding:6px 10px;flex:1">'
+    +'<input type="number" class="form-input drd-other-qty" placeholder="Qty" min="0" style="font-size:13px;padding:6px 10px;width:60px;text-align:center" oninput="drdRecalc()">'
+    +'<input type="number" class="form-input drd-other-val" placeholder="$" min="0" step="0.01" style="font-size:13px;padding:6px 10px;width:75px;text-align:center" oninput="drdRecalc()">'
+    +'<button type="button" onclick="this.parentElement.remove();drdRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
 function drdRecalc(){
@@ -8153,7 +8217,13 @@ function drdRecalc(){
     var qty=el?(parseInt(el.value)||0):0;
     totalItems+=qty; totalVal+=qty*item.val;
   });
-  document.querySelectorAll('.drd-other-qty').forEach(function(el){totalItems+=parseInt(el.value)||0;});
+  var otherQtys=document.querySelectorAll('.drd-other-qty');
+  var otherVals=document.querySelectorAll('.drd-other-val');
+  otherQtys.forEach(function(el,i){
+    var qty=parseInt(el.value)||0;
+    var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
+    totalItems+=qty; totalVal+=qty*val;
+  });
   var ti=document.getElementById('drd-total-items');
   var tv=document.getElementById('drd-total-value');
   if(ti)ti.textContent=totalItems;
