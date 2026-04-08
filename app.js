@@ -6558,6 +6558,48 @@ async function openDetail(id){
 }
 
 function toggleJobHistory(jobId){
+  var wrap = document.getElementById('job-history-'+jobId);
+  var toggle = document.getElementById('history-toggle-'+jobId);
+  if(!wrap) return;
+  if(wrap.style.display === 'none'){
+    wrap.style.display = 'block';
+    toggle.textContent = '▼ Hide';
+    wrap.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px">Loading...</div>';
+    db.from('job_changes').select('*').eq('job_id', jobId).order('changed_at', {ascending:false}).then(function(r){
+      if(r.error || !r.data || !r.data.length){
+        wrap.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:13px">No edit history yet.</div>';
+        return;
+      }
+      var groups = [];
+      var lastKey = '';
+      r.data.forEach(function(c){
+        var key = (c.changed_at||'').substring(0,19) + '|' + (c.changed_by||'');
+        if(key !== lastKey){ groups.push({at:c.changed_at, by:c.changed_by, changes:[]}); lastKey = key; }
+        groups[groups.length-1].changes.push(c);
+      });
+      var html = groups.map(function(g){
+        var who = (g.by||'system').split('@')[0];
+        var when = new Date(g.at).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        var lines = g.changes.map(function(c){
+          return '<div style="font-size:12px;color:var(--fg);padding:2px 0">'
+            +'<span style="color:var(--muted)">'+c.field_name+':</span> '
+            +'<span style="text-decoration:line-through;opacity:.5">'+(c.old_value||'(empty)')+'</span>'
+            +' → <span style="font-weight:600">'+(c.new_value||'(empty)')+'</span></div>';
+        }).join('');
+        return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
+          +'<div style="font-size:12px;margin-bottom:4px"><strong style="color:#e67e22">'+who+'</strong> <span style="color:var(--muted)">— '+when+'</span></div>'
+          +lines+'</div>';
+      }).join('');
+      wrap.innerHTML = html;
+    }).catch(function(err){
+      console.error('Failed to load job history:', err);
+      wrap.innerHTML = '<div style="text-align:center;color:var(--red);padding:12px;font-size:13px">Failed to load edit history.</div>';
+    });
+  } else {
+    wrap.style.display = 'none';
+    toggle.textContent = '▶ Show';
+  }
+}
 
 // ── DRD embedded in Furniture Pickup job detail ──
 function _parseDrdData(j){
@@ -6832,51 +6874,6 @@ async function printDrdForJob(jobId){
   }catch(err){
     console.error('DRD PDF error:',err);
     toast('Error generating DRD: '+err.message,'error');
-  }
-}
-
-
-  var wrap = document.getElementById('job-history-'+jobId);
-  var toggle = document.getElementById('history-toggle-'+jobId);
-  if(!wrap) return;
-  if(wrap.style.display === 'none'){
-    wrap.style.display = 'block';
-    toggle.textContent = '▼ Hide';
-    wrap.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px">Loading...</div>';
-    db.from('job_changes').select('*').eq('job_id', jobId).order('changed_at', {ascending:false}).then(function(r){
-      if(r.error || !r.data || !r.data.length){
-        wrap.innerHTML = '<div style="text-align:center;color:var(--muted);padding:12px;font-size:13px">No edit history yet.</div>';
-        return;
-      }
-      // Group changes by timestamp (same second = same edit)
-      var groups = [];
-      var lastKey = '';
-      r.data.forEach(function(c){
-        var key = (c.changed_at||'').substring(0,19) + '|' + (c.changed_by||'');
-        if(key !== lastKey){ groups.push({at:c.changed_at, by:c.changed_by, changes:[]}); lastKey = key; }
-        groups[groups.length-1].changes.push(c);
-      });
-      var html = groups.map(function(g){
-        var who = (g.by||'system').split('@')[0];
-        var when = new Date(g.at).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
-        var lines = g.changes.map(function(c){
-          return '<div style="font-size:12px;color:var(--fg);padding:2px 0">'
-            +'<span style="color:var(--muted)">'+c.field_name+':</span> '
-            +'<span style="text-decoration:line-through;opacity:.5">'+(c.old_value||'(empty)')+'</span>'
-            +' → <span style="font-weight:600">'+(c.new_value||'(empty)')+'</span></div>';
-        }).join('');
-        return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
-          +'<div style="font-size:12px;margin-bottom:4px"><strong style="color:#e67e22">'+who+'</strong> <span style="color:var(--muted)">— '+when+'</span></div>'
-          +lines+'</div>';
-      }).join('');
-      wrap.innerHTML = html;
-    }).catch(function(err){
-      console.error('Failed to load job history:', err);
-      wrap.innerHTML = '<div style="text-align:center;color:var(--red);padding:12px;font-size:13px">Failed to load edit history.</div>';
-    });
-  } else {
-    wrap.style.display = 'none';
-    toggle.textContent = '▶ Show';
   }
 }
 
