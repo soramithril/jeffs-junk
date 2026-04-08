@@ -899,7 +899,7 @@ async function loadAllFromSupabase() {
       (rAssign.data || []).forEach(function(r){
         if(!vehicleAssignments[r.vid]) vehicleAssignments[r.vid] = [];
         var crew = crewMembers.find(function(c){ return c.id === r.crew_member_id; });
-        vehicleAssignments[r.vid].push({id:r.id, crewMemberId:r.crew_member_id, name:crew?crew.name:'Unknown'});
+        vehicleAssignments[r.vid].push({id:r.id, crewMemberId:r.crew_member_id, name:crew?crew.name:'Unknown', startedAt:r.started_at, endedAt:r.ended_at});
       });
     } catch(e){ console.warn('Crew/assignments load error:', e); }
 
@@ -1807,13 +1807,17 @@ function renderDashVehicleStatus(){
     var dotColor=statusCol;
     var menuId='veh-menu-'+v.vid;
 
-    // Assigned crew for today
+    // Assigned crew for today (show active vs clocked-out)
     var assigned=vehicleAssignments[v.vid]||[];
-    var crewNames=assigned.map(function(a){return a.name;}).join(', ');
+    var crewNames=assigned.map(function(a){
+      if(!a.endedAt) return a.name;
+      var end=new Date(a.endedAt);
+      return a.name+' (until '+end.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+')';
+    }).join(', ');
 
     // Build crew assignment options for the dropdown
     var crewOpts=crewMembers.map(function(c){
-      var isAssigned=assigned.some(function(a){return a.crewMemberId===c.id;});
+      var isAssigned=assigned.some(function(a){return a.crewMemberId===c.id && !a.endedAt;});
       return '<div style="padding:6px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();toggleCrewAssignment(\''+v.vid+'\',\''+c.id+'\')">'
         +'<span style="width:16px;text-align:center">'+(isAssigned?'✓':'')+'</span>'
         +'<span>'+c.name+'</span>'
@@ -1874,24 +1878,28 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('[id^="veh-menu-"]')&&!e.target.closest('#dash-vehicle-status'))closeVehMenus();
 });
 
-// ── Crew Assignment (toggle a crew member on/off a vehicle for today) ──
+// ── Crew Assignment (toggle a crew member on/off a vehicle for today with timestamps) ──
 function toggleCrewAssignment(vid, crewId){
   var todayISO=todayStr();
   if(!vehicleAssignments[vid]) vehicleAssignments[vid]=[];
-  var idx=vehicleAssignments[vid].findIndex(function(a){return a.crewMemberId===crewId;});
+  var idx=vehicleAssignments[vid].findIndex(function(a){return a.crewMemberId===crewId && !a.endedAt;});
   if(idx>=0){
-    // Remove assignment
+    // End this assignment (clock out)
     var rec=vehicleAssignments[vid][idx];
-    vehicleAssignments[vid].splice(idx,1);
-    db.from('vehicle_assignments').delete().eq('vid',vid).eq('crew_member_id',crewId).eq('assignment_date',todayISO).then(function(r){
-      if(r.error) console.warn('Remove assignment failed:',r.error.message);
+    var now=new Date().toISOString();
+    rec.endedAt=now;
+    db.from('vehicle_assignments').update({ended_at:now}).eq('id',rec.id).then(function(r){
+      if(r.error) console.warn('End assignment failed:',r.error.message);
     });
   } else {
-    // Add assignment
+    // Start new assignment (clock in)
     var crew=crewMembers.find(function(c){return c.id===crewId;});
-    vehicleAssignments[vid].push({id:null, crewMemberId:crewId, name:crew?crew.name:'Unknown'});
-    db.from('vehicle_assignments').insert({vid:vid, crew_member_id:crewId, assignment_date:todayISO}).then(function(r){
+    var now=new Date().toISOString();
+    var newRec={id:null, crewMemberId:crewId, name:crew?crew.name:'Unknown', startedAt:now, endedAt:null};
+    vehicleAssignments[vid].push(newRec);
+    db.from('vehicle_assignments').insert({vid:vid, crew_member_id:crewId, assignment_date:todayISO, started_at:now}).select().then(function(r){
       if(r.error) console.warn('Add assignment failed:',r.error.message);
+      if(r.data&&r.data[0]) newRec.id=r.data[0].id;
     });
   }
   renderDashVehicleStatus();
@@ -1962,6 +1970,39 @@ function changeVehicleStatus(vid,newStatus){
   renderCal();
 }
 
+// ── Leaderboard shared helpers ──
+var activeLeaderboard='vehicles'; // 'vehicles' or 'crew'
+
+function switchLeaderboard(tab){
+  activeLeaderboard=tab;
+  var vBtn=document.getElementById('lb-tab-vehicles');
+  var cBtn=document.getElementById('lb-tab-crew');
+  if(vBtn) vBtn.style.cssText='font-size:11px;padding:3px 10px;border-radius:6px;font-weight:600;'+(tab==='vehicles'?'background:rgba(34,197,94,.12);color:#15803d;':'');
+  if(cBtn) cBtn.style.cssText='font-size:11px;padding:3px 10px;border-radius:6px;font-weight:600;'+(tab==='crew'?'background:rgba(34,197,94,.12);color:#15803d;':'');
+  renderActiveLeaderboard();
+}
+function renderActiveLeaderboard(){
+  if(activeLeaderboard==='crew') renderCrewLeaderboard();
+  else renderDriverLeaderboard();
+}
+
+function leaderboardEvtRow(label,count,color,icon){
+  var barW=count?Math.min(100,count*15):0;
+  return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+    +'<div style="width:14px;text-align:center;font-size:11px">'+icon+'</div>'
+    +'<div style="width:100px;font-size:11px;color:var(--muted)">'+label+'</div>'
+    +'<div style="flex:1;height:6px;background:rgba(0,0,0,.05);border-radius:3px;min-width:60px"><div style="height:100%;width:'+barW+'%;background:'+color+';border-radius:3px;transition:width .3s"></div></div>'
+    +'<div style="width:28px;text-align:right;font-weight:700;font-size:12px;color:'+(count?color:'var(--muted)')+'">'+count+'</div>'
+  +'</div>';
+}
+
+function leaderboardCleanBadge(totalEvents){
+  return totalEvents===0
+    ?'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(34,197,94,.08);color:#16a34a;font-size:10px;font-weight:700;letter-spacing:.3px">✓ CLEAN RECORD</div>'
+    :'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(220,53,69,.08);color:#dc3545;font-size:10px;font-weight:700;letter-spacing:.3px">'+totalEvents+' event'+(totalEvents!==1?'s':'')+'</div>';
+}
+
+// ── Vehicle Leaderboard ──
 async function renderDriverLeaderboard(){
   var el=document.getElementById('dash-leaderboard');if(!el)return;
   var periodEl=document.getElementById('leaderboard-period');
@@ -1969,13 +2010,11 @@ async function renderDriverLeaderboard(){
   var fromDate=new Date();fromDate.setDate(fromDate.getDate()-days);
   var fromStr=fromDate.toISOString().split('T')[0];
 
-  // Show loading state
   el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">Loading...</div>';
 
   var res=await db.from('driver_scores').select('*').gte('period_date',fromStr).order('period_date',{ascending:false});
   var rows=res.data||[];
 
-  // Only include vehicles that exist on the vehicles page
   var vidSet={};vehicles.forEach(function(v){vidSet[v.vid]=true;});
   rows=rows.filter(function(r){return vidSet[r.vid];});
 
@@ -1986,25 +2025,23 @@ async function renderDriverLeaderboard(){
     return;
   }
 
-  // Aggregate by vid
   var byVid={};
   rows.forEach(function(r){
-    if(!byVid[r.vid]) byVid[r.vid]={vid:r.vid,name:r.driver_name,days:0,safety:0,harshBrake:0,harshAccel:0,speeding:0,seatbelt:0,distance:0,driveMin:0,idleMin:0};
+    if(!byVid[r.vid]) byVid[r.vid]={vid:r.vid,name:r.driver_name,days:0,safety:0,harshBrake:0,harshAccel:0,speeding:0,seatbelt:0,cornering:0,distance:0,driveMin:0,idleMin:0};
     var d=byVid[r.vid];
     d.days++;d.name=r.driver_name||d.name;
     d.safety+=Number(r.safety_score);
-    d.harshBrake+=r.harsh_braking;d.harshAccel+=r.harsh_accel;d.speeding+=r.speeding_events;d.seatbelt+=r.seatbelt_off;
+    d.harshBrake+=r.harsh_braking;d.harshAccel+=r.harsh_accel;d.speeding+=r.speeding_events;d.seatbelt+=r.seatbelt_off;d.cornering+=(r.cornering_events||0);
     d.distance+=Number(r.distance_km);d.driveMin+=r.drive_minutes;d.idleMin+=r.idle_minutes;
   });
 
   var drivers=Object.values(byVid).map(function(d){
     d.avgSafety=d.days?Math.round(d.safety/d.days*10)/10:0;
-    d.totalEvents=d.harshBrake+d.harshAccel+d.speeding+d.seatbelt;
+    d.totalEvents=d.harshBrake+d.harshAccel+d.speeding+d.seatbelt+d.cornering;
     return d;
   });
   drivers.sort(function(a,b){return b.avgSafety-a.avgSafety;});
 
-  // Match vehicle colors
   var vehMap={};vehicles.forEach(function(v){vehMap[v.vid]={name:v.name,color:v.color};});
 
   var medals=['🥇','🥈','🥉'];
@@ -2013,26 +2050,13 @@ async function renderDriverLeaderboard(){
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
     var safeColor=d.avgSafety>=90?'#22c55e':d.avgSafety>=70?'#e67e22':'#dc3545';
 
-    // Build event bars — always show all 4 categories
-    function evtRow(label,count,color,icon){
-      var barW=count?Math.min(100,count*15):0;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
-        +'<div style="width:14px;text-align:center;font-size:11px">'+icon+'</div>'
-        +'<div style="width:100px;font-size:11px;color:var(--muted)">'+label+'</div>'
-        +'<div style="flex:1;height:6px;background:rgba(0,0,0,.05);border-radius:3px;min-width:60px"><div style="height:100%;width:'+barW+'%;background:'+color+';border-radius:3px;transition:width .3s"></div></div>'
-        +'<div style="width:28px;text-align:right;font-weight:700;font-size:12px;color:'+(count?color:'var(--muted)')+'">'+count+'</div>'
-      +'</div>';
-    }
-
-    var evtHtml=evtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
-      +evtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
-      +evtRow('Speeding',d.speeding,'#e67e22','🏎️')
-      +evtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓');
-
-    var cleanBadge=d.totalEvents===0?'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(34,197,94,.08);color:#16a34a;font-size:10px;font-weight:700;letter-spacing:.3px">✓ CLEAN RECORD</div>':'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(220,53,69,.08);color:#dc3545;font-size:10px;font-weight:700;letter-spacing:.3px">'+d.totalEvents+' event'+(d.totalEvents!==1?'s':'')+'</div>';
+    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
+      +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
+      +leaderboardEvtRow('Speeding',d.speeding,'#e67e22','🏎️')
+      +leaderboardEvtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓')
+      +leaderboardEvtRow('Cornering',d.cornering,'#8b5cf6','↩️');
 
     return '<div style="border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--surface2);overflow:hidden;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 2px 12px rgba(34,197,94,.08)\'" onmouseout="this.style.boxShadow=\'none\'">'
-      // Top row: rank, name, score
       +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">'
         +'<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center">'+medal+'</div>'
         +'<div style="flex:1;min-width:0">'
@@ -2044,18 +2068,95 @@ async function renderDriverLeaderboard(){
           +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Safety Score</div>'
         +'</div>'
       +'</div>'
-      // Bottom row: event breakdown
       +'<div style="padding:6px 16px 12px 58px;border-top:1px solid var(--border);background:rgba(0,0,0,.01)">'
         +evtHtml
-        +cleanBadge
+        +leaderboardCleanBadge(d.totalEvents)
       +'</div>'
     +'</div>';
   }).join('');
 }
-// Ensure dropdown change fires even if inline onchange fails
+
+// ── Crew Leaderboard ──
+async function renderCrewLeaderboard(){
+  var el=document.getElementById('dash-leaderboard');if(!el)return;
+  var periodEl=document.getElementById('leaderboard-period');
+  var days=periodEl?parseInt(periodEl.value):7;
+  var fromDate=new Date();fromDate.setDate(fromDate.getDate()-days);
+  var fromStr=fromDate.toISOString().split('T')[0];
+
+  el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">Loading...</div>';
+
+  var res=await db.from('crew_driver_scores').select('*').gte('period_date',fromStr).order('period_date',{ascending:false});
+  var rows=res.data||[];
+
+  var periodLabel=days===1?'Yesterday':(days+' Days');
+
+  if(!rows.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No crew safety data for '+periodLabel+'. Crew scores are generated when drivers are assigned to vehicles.</div>';
+    return;
+  }
+
+  // Aggregate by crew_member_id
+  var byCrew={};
+  rows.forEach(function(r){
+    var cid=r.crew_member_id;
+    if(!byCrew[cid]) byCrew[cid]={crewId:cid,days:0,safety:0,harshBrake:0,harshAccel:0,speeding:0,seatbelt:0,cornering:0,distance:0,driveMin:0,vids:{}};
+    var d=byCrew[cid];
+    d.days++;
+    d.safety+=Number(r.safety_score);
+    d.harshBrake+=r.harsh_braking;d.harshAccel+=r.harsh_accel;d.speeding+=r.speeding_events;d.seatbelt+=r.seatbelt_off;d.cornering+=(r.cornering_events||0);
+    d.distance+=Number(r.distance_km||0);d.driveMin+=(r.drive_minutes||0);
+    (r.vehicles_driven||[]).forEach(function(v){d.vids[v]=true;});
+  });
+
+  // Map crew IDs to names
+  var crewMap={};crewMembers.forEach(function(c){crewMap[c.id]=c.name;});
+
+  var crew=Object.values(byCrew).map(function(d){
+    d.name=crewMap[d.crewId]||'Unknown';
+    d.avgSafety=d.days?Math.round(d.safety/d.days*10)/10:0;
+    d.totalEvents=d.harshBrake+d.harshAccel+d.speeding+d.seatbelt+d.cornering;
+    d.vehicleCount=Object.keys(d.vids).length;
+    return d;
+  });
+  crew.sort(function(a,b){return b.avgSafety-a.avgSafety;});
+
+  var medals=['🥇','🥈','🥉'];
+  el.innerHTML=crew.map(function(d,i){
+    var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
+    var safeColor=d.avgSafety>=90?'#22c55e':d.avgSafety>=70?'#e67e22':'#dc3545';
+
+    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
+      +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
+      +leaderboardEvtRow('Speeding',d.speeding,'#e67e22','🏎️')
+      +leaderboardEvtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓')
+      +leaderboardEvtRow('Cornering',d.cornering,'#8b5cf6','↩️');
+
+    return '<div style="border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--surface2);overflow:hidden;transition:box-shadow .15s" onmouseover="this.style.boxShadow=\'0 2px 12px rgba(34,197,94,.08)\'" onmouseout="this.style.boxShadow=\'none\'">'
+      +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">'
+        +'<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center">'+medal+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-weight:700;font-size:15px">'+d.name+'</div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+Math.round(d.distance)+' km · '+d.days+' day'+(d.days!==1?'s':'')+' · '+d.vehicleCount+' vehicle'+(d.vehicleCount!==1?'s':'')+(d.driveMin?' · '+Math.round(d.driveMin)+' min driving':'')+'</div>'
+        +'</div>'
+        +'<div style="text-align:center;flex-shrink:0">'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;color:'+safeColor+';line-height:1">'+d.avgSafety+'</div>'
+          +'<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Safety Score</div>'
+        +'</div>'
+      +'</div>'
+      +'<div style="padding:6px 16px 12px 58px;border-top:1px solid var(--border);background:rgba(0,0,0,.01)">'
+        +evtHtml
+        +leaderboardCleanBadge(d.totalEvents)
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+// Initialize leaderboard tab styling on load
 document.addEventListener('DOMContentLoaded',function(){
   var sel=document.getElementById('leaderboard-period');
-  if(sel)sel.addEventListener('change',function(){renderDriverLeaderboard();});
+  if(sel)sel.addEventListener('change',function(){renderActiveLeaderboard();});
+  switchLeaderboard('vehicles');
 });
 
 async function renderDashMaintAlert(){
@@ -2397,7 +2498,7 @@ async function renderDash(){
   refreshDashBinStats();
   renderDashVehicleStatus();
   renderDashMaintAlert();
-  renderDriverLeaderboard();
+  renderActiveLeaderboard();
 
   // ── Today's jobs ──────────────────────────────────────────
   var todayJobs        = (rTodayJobs.data||[]).map(dbToJob);
