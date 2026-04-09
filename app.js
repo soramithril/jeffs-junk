@@ -941,6 +941,9 @@ async function loadAllFromSupabase() {
       });
     } catch(e){ console.warn('Crew/assignments load error:', e); }
 
+    // Auto-assign default crew to vehicles on app load
+    ensureAutoAssignments();
+
     // Background-load ALL clients (Supabase caps at 1000 per request, so paginate)
     clients = [];
     try {
@@ -2234,23 +2237,28 @@ var _lbIdleChart=null;
 var _lbDistanceChart=null;
 var _lbImprovChart=null;
 
-// ── Permanent crew-to-vehicle assignments (name match) ──
-var PERMANENT_ASSIGNMENTS=[
-  {crew:'Max', vehicleMatch:'SILVERADO'},
-  {crew:'Darrin', vehicleMatch:'Darrin Truck'}
+// ── Crew-to-vehicle auto-assignments ──
+// locked: true = cannot be removed (Max, Darrin)
+// locked: false = auto-assigned daily but user can remove (Neil, Jordan, Josh)
+var AUTO_ASSIGNMENTS=[
+  {crew:'Max',    vehicleMatch:'SILVERADO',      locked:true},
+  {crew:'Darrin', vehicleMatch:'Darrin Truck',    locked:true},
+  {crew:'Neil',   vehicleMatch:'2020',            locked:false},
+  {crew:'Jordan', vehicleMatch:'Furniture Bank',  locked:false},
+  {crew:'Josh',   vehicleMatch:'L7 2023',         locked:false}
 ];
 
 function isPermanentAssignment(crewName, vid){
   var v=vehicles.find(function(vv){return vv.vid===vid;});
   if(!v) return false;
-  return PERMANENT_ASSIGNMENTS.some(function(pa){
-    return v.name.indexOf(pa.vehicleMatch)>=0 && crewName.toLowerCase()===pa.crew.toLowerCase();
+  return AUTO_ASSIGNMENTS.some(function(pa){
+    return pa.locked && v.name.indexOf(pa.vehicleMatch)>=0 && crewName.toLowerCase()===pa.crew.toLowerCase();
   });
 }
 
-function ensurePermanentAssignments(){
+function ensureAutoAssignments(){
   var todayISO=todayStr();
-  PERMANENT_ASSIGNMENTS.forEach(function(pa){
+  AUTO_ASSIGNMENTS.forEach(function(pa){
     var v=vehicles.find(function(vv){return vv.name.indexOf(pa.vehicleMatch)>=0;});
     var c=crewMembers.find(function(cc){return cc.name.toLowerCase()===pa.crew.toLowerCase();});
     if(!v||!c) return;
@@ -2262,7 +2270,7 @@ function ensurePermanentAssignments(){
     var newRec={id:null, crewMemberId:c.id, name:c.name, startedAt:now, endedAt:null};
     vehicleAssignments[v.vid].push(newRec);
     db.from('vehicle_assignments').insert({vid:v.vid, crew_member_id:c.id, assignment_date:todayISO, started_at:now}).select().then(function(r){
-      if(r.error) console.warn('Permanent assignment failed:',r.error.message);
+      if(r.error) console.warn('Auto-assignment failed:',r.error.message);
       if(r.data&&r.data[0]) newRec.id=r.data[0].id;
     });
   });
@@ -2435,7 +2443,7 @@ function getLbDateRange(){
 
 async function renderLeaderboardPage(){
   // Ensure permanent crew are assigned
-  ensurePermanentAssignments();
+  ensureAutoAssignments();
   renderLbAssignments();
 
   var range=getLbDateRange();
