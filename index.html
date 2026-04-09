@@ -162,19 +162,21 @@
   <!-- MAINTENANCE ALERT BANNER -->
   <div id="dash-maint-alert" style="display:none;margin-bottom:16px;padding:10px 16px;border-radius:10px;background:rgba(220,53,69,.06);border:1px solid rgba(220,53,69,.25);font-size:13px;color:var(--text)"></div>
 
+  <!-- Dashboard date picker — controls Bin Fleet + Today's Jobs -->
+  <div class="dash-section" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;padding:10px 0;">
+    <button class="btn btn-ghost" style="padding:6px 14px;font-size:22px;line-height:1;font-weight:700;" onclick="shiftDashDate(-1)">‹</button>
+    <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats();refreshDashJobs()" style="font-size:15px;font-weight:700;padding:8px 14px;text-align:center;">
+    <button class="btn btn-ghost" style="padding:6px 16px;font-size:13px;font-weight:700;" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats();refreshDashJobs()">Today</button>
+    <button class="btn btn-ghost" style="padding:6px 14px;font-size:22px;line-height:1;font-weight:700;" onclick="shiftDashDate(1)">›</button>
+  </div>
+
   <!-- ROW HERO: Bin Fleet (left) + Today's Jobs (right) — side by side -->
   <div class="dash-section dash-s1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
 
     <!-- LEFT: Bin Fleet Status -->
     <div class="bin-fleet-hero" style="margin-bottom:0">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;letter-spacing:.5px;color:var(--text);">🚛 Bin Fleet Status</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(-1)">‹</button>
-          <input type="date" id="dash-bin-date" class="bin-date-picker" onchange="refreshDashBinStats();refreshDashJobs()">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats();refreshDashJobs()">Today</button>
-          <button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:18px;line-height:1" onclick="shiftDashDate(1)">›</button>
-        </div>
       </div>
       <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"></div>
     </div>
