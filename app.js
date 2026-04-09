@@ -913,7 +913,7 @@ async function loadAllFromSupabase() {
           return {vid:r.vid, name:r.name, type:r.type, color:r.color||'#22c55e', notes:r.notes||'', active:true,
                   stickerMonth:r.sticker_month||'', stickerYear:r.sticker_year||'',
                   oilDate:r.oil_date||'', oilKm:r.oil_km?String(r.oil_km):'', oilInterval:r.oil_interval?String(r.oil_interval):'',
-                  vehicleStatus:r.vehicle_status||'Available'};
+                  vehicleStatus:r.vehicle_status||'Available', leaderboardOnly:!!r.leaderboard_only};
         });
         vehBlocks = {};
         (rvehBlocks.data||[]).forEach(function(r){
@@ -1843,9 +1843,10 @@ function updateDashBinStatsDirect(){refreshDashBinStats();}
 
 function renderDashVehicleStatus(){
   var el=document.getElementById('dash-vehicle-status');if(!el)return;
-  if(!vehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
+  var dashVehicles=vehicles.filter(function(v){return !v.leaderboardOnly;});
+  if(!dashVehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
   var todayS=todayStr();
-  el.innerHTML=vehicles.map(function(v){
+  el.innerHTML=dashVehicles.map(function(v){
     var blocks=vehBlocks[v.vid]||{};
     var todayBlock=blocks[todayS];
     var status,statusCol,statusIcon,statusTip;
@@ -9262,14 +9263,15 @@ function renderVehicles(){
   var el=document.getElementById('vehicles-list');
   if(!el)return;
   var sub=document.getElementById('vehicles-sub');
-  if(!vehicles.length){
+  var dashVehicles=vehicles.filter(function(v){return !v.leaderboardOnly;});
+  if(!dashVehicles.length){
     el.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="ei">🚛</div><h3>No vehicles yet</h3><p>Add your trucks and vans to track availability</p></div>';
     if(sub)sub.textContent='No vehicles added yet';
     return;
   }
-  if(sub)sub.textContent=vehicles.length+' vehicle'+(vehicles.length!==1?'s':'')+' · blocked days show on the main Calendar tab';
+  if(sub)sub.textContent=dashVehicles.length+' vehicle'+(dashVehicles.length!==1?'s':'')+' · blocked days show on the main Calendar tab';
   var today=todayStr();
-  el.innerHTML=vehicles.map(function(v){
+  el.innerHTML=dashVehicles.map(function(v){
     var blocks=vehBlocks[v.vid]||{};
     var allDates=Object.keys(blocks).sort();
     var upcoming=allDates.filter(function(d){return d>=today;});
