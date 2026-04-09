@@ -1735,7 +1735,6 @@ function updateDashDateLabel(){
   var lbl=document.getElementById('dash-date-label');
   if(!dp||!lbl)return;
   var val=dp.value||todayStr();
-  if(val===todayStr()){lbl.textContent='Today';return;}
   var d=new Date(val+'T12:00:00');
   lbl.textContent=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 }
