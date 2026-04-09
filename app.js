@@ -1726,8 +1726,18 @@ function shiftDashDate(n){
   var d=new Date(base+'T12:00:00');
   d.setDate(d.getDate()+n);
   dp.value=d.toISOString().split('T')[0];
+  updateDashDateLabel();
   refreshDashBinStats();
   refreshDashJobs();
+}
+function updateDashDateLabel(){
+  var dp=document.getElementById('dash-bin-date');
+  var lbl=document.getElementById('dash-date-label');
+  if(!dp||!lbl)return;
+  var val=dp.value||todayStr();
+  if(val===todayStr()){lbl.textContent='\uD83D\uDCC5 Today';return;}
+  var d=new Date(val+'T12:00:00');
+  lbl.textContent='\uD83D\uDCC5 '+d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 }
 
 // Dashboard bin stats — loads all bin jobs into jobs[] exactly like loadBinJobsThenRender,
@@ -3251,6 +3261,7 @@ async function renderDash(){
 
   var datePicker = document.getElementById('dash-bin-date');
   datePicker.value = todayS;
+  updateDashDateLabel();
   document.getElementById('today-lbl').textContent = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
   // Parallel Supabase fetches
