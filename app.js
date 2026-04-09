@@ -9730,18 +9730,26 @@ async function runAdvisor(){
       });
     }
 
-    // This month vs last year
+    // This month vs last year (pro-rated by day of month)
     if(curCount > 0 && lastYearCount > 0){
-      if(monthVsLY <= -20){
+      var today = new Date();
+      var dayOfMonth = today.getDate();
+      var daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+      var proRatedTarget = Math.round(lastYearCount * dayOfMonth / daysInMonth);
+      var proRatedPct = proRatedTarget ? Math.round((curCount - proRatedTarget) / proRatedTarget * 100) : 0;
+      var projectedTotal = dayOfMonth > 0 ? Math.round(curCount / dayOfMonth * daysInMonth) : 0;
+      var remainingDays = daysInMonth - dayOfMonth;
+      var neededPerDay = remainingDays > 0 ? Math.round((lastYearCount - curCount) / remainingDays * 10) / 10 : 0;
+      if(proRatedPct <= -20){
         recs.push({category:'MARKETING',priority:'HIGH',status:'urgent',
-          title:mNames[curMo]+' Tracking Behind Last Year',
-          detail:'This '+mNames[curMo]+' has '+curCount+' jobs so far vs '+lastYearCount+' in '+mNames[curMo]+' last year — running '+Math.abs(monthVsLY)+'% behind. Seasonal average for '+mNames[curMo]+' is '+curMonthAvg+' jobs.',
+          title:mNames[curMo]+' Tracking Behind Last Year\'s Pace',
+          detail:'Through '+mNames[curMo]+' '+dayOfMonth+': '+curCount+' jobs vs ~'+proRatedTarget+' at this point last year ('+lastYearCount+' total). At current pace you\'d finish with ~'+projectedTotal+' jobs. To match last year you need ~'+neededPerDay+' jobs/day for the remaining '+remainingDays+' days.',
           action:'Push a promotional offer or targeted social media post this week to accelerate bookings for the rest of the month.'
         });
-      } else if(monthVsLY >= 20){
+      } else if(proRatedPct >= 20){
         recs.push({category:'OPERATIONS',priority:'MEDIUM',status:'positive',
-          title:mNames[curMo]+' Running '+monthVsLY+'% Ahead of Last Year',
-          detail:'This '+mNames[curMo]+' has '+curCount+' jobs vs '+lastYearCount+' same time last year. Make sure you have enough bin inventory and crew capacity to handle the higher demand.',
+          title:mNames[curMo]+' Running Ahead of Last Year\'s Pace',
+          detail:'Through '+mNames[curMo]+' '+dayOfMonth+': '+curCount+' jobs vs ~'+proRatedTarget+' at this point last year ('+lastYearCount+' total). On pace for ~'+projectedTotal+' jobs this month.',
           action:'Confirm all crew schedules and verify bin inventory levels are adequate for the rest of the month.'
         });
       }
@@ -9762,18 +9770,18 @@ async function runAdvisor(){
       });
     }
 
-    // 20yd duration insight
+    // 20yd duration insight — longer rentals = more daily revenue + free advertising on-site
     if(dur20 >= 8){
       recs.push({category:'FLEET',priority:'LOW',status:'positive',
         title:'20 Yard Bins Averaging '+dur20+' Day Rentals',
-        detail:'20 yard bins average '+dur20+' days per rental vs '+dur14+' days for 14 yard bins. Longer rentals keep bins out and working.',
-        action:'Keep marketing the overage policy clearly at booking so customers understand the fee. Consider whether adding more 20yd bins to the fleet would capture unmet demand.'
+        detail:'20 yard bins average '+dur20+' days per rental vs '+dur14+' days for 14 yard. Longer rentals mean more daily revenue per job and every bin on-site is a free billboard for your business. Since your fleet isn\'t maxed out, this is pure upside.',
+        action:'Keep encouraging longer rentals — consider promoting 2-week packages for renovation projects. Every extra day is revenue plus free advertising in the neighbourhood.'
       });
     } else if(dur20 > 0 && dur20 < 5){
       recs.push({category:'FLEET',priority:'MEDIUM',status:'opportunity',
-        title:'20 Yard Bins Returning Quickly ('+dur20+' days avg)',
-        detail:'20 yard bins average only '+dur20+' days — customers are returning them before the standard rental period.',
-        action:'Consider whether your messaging about rental duration is making customers rush returns.'
+        title:'20 Yard Bins Coming Back Fast ('+dur20+' days avg)',
+        detail:'20 yard bins average only '+dur20+' days. Quick returns mean less daily revenue per job and less time for neighbours to see your brand on-site. Since your fleet has spare capacity, longer rentals would be pure profit.',
+        action:'Consider messaging that encourages customers to keep bins longer — "no rush to return" or bundled weekly rates. Every extra day on-site is revenue plus free advertising.'
       });
     }
 
@@ -9895,14 +9903,15 @@ async function runAdvisor(){
       }
     }
 
-    // ── NEW: Lapsed high-value customers ──────────────────────
-    if(lapsedCustomers && lapsedCustomers.length >= 3){
-      var topLapsed = lapsedCustomers.slice(0,5);
-      var lapsedNames = topLapsed.map(function(c){return c.name+' ('+c.total_jobs+' jobs, last: '+c.days_since+' days ago)';}).join(', ');
-      recs.push({category:'CUSTOMER RETENTION',priority:'HIGH',status:'urgent',
-        title:lapsedCustomers.length+' Frequent Customers Have Gone Silent',
-        detail:'These customers booked 3+ times but haven\'t been seen in over 6 months: '+lapsedNames+'. Acquiring a new customer costs 5-7x more than reactivating an existing one.',
-        action:'Send a personal reach-out to your top 5 lapsed customers this week. A "We miss you" message with a small incentive (priority booking, waived delivery fee) converts 15-25% of lapsed customers.'
+    // ── NEW: Lapsed high-value customers (only recent lapsed — under 2 years) ──
+    var recentLapsed = (lapsedCustomers||[]).filter(function(c){return c.days_since <= 730;});
+    if(recentLapsed.length >= 3){
+      var topLapsed = recentLapsed.slice(0,5);
+      var lapsedNames = topLapsed.map(function(c){return c.name+' ('+c.total_jobs+' jobs, last '+Math.round(c.days_since/30)+' months ago)';}).join(', ');
+      recs.push({category:'CUSTOMER RETENTION',priority:'MEDIUM',status:'opportunity',
+        title:recentLapsed.length+' Repeat Customers Inactive 6-24 Months',
+        detail:'These customers booked 3+ times but haven\'t called in a while: '+lapsedNames+'. Some may have moved or no longer need service, but others might just need a reminder you exist.',
+        action:'Review the list — if any are worth re-engaging, a quick personal text or call can go a long way. A "We miss you" message with a small incentive converts 15-25% of lapsed customers.'
       });
     }
 
@@ -10016,31 +10025,32 @@ async function runAdvisor(){
       });
     }
 
-    // ── NEW: Day-of-week optimization ────────────────────────
+    // ── NEW: Day-of-week optimization (exclude Sunday — not a working day) ──
     if(dayOfWeek.length >= 5){
       var dNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      var dowSorted = dayOfWeek.slice().sort(function(a,b){return b.cnt-a.cnt;});
+      var workDays = dayOfWeek.filter(function(d){return d.dow !== 0;}); // exclude Sunday
+      var dowSorted = workDays.slice().sort(function(a,b){return b.cnt-a.cnt;});
       var busiest = dowSorted[0];
       var slowest = dowSorted[dowSorted.length-1];
       var spread = busiest.cnt > 0 ? Math.round((busiest.cnt - slowest.cnt) / busiest.cnt * 100) : 0;
-      if(spread >= 50){
+      if(spread >= 40 && slowest.cnt > 0){
         recs.push({category:'SCHEDULING',priority:'MEDIUM',status:'opportunity',
           title:dNames[busiest.dow]+' Has '+Math.round(busiest.cnt/slowest.cnt)+'x More Jobs Than '+dNames[slowest.dow],
-          detail:'Job volume by day: '+dayOfWeek.map(function(d){return dNames[d.dow]+': '+d.cnt;}).join(', ')+'. '+dNames[slowest.dow]+' is significantly underbooked — '+spread+'% fewer jobs than '+dNames[busiest.dow]+'.',
+          detail:'Job volume by working day: '+workDays.map(function(d){return dNames[d.dow]+': '+d.cnt;}).join(', ')+'. '+dNames[slowest.dow]+' is your slowest working day — '+spread+'% fewer jobs than '+dNames[busiest.dow]+'.',
           action:'Offer a "'+dNames[slowest.dow]+' Special" — a 10% discount or priority booking for your slow day. Evening out your weekly schedule means fewer missed bookings on peak days and less idle time on slow days.'
         });
       }
     }
 
     // ── NEW: City growth momentum ────────────────────────────
-    var growingCities = cityGrowth.filter(function(c){return c.previous > 0 && c.recent > c.previous * 1.25;});
-    var shrinkingCities = cityGrowth.filter(function(c){return c.previous > 5 && c.recent < c.previous * 0.75;});
+    var growingCities = cityGrowth.filter(function(c){return c.same_period_ly > 0 && c.recent > c.same_period_ly * 1.25;});
+    var shrinkingCities = cityGrowth.filter(function(c){return c.same_period_ly > 5 && c.recent < c.same_period_ly * 0.75;});
     if(growingCities.length > 0){
       recs.push({category:'EXPANSION',priority:'MEDIUM',status:'opportunity',
         title:growingCities.length+' Cit'+(growingCities.length!==1?'ies':'y')+' Growing Fast',
-        detail:'These areas are trending up: '+growingCities.slice(0,5).map(function(c){
-          var pct = Math.round((c.recent - c.previous)/c.previous*100);
-          return c.city+' (+'+pct+'%, '+c.recent+' recent vs '+c.previous+' prior 6mo)';
+        detail:'These areas are trending up (year-over-year, same period): '+growingCities.slice(0,5).map(function(c){
+          var pct = Math.round((c.recent - c.same_period_ly)/c.same_period_ly*100);
+          return c.city+' (+'+pct+'%, '+c.recent+' recent vs '+c.same_period_ly+' same period last year)';
         }).join(', ')+'. Growth markets deserve investment before competitors notice.',
         action:'Increase visibility in growing markets — local flyers, Google Ads geo-targeting, or partnerships with local contractors and realtors in these areas.'
       });
@@ -10048,9 +10058,9 @@ async function runAdvisor(){
     if(shrinkingCities.length > 0){
       recs.push({category:'EXPANSION',priority:'MEDIUM',status:'urgent',
         title:shrinkingCities.length+' Cit'+(shrinkingCities.length!==1?'ies':'y')+' Losing Momentum',
-        detail:'These areas are slowing: '+shrinkingCities.slice(0,5).map(function(c){
-          var pct = Math.round((c.previous - c.recent)/c.previous*100);
-          return c.city+' (-'+pct+'%, '+c.recent+' recent vs '+c.previous+' prior 6mo)';
+        detail:'These areas are slowing (year-over-year, same period): '+shrinkingCities.slice(0,5).map(function(c){
+          var pct = Math.round((c.same_period_ly - c.recent)/c.same_period_ly*100);
+          return c.city+' (-'+pct+'%, '+c.recent+' recent vs '+c.same_period_ly+' same period last year)';
         }).join(', ')+'. Declining markets may signal competitor entry or market saturation.',
         action:'Investigate: Is a new competitor active in these areas? Has construction/renovation activity slowed? Adjust marketing spend accordingly — don\'t throw money at a declining market without understanding why.'
       });
