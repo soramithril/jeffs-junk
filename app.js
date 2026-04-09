@@ -3400,14 +3400,13 @@ async function renderDash(){
       +list.map(function(j){
         var cfm = j.confirmed;
         var confirmBadge = '';
-        if((j.service==='Bin Rental'&&j.binPickup===dateStr)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'){
+        if(j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'){
           confirmBadge = cfm
             ? '<span style="font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:1px 6px;white-space:nowrap">✅ Confirmed</span>'
             : '<span style="font-size:10px;color:#e67e22;font-weight:600;background:rgba(230,126,34,.10);border-radius:4px;padding:1px 6px;white-space:nowrap">📞 Unconfirmed</span>';
         }
         var actionBtn = '';
-        var isBinPickupDay=j.service==='Bin Rental'&&j.binPickup===dateStr;
-        if(isBinPickupDay&&j.binInstatus!=='pickedup'){
+        if(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'){
           actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
             +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.3);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07);flex-shrink:0" onclick="toggleJdd(this.parentElement)">Actions ▾</button>'
             +'<div class="jdd-menu">'
