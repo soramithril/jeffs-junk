@@ -1924,6 +1924,7 @@ function closeVehMenus(){
 }
 document.addEventListener('click',function(e){
   if(!e.target.closest('[id^="veh-menu-"]')&&!e.target.closest('#dash-vehicle-status'))closeVehMenus();
+  if(!e.target.closest('.lb-assign-card'))document.querySelectorAll('.lb-assign-menu').forEach(function(el){el.style.display='none';});
 });
 
 // ── Crew Assignment (toggle a crew member on/off a vehicle for today with timestamps) ──
@@ -2233,6 +2234,98 @@ var _lbIdleChart=null;
 var _lbDistanceChart=null;
 var _lbImprovChart=null;
 
+// ── Permanent crew-to-vehicle assignments (name match) ──
+var PERMANENT_ASSIGNMENTS=[
+  {crew:'Max', vehicleMatch:'SILVERADO'},
+  {crew:'Darrin', vehicleMatch:'Darrin Truck'}
+];
+
+function isPermanentAssignment(crewName, vid){
+  var v=vehicles.find(function(vv){return vv.vid===vid;});
+  if(!v) return false;
+  return PERMANENT_ASSIGNMENTS.some(function(pa){
+    return v.name.indexOf(pa.vehicleMatch)>=0 && crewName.toLowerCase()===pa.crew.toLowerCase();
+  });
+}
+
+function ensurePermanentAssignments(){
+  var todayISO=todayStr();
+  PERMANENT_ASSIGNMENTS.forEach(function(pa){
+    var v=vehicles.find(function(vv){return vv.name.indexOf(pa.vehicleMatch)>=0;});
+    var c=crewMembers.find(function(cc){return cc.name.toLowerCase()===pa.crew.toLowerCase();});
+    if(!v||!c) return;
+    if(!vehicleAssignments[v.vid]) vehicleAssignments[v.vid]=[];
+    var already=vehicleAssignments[v.vid].some(function(a){return a.crewMemberId===c.id && !a.endedAt;});
+    if(already) return;
+    // Auto-assign
+    var now=new Date().toISOString();
+    var newRec={id:null, crewMemberId:c.id, name:c.name, startedAt:now, endedAt:null};
+    vehicleAssignments[v.vid].push(newRec);
+    db.from('vehicle_assignments').insert({vid:v.vid, crew_member_id:c.id, assignment_date:todayISO, started_at:now}).select().then(function(r){
+      if(r.error) console.warn('Permanent assignment failed:',r.error.message);
+      if(r.data&&r.data[0]) newRec.id=r.data[0].id;
+    });
+  });
+}
+
+function renderLbAssignments(){
+  var grid=document.getElementById('lb-assignments-grid');
+  if(!grid) return;
+  var allVehs=vehicles.filter(function(v){return v.active!==false;});
+  grid.innerHTML=allVehs.map(function(v){
+    var assigned=(vehicleAssignments[v.vid]||[]).filter(function(a){return !a.endedAt;});
+    var crewHtml=assigned.length
+      ? assigned.map(function(a){
+          var perm=isPermanentAssignment(a.name, v.vid);
+          return '<span class="lb-assign-crew'+(perm?' lb-assign-perm':'')+'">'
+            +(perm?'🔒 ':'')+a.name
+            +(perm?'':'<span class="lb-assign-x" onclick="event.stopPropagation();lbUnassignCrew(\''+v.vid+'\',\''+a.crewMemberId+'\')">&times;</span>')
+            +'</span>';
+        }).join('')
+      : '<span style="font-size:11px;color:var(--muted);font-style:italic">No crew</span>';
+
+    var menuId='lb-assign-menu-'+v.vid;
+    // Build crew options (exclude already-assigned)
+    var assignedIds={};assigned.forEach(function(a){assignedIds[a.crewMemberId]=true;});
+    var opts=crewMembers.filter(function(c){return !assignedIds[c.id];}).map(function(c){
+      var perm=isPermanentAssignment(c.name, v.vid);
+      return '<div class="lb-assign-opt" onclick="event.stopPropagation();lbAssignCrew(\''+v.vid+'\',\''+c.id+'\')">'+c.name+'</div>';
+    }).join('');
+
+    return '<div class="lb-assign-card" onclick="lbToggleAssignMenu(\''+menuId+'\')">'
+      +'<div class="lb-assign-vname">'+(v.leaderboardOnly?'':'🚛 ')+v.name+'</div>'
+      +'<div class="lb-assign-crew-row">'+crewHtml+'</div>'
+      +'<div id="'+menuId+'" class="lb-assign-menu" style="display:none;">'
+      +(opts||'<div style="padding:8px 12px;font-size:11px;color:var(--muted)">All crew assigned</div>')
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function lbToggleAssignMenu(menuId){
+  var m=document.getElementById(menuId);if(!m)return;
+  var wasOpen=m.style.display!=='none';
+  // Close all menus first
+  document.querySelectorAll('.lb-assign-menu').forEach(function(el){el.style.display='none';});
+  if(!wasOpen) m.style.display='block';
+}
+
+function lbAssignCrew(vid, crewId){
+  document.querySelectorAll('.lb-assign-menu').forEach(function(el){el.style.display='none';});
+  toggleCrewAssignment(vid, crewId);
+  renderLbAssignments();
+  renderDashVehicleStatus();
+}
+
+function lbUnassignCrew(vid, crewId){
+  // Block unassigning permanent crew
+  var crew=crewMembers.find(function(c){return c.id===crewId;});
+  if(crew && isPermanentAssignment(crew.name, vid)) return;
+  toggleCrewAssignment(vid, crewId);
+  renderLbAssignments();
+  renderDashVehicleStatus();
+}
+
 function initLeaderboardPage(){
   // Populate default date pickers
   var now=new Date();
@@ -2341,6 +2434,10 @@ function getLbDateRange(){
 }
 
 async function renderLeaderboardPage(){
+  // Ensure permanent crew are assigned
+  ensurePermanentAssignments();
+  renderLbAssignments();
+
   var range=getLbDateRange();
   var isCrewMode=activeLeaderboard==='crew';
 
