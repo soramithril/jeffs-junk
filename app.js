@@ -3393,7 +3393,7 @@ async function renderDash(){
   if(todayCard) todayCard.className = 'chart-card ' + (totalTodayCount===0?'urgency-ok':totalTodayCount>=5?'urgency-warn':'urgency-neutral');
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
-  function makeTodayCat(title,color,list){
+  function makeTodayCat(title,color,list,showBinActions){
     if(!list.length)return '<div style="margin-bottom:12px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:6px;">'+title+' (0)</div><div style="font-size:12px;color:var(--muted);padding:4px 0;font-style:italic">No jobs today</div></div>';
     return '<div style="margin-bottom:12px">'
       +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:6px;">'+title+' ('+list.length+')</div>'
@@ -3406,17 +3406,9 @@ async function renderDash(){
             : '<span style="font-size:10px;color:#e67e22;font-weight:600;background:rgba(230,126,34,.10);border-radius:4px;padding:1px 6px;white-space:nowrap">📞 Unconfirmed</span>';
         }
         var actionBtn = '';
-        if(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'){
-          actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
-            +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.3);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07);flex-shrink:0" onclick="toggleJdd(this.parentElement)">Actions ▾</button>'
-            +'<div class="jdd-menu">'
-              +(!cfm?'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Ready for Pickup</div>':'')
-              +'<div class="jdd-item" onclick="markPickedUp(\''+j.id+'\',event)">✅ Mark Picked Up</div>'
-              +'<div class="jdd-divider"></div>'
-              +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">📋 Open Details</div>'
-              +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:\'+j.phone;event.stopPropagation()">📞 '+j.phone+'</div>':'')
-            +'</div>'
-          +'</div>';
+        if(j.service==='Bin Rental'&&showBinActions&&j.binInstatus!=='pickedup'){
+          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07);flex-shrink:0">✅ Picked Up</button>'
+            +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 Ready for Pickup</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
           var cfmWord = j.service==='Furniture Delivery'?'Drop-Off':'Pickup';
           actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
@@ -3458,12 +3450,12 @@ async function renderDash(){
         +'</div>';
       }).join('')+'</div>';
   }
-  var todayHtml = makeTodayCat('🚛 Bin Deliveries','#22c55e',todayBinDropoffs)
-    +makeTodayCat('🚚 Bin Pickups','#dc3545',todayBinPickups)
-    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals)
-    +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes)
-    +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups)
-    +makeTodayCat('📦 Furniture Deliveries','#f97316',todayFurnDelivs);
+  var todayHtml = makeTodayCat('🚛 Bin Deliveries','#22c55e',todayBinDropoffs,false)
+    +makeTodayCat('🚚 Bin Pickups','#dc3545',todayBinPickups,true)
+    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false)
+    +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes,false)
+    +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false)
+    +makeTodayCat('📦 Furniture Deliveries','#f97316',todayFurnDelivs,false);
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||'<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs today 🎉</div>';
 
@@ -10305,3 +10297,4 @@ async function _printFbForm(jobId, kind) {
 
 async function printFbDropOff(jobId) { return _printFbForm(jobId, 'dropoff'); }
 async function printFbPickup(jobId) { return _printFbForm(jobId, 'pickup'); }
+                                                                                                                                                                
