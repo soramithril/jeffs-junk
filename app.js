@@ -1736,7 +1736,9 @@ async function refreshDashBinStats(){
   var dp=document.getElementById('dash-bin-date');
   var dateStr=dp&&dp.value?dp.value:todayStr();
   var today=todayStr();
-  var totalBins=binItems.length;
+  var activeBins=binItems.filter(function(b){return b.damage!=='oor';});
+  var totalBins=activeBins.length;
+  var oorCount=binItems.length-totalBins;
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
 
@@ -1768,7 +1770,7 @@ async function refreshDashBinStats(){
   // A job without a bin_bid assigned is still a bin physically out there.
   var binsOut=0, binsIn=0;
   var sizeTotal={};
-  sizes.forEach(function(s){sizeTotal[s]=binItems.filter(function(b){return b.size===s;}).length;});
+  sizes.forEach(function(s){sizeTotal[s]=activeBins.filter(function(b){return b.size===s;}).length;});
   var sizeOut={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
 
   if(dateStr===today){
@@ -6035,33 +6037,37 @@ function binsOutOnDate(dateStr){
   return Math.min(count, binItems.length);
 }
 function renderBinInventory(){
-  var total=binItems.length,inYard=0,outJob=0,damaged=0,green=0,black=0,s4=0,s7=0,s14=0,s20=0;
+  var total=binItems.length,inYard=0,outJob=0,damaged=0,oor=0,green=0,black=0,s4=0,s7=0,s14=0,s20=0;
   binItems.forEach(function(b){
+    if(b.damage==='oor'){oor++;return;}
     if(b.status==='in')inYard++;else outJob++;
     if(b.damage==='damage')damaged++;
     if(b.color==='green')green++;else if(b.color==='black')black++;
     if(b.size==='4 yard')s4++;else if(b.size==='7 yard')s7++;else if(b.size==='14 yard')s14++;else s20++;
   });
-  var cn={'all':total,'in':inYard,'out':outJob,'damage':damaged,'green':green,'black':black,'4':s4,'7':s7,'14':s14,'20':s20};
+  var active=total-oor;
+  var cn={'all':total,'in':inYard,'out':outJob,'damage':damaged,'oor':oor,'green':green,'black':black,'4':s4,'7':s7,'14':s14,'20':s20};
   Object.keys(cn).forEach(function(k){var el=document.getElementById('fn-'+k);if(el)el.textContent=cn[k];});
-  var inPct=total?Math.round(inYard/total*100):0,outPct=total?Math.round(outJob/total*100):0,dmgPct=total?Math.round(damaged/total*100):0;
+  var inPct=active?Math.round(inYard/active*100):0,outPct=active?Math.round(outJob/active*100):0,dmgPct=active?Math.round(damaged/active*100):0,oorPct=total?Math.round(oor/total*100):0;
   var stats=[
-    {val:total,lbl:'Total Bins',color:'#22c55e',pct:100},
+    {val:active,lbl:'Active Fleet',color:'#22c55e',pct:100},
     {val:inYard,lbl:'In Yard',color:'#22c55e',pct:inPct},
     {val:outJob,lbl:'Out on Job',color:'#dc3545',pct:outPct},
+    {val:oor,lbl:'Out of Rotation',color:'#f59e0b',pct:oorPct},
     {val:damaged,lbl:'Damaged',color:'#e76f7e',pct:dmgPct},
-    {val:green,lbl:'Green Bins',color:'#4ade80',pct:total?Math.round(green/total*100):0},
-    {val:black,lbl:'Black Bins',color:'#aaa',pct:total?Math.round(black/total*100):0},
+    {val:green,lbl:'Green Bins',color:'#4ade80',pct:active?Math.round(green/active*100):0},
+    {val:black,lbl:'Black Bins',color:'#aaa',pct:active?Math.round(black/active*100):0},
   ];
   document.getElementById('fleet-stats').innerHTML=stats.map(function(s){return'<div class="fstat" style="--fcolor:'+s.color+'"><div class="fstat-val">'+s.val+'</div><div class="fstat-lbl">'+s.lbl+'</div><div class="fstat-bar"><div class="fstat-fill" style="width:'+s.pct+'%"></div></div></div>';}).join('');
-  document.getElementById('fleet-sub').textContent=total+' bins · '+inYard+' in yard · '+outJob+' out';
+  document.getElementById('fleet-sub').textContent=active+' active · '+inYard+' in yard · '+outJob+' out'+(oor?' · '+oor+' out of rotation':'');
   renderFleetTable();renderTimeline();
 }
 function renderFleetTable(){
   var q=fleetQ.toLowerCase();
   var list=binItems.filter(function(b){
-    if(fleetF==='in')return b.status==='in';if(fleetF==='out')return b.status==='out';
-    if(fleetF==='damage')return b.damage==='damage';if(fleetF==='green')return b.color==='green';
+    if(fleetF==='in')return b.status==='in'&&b.damage!=='oor';if(fleetF==='out')return b.status==='out';
+    if(fleetF==='damage')return b.damage==='damage';if(fleetF==='oor')return b.damage==='oor';
+    if(fleetF==='green')return b.color==='green';
     if(fleetF==='black')return b.color==='black';if(fleetF==='4 yard')return b.size==='4 yard';
     if(fleetF==='7 yard')return b.size==='7 yard';if(fleetF==='14 yard')return b.size==='14 yard';
     if(fleetF==='20 yard')return b.size==='20 yard';return true;
@@ -6089,7 +6095,8 @@ function makeBinRow(b){
   var togCls=b.status==='in'?'stog stog-in':'stog stog-out';
   var togLbl=b.status==='in'?'<span class="sdot"></span>In Yard':'<span class="sdot"></span>Out';
   var dmg=b.damage==='damage'?'<span class="dmg-flag">⚠ Dmg</span>':'<span class="dmg-ok">—</span>';
-  var rowCls=b.damage==='damage'?' class="row-damaged"':'';
+  var oorFlag=b.damage==='oor'?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">⛔ OOR</span>':'';
+  var rowCls=b.damage==='oor'?' class="row-damaged"':b.damage==='damage'?' class="row-damaged"':'';
   // Show current job/location for bins marked 'out'
   var locationCell='<td style="font-size:11px;max-width:150px"></td>';
   if(b.status==='out'){
@@ -6103,7 +6110,7 @@ function makeBinRow(b){
   return '<tr'+rowCls+'><td><span class="bnum '+numCls+'" style="cursor:pointer" onclick="event.stopPropagation();openBinHistory(\''+b.bid+'\')">'+b.num+'</span></td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
     +locationCell
-    +'<td>'+dmg+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
+    +'<td>'+dmg+(oorFlag?' '+oorFlag:'')+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
     +'<td><div class="ra"><button class="ra-btn" style="color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="openBinHistory(\''+b.bid+'\')">📜 History</button><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
 }
 function quickToggleStatus(bid){
@@ -6397,7 +6404,7 @@ function editBinItem(bid){
   var b=null;binItems.forEach(function(bi){if(bi.bid===bid)b=bi;});if(!b)return;
   editBinId=bid;document.getElementById('bin-modal-ttl').textContent='Edit Bin';document.getElementById('bin-save-btn').textContent='Save Changes';
   document.getElementById('bi-num').value=b.num||'';document.getElementById('bi-type').value=b.type||'regular';document.getElementById('bi-size').value=b.size||'14 yard';
-  document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-notes').value=b.notes||'';
+  document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage==='oor'?'good':b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-oor').value=b.damage==='oor'?'oor':'active';document.getElementById('bi-notes').value=b.notes||'';
   document.getElementById('bin-modal').classList.add('open');
 }
 function saveBinItem(e){
@@ -6407,7 +6414,8 @@ function saveBinItem(e){
   // Check for duplicate bin number
   var isDupe=binItems.some(function(b){return b.num.toLowerCase()===num.toLowerCase()&&b.bid!==editBinId;});
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
-  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim()};
+  var oorVal=document.getElementById('bi-oor').value==='oor';
+  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim()};
   if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)binItems[i]=bin;else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }
@@ -6448,7 +6456,9 @@ function parseBinCsv(raw){
     var damage=get('damage')||'good';
     var status=get('status')||'in';
     var notes=get('notes')||'';
-    rows.push({num:num,type:type,size:size,color:color,damage:damage,status:status,notes:notes});
+    var oor=get('out_of_rotation');
+    var finalDmg=(oor==='true'||oor==='1'||oor==='yes')?'oor':damage;
+    rows.push({num:num,type:type,size:size,color:color,damage:finalDmg,status:status,notes:notes});
   }
   return rows;
 }
