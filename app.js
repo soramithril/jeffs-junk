@@ -2230,6 +2230,7 @@ var _lbTrendChart=null;
 var _lbEventsChart=null;
 var _lbIdleChart=null;
 var _lbDistanceChart=null;
+var _lbImprovChart=null;
 
 function initLeaderboardPage(){
   // Populate default date pickers
@@ -2360,6 +2361,7 @@ async function renderLeaderboardPage(){
   renderLbEventsChart(rows,isCrewMode);
   renderLbIdleChart(rows,isCrewMode);
   renderLbDistanceChart(rows,isCrewMode);
+  renderLbImprovement(rows,range,isCrewMode);
   renderLbRankings(rows,range,isCrewMode);
 }
 
@@ -2401,43 +2403,15 @@ function renderLbStatCards(rows,range,isCrewMode){
   });
   var fleetAvg=agg.length?Math.round(safetySum/agg.length*10)/10:0;
 
-  // Most improved: compare first half vs second half avg safety
-  var mostImproved='—';
-  if(rows.length>=4){
-    var sorted=rows.slice().sort(function(a,b){return a.period_date.localeCompare(b.period_date);});
-    var mid=Math.floor(sorted.length/2);
-    var firstHalf=sorted.slice(0,mid);
-    var secondHalf=sorted.slice(mid);
-    var improvByEntity={};
-    function halfAvg(half,key){
-      var byE={};
-      half.forEach(function(r){
-        var k=isCrewMode?r.crew_member_id:r.vid;
-        if(!byE[k])byE[k]={sum:0,n:0};
-        byE[k].sum+=Number(r.safety_score);byE[k].n++;
-      });
-      return byE;
-    }
-    var first=halfAvg(firstHalf);
-    var second=halfAvg(secondHalf);
-    var bestImprov=-999,bestKey=null;
-    Object.keys(second).forEach(function(k){
-      if(first[k]&&first[k].n>0&&second[k].n>0){
-        var improv=(second[k].sum/second[k].n)-(first[k].sum/first[k].n);
-        if(improv>bestImprov){bestImprov=improv;bestKey=k;}
-      }
-    });
-    if(bestKey){
-      var match=agg.find(function(a){return a.id===bestKey;});
-      if(match&&bestImprov>0) mostImproved=match.name+' (+'+Math.round(bestImprov*10)/10+')';
-    }
-  }
+  var totalDriveHrs=0;
+  agg.forEach(function(d){totalDriveHrs+=d.driveMin;});
+  var driveDisplay=totalDriveHrs>=60?Math.round(totalDriveHrs/60)+'h':Math.round(totalDriveHrs)+'m';
 
   el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'#22c55e':fleetAvg>=70?'#e67e22':'#dc3545','📊')
     +lbStatCard('Total Events',totalEvents,totalEvents===0?'#22c55e':'#dc3545','⚠️')
     +lbStatCard('Clean Records',cleanCount+'/'+agg.length,'#22c55e','✅')
     +lbStatCard('Total Distance',Math.round(totalDist)+' km','var(--text)','🛣️')
-    +lbStatCard('Most Improved',mostImproved,'#3b82f6','📈');
+    +lbStatCard('Drive Time',driveDisplay,'var(--text)','⏱️');
 }
 
 function lbStatCard(label,value,color,icon){
@@ -2612,6 +2586,174 @@ function renderLbDistanceChart(rows,isCrewMode){
       plugins:{legend:{display:false}}
     }
   });
+}
+
+// ── Improvement Tracker ──
+function renderLbImprovement(rows,range,isCrewMode){
+  var chartCtx=document.getElementById('lb-improvement-chart');
+  var cardsEl=document.getElementById('lb-improvement-cards');
+  var sectionEl=document.getElementById('lb-improvement-section');
+  if(_lbImprovChart){_lbImprovChart.destroy();_lbImprovChart=null;}
+  if(!cardsEl||!sectionEl)return;
+
+  if(rows.length<2){
+    sectionEl.style.display='none';
+    return;
+  }
+  sectionEl.style.display='';
+
+  // Sort rows by date and split into first half / second half
+  var sorted=rows.slice().sort(function(a,b){return a.period_date.localeCompare(b.period_date);});
+  var mid=Math.floor(sorted.length/2);
+  var firstHalf=sorted.slice(0,mid);
+  var secondHalf=sorted.slice(mid);
+
+  var firstStart=firstHalf.length?firstHalf[0].period_date:'';
+  var firstEnd=firstHalf.length?firstHalf[firstHalf.length-1].period_date:'';
+  var secondStart=secondHalf.length?secondHalf[0].period_date:'';
+  var secondEnd=secondHalf.length?secondHalf[secondHalf.length-1].period_date:'';
+
+  function fd(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+  var firstLabel=firstStart?fd(firstStart)+' – '+fd(firstEnd):'First Half';
+  var secondLabel=secondStart?fd(secondStart)+' – '+fd(secondEnd):'Second Half';
+
+  // Aggregate each half by entity
+  function aggHalf(half){
+    var byE={};
+    half.forEach(function(r){
+      var key=isCrewMode?r.crew_member_id:r.vid;
+      if(!byE[key])byE[key]={safety:0,events:0,distance:0,driveMin:0,n:0};
+      byE[key].safety+=Number(r.safety_score);
+      byE[key].events+=(r.harsh_braking||0)+(r.harsh_accel||0)+(r.speeding_events||0)+(r.seatbelt_off||0)+(r.cornering_events||0);
+      byE[key].distance+=Number(r.distance_km||0);
+      byE[key].driveMin+=(r.drive_minutes||0);
+      byE[key].n++;
+    });
+    // Compute averages
+    Object.keys(byE).forEach(function(k){
+      var d=byE[k];
+      d.avgSafety=d.n?Math.round(d.safety/d.n*10)/10:0;
+      d.avgEvents=d.n?Math.round(d.events/d.n*10)/10:0;
+    });
+    return byE;
+  }
+
+  var first=aggHalf(firstHalf);
+  var second=aggHalf(secondHalf);
+
+  // Build improvement data for entities present in both halves
+  var allKeys={};
+  Object.keys(first).forEach(function(k){allKeys[k]=true;});
+  Object.keys(second).forEach(function(k){allKeys[k]=true;});
+
+  var improvements=[];
+  Object.keys(allKeys).forEach(function(key){
+    var f=first[key]||{avgSafety:0,avgEvents:0,events:0,distance:0,driveMin:0,n:0};
+    var s=second[key]||{avgSafety:0,avgEvents:0,events:0,distance:0,driveMin:0,n:0};
+    var name;
+    if(isCrewMode){
+      name=(crewMembers.find(function(c){return c.id===key;})||{}).name||'Unknown';
+    } else {
+      name=(vehicles.find(function(v){return v.vid===key;})||{}).name||key;
+    }
+    var safetyDelta=Math.round((s.avgSafety-f.avgSafety)*10)/10;
+    var safetyPct=f.avgSafety>0?Math.round((safetyDelta/f.avgSafety)*1000)/10:0;
+    var eventsDelta=Math.round((s.avgEvents-f.avgEvents)*10)/10;
+    var eventsPct=f.avgEvents>0?Math.round((eventsDelta/f.avgEvents)*1000)/10:0;
+    improvements.push({
+      key:key,name:name,
+      firstSafety:f.avgSafety,secondSafety:s.avgSafety,
+      safetyDelta:safetyDelta,safetyPct:safetyPct,
+      firstEvents:f.avgEvents,secondEvents:s.avgEvents,
+      eventsDelta:eventsDelta,eventsPct:eventsPct,
+      firstTotalEvents:f.events,secondTotalEvents:s.events,
+      firstDistance:Math.round(f.distance),secondDistance:Math.round(s.distance),
+      firstDays:f.n,secondDays:s.n
+    });
+  });
+
+  improvements.sort(function(a,b){return b.safetyDelta-a.safetyDelta;});
+
+  // ── Chart: grouped bar (first half vs second half safety) ──
+  if(chartCtx){
+    var isDark=document.documentElement.getAttribute('data-theme')==='dark';
+    var gridColor=isDark?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)';
+    var textColor=isDark?'#aaa':'#666';
+
+    _lbImprovChart=new Chart(chartCtx,{
+      type:'bar',
+      data:{
+        labels:improvements.map(function(d){return d.name;}),
+        datasets:[
+          {label:firstLabel+' (avg safety)',data:improvements.map(function(d){return d.firstSafety;}),backgroundColor:'rgba(59,130,246,.6)',borderRadius:4},
+          {label:secondLabel+' (avg safety)',data:improvements.map(function(d){return d.secondSafety;}),backgroundColor:'rgba(34,197,94,.7)',borderRadius:4}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        scales:{
+          x:{grid:{display:false},ticks:{color:textColor,font:{size:11}}},
+          y:{min:0,max:100,grid:{color:gridColor},ticks:{color:textColor,font:{size:11}}}
+        },
+        plugins:{
+          legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'rect',padding:12,font:{size:11},color:textColor}},
+          tooltip:{callbacks:{afterBody:function(ctx){
+            var i=ctx[0].dataIndex;
+            var d=improvements[i];
+            return 'Change: '+(d.safetyDelta>=0?'+':'')+d.safetyDelta+' ('+(d.safetyPct>=0?'+':'')+d.safetyPct+'%)';
+          }}}
+        }
+      }
+    });
+  }
+
+  // ── Cards: detailed breakdown per person ──
+  cardsEl.innerHTML=improvements.map(function(d){
+    var safeColor=d.safetyDelta>0?'#22c55e':d.safetyDelta<0?'#dc3545':'var(--muted)';
+    var evtColor=d.eventsDelta<0?'#22c55e':d.eventsDelta>0?'#dc3545':'var(--muted)';
+    var safeArrow=d.safetyDelta>0?'▲':d.safetyDelta<0?'▼':'—';
+    var evtArrow=d.eventsDelta<0?'▼':d.eventsDelta>0?'▲':'—';
+
+    // Safety score bar visual
+    var firstW=d.firstSafety;
+    var secondW=d.secondSafety;
+
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:var(--surface2)">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+        +'<div style="font-weight:700;font-size:14px;">'+d.name+'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:'+safeColor+';line-height:1;">'+(d.safetyDelta>=0?'+':'')+d.safetyDelta+'</span>'
+          +'<span style="font-size:12px;font-weight:700;color:'+safeColor+';background:'+safeColor+'14;padding:2px 8px;border-radius:6px;">'+(d.safetyPct>=0?'+':'')+d.safetyPct+'%</span>'
+        +'</div>'
+      +'</div>'
+      // Safety score comparison
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">'
+        +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">'
+          +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;">'+firstLabel+'</div>'
+          +'<div style="display:flex;align-items:baseline;gap:8px;">'
+            +'<span style="font-size:24px;font-weight:800;color:'+(d.firstSafety>=90?'#22c55e':d.firstSafety>=70?'#e67e22':'#dc3545')+'">'+d.firstSafety+'</span>'
+            +'<span style="font-size:11px;color:var(--muted)">safety avg</span>'
+          +'</div>'
+          +'<div style="height:4px;background:rgba(0,0,0,.06);border-radius:2px;margin-top:6px;"><div style="height:100%;width:'+firstW+'%;background:rgba(59,130,246,.5);border-radius:2px;"></div></div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:6px;">'+d.firstTotalEvents+' events · '+d.firstDistance+' km · '+d.firstDays+' day'+(d.firstDays!==1?'s':'')+'</div>'
+        +'</div>'
+        +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">'
+          +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;">'+secondLabel+'</div>'
+          +'<div style="display:flex;align-items:baseline;gap:8px;">'
+            +'<span style="font-size:24px;font-weight:800;color:'+(d.secondSafety>=90?'#22c55e':d.secondSafety>=70?'#e67e22':'#dc3545')+'">'+d.secondSafety+'</span>'
+            +'<span style="font-size:11px;color:var(--muted)">safety avg</span>'
+          +'</div>'
+          +'<div style="height:4px;background:rgba(0,0,0,.06);border-radius:2px;margin-top:6px;"><div style="height:100%;width:'+secondW+'%;background:rgba(34,197,94,.6);border-radius:2px;"></div></div>'
+          +'<div style="font-size:11px;color:var(--muted);margin-top:6px;">'+d.secondTotalEvents+' events · '+d.secondDistance+' km · '+d.secondDays+' day'+(d.secondDays!==1?'s':'')+'</div>'
+        +'</div>'
+      +'</div>'
+      // Events change
+      +'<div style="display:flex;gap:16px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px;">'
+        +'<span>Events/day: '+d.firstEvents+' → '+d.secondEvents+' <span style="color:'+evtColor+';font-weight:700">'+evtArrow+' '+(d.eventsPct>=0?'+':'')+d.eventsPct+'%</span></span>'
+        +'<span>Distance: '+d.firstDistance+' → '+d.secondDistance+' km</span>'
+      +'</div>'
+    +'</div>';
+  }).join('');
 }
 
 // ── Rankings (reuses existing card style) ──
