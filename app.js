@@ -9651,6 +9651,21 @@ async function runAdvisor(){
     var totalJobs = d.total_jobs || 0;
     var yoyGrowth = d.yoy_growth || {};
     var thisMonth = d.this_month || {};
+    var topCustomers = d.top_customers || [];
+    var lapsedCustomers = d.lapsed_customers || [];
+    var cancellations = d.cancellations || {};
+    var confirmation = d.confirmation || {};
+    var newCustMonthly = d.new_customers_monthly || [];
+    var serviceMix = d.service_mix || [];
+    var quoteConversion = d.quote_conversion || {};
+    var dayOfWeek = d.day_of_week || [];
+    var leadTime = d.lead_time || {};
+    var peakDays = d.peak_days || [];
+    var overdueBins = d.overdue_bins || {};
+    var commercial = d.commercial || {};
+    var binSwaps = d.bin_swaps || {};
+    var quarterly = d.quarterly || [];
+    var cityGrowth = d.city_growth || [];
 
     var yoyPct = yoyGrowth.prev12 ? Math.round((yoyGrowth.last12 - yoyGrowth.prev12) / yoyGrowth.prev12 * 100) : 0;
     var repeatRate = repeat.total_clients ? Math.round(repeat.repeat_clients / repeat.total_clients * 100) : 0;
@@ -9843,6 +9858,259 @@ async function runAdvisor(){
       });
     }
 
+    // ── NEW: Cancellation rate trend ──────────────────────────
+    if(cancellations.last90_total > 0 && cancellations.prev90_total > 0){
+      var cancelRate = Math.round(cancellations.last90_cancelled / cancellations.last90_total * 100);
+      var prevCancelRate = Math.round(cancellations.prev90_cancelled / cancellations.prev90_total * 100);
+      if(cancelRate >= 8){
+        recs.push({category:'OPERATIONS',priority:'HIGH',status:'urgent',
+          title:cancelRate+'% Cancellation Rate (Last 90 Days)',
+          detail:cancellations.last90_cancelled+' of '+cancellations.last90_total+' jobs cancelled in the last 90 days ('+cancelRate+'%), vs '+prevCancelRate+'% the prior 90 days. High cancellation rates hurt scheduling efficiency and crew morale.',
+          action:'Review cancelled jobs for patterns — are specific services, areas, or days more prone to cancellations? Consider a deposit policy or confirmation call 48 hours before the job.'
+        });
+      } else if(cancelRate > prevCancelRate + 3){
+        recs.push({category:'OPERATIONS',priority:'MEDIUM',status:'urgent',
+          title:'Cancellations Trending Up: '+cancelRate+'% vs '+prevCancelRate+'%',
+          detail:'Cancellation rate rose from '+prevCancelRate+'% to '+cancelRate+'% over the last quarter. Even small increases compound into lost revenue and wasted scheduling slots.',
+          action:'Introduce a confirmation text/call 24-48 hours before the scheduled date. This reduces no-shows by 30-50% industry-wide.'
+        });
+      }
+    }
+
+    // ── NEW: Confirmation rate ─────────────────────────────────
+    if(confirmation.total > 0){
+      var cfmRate = Math.round(confirmation.confirmed / confirmation.total * 100);
+      if(cfmRate < 50){
+        recs.push({category:'OPERATIONS',priority:'HIGH',status:'urgent',
+          title:'Only '+cfmRate+'% of Recent Jobs Confirmed',
+          detail:'Of '+confirmation.total+' bin/furniture jobs in the last 90 days, only '+confirmation.confirmed+' are confirmed ('+cfmRate+'%). Unconfirmed jobs create day-of surprises — wrong address, no access, customer not home.',
+          action:'Set a goal of 80%+ confirmation rate. Call or text customers 2-3 days before their scheduled date. Unconfirmed jobs the night before should get a priority morning call.'
+        });
+      } else if(cfmRate < 75){
+        recs.push({category:'OPERATIONS',priority:'MEDIUM',status:'opportunity',
+          title:'Confirmation Rate at '+cfmRate+'% — Room to Improve',
+          detail:confirmation.confirmed+' of '+confirmation.total+' recent bin/furniture jobs confirmed. Industry best practice is 85%+. Every unconfirmed job risks a wasted trip or rescheduling.',
+          action:'Automate confirmation reminders via text 3 days before the job. A simple "Reply YES to confirm" converts 60-70% of unconfirmed jobs.'
+        });
+      }
+    }
+
+    // ── NEW: Lapsed high-value customers ──────────────────────
+    if(lapsedCustomers && lapsedCustomers.length >= 3){
+      var topLapsed = lapsedCustomers.slice(0,5);
+      var lapsedNames = topLapsed.map(function(c){return c.name+' ('+c.total_jobs+' jobs, last: '+c.days_since+' days ago)';}).join(', ');
+      recs.push({category:'CUSTOMER RETENTION',priority:'HIGH',status:'urgent',
+        title:lapsedCustomers.length+' Frequent Customers Have Gone Silent',
+        detail:'These customers booked 3+ times but haven\'t been seen in over 6 months: '+lapsedNames+'. Acquiring a new customer costs 5-7x more than reactivating an existing one.',
+        action:'Send a personal reach-out to your top 5 lapsed customers this week. A "We miss you" message with a small incentive (priority booking, waived delivery fee) converts 15-25% of lapsed customers.'
+      });
+    }
+
+    // ── NEW: Top customer concentration ──────────────────────
+    if(topCustomers.length >= 5 && totalJobs > 100){
+      var top5Jobs = topCustomers.slice(0,5).reduce(function(a,c){return a+c.jobs;},0);
+      var top5Pct = Math.round(top5Jobs / totalJobs * 100);
+      if(top5Pct >= 10){
+        recs.push({category:'CUSTOMER RETENTION',priority:'MEDIUM',status:'opportunity',
+          title:'Top 5 Customers = '+top5Pct+'% of All Jobs',
+          detail:'Your biggest customers: '+topCustomers.slice(0,5).map(function(c){return c.name+' ('+c.jobs+' jobs)';}).join(', ')+'. These VIPs drive a significant share of volume — losing even one would be felt.',
+          action:'Give your top 5 customers VIP treatment — priority scheduling, personal check-ins, and first-call access to new services. A loyalty program or annual discount keeps them locked in.'
+        });
+      } else {
+        recs.push({category:'CUSTOMER RETENTION',priority:'LOW',status:'positive',
+          title:'Healthy Customer Diversification',
+          detail:'Your top 5 customers account for only '+top5Pct+'% of jobs — no single customer dominates. This is a healthy, low-risk customer base.',
+          action:'Keep growing your customer base broadly. This diversification protects you from losing any single client.'
+        });
+      }
+    }
+
+    // ── NEW: Quote-to-job conversion ─────────────────────────
+    if(quoteConversion.quotes_total > 10 && quoteConversion.junk_total > 10){
+      var convRatio = (quoteConversion.junk_total / (quoteConversion.quotes_total + quoteConversion.junk_total) * 100).toFixed(0);
+      var recentRatio = quoteConversion.quotes_last90 > 0 ? (quoteConversion.junk_last90 / (quoteConversion.quotes_last90 + quoteConversion.junk_last90) * 100).toFixed(0) : 0;
+      if(convRatio < 50){
+        recs.push({category:'SALES',priority:'HIGH',status:'urgent',
+          title:'Only '+convRatio+'% of Junk Leads Convert to Jobs',
+          detail:'Out of '+(quoteConversion.quotes_total+quoteConversion.junk_total)+' junk enquiries, '+quoteConversion.junk_total+' became actual removals ('+convRatio+'%). Recent 90-day rate: '+recentRatio+'%. Unconverted quotes are lost revenue.',
+          action:'Follow up on quotes within 2 hours — leads contacted within that window convert 7x better. Add a follow-up step for quotes that don\'t convert within 48 hours: "Still need that junk gone?"'
+        });
+      } else {
+        recs.push({category:'SALES',priority:'LOW',status:'positive',
+          title:'Strong '+convRatio+'% Quote-to-Job Conversion',
+          detail:quoteConversion.junk_total+' junk removals from '+(quoteConversion.quotes_total+quoteConversion.junk_total)+' total enquiries. Recent 90-day rate: '+recentRatio+'%. This is solid performance.',
+          action:'Document your current quoting process — it\'s working well. Consider raising prices 5-10% on junk removal; high conversion suggests you may be underpriced.'
+        });
+      }
+    }
+
+    // ── NEW: Booking lead time ───────────────────────────────
+    if(leadTime.avg_days != null){
+      var avgLead = Math.round(leadTime.avg_days);
+      var sameDayPct = leadTime.same_day_pct || 0;
+      var weekPlusPct = leadTime.week_plus_pct || 0;
+      if(sameDayPct >= 30){
+        recs.push({category:'OPERATIONS',priority:'MEDIUM',status:'opportunity',
+          title:sameDayPct+'% of Jobs Booked Same-Day',
+          detail:'Average booking lead time is '+avgLead+' days, but '+sameDayPct+'% of jobs are booked same-day and '+weekPlusPct+'% book a week or more out. High same-day bookings mean you\'re operating reactively — this limits route optimization and crew planning.',
+          action:'Offer a small discount (5-10%) for bookings made 3+ days in advance. This shifts demand into your scheduling window and enables better route planning, saving fuel and time.'
+        });
+      } else if(weekPlusPct >= 60){
+        recs.push({category:'OPERATIONS',priority:'LOW',status:'positive',
+          title:'Customers Book '+avgLead+' Days Ahead on Average',
+          detail:weekPlusPct+'% of jobs are booked a week or more in advance. This gives you excellent visibility for crew scheduling, route planning, and bin logistics.',
+          action:'Use this lead time to optimize daily routes by geography — clustering jobs by area can save 1-2 hours of drive time per crew per day.'
+        });
+      }
+    }
+
+    // ── NEW: Peak day capacity planning ──────────────────────
+    if(peakDays.length >= 3){
+      var peakAvg = Math.round(peakDays.slice(0,5).reduce(function(a,p){return a+p.jobs;},0)/5);
+      var busiestEver = peakDays[0];
+      recs.push({category:'CAPACITY',priority:'MEDIUM',status:'opportunity',
+        title:'Peak Days Hit '+busiestEver.jobs+' Jobs — Plan for Surges',
+        detail:'Your 5 busiest days averaged '+peakAvg+' jobs. Busiest single day: '+busiestEver.date+' with '+busiestEver.jobs+' jobs. If a crew handles ~6 jobs/day, you need '+(Math.ceil(peakAvg/6))+' crews on peak days vs maybe '+(Math.ceil(peakAvg/6/2))+' on average days.',
+        action:'Build a "surge plan" — identify 1-2 part-time crew members or subcontractors you can call on 48 hours notice for peak days. Having this in your back pocket prevents missed bookings.'
+      });
+    }
+
+    // ── NEW: Service diversification risk ────────────────────
+    if(serviceMix.length >= 2){
+      var topService = serviceMix[0];
+      if(topService && topService.pct >= 70){
+        recs.push({category:'STRATEGY',priority:'MEDIUM',status:'opportunity',
+          title:topService.pct+'% of Business Is '+topService.service,
+          detail:'Your service mix is heavily weighted toward '+topService.service+' ('+topService.cnt.toLocaleString()+' jobs). Other services: '+serviceMix.slice(1).map(function(s){return s.service+' ('+s.pct+'%)';}).join(', ')+'. High concentration in one service increases risk if that market shifts.',
+          action:'Diversify by cross-promoting complementary services. Bin rental customers are prime candidates for junk removal — mention it during drop-off calls. A 5% shift in mix adds resilience.'
+        });
+      }
+    }
+
+    // ── NEW: New customer acquisition trend ──────────────────
+    if(newCustMonthly.length >= 6){
+      var recent3 = newCustMonthly.slice(-3).reduce(function(a,m){return a+m.new_clients;},0);
+      var prev3 = newCustMonthly.slice(-6,-3).reduce(function(a,m){return a+m.new_clients;},0);
+      var acqTrend = prev3 > 0 ? Math.round((recent3 - prev3) / prev3 * 100) : 0;
+      if(acqTrend <= -20){
+        recs.push({category:'MARKETING',priority:'HIGH',status:'urgent',
+          title:'New Customer Acquisition Down '+Math.abs(acqTrend)+'%',
+          detail:'You acquired '+recent3+' new customers in the last 3 months vs '+prev3+' in the prior 3 months — a '+Math.abs(acqTrend)+'% drop. If this trend continues, it will compress volume within 2-3 quarters.',
+          action:'Audit your marketing channels: Is Google Ads spend the same? Are you getting fewer referrals? Check if competitor activity increased in your area. Consider a limited-time promotion to stimulate new bookings.'
+        });
+      } else if(acqTrend >= 20){
+        recs.push({category:'MARKETING',priority:'LOW',status:'positive',
+          title:'New Customer Acquisition Up '+acqTrend+'%',
+          detail:'You acquired '+recent3+' new customers in the last 3 months vs '+prev3+' prior — a '+acqTrend+'% increase. Your marketing and word-of-mouth are generating strong new business.',
+          action:'Capitalize on this momentum — ask new customers how they found you and double down on that channel. This is also the right time to raise prices slightly while demand is strong.'
+        });
+      }
+    }
+
+    // ── NEW: Overdue bins ────────────────────────────────────
+    if(overdueBins.count > 0){
+      recs.push({category:'FLEET',priority:overdueBins.count>=5?'HIGH':'MEDIUM',status:'urgent',
+        title:overdueBins.count+' Bin'+(overdueBins.count!==1?'s':'')+' Overdue (14+ Days Out)',
+        detail:overdueBins.count+' bin'+(overdueBins.count!==1?'s are':' is')+' still on-site after 14+ days. Average: '+overdueBins.avg_days_out+' days, longest: '+overdueBins.max_days_out+' days. Every day a bin sits idle is a day it can\'t generate revenue for another customer.',
+        action:'Call these customers today to schedule pickup. If they need more time, ensure overage fees are being applied per your rental terms. Each bin returned = potential same-week re-rental.'
+      });
+    }
+
+    // ── NEW: Day-of-week optimization ────────────────────────
+    if(dayOfWeek.length >= 5){
+      var dNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var dowSorted = dayOfWeek.slice().sort(function(a,b){return b.cnt-a.cnt;});
+      var busiest = dowSorted[0];
+      var slowest = dowSorted[dowSorted.length-1];
+      var spread = busiest.cnt > 0 ? Math.round((busiest.cnt - slowest.cnt) / busiest.cnt * 100) : 0;
+      if(spread >= 50){
+        recs.push({category:'SCHEDULING',priority:'MEDIUM',status:'opportunity',
+          title:dNames[busiest.dow]+' Has '+Math.round(busiest.cnt/slowest.cnt)+'x More Jobs Than '+dNames[slowest.dow],
+          detail:'Job volume by day: '+dayOfWeek.map(function(d){return dNames[d.dow]+': '+d.cnt;}).join(', ')+'. '+dNames[slowest.dow]+' is significantly underbooked — '+spread+'% fewer jobs than '+dNames[busiest.dow]+'.',
+          action:'Offer a "'+dNames[slowest.dow]+' Special" — a 10% discount or priority booking for your slow day. Evening out your weekly schedule means fewer missed bookings on peak days and less idle time on slow days.'
+        });
+      }
+    }
+
+    // ── NEW: City growth momentum ────────────────────────────
+    var growingCities = cityGrowth.filter(function(c){return c.previous > 0 && c.recent > c.previous * 1.25;});
+    var shrinkingCities = cityGrowth.filter(function(c){return c.previous > 5 && c.recent < c.previous * 0.75;});
+    if(growingCities.length > 0){
+      recs.push({category:'EXPANSION',priority:'MEDIUM',status:'opportunity',
+        title:growingCities.length+' Cit'+(growingCities.length!==1?'ies':'y')+' Growing Fast',
+        detail:'These areas are trending up: '+growingCities.slice(0,5).map(function(c){
+          var pct = Math.round((c.recent - c.previous)/c.previous*100);
+          return c.city+' (+'+pct+'%, '+c.recent+' recent vs '+c.previous+' prior 6mo)';
+        }).join(', ')+'. Growth markets deserve investment before competitors notice.',
+        action:'Increase visibility in growing markets — local flyers, Google Ads geo-targeting, or partnerships with local contractors and realtors in these areas.'
+      });
+    }
+    if(shrinkingCities.length > 0){
+      recs.push({category:'EXPANSION',priority:'MEDIUM',status:'urgent',
+        title:shrinkingCities.length+' Cit'+(shrinkingCities.length!==1?'ies':'y')+' Losing Momentum',
+        detail:'These areas are slowing: '+shrinkingCities.slice(0,5).map(function(c){
+          var pct = Math.round((c.previous - c.recent)/c.previous*100);
+          return c.city+' (-'+pct+'%, '+c.recent+' recent vs '+c.previous+' prior 6mo)';
+        }).join(', ')+'. Declining markets may signal competitor entry or market saturation.',
+        action:'Investigate: Is a new competitor active in these areas? Has construction/renovation activity slowed? Adjust marketing spend accordingly — don\'t throw money at a declining market without understanding why.'
+      });
+    }
+
+    // ── NEW: Fleet right-sizing ──────────────────────────────
+    if(fleet.length >= 2 && binDemand.length >= 2){
+      var totalFleet = fleet.reduce(function(a,f){return a+f.total;},0);
+      var fleetMismatches = [];
+      fleet.forEach(function(f){
+        var fleetPct = Math.round(f.total/totalFleet*100);
+        var demandPctVal = Math.round((demandMap[f.size]||0)/totalDemand*100);
+        var diff = demandPctVal - fleetPct;
+        if(Math.abs(diff) >= 15) fleetMismatches.push({size:f.size,fleetPct:fleetPct,demandPct:demandPctVal,diff:diff});
+      });
+      if(fleetMismatches.length > 0){
+        recs.push({category:'FLEET',priority:'MEDIUM',status:'opportunity',
+          title:'Fleet Mix Doesn\'t Match Demand',
+          detail:'Demand vs fleet allocation mismatch: '+fleetMismatches.map(function(m){
+            return m.size+' ('+m.demandPct+'% demand vs '+m.fleetPct+'% fleet — '+(m.diff>0?'underserved':'over-allocated')+')';
+          }).join(', ')+'. When fleet allocation doesn\'t track demand, you either turn away bookings or have idle bins.',
+          action:'Gradually shift fleet composition toward demand: sell or retire underutilized sizes and invest in high-demand sizes. Even 2-3 bins reallocated can unlock meaningful revenue.'
+        });
+      }
+    }
+
+    // ── NEW: Quarterly growth trajectory ─────────────────────
+    if(quarterly.length >= 4){
+      var lastQ = quarterly[quarterly.length-1];
+      var prevQ = quarterly[quarterly.length-2];
+      var twoQago = quarterly[quarterly.length-3];
+      if(prevQ && twoQago){
+        var qGrowth1 = prevQ.total > 0 ? Math.round((lastQ.total - prevQ.total)/prevQ.total*100) : 0;
+        var qGrowth2 = twoQago.total > 0 ? Math.round((prevQ.total - twoQago.total)/twoQago.total*100) : 0;
+        if(qGrowth1 < qGrowth2 - 10 && qGrowth1 < 5){
+          recs.push({category:'STRATEGY',priority:'MEDIUM',status:'urgent',
+            title:'Growth Decelerating: '+lastQ.quarter+' at '+qGrowth1+'% vs '+qGrowth2+'%',
+            detail:'Quarter-over-quarter growth slowed from '+qGrowth2+'% ('+twoQago.quarter+'→'+prevQ.quarter+') to '+qGrowth1+'% ('+prevQ.quarter+'→'+lastQ.quarter+'). Volume: '+lastQ.total+' jobs in '+lastQ.quarter+'. Decelerating growth is an early warning — easier to fix now than after a plateau.',
+            action:'This is the time to invest in growth: test a new marketing channel, expand into an adjacent city, or launch a referral program. Small bets now prevent a stall later.'
+          });
+        } else if(qGrowth1 > qGrowth2 + 10 && qGrowth1 > 10){
+          recs.push({category:'STRATEGY',priority:'LOW',status:'positive',
+            title:'Growth Accelerating: '+lastQ.quarter+' at +'+qGrowth1+'%',
+            detail:'Quarter-over-quarter growth jumped from '+qGrowth2+'% to '+qGrowth1+'%. Volume: '+lastQ.total+' jobs in '+lastQ.quarter+'. Accelerating growth means your recent investments are paying off.',
+            action:'Don\'t coast — reinvest in what\'s working. Ensure you have the crew capacity and bin inventory to sustain this trajectory. Growth without capacity = missed bookings.'
+          });
+        }
+      }
+    }
+
+    // ── NEW: Bin swap upsell ─────────────────────────────────
+    if(binSwaps.jobs_with_swaps > 5){
+      var swapPct = Math.round(binSwaps.jobs_with_swaps / binSwaps.total_bin_jobs * 100);
+      recs.push({category:'SALES',priority:swapPct>=10?'MEDIUM':'LOW',status:'opportunity',
+        title:swapPct+'% of Bin Rentals Involve Swaps',
+        detail:binSwaps.jobs_with_swaps+' of '+binSwaps.total_bin_jobs+' bin jobs needed at least one swap (avg '+binSwaps.avg_swaps+' swaps). '+binSwaps.multi_swap+' jobs had 2+ swaps. Customers needing swaps often underestimate their project scope.',
+        action:'When booking, ask: "How big is your project? Customers doing X usually need a [larger size]." Proactively upsizing prevents swaps, reduces your trips, and increases customer satisfaction.'
+      });
+    }
+
     // Sort: HIGH > MEDIUM > LOW, urgent > opportunity > positive
     var priOrder = {HIGH:0,MEDIUM:1,LOW:2};
     var statOrder = {urgent:0,opportunity:1,positive:2};
@@ -9878,7 +10146,7 @@ async function runAdvisor(){
       var statusColors = {urgent:'#dc3545',opportunity:'#e67e22',positive:'#22c55e'};
       var priorityBg = {HIGH:'rgba(220,53,69,.06)',MEDIUM:'rgba(230,126,34,.05)',LOW:'rgba(34,197,94,.05)'};
       var priorityBorder = {HIGH:'rgba(220,53,69,.22)',MEDIUM:'rgba(230,126,34,.18)',LOW:'rgba(34,197,94,.14)'};
-      var catIcons = {FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️'};
+      var catIcons = {FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️',SALES:'💰',CAPACITY:'📊',STRATEGY:'🧭',EXPANSION:'🗺️',SCHEDULING:'📆'};
       cards.innerHTML = recs.map(function(r){
         var col = statusColors[r.status]||'#22c55e';
         var bg = priorityBg[r.priority]||'var(--surface)';
