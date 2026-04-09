@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css?v=12">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -100,6 +101,7 @@
     <div id="nav-analytics" style="display:none">
     <button class="nav-item" onclick="go('analytics')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Analytics</span></button>
     <button class="nav-item" onclick="go('utilization')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span>Bin Utilization</span></button>
+    <button class="nav-item" onclick="go('leaderboard')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7.5 4 8 7 8 7s.5-3 3.5-3a2.5 2.5 0 0 1 0 5H10"/><path d="M6 9h4v11H6z"/><path d="M10 9h4v11h-4z" opacity=".5"/><path d="M14 9h4v11h-4z" opacity=".3"/></svg></span><span>Driver Leaderboard</span></button>
     <button class="nav-item" onclick="go('advisor')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span>AI Advisor</span></button>
     </div>
   </div>
@@ -292,8 +294,8 @@
     </div>
   </div>
 
-  <!-- ROW: Driver Leaderboard -->
-  <div class="dash-section" style="margin-bottom:24px;">
+  <!-- ROW: Driver Leaderboard (admin-only on dashboard) -->
+  <div id="dash-leaderboard-section" class="dash-section" style="margin-bottom:24px;display:none;">
     <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div>
@@ -1008,6 +1010,80 @@
   </div>
 </div>
 
+
+<!-- ═══════════════ DRIVER LEADERBOARD ═══════════════ -->
+<div id="view-leaderboard" class="view">
+  <div class="page-header" style="flex-wrap:wrap;gap:12px;">
+    <div><div class="page-title page-title-sm">🏆 Driver Leaderboard</div><div class="page-sub">Vehicle & crew safety scores</div></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <!-- Vehicle / Crew toggle -->
+      <div style="display:flex;gap:4px;">
+        <button id="lb-page-tab-vehicles" onclick="switchLeaderboard('vehicles')" class="btn btn-ghost" style="font-size:12px;padding:5px 14px;border-radius:8px;font-weight:600;">Vehicles</button>
+        <button id="lb-page-tab-crew" onclick="switchLeaderboard('crew')" class="btn btn-ghost" style="font-size:12px;padding:5px 14px;border-radius:8px;font-weight:600;">Crew</button>
+      </div>
+      <!-- Period mode selector -->
+      <div style="display:flex;gap:4px;">
+        <button class="lb-period-btn active" onclick="setLbPeriodMode('week',this)">Week</button>
+        <button class="lb-period-btn" onclick="setLbPeriodMode('month',this)">Month</button>
+        <button class="lb-period-btn" onclick="setLbPeriodMode('quarter',this)">Quarter</button>
+        <button class="lb-period-btn" onclick="setLbPeriodMode('year',this)">Year</button>
+        <button class="lb-period-btn" onclick="setLbPeriodMode('custom',this)">Custom</button>
+      </div>
+      <!-- Date pickers per mode -->
+      <div id="lb-date-week" style="display:flex;align-items:center;gap:6px;">
+        <input type="week" id="lb-week-pick" class="bin-date-picker" onchange="renderLeaderboardPage()" style="font-size:12px;">
+      </div>
+      <div id="lb-date-month" style="display:none;align-items:center;gap:6px;">
+        <input type="month" id="lb-month-pick" class="bin-date-picker" onchange="renderLeaderboardPage()" style="font-size:12px;">
+      </div>
+      <div id="lb-date-quarter" style="display:none;align-items:center;gap:6px;">
+        <select id="lb-quarter-pick" class="bin-date-picker" onchange="renderLeaderboardPage()" style="font-size:12px;"></select>
+      </div>
+      <div id="lb-date-year" style="display:none;align-items:center;gap:6px;">
+        <select id="lb-year-pick" class="bin-date-picker" onchange="renderLeaderboardPage()" style="font-size:12px;"></select>
+      </div>
+      <div id="lb-date-custom" style="display:none;align-items:center;gap:6px;">
+        <input type="date" id="lb-custom-from" class="bin-date-picker" onchange="renderLeaderboardPage()" style="font-size:12px;">
+        <span style="font-size:12px;color:var(--muted)">to</span>
+        <input type="date" id="lb-custom-to" class="bin-date-picker" onchange="renderLeaderboardPage()" style="font-size:12px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly winner banner -->
+  <div id="lb-winner-banner" style="display:none;margin-bottom:20px;background:linear-gradient(135deg,rgba(34,197,94,.08),rgba(250,204,21,.08));border:1px solid rgba(34,197,94,.25);border-radius:14px;padding:20px 24px;"></div>
+
+  <!-- Summary stat cards -->
+  <div class="metric-row" id="lb-stat-cards" style="margin-bottom:20px;"></div>
+
+  <!-- Charts row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" id="lb-charts-row">
+    <div class="chart-card" style="padding:16px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px;">Safety Score Trend</div>
+      <div style="position:relative;height:260px;"><canvas id="lb-trend-chart"></canvas></div>
+    </div>
+    <div class="chart-card" style="padding:16px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px;">Event Breakdown</div>
+      <div style="position:relative;height:260px;"><canvas id="lb-events-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Efficiency + Productivity row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" id="lb-extra-charts-row">
+    <div class="chart-card" style="padding:16px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px;">Idle vs Drive Time</div>
+      <div style="position:relative;height:260px;"><canvas id="lb-idle-chart"></canvas></div>
+    </div>
+    <div class="chart-card" style="padding:16px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px;">Distance Driven</div>
+      <div style="position:relative;height:260px;"><canvas id="lb-distance-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Ranked driver/crew cards -->
+  <div style="font-weight:700;font-size:16px;margin-bottom:12px;" id="lb-rankings-title">Rankings</div>
+  <div id="page-leaderboard"></div>
+</div>
 
 <!-- ═══════════════ AI ADVISOR ═══════════════ -->
 <div id="view-advisor" class="view">
@@ -1749,3 +1825,4 @@
 <script src="app.js?v=25"></script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                 
