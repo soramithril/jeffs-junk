@@ -3065,7 +3065,7 @@ async function refreshDashJobs(){
   if(card) card.className = 'chart-card ' + (total===0?'urgency-ok':total>=5?'urgency-warn':'urgency-neutral');
 
   // Render job rows (reuse same makeTodayCat pattern)
-  function makeCat(title,color,list){
+  function makeCat(title,color,list,isPickup){
     if(!list.length)return '';
     return '<div style="margin-bottom:12px">'
       +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:'+color+';font-weight:700;margin-bottom:6px;">'+title+' ('+list.length+')</div>'
@@ -3086,18 +3086,18 @@ async function refreshDashJobs(){
           +(j.address?'<span style="margin-left:6px">📍 '+j.address+'</span>':'')
           +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'<span style="margin-left:8px;color:#e67e22;font-weight:700">📞 '+(j.service==='Furniture Delivery'?'Ready for drop-off':'Ready for pickup')+'</span>'):'')
           +'</div></div>'
-          +(j.service==='Bin Rental'&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)">✅ Picked Up</button>':'')
-          +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Ready for Drop-Off':'Ready for Pickup')+'</button>':'')
+          +(j.service==='Bin Rental'&&isPickup&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)">✅ Picked Up</button>':'')
+          +(((j.service==='Bin Rental'&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Ready for Drop-Off':'Ready for Pickup')+'</button>':'')
           +'</div>';
       }).join('')+'</div>';
   }
 
-  var html = makeCat('🚛 Bin Deliveries','#22c55e',dayDropoffs)
-    +makeCat('🚚 Bin Pickups','#dc3545',dayPickups)
-    +makeCat('Junk Removals','#eab308',junkRemovals)
-    +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes)
-    +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups)
-    +makeCat('📦 Furniture Deliveries','#f97316',furnDelivs);
+  var html = makeCat('🚛 Bin Deliveries','#22c55e',dayDropoffs,false)
+    +makeCat('🚚 Bin Pickups','#dc3545',dayPickups,true)
+    +makeCat('Junk Removals','#eab308',junkRemovals,false)
+    +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes,false)
+    +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false)
+    +makeCat('📦 Furniture Deliveries','#f97316',furnDelivs,false);
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
