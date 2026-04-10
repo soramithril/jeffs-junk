@@ -5986,7 +5986,7 @@ async function renderMap(){
     mapPins.push({id:j.id,marker:marker,lat:geo.lat,lng:geo.lng});bounds.push([geo.lat,geo.lng]);
   }
   function fitMap() {
-    if(bounds.length===1)leafMap.setView(bounds[0],14);
+    if(bounds.length===1)leafMap.setView(bounds[0],10);
     else if(bounds.length>1)leafMap.fitBounds(bounds,{padding:[50,50],maxZoom:14});
     else leafMap.setView([44.39,-79.69],10);
     setTimeout(function(){try{leafMap.invalidateSize();}catch(e){}},300);
@@ -7687,14 +7687,14 @@ async function printDrdForJob(jobId){
     // Header
     setField('Untitled4',drdData.opp);
     setField('Untitled5',drdData.tax);
-    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',14);
+    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',10);
     // Donor (18pt for readability)
-    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',14);
-    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',14);
-    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',14);
-    setField('Untitled10',drdData.postal,14);
-    setField('Untitled12',drdData.email,14);
-    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',14);
+    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',10);
+    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',10);
+    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',10);
+    setField('Untitled10',drdData.postal,10);
+    setField('Untitled12',drdData.email,10);
+    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',10);
     setField('Untitled14',drdData.contact);
     setField('Untitled15',drdData.contactInfo);
     // Item quantities - same field mapping as original drdDownloadPDF
@@ -7737,8 +7737,8 @@ async function printDrdForJob(jobId){
     DRD_ITEMS.forEach(function(item,idx){var q=drdData.quantities[idx]||0;totalItems+=q;totalVal+=q*item.val;});
     drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;totalVal+=(oi.qty||0)*(oi.val||0);});
     setField('Untitled41',drdData.emailedDate||'');
-    setField('Untitled42',String(totalItems),14);
-    setField('Untitled43',totalVal.toFixed(2),14);
+    setField('Untitled42',String(totalItems),10);
+    setField('Untitled43',totalVal.toFixed(2),10);
     // Flatten and open
     form.flatten();
     var filledBytes=await pdfDoc.save();
