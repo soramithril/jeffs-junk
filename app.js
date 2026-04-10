@@ -3951,11 +3951,14 @@ function sortJobList(arr){
 
 /**
  * Determine Live Jobs status for a job.
+ * Any job with status=Completed is always done.
  * Bin Rental dropoff day: no status=Pending, dropped=Done (bin delivered)
  * Bin Rental pickup day:  dropped=Pending (waiting for pickup), pickedup=Done
  * Non-bin jobs:           no status=Pending, dropped=On Site, pickedup=Done
  */
 function ljStatus(j,today){
+  // If the job is marked Completed in the system, it's done
+  if(j.status==='Completed') return 'done';
   if(j.service==='Bin Rental'){
     var isDropDay=j.binDropoff===today;
     var isPickDay=j.binPickup===today;
