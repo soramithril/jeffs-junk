@@ -7686,8 +7686,8 @@ async function printDrdForJob(jobId){
     if(drdData.sources.indexOf('jj')>=0)checkBox('Untitled2');
     if(drdData.sources.indexOf('rp')>=0)checkBox('Untitled3');
     // Header
-    setField('Untitled4',drdData.opp);
-    setField('Untitled5',drdData.tax);
+    setField('Untitled4',drdData.opp,10);
+    setField('Untitled5',drdData.tax,10);
     setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',10);
     // Donor info — shift text down 2px for better alignment
     setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',10);  shiftFieldDown('Untitled7',2);
@@ -7737,7 +7737,7 @@ async function printDrdForJob(jobId){
     var totalItems=0,totalVal=0;
     DRD_ITEMS.forEach(function(item,idx){var q=drdData.quantities[idx]||0;totalItems+=q;totalVal+=q*item.val;});
     drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;totalVal+=(oi.qty||0)*(oi.val||0);});
-    setField('Untitled41',drdData.emailedDate||'');
+    setField('Untitled41',drdData.emailedDate||'',10);
     setField('Untitled42',String(totalItems),10);
     setField('Untitled43',totalVal.toFixed(2),10);
     // Flatten and open
@@ -9178,8 +9178,8 @@ async function drdDownloadPDF() {
     if(document.getElementById('drd-src-rp').checked) checkBox('Untitled3');
 
     // ── Header fields ──
-    setField('Untitled4', document.getElementById('drd-opp').value.trim());
-    setField('Untitled5', document.getElementById('drd-tax').value);
+    setField('Untitled4', document.getElementById('drd-opp').value.trim(), 10);
+    setField('Untitled5', document.getElementById('drd-tax').value, 10);
     setField('Untitled6', document.getElementById('drd-date').value, 10);
 
     // ── Donor information — shift text down 2px for alignment ──
@@ -9259,7 +9259,7 @@ async function drdDownloadPDF() {
     var emailedDate = document.getElementById('drd-emailed-date').value;
     var numItems    = document.getElementById('drd-total-items').textContent;
     var giftAmt     = document.getElementById('drd-total-value').textContent.replace('$','');
-    setField('Untitled41', emailedDate);
+    setField('Untitled41', emailedDate, 10);
     setField('Untitled42', numItems, 10);
     setField('Untitled43', giftAmt, 10);
 
