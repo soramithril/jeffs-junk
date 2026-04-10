@@ -7679,6 +7679,7 @@ async function printDrdForJob(jobId){
     var pdfDoc=await PDFLib.PDFDocument.load(pdfBytes);
     var form=pdfDoc.getForm();
     function setField(name,value,fontSize){try{if(!value&&value!==0)return;var f=form.getTextField(name);if(fontSize)f.setFontSize(fontSize);f.setText(String(value));}catch(e){}}
+    function shiftFieldDown(name,px){try{var f=form.getTextField(name);var ws=f.acroField.getWidgets();ws.forEach(function(w){var r=w.getRectangle();w.setRectangle({x:r.x,y:r.y-px,width:r.width,height:r.height});});}catch(e){}}
     function checkBox(name){try{form.getCheckBox(name).check();}catch(e){}}
     // Sources
     if(drdData.sources.indexOf('fb')>=0)checkBox('Untitled1');
@@ -7688,13 +7689,13 @@ async function printDrdForJob(jobId){
     setField('Untitled4',drdData.opp);
     setField('Untitled5',drdData.tax);
     setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',10);
-    // Donor (18pt for readability)
-    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',10);
-    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',10);
-    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',10);
-    setField('Untitled10',drdData.postal,10);
-    setField('Untitled12',drdData.email,10);
-    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',10);
+    // Donor info — shift text down 2px for better alignment
+    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',10);  shiftFieldDown('Untitled7',2);
+    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',10);  shiftFieldDown('Untitled9',2);
+    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',10);  shiftFieldDown('Untitled11',2);
+    setField('Untitled10',drdData.postal,10);  shiftFieldDown('Untitled10',2);
+    setField('Untitled12',drdData.email,10);  shiftFieldDown('Untitled12',2);
+    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',10);  shiftFieldDown('Untitled13',2);
     setField('Untitled14',drdData.contact);
     setField('Untitled15',drdData.contactInfo);
     // Item quantities - same field mapping as original drdDownloadPDF
@@ -9161,6 +9162,11 @@ async function drdDownloadPDF() {
       } catch(e) { /* field not found, skip */ }
     }
 
+    // ── Helper: shift a form field down by px ──
+    function shiftFieldDown(name, px) {
+      try { var f=form.getTextField(name); f.acroField.getWidgets().forEach(function(w){ var r=w.getRectangle(); w.setRectangle({x:r.x,y:r.y-px,width:r.width,height:r.height}); }); } catch(e) {}
+    }
+
     // ── Helper: safely check a checkbox ──
     function checkBox(name) {
       try { form.getCheckBox(name).check(); } catch(e) { /* skip */ }
@@ -9174,17 +9180,17 @@ async function drdDownloadPDF() {
     // ── Header fields ──
     setField('Untitled4', document.getElementById('drd-opp').value.trim());
     setField('Untitled5', document.getElementById('drd-tax').value);
-    setField('Untitled6', document.getElementById('drd-date').value, 18);
+    setField('Untitled6', document.getElementById('drd-date').value, 10);
 
-    // ── Donor information (18pt for readability) ──
+    // ── Donor information — shift text down 2px for alignment ──
     // Untitled7=Name, Untitled9=Addr line1, Untitled8=Addr line2 (skip),
     // Untitled11=City, Untitled10=Postal, Untitled12=Email, Untitled13=Phone
-    setField('Untitled7',  document.getElementById('drd-name').value.trim(), 18);
-    setField('Untitled9',  document.getElementById('drd-addr').value.trim(), 18);
-    setField('Untitled11', document.getElementById('drd-city').value.trim(), 18);
-    setField('Untitled10', document.getElementById('drd-postal').value.trim(), 18);
-    setField('Untitled12', document.getElementById('drd-email').value.trim(), 18);
-    setField('Untitled13', document.getElementById('drd-phone').value.trim(), 18);
+    setField('Untitled7',  document.getElementById('drd-name').value.trim(), 10);  shiftFieldDown('Untitled7', 2);
+    setField('Untitled9',  document.getElementById('drd-addr').value.trim(), 10);  shiftFieldDown('Untitled9', 2);
+    setField('Untitled11', document.getElementById('drd-city').value.trim(), 10);  shiftFieldDown('Untitled11', 2);
+    setField('Untitled10', document.getElementById('drd-postal').value.trim(), 10);  shiftFieldDown('Untitled10', 2);
+    setField('Untitled12', document.getElementById('drd-email').value.trim(), 10);  shiftFieldDown('Untitled12', 2);
+    setField('Untitled13', document.getElementById('drd-phone').value.trim(), 10);  shiftFieldDown('Untitled13', 2);
     setField('Untitled16', document.getElementById('drd-contact').value.trim());
     setField('Untitled15', document.getElementById('drd-contact-info').value.trim());
 
@@ -9254,8 +9260,8 @@ async function drdDownloadPDF() {
     var numItems    = document.getElementById('drd-total-items').textContent;
     var giftAmt     = document.getElementById('drd-total-value').textContent.replace('$','');
     setField('Untitled41', emailedDate);
-    setField('Untitled42', numItems, 18);
-    setField('Untitled43', giftAmt, 18);
+    setField('Untitled42', numItems, 10);
+    setField('Untitled43', giftAmt, 10);
 
     // ── Flatten so it prints cleanly ──
     form.flatten();
