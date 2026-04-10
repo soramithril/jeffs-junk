@@ -4025,7 +4025,7 @@ function renderLiveJobs(){
     var statusLabel=st==='done'?'Completed':st==='onsite'?'On Site':'Pending';
     var vehicleHtml='';
     if(st==='done' && j.completedByVehicle){
-      vehicleHtml='<div class="lj-vehicle">Completed by: '+j.completedByVehicle+'</div>';
+      vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
     }
     // Show task type for bin rentals (Drop-off vs Pick-up)
     var taskHtml='';
@@ -4051,8 +4051,8 @@ function renderLiveJobs(){
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
         +'<div class="lj-info">'
-          +'<div class="lj-client">'+j.name+'</div>'
-          +'<div class="lj-addr">'+(j.address||'')+(j.city?' · '+j.city:'')+'</div>'
+          +'<span class="lj-client">'+j.name+'</span>'
+          +'<span class="lj-addr">'+(j.address||'')+(j.city?' · '+j.city:'')+'</span>'
           +vehicleHtml
         +'</div>'
       +'</div>'
