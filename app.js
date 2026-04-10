@@ -7687,14 +7687,14 @@ async function printDrdForJob(jobId){
     // Header
     setField('Untitled4',drdData.opp);
     setField('Untitled5',drdData.tax);
-    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',18);
+    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',14);
     // Donor (18pt for readability)
-    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',18);
-    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',18);
-    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',18);
-    setField('Untitled10',drdData.postal,18);
-    setField('Untitled12',drdData.email,18);
-    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',18);
+    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',14);
+    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',14);
+    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',14);
+    setField('Untitled10',drdData.postal,14);
+    setField('Untitled12',drdData.email,14);
+    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',14);
     setField('Untitled14',drdData.contact);
     setField('Untitled15',drdData.contactInfo);
     // Item quantities - same field mapping as original drdDownloadPDF
@@ -7737,8 +7737,8 @@ async function printDrdForJob(jobId){
     DRD_ITEMS.forEach(function(item,idx){var q=drdData.quantities[idx]||0;totalItems+=q;totalVal+=q*item.val;});
     drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;totalVal+=(oi.qty||0)*(oi.val||0);});
     setField('Untitled41',drdData.emailedDate||'');
-    setField('Untitled42',String(totalItems),18);
-    setField('Untitled43',totalVal.toFixed(2),18);
+    setField('Untitled42',String(totalItems),14);
+    setField('Untitled43',totalVal.toFixed(2),14);
     // Flatten and open
     form.flatten();
     var filledBytes=await pdfDoc.save();
