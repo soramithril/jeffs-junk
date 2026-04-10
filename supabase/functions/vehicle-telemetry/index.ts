@@ -47,7 +47,8 @@ function categorizeException(ruleId: string): string | null {
   if (r.includes("harshbrake") || r.includes("harsh brake")) return "harsh_braking";
   if (r.includes("harshaccel") || r.includes("harsh accel")) return "harsh_accel";
   if (r.includes("speed") || r.includes("posted")) return "speeding";
-  if (r.includes("seatbelt") || r.includes("seat belt")) return "seatbelt_off";
+  // Only count the 40km/h seatbelt rule, ignore the 10km/h one
+  if ((r.includes("seatbelt") || r.includes("seat belt")) && r.includes("40")) return "seatbelt_off";
   if (r.includes("corner") || r.includes("cornering")) return "cornering";
   return null;
 }
