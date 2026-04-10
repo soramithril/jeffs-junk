@@ -3993,13 +3993,19 @@ function renderLiveJobs(){
   // Compute status for each job
   todayJobs.forEach(function(j){ j._ljStatus=ljStatus(j,today); });
 
-  // Sort: on_site first, then pending, then completed
-  var order={'onsite':0,'pending':1,'done':2};
-  todayJobs.sort(function(a,b){
-    var oa=order[a._ljStatus]||1, ob=order[b._ljStatus]||1;
-    if(oa!==ob) return oa-ob;
-    return (a.time||'').localeCompare(b.time||'');
-  });
+  // Bucket each job into one of seven categories
+  function bucketOf(j){
+    if(j.service==='Bin Rental'){
+      if(j.binDropoff===today && j.binPickup===today) return 'binSwap';
+      if(j.binPickup===today) return 'binPick';
+      return 'binDrop';
+    }
+    if(j.service==='Junk Removal') return 'junk';
+    if(j.service==='Furniture Pickup') return 'furnPick';
+    if(j.service==='Furniture Delivery') return 'furnDel';
+    return 'other';
+  }
+  todayJobs.forEach(function(j){ j._ljBucket=bucketOf(j); });
 
   // Stats
   var pending=0, onSite=0, completed=0;
@@ -4026,7 +4032,17 @@ function renderLiveJobs(){
     return;
   }
 
-  listEl.innerHTML=todayJobs.map(function(j){
+  // Sort inside each bucket: on_site → pending → done, then by name
+  var statusOrder={'onsite':0,'pending':1,'done':2};
+  function sortRows(list){
+    return list.sort(function(a,b){
+      var oa=statusOrder[a._ljStatus]||1, ob=statusOrder[b._ljStatus]||1;
+      if(oa!==ob) return oa-ob;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+  }
+
+  function buildRow(j){
     var st=j._ljStatus;
     var statusCls=st==='done'?'lj-done':st==='onsite'?'lj-onsite':'lj-pending';
     var statusLabel=st==='done'?'Completed':st==='onsite'?'On Site':'Pending';
@@ -4034,26 +4050,6 @@ function renderLiveJobs(){
     if(st==='done' && j.completedByVehicle){
       vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
     }
-    // Show task type for bin rentals (Drop-off vs Pick-up)
-    var taskHtml='';
-    if(j.service==='Bin Rental'){
-      if(j.binDropoff===today && j.binPickup===today) taskHtml='<span class="lj-task">Drop-off & Pick-up</span>';
-      else if(j.binPickup===today) taskHtml='<span class="lj-task">Pick-up</span>';
-      else taskHtml='<span class="lj-task">Drop-off</span>';
-    }
-
-    var timeStr=j.time||'';
-    if(timeStr){
-      // Format time nicely
-      var parts=timeStr.split(':');
-      if(parts.length>=2){
-        var h=parseInt(parts[0]),m=parts[1];
-        var ampm=h>=12?'PM':'AM';
-        if(h>12)h-=12; if(h===0)h=12;
-        timeStr=h+':'+m+' '+ampm;
-      }
-    }
-
     return '<div class="lj-row '+statusCls+'" onclick="openDetail(\''+j.id+'\')">'
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
@@ -4064,12 +4060,28 @@ function renderLiveJobs(){
         +'</div>'
       +'</div>'
       +'<div class="lj-row-right">'
-        +sb(j.service)+taskHtml
-        +(timeStr?'<span class="lj-time">'+timeStr+'</span>':'')
         +'<span class="lj-status-badge '+statusCls+'">'+statusLabel+'</span>'
       +'</div>'
     +'</div>';
-  }).join('');
+  }
+
+  function buildSection(key,icon,title){
+    var list=sortRows(todayJobs.filter(function(j){return j._ljBucket===key;}));
+    if(!list.length) return '';
+    return '<div class="lj-section lj-sect-'+key+'">'
+      +'<div class="lj-section-header"><span class="lj-section-icon">'+icon+'</span><span class="lj-section-title">'+title+'</span><span class="lj-section-count">'+list.length+'</span></div>'
+      +'<div class="lj-section-body">'+list.map(buildRow).join('')+'</div>'
+    +'</div>';
+  }
+
+  listEl.innerHTML=''
+    +buildSection('binDrop','🚛','Bin Drop-offs')
+    +buildSection('binSwap','🔄','Bin Swaps')
+    +buildSection('binPick','🚚','Bin Pick-ups')
+    +buildSection('junk','🗑️','Junk Removals')
+    +buildSection('furnPick','🛋️','Furniture Pickups')
+    +buildSection('furnDel','📦','Furniture Deliveries')
+    +buildSection('other','📌','Other');
 }
 
 function renderJobs(){
