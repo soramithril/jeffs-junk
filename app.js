@@ -1019,7 +1019,7 @@ async function loadAllFromSupabase() {
         .eq('service','Bin Rental')
         .or('bin_instatus.is.null,bin_instatus.eq.')
         .not('bin_dropoff','is',null)
-        .lte('bin_dropoff', today2);
+        .lt('bin_dropoff', today2);
       if (pastDropJobs.data && pastDropJobs.data.length) {
         var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
         await db.from('jobs').update({bin_instatus:'dropped'}).in('job_id',dropIds);
