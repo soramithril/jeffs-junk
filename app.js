@@ -7522,6 +7522,7 @@ async function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
       if(j.recurring && j.service==='Junk Removal'){
         btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
       }
@@ -8030,6 +8031,15 @@ function markBinPickedUp2(id){
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
   writeBinHistory(j);
   patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
+}
+function revertPickedUp(id){
+  var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
+  j.binInstatus='dropped';
+  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
+  patchJob(id,{binInstatus:'dropped'});
+  toast('Pickup reverted — bin back out');
+  openDetail(id);
+  refresh();
 }
 async function scheduleNextSwap(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
