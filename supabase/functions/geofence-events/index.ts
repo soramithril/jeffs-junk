@@ -215,8 +215,8 @@ async function processEvents(): Promise<string> {
     // Build update payload
     const updatePayload: Record<string, unknown> = { bin_instatus: newStatus };
 
-    // On completion (pickedup), attribute the vehicle — first one wins
-    if (newStatus === "pickedup" && !currentJob?.completed_by_vehicle) {
+    // Attribute the vehicle on any status change — first one wins
+    if (!currentJob?.completed_by_vehicle) {
       let deviceName = deviceNameCache.get(event.device.id);
       if (deviceName === undefined) {
         deviceName = await getDeviceName(event.device.id);
