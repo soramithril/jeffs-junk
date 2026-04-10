@@ -3952,11 +3952,10 @@ function renderLiveJobs(){
   var today=todayStr();
   var todayJobs=jobs.filter(function(j){
     if(j.status==='Cancelled') return false;
-    var sd=jobSchedDate(j);
-    if(sd===today) return true;
-    // Bin rentals: also show if dropoff or pickup is today
-    if(j.service==='Bin Rental' && (j.binDropoff===today || j.binPickup===today)) return true;
-    return false;
+    // Bin rentals: only show if dropoff or pickup is today (date is just booking date)
+    if(j.service==='Bin Rental') return j.binDropoff===today || j.binPickup===today;
+    // All other services: use the service-specific scheduled date
+    return jobSchedDate(j)===today;
   });
 
   // Sort: on_site first, then pending, then completed
