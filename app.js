@@ -2997,7 +2997,7 @@ async function refreshDashJobs(){
   // Furniture uses fb_date, Junk uses junk_date, Bin Rental uses bin_dropoff/bin_pickup, others use date
   var [rJobs, rPickups, rDropoffs, rFurn, rJunk] = await Promise.all([
     db.from('jobs').select('*').eq('date', dateS).neq('status','Cancelled').order('time'),
-    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', dateS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
+    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', dateS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+dateS+',and(bin_dropoff.is.null,date.eq.'+dateS+')'),
     db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+dateS+',and(fb_date.is.null,date.eq.'+dateS+')'),
     db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+dateS+',and(junk_date.is.null,date.eq.'+dateS+')')
@@ -3017,6 +3017,12 @@ async function refreshDashJobs(){
   function dedup(arr){ var seen={}; return arr.filter(function(j){ if(seen[j.id])return false; seen[j.id]=true; return true; }); }
   dayDropoffs = dedup(dayDropoffs);
   dayPickups  = dedup(dayPickups);
+  // Fix same-day misclassification: if a job has no explicit bin_dropoff but has
+  // bin_pickup set to this day, it appeared in dropoffs via the date fallback — remove it
+  dayDropoffs = dayDropoffs.filter(function(j){
+    if(!j.binDropoff && j.binPickup === dateS) return false;
+    return true;
+  });
 
   // Use fb_date/junk_date queries for furniture and junk categories
   var furnPickups  = dedup(dayFurn.filter(function(j){return j.service==='Furniture Pickup';}));
@@ -3285,7 +3291,7 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled').or('bin_pickup.lt.'+todayS+',bin_pickup.is.null'),
-    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled').neq('bin_instatus','pickedup'),
+    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
     db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
@@ -3332,6 +3338,12 @@ async function renderDash(){
   function dedup(arr){ var seen={}; return arr.filter(function(j){ if(seen[j.id])return false; seen[j.id]=true; return true; }); }
   todayBinDropoffs = dedup(todayBinDropoffs);
   todayBinPickups  = dedup(todayBinPickups);
+  // Fix same-day misclassification: if a job has no explicit bin_dropoff but has
+  // bin_pickup set to today, it appeared in dropoffs via the date fallback — remove it
+  todayBinDropoffs = todayBinDropoffs.filter(function(j){
+    if(!j.binDropoff && j.binPickup === todayS) return false;
+    return true;
+  });
 
   // Use dedicated fb_date/junk_date queries for furniture and junk (not created date)
   var todayFurnAll      = (rTodayFurn.data||[]).map(dbToJob);
@@ -6802,12 +6814,12 @@ function setBinDuration(days){
   var d=new Date(drop+'T12:00:00');
   d.setDate(d.getDate()+days);
   document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
-  var label=days===30?'1 month':days+' days';
+  var label=days===30?'1 month':days===1?'1 day':days+' days';
   document.getElementById('f-bdur').value=label;
   window._binPresetDays=days;
   // Highlight active duration button with animation
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){
-    var btnDays=b.textContent.trim()==='1 Month'?30:parseInt(b.textContent);
+    var btnDays=b.textContent.trim()==='1 Month'?30:b.textContent.trim()==='1 Day'?1:parseInt(b.textContent);
     var isActive=btnDays===days;
     b.classList.toggle('active',isActive);
     if(isActive){b.style.animation='durPop .3s ease';setTimeout(function(){b.style.animation='';},300);}
@@ -7251,9 +7263,9 @@ async function saveJob(e){
   _saveJobLock = false;
   closeM('job-modal');
   loadJobsPage(jobsPage);
-  // If new job, open the detail modal so user can print
+  // If new job, open the detail modal so user can print/download PDF immediately
   if(wasNewJob){
-    setTimeout(function(){ openDetail(savedJobId); },250);
+    setTimeout(function(){ openDetail(savedJobId); toast('✅ Job saved — you can print the form below'); },400);
   } else {
     // Flash the new/updated row
     setTimeout(function(){
@@ -7300,8 +7312,7 @@ async function openDetail(id){
     var bsStatus=j.binInstatus==='dropped'?'<span style="color:#22c55e;font-weight:700">✅ Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="color:#22c55e;font-weight:700">✅ Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
-    var recurLabel={'weekly':'Every Week','biweekly':'Every 2 Weeks','3weeks':'Every 3 Weeks','monthly':'Every Month'}[j.recurInterval]||j.recurInterval||'';
-    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details'+(j.recurring?'&nbsp;<span style="font-size:11px;background:rgba(13,110,253,.15);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 8px">♻️ Recurring · '+recurLabel+'</span>':'')+'</div><div class="detail-grid">'
+    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid">'
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
@@ -7384,9 +7395,8 @@ async function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
-      if(j.recurring){
-        if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="scheduleNextSwap(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Swap</button>');
-        else if(j.service==='Junk Removal') btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
+      if(j.recurring && j.service==='Junk Removal'){
+        btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
       }
       var sectionLabel=j.service==='Bin Rental'?'Bin Actions':'Job Actions';
       return btns.length ? '<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">'+sectionLabel+'</div><div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div></div>' : '';
@@ -7668,7 +7678,7 @@ async function printDrdForJob(jobId){
     var pdfBytes=Uint8Array.from(atob(DRD_FORM_B64),function(c){return c.charCodeAt(0);});
     var pdfDoc=await PDFLib.PDFDocument.load(pdfBytes);
     var form=pdfDoc.getForm();
-    function setField(name,value){try{if(!value&&value!==0)return;form.getTextField(name).setText(String(value));}catch(e){}}
+    function setField(name,value,fontSize){try{if(!value&&value!==0)return;var f=form.getTextField(name);if(fontSize)f.setFontSize(fontSize);f.setText(String(value));}catch(e){}}
     function checkBox(name){try{form.getCheckBox(name).check();}catch(e){}}
     // Sources
     if(drdData.sources.indexOf('fb')>=0)checkBox('Untitled1');
@@ -7677,14 +7687,14 @@ async function printDrdForJob(jobId){
     // Header
     setField('Untitled4',drdData.opp);
     setField('Untitled5',drdData.tax);
-    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'');
-    // Donor
-    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'');
-    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'');
-    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'');
-    setField('Untitled10',drdData.postal);
-    setField('Untitled12',drdData.email);
-    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'');
+    setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',18);
+    // Donor (18pt for readability)
+    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',18);
+    setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',18);
+    setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',18);
+    setField('Untitled10',drdData.postal,18);
+    setField('Untitled12',drdData.email,18);
+    setField('Untitled13',(document.getElementById('drd-d-phone')||{}).value||j.phone||'',18);
     setField('Untitled14',drdData.contact);
     setField('Untitled15',drdData.contactInfo);
     // Item quantities - same field mapping as original drdDownloadPDF
@@ -7727,8 +7737,8 @@ async function printDrdForJob(jobId){
     DRD_ITEMS.forEach(function(item,idx){var q=drdData.quantities[idx]||0;totalItems+=q;totalVal+=q*item.val;});
     drdData.otherItems.forEach(function(oi){totalItems+=oi.qty||0;totalVal+=(oi.qty||0)*(oi.val||0);});
     setField('Untitled41',drdData.emailedDate||'');
-    setField('Untitled42',String(totalItems));
-    setField('Untitled43',totalVal.toFixed(2));
+    setField('Untitled42',String(totalItems),18);
+    setField('Untitled43',totalVal.toFixed(2),18);
     // Flatten and open
     form.flatten();
     var filledBytes=await pdfDoc.save();
@@ -9142,10 +9152,11 @@ async function drdDownloadPDF() {
     var form = pdfDoc.getForm();
 
     // ── Helper: safely set a form text field ──
-    function setField(name, value) {
+    function setField(name, value, fontSize) {
       try {
         if(!value && value !== 0) return;
         var field = form.getTextField(name);
+        if(fontSize) field.setFontSize(fontSize);
         field.setText(String(value));
       } catch(e) { /* field not found, skip */ }
     }
@@ -9163,17 +9174,17 @@ async function drdDownloadPDF() {
     // ── Header fields ──
     setField('Untitled4', document.getElementById('drd-opp').value.trim());
     setField('Untitled5', document.getElementById('drd-tax').value);
-    setField('Untitled6', document.getElementById('drd-date').value);
+    setField('Untitled6', document.getElementById('drd-date').value, 18);
 
-    // ── Donor information ──
+    // ── Donor information (18pt for readability) ──
     // Untitled7=Name, Untitled9=Addr line1, Untitled8=Addr line2 (skip),
     // Untitled11=City, Untitled10=Postal, Untitled12=Email, Untitled13=Phone
-    setField('Untitled7',  document.getElementById('drd-name').value.trim());
-    setField('Untitled9',  document.getElementById('drd-addr').value.trim());
-    setField('Untitled11', document.getElementById('drd-city').value.trim());
-    setField('Untitled10', document.getElementById('drd-postal').value.trim());
-    setField('Untitled12', document.getElementById('drd-email').value.trim());
-    setField('Untitled13', document.getElementById('drd-phone').value.trim());
+    setField('Untitled7',  document.getElementById('drd-name').value.trim(), 18);
+    setField('Untitled9',  document.getElementById('drd-addr').value.trim(), 18);
+    setField('Untitled11', document.getElementById('drd-city').value.trim(), 18);
+    setField('Untitled10', document.getElementById('drd-postal').value.trim(), 18);
+    setField('Untitled12', document.getElementById('drd-email').value.trim(), 18);
+    setField('Untitled13', document.getElementById('drd-phone').value.trim(), 18);
     setField('Untitled16', document.getElementById('drd-contact').value.trim());
     setField('Untitled15', document.getElementById('drd-contact-info').value.trim());
 
@@ -9243,8 +9254,8 @@ async function drdDownloadPDF() {
     var numItems    = document.getElementById('drd-total-items').textContent;
     var giftAmt     = document.getElementById('drd-total-value').textContent.replace('$','');
     setField('Untitled41', emailedDate);
-    setField('Untitled42', numItems);
-    setField('Untitled43', giftAmt);
+    setField('Untitled42', numItems, 18);
+    setField('Untitled43', giftAmt, 18);
 
     // ── Flatten so it prints cleanly ──
     form.flatten();
@@ -10213,6 +10224,9 @@ async function printBinRental(jobId) {
   jobs.forEach(function(jj) { if (jj.id === jobId) j = jj; });
   if (!j) { toast('Job not found'); return; }
   if (j.service !== 'Bin Rental') { toast('Print only available for Bin Rentals'); return; }
+  // Always fetch fresh job data from DB to ensure city/email/etc are current
+  var freshR = await db.from('jobs').select('*').eq('job_id', jobId).single();
+  if (freshR.data) j = dbToJob(freshR.data);
 
   try {
     var pdfBytes = Uint8Array.from(atob(BIN_RENTAL_PDF_B64), function(c) { return c.charCodeAt(0); });
@@ -10234,13 +10248,13 @@ async function printBinRental(jobId) {
       });
     }
 
-    // Look up full client data — always fetch from Supabase to ensure all fields are included
-    var email = '';
+    // Look up full client data — job-level email takes priority over client email
+    var email = (j.emails && j.emails.length) ? j.emails[0] : '';
     var clientPhones = [];
     if (j.clientId) {
       var cr = await db.from('clients').select('*').eq('cid', j.clientId).single();
       if (cr.data) {
-        email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
+        if (!email) email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
         clientPhones = cr.data.phones || [];
       }
     }
@@ -10262,9 +10276,13 @@ async function printBinRental(jobId) {
       return d;
     }
 
-    // Parse address into street + city
+    // Parse address into street + city — fall back to client city if job city is empty
     var street = j.address || '';
     var city = j.city || '';
+    if (!city && j.clientId) {
+      var cityR = await db.from('clients').select('city').eq('cid', j.clientId).single();
+      if (cityR.data && cityR.data.city) city = cityR.data.city;
+    }
 
     // Driveway side
     var side = j.binSide ? j.binSide.charAt(0).toUpperCase() + j.binSide.slice(1) + ' Side' : '';
@@ -10360,16 +10378,14 @@ var FB_PICKUP_PDF_B64 = 'JVBERi0xLjcKJYGBgYEKCjE0MCAwIG9iago8PAovU3VidHlwZSAvWE1
 async function _loadFormClientData(j) {
   var email = '';
   var clientPhones = [];
+  // Job-level email takes priority over client profile email
+  var email = (j.emails && j.emails.length) ? j.emails[0] : '';
   if (j.clientId) {
     var cr = await db.from('clients').select('*').eq('cid', j.clientId).single();
     if (cr.data) {
-      email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
+      if (!email) email = (cr.data.emails && cr.data.emails.length) ? cr.data.emails[0] : (cr.data.email || '');
       clientPhones = cr.data.phones || [];
     }
-  }
-  // Fallback: if no email from client, check the job's own emails array
-  if (!email) {
-    email = (j.emails && j.emails.length) ? j.emails[0] : '';
   }
   return { email: email, clientPhones: clientPhones };
 }

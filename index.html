@@ -1397,6 +1397,7 @@
         <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
           <div class="form-group" style="flex:0 0 80px;min-width:80px"><label>Duration</label><input id="f-bdur" type="text" placeholder="" style="text-align:center;font-size:13px;padding:8px 6px"></div>
           <div style="display:flex;gap:8px;padding-bottom:1px;flex:1">
+            <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(1)">1 Day</button>
             <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(3)">3 Days</button>
             <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(7)">7 Days</button>
             <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(30)">1 Month</button>
@@ -1407,18 +1408,10 @@
           <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option><option value="see notes">See Notes</option></select></div>
           <div class="form-group"><label>Bin Status</label><select id="f-binstatus"><option value="">Pending</option><option value="dropped">✅ Dropped Off</option><option value="pickedup">✅ Picked Up</option></select></div>
         </div>
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px">
-            <input type="checkbox" id="f-recurring" onchange="document.getElementById('recurring-opts').style.display=this.checked?'block':'none'" style="width:15px;height:15px;accent-color:var(--accent)">
-            ♻️ Recurring Swap — auto-schedule bin swaps
-          </label>
-          <div id="recurring-opts" style="display:none;margin-top:10px">
-            <div class="form-grid">
-              <div class="form-group"><label>Swap Every</label><select id="f-recur-interval"><option value="weekly">Every Week</option><option value="biweekly" selected>Every 2 Weeks</option><option value="3weeks">Every 3 Weeks</option><option value="monthly">Every Month</option></select></div>
-            </div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">When the bin is picked up, a "Schedule Next Swap" button will appear so you can quickly book the next one.</div>
-          </div>
-        </div>
+        <!-- Recurring swap removed — was causing user confusion -->
+        <input type="hidden" id="f-recurring" value="">
+        <input type="hidden" id="f-recur-interval" value="">
+        <div id="recurring-opts" style="display:none"></div>
       </div>
       <!-- Recurring option for Junk Removal (Bin Rental recurring is in bin-extra above) -->
       <div id="junk-recurring-extra" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
