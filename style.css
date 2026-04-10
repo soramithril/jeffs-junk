@@ -887,4 +887,55 @@ input[type=date],input[type=time]{position:relative;}
 .form-input:focus,input:focus,select:focus,textarea:focus{transition:border-color .2s ease,box-shadow .2s ease;}
 
 /* ── Toast enhanced entrance ── */
-.toast{transition:tran
+.toast{transition:transform .3s ease,opacity .3s ease;}
+
+/* ── Live Jobs Page ── */
+.lj-stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.lj-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;flex:1;min-width:100px;text-align:center;}
+.lj-stat-num{display:block;font-size:24px;font-weight:700;color:var(--text);}
+.lj-stat-lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.lj-stat-pending .lj-stat-num{color:var(--blue);}
+.lj-stat-onsite .lj-stat-num{color:var(--orange);}
+.lj-stat-done .lj-stat-num{color:var(--green);}
+
+.lj-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:8px;cursor:pointer;transition:all var(--transition);}
+.lj-row:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.lj-row-left{display:flex;align-items:center;gap:14px;flex:1;min-width:0;}
+.lj-row-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+
+.lj-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.lj-pending .lj-status-dot{background:var(--blue);}
+.lj-onsite .lj-status-dot{background:var(--orange);animation:ljPulse 1.5s ease-in-out infinite;}
+.lj-done .lj-status-dot{background:var(--green);}
+
+.lj-info{min-width:0;}
+.lj-client{font-weight:600;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lj-addr{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lj-vehicle{font-size:12px;color:var(--green);font-weight:600;margin-top:2px;}
+
+.lj-done .lj-client{text-decoration:line-through;color:var(--muted);}
+.lj-done .lj-addr{text-decoration:line-through;}
+
+.lj-onsite{border-left:3px solid var(--orange);}
+.lj-done{border-left:3px solid var(--green);opacity:.75;}
+
+.lj-time{font-size:12px;color:var(--text-secondary);font-weight:500;}
+
+.lj-status-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;}
+.lj-status-badge.lj-pending{background:#e8f0fe;color:var(--blue);}
+.lj-status-badge.lj-onsite{background:#fff3e0;color:var(--orange);}
+.lj-status-badge.lj-done{background:#e8f5e9;color:var(--green);}
+
+.lj-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:15px;}
+
+.lj-pulse{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:ljPulse 1.5s ease-in-out infinite;}
+
+@keyframes ljPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
+
+@media(max-width:768px){
+  .lj-stats{gap:8px;}
+  .lj-stat{padding:10px 12px;}
+  .lj-stat-num{font-size:20px;}
+  .lj-row{flex-direction:column;align-items:flex-start;gap:10px;padding:12px 14px;}
+  .lj-row-right{width:100%;justify-content:flex-start;flex-wrap:wrap;}
+}

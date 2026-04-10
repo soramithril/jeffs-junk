@@ -497,6 +497,7 @@ function dbToJob(r) {
     fbTime: r.fb_time || '',
     junkDate: r.junk_date || '',
     junkTime: r.junk_time || '',
+    completedByVehicle: r.completed_by_vehicle || '',
   };
 }
 
@@ -1698,6 +1699,7 @@ function go(name){
 }
 function render(name){
   if(name==='dashboard'){ renderDash(); initDashPricingDropdown(); }
+  else if(name==='livejobs') renderLiveJobs();
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='calendar') renderCal();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
@@ -3945,6 +3947,95 @@ function sortJobList(arr){
     return 0;
   });
 }
+// ─── LIVE JOBS ───
+function renderLiveJobs(){
+  var today=todayStr();
+  var todayJobs=jobs.filter(function(j){
+    if(j.status==='Cancelled') return false;
+    var sd=jobSchedDate(j);
+    if(sd===today) return true;
+    // Bin rentals: also show if dropoff or pickup is today
+    if(j.service==='Bin Rental' && (j.binDropoff===today || j.binPickup===today)) return true;
+    return false;
+  });
+
+  // Sort: on_site first, then pending, then completed
+  var order={'dropped':0,'':1,'pickedup':2};
+  todayJobs.sort(function(a,b){
+    var oa=order[a.binInstatus]!==undefined?order[a.binInstatus]:1;
+    var ob=order[b.binInstatus]!==undefined?order[b.binInstatus]:1;
+    if(oa!==ob) return oa-ob;
+    return (a.time||'').localeCompare(b.time||'');
+  });
+
+  // Stats
+  var pending=0, onSite=0, completed=0;
+  todayJobs.forEach(function(j){
+    if(j.binInstatus==='pickedup') completed++;
+    else if(j.binInstatus==='dropped') onSite++;
+    else pending++;
+  });
+  var statsEl=document.getElementById('lj-stats');
+  statsEl.innerHTML=
+    '<div class="lj-stat"><span class="lj-stat-num">'+todayJobs.length+'</span><span class="lj-stat-lbl">Total</span></div>'+
+    '<div class="lj-stat lj-stat-pending"><span class="lj-stat-num">'+pending+'</span><span class="lj-stat-lbl">Pending</span></div>'+
+    '<div class="lj-stat lj-stat-onsite"><span class="lj-stat-num">'+onSite+'</span><span class="lj-stat-lbl">On Site</span></div>'+
+    '<div class="lj-stat lj-stat-done"><span class="lj-stat-num">'+completed+'</span><span class="lj-stat-lbl">Completed</span></div>';
+
+  // Update timestamp
+  var tsEl=document.getElementById('lj-last-update');
+  if(tsEl) tsEl.textContent='Updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+  // Rows
+  var listEl=document.getElementById('lj-list');
+  if(!todayJobs.length){
+    listEl.innerHTML='<div class="lj-empty">No jobs scheduled for today.</div>';
+    return;
+  }
+
+  listEl.innerHTML=todayJobs.map(function(j){
+    var statusCls='lj-pending';
+    var statusLabel='Pending';
+    var vehicleHtml='';
+    if(j.binInstatus==='dropped'){
+      statusCls='lj-onsite';
+      statusLabel='On Site';
+    } else if(j.binInstatus==='pickedup'){
+      statusCls='lj-done';
+      statusLabel='Completed';
+      if(j.completedByVehicle) vehicleHtml='<div class="lj-vehicle">Completed by: '+j.completedByVehicle+'</div>';
+    }
+
+    var timeStr=j.time||'';
+    if(timeStr){
+      // Format time nicely
+      var parts=timeStr.split(':');
+      if(parts.length>=2){
+        var h=parseInt(parts[0]),m=parts[1];
+        var ampm=h>=12?'PM':'AM';
+        if(h>12)h-=12; if(h===0)h=12;
+        timeStr=h+':'+m+' '+ampm;
+      }
+    }
+
+    return '<div class="lj-row '+statusCls+'" onclick="openDetail(\''+j.id+'\')">'
+      +'<div class="lj-row-left">'
+        +'<div class="lj-status-dot"></div>'
+        +'<div class="lj-info">'
+          +'<div class="lj-client">'+j.name+'</div>'
+          +'<div class="lj-addr">'+(j.address||'')+(j.city?' · '+j.city:'')+'</div>'
+          +vehicleHtml
+        +'</div>'
+      +'</div>'
+      +'<div class="lj-row-right">'
+        +sb(j.service)
+        +(timeStr?'<span class="lj-time">'+timeStr+'</span>':'')
+        +'<span class="lj-status-badge '+statusCls+'">'+statusLabel+'</span>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
 function renderJobs(){
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}

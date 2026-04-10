@@ -147,6 +147,19 @@ function determineStatus(event: ExceptionEvent): "dropped" | "pickedup" {
   return "dropped";
 }
 
+/**
+ * Look up a Geotab device name by ID (for vehicle attribution).
+ */
+async function getDeviceName(deviceId: string): Promise<string> {
+  const devices = await geotabCall("Get", {
+    typeName: "Device",
+    search: { id: deviceId },
+  }) as { id: string; name: string }[];
+
+  if (!devices || devices.length === 0) return deviceId;
+  return devices[0].name || deviceId;
+}
+
 async function processEvents(): Promise<string> {
   const { data: stateRow } = await supabase
     .from("geofence_poll_state")
@@ -170,6 +183,7 @@ async function processEvents(): Promise<string> {
   const updates: string[] = [];
   const zoneCache = new Map<string, ZoneInfo | null>();
   const ruleZoneCache = new Map<string, string | null>();
+  const deviceNameCache = new Map<string, string>();
 
   for (const event of events) {
     let zoneId = ruleZoneCache.get(event.rule.id);
@@ -192,15 +206,28 @@ async function processEvents(): Promise<string> {
     // Fetch current job to check if status actually changed
     const { data: currentJob } = await supabase
       .from("jobs")
-      .select("bin_instatus, customer_name, bin_bid, address, city")
+      .select("bin_instatus, completed_by_vehicle, customer_name, bin_bid, address, city, name")
       .eq("job_id", jobId)
       .single();
 
     if (currentJob?.bin_instatus === newStatus) continue;
 
+    // Build update payload
+    const updatePayload: Record<string, unknown> = { bin_instatus: newStatus };
+
+    // On completion (pickedup), attribute the vehicle — first one wins
+    if (newStatus === "pickedup" && !currentJob?.completed_by_vehicle) {
+      let deviceName = deviceNameCache.get(event.device.id);
+      if (deviceName === undefined) {
+        deviceName = await getDeviceName(event.device.id);
+        deviceNameCache.set(event.device.id, deviceName);
+      }
+      updatePayload.completed_by_vehicle = deviceName;
+    }
+
     const { error } = await supabase
       .from("jobs")
-      .update({ bin_instatus: newStatus })
+      .update(updatePayload)
       .eq("job_id", jobId);
 
     if (error) {
