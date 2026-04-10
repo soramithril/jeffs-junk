@@ -3948,6 +3948,29 @@ function sortJobList(arr){
   });
 }
 // ─── LIVE JOBS ───
+
+/**
+ * Determine Live Jobs status for a job.
+ * Bin Rental dropoff day: no status=Pending, dropped=Done (bin delivered)
+ * Bin Rental pickup day:  dropped=Pending (waiting for pickup), pickedup=Done
+ * Non-bin jobs:           no status=Pending, dropped=On Site, pickedup=Done
+ */
+function ljStatus(j,today){
+  if(j.service==='Bin Rental'){
+    var isDropDay=j.binDropoff===today;
+    var isPickDay=j.binPickup===today;
+    if(isPickDay && j.binInstatus==='pickedup') return 'done';
+    if(isPickDay && j.binInstatus!=='pickedup') return 'pending';
+    if(isDropDay && j.binInstatus==='dropped') return 'done';
+    if(isDropDay && j.binInstatus==='pickedup') return 'done';
+    return 'pending';
+  }
+  // Non-bin jobs
+  if(j.binInstatus==='pickedup') return 'done';
+  if(j.binInstatus==='dropped') return 'onsite';
+  return 'pending';
+}
+
 function renderLiveJobs(){
   var today=todayStr();
   var todayJobs=jobs.filter(function(j){
@@ -3958,11 +3981,13 @@ function renderLiveJobs(){
     return jobSchedDate(j)===today;
   });
 
+  // Compute status for each job
+  todayJobs.forEach(function(j){ j._ljStatus=ljStatus(j,today); });
+
   // Sort: on_site first, then pending, then completed
-  var order={'dropped':0,'':1,'pickedup':2};
+  var order={'onsite':0,'pending':1,'done':2};
   todayJobs.sort(function(a,b){
-    var oa=order[a.binInstatus]!==undefined?order[a.binInstatus]:1;
-    var ob=order[b.binInstatus]!==undefined?order[b.binInstatus]:1;
+    var oa=order[a._ljStatus]||1, ob=order[b._ljStatus]||1;
     if(oa!==ob) return oa-ob;
     return (a.time||'').localeCompare(b.time||'');
   });
@@ -3970,8 +3995,8 @@ function renderLiveJobs(){
   // Stats
   var pending=0, onSite=0, completed=0;
   todayJobs.forEach(function(j){
-    if(j.binInstatus==='pickedup') completed++;
-    else if(j.binInstatus==='dropped') onSite++;
+    if(j._ljStatus==='done') completed++;
+    else if(j._ljStatus==='onsite') onSite++;
     else pending++;
   });
   var statsEl=document.getElementById('lj-stats');
@@ -3993,16 +4018,19 @@ function renderLiveJobs(){
   }
 
   listEl.innerHTML=todayJobs.map(function(j){
-    var statusCls='lj-pending';
-    var statusLabel='Pending';
+    var st=j._ljStatus;
+    var statusCls=st==='done'?'lj-done':st==='onsite'?'lj-onsite':'lj-pending';
+    var statusLabel=st==='done'?'Completed':st==='onsite'?'On Site':'Pending';
     var vehicleHtml='';
-    if(j.binInstatus==='dropped'){
-      statusCls='lj-onsite';
-      statusLabel='On Site';
-    } else if(j.binInstatus==='pickedup'){
-      statusCls='lj-done';
-      statusLabel='Completed';
-      if(j.completedByVehicle) vehicleHtml='<div class="lj-vehicle">Completed by: '+j.completedByVehicle+'</div>';
+    if(st==='done' && j.completedByVehicle){
+      vehicleHtml='<div class="lj-vehicle">Completed by: '+j.completedByVehicle+'</div>';
+    }
+    // Show task type for bin rentals (Drop-off vs Pick-up)
+    var taskHtml='';
+    if(j.service==='Bin Rental'){
+      if(j.binDropoff===today && j.binPickup===today) taskHtml='<span class="lj-task">Drop-off & Pick-up</span>';
+      else if(j.binPickup===today) taskHtml='<span class="lj-task">Pick-up</span>';
+      else taskHtml='<span class="lj-task">Drop-off</span>';
     }
 
     var timeStr=j.time||'';
@@ -4027,7 +4055,7 @@ function renderLiveJobs(){
         +'</div>'
       +'</div>'
       +'<div class="lj-row-right">'
-        +sb(j.service)
+        +sb(j.service)+taskHtml
         +(timeStr?'<span class="lj-time">'+timeStr+'</span>':'')
         +'<span class="lj-status-badge '+statusCls+'">'+statusLabel+'</span>'
       +'</div>'
