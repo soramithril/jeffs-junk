@@ -444,6 +444,14 @@ var clientSearchF = '';
 var fleetF = 'all', fleetQ = '', fleetSort = 'num', fleetSortDir = 1;
 var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
+// Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
+// Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
+var JOB_LIST_COLS = 'job_id,service,status,name,phone,address,city,date,time,price,paid,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid';
+// Minimal columns for building client stats (used by clients page aggregation only)
+var JOB_STATS_COLS = 'client_cid,name,service,date';
+// Client columns (excludes heavy jsonb addresses)
+var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,created_at,blacklisted';
+
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
   return {
@@ -950,7 +958,7 @@ async function loadAllFromSupabase() {
     try {
       var pageSize = 1000, from = 0, keepGoing = true;
       while (keepGoing) {
-        var rcAll = await db.from('clients').select('*').order('name').range(from, from + pageSize - 1);
+        var rcAll = await db.from('clients').select('cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,created_at,blacklisted').order('name').range(from, from + pageSize - 1);
         if (rcAll.data && rcAll.data.length) {
           rcAll.data.forEach(function(c){ clients.push(dbToClient(c)); });
           from += rcAll.data.length;
@@ -1062,7 +1070,7 @@ async function loadJobsPage(page) {
   var from = page * jobsPageSize;
 
   // Build query with current filters
-  var query = db.from('jobs').select('*', {count:'exact'}).order('date', {ascending: false});
+  var query = db.from('jobs').select(JOB_LIST_COLS, {count:'exact'}).order('date', {ascending: false});
 
   // Apply search filter server-side
   if (searchF && searchF.trim()) {
@@ -1159,12 +1167,12 @@ async function loadBinJobsThenRender() {
     // Fetch all bin jobs that are: not cancelled, not picked up OR have a future/current pickup date
     var [rActive, rUpcoming] = await Promise.all([
       // Currently active: not cancelled, not picked up
-      db.from('jobs').select('*')
+      db.from('jobs').select(JOB_LIST_COLS)
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
         .neq('bin_instatus','pickedup'),
       // Has a bin_pickup date on or after today (bin still out or scheduled)
-      db.from('jobs').select('*')
+      db.from('jobs').select(JOB_LIST_COLS)
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
         .neq('bin_instatus','pickedup')
@@ -3103,11 +3111,11 @@ async function renderWeekCal(){
   document.getElementById('week-lbl').textContent=ws.toLocaleDateString('en-US',opts)+' – '+we.toLocaleDateString('en-US',opts);
 
   // Fetch this week's jobs: by job date, bin_dropoff, bin_pickup, fb_date, or junk_date falling in this week
-  var rByDate = db.from('jobs').select('*').gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
-  var rByDropoff = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_dropoff',wsS).lte('bin_dropoff',weS).neq('status','Cancelled');
-  var rByPickup = db.from('jobs').select('*').eq('service','Bin Rental').gte('bin_pickup',wsS).lte('bin_pickup',weS).neq('status','Cancelled');
-  var rByFbDate = db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).gte('fb_date',wsS).lte('fb_date',weS).neq('status','Cancelled');
-  var rByJunkDate = db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).gte('junk_date',wsS).lte('junk_date',weS).neq('status','Cancelled');
+  var rByDate = db.from('jobs').select(JOB_LIST_COLS).gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
+  var rByDropoff = db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').gte('bin_dropoff',wsS).lte('bin_dropoff',weS).neq('status','Cancelled');
+  var rByPickup = db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').gte('bin_pickup',wsS).lte('bin_pickup',weS).neq('status','Cancelled');
+  var rByFbDate = db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).gte('fb_date',wsS).lte('fb_date',weS).neq('status','Cancelled');
+  var rByJunkDate = db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).gte('junk_date',wsS).lte('junk_date',weS).neq('status','Cancelled');
   var results = await Promise.all([rByDate, rByDropoff, rByPickup, rByFbDate, rByJunkDate]);
   var seen = {};
   var weekJobs = [];
@@ -4167,14 +4175,14 @@ function renderJobs(){
           if(jc){
             jc.status='Cancelled';
             if(jc.binBid){binItems.forEach(function(b){if(b.bid===jc.binBid)b.status='in';});saveBins();}
-            saveSingleJob(jc);
+            patchJob(jc.id,{status:'Cancelled'});
             toast('Job cancelled.');
             loadJobsPage(jobsPage);
           }
         }
       } else if(action==='uncancel'){
         var ju=jobs.find(function(x){return x.id===id;});
-        if(ju){ju.status='';saveSingleJob(ju);toast('Job restored.');loadJobsPage(jobsPage);}
+        if(ju){ju.status='';patchJob(ju.id,{status:''});toast('Job restored.');loadJobsPage(jobsPage);}
       }
       return;
     }
@@ -4208,11 +4216,11 @@ async function renderCal(){
   try{
     // Get all jobs with date, bin_dropoff, bin_pickup, fb_date, or junk_date in this month
     var [rDate, rDrop, rPick, rFbDate, rJunkDate] = await Promise.all([
-      db.from('jobs').select('*').neq('status','Cancelled').gte('date',monthStart).lte('date',monthEnd),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',monthStart).lte('bin_dropoff',monthEnd),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd),
-      db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').gte('fb_date',monthStart).lte('fb_date',monthEnd),
-      db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').gte('junk_date',monthStart).lte('junk_date',monthEnd)
+      db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').gte('date',monthStart).lte('date',monthEnd),
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',monthStart).lte('bin_dropoff',monthEnd),
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').gte('fb_date',monthStart).lte('fb_date',monthEnd),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').gte('junk_date',monthStart).lte('junk_date',monthEnd)
     ]);
     var seen={};
     [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFbDate.data||[]),(rJunkDate.data||[])].forEach(function(arr){
@@ -4316,11 +4324,11 @@ async function openCalDayPreview(ds){
   var evs=[];
   try{
     var [rDate,rDrop,rPick,rFb,rJk]=await Promise.all([
-      db.from('jobs').select('*').neq('status','Cancelled').eq('date',ds),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',ds),
-      db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds),
-      db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+ds+',and(fb_date.is.null,date.eq.'+ds+')'),
-      db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+ds+',and(junk_date.is.null,date.eq.'+ds+')')
+      db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').eq('date',ds),
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',ds),
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+ds+',and(fb_date.is.null,date.eq.'+ds+')'),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+ds+',and(junk_date.is.null,date.eq.'+ds+')')
     ]);
     var seen={};var dayJobs=[];
     [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFb.data||[]),(rJk.data||[])].forEach(function(arr){
@@ -4430,7 +4438,7 @@ async function clientSearchLive(q){
   box.style.display='block';
   box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
   try{
-    var r=await db.from('clients').select('*')
+    var r=await db.from('clients').select(CLIENT_LIST_COLS)
       .or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%')
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Search error: '+r.error.message+'</div>';return;}
@@ -4729,34 +4737,34 @@ async function loadClientsPage() {
   } else {
 
     // ── 1. Get total job count for batching ──────────────────────────────────
-    var rjCount = await db.from('jobs').select('*', {count:'exact', head:true}).neq('status','Cancelled');
+    var rjCount = await db.from('jobs').select('job_id', {count:'exact', head:true}).neq('status','Cancelled');
     var totalJobs = rjCount.count || 0;
 
     // ── 2a. Fetch clients — single query if searching, batched if loading all ─
     if(q) {
       // Search: single query, no batching (avoids running the same search N times)
-      var cqSearch = db.from('clients').select('*').order('name',{ascending:true})
+      var cqSearch = db.from('clients').select(CLIENT_LIST_COLS).order('name',{ascending:true})
         .or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%,email.ilike.%'+q+'%,address.ilike.%'+q+'%');
       var rSearch = await cqSearch;
       allClientRows = rSearch.data || [];
     } else {
       // No search: batch-fetch all clients
-      var rcCount = await db.from('clients').select('*', {count:'exact', head:true});
+      var rcCount = await db.from('clients').select('cid', {count:'exact', head:true});
       var totalClients = rcCount.count || 0;
       var clientBatches = [];
       for(var i=0; i<Math.max(Math.ceil(totalClients/BATCH),1); i++) clientBatches.push(i);
       var clientResults = await Promise.all(clientBatches.map(function(i){
-        return db.from('clients').select('*').order('name',{ascending:true}).range(i*BATCH,(i+1)*BATCH-1);
+        return db.from('clients').select(CLIENT_LIST_COLS).order('name',{ascending:true}).range(i*BATCH,(i+1)*BATCH-1);
       }));
       allClientRows = [];
       clientResults.forEach(function(r){ if(r.data) allClientRows = allClientRows.concat(r.data); });
     }
 
-    // ── 2b. Fetch all jobs in parallel batches ────────────────────────────────
+    // ── 2b. Fetch all jobs in parallel batches (stats only — minimal cols) ────
     var jobBatches = [];
     for(var j=0; j<Math.max(Math.ceil(totalJobs/BATCH),1); j++) jobBatches.push(j);
     var jobResults = await Promise.all(jobBatches.map(function(i){
-      return db.from('jobs').select('*')
+      return db.from('jobs').select(JOB_STATS_COLS)
         .neq('status','Cancelled').range(i*BATCH, Math.min((i+1)*BATCH-1, totalJobs-1));
     }));
     var allJobRows = [];
@@ -4929,7 +4937,7 @@ function openClientDetailSafe(e, cid){ e.preventDefault(); e.stopPropagation(); 
 async function openClientDetail(cid){
   var cl = clients.find(function(c){return c.cid===cid;});
   if (!cl) {
-    var r = await db.from('clients').select('*').eq('cid',cid).single();
+    var r = await db.from('clients').select(CLIENT_LIST_COLS).eq('cid',cid).single();
     if (r.error||!r.data) return;
     cl = dbToClient(r.data); clients.push(cl);
   }
@@ -5762,7 +5770,7 @@ async function renderAnalytics(){
     var startS=start?start.toISOString().split('T')[0]:null;
     var endS=end?end.toISOString().split('T')[0]:null;
     while(true){
-      var q=db.from('jobs').select('*')
+      var q=db.from('jobs').select('job_id,service,status,name,address,city,date,price,referral,bin_size')
         .order('date',{ascending:false}).range(from,from+pageSize-1);
       if(startS)q=q.gte('date',startS);
       if(endS)q=q.lte('date',endS);
@@ -6060,7 +6068,7 @@ async function renderMap(){
   // Always fetch fresh active bin jobs from Supabase for the map
   // Fetch ALL bin rentals where the bin is physically out (dropped but not picked up)
   try {
-    var rMap = await db.from('jobs').select('*')
+    var rMap = await db.from('jobs').select(JOB_LIST_COLS)
       .eq('service','Bin Rental')
       .eq('bin_instatus','dropped');
     var mapBinRows = (rMap.data || []).map(dbToJob);
@@ -6390,7 +6398,7 @@ async function openLinkBinToJob(bid){
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading active bin jobs...</div>';
   document.getElementById('link-bin-modal').classList.add('open');
   // Fetch active bin rental jobs that don't have a bin assigned yet, or match size
-  var res=await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').order('date',{ascending:false});
+  var res=await db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').order('date',{ascending:false});
   _linkBinJobs=(res.data||[]).map(dbToJob);
   renderLinkBinJobs(_linkBinJobs);
 }
@@ -6438,7 +6446,7 @@ async function openBinHistory(bid){
   body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading history...</div>';
   document.getElementById('bin-history-modal').classList.add('open');
   // Query jobs + bin_history table in parallel
-  var jobRes=db.from('jobs').select('*').eq('bin_bid',bid).order('date',{ascending:false});
+  var jobRes=db.from('jobs').select(JOB_LIST_COLS).eq('bin_bid',bid).order('date',{ascending:false});
   var histRes=db.from('bin_history').select('*').eq('bin_num',bid).order('dropoff_date',{ascending:false});
   var results=await Promise.all([jobRes,histRes]);
   var histJobs=(results[0].data||[]).map(dbToJob);
@@ -6520,7 +6528,7 @@ async function doAssignBin(jobId,bid){
   j.binSize=b.size;
   b.status='out';
   saveBins();
-  saveSingleJob(j);
+  patchJob(j.id,{binBid:bid,binSize:b.size});
   closeM('assign-bin-modal');
   toast('Bin #'+b.num+' assigned to '+jobId+'!');
   openDetail(jobId);
@@ -7877,7 +7885,7 @@ async function swapOutBin(id){
   if(!confirm('Create a new Swap Out job with the same details?'))return;
   // Increment swap count on original
   j.swapCount=(j.swapCount||0)+1;
-  saveSingleJob(j);
+  patchJob(j.id,{swapCount:j.swapCount});
   // Create new job with same details
   var newId=await nextIdFromDb('Bin Rental');
   var today=todayStr();
@@ -8751,7 +8759,7 @@ async function filterMergeList(which) {
   drop.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
 
   try {
-    var r = await db.from('clients').select('*')
+    var r = await db.from('clients').select(CLIENT_LIST_COLS)
       .or('name.ilike.%' + q + '%,phone.ilike.%' + q + '%')
       .order('name').limit(15);
 
