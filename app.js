@@ -3335,7 +3335,6 @@ async function renderDash(){
   refreshDashBinStats();
   renderDashVehicleStatus();
   renderDashMaintAlert();
-  renderActiveLeaderboard();
 
   // ── Today's jobs ──────────────────────────────────────────
   var todayJobs        = (rTodayJobs.data||[]).map(dbToJob);
@@ -8504,14 +8503,11 @@ function applyDeleteVisibility() {
 function applyAnalyticsVisibility(){
   var nav=document.getElementById('nav-analytics');
   var navLabel=document.getElementById('nav-analytics-label');
-  var dashLb=document.getElementById('dash-leaderboard-section');
   if(canAccessAnalytics()){
     if(navLabel)navLabel.style.display='';
-    if(dashLb)dashLb.style.display='';
   } else {
     if(nav)nav.style.display='none';
     if(navLabel)navLabel.style.display='none';
-    if(dashLb)dashLb.style.display='none';
   }
 }
 
