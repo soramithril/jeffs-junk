@@ -6512,7 +6512,8 @@ async function openAssignBinPicker(jobId){
   var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
   closeM('detail-modal');
   var size=j.binSize;
-  var availBins=binItems.filter(function(b){return b.status==='in'&&(!size||b.size===size);});
+  var availBins=binItems.filter(function(b){return b.status==='in'&&(!size||b.size===size);})
+    .sort(function(a,b){return (a.num||'').localeCompare(b.num||'',undefined,{numeric:true,sensitivity:'base'});});
   var html='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Showing '+availBins.length+' available'+(size?' '+size:'')+' bins</div>';
   if(!availBins.length){html+='<div style="text-align:center;padding:20px;color:var(--muted)">No available bins of this size</div>';}
   else{
