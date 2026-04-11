@@ -733,8 +733,14 @@ function deleteClientFromDb(cid) {
   });
 }
 
-function delClient(cid) {
+async function delClient(cid) {
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
+  // Refuse if any jobs still link to this client
+  var r = await db.from('jobs').select('job_id').eq('client_cid',cid).limit(1);
+  if(r.data && r.data.length){
+    toast('⚠ Client has linked job '+r.data[0].job_id+' — delete or reassign jobs first.','error');
+    return;
+  }
   if(!confirm('Delete this client? This cannot be undone.')) return;
   clients = clients.filter(function(c){ return c.cid !== cid; });
   deleteClientFromDb(cid);
@@ -1440,6 +1446,11 @@ async function saveClient(e){
   if(editClientId){
     var idx=clients.findIndex(function(c){return c.cid===editClientId;});
     if(idx>=0)clients[idx]=cl;else clients.push(cl);
+    // Propagate identity fields (name, phone) to linked jobs — addresses stay per-job
+    jobs.forEach(function(j){if(j.clientId===editClientId){j.name=cl.name;j.phone=cl.phone;}});
+    db.from('jobs').update({name:cl.name,phone:cl.phone}).eq('client_cid',editClientId).then(function(r){
+      if(r.error)console.warn('Propagate client edit to jobs failed:',r.error.message);
+    });
   } else {
     clients.push(cl);
   }
@@ -3141,6 +3152,11 @@ async function renderWeekCal(){
   var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};
   var hours=[];for(var h=8;h<=17;h++)hours.push(h);
 
+  function evTime(ev){
+    if(ev.type==='dropoff') return ev.j.binDropoffTime||'';
+    if(ev.type==='pickup')  return ev.j.binPickupTime||'';
+    return ev.j.time||'';
+  }
   function chipHtml(ev){
     var j=ev.j;var cfmCls=j.confirmed?' confirmed':' unconfirmed';
     var icon='', label=j.name;
@@ -3149,7 +3165,8 @@ async function renderWeekCal(){
     else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 '};icon=iconMap[j.service]||''; }
     var chipCls = ev.type==='pickup' ? 'svc-pickup' : (clsMap[j.service]||'');
     var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
-    return '<div class="week-job-chip '+chipCls+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(j.time?ft(j.time)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
+    var t=evTime(ev);
+    return '<div class="week-job-chip '+chipCls+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(t?ft(t)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
   }
 
   // Build header row
@@ -3168,9 +3185,7 @@ async function renderWeekCal(){
     var ds=d.toISOString().split('T')[0];
     var dayEvs=weekEvents[ds]||[];
     var allDayChips=dayEvs.filter(function(ev){
-      if(ev.j.service==='Bin Rental'&&!ev.j.time)return true;
-      if(!ev.j.time)return true;
-      return false;
+      return !evTime(ev);
     }).map(chipHtml).join('');
     html+='<div class="week-time-cell allday" data-date="'+ds+'">'+allDayChips+'</div>';
   }
@@ -3184,10 +3199,9 @@ async function renderWeekCal(){
       var ds=d.toISOString().split('T')[0];
       var dayEvs=weekEvents[ds]||[];
       var hourChips=dayEvs.filter(function(ev){
-        if(!ev.j.time)return false;
-        if(ev.j.service==='Bin Rental'&&!ev.j.time)return false;
-        var parts=ev.j.time.split(':');
-        var jobHr=parseInt(parts[0]);
+        var t=evTime(ev);
+        if(!t)return false;
+        var jobHr=parseInt(t.split(':')[0]);
         return jobHr===hr;
       }).map(chipHtml).join('');
       html+='<div class="week-time-cell" data-date="'+ds+'" data-hour="'+hr+'">'+hourChips+'</div>';
@@ -3669,7 +3683,9 @@ async function confirmJob(id, e){
   document.querySelectorAll('[onclick*="confirmJob(\''+id+'\'"]').forEach(function(btn){ btn.remove(); });
   toast('✅ '+j.name+' confirmed!');
   // Save to DB in background
-  db.from('jobs').update({confirmed:true}).eq('id',id).then(function(){});
+  db.from('jobs').update({confirmed:true}).eq('job_id',id).then(function(r){
+    if(r.error)console.error('confirmJob update error:',r.error.message);
+  });
 }
 
 // ─── JOBS TABLE ───
@@ -3795,43 +3811,15 @@ function toggleJdd(wrap){
 function binDropBtn(j){
   if(j.service!=='Bin Rental') return '<td></td>';
   var st = j.binInstatus || '';
-  // Current state label & color
-  var label, color, dot;
-  if(st==='pickedup'){  label='✔ Picked Up';   color='rgba(107,117,133,.8)'; dot='#94a3b8'; }
-  else if(st==='dropped'){ label='🚛 Dropped';  color='#22c55e';              dot='#22c55e'; }
-  else {                   label='⏳ Not Dropped'; color='#e67e22';            dot='#e67e22'; }
-
-  var html = '<td class="jcell-drop" onclick="event.stopPropagation()" style="padding:8px 12px">'
-    +'<div class="jdd-wrap">'
-    +'<button class="jdd-btn" onclick="jddToggle(event,\''+j.id+'\',\'drop\')" '
-    +' style="border-color:'+(st==='pickedup'?'rgba(107,117,133,.3)':st==='dropped'?'rgba(34,197,94,.3)':'rgba(230,126,34,.4)')+';color:'+color+';background:'+(st==='pickedup'?'rgba(107,117,133,.08)':st==='dropped'?'rgba(34,197,94,.07)':'rgba(230,126,34,.08)')+';">'
+  // Read-only status display — drop/pickup actions live on the dashboard
+  var label, color, dot, bg, border;
+  if(st==='pickedup'){  label='✔ Picked Up';   color='rgba(107,117,133,.8)'; dot='#94a3b8'; bg='rgba(107,117,133,.08)'; border='rgba(107,117,133,.3)'; }
+  else if(st==='dropped'){ label='🚛 Dropped';  color='#22c55e';              dot='#22c55e'; bg='rgba(34,197,94,.07)';   border='rgba(34,197,94,.3)';   }
+  else {                   label='⏳ Not Dropped'; color='#e67e22';            dot='#e67e22'; bg='rgba(230,126,34,.08)';  border='rgba(230,126,34,.4)';  }
+  return '<td class="jcell-drop" style="padding:8px 12px">'
+    +'<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+border+';background:'+bg+';color:'+color+'">'
     +'<span style="width:7px;height:7px;border-radius:50%;background:'+dot+';flex-shrink:0;display:inline-block"></span>'
-    +label+' <span class="jdd-caret">▼</span></button>'
-    +'<div class="jdd-menu">'
-    +'<button class="jdd-item'+(st===''?' active-item':'')+'" onclick="jddSetDrop(\''+j.id+'\',\'\',event)">'
-    +'<span class="jdd-dot" style="background:#e67e22"></span>⏳ Not Dropped</button>'
-    +'<button class="jdd-item'+(st==='dropped'?' active-item':'')+'" onclick="jddSetDrop(\''+j.id+'\',\'dropped\',event)">'
-    +'<span class="jdd-dot" style="background:#22c55e"></span>🚛 Dropped</button>'
-    +'<button class="jdd-item'+(st==='pickedup'?' active-item':'')+'" onclick="jddSetDrop(\''+j.id+'\',\'pickedup\',event)">'
-    +'<span class="jdd-dot" style="background:#94a3b8"></span>✔ Picked Up</button>'
-    +'</div></div></td>';
-  return html;
-}
-
-function jddSetDrop(id, newStatus, e){
-  if(e) e.stopPropagation();
-  if(_jddOpen){_jddOpen.classList.remove('open');_jddOpen=null;}
-  jobs.forEach(function(j){ if(j.id===id) j.binInstatus=newStatus; });
-  patchJob(id,{binInstatus:newStatus});
-  // Surgical DOM update — re-render just the drop status cell
-  var row = document.querySelector('tr[data-jid="'+id+'"]');
-  if(row){
-    var j = jobs.find(function(x){return x.id===id;});
-    var dropCell = row.querySelector('.jcell-drop');
-    if(j && dropCell) dropCell.outerHTML = binDropBtn(j);
-  }
-  var label = newStatus===''?'Not Dropped yet':newStatus==='dropped'?'Dropped off!':'Picked up!';
-  toast('🚛 '+label);
+    +label+'</span></td>';
 }
 
 function confirmedHtml(id, confirmed, service, status, binInstatus){
@@ -4299,7 +4287,8 @@ async function renderCal(){
         var iconMap={'Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
         icon=iconMap[j.service]||''; label=j.name; titleStr=j.service+' · '+j.name+(j.toolsNeeded?' · 🔧 '+j.toolsNeeded:'');
       }
-      var timeStr=j.time?ft(j.time)+' ':'';
+      var evT = ev.type==='dropoff' ? (j.binDropoffTime||'') : ev.type==='pickup' ? (j.binPickupTime||'') : (j.time||'');
+      var timeStr=evT?ft(evT)+' ':'';
       return '<div class="cal-dot '+cls+'" draggable="true" data-jid="'+j.id+'" data-evtype="'+ev.type+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+titleStr+'">'+icon+' '+timeStr+label+(j.address?' · '+(j.address||'').split(',')[0].substring(0,18):'')+'</div>';
     }).join('');
 
@@ -4394,7 +4383,8 @@ async function openCalDayPreview(ds){
       var rows=sec.evs.map(function(ev){
         var j=ev.j;
         var binBadge=j.binSize?'<span style="font-size:11px;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:5px;padding:1px 7px;font-weight:600;margin-left:6px">'+j.binSize+'</span>':'';
-        var timeBadge=j.time?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+ft(j.time)+'</span>':'';
+        var evT2 = ev.type==='dropoff' ? (j.binDropoffTime||'') : ev.type==='pickup' ? (j.binPickupTime||'') : (j.time||'');
+        var timeBadge=evT2?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+ft(evT2)+'</span>':'';
         var priceBadge='';
         var cfmBadge=(ev.type==='pickup'||ev.type==='dropoff'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')
           ?(j.confirmed
@@ -6280,7 +6270,15 @@ function makeBinRow(b){
     +'<td><div class="ra"><button class="ra-btn" style="color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="openBinHistory(\''+b.bid+'\')">📜 History</button><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
 }
 function quickToggleStatus(bid){
-  binItems.forEach(function(b){if(b.bid===bid)b.status=b.status==='in'?'out':'in';});
+  var b=binItems.find(function(bi){return bi.bid===bid;});
+  if(!b)return;
+  // Refuse if bin is currently on a live dropped job — fixes drift in reverse direction
+  var liveJob=jobs.find(function(j){return j.binBid===bid && j.binInstatus==='dropped' && j.status!=='Cancelled';});
+  if(liveJob){
+    toast('⚠ Bin is dropped at job '+liveJob.id+' — mark it picked up there instead.','error');
+    return;
+  }
+  b.status=b.status==='in'?'out':'in';
   saveBins();
   renderBinInventory();
   refreshDashBinStats();
@@ -9050,10 +9048,17 @@ function doMergeClients() {
   pc.addresses = pAddrs;
 
   // ── Update local jobs (partial array — keep consistent) ──
-  jobs.forEach(function(j){ if (j.clientId === sid) j.clientId = pid; });
+  // Propagate identity fields from primary so linked jobs stop showing secondary's name/phone
+  jobs.forEach(function(j){
+    if (j.clientId === sid) {
+      j.clientId = pid;
+      j.name = pc.name;
+      j.phone = pc.phone;
+    }
+  });
 
   // ── Update ALL jobs in Supabase (local array is incomplete) ──
-  db.from('jobs').update({ client_cid: pid }).eq('client_cid', sid).then(function(r){
+  db.from('jobs').update({ client_cid: pid, name: pc.name, phone: pc.phone }).eq('client_cid', sid).then(function(r){
     if (r.error) console.warn('Merge jobs update error:', r.error.message);
   });
 
@@ -9547,8 +9552,14 @@ function saveVehicle(){
   document.getElementById('vehicle-modal').style.display='none';
   toast(editVehicleId?'Vehicle updated!':'Vehicle added!');
 }
-function delVehicle(vid){
+async function delVehicle(vid){
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
+  // Refuse if any jobs still reference this vehicle
+  var r = await db.from('jobs').select('job_id').eq('completed_by_vehicle',vid).limit(1);
+  if(r.data && r.data.length){
+    toast('⚠ Vehicle is on job '+r.data[0].job_id+' — unassign it first.','error');
+    return;
+  }
   if(!confirm('Delete this vehicle? All blocked dates will be removed.'))return;
   vehicles=vehicles.filter(function(v){return v.vid!==vid;});
   delete vehBlocks[vid];
