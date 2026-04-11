@@ -3862,14 +3862,18 @@ function cycleStatus(id,e){
 }
 function cycleBinDrop(id,e){
   if(e)e.stopPropagation();
-  jobs.forEach(function(j){
-    if(j.id!==id)return;
-    if(!j.binInstatus||j.binInstatus==='')j.binInstatus='dropped';
-    else if(j.binInstatus==='dropped')j.binInstatus='pickedup';
-    else j.binInstatus='';
-  });
-  var j2=jobs.find(function(x){return x.id===id;});
-  patchJob(id,{binInstatus:j2?j2.binInstatus:''});refresh();
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  if(!j.binInstatus||j.binInstatus==='')j.binInstatus='dropped';
+  else if(j.binInstatus==='dropped')j.binInstatus='pickedup';
+  else j.binInstatus='';
+  if(j.binBid){
+    var newStatus=j.binInstatus==='dropped'?'out':'in';
+    binItems.forEach(function(b){if(b.bid===j.binBid)b.status=newStatus;});
+    saveBins();
+  }
+  if(j.binInstatus==='pickedup')writeBinHistory(j);
+  patchJob(id,{binInstatus:j.binInstatus});refresh();
 }
 function emailHtml(id, sent){
   if(sent)
@@ -4193,7 +4197,16 @@ function renderJobs(){
         }
       } else if(action==='uncancel'){
         var ju=jobs.find(function(x){return x.id===id;});
-        if(ju){ju.status='';patchJob(ju.id,{status:''});toast('Job restored.');loadJobsPage(jobsPage);}
+        if(ju){
+          ju.status='';
+          if(ju.binBid && ju.binInstatus==='dropped'){
+            binItems.forEach(function(b){if(b.bid===ju.binBid)b.status='out';});
+            saveBins();
+          }
+          patchJob(ju.id,{status:''});
+          toast('Job restored.');
+          loadJobsPage(jobsPage);
+        }
       }
       return;
     }
@@ -6442,11 +6455,20 @@ async function linkBinToJob(bid,jobId){
   // Update job to reference this bin
   var b=binItems.find(function(bi){return bi.bid===bid;});
   var j=jobs.find(function(jj){return jj.id===jobId;});
-  if(j){j.binBid=bid;if(b)j.binSize=b.size;}
-  var res=await db.from('jobs').update({bin_bid:bid,bin_size:b?b.size:''}).eq('job_id',jobId);
+  if(!j||!b)return;
+  // Release previous bin if job already had one
+  if(j.binBid && j.binBid!==bid){
+    binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
+  }
+  j.binBid=bid;
+  j.binSize=b.size;
+  // Only flip new bin to 'out' when the job is actually dropped
+  if(j.binInstatus==='dropped')b.status='out';
+  saveBins();
+  var res=await db.from('jobs').update({bin_bid:bid,bin_size:b.size}).eq('job_id',jobId);
   if(res.error){toast('Error linking bin: '+res.error.message,'error');return;}
   closeM('link-bin-modal');
-  toast('Bin #'+(b?b.num:bid)+' linked to '+jobId+'!');
+  toast('Bin #'+b.num+' linked to '+jobId+'!');
   loadBinJobsThenRender();
 }
 
@@ -6536,9 +6558,14 @@ async function doAssignBin(jobId,bid){
   var b=binItems.find(function(bi){return bi.bid===bid;});
   var j=jobs.find(function(jj){return jj.id===jobId;});
   if(!j||!b)return;
+  // Release previous bin if job already had one
+  if(j.binBid && j.binBid!==bid){
+    binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
+  }
   j.binBid=bid;
   j.binSize=b.size;
-  b.status='out';
+  // Only flip new bin to 'out' when the job is actually dropped
+  if(j.binInstatus==='dropped')b.status='out';
   saveBins();
   patchJob(j.id,{binBid:bid,binSize:b.size});
   closeM('assign-bin-modal');
@@ -6573,7 +6600,13 @@ function saveBinItem(e){
   if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)binItems[i]=bin;else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }
-function delBinItem(bid){if(!confirm('Delete this bin?'))return;binItems=binItems.filter(function(b){return b.bid!==bid;});saveBins();toast('Bin deleted.');renderBinInventory();}
+function delBinItem(bid){
+  var assigned=jobs.find(function(j){return j.binBid===bid;});
+  if(assigned){toast('⚠ Bin is assigned to job '+assigned.id+' — unassign it first.','error');return;}
+  if(!confirm('Delete this bin?'))return;
+  binItems=binItems.filter(function(b){return b.bid!==bid;});
+  saveBins();toast('Bin deleted.');renderBinInventory();
+}
 
 // ─── BIN CSV IMPORT ───
 function openBinImport(){
@@ -7419,7 +7452,12 @@ async function saveJob(e){
 function delJob(id){
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this job?'))return;
-  jobs=jobs.filter(function(j){return j.id!==id;});
+  var j=jobs.find(function(x){return x.id===id;});
+  if(j && j.binBid){
+    binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});
+    saveBins();
+  }
+  jobs=jobs.filter(function(jj){return jj.id!==id;});
   deleteJobFromDb(id);
   toast('Deleted.');closeM('detail-modal');refresh();
 }
@@ -8036,8 +8074,22 @@ function writeBinHistory(j){
     material_type:j.materialType||'',notes:j.notes||'',job_id:j.id,source:'dashboard'
   }).then(function(r){if(r.error)console.error('bin_history write failed:',r.error.message);});
 }
-function markDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='dropped';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:'dropped'});toast('Bin marked as dropped off!');openDetail(id);refresh();}
-function markNotDropped(id){jobs.forEach(function(j){if(j.id===id){j.binInstatus='';}});var j2=jobs.find(function(x){return x.id===id;});patchJob(id,{binInstatus:''});toast('Bin marked as not dropped yet.');openDetail(id);refresh();}
+function markDropped(id){
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.binInstatus='dropped';
+  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
+  patchJob(id,{binInstatus:'dropped'});
+  toast('Bin marked as dropped off!');openDetail(id);refresh();
+}
+function markNotDropped(id){
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.binInstatus='';
+  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
+  patchJob(id,{binInstatus:''});
+  toast('Bin marked as not dropped yet.');openDetail(id);refresh();
+}
 function markBinPickedUp2(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   j.binInstatus='pickedup';
