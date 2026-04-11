@@ -7429,21 +7429,12 @@ async function saveJob(e){
     console.error(ex);
     _saveJobLock = false; return;
   }
-  var wasNewJob = !changeRows.length && !errs; // true if this was a create, not edit
   var savedJobId = job.id;
   _saveJobLock = false;
   closeM('job-modal');
   loadJobsPage(jobsPage);
-  // If new job, open the detail modal so user can print/download PDF immediately
-  if(wasNewJob){
-    setTimeout(function(){ openDetail(savedJobId); toast('✅ Job saved — you can print the form below'); },400);
-  } else {
-    // Flash the new/updated row
-    setTimeout(function(){
-      var row=document.querySelector('tr.job-row[data-jid="'+savedJobId+'"]');
-      if(row){row.classList.add('row-flash');row.addEventListener('animationend',function(){row.classList.remove('row-flash');},{once:true});}
-    },120);
-  }
+  // Always reopen the saved job as detail so user can review/print immediately
+  setTimeout(function(){ openDetail(savedJobId); },400);
 
   } finally { _saveJobLock = false; }
 }
