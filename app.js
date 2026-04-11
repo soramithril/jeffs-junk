@@ -1019,7 +1019,7 @@ async function loadAllFromSupabase() {
         .eq('service','Bin Rental')
         .or('bin_instatus.is.null,bin_instatus.eq.')
         .not('bin_dropoff','is',null)
-        .lt('bin_dropoff', today2);
+        .lte('bin_dropoff', today2);
       if (pastDropJobs.data && pastDropJobs.data.length) {
         var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
         await db.from('jobs').update({bin_instatus:'dropped'}).in('job_id',dropIds);
@@ -7287,8 +7287,8 @@ async function saveJob(e){
         binItems.forEach(function(b){if(b.bid===oldJob.binBid) b.status='in';});
       }
     }
-    // Mark the newly picked bin as out
-    if(pickedBin && job.binInstatus !== 'pickedup'){
+    // Mark the newly picked bin as out only when the job is actually dropped
+    if(pickedBin && job.binInstatus === 'dropped'){
       pickedBin.status = 'out';
       saveBins();
     }
@@ -8111,7 +8111,17 @@ async function scheduleNextRecurringJob(id){
 function markEtransferSent(id){jobs.forEach(function(j){if(j.id===id)j.etransferRefundSent=true;});patchJob(id,{etransferRefundSent:true});toast('E-Transfer refund marked as sent!');openDetail(id);refresh();}
 function markPaid(id){jobs.forEach(function(j){if(j.id===id)j.paid='Paid';});patchJob(id,{paid:'Paid'});toast('Marked as paid!');openDetail(id);refresh();}
 function markDone(id){}
-function markPickedUp(id,e){if(e)e.stopPropagation();jobs.forEach(function(j){if(j.id===id){j.binInstatus='pickedup';}});patchJob(id,{binInstatus:'pickedup'});toast('Bin marked picked up!');refresh();}
+function markPickedUp(id,e){
+  if(e)e.stopPropagation();
+  var j=jobs.find(function(jj){return jj.id===id;});
+  if(!j)return;
+  j.binInstatus='pickedup';
+  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
+  writeBinHistory(j);
+  patchJob(id,{binInstatus:'pickedup'});
+  toast('Bin marked picked up!');
+  refresh();
+}
 function dashMarkPickedUp(jobId,bid){
   var j=jobs.find(function(jj){return jj.id===jobId;});
   if(j){j.binInstatus='pickedup';writeBinHistory(j);}
