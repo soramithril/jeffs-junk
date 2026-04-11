@@ -8453,12 +8453,7 @@ db.auth.onAuthStateChange(function(event, session) {
     appLoaded = false;
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-username').focus();
-    var unEl = document.getElementById('logged-in-username');
-    if (unEl) { unEl.textContent = ''; unEl.style.display = 'none'; }
-    var lbl = document.getElementById('admin-btn-label');
-    var icon = document.getElementById('admin-btn-icon');
-    if (lbl) lbl.textContent = 'Admin Login';
-    if (icon) icon.textContent = '🔒';
+    setUserCardSignedOut();
     applyDeleteVisibility();
   }
 });
@@ -8547,6 +8542,43 @@ async function doLogin() {
   onLoginSuccess();
 }
 
+function setUserCardSignedIn(username, role){
+  var card = document.getElementById('user-card');
+  var label = document.getElementById('admin-btn-label');
+  var signIcon = document.getElementById('admin-btn-icon');
+  var avatar = document.getElementById('user-avatar');
+  var meta = document.getElementById('user-meta');
+  var nameEl = document.getElementById('logged-in-username');
+  var roleEl = document.getElementById('user-role');
+  var signoutBtn = document.getElementById('user-signout');
+  if(!card) return;
+  card.classList.remove('signed-out');
+  card.onclick = null;
+  if(label) label.style.display='none';
+  if(signIcon) signIcon.style.display='none';
+  if(avatar){ avatar.textContent = (username||'?').charAt(0); avatar.style.display=''; }
+  if(meta) meta.style.display='';
+  if(nameEl) nameEl.textContent = username || '—';
+  if(roleEl) roleEl.textContent = role || 'User';
+  if(signoutBtn) signoutBtn.style.display='';
+}
+function setUserCardSignedOut(){
+  var card = document.getElementById('user-card');
+  var label = document.getElementById('admin-btn-label');
+  var signIcon = document.getElementById('admin-btn-icon');
+  var avatar = document.getElementById('user-avatar');
+  var meta = document.getElementById('user-meta');
+  var signoutBtn = document.getElementById('user-signout');
+  if(!card) return;
+  card.classList.add('signed-out');
+  card.onclick = handleAdminBtn;
+  if(label){ label.textContent='Admin Login'; label.style.display=''; }
+  if(signIcon) signIcon.style.display='';
+  if(avatar) avatar.style.display='none';
+  if(meta) meta.style.display='none';
+  if(signoutBtn) signoutBtn.style.display='none';
+}
+
 function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
@@ -8554,20 +8586,15 @@ function onLoginSuccess() {
     if (r.data && r.data.can_delete) {
       canDelete = true;
     }
-    if (r.data && r.data.username) {
-      currentUser.displayName = r.data.username;
-      var unEl = document.getElementById('logged-in-username');
-      if (unEl) { unEl.textContent = r.data.username; unEl.style.display = ''; }
-    }
+    var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
+    var role  = (r.data && r.data.role) ? r.data.role : 'User';
+    currentUser.displayName = uname;
+    setUserCardSignedIn(uname, role);
     applyDeleteVisibility();
     applyAnalyticsVisibility();
   });
   document.getElementById('login-screen').style.display = 'none';
   resetInactivityTimer();
-  var lbl = document.getElementById('admin-btn-label');
-  var icon = document.getElementById('admin-btn-icon');
-  if (lbl) lbl.textContent = 'Sign Out';
-  if (icon) icon.textContent = '👤';
   loadAllFromSupabase();
 }
 
