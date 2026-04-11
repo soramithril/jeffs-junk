@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -192,7 +192,7 @@
     <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
         <div>
-          <div id="workload-header" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.2px;">📍 TODAY'S JOBS</div>
+          <div id="workload-header" class="card-head">📍 Today's Jobs</div>
           <div id="dash-today-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="go('jobs')">All Jobs →</button>
@@ -227,7 +227,7 @@
     <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📦 BINS CURRENTLY OUT</div>
+          <div class="card-head"><span class="emo">📦</span>Bins Currently Out</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">All bins deployed with customer details</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
@@ -241,7 +241,7 @@
     <!-- LEFT: My Pricing -->
     <div class="chart-card" style="padding:0;overflow:hidden;">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;white-space:nowrap;">💰 MY PRICING</div>
+        <div class="card-head" style="white-space:nowrap;"><span class="emo">💰</span>My Pricing</div>
         <div id="dash-pricing-dd" style="position:relative;flex-shrink:0;">
           <button id="dash-pricing-btn" onclick="togglePricingDD()" style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border-strong);color:var(--text);padding:5px 28px 5px 11px;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;outline:none;box-shadow:0 1px 4px rgba(0,0,0,.06);white-space:nowrap">
             <span id="dash-pricing-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0"></span>
@@ -260,7 +260,7 @@
     <!-- RIGHT: Pickup Confirmations -->
     <div class="chart-card" style="padding:0;overflow:visible;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📞 PICKUP CONFIRMATIONS</div>
+        <div class="card-head"><span class="emo">📞</span>Pickup Confirmations</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickups · furniture pickups &amp; drop-offs</div>
       </div>
       <div id="dash-callback-list" style="padding:10px 12px;"></div>
@@ -284,7 +284,7 @@
   <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
     <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🔴 OVERDUE PICKUPS</div>
+        <div class="card-head"><span class="emo">🔴</span>Overdue Pickups</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickup date has passed</div>
       </div>
       <div id="dash-overdue" style="padding:10px 12px;min-height:0"></div>
@@ -292,7 +292,7 @@
     <div class="chart-card" style="padding:0;overflow:hidden;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
         <div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">🟡 BINS OUT LONG</div>
+          <div class="card-head"><span class="emo">🟡</span>Bins Out Long</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">Getting close — worth a call</div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
@@ -435,7 +435,7 @@
   <div id="jobs-bins-out-view" style="display:none">
     <div class="chart-card" style="padding:0;overflow:visible;margin-bottom:20px">
       <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.2px;">📦 ALL BINS CURRENTLY OUT</div>
+        <div class="card-head"><span class="emo">📦</span>All Bins Currently Out</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">Every bin deployed with customer &amp; location details</div>
       </div>
       <div id="jobs-bins-out-list" style="padding:10px 12px;"></div>
@@ -1479,7 +1479,10 @@
 <div class="modal-overlay fullpage" id="detail-modal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="det-ttl"></div>
+      <div>
+        <div class="det-crumb" id="det-crumb">Jobs</div>
+        <div class="modal-title" id="det-ttl"></div>
+      </div>
       <button class="modal-close" onclick="closeM('detail-modal')">&#x2715;</button>
     </div>
     <div id="det-body"></div>
@@ -1684,7 +1687,10 @@
 <div class="modal-overlay fullpage" id="client-detail-modal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title" id="cdet-ttl">Client</div>
+      <div>
+        <div class="det-crumb" id="cdet-crumb">Clients</div>
+        <div class="modal-title" id="cdet-ttl">Client</div>
+      </div>
       <button class="modal-close" onclick="closeM('client-detail-modal')">&#x2715;</button>
     </div>
     <div id="cdet-body"></div>
@@ -1830,7 +1836,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
                                                                                                                                                                                                                                                                                                                                                                  

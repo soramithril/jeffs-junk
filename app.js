@@ -4975,6 +4975,7 @@ async function openClientDetail(cid){
   var furn = clientJobs.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';}).length;
   var loyalty = clientJobs.length===0?'New Client':clientJobs.length===1?'🆕 New':clientJobs.length<=3?'🔁 Repeat Customer':'⭐ Frequent Customer';
   document.getElementById('cdet-ttl').textContent = cl.name;
+  document.getElementById('cdet-crumb').textContent = 'Clients › '+(loyalty.replace(/[^\w\s]/g,'').trim()||'Profile');
   var jobRows = clientJobs.map(function(j){
     var binInfo=j.service==='Bin Rental'&&j.binSize?' <span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'';
     var dropInfo='';
@@ -7473,6 +7474,7 @@ async function openDetail(id){
     j=dbToJob(r.data);
   }
   document.getElementById('det-ttl').textContent=j.id;
+  document.getElementById('det-crumb').textContent='Jobs › '+(j.service||'Job');
   var bin='';
   if(j.service==='Bin Rental'){
     var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' side'):'';
