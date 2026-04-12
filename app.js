@@ -10612,8 +10612,8 @@ async function printBinRental(jobId) {
       if (cityR.data && cityR.data.city) city = cityR.data.city;
     }
 
-    // Driveway side
-    var side = j.binSide ? j.binSide.charAt(0).toUpperCase() + j.binSide.slice(1) + ' Side' : '';
+    // Driveway side — skip "see notes" since the actual notes print separately
+    var side = (j.binSide && j.binSide.toLowerCase() !== 'see notes') ? j.binSide.charAt(0).toUpperCase() + j.binSide.slice(1) + ' Side' : '';
 
     // ── LEFT COLUMN: Customer Info ──
     var nameLine = j.name + (j.businessName ? ' — ' + j.businessName : '');
@@ -10645,8 +10645,6 @@ async function printBinRental(jobId) {
 
     // Days rented value next to description
     drawText(duration, 200, 296);
-    // Line total
-    drawText('$' + price.toFixed(2), 530, 290);
 
     // Deposit row in table (row 4, after extra days rented)
     var deposit = parseFloat(j.deposit) || 0;
@@ -10655,6 +10653,16 @@ async function printBinRental(jobId) {
       drawText('$' + deposit.toFixed(2), 530, 392);
     }
 
+    // ── TEMPLATE OVERRIDES: cover baked-in text and replace ──
+    var white = PDFLib.rgb(1, 1, 1);
+
+    // Fix #5: Cover "PLUS DUMP FEE" and replace with "FUEL SURCHARGE 15%"
+    page.drawRectangle({ x: 50, y: H - 336, width: 200, height: 16, color: white });
+    drawText('FUEL SURCHARGE 15%', 55, 327);
+
+    // Fix #6: Cover area below "WOOD USED" and add "ICE MELTER"
+    page.drawRectangle({ x: 50, y: H - 370, width: 200, height: 16, color: white });
+    drawText('ICE MELTER', 55, 361);
 
     // ── PAYMENT TYPE ──
     drawText(j.payMethod || '', 130, 596);
@@ -10810,6 +10818,9 @@ async function printJunkRemoval(jobId) {
   jobs.forEach(function(jj){ if (jj.id === jobId) j = jj; });
   if (!j) { toast('Job not found'); return; }
   if (j.service !== 'Junk Removal' && j.service !== 'Junk Quote') { toast('Print only available for Junk Removal / Junk Quote'); return; }
+  // Always fetch fresh job data from DB to ensure items/notes are current
+  var freshR = await db.from('jobs').select('*').eq('job_id', jobId).single();
+  if (freshR.data) j = dbToJob(freshR.data);
   try {
     var pdfBytes = Uint8Array.from(atob(JUNK_REMOVAL_PDF_B64), function(c){return c.charCodeAt(0);});
     var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
