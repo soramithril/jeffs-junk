@@ -10654,17 +10654,6 @@ async function printBinRental(jobId) {
       drawText('$' + deposit.toFixed(2), 530, 392);
     }
 
-    // ── TEMPLATE OVERRIDES: cover baked-in text and replace ──
-    var white = PDFLib.rgb(1, 1, 1);
-
-    // Fix #5: Cover "PLUS DUMP FEE" and replace with "FUEL SURCHARGE 15%"
-    page.drawRectangle({ x: 50, y: H - 336, width: 200, height: 16, color: white });
-    drawText('FUEL SURCHARGE 15%', 55, 327);
-
-    // Fix #6: Cover area below "WOOD USED" and add "ICE MELTER"
-    page.drawRectangle({ x: 50, y: H - 370, width: 200, height: 16, color: white });
-    drawText('ICE MELTER', 55, 361);
-
     // ── PAYMENT TYPE ──
     drawText(j.payMethod || '', 130, 596);
 
