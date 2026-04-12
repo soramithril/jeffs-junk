@@ -8171,10 +8171,14 @@ function markBinPickedUp2(id){
   writeBinHistory(j);
   patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
 }
-function revertPickedUp(id){
-  var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
+async function revertPickedUp(id){
+  var j=jobs.find(function(jj){return jj.id===id;});
+  if(!j){console.error('revertPickedUp: job not found in local array',id);toast('⚠ Job not found — try reopening');return;}
   j.binInstatus='dropped';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
+  // Direct DB update with await to guarantee save
+  var r=await db.from('jobs').update({bin_instatus:'dropped'}).eq('job_id',id);
+  if(r.error){console.error('revertPickedUp DB error:',r.error);toast('⚠ Revert failed: '+r.error.message);return;}
   patchJob(id,{binInstatus:'dropped'});
   toast('Pickup reverted — bin back out');
   openDetail(id);
