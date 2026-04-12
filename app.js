@@ -5,6 +5,33 @@ var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── Chart.js global defaults: rounded bars + gradient fills (Dribbble v18) ──
+if(typeof Chart!=='undefined'){
+  Chart.defaults.elements.bar.borderRadius=6;
+  Chart.defaults.elements.bar.borderSkipped=false;
+}
+
+// ── Empty state helper (Dribbble v18) ──
+function emptyStateHTML(icon, title, text){
+  return '<div class="empty-state">'
+    +'<div class="empty-state-icon">'+icon+'</div>'
+    +'<div class="empty-state-title">'+title+'</div>'
+    +'<div class="empty-state-text">'+text+'</div>'
+    +'</div>';
+}
+
+// ── Skeleton loading helpers (Dribbble v18) ──
+function skeletonCards(n){
+  var h='';
+  for(var i=0;i<n;i++) h+='<div class="skeleton-card"><div class="skeleton sk-icon"></div><div class="skeleton sk-value"></div><div class="skeleton sk-label"></div></div>';
+  return h;
+}
+function skeletonRows(n){
+  var h='';
+  for(var i=0;i<n;i++) h+='<div class="skeleton-list-row"><div class="skeleton sk-circle"></div><div class="skeleton sk-line" style="flex:1"></div><div class="skeleton sk-line" style="width:60px"></div></div>';
+  return h;
+}
+
 // ── Session-expiry guard: signs out on auth errors ──
 function handleSupabaseError(r) {
   if (r.error && (r.error.message === 'JWT expired' || r.error.code === 'PGRST301' || r.error.message === 'Invalid Refresh Token: Refresh Token Not Found' || (r.error.status === 401))) {
@@ -3269,9 +3296,21 @@ async function renderDashLongBins(){
         +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>'
         +'</div>';
     }).join('')
-    :'<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">✅ No bins out that long</div>';
+    :emptyStateHTML('🟢','All On Schedule','No bins have been out longer than expected.');
 }
 async function renderDash(){
+  // ── Skeleton loading: show placeholders while data loads (v18) ──
+  var skTodayJobs=document.getElementById('dash-today-jobs');
+  if(skTodayJobs) skTodayJobs.innerHTML=skeletonRows(4);
+  var skOverdue=document.getElementById('dash-overdue');
+  if(skOverdue) skOverdue.innerHTML=skeletonRows(2);
+  var skBinsOut=document.getElementById('dash-bins-out-list');
+  if(skBinsOut) skBinsOut.innerHTML=skeletonRows(3);
+  var skCallback=document.getElementById('dash-callback-list');
+  if(skCallback) skCallback.innerHTML=skeletonRows(3);
+  var skBinSize=document.getElementById('dash-bin-by-size');
+  if(skBinSize) skBinSize.innerHTML=skeletonCards(4);
+
   // Re-trigger entrance animations
   document.querySelectorAll('#view-dashboard .dash-section').forEach(function(el){
     el.style.animation='none'; el.style.opacity='0';
@@ -3287,6 +3326,14 @@ async function renderDash(){
   var cutoff14 = new Date(now); cutoff14.setDate(now.getDate()+14);
   var cutoff14S = cutoff14.toISOString().split('T')[0];
   var monthStart = new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
+  // Last week date range for trend badges
+  var lastWeekStart = new Date(weekStart); lastWeekStart.setDate(lastWeekStart.getDate()-7);
+  var lastWeekStartS = lastWeekStart.toISOString().split('T')[0];
+  var lastWeekEnd = new Date(weekStart); lastWeekEnd.setDate(lastWeekEnd.getDate()-1);
+  var lastWeekEndS = lastWeekEnd.toISOString().split('T')[0];
+  // Same day last week
+  var sameDayLastWeek = new Date(now); sameDayLastWeek.setDate(sameDayLastWeek.getDate()-7);
+  var sameDayLastWeekS = sameDayLastWeek.toISOString().split('T')[0];
 
   var datePicker = document.getElementById('dash-bin-date');
   datePicker.value = todayS;
@@ -3300,7 +3347,8 @@ async function renderDash(){
     rBinCounts, rJunkCount, rFurnCount,
     rOutstanding, rOverdue, rBinPickupsToday, rBinDropoffsToday,
     rTomorrowJobs, rUnconfirmed14,
-    rTodayFurn, rTodayJunk
+    rTodayFurn, rTodayJunk,
+    rLastWeekJobs, rLastWeekRev, rSameDayLastWeek
   ] = await Promise.all([
     db.from('jobs').select('*',{count:'exact',head:true}),
     db.from('jobs').select('*',{count:'exact',head:true}).neq('status','Cancelled'),
@@ -3323,7 +3371,11 @@ async function renderDash(){
     db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup','Furniture Delivery']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time'),
     // Furniture/junk by their scheduled dates for today
     db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+todayS+',and(fb_date.is.null,date.eq.'+todayS+')'),
-    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')')
+    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')'),
+    // Trend comparisons (v18)
+    db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lastWeekStartS).lte('date',lastWeekEndS).neq('status','Cancelled'),
+    db.from('jobs').select('price').gte('date',lastWeekStartS).lte('date',lastWeekEndS).neq('status','Cancelled'),
+    db.from('jobs').select('*',{count:'exact',head:true}).eq('date',sameDayLastWeekS).neq('status','Cancelled')
   ]);
 
   // Write hidden stat IDs that other code may reference
@@ -3344,6 +3396,36 @@ async function renderDash(){
   var wjEl=document.getElementById('s-week-jobs');if(wjEl)animCount(wjEl,weekJobs);
   var wrEl=document.getElementById('s-week-rev');if(wrEl)animCount(wrEl,Math.round(weekRev),'$');
   var osEl=document.getElementById('s-outstanding');if(osEl)animCount(osEl,Math.round(outstanding),'$');
+
+  // ── Trend badges (v18) ────────────────────────────────────
+  var lastWeekJobCount = rLastWeekJobs.count||0;
+  var lastWeekRevTotal = (rLastWeekRev.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
+  var sameDayLastWeekCount = rSameDayLastWeek.count||0;
+
+  function trendBadge(current, previous, invert){
+    if(!previous) return '<span class="trend-badge trend-neutral">—</span>';
+    var diff = current - previous;
+    var pct = Math.round(Math.abs(diff)/previous*100);
+    if(diff===0) return '<span class="trend-badge trend-neutral">→ 0%</span>';
+    var up = diff>0;
+    var cls = invert ? (up?'trend-up-bad':'trend-down-good') : (up?'trend-up':'trend-down-bad');
+    var arrow = up ? '▲' : '▼';
+    return '<span class="trend-badge '+cls+'"><span style="font-size:10px">'+arrow+'</span> '+pct+'%</span>';
+  }
+
+  // Inject trend into week-jobs stat if element exists
+  if(wjEl){
+    var wjParent=wjEl.parentElement;
+    var existingTrend=wjParent.querySelector('.trend-badge');
+    if(existingTrend)existingTrend.remove();
+    wjEl.insertAdjacentHTML('afterend','<div style="margin-top:4px">'+trendBadge(weekJobs,lastWeekJobCount)+'<span class="stat-compare-text" style="margin-left:6px">vs '+lastWeekJobCount+' last wk</span></div>');
+  }
+  if(wrEl){
+    var wrParent=wrEl.parentElement;
+    var existingTrend2=wrParent.querySelector('.trend-badge');
+    if(existingTrend2)existingTrend2.parentElement.remove();
+    wrEl.insertAdjacentHTML('afterend','<div style="margin-top:4px">'+trendBadge(Math.round(weekRev),Math.round(lastWeekRevTotal))+'<span class="stat-compare-text" style="margin-left:6px">vs $'+Math.round(lastWeekRevTotal).toLocaleString()+' last wk</span></div>');
+  }
 
   // Bin stats (delegated)
   refreshDashBinStats();
@@ -3502,7 +3584,7 @@ async function renderDash(){
     +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false)
     +makeTodayCat('📦 Furniture Deliveries','#f97316',todayFurnDelivs,false);
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
-    ||'<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs today 🎉</div>';
+    ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
   // ── CALL-BACK LIST — unconfirmed upcoming jobs ────────────
   var callbackJobs = (rUnconfirmed14.data||[]).map(dbToJob);
@@ -3510,7 +3592,7 @@ async function renderDash(){
   var cbEl = document.getElementById('dash-callback-list');
   if(cbEl){
     if(!callbackJobs.length){
-      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All pickups &amp; drop-offs confirmed</div>';
+      cbEl.innerHTML=emptyStateHTML('📞','All Confirmed','Every pickup and drop-off is confirmed. Nothing to call about.');
     } else {
       cbEl.innerHTML = callbackJobs.map(function(j){
         var sd = jobSchedDate(j);
@@ -3555,7 +3637,7 @@ async function renderDash(){
       +'</div>'
       +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>'
       +'</div>';}).join('')
-    :'<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">✅ No overdue pickups</div>';
+    :emptyStateHTML('✅','All Clear!','No overdue pickups right now. Nice work keeping things on track.');
 
   var overdueCard=document.getElementById('card-overdue');
   if(overdueCard) overdueCard.className='chart-card '+(overdueJobs.length>0?'urgency-warn':'urgency-ok');
@@ -3579,7 +3661,7 @@ async function renderDashBinsOut(){
   var assignedJobs=droppedJobs.filter(function(j){return !!j.binBid;});
   var unassignedJobs=droppedJobs.filter(function(j){return !j.binBid;});
 
-  if(!assignedJobs.length&&!unassignedJobs.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">All bins are in the yard</div>';return;}
+  if(!assignedJobs.length&&!unassignedJobs.length){el.innerHTML=emptyStateHTML('🏠','All Bins Home','Every bin is back in the yard. Ready for the next job.');return;}
 
   // Group assigned jobs by size
   var grouped={};
@@ -3676,7 +3758,7 @@ async function confirmJob(id, e){
     // If no rows left, show the "all confirmed" message
     var remaining = cbEl.querySelectorAll('div[style*="border-left"]');
     if(!remaining.length){
-      cbEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px;text-align:center">✅ All pickups &amp; drop-offs confirmed</div>';
+      cbEl.innerHTML=emptyStateHTML('📞','All Confirmed','Every pickup and drop-off is confirmed. Nothing to call about.');
     }
   }
   // Also update the today's jobs section — hide the confirm button for this job
