@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -134,39 +134,24 @@
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <div id="view-dashboard" class="view active">
 
-  <!-- PAGE HEADER with Fleet Status -->
+  <!-- PAGE HEADER with inline Fleet Status -->
   <div class="page-header" style="align-items:center">
     <div>
       <div class="page-title">Dashboard</div>
       <div class="page-sub" id="today-lbl"></div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
-      <div style="position:relative" id="notif-wrap">
-        <button class="notif-bell" onclick="toggleNotifPanel()" title="Geofence Notifications">🔔<span class="notif-badge" id="notif-badge">0</span></button>
-        <div class="notif-panel" id="notif-panel">
-          <div class="notif-panel-header"><span>Bin Notifications</span><button class="notif-panel-clear" onclick="clearNotifPanel()">Clear all</button></div>
-          <div id="notif-list"><div class="notif-empty">No recent notifications</div></div>
-        </div>
+    <div id="dash-fleet-header" style="display:flex;align-items:center;gap:20px;flex:1;margin:0 24px;">
+      <div style="display:flex;align-items:center;gap:20px;">
+        <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#dc3545" id="s-bins-out-fleet">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Out</span></div>
+        <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#22c55e" id="s-bins-in">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Yard</span></div>
+        <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:var(--text)" id="s-bins-total">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</span></div>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;height:6px;background:rgba(0,0,0,0.07);border-radius:3px"><div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#dc3545,#f97316);border-radius:3px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
+        <span id="s-bins-pct-lbl" style="font-size:10px;color:var(--muted);white-space:nowrap">0% deployed</span>
       </div>
     </div>
-  </div>
-
-  <!-- FLEET STATUS BANNER (Option D — full-width bar) -->
-  <div id="dash-fleet-header" style="display:flex;align-items:center;gap:24px;padding:8px 20px;margin-bottom:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
-    <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
-      <span style="font-size:13px">🚛</span>
-      <span style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase">Fleet</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:20px;">
-      <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#dc3545" id="s-bins-out-fleet">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Out</span></div>
-      <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#22c55e" id="s-bins-in">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Yard</span></div>
-      <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:var(--text)" id="s-bins-total">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</span></div>
-    </div>
-    <div style="flex:1;display:flex;align-items:center;gap:8px;">
-      <div style="flex:1;height:6px;background:rgba(0,0,0,0.07);border-radius:3px"><div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#dc3545,#f97316);border-radius:3px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
-      <span id="s-bins-pct-lbl" style="font-size:10px;color:var(--muted);white-space:nowrap">0% deployed</span>
-    </div>
+    <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
   </div>
 
   <!-- VEHICLE STATUS STRIP + DATE PICKER -->
@@ -1847,7 +1832,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>
 </body>
 </html>
                                                                                                                                                                                                                                                                                                                                                                  
