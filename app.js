@@ -7554,6 +7554,7 @@ async function openDetail(id){
     var r=await db.from('jobs').select('*').eq('job_id',id).single();
     if(r.error||!r.data)return;
     j=dbToJob(r.data);
+    jobs.push(j); // add to local array so action buttons (mark dropped, revert pickup, etc.) work
   }
   document.getElementById('det-ttl').textContent=j.id;
   document.getElementById('det-crumb').textContent='Jobs › '+(j.service||'Job');
