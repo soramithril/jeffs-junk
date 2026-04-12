@@ -8662,20 +8662,20 @@ function setUserCardSignedOut(){
   if(signoutBtn) signoutBtn.style.display='none';
 }
 
-function onLoginSuccess() {
+async function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
-  db.from('user_profiles').select('role,can_delete,username').eq('id', currentUser.id).single().then(function(r) {
-    if (r.data && r.data.can_delete) {
-      canDelete = true;
-    }
-    var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
-    var role  = (r.data && r.data.role) ? r.data.role : 'User';
-    currentUser.displayName = uname;
-    setUserCardSignedIn(uname, role);
-    applyDeleteVisibility();
-    applyAnalyticsVisibility();
-  });
+  // Await profile so displayName is set before any job saves can happen
+  var r = await db.from('user_profiles').select('role,can_delete,username').eq('id', currentUser.id).single();
+  if (r.data && r.data.can_delete) {
+    canDelete = true;
+  }
+  var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
+  var role  = (r.data && r.data.role) ? r.data.role : 'User';
+  currentUser.displayName = uname;
+  setUserCardSignedIn(uname, role);
+  applyDeleteVisibility();
+  applyAnalyticsVisibility();
   document.getElementById('login-screen').style.display = 'none';
   resetInactivityTimer();
   loadAllFromSupabase();
