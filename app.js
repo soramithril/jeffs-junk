@@ -907,6 +907,7 @@ function hideLoading() {
     if (el) el.style.display='none';
     var f1Vid=document.getElementById('f1-bg-video');if(f1Vid){f1Vid.pause();f1Vid.removeAttribute('src');f1Vid.load();}
     setLoadProgress(0);
+    var mainEl=document.getElementById('main');if(mainEl)mainEl.scrollTop=0;
   }, 350);
 }
 
@@ -2317,7 +2318,7 @@ function ensureAutoAssignments(){
     var now=new Date().toISOString();
     var newRec={id:null, crewMemberId:c.id, name:c.name, startedAt:now, endedAt:null};
     vehicleAssignments[v.vid].push(newRec);
-    db.from('vehicle_assignments').insert({vid:v.vid, crew_member_id:c.id, assignment_date:todayISO, started_at:now}).select().then(function(r){
+    db.from('vehicle_assignments').upsert({vid:v.vid, crew_member_id:c.id, assignment_date:todayISO, started_at:now},{onConflict:'vid,crew_member_id,assignment_date',ignoreDuplicates:true}).select().then(function(r){
       if(r.error) console.warn('Auto-assignment failed:',r.error.message);
       if(r.data&&r.data[0]) newRec.id=r.data[0].id;
     });
@@ -3306,6 +3307,9 @@ async function renderDash(){
     el.style.animation='none'; el.style.opacity='0';
     requestAnimationFrame(function(){ el.style.animation=''; });
   });
+
+  // Scroll to top so dashboard content is visible after loading screen
+  var mainEl=document.getElementById('main');if(mainEl)mainEl.scrollTop=0;
 
   var todayS = todayStr();
   var now = new Date();
