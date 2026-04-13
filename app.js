@@ -6846,7 +6846,7 @@ function toggleBin(){
   document.getElementById('items-wrap').style.display=hasItems?'block':'none';
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
-  document.getElementById('tools-needed-wrap').style.display=(isJunk)?'block':'none';
+  var tnw=document.getElementById('tools-needed-wrap');if(tnw)tnw.style.display=(isJunk)?'block':'none';
   // Show junk schedule section for Junk Quote and Junk Removal
   var junkSchedWrap=document.getElementById('junk-schedule-wrap');
   if(junkSchedWrap){
@@ -6913,7 +6913,7 @@ function newJob(){
   document.getElementById('fb-schedule-wrap').style.display='none';
   document.getElementById('f-junk-date').value='';document.getElementById('f-junk-time').value='';
   document.getElementById('junk-schedule-wrap').style.display='none';
-  document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';document.getElementById('tools-needed-wrap').style.display='none';
+  document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   document.getElementById('f-tools').value='';
   document.getElementById('f-material-type').value='';
@@ -7210,7 +7210,7 @@ function openEdit(id){
       }
     }catch(e){console.error('DRD modal error:',e);}
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
-    document.getElementById('tools-needed-wrap').style.display=(j.service==='Junk Removal')?'block':'none';
+    var tnw3=document.getElementById('tools-needed-wrap');if(tnw3)tnw3.style.display=(j.service==='Junk Removal')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
     if(j.service==='Bin Rental'){
       document.getElementById('f-bdur').value=j.binDuration||'';
