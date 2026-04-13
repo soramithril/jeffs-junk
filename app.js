@@ -1064,22 +1064,7 @@ async function loadAllFromSupabase() {
             { j.binInstatus='dropped'; }
         });
       }
-      var pastBinJobs = await db.from('jobs').select('job_id,bin_bid')
-        .eq('service','Bin Rental')
-        .neq('bin_instatus','pickedup')
-        .not('bin_pickup','is',null)
-        .lt('bin_pickup', today2);
-      if (pastBinJobs.data && pastBinJobs.data.length) {
-        var ids = pastBinJobs.data.map(function(r){return r.job_id;});
-        await db.from('jobs').update({bin_instatus:'pickedup'}).in('job_id',ids);
-        var pickBids = pastBinJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
-        if(pickBids.length) await db.from('bin_items').update({status:'in'}).in('bid',pickBids);
-        binItems.forEach(function(b){ if(pickBids.indexOf(b.bid)>=0) b.status='in'; });
-        jobs.forEach(function(j){
-          if(j.service==='Bin Rental'&&j.binPickup&&j.binPickup<today2&&j.binInstatus!=='pickedup')
-            j.binInstatus='pickedup';
-        });
-      }
+      // Auto-pickup removed — bin pickup status is user-controlled only
     } catch(e){ console.warn('Auto-mark error:',e); }
     setTimeout(function(){ _suppressBinNotify = false; }, 5000);
     renderDash();
@@ -3141,6 +3126,7 @@ async function refreshDashJobs(){
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
 }
 async function renderWeekCal(){
+  if(!document.getElementById('week-cal-grid')) return;
   var ws=getWeekStart(weekOffset),we=new Date(ws);we.setDate(we.getDate()+6);
   var today=new Date();today.setHours(0,0,0,0);
   var wsS=ws.toISOString().split('T')[0];
@@ -8175,11 +8161,12 @@ async function revertPickedUp(id){
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j){console.error('revertPickedUp: job not found in local array',id);toast('⚠ Job not found — try reopening');return;}
   j.binInstatus='dropped';
+  j.binPickup='';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
   // Direct DB update with await to guarantee save
-  var r=await db.from('jobs').update({bin_instatus:'dropped'}).eq('job_id',id);
+  var r=await db.from('jobs').update({bin_instatus:'dropped',bin_pickup:null}).eq('job_id',id);
   if(r.error){console.error('revertPickedUp DB error:',r.error);toast('⚠ Revert failed: '+r.error.message);return;}
-  patchJob(id,{binInstatus:'dropped'});
+  patchJob(id,{binInstatus:'dropped',binPickup:''});
   toast('Pickup reverted — bin back out');
   openDetail(id);
   refresh();
