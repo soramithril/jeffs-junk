@@ -3114,7 +3114,7 @@ async function refreshDashJobs(){
           +((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')?(cfm?'<span style="margin-left:8px;color:#22c55e;font-weight:600">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'<span style="margin-left:8px;color:#e67e22;font-weight:700">📞 '+(j.service==='Furniture Delivery'?'Ready for drop-off':'Ready for pickup')+'</span>'):'')
           +'</div></div>'
           +(j.service==='Bin Rental'&&isPickup&&j.binInstatus!=='pickedup'?'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)">✅ Picked Up</button>':'')
-          +(((j.service==='Bin Rental'&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Ready for Drop-Off':'Ready for Pickup')+'</button>':'')
+          +(((j.service==='Bin Rental'&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\'' +j.id+ '\',event)" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Call to Confirm Drop-Off':'Call to Confirm Pickup')+'</button>':'')
           +'</div>';
       }).join('')+'</div>';
   }
@@ -3525,7 +3525,7 @@ async function renderDash(){
         var actionBtn = '';
         if(j.service==='Bin Rental'&&showBinActions&&j.binInstatus!=='pickedup'){
           actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07);flex-shrink:0">✅ Picked Up</button>'
-            +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 Ready for Pickup</button>':'');
+            +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 Call to Confirm Pickup</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
           var cfmWord = j.service==='Furniture Delivery'?'Drop-Off':'Pickup';
           actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
@@ -7619,7 +7619,7 @@ async function openDetail(id){
     +(function(){
       var cbtns=[];
       if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){
-        var confirmLabel=j.service==='Furniture Delivery'?'Ready for Drop-Off':'Ready for Pickup';
+        var confirmLabel=j.service==='Furniture Delivery'?'Call to Confirm Drop-Off':'Call to Confirm Pickup';
         cbtns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">📞 '+confirmLabel+'</button>');
       }
       if(!j.emailConfirmed){
