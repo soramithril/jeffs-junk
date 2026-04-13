@@ -10604,7 +10604,7 @@ async function printBinRental(jobId) {
     }
 
     // Driveway side — skip "see notes" since the actual notes print separately
-    var side = (j.binSide && j.binSide.toLowerCase() !== 'see notes') ? j.binSide.charAt(0).toUpperCase() + j.binSide.slice(1) + ' Side' : '';
+    var side = (j.binSide && j.binSide.toLowerCase() !== 'see notes') ? j.binSide + ' Side' : '';
 
     // ── LEFT COLUMN: Customer Info ──
     var nameLine = j.name + (j.businessName ? ' — ' + j.businessName : '');
@@ -10648,7 +10648,7 @@ async function printBinRental(jobId) {
     drawText(j.payMethod || '', 130, 596);
 
     // ── BIN PLACEMENT (wrap text to stay on the lines) ──
-    var placementText = side + (j.notes ? ' — ' + j.notes : '');
+    var placementText = side ? (j.notes ? side + ' — ' + j.notes : side) : (j.notes || '');
     var maxWidth = 310; // stop before Subtotal/HST/Total labels on the right
     var lineHeight = 30;
     var placementY = 673;
