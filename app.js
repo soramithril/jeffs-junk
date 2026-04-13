@@ -441,9 +441,13 @@ function toTitleCase(str) {
   if (!str) return str;
   var small = /^(a|an|and|as|at|but|by|for|if|in|nor|of|on|or|so|the|to|up|yet)$/i;
   return str.replace(/\S+/g, function(word, offset) {
-    if (offset === 0) return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    if (small.test(word)) return word.toLowerCase();
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    // Strip leading non-letters like ( or " then capitalize the first real letter
+    var m = word.match(/^([^a-zA-Z]*)([a-zA-Z])(.*)/);
+    if (!m) return word;
+    var prefix = m[1], firstLetter = m[2], rest = m[3];
+    var bare = firstLetter + rest;
+    if (offset > 0 && small.test(bare)) return prefix + bare.toLowerCase();
+    return prefix + firstLetter.toUpperCase() + rest;
   });
 }
 
