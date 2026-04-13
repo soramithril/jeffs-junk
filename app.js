@@ -6915,7 +6915,7 @@ function newJob(){
   document.getElementById('junk-schedule-wrap').style.display='none';
   document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
-  document.getElementById('f-tools').value='';
+  var ft=document.getElementById('f-tools');if(ft)ft.value='';
   document.getElementById('f-material-type').value='';
   document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   document.getElementById('f-client-select').value='';
@@ -7229,7 +7229,7 @@ function openEdit(id){
       document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';if(b.getAttribute('data-mat')===j.materialType){b.classList.add('active');b.style.background='rgba(34,197,94,.12)';b.style.color='#22c55e';}});
       showMaterialType();
     }
-    document.getElementById('f-tools').value=j.toolsNeeded||'';
+    var ft2=document.getElementById('f-tools');if(ft2)ft2.value=j.toolsNeeded||'';
     document.getElementById('f-client-select').value=j.clientId||'';
     // Recurring fields
     var recChk=document.getElementById('f-recurring');
