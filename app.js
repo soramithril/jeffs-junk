@@ -10932,7 +10932,7 @@ async function printFbPickup(jobId) { return _printFbForm(jobId, 'pickup'); }
 //  MONTHLY BUSINESS REPORT GENERATOR
 // ═══════════════════════════════════════
 
-var REPORT_EMAILS = ['jakewhite97@hotmail.com','barbara@jeffwhitegroup.com','samantha@jeffsjunk.ca'];
+var REPORT_EMAILS = ['soramithril@gmail.com','barbara@jeffwhitegroup.com','samantha@jeffsjunk.ca'];
 
 async function _rptFetchJobs(startDate, endDate) {
   var results = [], from = 0, ps = 1000;
@@ -11350,21 +11350,18 @@ async function emailMonthlyReport() {
   a.href = url;
   a.download = "Jeff's Junk - " + _rptMonthName(month) + ' ' + year + ' Report.pdf';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  // Try edge function email, fall back to mailto
+  // Send report email via edge function (HTML email with stats, no PDF attachment needed)
   try {
-    var reader = new FileReader();
-    reader.onloadend = async function() {
-      var base64 = reader.result.split(',')[1];
-      var r = await fetch(SUPABASE_URL + '/functions/v1/send-report-email', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY},
-        body: JSON.stringify({pdf: base64, month: _rptMonthName(month) + ' ' + year, recipients: REPORT_EMAILS})
-      });
-      if (r.ok) { toast('Report emailed to ' + REPORT_EMAILS.length + ' recipients!'); }
-      else { throw new Error('Edge function failed'); }
-    };
-    reader.readAsDataURL(blob);
+    var r = await fetch(SUPABASE_URL + '/functions/v1/send-report-email', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({year: year, month: month})
+    });
+    var result = await r.json();
+    if (r.ok && !result.error) { toast('Report emailed to ' + REPORT_EMAILS.length + ' recipients!'); }
+    else { throw new Error(result.error || 'Edge function failed'); }
   } catch (e) {
+    console.warn('Email send error:', e);
     var subject = encodeURIComponent("Jeff's Junk - " + _rptMonthName(month) + ' ' + year + ' Monthly Report');
     var body = encodeURIComponent('Hi,\n\nPlease find the ' + _rptMonthName(month) + ' ' + year + ' monthly business report attached.\n\nBest,\nJeff\'s Junk Dashboard');
     window.open('mailto:' + REPORT_EMAILS.join(',') + '?subject=' + subject + '&body=' + body);
