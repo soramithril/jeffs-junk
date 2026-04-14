@@ -2430,7 +2430,7 @@ function setLbPeriodMode(mode,btn){
   _lbPeriodMode=mode;
   document.querySelectorAll('.lb-period-btn').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
-  ['week','month','quarter','year','custom'].forEach(function(m){
+  ['today','week','month','quarter','year','custom'].forEach(function(m){
     var el=document.getElementById('lb-date-'+m);
     if(el) el.style.display=(m===mode)?'flex':'none';
   });
@@ -2440,7 +2440,10 @@ function setLbPeriodMode(mode,btn){
 function getLbDateRange(){
   var now=new Date();
   var from,to;
-  if(_lbPeriodMode==='week'){
+  if(_lbPeriodMode==='today'){
+    from=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    to=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  } else if(_lbPeriodMode==='week'){
     var wp=document.getElementById('lb-week-pick');
     if(wp&&wp.value){
       var parts=wp.value.split('-W');
@@ -2483,7 +2486,8 @@ function getLbDateRange(){
   return {
     from:from.toISOString().split('T')[0],
     to:to.toISOString().split('T')[0],
-    label:_lbPeriodMode==='month'?from.toLocaleDateString('en-US',{month:'long',year:'numeric'}):
+    label:_lbPeriodMode==='today'?'Today — '+from.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):
+          _lbPeriodMode==='month'?from.toLocaleDateString('en-US',{month:'long',year:'numeric'}):
           _lbPeriodMode==='quarter'?(document.getElementById('lb-quarter-pick')||{}).value||'':
           _lbPeriodMode==='year'?(document.getElementById('lb-year-pick')||{}).value||'':
           from.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+to.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
