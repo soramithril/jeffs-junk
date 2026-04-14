@@ -10856,6 +10856,29 @@ async function printJunkRemoval(jobId) {
     // Payment type
     dt(j.payMethod || '', 130, 598);
 
+    // Notes — next to bin placement area at bottom
+    var notesText = j.notes || '';
+    if (notesText) {
+      var maxW = 310;
+      var lh = 30;
+      var ny = 673;
+      var words = notesText.split(' ');
+      var line = '';
+      var ln = 0;
+      for (var wi = 0; wi < words.length; wi++) {
+        var testLine = line ? line + ' ' + words[wi] : words[wi];
+        var testWidth = font.widthOfTextAtSize(testLine, 10);
+        if (testWidth > maxW && line) {
+          dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
+          line = words[wi];
+          ln++;
+        } else {
+          line = testLine;
+        }
+      }
+      if (line) dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
+    }
+
     var filledBytes = await pdfDoc.save();
     var blob = new Blob([filledBytes], { type: 'application/pdf' });
     window.open(URL.createObjectURL(blob), '_blank');
