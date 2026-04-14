@@ -590,6 +590,36 @@
     <div><div class="page-title page-title-sm">Analytics</div><div class="page-sub">Business insights & trends</div></div>
   </div>
 
+  <!-- Auto-report banner -->
+  <div id="report-auto-banner" style="display:none;background:linear-gradient(135deg,#f0fdf4,#eff6ff);border:1px solid #bbf7d0;border-radius:12px;padding:14px 20px;margin-bottom:16px;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px">📊</span>
+        <div><div style="font-size:13px;font-weight:700;color:var(--text)">Monthly Report Ready</div><div style="font-size:12px;color:var(--muted)">The <span class="rpt-banner-month"></span> report is ready to generate.</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="autoGenerateReport()">Generate Report</button>
+        <button class="btn btn-ghost" onclick="autoEmailReport()">Email Report</button>
+        <button class="btn btn-ghost" onclick="this.closest('#report-auto-banner').style.display='none'" style="padding:6px 10px">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Reports -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 20px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">📄 Monthly Reports</div>
+        <div style="font-size:11px;color:var(--muted)">Auto-generated business reports with MoM + YoY comparisons</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input type="month" id="report-month" class="bin-date-picker" style="width:150px">
+        <button class="btn btn-primary" onclick="openMonthlyReport()">Generate Report</button>
+        <button class="btn btn-ghost" onclick="emailMonthlyReport()">📧 Email Report</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Period selector -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
@@ -1819,7 +1849,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=59"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>
                                                                                                                                                                                                                                                                                                                                                                  

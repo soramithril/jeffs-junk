@@ -6134,6 +6134,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
 function initAnalytics(){
   renderYoyTracker();
   setAnalyticsPeriod('week',document.getElementById('af-week'));
+  initReportSection();
 }
 // ─── BIN MAP ───
 var leafMap=null,mapPins=[];
@@ -10928,3 +10929,497 @@ async function _printFbForm(jobId, kind) {
 
 async function printFbDropOff(jobId) { return _printFbForm(jobId, 'dropoff'); }
 async function printFbPickup(jobId) { return _printFbForm(jobId, 'pickup'); }
+
+
+// ═══════════════════════════════════════
+//  MONTHLY BUSINESS REPORT GENERATOR
+// ═══════════════════════════════════════
+
+var REPORT_EMAILS = ['jakewhite97@hotmail.com','barbara@jeffwhitegroup.com','samantha@jeffsjunk.ca'];
+
+async function _rptFetchJobs(startDate, endDate) {
+  var results = [], from = 0, ps = 1000;
+  while (true) {
+    var r = await db.from('jobs').select('job_id,service,status,name,address,city,date,price,referral,bin_size,bin_dropoff,bin_pickup')
+      .gte('date', startDate).lte('date', endDate)
+      .order('date', {ascending: false}).range(from, from + ps - 1);
+    if (r.error || !r.data || !r.data.length) break;
+    results = results.concat(r.data);
+    if (r.data.length < ps) break;
+    from += ps;
+  }
+  return results;
+}
+
+function _rptPct(cur, prev) {
+  if (prev === 0) return cur > 0 ? {v: 100, s: '+'} : {v: 0, s: ''};
+  var c = Math.round(((cur - prev) / prev) * 100);
+  return {v: c, s: c >= 0 ? '+' : ''};
+}
+
+function _rptMonthName(m) {
+  return ['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1];
+}
+function _rptMonthShort(m) {
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+}
+
+function _rptAnalyze(jobs) {
+  var active = jobs.filter(function(j) { return j.status !== 'Cancelled'; });
+  var cancelled = jobs.length - active.length;
+  var byService = {}, byCity = {}, byWeek = {}, byBinSize = {}, byReferral = {};
+  active.forEach(function(j) {
+    var s = j.service || 'Other';
+    byService[s] = (byService[s] || 0) + 1;
+    var c = j.city || '';
+    if (c) byCity[c] = (byCity[c] || 0) + 1;
+    var ref = j.referral || 'Unknown';
+    byReferral[ref] = (byReferral[ref] || 0) + 1;
+    if (j.date) {
+      var day = parseInt(j.date.split('-')[2]);
+      var wk = day <= 7 ? 'Week 1' : day <= 14 ? 'Week 2' : day <= 21 ? 'Week 3' : day <= 28 ? 'Week 4' : 'Week 5';
+      byWeek[wk] = (byWeek[wk] || 0) + 1;
+    }
+    if (j.service === 'Bin Rental' && j.bin_size) byBinSize[j.bin_size] = (byBinSize[j.bin_size] || 0) + 1;
+  });
+  var repeatJobs = active.filter(function(j) { return j.referral === 'Repeat Customer'; }).length;
+  var rentalDays = [];
+  active.filter(function(j) { return j.service === 'Bin Rental' && j.bin_dropoff && j.bin_pickup; }).forEach(function(j) {
+    var days = Math.round((new Date(j.bin_pickup) - new Date(j.bin_dropoff)) / 86400000);
+    if (days > 0) rentalDays.push(days);
+  });
+  var avgRental = rentalDays.length ? Math.round(rentalDays.reduce(function(a, b) { return a + b; }, 0) / rentalDays.length * 10) / 10 : 0;
+  return {
+    total: jobs.length, active: active.length, cancelled: cancelled,
+    byService: byService, byCity: byCity, byWeek: byWeek, byBinSize: byBinSize, byReferral: byReferral,
+    repeatRate: active.length ? Math.round(repeatJobs / active.length * 100) : 0,
+    avgRentalDays: avgRental,
+    bin: byService['Bin Rental'] || 0, junk: byService['Junk Removal'] || 0,
+    furnP: byService['Furniture Pickup'] || 0, furnD: byService['Furniture Delivery'] || 0,
+    quote: byService['Junk Quote'] || 0
+  };
+}
+
+async function _rptGatherData(year, month) {
+  var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+  var lastDay = new Date(year, month, 0).getDate();
+  var start = year + '-' + pad(month) + '-01';
+  var end = year + '-' + pad(month) + '-' + pad(lastDay);
+  var pY = month === 1 ? year - 1 : year, pM = month === 1 ? 12 : month - 1;
+  var pLD = new Date(pY, pM, 0).getDate();
+  var pStart = pY + '-' + pad(pM) + '-01', pEnd = pY + '-' + pad(pM) + '-' + pad(pLD);
+  var yY = year - 1, yLD = new Date(yY, month, 0).getDate();
+  var yStart = yY + '-' + pad(month) + '-01', yEnd = yY + '-' + pad(month) + '-' + pad(yLD);
+  var results = await Promise.all([_rptFetchJobs(start, end), _rptFetchJobs(pStart, pEnd), _rptFetchJobs(yStart, yEnd)]);
+  return {
+    year: year, month: month, monthName: _rptMonthName(month), monthShort: _rptMonthShort(month),
+    cur: _rptAnalyze(results[0]), prev: _rptAnalyze(results[1]), yoy: _rptAnalyze(results[2]),
+    prevName: _rptMonthName(pM), prevShort: _rptMonthShort(pM) + ' ' + pY,
+    yoyName: _rptMonthShort(month) + ' ' + yY
+  };
+}
+
+function _rptInsights(d) {
+  var momChg = _rptPct(d.cur.active, d.prev.active);
+  var yoyChg = _rptPct(d.cur.active, d.yoy.active);
+  var svcList = Object.entries(d.cur.byService).sort(function(a,b){return b[1]-a[1];});
+  var topSvc = svcList[0]||['None',0], topSvcPct = d.cur.active?Math.round(topSvc[1]/d.cur.active*100):0;
+  var cityList = Object.entries(d.cur.byCity).sort(function(a,b){return b[1]-a[1];});
+  var topCity = cityList[0]||['N/A',0], topCityPct = d.cur.active?Math.round(topCity[1]/d.cur.active*100):0;
+  var city2 = cityList[1]||null;
+  var binList = Object.entries(d.cur.byBinSize).sort(function(a,b){return b[1]-a[1];});
+  var topBin = binList[0]||['N/A',0], topBinPct = d.cur.bin?Math.round(topBin[1]/d.cur.bin*100):0;
+  var weekList = Object.entries(d.cur.byWeek).sort(function(a,b){return b[1]-a[1];});
+  var topWeek = weekList[0]||['N/A',0];
+  var junkMom = _rptPct(d.cur.junk, d.prev.junk);
+  // Summary
+  var s = [];
+  s.push(d.monthName+' '+d.year+' delivered '+d.cur.active+' active jobs'+(d.cur.cancelled>0?' ('+d.cur.cancelled+' cancelled)':' with zero cancellations')+' \u2014 a '+Math.abs(momChg.v)+'% '+(momChg.v>=0?'increase':'decrease')+' from '+d.prevName+' ('+d.prev.active+')');
+  s.push('and a '+Math.abs(yoyChg.v)+'% '+(yoyChg.v>=0?'increase':'decrease')+' year-over-year from '+d.yoyName+' ('+d.yoy.active+').'+(momChg.v>20?' Strong growth across the board.':momChg.v<-20?' Significant decline requires attention.':''));
+  s.push('');
+  s.push(topSvc[0]+(topSvc[0]==='Bin Rental'?' remains':' is')+' the core service at '+topSvc[1]+' jobs ('+topSvcPct+'% of volume).'+(topSvc[0]==='Bin Rental'&&topBin[0]!=='N/A'?' The '+topBin[0]+' bin dominates at '+topBinPct+'% of all bin rentals.':''));
+  if(d.cur.junk>0){s.push('Junk Removal '+(junkMom.v>0?'grew '+junkMom.v+'% MoM to ':'at ')+d.cur.junk+' jobs. Furniture services also '+(d.cur.furnP>d.prev.furnP?'grew.':'held steady.'));}
+  s.push('');
+  s.push(topCity[0]+' accounts for '+topCityPct+'% of all jobs.'+(city2?' '+city2[0]+' is the secondary market with '+city2[1]+' jobs.':''));
+  s.push('Average bin rental duration is '+d.cur.avgRentalDays+' days. '+topWeek[0]+' was the busiest with '+topWeek[1]+' jobs.');
+  // Findings
+  var f = [];
+  if(Math.abs(momChg.v)>=30){f.push({b:momChg.v>0?'Volume surged:':'Volume dropped:',r:d.cur.active+' jobs vs '+d.prev.active+' in '+d.prevName+' ('+momChg.s+momChg.v+'%) \u2014 '+(momChg.v>0?'strongest month-over-month growth.':'investigate the cause.')});}
+  ['Bin Rental','Junk Removal','Furniture Pickup','Furniture Delivery','Junk Quote'].forEach(function(svc){
+    var cur=d.cur.byService[svc]||0,prev=d.prev.byService[svc]||0,chg=_rptPct(cur,prev);
+    var yc=d.yoy.byService[svc]||0,ychg=_rptPct(cur,yc);
+    if(Math.abs(chg.v)>=30&&cur>2){f.push({b:svc+(chg.v>0?' surged:':' declined:'),r:cur+' jobs vs '+prev+' in '+d.prevName+' ('+chg.s+chg.v+'%)'+(Math.abs(ychg.v)>=10?' and '+ychg.s+ychg.v+'% YoY':'')+'.'});}
+  });
+  if(d.cur.cancelled===0){f.push({b:'Zero cancellations:',r:'Perfect completion rate \u2014 every booked job was fulfilled.'});}
+  else if(d.cur.cancelled>0){f.push({b:'Cancellations:',r:d.cur.cancelled+' cancellations ('+Math.round(d.cur.cancelled/d.cur.total*100)+'%) \u2014 '+(d.prev.cancelled===0?'new this month, worth monitoring.':'review for patterns.')});}
+  if(city2&&city2[1]>=10){f.push({b:city2[0]+' growing:',r:city2[1]+' jobs ('+Math.round(city2[1]/d.cur.active*100)+'% of volume) \u2014 becoming a reliable secondary market.'});}
+  if(yoyChg.v>0){f.push({b:'YoY growth:',r:'Up '+yoyChg.v+'% vs '+d.yoyName+' \u2014 business is trending in the right direction.'});}
+  if(d.cur.repeatRate>15){f.push({b:'Strong repeat rate:',r:d.cur.repeatRate+'% of jobs from repeat customers \u2014 loyalty is building.'});}
+  while(f.length<5)f.push({b:'',r:''});f=f.slice(0,5);
+  // Recommendations
+  var r = [];
+  if(d.cur.furnP>5){r.push({b:'Push Furniture Pickups:',r:d.cur.furnP+' jobs and high margins \u2014 invest in marketing this service.'});}
+  if(city2&&city2[1]>=5){r.push({b:'Double down on '+city2[0]+':',r:city2[1]+' jobs shows real demand; targeted local ads could grow share.'});}
+  if(d.cur.junk>10&&junkMom.v>0){r.push({b:'Grow Junk Removal:',r:d.cur.junk+' jobs with '+junkMom.s+junkMom.v+'% MoM momentum \u2014 capitalize with promotions.'});}
+  if(momChg.v>30){r.push({b:'Sustain the growth:',r:d.cur.active+' jobs is a new high \u2014 ensure crew capacity can handle this pace.'});}
+  if(d.cur.cancelled>3){r.push({b:'Investigate cancellations:',r:d.cur.cancelled+' cancelled jobs \u2014 review for common patterns.'});}
+  var unknownPct=d.cur.active?Math.round((d.cur.byReferral['Unknown']||0)/d.cur.active*100):0;
+  if(unknownPct>50){r.push({b:'Track referral sources:',r:unknownPct+'% of jobs have no referral source \u2014 better tracking enables smarter spend.'});}
+  if(d.cur.repeatRate<10){r.push({b:'Build repeat business:',r:'Only '+d.cur.repeatRate+'% repeat rate \u2014 consider a loyalty or referral program.'});}
+  else if(d.cur.repeatRate>=20){r.push({b:'Capitalize on loyalty:',r:d.cur.repeatRate+'% repeat rate \u2014 consider a referral incentive program.'});}
+  if(topCityPct>50){r.push({b:'Diversify geography:',r:topCity[0]+' is '+topCityPct+'% of volume \u2014 expanding to nearby cities reduces risk.'});}
+  while(r.length<5)r.push({b:'',r:''});r=r.slice(0,5);
+  return {summary:s,findings:f,recs:r};
+}
+
+async function generateMonthlyReport(year, month) {
+  toast('Generating '+_rptMonthName(month)+' '+year+' report\u2026');
+  var d = await _rptGatherData(year, month);
+  if(!d.cur.active&&!d.cur.cancelled){toast('No jobs found for '+_rptMonthName(month)+' '+year);return null;}
+  var insights = _rptInsights(d);
+  var R = PDFLib.rgb;
+  // Colors
+  var DARK=R(.118,.161,.231),TEXT_C=R(.2,.255,.333),MUTED=R(.58,.639,.722),BORDER=R(.886,.91,.941);
+  var BRAND=R(.133,.773,.369),BLUE=R(.145,.388,.922),GREEN=R(.086,.639,.29),GREEN_BG=R(.941,.992,.957);
+  var RED=R(.863,.149,.149),RED_BG=R(.996,.949,.949),PURPLE=R(.486,.227,.929),ORANGE=R(.918,.345,.047);
+  var TEAL=R(.051,.58,.533),BAR_BG=R(.886,.91,.941),LIGHT_BG=R(.973,.98,.988),WHITE=R(1,1,1);
+  var ROSE=R(.882,.114,.298);
+  var pdfDoc = await PDFLib.PDFDocument.create();
+  var fn = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+  var fb = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+  var W=612,H=792,M=36,CW=W-2*M;
+  // Helpers
+  function txt(pg,t,x,y,sz,ft,cl){pg.drawText(String(t),{x:x,y:y,size:sz,font:ft,color:cl});}
+  function txtR(pg,t,x,y,sz,ft,cl){var tw=ft.widthOfTextAtSize(String(t),sz);pg.drawText(String(t),{x:x-tw,y:y,size:sz,font:ft,color:cl});}
+  function txtC(pg,t,x,y,sz,ft,cl){var tw=ft.widthOfTextAtSize(String(t),sz);pg.drawText(String(t),{x:x-tw/2,y:y,size:sz,font:ft,color:cl});}
+  function card(pg,x,y,w,h){pg.drawRectangle({x:x,y:y,width:w,height:h,color:WHITE,borderColor:BORDER,borderWidth:.75});}
+  function pill(pg,x,y,t,bg,tc,sz){var tw=fb.widthOfTextAtSize(t,sz);pg.drawRectangle({x:x,y:y-2,width:tw+8,height:sz+5,color:bg});pg.drawText(t,{x:x+4,y:y,size:sz,font:fb,color:tc});return tw+8;}
+  function drawHeader(pg,subtitle){
+    txt(pg,"Jeff's Junk",M,H-36,18,fb,BRAND);
+    txtR(pg,subtitle,W-M,H-28,10,fn,MUTED);
+    txtR(pg,d.monthName+' '+d.year,W-M,H-44,12,fb,DARK);
+    pg.drawLine({start:{x:M,y:H-56},end:{x:W-M,y:H-56},color:BRAND,thickness:2});
+  }
+  function drawFooter(pg,pageNum,totalPages){
+    pg.drawLine({start:{x:M,y:34},end:{x:W-M,y:34},color:BORDER,thickness:.5});
+    var genDate=new Date();var mo=genDate.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    var hr=genDate.getHours(),ampm=hr>=12?'PM':'AM';hr=hr%12||12;
+    var timeStr=hr+':'+String(genDate.getMinutes()).padStart(2,'0')+' '+ampm;
+    txt(pg,'Generated '+mo+' at '+timeStr,M,22,7,fn,MUTED);
+    txtC(pg,"Jeff's Junk Dashboard  \u2022  Page "+pageNum+' of '+totalPages,W/2,22,7,fn,MUTED);
+    txtR(pg,'Confidential',W-M,22,7,fn,MUTED);
+  }
+
+  // ═══ PAGE 1 — KPI Dashboard ═══
+  var p1 = pdfDoc.addPage([W,H]);
+  p1.drawRectangle({x:0,y:0,width:W,height:H,color:LIGHT_BG});
+  drawHeader(p1,'Monthly Business Report');
+  var y=H-56-16;
+
+  // KPI Row 1 — 4 cards
+  var cw1=(CW-18)/4,ch1=78;
+  var pm=d.prev,py=d.yoy;
+  var kpis=[
+    ['Total Jobs',d.cur.active,_rptPct(d.cur.active,pm.active),_rptPct(d.cur.active,py.active),BLUE],
+    ['Bin Rentals',d.cur.bin,_rptPct(d.cur.bin,pm.bin),_rptPct(d.cur.bin,py.bin),GREEN],
+    ['Junk Removal',d.cur.junk,_rptPct(d.cur.junk,pm.junk),_rptPct(d.cur.junk,py.junk),PURPLE],
+    ['Furniture Jobs',d.cur.furnP+d.cur.furnD,_rptPct(d.cur.furnP+d.cur.furnD,pm.furnP+pm.furnD),_rptPct(d.cur.furnP+d.cur.furnD,py.furnP+py.furnD),ORANGE]
+  ];
+  kpis.forEach(function(k,i){
+    var cx=M+i*(cw1+6),cy=y-ch1;
+    card(p1,cx,cy,cw1,ch1);
+    p1.drawRectangle({x:cx,y:cy+ch1-3,width:cw1,height:3,color:k[4]});
+    txt(p1,k[0],cx+10,cy+ch1-16,8,fn,MUTED);
+    txt(p1,String(k[1]),cx+10,cy+26,26,fb,DARK);
+    var momT=k[2].s+k[2].v+'% MoM',yoyT=k[3].s+k[3].v+'% YoY';
+    var pw=pill(p1,cx+10,cy+10,momT,k[2].v>=0?GREEN_BG:RED_BG,k[2].v>=0?GREEN:RED,6.5);
+    pill(p1,cx+10+pw+4,cy+10,yoyT,k[3].v>=0?GREEN_BG:RED_BG,k[3].v>=0?GREEN:RED,6.5);
+  });
+  y-=ch1+10;
+
+  // KPI Row 2 — 4 smaller cards
+  var cw2=(CW-18)/4,ch2=50;
+  var cancelRate=d.cur.total?Math.round(d.cur.cancelled/d.cur.total*100):0;
+  var kpis2=[
+    ['Repeat Rate',d.cur.repeatRate+'%',TEAL],
+    ['Avg Bin Rental',d.cur.avgRentalDays+' days',ORANGE],
+    ['Cancellations',String(d.cur.cancelled),d.cur.cancelled>0?RED:GREEN],
+    ['Cancel Rate',cancelRate+'%',d.cur.cancelled>0?RED:GREEN]
+  ];
+  kpis2.forEach(function(k,i){
+    var cx=M+i*(cw2+6),cy=y-ch2;
+    card(p1,cx,cy,cw2,ch2);
+    txt(p1,k[0],cx+10,cy+ch2-15,8,fn,MUTED);
+    txt(p1,k[1],cx+10,cy+8,20,fb,DARK);
+    p1.drawCircle({x:cx+cw2-14,y:cy+ch2-10,size:3.5,color:k[2]});
+  });
+  y-=ch2+12;
+
+  // Service Breakdown
+  var secH=148;
+  card(p1,M,y-secH,CW,secH);
+  txt(p1,'Jobs by Service Type',M+12,y-18,10,fb,DARK);
+  txtR(p1,'Count',W-M-112,y-18,7,fb,MUTED);txtR(p1,'MoM',W-M-64,y-18,7,fb,MUTED);txtR(p1,'YoY',W-M-12,y-18,7,fb,MUTED);
+  var svcs=Object.entries(d.cur.byService).sort(function(a,b){return b[1]-a[1];});
+  var maxSvc=svcs.length?svcs[0][1]:1;
+  var svcColors=[BLUE,PURPLE,TEAL,ORANGE,ROSE];
+  var prevSvc={};['Bin Rental','Junk Removal','Furniture Pickup','Furniture Delivery','Junk Quote'].forEach(function(s){prevSvc[s]={m:d.prev.byService[s]||0,y:d.yoy.byService[s]||0};});
+  svcs.forEach(function(sv,i){
+    var ry=y-38-i*22,color=svcColors[i%5],cnt=sv[1];
+    var fillW=maxSvc>0?(cnt/maxSvc*(CW-260)):0;
+    txt(p1,sv[0],M+12,ry+2,8.5,fn,TEXT_C);
+    p1.drawRectangle({x:M+112,y:ry,width:CW-260,height:11,color:BAR_BG});
+    if(fillW>4)p1.drawRectangle({x:M+112,y:ry,width:fillW,height:11,color:color});
+    txtR(p1,String(cnt),W-M-112,ry+2,8.5,fb,DARK);
+    var ps=prevSvc[sv[0]]||{m:0,y:0};
+    var mc=_rptPct(cnt,ps.m),yc=_rptPct(cnt,ps.y);
+    txtR(p1,mc.s+mc.v+'%',W-M-64,ry+2,7.5,fb,mc.v>=0?GREEN:RED);
+    txtR(p1,yc.s+yc.v+'%',W-M-12,ry+2,7.5,fb,yc.v>=0?GREEN:RED);
+  });
+  y-=secH+12;
+
+  // Bottom 3-column row
+  var colW=(CW-12)/3,botH=190;
+  // Top Cities
+  card(p1,M,y-botH,colW,botH);
+  txt(p1,'Top Cities',M+12,y-16,9.5,fb,DARK);
+  var cities=Object.entries(d.cur.byCity).sort(function(a,b){return b[1]-a[1];}).slice(0,7);
+  var maxCity=cities.length?cities[0][1]:1;
+  cities.forEach(function(c,i){
+    var ry=y-34-i*21;
+    txt(p1,c[0],M+12,ry+4,8,fn,TEXT_C);
+    txtR(p1,String(c[1]),M+colW-12,ry+4,8,fb,DARK);
+    var bfw=colW-24,bfl=maxCity>0?(c[1]/maxCity)*bfw:0;
+    p1.drawRectangle({x:M+12,y:ry-4,width:bfw,height:4,color:BAR_BG});
+    if(bfl>2)p1.drawRectangle({x:M+12,y:ry-4,width:bfl,height:4,color:BLUE});
+  });
+
+  // Weekly Volume
+  var cx2=M+colW+6;
+  card(p1,cx2,y-botH,colW,botH);
+  txt(p1,'Weekly Volume',cx2+12,y-16,9.5,fb,DARK);
+  var weeks=Object.entries(d.cur.byWeek).sort();
+  var maxWk=weeks.length?Math.max.apply(null,weeks.map(function(w){return w[1];})):1;
+  var chartX=cx2+16,chartWI=colW-32,chartBot=y-botH+22,chartTop=y-38,chartH=chartTop-chartBot;
+  var barWk=weeks.length?(chartWI/weeks.length-8):20;
+  weeks.forEach(function(w,i){
+    var bx=chartX+i*(barWk+8),bh=maxWk>0?(w[1]/maxWk)*chartH:0;
+    p1.drawRectangle({x:bx,y:chartBot,width:barWk,height:bh,color:BLUE});
+    txtC(p1,String(w[1]),bx+barWk/2,chartBot+bh+3,7.5,fb,DARK);
+    txtC(p1,w[0].replace('Week ','W'),bx+barWk/2,chartBot-10,6.5,fn,MUTED);
+  });
+
+  // Bin Sizes
+  var cx3=M+2*(colW+6);
+  card(p1,cx3,y-botH,colW,botH);
+  txt(p1,'Bin Rentals by Size',cx3+12,y-16,9.5,fb,DARK);
+  var sizes=Object.entries(d.cur.byBinSize).sort(function(a,b){return b[1]-a[1];});
+  var totalBins=sizes.reduce(function(a,s){return a+s[1];},0);
+  var szColors=[BLUE,TEAL,ORANGE,PURPLE];
+  sizes.forEach(function(sz,i){
+    var ry=y-42-i*36,pctV=totalBins>0?Math.round(sz[1]/totalBins*100):0;
+    txt(p1,sz[0],cx3+12,ry+14,8.5,fn,TEXT_C);
+    txtR(p1,sz[1]+' ('+pctV+'%)',cx3+colW-12,ry+14,7.5,fn,MUTED);
+    var bf=colW-24,bl=pctV/100*bf;
+    p1.drawRectangle({x:cx3+12,y:ry,width:bf,height:7,color:BAR_BG});
+    if(bl>3)p1.drawRectangle({x:cx3+12,y:ry,width:bl,height:7,color:szColors[i%4]});
+  });
+  y-=botH+12;
+
+  // Referral Sources
+  var refH=80;
+  card(p1,M,y-refH,CW,refH);
+  txt(p1,'Referral Sources',M+12,y-16,9.5,fb,DARK);
+  txtR(p1,"How customers found Jeff's Junk",W-M-12,y-16,7,fn,MUTED);
+  var refs=Object.entries(d.cur.byReferral).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+  var totalRefs=refs.reduce(function(a,r){return a+r[1];},0);
+  var refColors=[BLUE,GREEN,ORANGE,PURPLE,TEAL];
+  var curX=M+12,refBarW=CW-24;
+  refs.forEach(function(r,i){
+    var segW=totalRefs>0?(r[1]/totalRefs)*refBarW:0;
+    if(segW>2)p1.drawRectangle({x:curX,y:y-40,width:segW,height:14,color:refColors[i%5]});
+    curX+=segW;
+  });
+  var legX=M+12;
+  refs.forEach(function(r,i){
+    var pctV=totalRefs>0?Math.round(r[1]/totalRefs*100):0;
+    p1.drawCircle({x:legX+4,y:y-64,size:3,color:refColors[i%5]});
+    var lbl=r[0]+' ('+pctV+'%)';
+    txt(p1,lbl,legX+10,y-67,7,fn,TEXT_C);
+    legX+=fn.widthOfTextAtSize(lbl,7)+22;
+  });
+
+  drawFooter(p1,1,2);
+
+  // ═══ PAGE 2 — Executive Summary & Recommendations ═══
+  var p2 = pdfDoc.addPage([W,H]);
+  p2.drawRectangle({x:0,y:0,width:W,height:H,color:LIGHT_BG});
+  drawHeader(p2,'Executive Summary & Recommendations');
+  y=H-56-18;
+
+  // Period Comparison Table
+  var tblH=155;
+  card(p2,M,y-tblH,CW,tblH);
+  txt(p2,'Period Comparison',M+12,y-18,10,fb,DARK);
+  var colXs=[M+12,M+130,M+230,M+330,M+400,M+490];
+  var colLbls=['Metric',d.monthName+' '+d.year,d.prevShort,'MoM %',d.yoyName,'YoY %'];
+  colLbls.forEach(function(l,i){if(i===0)txt(p2,l,colXs[i],y-34,7.5,fb,MUTED);else txtR(p2,l,colXs[i],y-34,7.5,fb,MUTED);});
+  p2.drawLine({start:{x:M+12,y:y-38},end:{x:M+CW-12,y:y-38},color:BORDER,thickness:.5});
+  var tblRows=[
+    ['Total Jobs',d.cur.active,d.prev.active,d.yoy.active],
+    ['Bin Rentals',d.cur.bin,d.prev.bin,d.yoy.bin],
+    ['Junk Removal',d.cur.junk,d.prev.junk,d.yoy.junk],
+    ['Furniture Pickup',d.cur.furnP,d.prev.furnP,d.yoy.furnP],
+    ['Furniture Delivery',d.cur.furnD,d.prev.furnD,d.yoy.furnD],
+    ['Junk Quotes',d.cur.quote,d.prev.quote,d.yoy.quote]
+  ];
+  tblRows.forEach(function(row,i){
+    var ry=y-54-i*16;
+    var mc=_rptPct(row[1],row[2]),yc=_rptPct(row[1],row[3]);
+    txt(p2,row[0],colXs[0],ry,8,fn,TEXT_C);
+    txtR(p2,String(row[1]),colXs[1],ry,8,fb,DARK);
+    txtR(p2,String(row[2]),colXs[2],ry,8,fn,TEXT_C);
+    txtR(p2,mc.s+mc.v+'%',colXs[3],ry,8,fb,mc.v>=0?GREEN:RED);
+    txtR(p2,String(row[3]),colXs[4],ry,8,fn,TEXT_C);
+    txtR(p2,yc.s+yc.v+'%',colXs[5],ry,8,fb,yc.v>=0?GREEN:RED);
+  });
+  y-=tblH+14;
+
+  // Executive Summary
+  var sumH=110;
+  card(p2,M,y-sumH,CW,sumH);
+  p2.drawRectangle({x:M,y:y-sumH+3,width:4,height:sumH-6,color:BLUE});
+  txt(p2,'Executive Summary',M+14,y-18,10,fb,DARK);
+  insights.summary.forEach(function(line,i){
+    if(line)txt(p2,line,M+14,y-34-i*10,8.5,fn,TEXT_C);
+  });
+  y-=sumH+14;
+
+  // Key Findings
+  var findH=108;
+  card(p2,M,y-findH,CW,findH);
+  p2.drawRectangle({x:M,y:y-findH+3,width:4,height:findH-6,color:GREEN});
+  txt(p2,'Key Findings',M+14,y-18,10,fb,DARK);
+  insights.findings.forEach(function(f,i){
+    if(!f.b)return;
+    var fy=y-34-i*15;
+    var bTxt='\u2022  '+f.b;
+    txt(p2,bTxt,M+20,fy,8,fb,DARK);
+    var bw=fb.widthOfTextAtSize(bTxt,8);
+    txt(p2,' '+f.r,M+20+bw,fy,8,fn,TEXT_C);
+  });
+  y-=findH+14;
+
+  // Recommendations
+  var recH=108;
+  card(p2,M,y-recH,CW,recH);
+  p2.drawRectangle({x:M,y:y-recH+3,width:4,height:recH-6,color:ORANGE});
+  txt(p2,'Recommendations',M+14,y-18,10,fb,DARK);
+  insights.recs.forEach(function(r,i){
+    if(!r.b)return;
+    var ry=y-34-i*15;
+    var bTxt='\u2022  '+r.b;
+    txt(p2,bTxt,M+20,ry,8,fb,DARK);
+    var bw=fb.widthOfTextAtSize(bTxt,8);
+    txt(p2,' '+r.r,M+20+bw,ry,8,fn,TEXT_C);
+  });
+
+  drawFooter(p2,2,2);
+
+  var pdfBytes = await pdfDoc.save();
+  toast('Report generated!');
+  return new Blob([pdfBytes], {type: 'application/pdf'});
+}
+
+async function openMonthlyReport() {
+  var picker = document.getElementById('report-month');
+  if (!picker || !picker.value) { toast('Please select a month'); return; }
+  var parts = picker.value.split('-');
+  var year = parseInt(parts[0]), month = parseInt(parts[1]);
+  var blob = await generateMonthlyReport(year, month);
+  if (blob) window.open(URL.createObjectURL(blob), '_blank');
+}
+
+async function emailMonthlyReport() {
+  var picker = document.getElementById('report-month');
+  if (!picker || !picker.value) { toast('Please select a month'); return; }
+  var parts = picker.value.split('-');
+  var year = parseInt(parts[0]), month = parseInt(parts[1]);
+  var blob = await generateMonthlyReport(year, month);
+  if (!blob) return;
+  // Download PDF
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = "Jeff's Junk - " + _rptMonthName(month) + ' ' + year + ' Report.pdf';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  // Try edge function email, fall back to mailto
+  try {
+    var reader = new FileReader();
+    reader.onloadend = async function() {
+      var base64 = reader.result.split(',')[1];
+      var r = await fetch(SUPABASE_URL + '/functions/v1/send-report-email', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY},
+        body: JSON.stringify({pdf: base64, month: _rptMonthName(month) + ' ' + year, recipients: REPORT_EMAILS})
+      });
+      if (r.ok) { toast('Report emailed to ' + REPORT_EMAILS.length + ' recipients!'); }
+      else { throw new Error('Edge function failed'); }
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    var subject = encodeURIComponent("Jeff's Junk - " + _rptMonthName(month) + ' ' + year + ' Monthly Report');
+    var body = encodeURIComponent('Hi,\n\nPlease find the ' + _rptMonthName(month) + ' ' + year + ' monthly business report attached.\n\nBest,\nJeff\'s Junk Dashboard');
+    window.open('mailto:' + REPORT_EMAILS.join(',') + '?subject=' + subject + '&body=' + body);
+    toast('Report downloaded \u2014 attach it to the email that just opened.');
+  }
+}
+
+function _rptCheckAutoGenerate() {
+  var now = new Date();
+  var prevMonth = now.getMonth(); // 0-indexed, so this IS the previous month number (1-indexed)
+  var prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  if (prevMonth === 0) prevMonth = 12;
+  var key = 'rpt_' + prevYear + '_' + prevMonth;
+  if (localStorage.getItem(key)) return;
+  // Show notification on analytics page
+  var el = document.getElementById('report-auto-banner');
+  if (el) {
+    el.style.display = 'block';
+    el.querySelector('.rpt-banner-month').textContent = _rptMonthName(prevMonth) + ' ' + prevYear;
+    el.dataset.year = prevYear;
+    el.dataset.month = prevMonth;
+  }
+}
+
+async function autoGenerateReport() {
+  var el = document.getElementById('report-auto-banner');
+  var year = parseInt(el.dataset.year), month = parseInt(el.dataset.month);
+  var blob = await generateMonthlyReport(year, month);
+  if (blob) {
+    window.open(URL.createObjectURL(blob), '_blank');
+    localStorage.setItem('rpt_' + year + '_' + month, '1');
+    el.style.display = 'none';
+  }
+}
+
+async function autoEmailReport() {
+  var el = document.getElementById('report-auto-banner');
+  var year = parseInt(el.dataset.year), month = parseInt(el.dataset.month);
+  // Set picker and use emailMonthlyReport
+  var picker = document.getElementById('report-month');
+  if (picker) picker.value = year + '-' + (month < 10 ? '0' : '') + month;
+  await emailMonthlyReport();
+  localStorage.setItem('rpt_' + year + '_' + month, '1');
+  el.style.display = 'none';
+}
+
+function initReportSection() {
+  var now = new Date();
+  var prevMonth = now.getMonth();
+  var prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  if (prevMonth === 0) prevMonth = 12;
+  var picker = document.getElementById('report-month');
+  if (picker) picker.value = prevYear + '-' + (prevMonth < 10 ? '0' : '') + prevMonth;
+  _rptCheckAutoGenerate();
+}
