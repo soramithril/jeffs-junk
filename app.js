@@ -7764,11 +7764,11 @@ function renderDrdInDetail(j){
 
   // Donor Name & Source
   html+='<div class="form-group" style="margin:0 0 12px 0"><label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Donor Name</label><input type="text" id="drd-d-donor-name" class="form-input" value="'+_esc(donorName)+'" style="font-size:12px;padding:6px 8px"></div>';
-  html+='<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+  html+='<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;white-space:nowrap">'
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-fb"'+(sources.indexOf('fb')>=0?' checked':'')+' style="accent-color:#a855f7"> FURNITURE BANK</label>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-jj"'+(sources.indexOf('jj')>=0?' checked':'')+' style="accent-color:#a855f7"> JEFF\'S JUNK</label>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-rp"'+(sources.indexOf('rp')>=0?' checked':'')+' style="accent-color:#a855f7"> REDWOOD PARK</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-d-src-fb"'+(sources.indexOf('fb')>=0?' checked':'')+' style="accent-color:#a855f7"> FURNITURE BANK</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-d-src-jj"'+(sources.indexOf('jj')>=0?' checked':'')+' style="accent-color:#a855f7"> JEFF\'S JUNK</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-d-src-rp"'+(sources.indexOf('rp')>=0?' checked':'')+' style="accent-color:#a855f7"> REDWOOD PARK</label>'
     +'</div>';
 
   html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">'
