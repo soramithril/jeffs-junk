@@ -202,8 +202,27 @@ async function processEvents(): Promise<string> {
 
     const jobId = extractJobId(zone.name);
     const newStatus = determineStatus(event);
-    // Auto-pickup disabled — bin pickup is user-controlled only
-    if (newStatus === "pickedup") continue;
+
+    // Auto-pickup is visual-only — log notification, never mutate the job.
+    // The Live Jobs page reads geofence_notifications to cross jobs off;
+    // bin_instatus stays user-controlled.
+    if (newStatus === "pickedup") {
+      const { data: pickedupJob } = await supabase
+        .from("jobs")
+        .select("name, bin_bid, address, city")
+        .eq("job_id", jobId)
+        .single();
+      await supabase.from("geofence_notifications").insert({
+        job_id: jobId,
+        status: "pickedup",
+        customer_name: pickedupJob?.name || null,
+        bin_bid: pickedupJob?.bin_bid || null,
+        address: pickedupJob?.address || null,
+        city: pickedupJob?.city || null,
+      });
+      updates.push(`${jobId} -> pickedup (visual only)`);
+      continue;
+    }
 
     // Fetch current job to check if status actually changed
     const { data: currentJob } = await supabase

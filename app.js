@@ -4032,29 +4032,29 @@ function sortJobList(arr){
 
 /**
  * Determine Live Jobs status for a job.
- * Purely based on geofence detection (bin_instatus). Does not read or
- * write the job's main status field — Live Jobs is fully isolated.
- * Bin Rental dropoff day: no status=Pending, dropped=Done (bin delivered)
- * Bin Rental pickup day:  dropped=Pending (waiting for pickup), pickedup=Done
- * Non-bin jobs:           no status=Pending, dropped=On Site, pickedup=Done
+ * Drop-off side reads bin_instatus (edge function still auto-sets 'dropped').
+ * Pick-up side is visual-only: crosses off if a geofence pickup notification
+ * exists for today (geoPickedUp) OR the user manually clicked Picked Up.
+ * Never writes anything — Live Jobs is fully isolated.
  */
-function ljStatus(j,today){
+function ljStatus(j,today,geoPickedUp){
+  var geoDone = geoPickedUp && geoPickedUp.has(j.id);
   if(j.service==='Bin Rental'){
     var isDropDay=j.binDropoff===today;
     var isPickDay=j.binPickup===today;
-    if(isPickDay && j.binInstatus==='pickedup') return 'done';
-    if(isPickDay && j.binInstatus!=='pickedup') return 'pending';
+    if(isPickDay && (j.binInstatus==='pickedup' || geoDone)) return 'done';
+    if(isPickDay) return 'pending';
     if(isDropDay && j.binInstatus==='dropped') return 'done';
     if(isDropDay && j.binInstatus==='pickedup') return 'done';
     return 'pending';
   }
   // Non-bin jobs
-  if(j.binInstatus==='pickedup') return 'done';
+  if(j.binInstatus==='pickedup' || geoDone) return 'done';
   if(j.binInstatus==='dropped') return 'onsite';
   return 'pending';
 }
 
-function renderLiveJobs(){
+async function renderLiveJobs(){
   var today=todayStr();
   var todayJobs=jobs.filter(function(j){
     if(j.status==='Cancelled') return false;
@@ -4064,8 +4064,18 @@ function renderLiveJobs(){
     return jobSchedDate(j)===today;
   });
 
+  // Fetch today's pickup geofence notifications — visual cross-off only, no DB writes
+  var geoPickedUp = new Set();
+  try {
+    var rNotif = await db.from('geofence_notifications').select('job_id')
+      .eq('status','pickedup')
+      .gte('created_at', today+'T00:00:00')
+      .lt('created_at', today+'T23:59:59.999');
+    if(rNotif.data) rNotif.data.forEach(function(x){ geoPickedUp.add(x.job_id); });
+  } catch(e) { console.warn('geofence notif load error:', e); }
+
   // Compute status for each job
-  todayJobs.forEach(function(j){ j._ljStatus=ljStatus(j,today); });
+  todayJobs.forEach(function(j){ j._ljStatus=ljStatus(j,today,geoPickedUp); });
 
   // Bucket each job into one of seven categories
   function bucketOf(j){
