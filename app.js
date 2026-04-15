@@ -1070,6 +1070,21 @@ async function loadAllFromSupabase() {
         });
       }
       // Auto-pickup removed — bin pickup status is user-controlled only
+
+      // Reconcile bin_items.status with actual assignments:
+      // any bin assigned to a currently-dropped Bin Rental job must be 'out'.
+      var assignedOutJobs = await db.from('jobs').select('bin_bid')
+        .eq('service','Bin Rental')
+        .eq('bin_instatus','dropped')
+        .not('bin_bid','is',null);
+      if(assignedOutJobs.data && assignedOutJobs.data.length){
+        var outBids = assignedOutJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
+        var staleInYard = binItems.filter(function(b){ return b.status==='in' && outBids.indexOf(b.bid)>=0; }).map(function(b){return b.bid;});
+        if(staleInYard.length){
+          await db.from('bin_items').update({status:'out'}).in('bid',staleInYard);
+          binItems.forEach(function(b){ if(staleInYard.indexOf(b.bid)>=0) b.status='out'; });
+        }
+      }
     } catch(e){ console.warn('Auto-mark error:',e); }
     setTimeout(function(){ _suppressBinNotify = false; }, 5000);
     renderDash();
