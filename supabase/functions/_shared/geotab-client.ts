@@ -5,7 +5,7 @@
 
 const GEOTAB_AUTH_URL = "https://my.geotab.com/apiv1";
 const ZONE_PREFIX = "BIN_AUTO_";
-const ZONE_RADIUS_METERS = 200;
+const ZONE_RADIUS_METERS = 25;
 const CIRCLE_POINTS = 24; // polygon vertices to approximate a circle
 
 interface GeotabCredentials {
