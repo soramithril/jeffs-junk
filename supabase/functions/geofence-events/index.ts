@@ -202,6 +202,8 @@ async function processEvents(): Promise<string> {
 
     const jobId = extractJobId(zone.name);
     const newStatus = determineStatus(event);
+    // Auto-pickup disabled — bin pickup is user-controlled only
+    if (newStatus === "pickedup") continue;
 
     // Fetch current job to check if status actually changed
     const { data: currentJob } = await supabase
