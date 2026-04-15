@@ -7737,8 +7737,8 @@ function renderDrdInDetail(j){
   var qtys=drd.quantities||[];
   var otherItems=drd.otherItems||[];
   var emailedDate=drd.emailedDate||'';
-  // Auto-fill from job
-  var donorName=j.name||'';
+  // Donor name is independent of customer name — blank unless user entered one
+  var donorName=drd.donorName||'';
   var donorAddr=j.address||'';
   var donorCity=j.city||'';
   var donorPostal=drd.postal||'';
@@ -7762,12 +7762,13 @@ function renderDrdInDetail(j){
   var html='<div class="detail-section" style="border:2px solid rgba(168,85,247,.3);border-radius:12px;padding:16px;margin-top:12px;background:rgba(168,85,247,.03)">'
     +'<div class="detail-section-title" style="color:#a855f7;font-size:15px;margin-bottom:12px">📋 Donation Receiving Document (DRD)</div>';
 
-  // Source & Header
+  // Donor Name & Source
+  html+='<div class="form-group" style="margin:0 0 12px 0"><label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Donor Name</label><input type="text" id="drd-d-donor-name" class="form-input" value="'+_esc(donorName)+'" style="font-size:12px;padding:6px 8px"></div>';
   html+='<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-fb"'+(sources.indexOf('fb')>=0?' checked':'')+' style="accent-color:#a855f7"> FB</label>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-jj"'+(sources.indexOf('jj')>=0?' checked':'')+' style="accent-color:#a855f7"> JJ</label>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-rp"'+(sources.indexOf('rp')>=0?' checked':'')+' style="accent-color:#a855f7"> RP</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-fb"'+(sources.indexOf('fb')>=0?' checked':'')+' style="accent-color:#a855f7"> FURNITURE BANK</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-jj"'+(sources.indexOf('jj')>=0?' checked':'')+' style="accent-color:#a855f7"> JEFF\'S JUNK</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="drd-d-src-rp"'+(sources.indexOf('rp')>=0?' checked':'')+' style="accent-color:#a855f7"> REDWOOD PARK</label>'
     +'</div>';
 
   html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">'
@@ -7780,7 +7781,6 @@ function renderDrdInDetail(j){
   html+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px">'
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">👤 Donor Information</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-    +'<div class="form-group" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Name</label><input type="text" id="drd-d-name" class="form-input" value="'+_esc(donorName)+'" style="font-size:12px;padding:6px 8px"></div>'
     +'<div class="form-group" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Address</label><input type="text" id="drd-d-addr" class="form-input" value="'+_esc(donorAddr)+'" style="font-size:12px;padding:6px 8px"></div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">City</label><input type="text" id="drd-d-city" class="form-input" value="'+_esc(donorCity)+'" style="font-size:12px;padding:6px 8px"></div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Postal Code</label><input type="text" id="drd-d-postal" class="form-input" value="'+_esc(donorPostal)+'" style="font-size:12px;padding:6px 8px"></div>'
@@ -7902,6 +7902,7 @@ function _collectDrdFromDetail(){
   }
   return {
     sources:sources,
+    donorName:(document.getElementById('drd-d-donor-name')||{}).value||'',
     opp:(document.getElementById('drd-d-opp')||{}).value||'',
     tax:(document.getElementById('drd-d-tax')||{}).value||'YES',
     quantities:quantities,
@@ -7944,7 +7945,7 @@ async function printDrdForJob(jobId){
     setField('Untitled5',drdData.tax,10);
     setField('Untitled6',(document.getElementById('drd-d-date')||{}).value||j.date||'',10);
     // Donor info — shift text down 2px for better alignment
-    setField('Untitled7',(document.getElementById('drd-d-name')||{}).value||j.name||'',10);  shiftFieldDown('Untitled7',2);
+    setField('Untitled7',drdData.donorName||j.name||'',10);  shiftFieldDown('Untitled7',2);
     setField('Untitled9',(document.getElementById('drd-d-addr')||{}).value||j.address||'',10);  shiftFieldDown('Untitled9',2);
     setField('Untitled11',(document.getElementById('drd-d-city')||{}).value||j.city||'',10);  shiftFieldDown('Untitled11',2);
     setField('Untitled10',drdData.postal,10);  shiftFieldDown('Untitled10',2);
@@ -9264,6 +9265,7 @@ function _collectDrdFromModal(){
   }
   return {
     sources:sources,
+    donorName:(document.getElementById('drd-m-donor-name')||{}).value||'',
     opp:(document.getElementById('drd-m-opp')||{}).value||'',
     tax:(document.getElementById('drd-m-tax')||{}).value||'YES',
     quantities:quantities,
@@ -9278,6 +9280,7 @@ function _collectDrdFromModal(){
 function _clearDrdModal(){
   var g=document.getElementById('drd-m-items-grid');if(g)g.innerHTML='';
   var o=document.getElementById('drd-m-other-rows');if(o)o.innerHTML='';
+  var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value='';
   var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=true;
   var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=false;
   var rp=document.getElementById('drd-m-src-rp');if(rp)rp.checked=false;
@@ -9290,6 +9293,7 @@ function _clearDrdModal(){
 }
 function _fillDrdModal(drd){
   if(!drd)return;
+  var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value=drd.donorName||'';
   var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=(drd.sources||[]).indexOf('fb')>=0;
   var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=(drd.sources||[]).indexOf('jj')>=0;
   var rp=document.getElementById('drd-m-src-rp');if(rp)rp.checked=(drd.sources||[]).indexOf('rp')>=0;
