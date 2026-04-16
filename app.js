@@ -387,13 +387,13 @@ function _extractCity(r) {
 }
 
 function _initStaticAddressAutocomplete() {
-  // Job form: f-addr + f-city
+  // Job form: f-addr + hidden f-city
   var fAddr = document.getElementById('f-addr');
   var fCity = document.getElementById('f-city');
   if (fAddr) {
     attachAddressAutocomplete(fAddr, function(street, city) {
       fAddr.value = street;
-      if (fCity && city) { fCity.value = city; clearErr('f-city'); }
+      if (fCity && city) { fCity.value = city; }
     });
   }
   // Donation receipt: drd-addr + drd-city
@@ -6836,12 +6836,11 @@ function clearErr(fieldId){
 }
 function validateJob(){
   // Clear all errors first
-  ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
+  ['f-svc','f-name','f-date'].forEach(clearErr);
   var ok = true;
   var svc  = document.getElementById('f-svc').value;
   var name = document.getElementById('f-name').value.trim();
   var date = document.getElementById('f-date').value;
-  var city = document.getElementById('f-city').value.trim();
   if(!svc){
     document.getElementById('err-f-svc').textContent = 'Please choose a service type (Bin Rental, Junk Removal, etc.)';
     showErr('f-svc'); ok = false;
@@ -6853,10 +6852,6 @@ function validateJob(){
   if(!date){
     document.getElementById('err-f-date').textContent = 'Please pick a date for this job.';
     showErr('f-date'); ok = false;
-  }
-  if(!city){
-    document.getElementById('err-f-city').textContent = 'City is required (e.g. Barrie).';
-    showErr('f-city'); ok = false;
   }
   return ok;
 }
@@ -6963,7 +6958,7 @@ function newJob(){
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
-  ['f-svc','f-names','f-date','f-city'].forEach(clearErr);
+  ['f-svc','f-names','f-date'].forEach(clearErr);
   var recChk=document.getElementById('f-recurring');if(recChk)recChk.checked=false;
   var recOpts=document.getElementById('recurring-opts');if(recOpts)recOpts.style.display='none';
   var recInt=document.getElementById('f-recur-interval');if(recInt)recInt.value='biweekly';
@@ -7306,22 +7301,17 @@ async function saveJob(e){
   var name=names.length?names[0]:'';
   var svc      = document.getElementById('f-svc').value;
   var date     = document.getElementById('f-date').value;
-  var city     = toTitleCase(document.getElementById('f-city').value.trim());
   var referral = document.getElementById('f-referral').value;
   if(referral==='__add_new__') referral='';
 
-  // Write Title Case back to city field
-  document.getElementById('f-city').value = city;
-
   // Clear previous field errors
-  ['f-svc','f-names','f-date','f-city','f-referral'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-referral'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
   if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); }
   if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); }
   if(!date)     { showErr('f-date');     errs.push('Date is required.'); }
-  if(!city)     { showErr('f-city');     errs.push('City is required (e.g. Barrie).'); }
   if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); }
   var timeVal=document.getElementById('f-time').value;
@@ -7343,6 +7333,8 @@ async function saveJob(e){
   var cid    = document.getElementById('f-client-select').value;
   var street = document.getElementById('f-addr').value.trim();
   var fullAddr = street || '';
+  // Auto-extract city: prefer hidden field (set by autofill/client picker), fall back to parsing address
+  var city = toTitleCase((document.getElementById('f-city').value || '').trim()) || extractCity(fullAddr, '');
 
   // If client selected and user entered a new address via the picker, save it to the client
   if(cid&&_selectedClientObj&&street){
@@ -8160,7 +8152,7 @@ function convertQuoteToJob(quoteId){
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
   document.getElementById('bin-extra').style.display='none';
   toggleBin();
-  ['f-svc','f-name','f-date','f-city'].forEach(clearErr);
+  ['f-svc','f-name','f-date'].forEach(clearErr);
   document.getElementById('job-modal').classList.add('open');
 }
 function markUnconfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});patchJob(id,{confirmed:false});toast('Confirmation removed.');refresh();}
