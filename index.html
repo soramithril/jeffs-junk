@@ -1289,17 +1289,22 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:10px">
         <div class="form-group" style="margin:0">
           <label>Street Address</label>
           <div id="f-addr-picker" style="display:none;margin-bottom:6px">
             <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%"></select>
           </div>
           <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
-          <input id="f-city" type="hidden" value="">
           <input id="f-province" type="hidden" value="Ontario">
           <input id="f-country" type="hidden" value="Canada">
         </div>
+        <div class="form-group" style="margin:0">
+          <label>City</label>
+          <input id="f-city" type="text" value="">
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
         <div class="form-group" style="margin:0">
           <label>Business Name <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
           <input type="text" id="f-business-name" placeholder="" style="width:100%;box-sizing:border-box">

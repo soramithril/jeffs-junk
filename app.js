@@ -7350,9 +7350,13 @@ async function saveJob(e){
 
   var cid    = document.getElementById('f-client-select').value;
   var street = document.getElementById('f-addr').value.trim();
+  // Auto-extract city: prefer city field (set by autofill/client picker), fall back to parsing address
+  var city = toTitleCase((document.getElementById('f-city').value || '').trim()) || extractCity(street, '');
+  // Strip city from street if user typed it there to avoid duplication (e.g. "123 Main St, Barrie" + city "Barrie")
+  if(city && street.toLowerCase().endsWith(city.toLowerCase())){
+    street = street.substring(0, street.length - city.length).replace(/[,\s]+$/,'');
+  }
   var fullAddr = street || '';
-  // Auto-extract city: prefer hidden field (set by autofill/client picker), fall back to parsing address
-  var city = toTitleCase((document.getElementById('f-city').value || '').trim()) || extractCity(fullAddr, '');
 
   // If client selected and user entered a new address via the picker, save it to the client
   if(cid&&_selectedClientObj&&street){
