@@ -3129,10 +3129,10 @@ async function refreshDashJobs(){
         var binBadge='';
         if(legAssignedBin){
           var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:14px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
+          binBadge='<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
         } else if(j.binSize){
           var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:14px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
+          binBadge='<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
         }
         var timeStr=(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?ft(st):'';}());
         var addrStr=j.address?j.address.split(',')[0]:'';
@@ -3144,12 +3144,12 @@ async function refreshDashJobs(){
           actionBtn='<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 '+(j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup')+'</button>';
         }
         return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
-          +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:15px">'
+          +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
             +'<span style="flex-shrink:0">'+j.name+'</span>'
             +binBadge
             +confirmBadge
-            +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:14px;flex-shrink:0">'+timeStr+'</span>':'')
-            +(addrStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis">📍 '+addrStr+'</span>':'')
+            +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;flex-shrink:0">'+timeStr+'</span>':'')
+            +(addrStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+addrStr+'</span>':'')
           +'</div>'
           +(j.service==='Bin Rental'&&!j.binBid?'<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap;flex-shrink:0">📦 Assign</button>':'')
           +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+actionBtn+'</div>'
@@ -3584,10 +3584,10 @@ async function renderDash(){
         var binBadge = '';
         if(todayAssignedBin){
           var sz = (j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:14px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
+          binBadge = '<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
         } else if(j.binSize){
           var sz2 = j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:14px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
+          binBadge = '<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
         }
         var assignBinBtn = (j.service==='Bin Rental' && !j.binBid)
           ? '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap;flex-shrink:0">📦 Assign</button>'
@@ -3598,12 +3598,12 @@ async function renderDash(){
         })();
         var addrStr = j.address ? j.address.split(',')[0] : '';
         return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
-          +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:15px">'
+          +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
             +'<span style="flex-shrink:0">'+j.name+'</span>'
             +binBadge
             +confirmBadge
-            +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:14px;flex-shrink:0">'+timeStr+'</span>':'')
-            +(addrStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis">📍 '+addrStr+'</span>':'')
+            +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;flex-shrink:0">'+timeStr+'</span>':'')
+            +(addrStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+addrStr+'</span>':'')
           +'</div>'
           +assignBinBtn
           +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+actionBtn+'</div>'

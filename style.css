@@ -37,7 +37,7 @@
    Wrapper handles padding/border/flex; this class handles typography only. ── */
 .card-head{
   font-family:'Inter',system-ui,-apple-system,sans-serif;
-  font-size:13px;font-weight:700;
+  font-size:18px;font-weight:700;
   text-transform:uppercase;letter-spacing:.8px;
   color:var(--text-secondary);
   line-height:1.2;
