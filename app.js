@@ -3116,7 +3116,7 @@ async function refreshDashJobs(){
     if(!list.length)return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     return '<div style="margin-bottom:4px">'
-      +'<div style="font-family:Bebas Neue,sans-serif;font-size:16px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+      +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed;
         var confirmBadge='';
@@ -3132,7 +3132,7 @@ async function refreshDashJobs(){
           binBadge='<span style="font-size:14px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
         } else if(j.binSize){
           var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:14px;font-weight:600;background:rgba(0,0,0,.04);color:var(--text);border:1px solid var(--border-strong);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
+          binBadge='<span style="font-size:14px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
         }
         var timeStr=(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?ft(st):'';}());
         var addrStr=j.address?j.address.split(',')[0]:'';
@@ -3145,7 +3145,7 @@ async function refreshDashJobs(){
         }
         return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:15px">'
-            +'<strong style="flex-shrink:0">'+j.name+'</strong>'
+            +'<span style="flex-shrink:0">'+j.name+'</span>'
             +binBadge
             +confirmBadge
             +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:14px;flex-shrink:0">'+timeStr+'</span>':'')
@@ -3552,10 +3552,10 @@ async function renderDash(){
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
   function makeTodayCat(title,color,list,showBinActions){
-    if(!list.length)return '<div style="margin-bottom:4px"><div style="font-family:Bebas Neue,sans-serif;font-size:16px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">0</span></div><div style="font-size:13px;color:var(--muted);padding:2px 14px 6px;font-style:italic">No jobs today</div></div>';
+    if(!list.length)return '<div style="margin-bottom:4px"><div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">0</span></div><div style="font-size:13px;color:var(--muted);padding:2px 14px 6px;font-style:italic">No jobs today</div></div>';
     var showConfirm = showBinActions || title.indexOf('Furniture')>=0;
     return '<div style="margin-bottom:4px">'
-      +'<div style="font-family:Bebas Neue,sans-serif;font-size:16px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+      +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm = j.confirmed;
         var confirmBadge = '';
@@ -3587,7 +3587,7 @@ async function renderDash(){
           binBadge = '<span style="font-size:14px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
         } else if(j.binSize){
           var sz2 = j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:14px;font-weight:600;background:rgba(0,0,0,.04);color:var(--text);border:1px solid var(--border-strong);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
+          binBadge = '<span style="font-size:14px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
         }
         var assignBinBtn = (j.service==='Bin Rental' && !j.binBid)
           ? '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap;flex-shrink:0">📦 Assign</button>'
@@ -3599,7 +3599,7 @@ async function renderDash(){
         var addrStr = j.address ? j.address.split(',')[0] : '';
         return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:15px">'
-            +'<strong style="flex-shrink:0">'+j.name+'</strong>'
+            +'<span style="flex-shrink:0">'+j.name+'</span>'
             +binBadge
             +confirmBadge
             +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:14px;flex-shrink:0">'+timeStr+'</span>':'')
