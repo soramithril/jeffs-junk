@@ -7630,55 +7630,53 @@ async function openDetail(id){
     +'📜 Edit History <span id="history-toggle-'+j.id+'" style="font-size:11px;color:var(--muted);margin-left:6px">▶ Show</span></div>'
     +'<div id="job-history-'+j.id+'" style="display:none;max-height:300px;overflow-y:auto"></div></div>'
 
-    +'<div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px;display:flex;flex-direction:column;gap:10px">'
+    +'<div class="det-actions">'
 
-    // ── Row 1: Primary Actions ──
-    +'<div style="display:flex;gap:10px">'
-    +'<button class="btn btn-primary" onclick="openEdit(\''+j.id+'\')" style="flex:1;justify-content:center">✏️ Edit Job</button>'
-    +'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>'
-    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
-    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
-    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
-    +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
-    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
-    +'</div>'
+    // ── Group 1: Actions ──
+    +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
+    +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
+    +(j.emailConfirmed
+      ?'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center">✅ Email Sent</button>'
+      :'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>')
+    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
+    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
+    +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
+    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
+    +'</div></div>'
 
-    // ── Row 2: Customer Confirmation ──
+    // ── Group 2: Confirmation ──
     +(function(){
       var cbtns=[];
       if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){
-        var confirmLabel=j.service==='Furniture Delivery'?'Call to Confirm Drop-Off':'Call to Confirm Pickup';
-        cbtns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">📞 '+confirmLabel+'</button>');
+        var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';
+        cbtns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">📞 '+confirmLabel+'</button>');
       }
-      if(!j.emailConfirmed){
-        cbtns.push('<button class="btn btn-ghost" onclick="markEmailConfirmed(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Email Sent</button>');
-      }
-      return cbtns.length ? '<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">Customer Confirmation</div><div style="display:flex;gap:10px">'+cbtns.join('')+'</div></div>' : '';
+      return cbtns.length ? '<div class="det-action-group"><div class="det-group-label">Confirmation</div><div class="det-btn-grid">'+cbtns.join('')+'</div></div>' : '';
     }())
 
-    // ── Row 3: Bin / Job Actions ──
+    // ── Group 3: Bin / Job Actions ──
     +(function(){
       var btns=[];
-      if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e;font-weight:700">⚡ Convert to Job</button>');
-      if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
-      if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22;position:relative">📅 Extend Pickup</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
+      if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e;font-weight:700">⚡ Convert to Job</button>');
+      if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
+      if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22;position:relative">📅 Extend Pickup</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
       if(j.recurring && j.service==='Junk Removal'){
-        btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
+        btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
       }
       var sectionLabel=j.service==='Bin Rental'?'Bin Actions':'Job Actions';
-      return btns.length ? '<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">'+sectionLabel+'</div><div style="display:flex;gap:10px;flex-wrap:wrap">'+btns.join('')+'</div></div>' : '';
+      return btns.length ? '<div class="det-action-group"><div class="det-group-label">'+sectionLabel+'</div><div class="det-btn-grid">'+btns.join('')+'</div></div>' : '';
     }())
 
-    // ── Row 4: Danger Zone ──
-    +'<div style="margin-top:2px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">Danger Zone</div>'
-    +'<div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--border)">'
-    +(j.status!=='Cancelled'?'<button class="btn btn-ghost" onclick="cancelJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(220,53,69,.3);color:#dc3545">🚫 Cancel Job</button>':'')
-    +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')" style="flex:1;justify-content:center">🗑️ Delete</button>'
-    +'</div></div>'
+    // ── Group 4: Danger Zone ──
+    +'<div class="det-danger-box"><div class="det-action-group" style="gap:10px"><div class="det-group-label">Danger Zone</div><div class="det-btn-grid">'
+    +(j.status!=='Cancelled'?'<button class="btn btn-ghost" onclick="cancelJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(220,53,69,.3);color:#dc3545">🚫 Cancel Job</button>':'')
+    +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')" style="justify-content:center">🗑️ Delete</button>'
+    +'</div></div></div>'
 
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
