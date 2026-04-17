@@ -3109,7 +3109,7 @@ async function refreshDashJobs(){
 
   // Urgency state
   var card = document.getElementById('card-today-jobs');
-  if(card) card.className = 'chart-card ' + (total===0?'urgency-ok':total>=5?'urgency-warn':'urgency-neutral');
+  if(card) card.className = 'chart-card urgency-neutral';
 
   // Render job rows (reuse same makeTodayCat pattern)
   function makeCat(title,color,list,isPickup){
@@ -3532,7 +3532,7 @@ async function renderDash(){
 
   // Today card urgency
   var todayCard = document.getElementById('card-today-jobs');
-  if(todayCard) todayCard.className = 'chart-card ' + (totalTodayCount===0?'urgency-ok':totalTodayCount>=5?'urgency-warn':'urgency-neutral');
+  if(todayCard) todayCard.className = 'chart-card urgency-neutral';
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
   function makeTodayCat(title,color,list,showBinActions){
