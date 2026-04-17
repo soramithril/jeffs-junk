@@ -1231,10 +1231,30 @@
       <button class="modal-close" onclick="closeM('job-modal')">&#x2715;</button>
     </div>
     <form onsubmit="return false;" novalidate>
-      <div style="background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.15);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--accent)">
-        👤 <strong>Search existing client</strong> or fill in new customer info below
+      <!-- Hidden fields -->
+      <input type="hidden" id="f-status" value="">
+      <input type="hidden" id="f-price" value="">
+      <input type="hidden" id="f-paid" value="Unpaid">
+      <input id="f-date" type="hidden"><div class="field-error-msg" id="err-f-date" style="display:none">Date is required.</div>
+      <input id="f-time" type="hidden"><div class="field-error-msg" id="err-f-time" style="display:none"></div>
+
+      <!-- ── SERVICE TYPE (full width, first pick) ── -->
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Service Type <span style="color:#dc3545">*</span></label>
+        <select id="f-svc" onchange="toggleBin();clearErr('f-svc')">
+          <option value="">Select...</option>
+          <option>Bin Rental</option><option>Junk Removal</option><option>Junk Quote</option>
+          <option>Furniture Pickup</option><option>Furniture Delivery</option>
+        </select>
+        <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
       </div>
-      <div class="form-group full" style="margin-bottom:16px;position:relative">
+
+      <div class="job-form-divider"></div>
+
+      <!-- ── ① CUSTOMER ── -->
+      <div class="job-form-section-label"><span class="job-form-section-num">1</span> Customer</div>
+
+      <div class="form-group" style="margin-bottom:14px;position:relative">
         <label>Search Existing Client</label>
         <input type="text" id="f-client-search" placeholder="Type name or phone..." autocomplete="off"
           oninput="clientSearchDebounce(this.value)"
@@ -1248,113 +1268,56 @@
           <button type="button" onclick="clearClientSelection()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">✕</button>
         </div>
       </div>
-      <input type="hidden" id="f-status" value="">
-      <input type="hidden" id="f-price" value="">
-      <input type="hidden" id="f-paid" value="Unpaid">
 
-      <!-- ── Row 1: Service Type + Scheduling side-by-side ── -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div class="form-group">
-          <label>Service Type <span style="color:#dc3545">*</span></label>
-          <select id="f-svc" onchange="toggleBin();clearErr('f-svc')">
-            <option value="">Select...</option>
-            <option>Bin Rental</option><option>Junk Removal</option><option>Junk Quote</option>
-            <option>Furniture Pickup</option><option>Furniture Delivery</option>
-          </select>
-          <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Name(s) <span style="color:#dc3545">*</span></label>
+        <div id="f-names-wrap"></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Name</button>
+        <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>Phone(s)</label>
+          <div id="f-phones-wrap"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Phone</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label>Created Date</label><input id="f-date" type="date" readonly style="opacity:.7;pointer-events:none"><div class="field-error-msg" id="err-f-date">Date is required.</div></div>
-          <div class="form-group"><label>Created Time</label><input id="f-time" type="time" readonly style="opacity:.7;pointer-events:none"><div class="field-error-msg" id="err-f-time"></div></div>
+        <div class="form-group" style="margin:0">
+          <label>Email(s)</label>
+          <div id="f-emails-wrap"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobEmail()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Email</button>
         </div>
       </div>
 
-      <!-- ── Row 2: Contact Info + Location side-by-side ── -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <!-- Contact Info -->
-        <div style="background:rgba(59,130,246,.12);border:1.5px solid rgba(59,130,246,.35);border-radius:12px;padding:14px 16px">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-            <span style="font-size:15px">👤</span>
-            <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#3b82f6">Contact Info</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>Street Address</label>
+          <div id="f-addr-picker" style="display:none;margin-bottom:6px">
+            <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%"></select>
           </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label>Name(s) <span style="color:#dc3545">*</span></label>
-            <div id="f-names-wrap"></div>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:4px;color:#3b82f6;border-color:rgba(59,130,246,.3);font-size:12px;padding:4px 10px">+ Name</button>
-            <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
-          </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label>Phone(s)</label>
-            <div id="f-phones-wrap"></div>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:4px;color:#3b82f6;border-color:rgba(59,130,246,.3);font-size:12px;padding:4px 10px">+ Phone</button>
-          </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label>Business Name</label>
-            <input type="text" id="f-business-name" placeholder="Business name (optional)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px">
-          </div>
-          <div class="form-group">
-            <label>Email(s)</label>
-            <div id="f-emails-wrap"></div>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="addJobEmail()" style="margin-top:4px;color:#3b82f6;border-color:rgba(59,130,246,.3);font-size:12px;padding:4px 10px">+ Email</button>
-          </div>
-        </div>
-        <!-- Location -->
-        <div style="background:rgba(168,85,247,.12);border:1.5px solid rgba(168,85,247,.35);border-radius:12px;padding:14px 16px">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-            <span style="font-size:15px">📍</span>
-            <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#a855f7">Location</span>
-          </div>
-          <div class="form-group" style="margin-bottom:10px">
-            <label>Street Address</label>
-            <div id="f-addr-picker" style="display:none;margin-bottom:6px">
-              <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%"></select>
-            </div>
-            <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
-          </div>
+          <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
           <input id="f-city" type="hidden" value="">
           <input id="f-province" type="hidden" value="Ontario">
           <input id="f-country" type="hidden" value="Canada">
         </div>
+        <div class="form-group" style="margin:0">
+          <label>Business Name <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
+          <input type="text" id="f-business-name" placeholder="" style="width:100%;box-sizing:border-box">
+        </div>
       </div>
 
-      <!-- ── Row 3: Details — Referral + Payment side-by-side ── -->
-      <div style="background:rgba(34,197,94,.1);border:1.5px solid rgba(34,197,94,.3);border-radius:12px;padding:14px 16px;margin-bottom:4px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-          <span style="font-size:15px">📋</span>
-          <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#22c55e">Details</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="form-group">
-            <label>Referral Source <span style="color:#dc3545">*</span></label>
-            <select id="f-referral" oninput="clearErr('f-referral')" onchange="if(this.value==='__add_new__')addReferralSource('f-referral')">
-              <option value="">— Choose source —</option>
-              <option value="__add_new__">+ Add new source…</option>
-            </select>
-            <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
-          </div>
-          <div class="form-group" style="display:none">
-            <label>Payment Method</label>
-            <select id="f-paymethod">
-              <option value="">— Not set —</option>
-              <option value="Cash">Cash</option>
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit">Debit</option>
-              <option value="E-Transfer">E-Transfer</option>
-              <option value="Cheque">Cheque</option>
-              <option value="Invoice">Invoice</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div id="bin-extra" style="display:none;margin-top:16px">
-        <div style="height:2px;background:linear-gradient(90deg,var(--accent),rgba(34,197,94,.08));border-radius:2px;margin-bottom:16px"></div>
-        <div style="font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:14px;font-weight:700">🚛 Bin Details</div>
-        <!-- Hidden: actual bin_bid and bin_size are set by the picker below -->
+      <div class="job-form-divider"></div>
+
+      <!-- ── ② SCHEDULING & DETAILS ── -->
+      <div class="job-form-section-label"><span class="job-form-section-num">2</span> Scheduling & Details</div>
+
+      <!-- Bin Details (Bin Rental only) -->
+      <div id="bin-extra" style="display:none">
         <input type="hidden" id="f-bsize">
 
-        <!-- Bin Size selector — always visible -->
+        <div class="job-form-subsection-label">🚛 Bin Selection</div>
         <div style="margin-bottom:14px">
-          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;color:var(--accent)">Bin Size</label>
+          <label>Bin Size</label>
           <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="selectBinSize('4 yard',this)">4 yd</button>
             <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="selectBinSize('7 yard',this)">7 yd</button>
@@ -1362,7 +1325,6 @@
             <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="selectBinSize('20 yard',this)">20 yd</button>
           </div>
           <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
-          <!-- Assign specific bin — collapsed by default -->
           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
             <span id="bin-picker-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg);color:var(--accent)">▶</span>
             <label style="cursor:pointer;margin:0;color:var(--accent)">Assign Specific Bin</label>
@@ -1373,7 +1335,7 @@
         </div>
 
         <div id="material-type-wrap" style="display:none;margin-bottom:14px">
-          <label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block;color:var(--accent)">Material Type <span style="font-size:11px;color:var(--muted)">(4 & 7 yard only)</span></label>
+          <label>Material Type <span style="font-size:11px;color:var(--muted)">(4 & 7 yard only)</span></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Concrete" onclick="selectMaterial('Concrete',this)">Concrete</button>
             <button type="button" class="btn btn-ghost btn-sm mat-btn" data-mat="Dirt" onclick="selectMaterial('Dirt',this)">Dirt</button>
@@ -1382,13 +1344,12 @@
           <input type="hidden" id="f-material-type" value="">
         </div>
 
-        <!-- Dates row: Drop-off and Pickup side by side -->
+        <div class="job-form-subsection-label" style="margin-top:16px">📅 Scheduling</div>
         <div class="form-grid" style="margin-bottom:12px">
           <div class="form-group"><label>Drop-off Date</label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div></div>
           <div class="form-group"><label>Pickup Date</label><div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div></div>
         </div>
 
-        <!-- Duration + Quick presets inline -->
         <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
           <div class="form-group" style="flex:0 0 80px;min-width:80px"><label>Duration</label><input id="f-bdur" type="text" placeholder="" style="text-align:center;font-size:13px;padding:8px 6px"></div>
           <div style="display:flex;gap:8px;padding-bottom:1px;flex:1">
@@ -1399,17 +1360,28 @@
           </div>
         </div>
 
+        <div class="job-form-subsection-label" style="margin-top:16px">📍 Placement</div>
         <div class="form-grid" style="margin-bottom:14px">
           <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option><option value="see notes">See Notes</option></select></div>
           <div class="form-group"><label>Bin Status</label><select id="f-binstatus"><option value="">Pending</option><option value="dropped">✅ Dropped Off</option><option value="pickedup">✅ Picked Up</option></select></div>
         </div>
-        <!-- Recurring swap removed — was causing user confusion -->
+
         <input type="hidden" id="f-recurring" value="">
         <input type="hidden" id="f-recur-interval" value="">
         <div id="recurring-opts" style="display:none"></div>
       </div>
-      <!-- Recurring option for Junk Removal (Bin Rental recurring is in bin-extra above) -->
-      <div id="junk-recurring-extra" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+
+      <!-- Junk Schedule (Quote / Removal) -->
+      <div id="junk-schedule-wrap" style="display:none;margin-bottom:14px">
+        <div class="job-form-subsection-label"><span style="font-size:14px">📅</span> <span id="junk-schedule-label">Job Schedule</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
+          <div class="form-group"><label id="junk-time-label">Job Time</label><input id="f-junk-time" type="time"></div>
+        </div>
+      </div>
+
+      <!-- Junk Recurring -->
+      <div id="junk-recurring-extra" style="display:none;margin-bottom:14px;padding-top:12px;border-top:1px solid var(--border)">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px">
           <input type="checkbox" id="f-junk-recurring" onchange="document.getElementById('junk-recurring-opts').style.display=this.checked?'block':'none'" style="width:15px;height:15px;accent-color:var(--accent)">
           ♻️ Recurring Job — auto-schedule repeat visits
@@ -1421,45 +1393,35 @@
           <div style="font-size:11px;color:var(--muted);margin-top:4px">When the job is marked done, you can quickly schedule the next visit.</div>
         </div>
       </div>
-      <!-- Junk Schedule (Quote / Removal) -->
-      <div id="junk-schedule-wrap" style="display:none;margin-top:16px;background:rgba(230,126,34,.08);border:1.5px solid rgba(230,126,34,.3);border-radius:12px;padding:14px 16px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-          <span style="font-size:15px">📅</span>
-          <span id="junk-schedule-label" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e67e22">Job Schedule</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
-          <div class="form-group"><label id="junk-time-label">Job Time</label><input id="f-junk-time" type="time"></div>
-        </div>
-      </div>
+
       <!-- Furniture Bank Schedule (Delivery / Pickup) -->
-      <div id="fb-schedule-wrap" style="display:none;margin-top:16px;background:rgba(220,53,69,.08);border:1.5px solid rgba(220,53,69,.3);border-radius:12px;padding:14px 16px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-          <span style="font-size:15px">🛋️</span>
-          <span id="fb-schedule-label" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#dc3545">Delivery Schedule</span>
-        </div>
+      <div id="fb-schedule-wrap" style="display:none;margin-bottom:14px">
+        <div class="job-form-subsection-label"><span style="font-size:14px">🛋️</span> <span id="fb-schedule-label">Delivery Schedule</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label id="fb-date-label">Delivery Date</label><input id="f-fb-date" type="date"></div>
           <div class="form-group"><label id="fb-time-label">Delivery Time</label><input id="f-fb-time" type="time"></div>
         </div>
       </div>
-      <div id="items-wrap" class="form-group full" style="margin-top:16px;display:none"><label>ITEMS / TOOLS NEEDED</label><div id="f-items-wrap"></div><button type="button" onclick="addJobItem()" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px">+ Add Item</button></div>
+
+      <!-- Items / Tools Needed -->
+      <div id="items-wrap" class="form-group full" style="display:none;margin-bottom:14px"><label>ITEMS / TOOLS NEEDED</label><div id="f-items-wrap"></div><button type="button" onclick="addJobItem()" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px">+ Add Item</button></div>
+
       <!-- DRD Inline Section (Furniture Pickup only) -->
-      <div id="drd-inline-wrap" class="form-group full" style="display:none;margin-top:16px;border:2px solid rgba(168,85,247,.3);border-radius:12px;padding:16px;background:rgba(168,85,247,.03)">
-        <div style="font-size:13px;font-weight:700;color:#a855f7;margin-bottom:12px">📋 Donation Receiving Document (DRD)</div>
+      <div id="drd-inline-wrap" class="form-group full" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface2)">
+        <div class="job-form-subsection-label" style="margin-bottom:12px">📋 Donation Receiving Document (DRD)</div>
         <div class="form-group" style="margin:0 0 12px 0"><label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Donor Name</label><input type="text" id="drd-m-donor-name" class="form-input" style="font-size:12px;padding:6px 8px"></div>
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;white-space:nowrap">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-fb" checked style="accent-color:#a855f7"> FURNITURE BANK</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-jj" style="accent-color:#a855f7"> JEFF'S JUNK</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-rp" style="accent-color:#a855f7"> REDWOOD PARK</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-fb" checked style="accent-color:var(--accent)"> FURNITURE BANK</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-jj" style="accent-color:var(--accent)"> JEFF'S JUNK</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-rp" style="accent-color:var(--accent)"> REDWOOD PARK</label>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
           <div class="form-group" style="margin:0"><label style="font-size:11px">FB Opportunity #</label><input type="text" id="drd-m-opp" class="form-input" placeholder="FB-2026-001" style="font-size:12px;padding:6px 8px"></div>
           <div class="form-group" style="margin:0"><label style="font-size:11px">Tax Receipt?</label><select id="drd-m-tax" class="form-input" style="font-size:12px;padding:6px 8px"><option value="YES">YES</option><option value="NO">NO</option></select></div>
           <div class="form-group" style="margin:0"><label style="font-size:11px">Donation Date</label><input type="date" id="drd-m-date" class="form-input" style="font-size:12px;padding:6px 8px"></div>
         </div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">📦 Donated Items</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px">📦 Donated Items</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:10px" id="drd-m-items-grid"></div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>
@@ -1472,7 +1434,33 @@
           <div class="form-group" style="margin:0;margin-left:auto"><label style="font-size:11px">Date DRD Emailed</label><input type="date" id="drd-m-emailed" class="form-input" style="font-size:12px;padding:6px 8px;width:150px"></div>
         </div>
       </div>
-      <div class="form-group full" style="margin-top:16px"><label>Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
+
+      <div class="job-form-divider"></div>
+
+      <!-- ── ③ WRAP-UP ── -->
+      <div class="job-form-section-label"><span class="job-form-section-num">3</span> Wrap-Up</div>
+
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Referral Source <span style="color:#dc3545">*</span></label>
+        <select id="f-referral" oninput="clearErr('f-referral')" onchange="if(this.value==='__add_new__')addReferralSource('f-referral')">
+          <option value="">— Choose source —</option>
+          <option value="__add_new__">+ Add new source…</option>
+        </select>
+        <div class="field-error-msg" id="err-f-referral">Referral source is required.</div>
+      </div>
+      <div style="display:none">
+        <select id="f-paymethod">
+          <option value="">— Not set —</option>
+          <option value="Cash">Cash</option>
+          <option value="Credit Card">Credit Card</option>
+          <option value="Debit">Debit</option>
+          <option value="E-Transfer">E-Transfer</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Invoice">Invoice</option>
+        </select>
+      </div>
+
+      <div class="form-group full"><label>Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeM('job-modal')">Cancel</button>
