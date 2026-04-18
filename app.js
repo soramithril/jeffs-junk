@@ -7600,7 +7600,7 @@ async function openDetail(id){
   document.getElementById('det-crumb').textContent='Jobs › '+(j.service||'Job');
   var bin='';
   if(j.service==='Bin Rental'){
-    var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' side'):'';
+    var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' side')):'';
     var bsStatus=j.binInstatus==='dropped'?'<span style="color:#22c55e;font-weight:700">✅ Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="color:#22c55e;font-weight:700">✅ Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
@@ -7609,7 +7609,7 @@ async function openDetail(id){
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
       +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+'</span></div>'
-      +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+' Side':'—')+'</span></div>'
+      +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' Side'):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
       +(j.swapCount?'<div class="detail-item"><label>Swap Outs</label><span>'+j.swapCount+'</span></div>':'')
@@ -8795,7 +8795,7 @@ function getPreset(key) {
 }
 
 function fillEmailTemplate(template, j) {
-  var side = j.binSide ? ' (' + j.binSide + ' side)' : '';
+  var side = j.binSide ? ' (' + j.binSide + (j.binSide.toLowerCase()==='see notes'?'':' side') + ')' : '';
   // Use the correct scheduled date based on service type
   var schedDate = jobSchedDate(j);
   var dropoffDate = j.binDropoff || j.date || '';
