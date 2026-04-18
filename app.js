@@ -3129,7 +3129,7 @@ async function refreshDashJobs(){
         var binBadge='';
         if(legAssignedBin){
           var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
+          binBadge='<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+' · #'+legAssignedBin.bid+'</span>';
         } else if(j.binSize){
           var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
           binBadge='<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
@@ -3149,7 +3149,7 @@ async function refreshDashJobs(){
             +binBadge
             +confirmBadge
             +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;flex-shrink:0">'+timeStr+'</span>':'')
-            +(addrStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+addrStr+'</span>':'')
+            +(addrStr||j.city?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+(addrStr?(addrStr+(j.city?' · '+j.city:'')):j.city)+'</span>':'')
           +'</div>'
           +(j.service==='Bin Rental'&&!j.binBid?'<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap;flex-shrink:0">📦 Assign</button>':'')
           +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+actionBtn+'</div>'
