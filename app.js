@@ -1516,7 +1516,7 @@ function resolveAddr(j){
   var a=(j.address||'').trim();
   var c=(j.city||'').trim();
   var cityIsStreet=c&&/\d/.test(c);
-  var addrIsCity=a&&!/\d/.test(a)&&a.split(' ').length<=3;
+  var addrIsCity=a&&a.toLowerCase()===c.toLowerCase();
   var street,city;
   if(cityIsStreet){street=c;city=addrIsCity?a:'';}
   else{street=addrIsCity?'':a;city=c||(addrIsCity?a:'');}
