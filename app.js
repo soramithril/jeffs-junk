@@ -7202,8 +7202,8 @@ function openEdit(id){
     // The dedicated j.city field is the authoritative city value.
     var fullAddr = j.address || '';
     var streetOnly = fullAddr.split(',')[0].trim();
-    // If the first segment has no digits it's probably just a city/province leftover — clear it
-    if(streetOnly && !/\d/.test(streetOnly) && streetOnly.split(' ').length <= 3){
+    // Only clear street if it's a duplicate of the city (e.g. "Barrie" when city is already "Barrie")
+    if(streetOnly && streetOnly.toLowerCase() === (j.city||'').toLowerCase()){
       streetOnly = '';
     }
     document.getElementById('f-addr').value = streetOnly;
