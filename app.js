@@ -3584,7 +3584,7 @@ async function renderDash(){
         var binBadge = '';
         if(todayAssignedBin){
           var sz = (j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+'</span>';
+          binBadge = '<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+' · #'+todayAssignedBin.bid+'</span>';
         } else if(j.binSize){
           var sz2 = j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
           binBadge = '<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
@@ -3603,7 +3603,7 @@ async function renderDash(){
             +binBadge
             +confirmBadge
             +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;flex-shrink:0">'+timeStr+'</span>':'')
-            +(addrStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+addrStr+'</span>':'')
+            +(addrStr||j.city?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+(addrStr?(addrStr+(j.city?' · '+j.city:'')):j.city)+'</span>':'')
           +'</div>'
           +assignBinBtn
           +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+actionBtn+'</div>'
