@@ -6705,7 +6705,7 @@ async function doAssignBin(jobId,bid){
 
 // ── Crew avatar rendering & picker ──────────────────────────
 // 8-color palette; each crew member gets a deterministic color from their ID
-var CREW_AVATAR_PALETTE = ['#22c55e','#0d6efd','#8b5cf6','#f97316','#dc3545','#06b6d4','#eab308','#ec4899'];
+var CREW_AVATAR_PALETTE = ['#22c55e','#0d6efd','#8b5cf6','#f97316','#dc3545','#06b6d4','#eab308','#0d9488'];
 function crewAvatarColor(crewId){
   if(!crewId) return '#868e96';
   var hash=0;
