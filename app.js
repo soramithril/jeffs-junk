@@ -537,6 +537,7 @@ function dbToJob(r) {
     junkDate: r.junk_date || '',
     junkTime: r.junk_time || '',
     completedByVehicle: r.completed_by_vehicle || '',
+    assignedCrewIds: r.assigned_crew_ids || [],
   };
 }
 
@@ -650,6 +651,7 @@ function jobToDb(j) {
     fb_time: j.fbTime || '',
     junk_date: j.junkDate || null,
     junk_time: j.junkTime || '',
+    assigned_crew_ids: j.assignedCrewIds || [],
   };
 }
 
@@ -692,7 +694,7 @@ function patchJob(jobId, fields) {
   _clientStatsCache = null;
   updateSidebarStats();
   // Log changes to job_changes
-  var labelMap = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid'};
+  var labelMap = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid',assignedCrewIds:'Assigned Crew'};
   var oldJob = jobs.find(function(j){return j.id===jobId;});
   var changeRows = [];
   var userEmail = currentUser ? currentUser.email : 'system';
@@ -718,7 +720,7 @@ function patchJob(jobId, fields) {
     recurring:'recurring', recurInterval:'recur_interval', materialType:'material_type',
     toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
     depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
-    clientId:'client_cid'};
+    clientId:'client_cid', assignedCrewIds:'assigned_crew_ids'};
   var dbFields = {};
   Object.keys(fields).forEach(function(k){
     var col = keyMap[k] || k;
@@ -3144,6 +3146,7 @@ async function refreshDashJobs(){
           actionBtn='<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 '+(j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup')+'</button>';
         }
         return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
+          +jobCrewAvatarsHTML(j)
           +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
             +'<span style="flex-shrink:0">'+j.name+'</span>'
             +binBadge
@@ -3598,6 +3601,7 @@ async function renderDash(){
         })();
         var addrStr = j.address ? j.address.split(',')[0] : '';
         return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
+          +jobCrewAvatarsHTML(j)
           +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
             +'<span style="flex-shrink:0">'+j.name+'</span>'
             +binBadge
@@ -4170,6 +4174,7 @@ async function renderLiveJobs(){
     return '<div class="lj-row '+statusCls+'" onclick="openDetail(\''+j.id+'\')">'
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
+        +jobCrewAvatarsHTML(j)
         +'<div class="lj-info">'
           +'<span class="lj-client">'+j.name+'</span>'
           +'<span class="lj-addr">'+(j.address||'')+(j.city?' · '+j.city:'')+'</span>'
@@ -6696,6 +6701,77 @@ async function doAssignBin(jobId,bid){
   closeM('assign-bin-modal');
   toast('Bin #'+b.num+' assigned to '+jobId+'!');
   openDetail(jobId);
+}
+
+// ── Crew avatar rendering & picker ──────────────────────────
+// 8-color palette; each crew member gets a deterministic color from their ID
+var CREW_AVATAR_PALETTE = ['#22c55e','#0d6efd','#8b5cf6','#f97316','#dc3545','#06b6d4','#eab308','#ec4899'];
+function crewAvatarColor(crewId){
+  if(!crewId) return '#868e96';
+  var hash=0;
+  for(var i=0;i<crewId.length;i++){ hash=((hash<<5)-hash)+crewId.charCodeAt(i); hash|=0; }
+  return CREW_AVATAR_PALETTE[Math.abs(hash)%CREW_AVATAR_PALETTE.length];
+}
+function crewAvatarInitials(name){
+  if(!name) return '?';
+  var first=name.trim().split(/\s+/)[0]||'';
+  return (first.slice(0,2)||'?').toUpperCase();
+}
+// Render the avatar stack for a job. Click → openAssignCrewPicker.
+function jobCrewAvatarsHTML(j){
+  var ids=j.assignedCrewIds||[];
+  var stack='<span class="job-avatar-stack" onclick="event.stopPropagation();openAssignCrewPicker(\''+j.id+'\')" title="Assign employees">';
+  if(!ids.length){
+    stack+='<span class="job-avatar job-avatar-empty">+</span>';
+  } else {
+    ids.forEach(function(cid){
+      var c=crewMembers.find(function(cc){return cc.id===cid;});
+      var nm=c?c.name:'?';
+      stack+='<span class="job-avatar" style="background:'+crewAvatarColor(cid)+'" title="'+nm+'">'+crewAvatarInitials(nm)+'</span>';
+    });
+  }
+  stack+='</span>';
+  return stack;
+}
+
+async function openAssignCrewPicker(jobId){
+  var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
+  closeM('detail-modal');
+  var assigned=j.assignedCrewIds||[];
+  var html='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Tap an employee to assign or unassign. Multiple can be assigned to one job.</div>';
+  if(!crewMembers.length){
+    html+='<div style="text-align:center;padding:20px;color:var(--muted)">No crew members yet. Add one in Settings.</div>';
+  } else {
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">';
+    crewMembers.forEach(function(c){
+      var on=assigned.indexOf(c.id)>=0;
+      html+='<div onclick="toggleAssignCrew(\''+jobId+'\',\''+c.id+'\')" '
+        +'style="padding:10px;border:2px solid '+(on?crewAvatarColor(c.id):'var(--border)')+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,197,94,.05)':'var(--surface2)')+';display:flex;align-items:center;gap:10px;transition:all .15s">'
+        +'<span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:32px;height:32px;font-size:12px">'+crewAvatarInitials(c.name)+'</span>'
+        +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+c.name+'</span>'
+        +(on?'<span style="margin-left:auto;color:#22c55e;font-size:16px">✓</span>':'')
+        +'</div>';
+    });
+    html+='</div>';
+  }
+  document.getElementById('assign-crew-body').innerHTML=html;
+  document.getElementById('assign-crew-modal').classList.add('open');
+  window._assignCrewJobId=jobId;
+}
+
+async function toggleAssignCrew(jobId,crewId){
+  var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
+  var ids=(j.assignedCrewIds||[]).slice();
+  var idx=ids.indexOf(crewId);
+  if(idx>=0) ids.splice(idx,1); else ids.push(crewId);
+  j.assignedCrewIds=ids;
+  patchJob(j.id,{assignedCrewIds:ids});
+  // Refresh modal in place
+  openAssignCrewPicker(jobId);
+  // Refresh dashboard rows
+  if(typeof refreshDashJobs==='function') refreshDashJobs();
+  if(typeof renderDash==='function') renderDash();
+  if(typeof renderLiveJobs==='function') renderLiveJobs();
 }
 
 function openAddBin(){
