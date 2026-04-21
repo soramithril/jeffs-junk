@@ -6740,7 +6740,7 @@ async function openAssignCrewPicker(jobId){
   var assigned=j.assignedCrewIds||[];
   var html='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Tap an employee to assign or unassign. Multiple can be assigned to one job.</div>';
   if(!crewMembers.length){
-    html+='<div style="text-align:center;padding:20px;color:var(--muted)">No crew members yet. Add one in Settings.</div>';
+    html+='<div style="text-align:center;padding:20px;color:var(--muted)">No employees yet. Add one below.</div>';
   } else {
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">';
     crewMembers.forEach(function(c){
@@ -6754,9 +6754,30 @@ async function openAssignCrewPicker(jobId){
     });
     html+='</div>';
   }
+  // Inline add-employee row
+  html+='<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px">'
+    +'<input id="picker-new-crew-name" type="text" placeholder="New employee name" '
+      +'style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px" '
+      +'onkeydown="if(event.key===\'Enter\')addCrewFromPicker()">'
+    +'<button class="btn btn-primary" onclick="addCrewFromPicker()" style="font-size:12px;padding:6px 14px">+ Add</button>'
+  +'</div>';
   document.getElementById('assign-crew-body').innerHTML=html;
   document.getElementById('assign-crew-modal').classList.add('open');
   window._assignCrewJobId=jobId;
+}
+
+function addCrewFromPicker(){
+  var input=document.getElementById('picker-new-crew-name');if(!input)return;
+  var name=input.value.trim();if(!name)return;
+  input.value='';
+  db.from('crew_members').insert({name:name}).select().then(function(r){
+    if(r.error)return alert('Error: '+r.error.message);
+    if(r.data&&r.data[0]){
+      crewMembers.push({id:r.data[0].id, name:r.data[0].name});
+      // Re-render picker so the new employee shows up immediately
+      if(window._assignCrewJobId) openAssignCrewPicker(window._assignCrewJobId);
+    }
+  });
 }
 
 async function toggleAssignCrew(jobId,crewId){
