@@ -6791,7 +6791,6 @@ async function toggleAssignCrew(jobId,crewId){
   openAssignCrewPicker(jobId);
   // Refresh dashboard rows
   if(typeof refreshDashJobs==='function') refreshDashJobs();
-  if(typeof renderDash==='function') renderDash();
   if(typeof renderLiveJobs==='function') renderLiveJobs();
 }
 
