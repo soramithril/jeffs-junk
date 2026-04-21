@@ -6715,7 +6715,7 @@ function crewAvatarColor(crewId){
 function crewAvatarInitials(name){
   if(!name) return '?';
   var first=name.trim().split(/\s+/)[0]||'';
-  return (first.slice(0,2)||'?').toUpperCase();
+  return (first.slice(0,3)||'?').toUpperCase();
 }
 // Render the avatar stack for a job. Click → openAssignCrewPicker.
 function jobCrewAvatarsHTML(j){

@@ -396,7 +396,7 @@ body{
 /* ── Job crew avatars (Today's Jobs + Live Jobs) ── */
 .job-avatar-stack{display:inline-flex;flex-shrink:0;align-items:center;cursor:pointer;}
 .job-avatar-stack .job-avatar + .job-avatar{margin-left:-8px;}
-.job-avatar{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;letter-spacing:.3px;color:#fff;border:2px solid var(--surface2);font-family:'Inter',sans-serif;flex-shrink:0;transition:transform .15s;}
+.job-avatar{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:.2px;color:#fff;border:2px solid var(--surface2);font-family:'Inter',sans-serif;flex-shrink:0;transition:transform .15s;}
 .job-avatar-stack:hover .job-avatar{transform:translateY(-1px);}
 .job-avatar-empty{background:transparent !important;color:var(--muted) !important;border:1.5px dashed var(--border-strong) !important;font-size:13px;font-weight:400;}
 .job-avatar-empty:hover{border-color:#2563eb !important;color:#2563eb !important;}
