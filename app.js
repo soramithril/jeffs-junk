@@ -1808,7 +1808,7 @@ async function refreshDashBinStats(){
 
   // ── Load dropped bin jobs for counting ───────────────────
   try {
-    var [rActive, rUpcoming, rFutureDrop] = await Promise.all([
+    var [rActive, rUpcoming, rFutureDrop, rFutureDate] = await Promise.all([
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
         .eq('bin_instatus','dropped'),
@@ -1821,10 +1821,17 @@ async function refreshDashBinStats(){
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
         .neq('bin_instatus','pickedup')
-        .gte('bin_dropoff', today)
+        .gte('bin_dropoff', today),
+      // Legacy path: booked Bin Rental jobs that only have `date` populated (no bin_dropoff yet)
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .neq('status','Cancelled')
+        .neq('bin_instatus','pickedup')
+        .is('bin_dropoff', null)
+        .gte('date', today)
     ]);
     var seen={};
-    [(rActive.data||[]),(rUpcoming.data||[]),(rFutureDrop.data||[])].forEach(function(arr){
+    [(rActive.data||[]),(rUpcoming.data||[]),(rFutureDrop.data||[]),(rFutureDate.data||[])].forEach(function(arr){
       arr.map(dbToJob).forEach(function(j){
         if(!seen[j.id]){
           seen[j.id]=true;
@@ -6445,7 +6452,7 @@ async function renderTimeline(){
   // and the forecast under-counts bins out.
   var winStart=cols[0], winEnd=cols[cols.length-1];
   try {
-    var [rDrop, rPick] = await Promise.all([
+    var [rDrop, rPick, rDate, rDropped] = await Promise.all([
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
@@ -6455,10 +6462,22 @@ async function renderTimeline(){
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
         .neq('bin_instatus','pickedup')
-        .gte('bin_pickup', winStart).lte('bin_pickup', winEnd)
+        .gte('bin_pickup', winStart).lte('bin_pickup', winEnd),
+      // Legacy path: Bin Rental jobs that only have `date` populated (no bin_dropoff yet)
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .neq('status','Cancelled')
+        .neq('bin_instatus','pickedup')
+        .is('bin_dropoff', null)
+        .gte('date', winStart).lte('date', winEnd),
+      // Currently-dropped rentals that started before the window and may still span it
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .eq('bin_instatus','dropped')
+        .neq('status','Cancelled')
     ]);
     var seen={};
-    [(rDrop.data||[]),(rPick.data||[])].forEach(function(arr){
+    [(rDrop.data||[]),(rPick.data||[]),(rDate.data||[]),(rDropped.data||[])].forEach(function(arr){
       arr.map(dbToJob).forEach(function(j){
         if(!seen[j.id]){
           seen[j.id]=true;
