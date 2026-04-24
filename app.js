@@ -6419,7 +6419,7 @@ function quickToggleStatus(bid){
   if(activeView&&activeView.id==='view-utilization') renderUtilization();
 }
 function shiftTimeline(n){tlOffset+=n;renderTimeline();}
-function renderTimeline(){
+async function renderTimeline(){
   var numDays=14;
   var start=new Date();start.setDate(start.getDate()+tlOffset);start.setHours(0,0,0,0);
   var totalBins=binItems.length;
@@ -6434,6 +6434,35 @@ function renderTimeline(){
     var d=new Date(start);d.setDate(d.getDate()+i);
     cols.push(d.toISOString().split('T')[0]);
   }
+
+  // Load all Bin Rental jobs whose dropoff/pickup window overlaps the visible 14-day range.
+  // Without this, booked jobs not yet dropped are missing from the in-memory jobs array
+  // and the forecast under-counts bins out.
+  var winStart=cols[0], winEnd=cols[cols.length-1];
+  try {
+    var [rDrop, rPick] = await Promise.all([
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .neq('status','Cancelled')
+        .neq('bin_instatus','pickedup')
+        .gte('bin_dropoff', winStart).lte('bin_dropoff', winEnd),
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .neq('status','Cancelled')
+        .neq('bin_instatus','pickedup')
+        .gte('bin_pickup', winStart).lte('bin_pickup', winEnd)
+    ]);
+    var seen={};
+    [(rDrop.data||[]),(rPick.data||[])].forEach(function(arr){
+      arr.map(dbToJob).forEach(function(j){
+        if(!seen[j.id]){
+          seen[j.id]=true;
+          var idx=jobs.findIndex(function(x){return x.id===j.id;});
+          if(idx>=0) jobs[idx]=j; else jobs.push(j);
+        }
+      });
+    });
+  } catch(e){ console.error('renderTimeline load error',e); }
 
   // Active bin rental jobs only (not cancelled, not picked up)
   var binJobs=jobs.filter(function(j){
