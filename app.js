@@ -1808,7 +1808,7 @@ async function refreshDashBinStats(){
 
   // ── Load dropped bin jobs for counting ───────────────────
   try {
-    var [rActive, rUpcoming] = await Promise.all([
+    var [rActive, rUpcoming, rFutureDrop] = await Promise.all([
       db.from('jobs').select('*')
         .eq('service','Bin Rental')
         .eq('bin_instatus','dropped'),
@@ -1816,10 +1816,15 @@ async function refreshDashBinStats(){
         .eq('service','Bin Rental')
         .neq('status','Cancelled')
         .neq('bin_instatus','pickedup')
-        .gte('bin_pickup', today)
+        .gte('bin_pickup', today),
+      db.from('jobs').select('*')
+        .eq('service','Bin Rental')
+        .neq('status','Cancelled')
+        .neq('bin_instatus','pickedup')
+        .gte('bin_dropoff', today)
     ]);
     var seen={};
-    [(rActive.data||[]),(rUpcoming.data||[])].forEach(function(arr){
+    [(rActive.data||[]),(rUpcoming.data||[]),(rFutureDrop.data||[])].forEach(function(arr){
       arr.map(dbToJob).forEach(function(j){
         if(!seen[j.id]){
           seen[j.id]=true;
@@ -11604,9 +11609,4 @@ async function autoEmailReport() {
 function initReportSection() {
   var now = new Date();
   var prevMonth = now.getMonth();
-  var prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  if (prevMonth === 0) prevMonth = 12;
-  var picker = document.getElementById('report-month');
-  if (picker) picker.value = prevYear + '-' + (prevMonth < 10 ? '0' : '') + prevMonth;
-  _rptCheckAutoGenerate();
-}
+  var prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYe
