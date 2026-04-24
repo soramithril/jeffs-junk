@@ -698,12 +698,13 @@ function patchJob(jobId, fields) {
   var oldJob = jobs.find(function(j){return j.id===jobId;});
   var changeRows = [];
   var userEmail = currentUser ? currentUser.email : 'system';
+  var userName = (currentUser && currentUser.displayName) ? currentUser.displayName : (currentUser ? userEmail.split('@')[0] : 'system');
   Object.keys(fields).forEach(function(k){
     if(k==='editedBy'||k==='editedByEmail') return;
     var label = labelMap[k] || k;
     var oldVal = oldJob ? String(oldJob[k]||'') : '';
     var newVal = String(fields[k]||'');
-    if(oldVal !== newVal) changeRows.push({job_id:jobId, field_name:label, old_value:oldVal, new_value:newVal, changed_by:userEmail});
+    if(oldVal !== newVal) changeRows.push({job_id:jobId, field_name:label, old_value:oldVal, new_value:newVal, changed_by:userName});
   });
   if(changeRows.length){
     db.from('job_changes').insert(changeRows).then(function(r){
@@ -7666,7 +7667,7 @@ async function saveJob(e){
         var oldVal = String(oldJob[k]||'');
         var newVal = String(job[k]||'');
         if(oldVal !== newVal){
-          changeRows.push({job_id:editId, field_name:trackFields[k], old_value:oldVal, new_value:newVal, changed_by:userEmail});
+          changeRows.push({job_id:editId, field_name:trackFields[k], old_value:oldVal, new_value:newVal, changed_by:userName});
         }
       });
     }
