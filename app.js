@@ -11633,4 +11633,8 @@ function initReportSection() {
   var now = new Date();
   var prevMonth = now.getMonth();
   var prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  i
+  if (prevMonth === 0) prevMonth = 12;
+  var picker = document.getElementById('report-month');
+  if (picker) picker.value = prevYear + '-' + (prevMonth < 10 ? '0' : '') + prevMonth;
+  _rptCheckAutoGenerate();
+}
