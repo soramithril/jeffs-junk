@@ -5278,7 +5278,8 @@ function renderPricing(){
     var fuelBadge = ap.binFuel ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#e67e22;margin-left:8px">⛽ +'+ap.binFuel+'% fuel</span>' : '';
     var tonneBadge = ap.binTonne ? '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(13,110,253,.1);border:1px solid rgba(13,110,253,.3);border-radius:6px;padding:3px 10px;font-size:12px;color:#0d6efd;margin-left:4px">+$'+ap.binTonne+'/tonne (14&amp;20yd)</span>' : '';
     var townsLine = ap.towns ? '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-style:italic">'+ap.towns+'</div>' : '';
-    var junkCells = [{k:'min',l:'Min'},{k:'quarter',l:'¼'},{k:'half',l:'½'},{k:'full',l:'Full'}].map(function(t){
+    var hasJunk = ['min','quarter','half','full'].some(function(k){ return parseFloat(ap.junk&&ap.junk[k])>0; });
+    var junkCells = !hasJunk ? '' : [{k:'min',l:'Min'},{k:'quarter',l:'¼'},{k:'half',l:'½'},{k:'full',l:'Full'}].map(function(t){
       var v = ap.junk&&ap.junk[t.k] ? '$'+ap.junk[t.k] : '<span style="color:var(--muted)">—</span>';
       return '<div style="display:flex;flex-direction:column;align-items:center;background:var(--surface2);border:1px solid rgba(230,126,34,.25);border-radius:8px;padding:10px 14px;min-width:64px">'
         +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#e67e22;line-height:1">'+v+'</div>'
@@ -5293,7 +5294,7 @@ function renderPricing(){
       +'</div>'
       +townsLine
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+binCells+'</div>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+junkCells+'</div>'
+      +(hasJunk ? '<div style="display:flex;gap:6px;flex-wrap:wrap">'+junkCells+'</div>' : '')
       +'</div>';
   });
   document.getElementById('our-prices-display').innerHTML = html.length
