@@ -5321,8 +5321,8 @@ function renderDashPricing(){
   function calcTotal(raw, sz){
     var v = parseFloat(raw)||0;
     if(!v) return null;
-    if(fuel) v = v*(1+fuel/100);
     if(tonne && tonneOn[sz]) v = v+tonne;
+    if(fuel) v = v*(1+fuel/100);
     return v*TAX;
   }
   function fmD(v){ return '$'+v.toFixed(2); }
@@ -5352,13 +5352,13 @@ function renderDashPricing(){
     var labelColor = isMonthly ? '#8b5cf6' : 'var(--text)';
 
     var bd = '<span style="font-size:12px;color:var(--muted)">'+fmR(base)+'</span>';
-    if(fuel){
-      bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
-      bd += '<span style="font-size:12px;color:#e67e22;font-weight:600">+'+fuel+'%</span>';
-    }
     if(tonne && tonneOn[sz]){
       bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
       bd += '<span style="font-size:12px;color:#0d6efd;font-weight:600">+'+fmR(tonne)+' tonne</span>';
+    }
+    if(fuel){
+      bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
+      bd += '<span style="font-size:12px;color:#e67e22;font-weight:600">+'+fuel+'%</span>';
     }
     bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
     bd += '<span style="font-size:12px;color:var(--muted)">+HST</span>';
