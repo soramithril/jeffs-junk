@@ -5297,9 +5297,8 @@ function renderPricing(){
       +(hasJunk ? '<div style="display:flex;gap:6px;flex-wrap:wrap">'+junkCells+'</div>' : '')
       +'</div>';
   });
-  document.getElementById('our-prices-display').innerHTML = html.length
-    ? html.join('<div style="height:1px;background:var(--border);margin:16px 0"></div>')
-    : '<div style="text-align:center;padding:32px 16px;color:var(--muted)"><div style="font-size:28px;margin-bottom:10px;opacity:.5">💰</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)">No pricing areas set up yet</div><div style="font-size:13px">Click "Edit Our Prices" to add your first area and pricing.</div></div>';
+  // Top "Our Prices" card removed — views below show pricing
+  var topEl = document.getElementById('our-prices-display'); if(topEl) topEl.innerHTML = '';
   renderPricingGrids();
   pvActivateCurrentView();
 }
@@ -11727,18 +11726,12 @@ function renderPricingConsole(){
   var sortedSizes = ['14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'].filter(function(s){return sizes.indexOf(s)!==-1;});
 
   var html = '<div class="pv-console">';
-  html += '<div class="pv-topbar">';
-  html += '<div class="pv-search-wrap"><span class="pv-search-icon">⌕</span>'
-       + '<input class="pv-search" placeholder="Search city, area, or town..." autocomplete="off" oninput="pvSearchAreas(this.value)" onfocus="pvSearchAreas(this.value)" onblur="pvHideSearchResults()">'
-       + '<span class="pv-kbd">/</span>'
-       + '<div id="pv-search-results" class="pv-search-results"></div>'
-       + '</div>';
-  html += '<div class="pv-recents">';
-  areas.slice(0,5).forEach(function(ar){
-    var cls = ar.id===_pvConsoleArea?'pv-recent active':'pv-recent';
-    html += '<div class="'+cls+'" onclick="pvSelectArea(\''+String(ar.id).replace(/'/g,"\\'")+'\')">'+_pvEsc(_pvShortName(ar.name))+'</div>';
+  html += '<div class="pv-area-bar">';
+  areas.forEach(function(ar){
+    var cls = ar.id===_pvConsoleArea?'pv-area-btn active':'pv-area-btn';
+    html += '<button class="'+cls+'" onclick="pvSelectArea(\''+String(ar.id).replace(/'/g,"\\'")+'\')">'+_pvEsc(_pvShortName(ar.name))+'</button>';
   });
-  html += '</div></div>';
+  html += '</div>';
 
   html += '<div class="pv-layout">';
   html += '<div>';
