@@ -5316,8 +5316,8 @@ function renderDashPricing(){
   var bins  = ap.bins  || {};
   var fuel  = parseFloat(ap.binFuel)  || 0;
   var tonne = parseFloat(ap.binTonne) || 0;
-  var allBinKeys = ['4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','14 yard','20 yard','monthly 14 yard','monthly 20 yard'];
-  var shortLabels = {'4 yard dirt':'4yd Dirt','4 yard concrete':'4yd Conc','7 yard dirt':'7yd Dirt','7 yard concrete':'7yd Conc','14 yard':'14yd','20 yard':'20yd','monthly 14 yard':'Mo 14yd','monthly 20 yard':'Mo 20yd'};
+  var sortedKeys = ['14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'];
+  var shortLabels = {'4 yard dirt':'4yd D','4 yard concrete':'4yd C','7 yard dirt':'7yd D','7 yard concrete':'7yd C','14 yard':'14yd','20 yard':'20yd','monthly 14 yard':'Mo 14','monthly 20 yard':'Mo 20'};
   var tonneOn  = {'14 yard':true,'20 yard':true};
 
   function calcTotal(raw, sz){
@@ -5328,54 +5328,57 @@ function renderDashPricing(){
     return v*TAX;
   }
   function fmD(v){ return '$'+v.toFixed(2); }
-  function fmR(v){ return '$'+Math.round(v); }
 
-  var activeBins = allBinKeys.filter(function(sz){ return parseFloat(bins[sz])||0; });
+  var activeBins = sortedKeys.filter(function(sz){ return parseFloat(bins[sz])||0; });
   if(!activeBins.length){
     document.getElementById('dash-pricing-display').innerHTML='<div style="color:var(--muted);font-size:13px">No bin prices set for this area.</div>';
     return;
   }
 
   var pills = '';
-  if(fuel)  pills += '<span style="background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.3);border-radius:20px;padding:1px 8px;font-size:11px;color:#e67e22;font-weight:600">⛽ +'+fuel+'% fuel</span> ';
-  if(tonne) pills += '<span style="background:rgba(13,110,253,.12);border:1px solid rgba(13,110,253,.3);border-radius:20px;padding:1px 8px;font-size:11px;color:#0d6efd;font-weight:600">🚛 $'+tonne+'/tonne (14&amp;20yd)</span> ';
-  pills += '<span style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.2);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--muted);font-weight:500">+HST 13%</span>';
-  var out = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'+pills+'</div>';
+  if(fuel)  pills += '<span style="background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.3);border-radius:20px;padding:2px 9px;font-size:11px;color:#e67e22;font-weight:700">⛽ +'+fuel+'%</span>';
+  if(tonne) pills += '<span style="background:rgba(13,110,253,.12);border:1px solid rgba(13,110,253,.3);border-radius:20px;padding:2px 9px;font-size:11px;color:#0d6efd;font-weight:700">🚛 +$'+tonne+'</span>';
+  pills += '<span style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.2);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--muted);font-weight:600">+13% HST</span>';
+  var out = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'+pills+'</div>';
 
-  out += '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">';
+  out += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
   activeBins.forEach(function(sz, i){
     var tot = calcTotal(bins[sz], sz);
     if(!tot) return;
     var base = parseFloat(bins[sz]);
     var isLast = i === activeBins.length-1;
-    var bg = i%2===0 ? 'transparent' : 'rgba(0,0,0,.025)';
     var border = isLast ? '' : 'border-bottom:1px solid var(--border);';
     var isMonthly = sz.indexOf('monthly')===0;
+    var isSelected = sz===_dashSelectedSize;
     var labelColor = isMonthly ? '#8b5cf6' : 'var(--text)';
+    var totalColor = isMonthly ? '#8b5cf6' : '#22c55e';
+    var bg = isSelected ? 'background:rgba(34,197,94,.06);' : '';
+    var leftBorder = isSelected ? 'border-left:3px solid var(--accent);padding-left:9px;' : 'border-left:3px solid transparent;padding-left:9px;';
+    var sub = (sz==='14 yard'||sz==='20 yard') ? '+dump+fuel+tax' : (fuel ? '+fuel+tax' : '+tax only');
 
-    var bd = '<span style="font-size:12px;color:var(--muted)">'+fmR(base)+'</span>';
-    if(tonne && tonneOn[sz]){
-      bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
-      bd += '<span style="font-size:12px;color:#0d6efd;font-weight:600">+'+fmR(tonne)+' tonne</span>';
-    }
-    if(fuel){
-      bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
-      bd += '<span style="font-size:12px;color:#e67e22;font-weight:600">+'+fuel+'%</span>';
-    }
-    bd += '<span style="font-size:11px;color:var(--muted);margin:0 3px">&rarr;</span>';
-    bd += '<span style="font-size:12px;color:var(--muted)">+HST</span>';
-    bd += '<span style="font-size:12px;color:var(--muted);margin:0 5px">=</span>';
-
-    out += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:'+bg+';'+border+'">';
-    out += '<div style="width:72px;flex-shrink:0;font-size:13px;font-weight:700;color:'+labelColor+'">'+(shortLabels[sz]||sz)+'</div>';
-    out += '<div style="flex:1;display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+bd
-      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#22c55e;line-height:1;letter-spacing:.3px">'+fmD(tot)+'</span>'
-      +'</div>';
+    out += '<div onclick="dashPickSize(\''+sz+'\','+tot.toFixed(2)+')" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;'+bg+border+leftBorder+'transition:background .1s" onmouseover="this.style.background=\'rgba(0,0,0,.025)\'" onmouseout="this.style.background=\''+(isSelected?'rgba(34,197,94,.06)':'transparent')+'\'">';
+    out += '<div style="width:64px;flex-shrink:0">';
+    out += '<div style="font-size:13px;font-weight:800;color:'+labelColor+'">'+(shortLabels[sz]||sz)+'</div>';
+    out += '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:2px">'+sub+'</div>';
+    out += '</div>';
+    out += '<div style="flex:1;min-width:0">';
+    out += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+totalColor+';line-height:1;letter-spacing:.3px">'+fmD(tot)+'</div>';
+    out += '<div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:600">$'+base+' base</div>';
+    out += '</div>';
+    out += '<div style="font-size:13px;color:var(--muted);opacity:.5" title="Click to copy">📋</div>';
     out += '</div>';
   });
   out += '</div>';
 
   document.getElementById('dash-pricing-display').innerHTML = out;
+}
+
+var _dashSelectedSize = '14 yard';
+function dashPickSize(sz, total){
+  _dashSelectedSize = sz;
+  if(navigator.clipboard) navigator.clipboard.writeText('$'+total.toFixed(2));
+  if(typeof pvShowToast==='function') pvShowToast('Copied $'+total.toFixed(2));
+  renderDashPricing();
 }
 var _pricingDDArea = '';
 var _areaColors = {};
