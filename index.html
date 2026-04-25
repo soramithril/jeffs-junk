@@ -759,22 +759,36 @@
     <div id="our-prices-display"></div>
   </div>
 
-  <!-- Category tabs -->
-  <div class="filters-bar" style="margin-bottom:20px">
+  <!-- View mode toggle -->
+  <div class="filters-bar" style="margin-bottom:14px;align-items:center">
+    <span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:6px">View:</span>
+    <button class="filter-chip active" id="pview-console" onclick="setPricingView('console',this)">📞 Live</button>
+    <button class="filter-chip" id="pview-grid" onclick="setPricingView('grid',this)">📊 Planning</button>
+    <button class="filter-chip" id="pview-cards" onclick="setPricingView('cards',this)">📱 Mobile</button>
+    <button class="filter-chip" id="pview-classic" onclick="setPricingView('classic',this)">📋 Classic</button>
+  </div>
+
+  <!-- Category tabs (only used by Classic view) -->
+  <div class="filters-bar" id="pcat-tabs" style="margin-bottom:20px;display:none">
     <button class="filter-chip active" id="pcat-bin" onclick="setPricingCat('bin',this)">Bin Rental</button>
     <button class="filter-chip" id="pcat-junk" onclick="setPricingCat('junk',this)">Junk Removal</button>
   </div>
 
-  <!-- Bin Rental comparison -->
-  <div id="pricing-bin-view">
-    <div class="section-lbl" style="margin-bottom:16px">BIN RENTAL — COMPETITOR COMPARISON</div>
-    <div id="pricing-bin-grid"></div>
-  </div>
+  <!-- New views -->
+  <div id="pricing-console-view"></div>
+  <div id="pricing-grid-view" style="display:none"></div>
+  <div id="pricing-cards-view" style="display:none"></div>
 
-  <!-- Junk Removal comparison -->
-  <div id="pricing-junk-view" style="display:none">
-    <div class="section-lbl" style="margin-bottom:16px">JUNK REMOVAL — COMPETITOR COMPARISON</div>
-    <div id="pricing-junk-grid"></div>
+  <!-- Classic view (existing) -->
+  <div id="pricing-classic-view" style="display:none">
+    <div id="pricing-bin-view">
+      <div class="section-lbl" style="margin-bottom:16px">BIN RENTAL — COMPETITOR COMPARISON</div>
+      <div id="pricing-bin-grid"></div>
+    </div>
+    <div id="pricing-junk-view" style="display:none">
+      <div class="section-lbl" style="margin-bottom:16px">JUNK REMOVAL — COMPETITOR COMPARISON</div>
+      <div id="pricing-junk-grid"></div>
+    </div>
   </div>
 </div>
 

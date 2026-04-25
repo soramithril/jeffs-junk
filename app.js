@@ -5301,6 +5301,7 @@ function renderPricing(){
     ? html.join('<div style="height:1px;background:var(--border);margin:16px 0"></div>')
     : '<div style="text-align:center;padding:32px 16px;color:var(--muted)"><div style="font-size:28px;margin-bottom:10px;opacity:.5">💰</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)">No pricing areas set up yet</div><div style="font-size:13px">Click "Edit Our Prices" to add your first area and pricing.</div></div>';
   renderPricingGrids();
+  pvActivateCurrentView();
 }
 
 function renderDashPricing(){
@@ -11638,4 +11639,291 @@ function initReportSection() {
   var picker = document.getElementById('report-month');
   if (picker) picker.value = prevYear + '-' + (prevMonth < 10 ? '0' : '') + prevMonth;
   _rptCheckAutoGenerate();
+}
+
+
+// ═══════════════ COMPETITION PRICING — VIEW MODES ═══════════════
+var pricingView = (function(){ try{ return localStorage.getItem('pricing_view')||'console'; }catch(e){ return 'console'; } })();
+if(typeof window!=='undefined' && !((function(){try{return localStorage.getItem('pricing_view');}catch(e){return null;}})()) && window.innerWidth<760) pricingView='cards';
+
+function _pvEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _pvShortName(n){ return String(n||'').split('/')[0].split('&')[0].trim(); }
+function _pvSizeLabel(sz){ return sz.replace(' yard','yd').replace('monthly ','Mo '); }
+function pvFmtR(v){ return v==null?'—':'$'+Math.round(v); }
+function pvCalcAllIn(base, sz, fuel, tonne){
+  if(!base) return null;
+  var v = parseFloat(base);
+  var hasDump = sz==='14 yard' || sz==='20 yard';
+  if(hasDump && tonne) v += parseFloat(tonne);
+  if(fuel) v *= (1 + parseFloat(fuel)/100);
+  return v * 1.13;
+}
+function pvAllAreas(){
+  return pricingAreas.map(function(area){
+    var ap = ourPricesV2[area] || {bins:{},junk:{},binFuel:'',binTonne:'',towns:''};
+    var areaComps = competitors.filter(function(c){ return (c.area||'Default')===area; });
+    return { id:area, name:area, towns:ap.towns||'',
+      fuel:parseFloat(ap.binFuel)||0, tonne:parseFloat(ap.binTonne)||0,
+      bins:ap.bins||{}, junk:ap.junk||{}, comps:areaComps };
+  });
+}
+function pvShowToast(msg){
+  var t=document.getElementById('pv-toast'); if(!t){ t=document.createElement('div'); t.id='pv-toast'; t.className='pv-toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(window._pvToastT); window._pvToastT=setTimeout(function(){t.classList.remove('show');},1500);
+}
+function pvCopyPrice(p){
+  if(navigator.clipboard) navigator.clipboard.writeText('$'+p);
+  pvShowToast('Copied $'+p);
+}
+
+function setPricingView(view, el){
+  pricingView = view;
+  try{ localStorage.setItem('pricing_view',view); }catch(e){}
+  ['console','grid','cards','classic'].forEach(function(v){
+    var b=document.getElementById('pview-'+v); if(b) b.classList.toggle('active', v===view);
+    var c=document.getElementById('pricing-'+v+'-view'); if(c) c.style.display = v===view?'block':'none';
+  });
+  var pcat=document.getElementById('pcat-tabs'); if(pcat) pcat.style.display = view==='classic'?'flex':'none';
+  if(view==='console') renderPricingConsole();
+  else if(view==='grid') renderPricingGridView();
+  else if(view==='cards') renderPricingCards();
+}
+function pvActivateCurrentView(){ setPricingView(pricingView); }
+
+// ── Console view
+var _pvConsoleArea = null, _pvConsoleSize = '14 yard';
+function pvSelectArea(id){ _pvConsoleArea=id; var a=pvAllAreas().find(function(x){return x.id===id;}); if(a){ var sizes=Object.keys(a.bins).filter(function(k){return parseFloat(a.bins[k])>0;}); if(sizes.length && sizes.indexOf(_pvConsoleSize)===-1) _pvConsoleSize=sizes[0]; } renderPricingConsole(); }
+function pvSelectSize(sz){ _pvConsoleSize=sz; renderPricingConsole(); }
+function pvSearchAreas(q){
+  q = (q||'').toLowerCase().trim();
+  var matches = pvAllAreas().filter(function(a){
+    var hay = (a.name+' '+a.towns).toLowerCase();
+    return !q || hay.indexOf(q)!==-1;
+  }).slice(0,8);
+  var html = matches.length ? matches.map(function(a){
+    var p14 = a.bins['14 yard']?'$'+a.bins['14 yard']:'—';
+    return '<div class="pv-result" onmousedown="pvSelectArea(\''+String(a.id).replace(/\\/g,"\\\\").replace(/'/g,"\\'")+'\')">'
+      +'<div class="pv-result-main"><div class="pv-result-name">'+_pvEsc(a.name)+'</div>'
+      +(a.towns?'<div class="pv-result-towns">'+_pvEsc(a.towns)+'</div>':'')+'</div>'
+      +'<div class="pv-result-price">'+p14+' <span style="font-size:11px;color:var(--muted)">14yd</span></div>'
+      +'</div>';
+  }).join('') : '<div class="pv-result"><div class="pv-result-main"><div class="pv-result-name" style="color:var(--muted)">No matches</div></div></div>';
+  var rs=document.getElementById('pv-search-results'); if(rs){ rs.innerHTML=html; rs.classList.add('open'); }
+}
+function pvHideSearchResults(){ setTimeout(function(){ var rs=document.getElementById('pv-search-results'); if(rs) rs.classList.remove('open'); }, 180); }
+
+function renderPricingConsole(){
+  var areas = pvAllAreas();
+  var host = document.getElementById('pricing-console-view'); if(!host) return;
+  if(!areas.length){ host.innerHTML='<div class="chart-card" style="text-align:center;padding:40px;color:var(--muted)">No pricing areas yet — click "Edit Our Prices" to add one.</div>'; return; }
+  if(!_pvConsoleArea || !areas.find(function(a){return a.id===_pvConsoleArea;})) _pvConsoleArea=areas[0].id;
+  var a = areas.find(function(x){return x.id===_pvConsoleArea;});
+  var sizes = Object.keys(a.bins).filter(function(k){return parseFloat(a.bins[k])>0;});
+  if(sizes.indexOf(_pvConsoleSize)===-1) _pvConsoleSize = sizes[0]||'14 yard';
+  var sortedSizes = ['14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'].filter(function(s){return sizes.indexOf(s)!==-1;});
+
+  var html = '<div class="pv-console">';
+  html += '<div class="pv-topbar">';
+  html += '<div class="pv-search-wrap"><span class="pv-search-icon">⌕</span>'
+       + '<input class="pv-search" placeholder="Search city, area, or town..." autocomplete="off" oninput="pvSearchAreas(this.value)" onfocus="pvSearchAreas(this.value)" onblur="pvHideSearchResults()">'
+       + '<span class="pv-kbd">/</span>'
+       + '<div id="pv-search-results" class="pv-search-results"></div>'
+       + '</div>';
+  html += '<div class="pv-recents">';
+  areas.slice(0,5).forEach(function(ar){
+    var cls = ar.id===_pvConsoleArea?'pv-recent active':'pv-recent';
+    html += '<div class="'+cls+'" onclick="pvSelectArea(\''+String(ar.id).replace(/'/g,"\\'")+'\')">'+_pvEsc(_pvShortName(ar.name))+'</div>';
+  });
+  html += '</div></div>';
+
+  html += '<div class="pv-layout">';
+  html += '<div>';
+  html += '<div class="pv-hero">';
+  html += '<div class="pv-hero-name">'+_pvEsc(a.name)+'</div>';
+  if(a.towns) html += '<div class="pv-hero-towns">Includes: '+_pvEsc(a.towns)+'</div>';
+  html += '<div class="pv-badges">';
+  if(a.fuel) html += '<span class="pv-badge pv-badge-fuel">⛽ +'+a.fuel+'% fuel</span>';
+  if(a.tonne) html += '<span class="pv-badge pv-badge-dump">🚛 +$'+a.tonne+'/tonne (14&20yd)</span>';
+  html += '<span class="pv-badge pv-badge-tax">+13% HST</span>';
+  html += '</div></div>';
+
+  html += '<div class="pv-price-list">';
+  sortedSizes.forEach(function(sz){
+    var base = parseFloat(a.bins[sz]);
+    var allIn = pvCalcAllIn(base, sz, a.fuel, a.tonne);
+    var compChips = '';
+    var compsWithVal = a.comps.filter(function(c){return parseFloat(c.bins&&c.bins[sz])>0;});
+    if(compsWithVal.length){
+      compsWithVal.forEach(function(c){
+        var v = parseFloat(c.bins[sz]);
+        var diff = v - base;
+        var color = diff>0?'pv-comp-expensive':diff<0?'pv-comp-cheap':'pv-comp-mid';
+        compChips += '<span class="pv-comp-chip '+color+'"><span class="pv-comp-name">'+_pvEsc(c.name)+'</span> $'+v+'</span>';
+      });
+    } else {
+      compChips = '<span class="pv-comp-chip" style="color:var(--muted);font-style:italic;background:transparent;border:0">No competitors</span>';
+    }
+    var sub = (sz==='14 yard'||sz==='20 yard')?'+dump+fuel+tax':'+tax only';
+    var sel = sz===_pvConsoleSize?'pv-price-row pv-selected':'pv-price-row';
+    html += '<div class="'+sel+'" onclick="pvSelectSize(\''+sz+'\')">';
+    html += '<div><div class="pv-sz-label">'+_pvSizeLabel(sz)+'</div><div class="pv-sz-sub">'+sub+'</div></div>';
+    html += '<div><div class="pv-ours">$'+base+'</div><div class="pv-ours-sub">all-in '+pvFmtR(allIn)+'</div></div>';
+    html += '<div class="pv-competitors">'+compChips+'</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // Right rail
+  html += '<div class="pv-rail">';
+  var base = parseFloat(a.bins[_pvConsoleSize]) || 0;
+  var hasDump = _pvConsoleSize==='14 yard' || _pvConsoleSize==='20 yard';
+  var dump = hasDump?(a.tonne||0):0;
+  var withDump = base+dump;
+  var fuelAmt = a.fuel ? withDump*(a.fuel/100) : 0;
+  var withFuel = withDump+fuelAmt;
+  var hst = withFuel*0.13;
+  var total = withFuel+hst;
+  html += '<div class="pv-rail-h">Quote Builder</div>';
+  html += '<div class="pv-rail-bin">'+_pvSizeLabel(_pvConsoleSize)+' bin · '+_pvEsc(_pvShortName(a.name))+'</div>';
+  html += '<div class="pv-rail-line"><span class="lbl">Bin price</span><span class="val">$'+base.toFixed(2)+'</span></div>';
+  if(hasDump && dump) html += '<div class="pv-rail-line"><span class="lbl">+ Dump fee (1 tonne)</span><span class="val">$'+dump.toFixed(2)+'</span></div>';
+  if(a.fuel) html += '<div class="pv-rail-line"><span class="lbl">+ Fuel ('+a.fuel+'%)</span><span class="val">$'+fuelAmt.toFixed(2)+'</span></div>';
+  html += '<div class="pv-rail-line"><span class="lbl">+ HST (13%)</span><span class="val">$'+hst.toFixed(2)+'</span></div>';
+  html += '<div class="pv-rail-total"><div class="lbl">All-in price</div><div class="val">$'+total.toFixed(2)+'</div></div>';
+  html += '<div class="pv-rail-actions">'
+       + '<button class="btn btn-primary" onclick="pvCopyPrice('+total.toFixed(2)+')">📋 Copy price</button>'
+       + '</div>';
+  var firstTown = (a.towns||a.name).split(',')[0];
+  html += '<div class="pv-script"><span class="lbl">Read to customer</span>"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvSizeLabel(_pvConsoleSize)+' bin in '+_pvEsc(firstTown)+', includes delivery, pickup, dump fee for up to a tonne'+(a.fuel?', fuel surcharge':'')+', and tax."</div>';
+  html += '</div>';
+
+  html += '</div></div>';
+  host.innerHTML = html;
+}
+
+// ── Grid view (heat map)
+var _pvGridRaise = 0, _pvGridAllIn = false;
+function pvRank(our, comps){
+  if(!comps.length) return 'none';
+  var lower=comps.filter(function(p){return p<our;}).length;
+  var higher=comps.filter(function(p){return p>our;}).length;
+  if(higher===0&&lower>0) return 'expensive';
+  if(lower===0&&higher>0) return 'cheap';
+  return 'mid';
+}
+function pvGridRaise(v){ _pvGridRaise=parseInt(v); renderPricingGridView(); }
+function pvGridAllIn(c){ _pvGridAllIn=!!c; renderPricingGridView(); }
+
+function renderPricingGridView(){
+  var host = document.getElementById('pricing-grid-view'); if(!host) return;
+  var areas = pvAllAreas();
+  if(!areas.length){ host.innerHTML='<div class="chart-card" style="text-align:center;padding:40px;color:var(--muted)">No pricing areas yet.</div>'; return; }
+  var sizes = ['14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'];
+  var sizeLabels = {'14 yard':'14yd','20 yard':'20yd','4 yard dirt':'4yd D','4 yard concrete':'4yd C','7 yard dirt':'7yd D','7 yard concrete':'7yd C','monthly 14 yard':'Mo 14','monthly 20 yard':'Mo 20'};
+  var raiseFactor = 1+_pvGridRaise/100;
+
+  var counts = {cheap:0,mid:0,expensive:0,none:0};
+  areas.forEach(function(a){
+    sizes.forEach(function(sz){
+      var ourBase = parseFloat(a.bins[sz]); if(!ourBase) return;
+      var compVals = a.comps.map(function(c){return parseFloat(c.bins&&c.bins[sz])||null;}).filter(function(v){return v;});
+      var rk = pvRank(ourBase*raiseFactor, compVals);
+      counts[rk]=(counts[rk]||0)+1;
+    });
+  });
+
+  var html = '<div class="pv-grid-wrap">';
+  html += '<div class="pv-grid-legend">';
+  html += '<strong>Position vs competitors:</strong>';
+  html += '<span class="pv-lg"><span class="pv-lg-sw pv-sw-expensive"></span>You\'re highest</span>';
+  html += '<span class="pv-lg"><span class="pv-lg-sw pv-sw-mid"></span>Mid-pack</span>';
+  html += '<span class="pv-lg"><span class="pv-lg-sw pv-sw-cheap"></span>You\'re cheapest</span>';
+  html += '<span class="pv-lg"><span class="pv-lg-sw pv-sw-none"></span>No data</span>';
+  html += '<label class="pv-toggle"><input type="checkbox" '+(_pvGridAllIn?'checked':'')+' onchange="pvGridAllIn(this.checked)"> All-in (incl. dump+fuel+tax)</label>';
+  html += '</div>';
+
+  html += '<div class="pv-grid-summary">';
+  html += '<div class="pv-stat"><div class="lbl">Pricing power</div><div class="val val-green">'+counts.cheap+'</div></div>';
+  html += '<div class="pv-stat"><div class="lbl">Mid-pack</div><div class="val val-orange">'+counts.mid+'</div></div>';
+  html += '<div class="pv-stat"><div class="lbl">Highest in market</div><div class="val val-red">'+counts.expensive+'</div></div>';
+  html += '<div class="pv-stat"><div class="lbl">No competitor data</div><div class="val">'+counts.none+'</div></div>';
+  html += '</div>';
+
+  html += '<div class="pv-whatif">'
+       + '<label>What if I raise prices</label>'
+       + '<input type="range" min="-20" max="30" value="'+_pvGridRaise+'" step="1" oninput="pvGridRaise(this.value)">'
+       + '<span class="pv-whatif-val">'+(_pvGridRaise>=0?'+':'')+_pvGridRaise+'%</span>'
+       + '</div>';
+
+  html += '<div style="overflow-x:auto"><table class="pv-grid-table">';
+  html += '<thead><tr><th class="area-h">Area</th>';
+  sizes.forEach(function(s){ html += '<th>'+sizeLabels[s]+'</th>'; });
+  html += '</tr></thead><tbody>';
+  areas.forEach(function(a){
+    html += '<tr><td class="area">'+_pvEsc(a.name)+'</td>';
+    sizes.forEach(function(sz){
+      var ourBase = parseFloat(a.bins[sz]);
+      if(!ourBase){ html += '<td class="pv-cell pv-empty"><div class="pv-cell-price">—</div></td>'; return; }
+      var ourAdj = ourBase*raiseFactor;
+      var compVals = a.comps.map(function(c){return parseFloat(c.bins&&c.bins[sz])||null;}).filter(function(v){return v;});
+      var rk = pvRank(ourAdj, compVals);
+      var disp = _pvGridAllIn ? pvCalcAllIn(ourAdj, sz, a.fuel, a.tonne) : ourAdj;
+      var rkLbl = rk==='cheap'?'CHEAPEST':rk==='expensive'?'HIGHEST':rk==='mid'?'MID':'NO DATA';
+      var vs = compVals.length ? 'vs '+compVals.length+' comp'+(compVals.length>1?'s':'') : '';
+      html += '<td class="pv-cell pv-'+rk+'">'
+           + '<div class="pv-cell-price">$'+Math.round(disp)+'</div>'
+           + '<div class="pv-cell-rank">'+rkLbl+'</div>'
+           + (vs?'<div class="pv-cell-vs">'+vs+'</div>':'')
+           + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+  host.innerHTML = html;
+}
+
+// ── Cards view (mobile)
+function renderPricingCards(){
+  var host = document.getElementById('pricing-cards-view'); if(!host) return;
+  var areas = pvAllAreas();
+  if(!areas.length){ host.innerHTML='<div class="chart-card" style="text-align:center;padding:40px;color:var(--muted)">No pricing areas yet.</div>'; return; }
+  var html = '<div class="pv-cards">';
+  areas.forEach(function(a){
+    var sortedSizes = ['14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard']
+      .filter(function(s){return parseFloat(a.bins[s])>0;});
+    html += '<div class="pv-card">';
+    html += '<div class="pv-card-name">'+_pvEsc(a.name)+'</div>';
+    if(a.towns) html += '<div class="pv-card-towns">'+_pvEsc(a.towns)+'</div>';
+    html += '<div class="pv-pills">';
+    if(a.fuel) html += '<span class="pv-pill pv-pill-fuel">⛽ +'+a.fuel+'%</span>';
+    if(a.tonne) html += '<span class="pv-pill pv-pill-dump">🚛 +$'+a.tonne+'</span>';
+    html += '<span class="pv-pill pv-pill-tax">+13% HST</span>';
+    html += '</div>';
+    html += '<div class="pv-tile-grid">';
+    sortedSizes.forEach(function(sz){
+      var base = parseFloat(a.bins[sz]);
+      var allIn = pvCalcAllIn(base, sz, a.fuel, a.tonne);
+      var label = _pvSizeLabel(sz);
+      html += '<div class="pv-tile" onclick="pvCopyPrice('+(allIn?allIn.toFixed(2):'0')+')">';
+      html += '<div class="pv-tile-sz">'+label+'</div>';
+      html += '<div class="pv-tile-base">$'+base+'</div>';
+      html += '<div class="pv-tile-allin">all-in <b>'+pvFmtR(allIn)+'</b></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    if(a.comps.length){
+      var strips = a.comps.map(function(c){
+        var v = parseFloat(c.bins&&c.bins['14 yard']); if(!v) return '';
+        var diff = v - parseFloat(a.bins['14 yard']);
+        var cls = diff>0?'up':diff<0?'down':'';
+        var arrow = diff>0?'▲':diff<0?'▼':'=';
+        return '<div class="pv-comp"><div class="pv-comp-cname">'+_pvEsc(c.name)+'</div><div class="pv-comp-cprice '+cls+'">$'+v+' <span style="font-size:9px">'+arrow+'</span></div></div>';
+      }).filter(function(s){return s;});
+      if(strips.length) html += '<div class="pv-comp-strip">'+strips.join('')+'</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  host.innerHTML = html;
 }
