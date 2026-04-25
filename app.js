@@ -5355,16 +5355,16 @@ function renderDashPricing(){
     var leftBorder = isSelected ? 'border-left:3px solid var(--accent);padding-left:9px;' : 'border-left:3px solid transparent;padding-left:9px;';
     var sub = (sz==='14 yard'||sz==='20 yard') ? '+dump+fuel+tax' : (fuel ? '+fuel+tax' : '+tax only');
 
-    out += '<div onclick="dashPickSize(\''+sz+'\','+tot.toFixed(2)+')" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;'+bg+border+leftBorder+'transition:background .1s" onmouseover="this.style.background=\'rgba(0,0,0,.025)\'" onmouseout="this.style.background=\''+(isSelected?'rgba(34,197,94,.06)':'transparent')+'\'">';
-    out += '<div style="width:64px;flex-shrink:0">';
-    out += '<div style="font-size:13px;font-weight:800;color:'+labelColor+'">'+(shortLabels[sz]||sz)+'</div>';
-    out += '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:2px">'+sub+'</div>';
+    out += '<div onclick="dashPickSize(\''+sz+'\','+tot.toFixed(2)+')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;'+bg+border+leftBorder+'transition:background .1s" onmouseover="this.style.background=\'rgba(0,0,0,.025)\'" onmouseout="this.style.background=\''+(isSelected?'rgba(34,197,94,.06)':'transparent')+'\'">';
+    out += '<div style="flex-shrink:0;min-width:90px">';
+    out += '<div style="font-size:14px;font-weight:800;color:'+labelColor+'">'+(shortLabels[sz]||sz)+'</div>';
+    out += '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:2px;white-space:nowrap">'+sub+'</div>';
     out += '</div>';
-    out += '<div style="flex:1;min-width:0">';
+    out += '<div style="flex:1;text-align:right;min-width:0">';
     out += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+totalColor+';line-height:1;letter-spacing:.3px">'+fmD(tot)+'</div>';
     out += '<div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:600">$'+base+' base</div>';
     out += '</div>';
-    out += '<div style="font-size:13px;color:var(--muted);opacity:.5" title="Click to copy">📋</div>';
+    out += '<div style="font-size:13px;color:var(--muted);opacity:.5;flex-shrink:0" title="Click to copy">📋</div>';
     out += '</div>';
   });
   out += '</div>';
@@ -11728,8 +11728,10 @@ function renderPricingConsole(){
   var html = '<div class="pv-console">';
   html += '<div class="pv-area-bar">';
   areas.forEach(function(ar){
-    var cls = ar.id===_pvConsoleArea?'pv-area-btn active':'pv-area-btn';
-    html += '<button class="'+cls+'" onclick="pvSelectArea(\''+String(ar.id).replace(/'/g,"\\'")+'\')">'+_pvEsc(_pvShortName(ar.name))+'</button>';
+    var isActive = ar.id===_pvConsoleArea;
+    var cls = isActive?'pv-area-btn active':'pv-area-btn';
+    var townsHtml = (isActive && ar.towns) ? '<span class="pv-area-towns">'+_pvEsc(ar.towns)+'</span>' : '';
+    html += '<button class="'+cls+'" onclick="pvSelectArea(\''+String(ar.id).replace(/'/g,"\\'")+'\')"><span class="pv-area-name">'+_pvEsc(_pvShortName(ar.name))+'</span>'+townsHtml+'</button>';
   });
   html += '</div>';
 
@@ -11737,7 +11739,6 @@ function renderPricingConsole(){
   html += '<div>';
   html += '<div class="pv-hero">';
   html += '<div class="pv-hero-name">'+_pvEsc(a.name)+'</div>';
-  if(a.towns) html += '<div class="pv-hero-towns">Includes: '+_pvEsc(a.towns)+'</div>';
   html += '<div class="pv-badges">';
   if(a.fuel) html += '<span class="pv-badge pv-badge-fuel">⛽ +'+a.fuel+'% fuel</span>';
   if(a.tonne) html += '<span class="pv-badge pv-badge-dump">🚛 +$'+a.tonne+'/tonne (14&20yd)</span>';
