@@ -5510,34 +5510,37 @@ function renderPricingGrids(){
     binHtml += '</tbody></table></div>';
     binOut += areaHeader + binHtml;
 
-    // JUNK TABLE for this area — shows pre-tax + with-tax
-    var junkHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
-      +'<thead><tr>'
-      +'<th style="'+thLeft()+'">Company</th>'
-      +junkTiers.map(function(t){return'<th style="'+thStyle()+'">'+t.l+'<br><span style="font-size:9px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">pre-tax / w/tax</span></th>';}).join('')
-      +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
-      +'</tr></thead><tbody>';
-    junkHtml += '<tr style="background:rgba(230,126,34,.06);border-bottom:1px solid var(--border)">'
-      +'<td style="padding:10px 14px;font-weight:700;color:#e67e22">🏠 Jeff\'s Junk</td>'
-      +junkTiers.map(function(t){
-        var v = ap.junk&&ap.junk[t.k] ? parseFloat(ap.junk[t.k]) : null;
-        var pre = v ? '$'+v.toFixed(0) : '—';
-        var tax = v ? '$'+(v*TAX_RATE).toFixed(2) : '—';
-        return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700;color:#e67e22">'+pre+'</div><div style="font-size:11px;color:#e67e22">'+tax+' w/tax</div></td>';
-      }).join('')
-      +'<td></td></tr>';
-    areaComps.forEach(function(comp){
-      junkHtml += '<tr style="border-bottom:1px solid var(--border)">'
-        +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
-        +junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); }).join('')
-        +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
-        +'</div></td></tr>';
-    });
-    if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+2)+'" style="padding:16px 14px;color:var(--muted);font-size:13px">No competitors added for this area yet.</td></tr>';
-    junkHtml += '</tbody></table></div>';
-    junkOut += areaHeader + junkHtml;
+    // JUNK TABLE for this area — only render if Jeff's Junk has at least one junk price filled
+    var hasJunk = junkTiers.some(function(t){ return parseFloat(ap.junk&&ap.junk[t.k])>0; });
+    if(hasJunk){
+      var junkHtml = '<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse">'
+        +'<thead><tr>'
+        +'<th style="'+thLeft()+'">Company</th>'
+        +junkTiers.map(function(t){return'<th style="'+thStyle()+'">'+t.l+'<br><span style="font-size:9px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">pre-tax / w/tax</span></th>';}).join('')
+        +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
+        +'</tr></thead><tbody>';
+      junkHtml += '<tr style="background:rgba(230,126,34,.06);border-bottom:1px solid var(--border)">'
+        +'<td style="padding:10px 14px;font-weight:700;color:#e67e22">🏠 Jeff\'s Junk</td>'
+        +junkTiers.map(function(t){
+          var v = ap.junk&&ap.junk[t.k] ? parseFloat(ap.junk[t.k]) : null;
+          var pre = v ? '$'+v.toFixed(0) : '—';
+          var tax = v ? '$'+(v*TAX_RATE).toFixed(2) : '—';
+          return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700;color:#e67e22">'+pre+'</div><div style="font-size:11px;color:#e67e22">'+tax+' w/tax</div></td>';
+        }).join('')
+        +'<td></td></tr>';
+      areaComps.forEach(function(comp){
+        junkHtml += '<tr style="border-bottom:1px solid var(--border)">'
+          +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
+          +junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); }).join('')
+          +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
+          +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
+          +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
+          +'</div></td></tr>';
+      });
+      if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+2)+'" style="padding:16px 14px;color:var(--muted);font-size:13px">No competitors added for this area yet.</td></tr>';
+      junkHtml += '</tbody></table></div>';
+      junkOut += areaHeader + junkHtml;
+    }
   });
 
   var emptyMsg = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Add pricing areas using "Edit Our Prices" to see comparisons here.</div>';
@@ -11630,8 +11633,4 @@ function initReportSection() {
   var now = new Date();
   var prevMonth = now.getMonth();
   var prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  if (prevMonth === 0) prevMonth = 12;
-  var picker = document.getElementById('report-month');
-  if (picker) picker.value = prevYear + '-' + (prevMonth < 10 ? '0' : '') + prevMonth;
-  _rptCheckAutoGenerate();
-}
+  i
