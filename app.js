@@ -3708,8 +3708,10 @@ async function renderDashBinsOut(){
   var droppedJobs=(droppedRes.data||[]).map(dbToJob);
 
   // Split into assigned (has bin) and unassigned (no bin)
+  // Unassigned only shows when delivery date is today or has passed — these are "forgot to assign a bin" cases
+  var _today=todayStr();
   var assignedJobs=droppedJobs.filter(function(j){return !!j.binBid;});
-  var unassignedJobs=droppedJobs.filter(function(j){return !j.binBid;});
+  var unassignedJobs=droppedJobs.filter(function(j){return !j.binBid && j.binDropoff && j.binDropoff<=_today;});
 
   if(!assignedJobs.length&&!unassignedJobs.length){el.innerHTML=emptyStateHTML('🏠','All Bins Home','Every bin is back in the yard. Ready for the next job.');return;}
 
@@ -4062,7 +4064,10 @@ function toggleCatSection(el){
   el.classList.toggle('collapsed');
 }
 function toggleJobSort(field){
-  if(jobSort===field){jobSortDir=jobSortDir*-1;}else{jobSort=field;jobSortDir=field==='date'?-1:1;}
+  if(jobSort===field){jobSortDir=jobSortDir*-1;}else{jobSort=field;jobSortDir=(field==='date'||field==='createdAt')?-1:1;}
+  // Reflect "Recently Added" button state if present
+  var recBtn=document.getElementById('btn-sort-recent');
+  if(recBtn) recBtn.classList.toggle('active', jobSort==='createdAt');
   renderJobs();
 }
 function sortJobList(arr){
@@ -4073,6 +4078,7 @@ function sortJobList(arr){
     if(field==='id'){va=a.id;vb=b.id;var na=parseInt(va.replace(/\D/g,'')),nb=parseInt(vb.replace(/\D/g,''));if(!isNaN(na)&&!isNaN(nb))return (na-nb)*dir;return va<vb?-dir:va>vb?dir:0;}
     if(field==='name'){va=(a.name||'').toLowerCase();vb=(b.name||'').toLowerCase();return va<vb?-dir:va>vb?dir:0;}
     if(field==='date'){return (new Date(a.date)-new Date(b.date))*dir;}
+    if(field==='createdAt'){var ta=a.createdAt?new Date(a.createdAt).getTime():0;var tb=b.createdAt?new Date(b.createdAt).getTime():0;return (ta-tb)*dir;}
     if(field==='address'){va=(a.address||'').toLowerCase();vb=(b.address||'').toLowerCase();return va<vb?-dir:va>vb?dir:0;}
     if(field==='service'){va=(a.service||'');vb=(b.service||'');return va<vb?-dir:va>vb?dir:0;}
     return 0;
@@ -7569,6 +7575,8 @@ async function saveJob(e){
     createdByEmail: editId ? (jobs.find(function(j){return j.id===editId;})||{}).createdByEmail || userEmail : userEmail,
     editedBy:       editId ? userName  : '',
     editedByEmail:  editId ? userEmail : '',
+    // Preserve crew assignment when editing — form has no crew field, so without this it gets cleared
+    assignedCrewIds: editId ? (jobs.find(function(j){return j.id===editId;})||{}).assignedCrewIds || [] : [],
   };
 
   // Auto-populate scheduling dates from main date if not set
@@ -7791,7 +7799,7 @@ async function openDetail(id){
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
     +'<div style="font-size:11px;color:var(--muted);margin-top:6px">Created '+fd(j.date)+(j.time?' · '+ft(j.time):'')+'</div>'
     +'</div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>Name</label><span>'+j.name+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>Phone</label><span>'+(j.phone||'—')+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
     +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>':'')
@@ -8228,7 +8236,8 @@ async function swapOutBin(id){
   await saveSingleJob(newJob);
   toast('Swap out job '+newId+' created!');
   closeM('detail-modal');
-  refresh();
+  await loadJobsPage(jobsPage);
+  openDetail(newId);
 }
 
 function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});patchJob(id,{confirmed:true});toast('Customer marked as confirmed!');refresh();}
@@ -11901,26 +11910,3 @@ function renderPricingCards(){
     sortedSizes.forEach(function(sz){
       var base = parseFloat(a.bins[sz]);
       var allIn = pvCalcAllIn(base, sz, a.fuel, a.tonne);
-      var label = _pvSizeLabel(sz);
-      html += '<div class="pv-tile" onclick="pvCopyPrice('+(allIn?allIn.toFixed(2):'0')+')">';
-      html += '<div class="pv-tile-sz">'+label+'</div>';
-      html += '<div class="pv-tile-base">$'+base+'</div>';
-      html += '<div class="pv-tile-allin">all-in <b>'+pvFmtR(allIn)+'</b></div>';
-      html += '</div>';
-    });
-    html += '</div>';
-    if(a.comps.length){
-      var strips = a.comps.map(function(c){
-        var v = parseFloat(c.bins&&c.bins['14 yard']); if(!v) return '';
-        var diff = v - parseFloat(a.bins['14 yard']);
-        var cls = diff>0?'up':diff<0?'down':'';
-        var arrow = diff>0?'▲':diff<0?'▼':'=';
-        return '<div class="pv-comp"><div class="pv-comp-cname">'+_pvEsc(c.name)+'</div><div class="pv-comp-cprice '+cls+'">$'+v+' <span style="font-size:9px">'+arrow+'</span></div></div>';
-      }).filter(function(s){return s;});
-      if(strips.length) html += '<div class="pv-comp-strip">'+strips.join('')+'</div>';
-    }
-    html += '</div>';
-  });
-  html += '</div>';
-  host.innerHTML = html;
-}
