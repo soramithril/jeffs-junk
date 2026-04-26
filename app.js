@@ -4065,9 +4065,11 @@ function toggleCatSection(el){
 }
 function toggleJobSort(field){
   if(jobSort===field){jobSortDir=jobSortDir*-1;}else{jobSort=field;jobSortDir=(field==='date'||field==='createdAt')?-1:1;}
-  // Reflect "Recently Added" button state if present
-  var recBtn=document.getElementById('btn-sort-recent');
-  if(recBtn) recBtn.classList.toggle('active', jobSort==='createdAt');
+  // Reflect Sort tab state — pills only highlight for date / createdAt sorts
+  var dateBtn=document.getElementById('jsort-date');
+  var createdBtn=document.getElementById('jsort-created');
+  if(dateBtn) dateBtn.classList.toggle('active', jobSort==='date');
+  if(createdBtn) createdBtn.classList.toggle('active', jobSort==='createdAt');
   renderJobs();
 }
 function sortJobList(arr){

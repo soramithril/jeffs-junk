@@ -366,11 +366,17 @@
         </div>
       </div>
 
-      <!-- Recently Added sort -->
-      <button id="btn-sort-recent" class="atab" onclick="toggleJobSort('createdAt')" style="margin-left:auto" title="Sort by date added (newest first)">🆕 Recently Added</button>
+      <!-- Sort Tabs -->
+      <div class="atabs-wrap" id="atabs-sort" style="position:relative;">
+        <div class="atabs-highlight" id="atabs-sort-hl"></div>
+        <div class="atabs-track">
+          <button class="atab active" data-group="sort" id="jsort-date"     onclick="toggleJobSort('date')">📅 By Date</button>
+          <button class="atab"        data-group="sort" id="jsort-created"  onclick="toggleJobSort('createdAt')">🆕 Recently Added</button>
+        </div>
+      </div>
 
       <!-- Search -->
-      <input class="search-input" type="text" placeholder="🔍 Search name, phone, address, city..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:300px">
+      <input class="search-input" type="text" placeholder="🔍 Search name, phone, address, city..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:300px;margin-left:auto">
 
     </div>
   </div>
