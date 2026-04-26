@@ -11910,3 +11910,26 @@ function renderPricingCards(){
     sortedSizes.forEach(function(sz){
       var base = parseFloat(a.bins[sz]);
       var allIn = pvCalcAllIn(base, sz, a.fuel, a.tonne);
+      var label = _pvSizeLabel(sz);
+      html += '<div class="pv-tile" onclick="pvCopyPrice('+(allIn?allIn.toFixed(2):'0')+')">';
+      html += '<div class="pv-tile-sz">'+label+'</div>';
+      html += '<div class="pv-tile-base">$'+base+'</div>';
+      html += '<div class="pv-tile-allin">all-in <b>'+pvFmtR(allIn)+'</b></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    if(a.comps.length){
+      var strips = a.comps.map(function(c){
+        var v = parseFloat(c.bins&&c.bins['14 yard']); if(!v) return '';
+        var diff = v - parseFloat(a.bins['14 yard']);
+        var cls = diff>0?'up':diff<0?'down':'';
+        var arrow = diff>0?'▲':diff<0?'▼':'=';
+        return '<div class="pv-comp"><div class="pv-comp-cname">'+_pvEsc(c.name)+'</div><div class="pv-comp-cprice '+cls+'">$'+v+' <span style="font-size:9px">'+arrow+'</span></div></div>';
+      }).filter(function(s){return s;});
+      if(strips.length) html += '<div class="pv-comp-strip">'+strips.join('')+'</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  host.innerHTML = html;
+}
