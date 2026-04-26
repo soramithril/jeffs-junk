@@ -5497,14 +5497,22 @@ function renderPricingGrids(){
       +'<th style="'+thStyle()+'">⛽ Fuel</th>'
       +'<th style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)"></th>'
       +'</tr></thead><tbody>';
-    // Our row — show pre-tax and with-tax
+    // Our row — show base + all-in (matches Live view: base + dump fee for 14/20yd + fuel + HST)
     binHtml += '<tr style="background:rgba(34,197,94,.05);border-bottom:1px solid var(--border)">'
       +'<td style="padding:10px 14px;font-weight:700;color:var(--accent)">🏠 Jeff\'s Junk</td>'
       +binSizes.map(function(s){
         var v = ap.bins&&ap.bins[s] ? parseFloat(ap.bins[s]) : null;
-        var pre = v ? '$'+v.toFixed(0) : '—';
-        var tax = v ? '$'+(v*TAX_RATE).toFixed(2) : '—';
-        return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700;color:var(--accent)">'+pre+'</div><div style="font-size:11px;color:#4ade80">'+tax+' w/tax</div></td>';
+        if(!v) return '<td style="padding:10px 14px;text-align:center;color:var(--muted)">—<br><span style="font-size:10px;color:var(--muted)">—</span></td>';
+        var pre = '$'+v.toFixed(0);
+        var allInVal, label;
+        if(s==='14 yard' || s==='20 yard'){
+          allInVal = pvCalcAllIn(v, s, ap.binFuel, ap.binTonne);
+          label = 'all-in';
+        } else {
+          allInVal = v*TAX_RATE;
+          label = 'w/tax';
+        }
+        return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700;color:var(--accent)">'+pre+'</div><div style="font-size:11px;color:#4ade80">$'+allInVal.toFixed(2)+' '+label+'</div></td>';
       }).join('')
       +'<td style="padding:10px 14px;text-align:center;font-weight:700;color:var(--accent)">'+(ap.binFuel?ap.binFuel+'%':'—')+'</td>'
       +'<td></td></tr>';
