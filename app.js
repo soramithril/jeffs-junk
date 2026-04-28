@@ -11362,9 +11362,17 @@ async function dispatchAssignJob(jobId, crewId, leg){
   if(local){
     if(leg === 'pickup') local.pickupCrewId = crewId || null;
     else local.dropoffCrewId = crewId || null;
+    // Keep assigned_crew_ids in sync (union of per-leg) so the dashboard / job detail / leaderboard see the assignment.
+    var u = [];
+    if(local.dropoffCrewId) u.push(local.dropoffCrewId);
+    if(local.pickupCrewId && u.indexOf(local.pickupCrewId) < 0) u.push(local.pickupCrewId);
+    update.assigned_crew_ids = u;
+    local.assignedCrewIds = u;
   }
   var r = await db.from('jobs').update(update).eq('job_id', jobId);
   if(r.error){ toast('Assign error: '+r.error.message); return; }
+  if(typeof refreshDashJobs==='function') refreshDashJobs();
+  if(typeof renderLiveJobs==='function') renderLiveJobs();
   renderDispatch();
 }
 async function dispatchBalanceRoutes(){
@@ -11397,12 +11405,25 @@ async function dispatchBalanceRoutes(){
     });
     totals[best] += u.total;
   });
-  for(var i=0; i<assignments.length; i++){
-    var a = assignments[i];
-    var col = a.leg === 'pickup' ? 'pickup_crew_id' : 'dropoff_crew_id';
-    var u2 = {}; u2[col] = a.crewId;
-    await db.from('jobs').update(u2).eq('job_id', a.jobId);
+  // Build per-job aggregated update (covers swap pairs that touch both legs)
+  var perJob = {};
+  assignments.forEach(function(a){
+    if(!perJob[a.jobId]) perJob[a.jobId] = {};
+    perJob[a.jobId][a.leg === 'pickup' ? 'pickup_crew_id' : 'dropoff_crew_id'] = a.crewId;
+  });
+  for(var jid in perJob){
+    var u2 = perJob[jid];
+    var local = _dispatchJobsCache.find(function(j){return j.id===jid;});
+    var dropC = (u2.dropoff_crew_id !== undefined) ? u2.dropoff_crew_id : (local ? local.dropoffCrewId : null);
+    var pickC = (u2.pickup_crew_id  !== undefined) ? u2.pickup_crew_id  : (local ? local.pickupCrewId  : null);
+    var union = [];
+    if(dropC) union.push(dropC);
+    if(pickC && union.indexOf(pickC) < 0) union.push(pickC);
+    u2.assigned_crew_ids = union;
+    await db.from('jobs').update(u2).eq('job_id', jid);
   }
+  if(typeof refreshDashJobs==='function') refreshDashJobs();
+  if(typeof renderLiveJobs==='function') renderLiveJobs();
   toast('Balanced '+assignments.length+' assignments across '+working.length+' driver(s).');
   renderDispatch();
 }
@@ -11426,7 +11447,7 @@ function dispatchRenderCard(j, clockStartMins){
   var pinTxt = j._isPickup ? 'P' : 'D';
   var pinBg  = j._isPickup ? 'rgba(13,110,253,.18)' : 'rgba(234,179,8,.18)';
   var pinFg  = j._isPickup ? '#0d6efd' : '#eab308';
-  var swapBadge = j._partnerId ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);padding:1px 5px;border-radius:4px;margin-left:4px">SWAP</span>' : '';
+  var swapBadge = j._partnerId ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);padding:1px 5px;border-radius:4px;margin-left:4px">COMBO</span>' : '';
   var working = dispatchGetWorkingIds();
   var assigned = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
   var optsHtml = '<option value="">— Unassigned</option>';
@@ -11493,13 +11514,19 @@ async function renderDispatch(){
   var swapPairs = Object.keys(swapPartner).length / 2;
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
-  html += '<div class="page-sub">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' swap pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
+  html += '<div class="page-sub">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
   html += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">';
   html += '<button class="btn btn-ghost btn-sm" onclick="dispatchShiftDate(-1)">&larr; Prev</button>';
   html += '<input type="date" value="'+_dispatchDate+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-family:inherit;font-size:13px">';
   html += '<button class="btn btn-ghost btn-sm" onclick="dispatchShiftDate(1)">Next &rarr;</button>';
   html += '<button class="btn btn-ghost btn-sm" onclick="_dispatchDate=null;renderDispatch()">Today</button>';
   html += '<button class="btn btn-sm" onclick="dispatchBalanceRoutes()" style="background:#173404;color:#C0DD97;border:0;padding:6px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer">Balance routes</button>';
+  html += '</div></div>';
+  html += '<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
+  html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
+  html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
+  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">COMBO</span>';
+  html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
   html += '</div></div>';
   html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Working today &mdash; click to toggle</div>';
