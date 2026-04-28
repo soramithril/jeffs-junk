@@ -11515,12 +11515,20 @@ async function renderDispatch(){
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
   html += '<div class="page-sub">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
-  html += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">';
-  html += '<button class="btn btn-ghost btn-sm" onclick="dispatchShiftDate(-1)">&larr; Prev</button>';
-  html += '<input type="date" value="'+_dispatchDate+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-family:inherit;font-size:13px">';
-  html += '<button class="btn btn-ghost btn-sm" onclick="dispatchShiftDate(1)">Next &rarr;</button>';
-  html += '<button class="btn btn-ghost btn-sm" onclick="_dispatchDate=null;renderDispatch()">Today</button>';
-  html += '<button class="btn btn-sm" onclick="dispatchBalanceRoutes()" style="background:#173404;color:#C0DD97;border:0;padding:6px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer">Balance routes</button>';
+  html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+  // Connected date stepper
+  html += '<div style="display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+  html += '<button onclick="dispatchShiftDate(-1)" title="Previous day" style="background:transparent;border:0;padding:8px 14px;color:var(--text);cursor:pointer;font-size:18px;line-height:1;border-right:1px solid var(--border);font-family:inherit">&lsaquo;</button>';
+  html += '<input type="date" value="'+_dispatchDate+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:transparent;border:0;color:var(--text);padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-width:140px;text-align:center">';
+  html += '<button onclick="dispatchShiftDate(1)" title="Next day" style="background:transparent;border:0;padding:8px 14px;color:var(--text);cursor:pointer;font-size:18px;line-height:1;border-left:1px solid var(--border);font-family:inherit">&rsaquo;</button>';
+  html += '</div>';
+  // Today button (always shown)
+  html += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Today</button>';
+  // Balance routes (primary action, icon, pushed to right via margin-left:auto)
+  html += '<button onclick="dispatchBalanceRoutes()" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-family:inherit">';
+  html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>';
+  html += 'Balance routes';
+  html += '</button>';
   html += '</div></div>';
   html += '<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
   html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
