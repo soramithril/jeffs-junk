@@ -501,6 +501,7 @@ function dbToJob(r) {
     price:      r.price != null ? String(r.price) : '',
     paid:       r.paid       || 'Unpaid',
     notes:      r.notes      || '',
+    internalNotes: r.internal_notes || '',
     items:      r.items      || '',
     referral:   r.referral   || '',
     confirmed:  r.confirmed  || false,
@@ -595,6 +596,7 @@ function dbToClient(r) {
     city:     r.city    || '',
     referral: r.referral || '',
     notes:    r.notes   || '',
+    internalNotes: r.internal_notes || '',
     createdAt: r.created_at || '',
     blacklisted: r.blacklisted || false,
   };
@@ -618,6 +620,7 @@ function jobToDb(j) {
     price:       j.price !== '' && j.price != null ? parseFloat(j.price) : null,
     paid:        j.paid        || 'Unpaid',
     notes:       j.notes       || '',
+    internal_notes: j.internalNotes || '',
     items:       j.items       || '',
     referral:    j.referral    || '',
     confirmed:   j.confirmed   || false,
@@ -671,6 +674,7 @@ function clientToDb(c) {
     city:     c.city    || '',
     referral: c.referral || '',
     notes:    c.notes   || '',
+    internal_notes: c.internalNotes || '',
     blacklisted: c.blacklisted || false,
   };
 }
@@ -1408,6 +1412,7 @@ function editClient(cid){
   document.getElementById('c-business-name').value=cl.businessName||'';
   document.getElementById('c-referral').value=cl.referral||'';
   document.getElementById('c-notes').value=cl.notes||'';
+  var cin=document.getElementById('c-internal-notes');if(cin)cin.value=cl.internalNotes||'';
   var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=cl.blacklisted||false;
   var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
   closeM('client-detail-modal');
@@ -1473,6 +1478,7 @@ async function saveClient(e){
     address:fullAddr,city:primaryAddr.city||'Barrie',addresses:addresses,
     referral:document.getElementById('c-referral').value,
     notes:document.getElementById('c-notes').value.trim(),
+    internalNotes:(document.getElementById('c-internal-notes')||{value:''}).value.trim(),
     blacklisted:document.getElementById('c-blacklisted')?document.getElementById('c-blacklisted').checked:false
   };
   var dbRow=clientToDb(cl);
@@ -5174,6 +5180,7 @@ async function openClientDetail(cid){
     +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Bin Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
+    +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+cl.internalNotes+'</p></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
     +'<button class="btn btn-primary" onclick="closeM(\'client-detail-modal\');newJobForClient(\''+cl.cid+'\')">+ New Job</button>'
     +'<button class="btn btn-ghost" onclick="closeM(\'client-detail-modal\');editClient(\''+cl.cid+'\')">✏️ Edit</button>'
@@ -7139,7 +7146,7 @@ function newJob(){
   document.getElementById('fb-schedule-wrap').style.display='none';
   document.getElementById('f-junk-date').value='';document.getElementById('f-junk-time').value='';
   document.getElementById('junk-schedule-wrap').style.display='none';
-  document.getElementById('f-notes').value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
+  document.getElementById('f-notes').value='';var fin=document.getElementById('f-internal-notes');if(fin)fin.value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   var ft=document.getElementById('f-tools');if(ft)ft.value='';
   document.getElementById('f-material-type').value='';
@@ -7409,6 +7416,7 @@ function openEdit(id){
       document.getElementById('fb-time-label').textContent=isDelivEdit?'Delivery Time':'Pickup Time';
     }
     document.getElementById('f-notes').value=j.notes||'';
+    var fin2=document.getElementById('f-internal-notes');if(fin2)fin2.value=j.internalNotes||'';
     var drdData=null;
     try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
     if(j.service==='Furniture Pickup' && drdData){
@@ -7570,6 +7578,7 @@ async function saveJob(e){
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral || (editId ? (jobs.find(function(j){return j.id===editId;})||{}).referral || '' : ''),
     notes:     document.getElementById('f-notes').value.trim(),
+    internalNotes: (document.getElementById('f-internal-notes')||{value:''}).value.trim(),
     items:     svc==='Furniture Pickup' ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
     businessName: document.getElementById('f-business-name').value.trim(),
@@ -7817,6 +7826,7 @@ async function openDetail(id){
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
+    +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+j.internalNotes+'</p></div>':'')
     +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:#e67e22">'+j.toolsNeeded+'</p></div>':'')
     +(j.service==='Furniture Pickup'?'<div id="drd-detail-section"></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
