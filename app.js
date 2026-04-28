@@ -984,7 +984,7 @@ async function loadAllFromSupabase() {
     showLoading('Loading crew...', 80);
     try {
       var rCrew = await db.from('crew_members').select('*').eq('active', true).order('name');
-      crewMembers = (rCrew.data || []).map(function(r){ return {id:r.id, name:r.name}; });
+      crewMembers = (rCrew.data || []).map(function(r){ return {id:r.id, name:r.name, color:r.color||null}; });
       var todayISO = todayStr();
       var rAssign = await db.from('vehicle_assignments').select('*').eq('assignment_date', todayISO);
       vehicleAssignments = {};
@@ -6797,6 +6797,10 @@ async function doAssignBin(jobId,bid){
 var CREW_AVATAR_PALETTE = ['#22c55e','#0d6efd','#8b5cf6','#f97316','#dc3545','#06b6d4','#eab308','#0d9488'];
 function crewAvatarColor(crewId){
   if(!crewId) return '#868e96';
+  if(typeof crewMembers !== 'undefined'){
+    var crew = crewMembers.find(function(c){return c.id===crewId;});
+    if(crew && crew.color) return crew.color;
+  }
   var hash=0;
   for(var i=0;i<crewId.length;i++){ hash=((hash<<5)-hash)+crewId.charCodeAt(i); hash|=0; }
   return CREW_AVATAR_PALETTE[Math.abs(hash)%CREW_AVATAR_PALETTE.length];
