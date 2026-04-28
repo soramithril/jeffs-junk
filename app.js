@@ -5377,7 +5377,11 @@ function renderDashPricing(){
     out += '</div>';
     out += '<div style="flex:1;text-align:right;min-width:0">';
     out += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:'+totalColor+';line-height:1;letter-spacing:.3px">'+fmD(tot)+'</div>';
-    out += '<div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:600">$'+base+' base</div>';
+    var _mathParts = [];
+    if(tonne && tonneOn[sz]) _mathParts.push('($'+base+' + $'+tonne+')'); else _mathParts.push('$'+base);
+    if(fuel) _mathParts.push('\u00d7 '+(1+fuel/100).toFixed(2));
+    _mathParts.push('\u00d7 1.13');
+    out += '<div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:600;letter-spacing:.2px">'+_mathParts.join(' ')+'</div>';
     out += '</div>';
     out += '<div style="font-size:13px;color:var(--muted);opacity:.5;flex-shrink:0" title="Click to copy">📋</div>';
     out += '</div>';
