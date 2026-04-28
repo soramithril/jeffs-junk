@@ -1727,7 +1727,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','analytics','utilization','pricing','drdcalc','leaderboard','advisor'];
+var allViews = ['dashboard','jobs','calendar','clients','bininventory','binmap','vehicles','analytics','utilization','pricing','drdcalc','dispatch','leaderboard','advisor'];
 var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
 function canAccessAnalytics(){
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
@@ -1768,6 +1768,7 @@ function render(name){
   else if(name==='leaderboard') renderLeaderboardPage();
   else if(name==='pricing') renderPricing();
   else if(name==='drdcalc') renderDrdCalc();
+  else if(name==='dispatch') renderDispatch();
   else if(name==='binmap') renderMap();
   else if(name==='advisor') renderAdvisor();
   else if(name==='bininventory') renderBinInventory();
@@ -6877,7 +6878,10 @@ async function toggleAssignCrew(jobId,crewId){
   var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
   var ids=(j.assignedCrewIds||[]).slice();
   var idx=ids.indexOf(crewId);
-  if(idx>=0) ids.splice(idx,1); else ids.push(crewId);
+  if(j.service==='Bin Rental'){
+    // Single-driver-per-bin-job: assigning a new crew replaces existing.
+    ids = (idx>=0) ? [] : [crewId];
+  } else if(idx>=0) ids.splice(idx,1); else ids.push(crewId);
   j.assignedCrewIds=ids;
   patchJob(j.id,{assignedCrewIds:ids});
   // Refresh modal in place
@@ -11187,6 +11191,212 @@ async function _printFbForm(jobId, kind) {
 
 async function printFbDropOff(jobId) { return _printFbForm(jobId, 'dropoff'); }
 async function printFbPickup(jobId) { return _printFbForm(jobId, 'pickup'); }
+
+// ─── DISPATCH (Bin Rental routing for today) ───────────────────
+var _dispatchCityTimes = {};
+var _dispatchDate = null;
+var _dispatchJobsCache = [];
+
+async function dispatchLoadCityTimes(){
+  var r = await db.from('city_drive_times').select('*');
+  if(!r.error && r.data){
+    _dispatchCityTimes = {};
+    r.data.forEach(function(row){ _dispatchCityTimes[row.city] = row.minutes; });
+  }
+}
+function dispatchCityMins(city){
+  if(!city) return 20;
+  var m = _dispatchCityTimes[city];
+  return (typeof m === 'number') ? m : 20;
+}
+function dispatchEstimateMinutes(job, kind){
+  var c = dispatchCityMins(job.city);
+  var YARD_TO_DUMP = 6;
+  var HANDLING_PICKUP = 25;
+  var HANDLING_DELIVERY = 15;
+  if(kind === 'standalone-pickup')   return 2*c + YARD_TO_DUMP + HANDLING_PICKUP;
+  if(kind === 'standalone-delivery') return 2*c + HANDLING_DELIVERY;
+  if(kind === 'swap-pickup')         return c + YARD_TO_DUMP + HANDLING_PICKUP;
+  if(kind === 'swap-delivery')       return c;
+  return 0;
+}
+function dispatchFindSwaps(jobsList){
+  var pickups = jobsList.filter(function(j){return j._isPickup;});
+  var deliveries = jobsList.filter(function(j){return j._isDelivery;});
+  var partner = {};
+  var used = {};
+  pickups.forEach(function(p){
+    if(partner[p.id]) return;
+    var pm = dispatchCityMins(p.city);
+    for(var i=0; i<deliveries.length; i++){
+      var d = deliveries[i];
+      if(used[d.id] || partner[d.id]) continue;
+      if(Math.abs(pm - dispatchCityMins(d.city)) <= 10){
+        partner[p.id] = d.id;
+        partner[d.id] = p.id;
+        used[d.id] = true;
+        break;
+      }
+    }
+  });
+  return partner;
+}
+async function dispatchLoadJobs(dateISO){
+  var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled')
+    .or('bin_dropoff.eq.'+dateISO+',bin_pickup.eq.'+dateISO);
+  if(r.error){ console.error('Dispatch jobs error:', r.error); return []; }
+  return (r.data||[]).map(dbToJob);
+}
+function dispatchFmtTotal(mins){
+  if(!mins) return '0m';
+  var h = Math.floor(mins/60), m = mins % 60;
+  return (h?h+'h ':'') + (m?m+'m':(h?'':'0m'));
+}
+function dispatchGetWorkingIds(){
+  if(!_dispatchDate) return [];
+  try { return JSON.parse(localStorage.getItem('dispatch_working_'+_dispatchDate)||'[]'); }
+  catch(e){ return []; }
+}
+function dispatchSetWorkingIds(ids){
+  if(!_dispatchDate) return;
+  localStorage.setItem('dispatch_working_'+_dispatchDate, JSON.stringify(ids));
+}
+function dispatchToggleWorking(crewId){
+  var ids = dispatchGetWorkingIds();
+  var i = ids.indexOf(crewId);
+  if(i>=0) ids.splice(i,1); else ids.push(crewId);
+  dispatchSetWorkingIds(ids);
+  renderDispatch();
+}
+async function dispatchAssignJob(jobId, crewId){
+  var newIds = crewId ? [crewId] : [];
+  var local = _dispatchJobsCache.find(function(j){return j.id===jobId;});
+  if(local) local.assignedCrewIds = newIds;
+  var globalLocal = jobs.find(function(j){return j.id===jobId;});
+  if(globalLocal) globalLocal.assignedCrewIds = newIds;
+  var r = await db.from('jobs').update({assigned_crew_ids: newIds}).eq('job_id', jobId);
+  if(r.error){ toast('Assign error: '+r.error.message); return; }
+  renderDispatch();
+}
+function dispatchRenderCard(j){
+  var pinTxt = j._isPickup ? 'P' : 'D';
+  var pinBg  = j._isPickup ? 'rgba(13,110,253,.18)' : 'rgba(234,179,8,.18)';
+  var pinFg  = j._isPickup ? '#0d6efd' : '#eab308';
+  var swapBadge = j._partnerId ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);padding:1px 5px;border-radius:4px;margin-left:4px">SWAP</span>' : '';
+  var working = dispatchGetWorkingIds();
+  var assigned = (j.assignedCrewIds||[])[0] || '';
+  var optsHtml = '<option value="">— Unassigned</option>';
+  working.forEach(function(id){
+    var c = crewMembers.find(function(cm){return cm.id===id;});
+    if(!c) return;
+    optsHtml += '<option value="'+id+'"'+(assigned===id?' selected':'')+'>'+c.name+'</option>';
+  });
+  if(assigned && working.indexOf(assigned)<0){
+    var ac = crewMembers.find(function(cm){return cm.id===assigned;});
+    if(ac) optsHtml += '<option value="'+assigned+'" selected>'+ac.name+' (not working today)</option>';
+  }
+  var card = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:6px">';
+  card += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+  card += '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:'+pinBg+';color:'+pinFg+';font-size:11px;font-weight:700">'+pinTxt+'</span>';
+  card += '<span style="font-weight:700">'+j.id+'</span>'+swapBadge;
+  card += '<span style="margin-left:auto;font-weight:600;color:var(--muted)">+'+j._estMinutes+'m</span>';
+  card += '</div>';
+  card += '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">'+(j.name||'—')+' &middot; '+(j.city||'—')+'</div>';
+  card += '<select onchange="dispatchAssignJob(\''+j.id+'\', this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:6px;font-size:11px">'+optsHtml+'</select>';
+  card += '</div>';
+  return card;
+}
+async function renderDispatch(){
+  var host = document.getElementById('view-dispatch');
+  if(!host) return;
+  if(!Object.keys(_dispatchCityTimes).length) await dispatchLoadCityTimes();
+  if(!_dispatchDate) _dispatchDate = todayStr();
+  var workingIds = dispatchGetWorkingIds();
+  var todayJobs = await dispatchLoadJobs(_dispatchDate);
+  _dispatchJobsCache = todayJobs;
+  todayJobs.forEach(function(j){
+    j._isPickup = (j.binPickup === _dispatchDate);
+    j._isDelivery = (j.binDropoff === _dispatchDate && !j._isPickup);
+  });
+  var swapPartner = dispatchFindSwaps(todayJobs);
+  todayJobs.forEach(function(j){
+    var partnerId = swapPartner[j.id];
+    var kind = partnerId
+      ? (j._isPickup ? 'swap-pickup' : 'swap-delivery')
+      : (j._isPickup ? 'standalone-pickup' : 'standalone-delivery');
+    j._kind = kind;
+    j._partnerId = partnerId || null;
+    j._estMinutes = dispatchEstimateMinutes(j, kind);
+  });
+  var laneSet = {};
+  workingIds.forEach(function(id){ laneSet[id] = true; });
+  todayJobs.forEach(function(j){ var p=(j.assignedCrewIds||[])[0]; if(p) laneSet[p]=true; });
+  var laneIds = Object.keys(laneSet);
+  var byLane = {}; laneIds.forEach(function(id){ byLane[id]=[]; });
+  var unassigned = [];
+  todayJobs.forEach(function(j){
+    var p = (j.assignedCrewIds||[])[0];
+    if(p && byLane[p]) byLane[p].push(j); else unassigned.push(j);
+  });
+  var totalMins = todayJobs.reduce(function(s,j){return s+(j._estMinutes||0);},0);
+  var swapPairs = Object.keys(swapPartner).length / 2;
+  var html = '<div class="page-header">';
+  html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
+  html += '<div class="page-sub">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' swap pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
+  html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+  html += '<button class="btn btn-ghost btn-sm" onclick="_dispatchDate=null; renderDispatch();">Today</button>';
+  html += '</div></div>';
+  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Working today &mdash; click to toggle</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+  if(!crewMembers.length){
+    html += '<div style="font-size:13px;color:var(--muted);font-style:italic">No crew members yet.</div>';
+  } else {
+    crewMembers.forEach(function(c){
+      var on = workingIds.indexOf(c.id) >= 0;
+      var color = c.color || crewAvatarColor(c.id);
+      var bg = on ? color+'22' : 'var(--surface)';
+      var fg = on ? color : 'var(--text)';
+      html += '<button onclick="dispatchToggleWorking(\''+c.id+'\')" style="border:1px solid '+color+';background:'+bg+';color:'+fg+';padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">'+(on?'&#10003; ':'')+c.name+'</button>';
+    });
+  }
+  html += '</div></div>';
+  html += '<div style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Unassigned ('+unassigned.length+')</div>';
+  if(!unassigned.length){
+    html += '<div style="font-size:13px;color:var(--muted);font-style:italic">No unassigned jobs.</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+    unassigned.forEach(function(j){ html += dispatchRenderCard(j); });
+    html += '</div>';
+  }
+  html += '</div>';
+  if(laneIds.length){
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">';
+    laneIds.forEach(function(id){
+      var crew = crewMembers.find(function(c){return c.id===id;});
+      if(!crew) return;
+      var laneJobs = byLane[id] || [];
+      var laneTotal = laneJobs.reduce(function(s,j){return s+(j._estMinutes||0);},0);
+      var color = crew.color || crewAvatarColor(crew.id);
+      html += '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:10px;padding:10px 10px 8px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+      html += '<div style="font-weight:700;font-size:14px;color:'+color+'">'+crew.name+'</div>';
+      html += '<div style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(34,197,94,.12);color:#22c55e">'+dispatchFmtTotal(laneTotal)+'</div>';
+      html += '</div>';
+      if(!laneJobs.length){
+        html += '<div style="font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic">No jobs assigned</div>';
+      } else {
+        laneJobs.forEach(function(j){ html += dispatchRenderCard(j); });
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center;padding:30px;color:var(--muted);font-size:14px">Pick at least one driver above to start dispatching.</div>';
+  }
+  host.innerHTML = html;
+}
 
 // ─── FURNITURE QUOTE CALCULATOR (standalone DRD-driven quote tool) ───
 function renderDrdCalc(){

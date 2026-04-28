@@ -100,6 +100,7 @@
     <button class="nav-item" onclick="go('livejobs')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><span>Live Jobs</span></button>
     <button class="nav-item" onclick="go('pricing')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Competition Pricing</span></button>
     <button class="nav-item" onclick="go('drdcalc')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="12" y1="10" x2="14" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="12" y1="14" x2="14" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="12" y1="18" x2="14" y2="18"/><line x1="16" y1="18" x2="16.01" y2="18"/></svg></span><span>Furniture Quote</span></button>
+    <button class="nav-item" onclick="go('dispatch')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 9 6 12 12 18 6 21 6"/><polyline points="3 18 9 18 12 12 18 18 21 18"/><circle cx="12" cy="12" r="2"/></svg></span><span>Dispatch</span></button>
     <div class="nav-label" id="nav-analytics-label" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-analytics')">Analytics <span id="nav-analytics-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▶</span></div>
     <div id="nav-analytics" style="display:none">
     <button class="nav-item" onclick="go('analytics')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Analytics</span></button>
@@ -956,6 +957,10 @@
     </div>
   </div>
 </div>
+
+
+<!-- =============== DISPATCH (Bin Rental routing) =============== -->
+<div id="view-dispatch" class="view"></div>
 
 <!-- ═══════════════ BIN INVENTORY ═══════════════ -->
 <div id="view-bininventory" class="view">
