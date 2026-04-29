@@ -1931,8 +1931,9 @@ async function refreshDashBinStats(){
   });
   var isToday=(dateStr===today);
   var availLbl=isToday?'AVAILABLE':'PROJECTED AVAILABLE';
-  var availColor=isToday?'#22c55e':'#f0932b';
-  var availShadow=isToday?'0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)':'0 2px 8px rgba(240,147,43,.35),0 4px 20px rgba(240,147,43,.15)';
+  // Big number always green — color shouldn't shift between today and forecast.
+  var availColor='#22c55e';
+  var availShadow='0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)';
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
