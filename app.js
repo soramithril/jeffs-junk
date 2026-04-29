@@ -316,7 +316,7 @@ function attachAddressAutocomplete(inputEl, onPick) {
       item.innerHTML = '<strong>' + main + '</strong>' + (rest ? ' <span style="color:#94a3b8;font-size:12px">' + rest + '</span>' : '');
       item.addEventListener('mousedown', function(e) {
         e.preventDefault();
-        var street = _extractStreet(r);
+        var street = _extractStreet(r, inputEl.value);
         var city   = _extractCity(r);
         inputEl.value = street;
         hideDropdown();
@@ -371,12 +371,17 @@ function attachAddressAutocomplete(inputEl, onPick) {
   });
 }
 
-function _extractStreet(r) {
+function _extractStreet(r, currentValue) {
   var a = r.address || {};
   var num  = a.house_number || '';
   var road = a.road || a.pedestrian || a.path || '';
   if (num && road) return num + ' ' + road;
-  if (road) return road;
+  if (road) {
+    // Preserve user's existing house number when Nominatim returns a street-level result
+    var existing = (currentValue || '').match(/^\s*(\d+[a-zA-Z]?)\s+\S/);
+    if (existing) return existing[1] + ' ' + road;
+    return road;
+  }
   // fallback: first part of display_name
   return (r.display_name || '').split(',')[0].trim();
 }
