@@ -520,6 +520,7 @@ function dbToJob(r) {
     binInstatus:r.bin_instatus || '',
     binSide:    r.bin_side   || '',
     binBid:     r.bin_bid    || '',
+    binWillCall:r.bin_will_call || false,
     clientId:   r.client_cid || '',
     deposit:    r.deposit != null ? String(r.deposit) : '',
     depositPaid:r.deposit_paid || false,
@@ -641,6 +642,7 @@ function jobToDb(j) {
     bin_instatus:j.binInstatus || '',
     bin_side:    j.binSide     || '',
     bin_bid:     j.binBid      || '',
+    bin_will_call: j.binWillCall || false,
     client_cid:  j.clientId    || '',
     deposit:     j.deposit !== '' && j.deposit != null ? parseFloat(j.deposit) : null,
     deposit_paid:j.depositPaid || false,
@@ -707,7 +709,7 @@ function patchJob(jobId, fields) {
   _clientStatsCache = null;
   updateSidebarStats();
   // Log changes to job_changes
-  var labelMap = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid',assignedCrewIds:'Assigned Crew'};
+  var labelMap = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid',assignedCrewIds:'Assigned Crew',binWillCall:'Will Call'};
   var oldJob = jobs.find(function(j){return j.id===jobId;});
   var changeRows = [];
   var userEmail = currentUser ? currentUser.email : 'system';
@@ -734,7 +736,7 @@ function patchJob(jobId, fields) {
     recurring:'recurring', recurInterval:'recur_interval', materialType:'material_type',
     toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
     depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
-    clientId:'client_cid', assignedCrewIds:'assigned_crew_ids'};
+    clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call'};
   var dbFields = {};
   Object.keys(fields).forEach(function(k){
     var col = keyMap[k] || k;
@@ -3653,6 +3655,8 @@ async function renderDash(){
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
+  renderWillCallCard();
+
   // ── CALL-BACK LIST — unconfirmed upcoming jobs ────────────
   var callbackJobs = (rUnconfirmed14.data||[]).map(dbToJob);
   callbackJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
@@ -3716,6 +3720,48 @@ async function renderDash(){
   // Keep hidden stub IDs up to date so nothing else breaks
   var upcomingHdrEl=document.getElementById('upcoming-hdr-lbl');
   if(upcomingHdrEl) upcomingHdrEl.textContent='';
+}
+
+async function renderWillCallCard(){
+  var listEl=document.getElementById('dash-will-call-list');
+  var countEl=document.getElementById('dash-will-call-count');
+  if(!listEl)return;
+  var r=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_will_call',true).neq('status','Cancelled').order('bin_pickup');
+  var wcJobs=(r.data||[]).map(dbToJob);
+  // Merge into local jobs array so action buttons (openDetail, etc.) work
+  wcJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
+  if(countEl) countEl.textContent = wcJobs.length ? (wcJobs.length+' job'+(wcJobs.length===1?'':'s')+' awaiting customer call') : '';
+  if(!wcJobs.length){
+    listEl.innerHTML='<div style="padding:18px 20px;font-size:13px;color:var(--muted);font-style:italic">No jobs flagged for Will Call.</div>';
+    return;
+  }
+  var iconLoc='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+  var iconCal='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+  var rows=wcJobs.map(function(j){
+    var assignedBin=j.binBid?binItems.find(function(b){return b.bid===j.binBid;}):null;
+    var binBadge='';
+    if(assignedBin){
+      var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
+      binBadge='<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+' · #'+assignedBin.bid+'</span>';
+    } else if(j.binSize){
+      var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
+      binBadge='<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
+    }
+    var addrStr=j.address?j.address.split(',')[0]:'';
+    var tentDate=j.binPickup?'<span style="color:var(--muted);font-size:11px;flex-shrink:0">tentative '+fd(j.binPickup)+'</span>':'';
+    var schedBtn='<button class="btn btn-ghost btn-sm" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07);flex-shrink:0;display:inline-flex;align-items:center;gap:4px">'+iconCal+' Schedule Pickup</button>';
+    return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid #e67e22;border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
+      +jobCrewAvatarsHTML(j)
+      +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
+        +'<span style="flex-shrink:0">'+j.name+'</span>'
+        +binBadge
+        +(tentDate?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span>'+tentDate:'')
+        +(addrStr||j.city?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">'+iconLoc+(addrStr?(addrStr+(j.city?' · '+j.city:'')):j.city)+'</span>':'')
+      +'</div>'
+      +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+schedBtn+'</div>'
+    +'</div>';
+  }).join('');
+  listEl.innerHTML=rows;
 }
 
 async function renderDashBinsOut(){
@@ -7814,7 +7860,7 @@ async function openDetail(id){
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
-      +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+'</span></div>'
+      +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' Side'):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
@@ -7894,6 +7940,11 @@ async function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
+      if(j.service==='Bin Rental'){
+        var wcIcon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+        if(j.binWillCall) btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.5);color:#e67e22;background:rgba(230,126,34,.08);font-weight:700">'+wcIcon+'Will Call ON · Clear</button>');
+        else            btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">'+wcIcon+'Mark Will Call</button>');
+      }
       if(j.recurring && j.service==='Junk Removal'){
         btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
       }
@@ -8501,6 +8552,31 @@ function dashMarkPickedUp(jobId,bid){
   if(j){j.binInstatus='pickedup';writeBinHistory(j);}
   binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
   patchJob(jobId,{binInstatus:'pickedup'});saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
+}
+function toggleWillCall(id,e){
+  if(e)e.stopPropagation();
+  var j=jobs.find(function(jj){return jj.id===id;});
+  if(!j)return;
+  var next=!j.binWillCall;
+  j.binWillCall=next;
+  patchJob(id,{binWillCall:next});
+  toast(next?'Marked as Will Call — pickup is tentative':'Will Call cleared');
+  refresh();
+}
+function scheduleWillCallPickup(id,e){
+  if(e)e.stopPropagation();
+  var j=jobs.find(function(jj){return jj.id===id;});
+  if(!j)return;
+  var current=j.binPickup||'';
+  var d=prompt('Pickup date (YYYY-MM-DD):',current);
+  if(!d)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d.trim())){toast('⚠ Date must be YYYY-MM-DD','error');return;}
+  d=d.trim();
+  j.binPickup=d;
+  j.binWillCall=false;
+  patchJob(id,{binPickup:d,binWillCall:false});
+  toast('Pickup scheduled for '+fd(d));
+  refresh();
 }
 function toast(msg, type) {
   var t = document.getElementById('toast');
