@@ -1532,6 +1532,7 @@ function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/
 function ft(t){if(!t)return '';var p=t.split(':'),h=parseInt(p[0]);return (h%12||12)+':'+(p[1]||'00')+' '+(h>=12?'PM':'AM');}
 function fm(v){var n=parseFloat(v);return isNaN(n)?'—':'$'+n.toFixed(2);}
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function ymdLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function resolveAddr(j){
   var a=(j.address||'').trim();
   var c=(j.city||'').trim();
@@ -1885,9 +1886,13 @@ async function refreshDashBinStats(){
       if(j.binInstatus==='pickedup')return;
       var drop=j.binDropoff||j.date;
       var pick=j.binPickup;
-      if(!drop)return;
       var active;
-      if(pick){
+      // Overdue rule: pickup date past, not marked pickedup → still out for today/future
+      if(j.binInstatus==='dropped'&&pick&&pick<today&&dateStr>=today){
+        active=true;
+      } else if(!drop){
+        return;
+      } else if(pick){
         active=dateStr>=drop&&dateStr<=pick;
       } else {
         var dropD=new Date(drop+'T12:00:00');
@@ -1912,22 +1917,36 @@ async function refreshDashBinStats(){
     var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% deployed';
   },50);
 
+  // Minimal fleet card: big number = available, single "X/Y out" subline,
+  // conditional overdue pill in top-right when bins are past pickup but not pickedup.
+  var sizeOverdue={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
+  jobs.forEach(function(j){
+    if(j.service!=='Bin Rental')return;
+    if(j.status==='Cancelled')return;
+    if(j.binInstatus!=='dropped')return;
+    if(!j.binPickup||j.binPickup>=today)return;
+    if(sizeOverdue.hasOwnProperty(j.binSize))sizeOverdue[j.binSize]++;
+  });
+  var isToday=(dateStr===today);
+  var availLbl=isToday?'AVAILABLE':'PROJECTED AVAILABLE';
+  var availColor=isToday?'#22c55e':'#f0932b';
+  var availShadow=isToday?'0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)':'0 2px 8px rgba(240,147,43,.35),0 4px 20px rgba(240,147,43,.15)';
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
+    var od=sizeOverdue[s]||0;
     var imgUrl='';
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
     var watermark=imgUrl?'<div style="position:absolute;top:calc(50% - 50px);left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.30;pointer-events:none"></div>':'';
+    var overduePill=od>0?'<div style="position:absolute;top:8px;right:8px;background:rgba(220,53,69,.15);color:#dc3545;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.6px;z-index:2">⚠ '+od+' OVERDUE</div>':'';
     return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
       +watermark
+      +overduePill
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:#22c55e;margin-bottom:2px;text-shadow:0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15);position:relative;z-index:1">'+inY+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:14px">IN YARD</div>'
-      +'<div style="display:flex;justify-content:center;gap:0;border-top:1px solid var(--border);padding-top:10px">'
-      +'<div style="flex:1;border-right:1px solid var(--border);padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#dc3545;font-weight:700">'+out+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Out</div></div>'
-      +'<div style="flex:1;padding:0 4px"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:var(--text);font-weight:700">'+tot+'</div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Total</div></div>'
-      +'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:'+availColor+';margin-bottom:2px;text-shadow:'+availShadow+';position:relative;z-index:1">'+inY+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;position:relative;z-index:1">'+availLbl+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-bottom:12px;position:relative;z-index:1">'+out+' / '+tot+' out</div>'
       +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn">📅 Book</button>'
       +'<div style="display:flex;gap:4px;margin-top:6px">'
       +'<button onclick="bookBin(\''+s+'\',3)" class="bin-dur-btn">3 Days</button>'
@@ -3385,21 +3404,23 @@ async function renderDash(){
 
   var todayS = todayStr();
   var now = new Date();
+  // Use ymdLocal (local-time formatter) instead of toISOString() which returns UTC
+  // and shifts forward a day in the evenings (Toronto is UTC-4/-5).
   var tomorrowD = new Date(now); tomorrowD.setDate(tomorrowD.getDate()+1);
-  var tomorrowS = tomorrowD.toISOString().split('T')[0];
+  var tomorrowS = ymdLocal(tomorrowD);
   var weekStart = new Date(now); weekStart.setDate(now.getDate()-now.getDay());
-  var weekStartS = weekStart.toISOString().split('T')[0];
+  var weekStartS = ymdLocal(weekStart);
   var cutoff14 = new Date(now); cutoff14.setDate(now.getDate()+14);
-  var cutoff14S = cutoff14.toISOString().split('T')[0];
-  var monthStart = new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
+  var cutoff14S = ymdLocal(cutoff14);
+  var monthStart = ymdLocal(new Date(now.getFullYear(),now.getMonth(),1));
   // Last week date range for trend badges
   var lastWeekStart = new Date(weekStart); lastWeekStart.setDate(lastWeekStart.getDate()-7);
-  var lastWeekStartS = lastWeekStart.toISOString().split('T')[0];
+  var lastWeekStartS = ymdLocal(lastWeekStart);
   var lastWeekEnd = new Date(weekStart); lastWeekEnd.setDate(lastWeekEnd.getDate()-1);
-  var lastWeekEndS = lastWeekEnd.toISOString().split('T')[0];
+  var lastWeekEndS = ymdLocal(lastWeekEnd);
   // Same day last week
   var sameDayLastWeek = new Date(now); sameDayLastWeek.setDate(sameDayLastWeek.getDate()-7);
-  var sameDayLastWeekS = sameDayLastWeek.toISOString().split('T')[0];
+  var sameDayLastWeekS = ymdLocal(sameDayLastWeek);
 
   var datePicker = document.getElementById('dash-bin-date');
   datePicker.value = todayS;
@@ -6408,10 +6429,15 @@ function sizePill(s){var cls=s==='4 yard'?'sp-4':s==='7 yard'?'sp-7':s==='14 yar
 function typePill(t){var cls=t==='wide'||t==='low'?'tc-low':'tc-reg';var lbl=t==='wide'||t==='low'?'Low-Wide':'Regular';return '<span class="tc '+cls+'">'+lbl+'</span>';}
 function binsOutOnDate(dateStr){
   var count=0;
+  var today=todayStr();
   jobs.forEach(function(j){
     if(j.service!=='Bin Rental')return;
     if(j.status==='Cancelled')return;
     if(j.binInstatus==='pickedup')return;
+    // Overdue rule: pickup date past, not marked pickedup → still out for today/future
+    if(j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<today&&dateStr>=today){
+      count++; return;
+    }
     var drop=j.binDropoff||j.date;
     var pick=j.binPickup;
     if(!drop)return;
@@ -6592,14 +6618,19 @@ async function renderTimeline(){
     fleetBySize[s]=binItems.filter(function(b){return b.size===s;}).length;
   });
 
+  var todayLocal=todayStr();
   function outBySize(ds){
     var out={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
     binJobs.forEach(function(j){
       var drop=j.binDropoff||j.date;
       var pick=j.binPickup;
-      if(!drop)return;
       var active;
-      if(pick){
+      // Overdue rule: pickup date past, not marked pickedup → still out for today/future
+      if(j.binInstatus==='dropped'&&pick&&pick<todayLocal&&ds>=todayLocal){
+        active=true;
+      } else if(!drop){
+        return;
+      } else if(pick){
         active=ds>=drop&&ds<=pick;
       } else {
         var dropD=new Date(drop+'T12:00:00');
