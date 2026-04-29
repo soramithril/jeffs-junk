@@ -1886,10 +1886,12 @@ async function refreshDashBinStats(){
       if(j.binInstatus==='pickedup')return;
       var drop=j.binDropoff||j.date;
       var pick=j.binPickup;
-      var active;
-      // Overdue rule: pickup date past, not marked pickedup → still out for today/future
-      if(j.binInstatus==='dropped'&&pick&&pick<today&&dateStr>=today){
-        active=true;
+      var active=false;
+      if(j.binInstatus==='dropped'&&dateStr>=today){
+        // Physically out right now — ignore binDropoff (may be a future swap date).
+        // Stay out from today through pickup, or indefinitely if pickup is past/missing.
+        if(!pick||pick<today) active=true;          // overdue or no pickup scheduled
+        else active=dateStr<=pick;                   // out until pickup day inclusive
       } else if(!drop){
         return;
       } else if(pick){
@@ -3404,8 +3406,7 @@ async function renderDash(){
 
   var todayS = todayStr();
   var now = new Date();
-  // Use ymdLocal (local-time formatter) instead of toISOString() which returns UTC
-  // and shifts forward a day in the evenings (Toronto is UTC-4/-5).
+  // Use ymdLocal (local-time formatter) instead of toISOString() which returns UTC.
   var tomorrowD = new Date(now); tomorrowD.setDate(tomorrowD.getDate()+1);
   var tomorrowS = ymdLocal(tomorrowD);
   var weekStart = new Date(now); weekStart.setDate(now.getDate()-now.getDay());
@@ -6434,9 +6435,12 @@ function binsOutOnDate(dateStr){
     if(j.service!=='Bin Rental')return;
     if(j.status==='Cancelled')return;
     if(j.binInstatus==='pickedup')return;
-    // Overdue rule: pickup date past, not marked pickedup → still out for today/future
-    if(j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<today&&dateStr>=today){
-      count++; return;
+    if(j.binInstatus==='dropped'&&dateStr>=today){
+      // Physically out right now — ignore binDropoff (may be a future swap date).
+      var pk=j.binPickup;
+      if(!pk||pk<today){ count++; return; }   // overdue or no pickup scheduled
+      if(dateStr<=pk){ count++; return; }     // out until pickup day inclusive
+      return;
     }
     var drop=j.binDropoff||j.date;
     var pick=j.binPickup;
@@ -6624,10 +6628,11 @@ async function renderTimeline(){
     binJobs.forEach(function(j){
       var drop=j.binDropoff||j.date;
       var pick=j.binPickup;
-      var active;
-      // Overdue rule: pickup date past, not marked pickedup → still out for today/future
-      if(j.binInstatus==='dropped'&&pick&&pick<todayLocal&&ds>=todayLocal){
-        active=true;
+      var active=false;
+      if(j.binInstatus==='dropped'&&ds>=todayLocal){
+        // Physically out right now — ignore binDropoff (may be a future swap date).
+        if(!pick||pick<todayLocal) active=true;
+        else active=ds<=pick;
       } else if(!drop){
         return;
       } else if(pick){
