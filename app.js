@@ -7195,6 +7195,7 @@ function toggleBin(){
       document.getElementById('junk-schedule-label').textContent=isQuote?'Quote Schedule':'Job Schedule';
       document.getElementById('junk-date-label').textContent=isQuote?'Quote Date':'Job Date';
       document.getElementById('junk-time-label').textContent=isQuote?'Quote Time':'Job Time';
+      var qaw=document.getElementById('quote-amount-wrap');if(qaw)qaw.style.display=isQuote?'block':'none';
     }
   }
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
@@ -7245,7 +7246,7 @@ function newJob(){
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   var now=new Date();document.getElementById('f-date').value=now.toISOString().split('T')[0];document.getElementById('f-time').value=now.toTimeString().slice(0,5);
-  document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';
+  document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';var qaiC=document.getElementById('f-quote-amount');if(qaiC)qaiC.value='';
   document.getElementById('f-business-name').value='';
   document.getElementById('f-fb-date').value='';document.getElementById('f-fb-time').value='';
   document.getElementById('fb-schedule-wrap').style.display='none';
@@ -7511,6 +7512,8 @@ function openEdit(id){
       document.getElementById('junk-schedule-label').textContent=isQEdit?'Quote Schedule':'Job Schedule';
       document.getElementById('junk-date-label').textContent=isQEdit?'Quote Date':'Job Date';
       document.getElementById('junk-time-label').textContent=isQEdit?'Quote Time':'Job Time';
+      var qawE=document.getElementById('quote-amount-wrap');if(qawE)qawE.style.display=isQEdit?'block':'none';
+      var qaiE=document.getElementById('f-quote-amount');if(qaiE)qaiE.value=isQEdit?(j.price||''):'';
     }
     var isFurnEdit=j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
     document.getElementById('fb-schedule-wrap').style.display=isFurnEdit?'block':'none';
@@ -7678,7 +7681,7 @@ async function saveJob(e){
     city:      city,
     date:      date,
     time:      document.getElementById('f-time').value,
-    price:     document.getElementById('f-price').value,
+    price:     svc==='Junk Quote' ? (document.getElementById('f-quote-amount').value || '') : document.getElementById('f-price').value,
     paid:      document.getElementById('f-paid').value || 'Unpaid',
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral || (editId ? (jobs.find(function(j){return j.id===editId;})||{}).referral || '' : ''),
@@ -7926,7 +7929,7 @@ async function openDetail(id){
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
-    +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>':'')
+    +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':''):'')
     +'</div></div>':'')
     +bin
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
@@ -9108,7 +9111,7 @@ var defaultPresets = {
   },
   junk_quote: {
     subject: 'Your Junk Removal Quote',
-    body: 'Hi {name},\n\nThank you for requesting a junk removal quote.\n\nWe have scheduled a quote visit for {date}.\n\nAddress: {address}\n\nOur team will assess the items and provide you with a detailed quote on site.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThank you for requesting a junk removal quote.\n\nWe have scheduled a quote visit for {date}.\n\nAddress: {address}\n\nQuoted amount: {price}\n\nOur team will assess the items and confirm the price on site.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   }
 };
 
@@ -9131,7 +9134,7 @@ function fillEmailTemplate(template, j) {
     .replace(/{pickupDate}/g, fd(pickupDate) || 'TBD')
     .replace(/{duration}/g, duration)
     .replace(/{address}/g, ((j.address||'')+(j.city?', '+j.city:'')) || '')
-    .replace(/{price}/g, fm(j.price) || '')
+    .replace(/{price}/g, (j.price !== '' && j.price != null ? fm(j.price) : ''))
     .replace(/{side}/g, side);
 }
 
