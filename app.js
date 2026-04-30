@@ -11024,21 +11024,25 @@ async function printBinRental(jobId) {
     var lineHeight = 30;
     var placementY = 673;
     if (placementText) {
-      var words = placementText.split(' ');
-      var line = '';
       var lineNum = 0;
-      for (var wi = 0; wi < words.length; wi++) {
-        var testLine = line ? line + ' ' + words[wi] : words[wi];
-        var testWidth = font.widthOfTextAtSize(testLine, 10);
-        if (testWidth > maxWidth && line) {
-          drawText(line, lineNum === 0 ? 105 : 80, placementY + lineNum * lineHeight);
-          line = words[wi];
-          lineNum++;
-        } else {
-          line = testLine;
+      var paragraphs = placementText.split(/\r?\n/);
+      for (var pi = 0; pi < paragraphs.length; pi++) {
+        var words = paragraphs[pi].split(' ');
+        var line = '';
+        for (var wi = 0; wi < words.length; wi++) {
+          var testLine = line ? line + ' ' + words[wi] : words[wi];
+          var testWidth = font.widthOfTextAtSize(testLine, 10);
+          if (testWidth > maxWidth && line) {
+            drawText(line, lineNum === 0 ? 105 : 80, placementY + lineNum * lineHeight);
+            line = words[wi];
+            lineNum++;
+          } else {
+            line = testLine;
+          }
         }
+        if (line) drawText(line, lineNum === 0 ? 105 : 80, placementY + lineNum * lineHeight);
+        lineNum++;
       }
-      if (line) drawText(line, lineNum === 0 ? 105 : 80, placementY + lineNum * lineHeight);
     }
 
     // Generate and open
@@ -11221,21 +11225,25 @@ async function printJunkRemoval(jobId) {
       var maxW = 310;
       var lh = 30;
       var ny = 673;
-      var words = notesText.split(' ');
-      var line = '';
       var ln = 0;
-      for (var wi = 0; wi < words.length; wi++) {
-        var testLine = line ? line + ' ' + words[wi] : words[wi];
-        var testWidth = font.widthOfTextAtSize(testLine, 10);
-        if (testWidth > maxW && line) {
-          dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
-          line = words[wi];
-          ln++;
-        } else {
-          line = testLine;
+      var paragraphs = notesText.split(/\r?\n/);
+      for (var pi = 0; pi < paragraphs.length; pi++) {
+        var words = paragraphs[pi].split(' ');
+        var line = '';
+        for (var wi = 0; wi < words.length; wi++) {
+          var testLine = line ? line + ' ' + words[wi] : words[wi];
+          var testWidth = font.widthOfTextAtSize(testLine, 10);
+          if (testWidth > maxW && line) {
+            dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
+            line = words[wi];
+            ln++;
+          } else {
+            line = testLine;
+          }
         }
+        if (line) dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
+        ln++;
       }
-      if (line) dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
     }
 
     var filledBytes = await pdfDoc.save();
