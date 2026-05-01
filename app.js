@@ -3209,8 +3209,8 @@ async function refreshDashJobs(){
         var timeCell = hasFixedTime
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
           : '<span></span>';
-        var fullAddr = j.address ? (j.address + (j.city ? ', ' + j.city : '')) : (j.city || '');
-        var cityChip = j.city ? '<span style="color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 '+j.city+'</span>' : '<span></span>';
+        var fullAddr = j.address || '';
+        var cityChip = j.city ? '<span style="display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;justify-self:start"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+j.city+'</span>' : '<span></span>';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
@@ -3693,8 +3693,8 @@ async function renderDash(){
         var timeCell = hasFixedTime
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
           : '<span></span>';
-        var fullAddr = j.address ? (j.address + (j.city ? ', ' + j.city : '')) : (j.city || '');
-        var cityChip = j.city ? '<span style="color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 '+j.city+'</span>' : '<span></span>';
+        var fullAddr = j.address || '';
+        var cityChip = j.city ? '<span style="display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;justify-self:start"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+j.city+'</span>' : '<span></span>';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
