@@ -3105,6 +3105,21 @@ async function renderDashMaintAlert(){
   el.style.display='block';
 }
 
+// Map a city name to a deterministic color from a 6-color palette (same city → same color)
+function _cityColor(city){
+  if(!city) return null;
+  var palette=[
+    {bg:'rgba(34,197,94,.15)',  fg:'#4ade80', bd:'rgba(34,197,94,.4)',  ac:'#22c55e'},
+    {bg:'rgba(168,85,247,.15)', fg:'#c084fc', bd:'rgba(168,85,247,.4)', ac:'#a855f7'},
+    {bg:'rgba(245,158,11,.15)', fg:'#fbbf24', bd:'rgba(245,158,11,.4)', ac:'#f59e0b'},
+    {bg:'rgba(236,72,153,.15)', fg:'#f472b6', bd:'rgba(236,72,153,.4)', ac:'#ec4899'},
+    {bg:'rgba(59,130,246,.15)', fg:'#60a5fa', bd:'rgba(59,130,246,.4)', ac:'#3b82f6'},
+    {bg:'rgba(20,184,166,.15)', fg:'#2dd4bf', bd:'rgba(20,184,166,.4)', ac:'#14b8a6'}
+  ];
+  var h=0; for(var i=0;i<city.length;i++) h=((h*31)+city.charCodeAt(i))>>>0;
+  return palette[h % palette.length];
+}
+
 // Refresh just the Today's Jobs panel for whatever date the picker is on
 async function refreshDashJobs(){
   var dp = document.getElementById('dash-bin-date');
@@ -3210,7 +3225,8 @@ async function refreshDashJobs(){
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
           : '<span></span>';
         var fullAddr = j.address || '';
-        var cityChip = j.city ? '<span style="display:inline-flex;align-items:center;gap:6px;color:#7eb8ff;font-size:12px;font-weight:600;background:rgba(126,184,255,.1);border:1px solid rgba(126,184,255,.25);border-radius:5px;padding:4px 10px;white-space:nowrap;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+j.city+'</span>' : '';
+        var _cc = _cityColor(j.city);
+        var cityChip = (j.city && _cc) ? '<span style="background:'+_cc.bg+';color:'+_cc.fg+';border:1px solid '+_cc.bd+';border-left:3px solid '+_cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;line-height:1.2">'+j.city+'</span>' : '';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
@@ -3693,7 +3709,8 @@ async function renderDash(){
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
           : '<span></span>';
         var fullAddr = j.address || '';
-        var cityChip = j.city ? '<span style="display:inline-flex;align-items:center;gap:6px;color:#7eb8ff;font-size:12px;font-weight:600;background:rgba(126,184,255,.1);border:1px solid rgba(126,184,255,.25);border-radius:5px;padding:4px 10px;white-space:nowrap;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+j.city+'</span>' : '';
+        var _cc = _cityColor(j.city);
+        var cityChip = (j.city && _cc) ? '<span style="background:'+_cc.bg+';color:'+_cc.fg+';border:1px solid '+_cc.bd+';border-left:3px solid '+_cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;line-height:1.2">'+j.city+'</span>' : '';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
