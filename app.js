@@ -3199,10 +3199,10 @@ async function refreshDashJobs(){
         var binBadge='<span></span>';
         if(legAssignedBin){
           var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:10px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;justify-self:start">'+sz+' · #'+legAssignedBin.bid+'</span>';
+          binBadge='<span style="font-size:13px;font-weight:700;background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(34,197,94,.3)">'+sz+' · #'+legAssignedBin.bid+'</span>';
         } else if(j.binSize){
           var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:10px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px dashed rgba(230,126,34,.5);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;justify-self:start">'+sz2+'</span>';
+          binBadge='<span style="font-size:13px;font-weight:700;background:rgba(230,126,34,.18);color:#e67e22;border:1px dashed rgba(230,126,34,.6);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(230,126,34,.3)">'+sz2+'</span>';
         }
         var timeStr=(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?ft(st):'';}());
         var hasFixedTime = !!timeStr;
@@ -3234,14 +3234,12 @@ async function refreshDashJobs(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        var gridCols = hasFixedTime ? '60px 90px 1fr 110px 130px 220px' : '60px 1fr 110px 130px 220px';
+        var gridCols = hasFixedTime ? '60px 90px 1fr auto' : '60px 1fr auto';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
-          +binBadge
-          +cityChip
-          +actionsHTML
+          +'<div style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+cityChip+actionsHTML+'</div>'
         +'</div>';
       }).join('')+'</div>';
   }
@@ -3677,10 +3675,10 @@ async function renderDash(){
         var binBadge = '<span></span>';
         if(todayAssignedBin){
           var sz = (j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:10px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;justify-self:start">'+sz+' · #'+todayAssignedBin.bid+'</span>';
+          binBadge = '<span style="font-size:13px;font-weight:700;background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(34,197,94,.3)">'+sz+' · #'+todayAssignedBin.bid+'</span>';
         } else if(j.binSize){
           var sz2 = j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:10px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px dashed rgba(230,126,34,.5);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;justify-self:start">'+sz2+'</span>';
+          binBadge = '<span style="font-size:13px;font-weight:700;background:rgba(230,126,34,.18);color:#e67e22;border:1px dashed rgba(230,126,34,.6);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(230,126,34,.3)">'+sz2+'</span>';
         }
         var assignBinBtn = (j.service==='Bin Rental' && !j.binBid)
           ? '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign</button>'
@@ -3707,14 +3705,12 @@ async function renderDash(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        var gridCols = hasFixedTime ? '60px 90px 1fr 110px 130px 220px' : '60px 1fr 110px 130px 220px';
+        var gridCols = hasFixedTime ? '60px 90px 1fr auto' : '60px 1fr auto';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
-          +binBadge
-          +cityChip
-          +actionsHTML
+          +'<div style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+cityChip+actionsHTML+'</div>'
         +'</div>';
       }).join('')+'</div>';
   }
