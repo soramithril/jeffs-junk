@@ -3178,49 +3178,69 @@ async function refreshDashJobs(){
   var card = document.getElementById('card-today-jobs');
   if(card) card.className = 'chart-card urgency-neutral';
 
-  // Render job rows (reuse same makeTodayCat pattern)
+  // Render job rows — column-aligned grid layout
   function makeCat(title,color,list,isPickup){
     if(!list.length)return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
+    // Sort fixed-time rows to the top of the category
+    list = list.slice().sort(function(a,b){
+      function getTm(j){ return j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime||''):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?(j.fbTime||''):(j.service==='Junk Removal'||j.service==='Junk Quote')?(j.junkTime||''):''; }
+      var ta=getTm(a), tb=getTm(b);
+      if(ta && !tb) return -1;
+      if(!ta && tb) return 1;
+      if(ta && tb) return ta.localeCompare(tb);
+      return 0;
+    });
     return '<div style="margin-bottom:4px">'
       +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed;
-        var confirmBadge='';
-        if(showConfirm){
-          confirmBadge = cfm
-            ? '<span style="font-size:12px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:2px 8px;white-space:nowrap;flex-shrink:0">✅ Confirmed</span>'
-            : '<span style="font-size:12px;color:#e67e22;font-weight:600;background:rgba(230,126,34,.10);border-radius:4px;padding:2px 8px;white-space:nowrap;flex-shrink:0">📞 Unconfirmed</span>';
-        }
         var legAssignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
-        var binBadge='';
+        var binBadge='<span></span>';
         if(legAssignedBin){
           var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+' · #'+legAssignedBin.bid+'</span>';
+          binBadge='<span style="font-size:10px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;justify-self:start">'+sz+' · #'+legAssignedBin.bid+'</span>';
         } else if(j.binSize){
           var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge='<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
+          binBadge='<span style="font-size:10px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px dashed rgba(230,126,34,.5);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;justify-self:start">'+sz2+'</span>';
         }
         var timeStr=(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?ft(st):'';}());
+        var hasFixedTime = !!timeStr;
+        var timeCell = hasFixedTime
+          ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
+          : '<span style="color:var(--muted);font-style:italic;font-size:11px">Anytime</span>';
         var addrStr=j.address?j.address.split(',')[0]:'';
+        var fullAddr = addrStr ? (addrStr + (j.city ? ', ' + j.city : '')) : (j.city || '');
+        var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
+        var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--text);font-weight:600;font-size:13px">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px"> &nbsp;·&nbsp; '+fullAddr+'</span>':'')+'</div>';
+        var cityChip = j.city
+          ? '<span style="color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 '+j.city+'</span>'
+          : '<span></span>';
         var actionBtn='';
         if(j.service==='Bin Rental'&&isPickup&&j.binInstatus!=='pickedup'){
-          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07);flex-shrink:0">✅ Picked Up</button>'
-            +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 Confirm</button>':'');
+          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)">✅ Picked Up</button>'
+            +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 Confirm</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
-          actionBtn='<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07);flex-shrink:0">📞 '+(j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup')+'</button>';
+          actionBtn='<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup')+'</button>';
         }
-        return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
-          +jobCrewAvatarsHTML(j)
-          +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
-            +'<span style="flex-shrink:0">'+j.name+'</span>'
-            +binBadge
-            +confirmBadge
-            +(timeStr?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;flex-shrink:0">'+timeStr+'</span>':'')
-            +(addrStr||j.city?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">📍 '+(addrStr?(addrStr+(j.city?' · '+j.city:'')):j.city)+'</span>':'')
-          +'</div>'
-          +(j.service==='Bin Rental'&&!j.binBid?'<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap;flex-shrink:0">📦 Assign</button>':'')
-          +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+actionBtn+'</div>'
+        var assignBtn='';
+        if(j.service==='Bin Rental'&&!j.binBid){
+          assignBtn='<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign</button>';
+        }
+        var confirmedPill = (showConfirm && cfm) ? '<span style="font-size:11px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:3px 8px">✅</span>' : '';
+        var actionsHTML = (assignBtn||actionBtn||confirmedPill)
+          ? '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+assignBtn+actionBtn+'</div>'
+          : '<div></div>';
+        var rowBg = hasFixedTime
+          ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
+          : 'background:var(--surface2);border:1px solid var(--border)';
+        return '<div style="display:grid;grid-template-columns:60px 90px 1fr 110px 130px 220px;gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
+          +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
+          +timeCell
+          +nameAddrCell
+          +binBadge
+          +cityChip
+          +actionsHTML
         +'</div>';
       }).join('')+'</div>';
   }
