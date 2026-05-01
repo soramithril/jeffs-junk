@@ -7389,6 +7389,14 @@ function showMaterialType(){
   wrap.style.display=(effectiveSize==='4 yard'||effectiveSize==='7 yard')?'block':'none';
 }
 
+// Bins are not picked up on Sundays — push pickup date to Monday if it lands on Sunday.
+function _avoidSundayPickup(dateStr){
+  if(!dateStr) return dateStr;
+  var d=new Date(dateStr+'T12:00:00');
+  if(d.getDay()===0){ d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
+  return dateStr;
+}
+
 function setBinDuration(days){
   // Toggle off if same duration clicked again
   if(window._binPresetDays===days){
@@ -7403,7 +7411,7 @@ function setBinDuration(days){
   var drop=bdrop.value;
   var d=new Date(drop+'T12:00:00');
   d.setDate(d.getDate()+days);
-  document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
+  document.getElementById('f-bpick').value=_avoidSundayPickup(d.toISOString().split('T')[0]);
   var label=days===30?'1 month':days===1?'1 day':days+' days';
   document.getElementById('f-bdur').value=label;
   window._binPresetDays=days;
@@ -7420,7 +7428,7 @@ function applyBinPresetDuration(){
   var drop=document.getElementById('f-bdrop').value;if(!drop)return;
   var d=new Date(drop+'T12:00:00');
   d.setDate(d.getDate()+days);
-  document.getElementById('f-bpick').value=d.toISOString().split('T')[0];
+  document.getElementById('f-bpick').value=_avoidSundayPickup(d.toISOString().split('T')[0]);
 }
 
 function initBinPicker(existingBid, existingSize){
