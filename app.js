@@ -3234,11 +3234,12 @@ async function refreshDashJobs(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) auto' : '60px minmax(0,1fr) auto';
+        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 130px auto' : '60px minmax(0,1fr) 130px auto';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
-          +'<div style="display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden">'+nameAddrCell+cityChip+'</div>'
+          +nameAddrCell
+          +'<div style="justify-self:start;min-width:0">'+cityChip+'</div>'
           +'<div style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+actionsHTML+'</div>'
         +'</div>';
       }).join('')+'</div>';
@@ -3705,11 +3706,12 @@ async function renderDash(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) auto' : '60px minmax(0,1fr) auto';
+        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 130px auto' : '60px minmax(0,1fr) 130px auto';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
-          +'<div style="display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden">'+nameAddrCell+cityChip+'</div>'
+          +nameAddrCell
+          +'<div style="justify-self:start;min-width:0">'+cityChip+'</div>'
           +'<div style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+actionsHTML+'</div>'
         +'</div>';
       }).join('')+'</div>';
