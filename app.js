@@ -3231,9 +3231,9 @@ async function refreshDashJobs(){
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var actionBtn='';
         if(j.service==='Bin Rental'&&isPickup&&j.binInstatus==='pickedup'){
-          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border:1px solid rgba(34,197,94,.55);background:rgba(34,197,94,.2);font-weight:700" title="Click to undo">✅ Picked Up</button>';
+          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#4ade80;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.45);border-radius:6px;padding:5px 12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Click to undo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Picked Up</button>';
         } else if(j.service==='Bin Rental'&&isPickup){
-          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)">Pick Up</button>'
+          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#fff;background:#2563eb;border:1px solid #2563eb;border-radius:6px;padding:5px 14px;font-weight:700;box-shadow:0 1px 3px rgba(37,99,235,0.4);display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
             +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 Confirm</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
           actionBtn='<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup')+'</button>';
@@ -3250,7 +3250,8 @@ async function refreshDashJobs(){
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
         var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) minmax(0,170px) auto' : '60px minmax(0,1fr) minmax(0,170px) auto';
-        return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
+        var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
+        return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
@@ -3673,9 +3674,9 @@ async function renderDash(){
         var cfm = j.confirmed;
         var actionBtn = '';
         if(j.service==='Bin Rental'&&showBinActions&&j.binInstatus==='pickedup'){
-          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border:1px solid rgba(34,197,94,.55);background:rgba(34,197,94,.2);font-weight:700" title="Click to undo">✅ Picked Up</button>';
+          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#4ade80;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.45);border-radius:6px;padding:5px 12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Click to undo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Picked Up</button>';
         } else if(j.service==='Bin Rental'&&showBinActions){
-          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)">Pick Up</button>'
+          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#fff;background:#2563eb;border:1px solid #2563eb;border-radius:6px;padding:5px 14px;font-weight:700;box-shadow:0 1px 3px rgba(37,99,235,0.4);display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
             +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 Confirm</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
           var cfmWord = j.service==='Furniture Delivery'?'Drop-Off':'Pickup';
@@ -3722,7 +3723,8 @@ async function renderDash(){
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
         var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) minmax(0,170px) auto' : '60px minmax(0,1fr) minmax(0,170px) auto';
-        return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
+        var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
+        return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
