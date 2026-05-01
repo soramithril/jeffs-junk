@@ -7338,8 +7338,8 @@ function selectBinSize(sz, el){
   // Set bin size on the hidden field — this is enough to save the job
   document.getElementById('f-bsize').value = sz;
   // Highlight the selected size button
-  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
-  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='#22c55e';}
+  document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';b.style.opacity='';});
+  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='#22c55e';el.style.opacity='';}
   // Filter the bin grid to this size
   binPickerSzFilter = sz;
   var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
@@ -7429,6 +7429,10 @@ function initBinPicker(existingBid, existingSize){
   // Set f-bsize so the job can save with just a size selected
   if(existingSize) document.getElementById('f-bsize').value = existingSize;
   renderBinPicker(existingBid||'');
+  // Attach date change listener (once) so badges refresh when date changes
+  var _df=document.getElementById('f-date');
+  if(_df && !_df._binAvailHooked){ _df._binAvailHooked=true; _df.addEventListener('change', renderBinSizeAvailability); }
+  renderBinSizeAvailability();
   var sel = document.getElementById('bin-picker-selected');
   if(sel){
     if(existingBid){
@@ -7635,6 +7639,18 @@ async function saveJob(e){
   if(!editId){
     var avail=checkVehicleAvailability(svc,date);
     if(!avail.ok&&!confirm(avail.msg)){_saveJobLock=false;return;}
+  }
+
+  // Bin availability warning (overbooking prevention)
+  if(svc==='Bin Rental'){
+    var _bsize=document.getElementById('f-bsize').value;
+    if(_bsize){
+      var _binAvail=checkBinAvailability(_bsize,date);
+      if(_binAvail.total>0 && _binAvail.available===0){
+        var _proceed=await showBinAvailWarning(_bsize,date);
+        if(!_proceed){ _saveJobLock=false; return; }
+      }
+    }
   }
 
   var cid    = document.getElementById('f-client-select').value;
@@ -10323,6 +10339,121 @@ function checkVehicleAvailability(serviceType, dateStr){
     return {ok:false,msg:'⚠️ No '+required+' available on '+fd(dateStr)+'!\n'+reasons+'\n\nProceed anyway?'};
   }
   return {ok:true};
+}
+
+// ─── BIN AVAILABILITY (overbooking prevention) ───
+// Count how many bins of `size` are committed (out or scheduled out) on `dateStr`.
+// Mirrors the logic in the inventory timeline (renderBinTimeline) so all surfaces agree.
+function _binsCommittedOnDate(size, dateStr){
+  if(!size||!dateStr) return 0;
+  var todayLocal=todayStr();
+  var count=0;
+  jobs.forEach(function(j){
+    if(j.service!=='Bin Rental'||j.binSize!==size) return;
+    var drop=j.binDropoff||j.date;
+    var pick=j.binPickup;
+    var active=false;
+    if(j.binInstatus==='dropped'&&dateStr>=todayLocal){
+      if(!pick||pick<todayLocal) active=true;
+      else active=dateStr<=pick;
+    } else if(!drop){
+      return;
+    } else if(pick){
+      active=dateStr>=drop&&dateStr<=pick;
+    } else {
+      var dropD=new Date(drop+'T12:00:00');
+      var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
+      active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
+    }
+    if(active) count++;
+  });
+  return count;
+}
+
+function checkBinAvailability(size, dateStr){
+  if(!size||!dateStr) return {ok:true,available:0,total:0};
+  var fleet=binItems.filter(function(b){return b.size===size;}).length;
+  if(!fleet) return {ok:true,available:0,total:0};
+  var committed=_binsCommittedOnDate(size,dateStr);
+  // If editing, exclude this job's own contribution so we don't double-count
+  if(editId){
+    var thisJob=jobs.find(function(j){return j.id===editId;});
+    if(thisJob && thisJob.service==='Bin Rental' && thisJob.binSize===size){
+      var drop=thisJob.binDropoff||thisJob.date;
+      var pick=thisJob.binPickup;
+      var todayLocal=todayStr();
+      var active=false;
+      if(thisJob.binInstatus==='dropped'&&dateStr>=todayLocal){
+        if(!pick||pick<todayLocal) active=true;
+        else active=dateStr<=pick;
+      } else if(drop){
+        if(pick) active=dateStr>=drop&&dateStr<=pick;
+        else {
+          var dropD=new Date(drop+'T12:00:00');
+          var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
+          active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
+        }
+      }
+      if(active) committed--;
+    }
+  }
+  var avail=Math.max(0, fleet-committed);
+  return {ok:avail>0,available:avail,total:fleet};
+}
+
+// Update the small badge under each size button with live availability for the chosen date
+function renderBinSizeAvailability(){
+  var dateEl=document.getElementById('f-date');
+  var svc=document.getElementById('f-svc');
+  var sizes=['4 yard','7 yard','14 yard','20 yard'];
+  var badges=document.querySelectorAll('.bsz-avail-badge');
+  // Clear all badges first and reset button styling
+  badges.forEach(function(b){b.textContent='';b.style.color='';});
+  document.querySelectorAll('.bsz-btn').forEach(function(btn){
+    if(!btn.classList.contains('active')) btn.style.opacity='';
+  });
+  if(!svc||svc.value!=='Bin Rental') return;
+  if(!dateEl||!dateEl.value) return;
+  var ds=dateEl.value;
+  badges.forEach(function(badge){
+    var sz=badge.dataset.sz;
+    if(!sz) return;
+    var r=checkBinAvailability(sz,ds);
+    var btn=document.querySelector('.bsz-btn[data-sz="'+sz+'"]');
+    if(r.total===0){
+      badge.style.color='var(--muted)';
+      badge.textContent='no fleet';
+    } else if(r.available===0){
+      badge.style.color='#ff6b75';
+      badge.style.fontWeight='700';
+      badge.textContent='Fully Booked';
+      if(btn && !btn.classList.contains('active')) btn.style.opacity='0.7';
+    } else {
+      badge.style.color='#22c55e';
+      badge.textContent=r.available+' left';
+    }
+  });
+}
+
+// Show the warning modal and return a Promise that resolves to true (proceed) or false (cancel)
+var _binAvailWarningResolver=null;
+function showBinAvailWarning(size, dateStr){
+  return new Promise(function(resolve){
+    _binAvailWarningResolver=resolve;
+    var line=document.getElementById('bin-avail-warning-line1');
+    var dateLabel=dateStr;
+    try{ dateLabel=fd(dateStr); }catch(e){}
+    if(line) line.innerHTML='There are no <strong style="color:#ff8a92">'+size+'</strong> bins available for <strong style="color:#ff8a92">'+dateLabel+'</strong>.';
+    var m=document.getElementById('bin-avail-warning-modal');
+    if(m){ m.style.display='flex'; m.style.alignItems='center'; m.style.justifyContent='center'; }
+  });
+}
+function resolveBinAvailWarning(proceed){
+  var m=document.getElementById('bin-avail-warning-modal');
+  if(m) m.style.display='none';
+  var r=_binAvailWarningResolver;
+  _binAvailWarningResolver=null;
+  if(r) r(!!proceed);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

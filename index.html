@@ -1393,10 +1393,10 @@
         <div style="margin-bottom:14px">
           <label>Bin Size</label>
           <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="selectBinSize('4 yard',this)">4 yd</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="selectBinSize('7 yard',this)">7 yd</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="selectBinSize('14 yard',this)">14 yd</button>
-            <button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="selectBinSize('20 yard',this)">20 yd</button>
+            <div style="display:flex;flex-direction:column;align-items:stretch"><button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="4 yard" onclick="selectBinSize('4 yard',this)">4 yd</button><span class="bsz-avail-badge" data-sz="4 yard" style="font-size:10px;font-weight:600;text-align:center;margin-top:3px;min-height:14px;line-height:1"></span></div>
+            <div style="display:flex;flex-direction:column;align-items:stretch"><button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="7 yard" onclick="selectBinSize('7 yard',this)">7 yd</button><span class="bsz-avail-badge" data-sz="7 yard" style="font-size:10px;font-weight:600;text-align:center;margin-top:3px;min-height:14px;line-height:1"></span></div>
+            <div style="display:flex;flex-direction:column;align-items:stretch"><button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="selectBinSize('14 yard',this)">14 yd</button><span class="bsz-avail-badge" data-sz="14 yard" style="font-size:10px;font-weight:600;text-align:center;margin-top:3px;min-height:14px;line-height:1"></span></div>
+            <div style="display:flex;flex-direction:column;align-items:stretch"><button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="selectBinSize('20 yard',this)">20 yd</button><span class="bsz-avail-badge" data-sz="20 yard" style="font-size:10px;font-weight:600;text-align:center;margin-top:3px;min-height:14px;line-height:1"></span></div>
           </div>
           <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
@@ -1921,7 +1921,24 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=69"></script>
+<div class="modal-overlay" id="bin-avail-warning-modal" style="display:none">
+  <div style="background:rgba(220,53,69,0.08);border:1.5px solid rgba(220,53,69,0.45);border-radius:14px;padding:28px 26px;max-width:480px;width:90%;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(220,53,69,0.18),inset 0 1px 0 rgba(255,255,255,0.04)">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div style="width:44px;height:44px;border-radius:50%;background:rgba(220,53,69,0.18);border:1px solid rgba(220,53,69,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#ff6b75;line-height:1">No Bins Available</div>
+    </div>
+    <div style="font-size:14px;line-height:1.55;color:#e8e8ea;margin-bottom:10px" id="bin-avail-warning-line1">There are no bins available for this date.</div>
+    <div style="font-size:13px;line-height:1.5;color:#9ca0a8;margin-bottom:22px">Please double-check inventory before continuing — proceeding may result in an overbooking.</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button type="button" onclick="resolveBinAvailWarning(false)" style="padding:9px 18px;background:transparent;color:#cfd2d8;border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
+      <button type="button" onclick="resolveBinAvailWarning(true)" style="padding:9px 18px;background:rgba(220,53,69,0.85);color:#fff;border:1px solid rgba(220,53,69,1);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Proceed Anyway</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=70"></script>
 </body>
 </html>
                                                                                                                                                          
