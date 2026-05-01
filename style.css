@@ -219,12 +219,15 @@ body{
 .dash-s5{animation-delay:.34s;}
 /* ── BIN SIZE CARD depth ── */
 .bin-size-card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:20px 16px;text-align:center;
-  box-shadow:var(--shadow-sm);
-  transition:box-shadow var(--transition);
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:14px 10px;text-align:center;
+  box-shadow:none;
+  transition:none;
+}
+.bin-size-card + .bin-size-card{
+  border-left:1px solid rgba(255,255,255,0.05);
 }
 /* ── URGENCY STATES ── */
 .chart-card.urgency-warn{
