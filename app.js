@@ -1930,28 +1930,39 @@ async function refreshDashBinStats(){
     if(sizeOverdue.hasOwnProperty(j.binSize))sizeOverdue[j.binSize]++;
   });
   var isToday=(dateStr===today);
-  var availLbl=isToday?'AVAILABLE':'PROJECTED AVAILABLE';
-  // Big number always green — color shouldn't shift between today and forecast.
-  var availColor='#22c55e';
-  var availShadow='0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)';
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
+    var isFull=(tot>0&&inY===0);
+    // Per-card availability styling
+    var availLbl=isFull?'Fully Booked':(isToday?'AVAILABLE':'PROJECTED AVAILABLE');
+    var availColor=isFull?'#ff5560':'#22c55e';
+    var availShadow=isFull
+      ?'0 2px 8px rgba(220,53,69,.4),0 4px 24px rgba(220,53,69,.2)'
+      :'0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)';
+    var availLblColor=isFull?'#ff6b75':'var(--muted)';
+    var cardStyle='position:relative;overflow:hidden';
+    if(isFull) cardStyle+=';border-top:5px solid #dc3545;background:linear-gradient(180deg,rgba(220,53,69,0.06) 0%,var(--surface) 60%);box-shadow:inset 0 0 0 1px rgba(220,53,69,0.15)';
     var imgUrl='';
     if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
     var watermark=imgUrl?'<div style="position:absolute;top:calc(50% - 50px);left:50%;transform:translate(-50%,-50%);width:288px;height:288px;background-image:url('+imgUrl+');background-repeat:no-repeat;background-position:center;background-size:contain;opacity:0.30;pointer-events:none"></div>':'';
     var overduePill=od>0?'<div style="position:absolute;top:8px;right:8px;background:rgba(220,53,69,.15);color:#dc3545;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.6px;z-index:2">⚠ '+od+' OVERDUE</div>':'';
-    return '<div class="bin-size-card" style="border-top:5px solid '+sizeColors[s]+';position:relative;overflow:hidden">'
+    var fullPill=(isFull&&od===0)?'<div style="position:absolute;top:8px;right:8px;background:rgba(220,53,69,.18);color:#ff6b75;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.6px;z-index:2;display:flex;align-items:center;gap:4px"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>FULL</div>':'';
+    var bookBtnStyle=isFull?'background:transparent;color:#ff8a92;border:1px dashed rgba(220,53,69,0.5)':'';
+    var bookBtnLbl=isFull?'📅 Book Anyway':'📅 Book';
+    var durOpacity=isFull?';opacity:0.4':'';
+    return '<div class="bin-size-card" style="'+cardStyle+'">'
       +watermark
       +overduePill
+      +fullPill
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:'+availColor+';margin-bottom:2px;text-shadow:'+availShadow+';position:relative;z-index:1">'+inY+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;position:relative;z-index:1">'+availLbl+'</div>'
+      +'<div style="font-size:11px;color:'+availLblColor+';text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;position:relative;z-index:1">'+availLbl+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:12px;position:relative;z-index:1">'+out+' / '+tot+' out</div>'
-      +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn">📅 Book</button>'
-      +'<div style="display:flex;gap:4px;margin-top:6px">'
+      +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn"'+(bookBtnStyle?' style="'+bookBtnStyle+'"':'')+'>'+bookBtnLbl+'</button>'
+      +'<div style="display:flex;gap:4px;margin-top:6px'+durOpacity+'">'
       +'<button onclick="bookBin(\''+s+'\',3)" class="bin-dur-btn">3 Days</button>'
       +'<button onclick="bookBin(\''+s+'\',7)" class="bin-dur-btn">7 Days</button>'
       +'<button onclick="bookBin(\''+s+'\',30)" class="bin-dur-btn">1 Mo</button>'
