@@ -3210,6 +3210,7 @@ async function refreshDashJobs(){
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
           : '<span></span>';
         var fullAddr = j.address ? (j.address + (j.city ? ', ' + j.city : '')) : (j.city || '');
+        var cityChip = j.city ? '<span style="color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 '+j.city+'</span>' : '<span></span>';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
@@ -3233,12 +3234,13 @@ async function refreshDashJobs(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        var gridCols = hasFixedTime ? '60px 90px 1fr 110px 220px' : '60px 1fr 110px 220px';
+        var gridCols = hasFixedTime ? '60px 90px 1fr 110px 130px 220px' : '60px 1fr 110px 130px 220px';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
           +binBadge
+          +cityChip
           +actionsHTML
         +'</div>';
       }).join('')+'</div>';
@@ -3692,6 +3694,7 @@ async function renderDash(){
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
           : '<span></span>';
         var fullAddr = j.address ? (j.address + (j.city ? ', ' + j.city : '')) : (j.city || '');
+        var cityChip = j.city ? '<span style="color:var(--muted);font-size:11px;font-weight:500;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 '+j.city+'</span>' : '<span></span>';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
@@ -3704,12 +3707,13 @@ async function renderDash(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        var gridCols = hasFixedTime ? '60px 90px 1fr 110px 220px' : '60px 1fr 110px 220px';
+        var gridCols = hasFixedTime ? '60px 90px 1fr 110px 130px 220px' : '60px 1fr 110px 130px 220px';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
           +binBadge
+          +cityChip
           +actionsHTML
         +'</div>';
       }).join('')+'</div>';
