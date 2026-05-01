@@ -3208,9 +3208,8 @@ async function refreshDashJobs(){
         var hasFixedTime = !!timeStr;
         var timeCell = hasFixedTime
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
-          : '<span style="color:var(--muted);font-style:italic;font-size:11px">Anytime</span>';
-        var addrStr=j.address?j.address.split(',')[0]:'';
-        var fullAddr = addrStr ? (addrStr + (j.city ? ', ' + j.city : '')) : (j.city || '');
+          : '<span></span>';
+        var fullAddr = (j.address && j.address.trim()) ? j.address.trim() : (j.city || '');
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--text);font-weight:600;font-size:13px">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px"> &nbsp;·&nbsp; '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
@@ -3691,9 +3690,8 @@ async function renderDash(){
         var hasFixedTime = !!timeStr;
         var timeCell = hasFixedTime
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
-          : '<span style="color:var(--muted);font-style:italic;font-size:11px">Anytime</span>';
-        var addrStr = j.address ? j.address.split(',')[0] : '';
-        var fullAddr = addrStr ? (addrStr + (j.city ? ', ' + j.city : '')) : (j.city || '');
+          : '<span></span>';
+        var fullAddr = (j.address && j.address.trim()) ? j.address.trim() : (j.city || '');
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:var(--text);font-weight:600;font-size:13px">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px"> &nbsp;·&nbsp; '+fullAddr+'</span>':'')+'</div>';
         var cityChip = j.city
