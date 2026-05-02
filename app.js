@@ -10517,12 +10517,12 @@ function showBinAvailWarning(size, dateStr){
     try{ dateLabel=fd(dateStr); }catch(e){}
     if(line) line.innerHTML='There are no <strong style="color:#ff8a92">'+size+'</strong> bins available for <strong style="color:#ff8a92">'+dateLabel+'</strong>.';
     var m=document.getElementById('bin-avail-warning-modal');
-    if(m){ m.style.display='flex'; m.style.alignItems='center'; m.style.justifyContent='center'; }
+    if(m) m.classList.add("open");
   });
 }
 function resolveBinAvailWarning(proceed){
   var m=document.getElementById('bin-avail-warning-modal');
-  if(m) m.style.display='none';
+  if(m) m.classList.remove("open");
   var r=_binAvailWarningResolver;
   _binAvailWarningResolver=null;
   if(r) r(!!proceed);
