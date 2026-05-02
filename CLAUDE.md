@@ -1,0 +1,58 @@
+# Jeff's Junk Dashboard
+
+## Working agreement
+
+Explain what you will change and ask to confirm the change so we are on the same page.
+
+When it's confirmed, push it live.
+
+## Code rules
+
+- Don't overengineer — simple beats complex.
+- No fallbacks — one correct path, no alternatives.
+- One way to do things, not many.
+- Clarity over compatibility — clear code beats backward compatibility.
+- Throw errors — fail fast when preconditions aren't met.
+- No backups — trust the primary mechanism.
+- Separation of concerns — each function does one thing.
+- Surgical changes only — minimal, focused fixes.
+- Evidence-based debugging — add minimal, targeted logging.
+- Fix root causes, not symptoms.
+- Collaborative — work with the user to find the most efficient solution.
+
+## Project layout
+
+The dashboard is one static site, three files at repo root:
+
+- `index.html` (~1,940 lines) — HTML structure only. References `style.css` and `app.js`.
+- `style.css` (~990 lines) — all CSS. Includes the `.modal-overlay` / `.modal-overlay.open` pattern that all modals rely on.
+- `app.js` (~12,800 lines) — all JavaScript. Big file but flat — grep for function names.
+
+Other folders:
+- `docs/` — business PDFs.
+- `assets/` — includes a 38MB `intro-bg.mp4`. Don't churn this.
+
+GitHub Pages auto-deploys from `main` branch root. Repo is `soramithril/jeffs-junk`.
+
+## Dev workflow
+
+Edit files in place — no temp clones, no copying around. Then:
+
+1. Run `node --check app.js` after any JS edit to verify it parses. The site is one bad token away from a blank page including the sign-in screen.
+2. If you changed `app.js`, bump the cache buster in `index.html` — the `<script src="app.js?v=N"></script>` line near the bottom. Without this, users will hit cached JS and not see the fix.
+3. `git add`, `git commit -m "..."`, `git push origin main`. GitHub Pages deploys in ~30s.
+4. Verify live: `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep 'app.js?v='` should show the new version.
+
+## Modal pattern (gotcha)
+
+All modals use the `.modal-overlay` / `.modal-overlay.open` pattern. To open a modal, use `element.classList.add('open')` — never `element.style.display = 'flex'`. The base CSS sets `opacity:0; pointer-events:none`, and only the `.open` class flips them. Inline `style.display` toggling will produce an invisible-but-present modal that traps any awaiting promise.
+
+Also: don't put `style="display:none"` inline on the modal element in HTML. It overrides the class-based display and breaks the same way.
+
+## Things that are deliberately off
+
+- The `geofence-events` Supabase edge function (real auto-pickup source) was disabled 2026-04-14. Don't re-enable without asking.
+
+## Database
+
+Supabase. The main tables are `jobs`, `bin_items`, `clients`, `vehicles`, `job_changes`. Job IDs come from a per-service Supabase sequence (`next_job_id` RPC) — don't hand-mint IDs.
