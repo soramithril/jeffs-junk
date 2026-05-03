@@ -6796,7 +6796,9 @@ async function openLinkBinToJob(bid){
   document.getElementById('link-bin-search').value='';
   var inc=document.getElementById('link-bin-include-pickedup'); if(inc) inc.checked=false;
   document.getElementById('link-bin-modal').classList.add('open');
-  await loadLinkBinJobs();
+  // Load jobs and bin history in parallel
+  loadLinkBinJobs();
+  renderBinHistoryInto(bid, document.getElementById('link-bin-history'), 'link-bin-modal');
 }
 async function loadLinkBinJobs(){
   var el=document.getElementById('link-bin-jobs-list');
@@ -6903,24 +6905,26 @@ async function linkBinToJob(bid,jobId){
 async function openBinHistory(bid){
   var b=binItems.find(function(bi){return bi.bid===bid;});if(!b)return;
   document.getElementById('bin-history-ttl').textContent='📜 History — Bin #'+b.num+' ('+b.size+')';
-  var body=document.getElementById('bin-history-body');
-  body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading history...</div>';
   document.getElementById('bin-history-modal').classList.add('open');
-  // Query jobs + bin_history table in parallel
+  await renderBinHistoryInto(bid, document.getElementById('bin-history-body'), 'bin-history-modal');
+}
+async function renderBinHistoryInto(bid, bodyEl, closeModalId){
+  if(!bodyEl) return;
+  bodyEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading history...</div>';
   var jobRes=db.from('jobs').select(JOB_LIST_COLS).eq('bin_bid',bid).order('date',{ascending:false});
   var histRes=db.from('bin_history').select('*').eq('bin_num',bid).order('dropoff_date',{ascending:false});
   var results=await Promise.all([jobRes,histRes]);
   var histJobs=(results[0].data||[]).map(dbToJob);
   var histRecords=results[1].data||[];
-  // Deduplicate: bin_history records that share a job_id with a job are skipped
   var jobIds=new Set(histJobs.map(function(j){return j.id;}));
   var extraRecords=histRecords.filter(function(h){return !h.job_id||!jobIds.has(h.job_id);});
   var totalCount=histJobs.length+extraRecords.length;
-  if(!totalCount){body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📭</div>No history found for this bin</div>';return;}
+  if(!totalCount){bodyEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📭</div>No history found for this bin</div>';return;}
+  var closeJs=closeModalId?"closeM('"+closeModalId+"');":'';
   var html='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+totalCount+' record'+(totalCount!==1?'s':'')+' found</div>';
   html+=histJobs.map(function(j){
     var statusCol=j.status==='Cancelled'?'#dc3545':'#22c55e';
-    return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="closeM(\'bin-history-modal\');openDetail(\''+j.id+'\')">'
+    return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="'+closeJs+'openDetail(\''+j.id+'\')">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:#22c55e;border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
         +'<strong style="font-size:13px">'+j.name+'</strong>'
@@ -6955,7 +6959,7 @@ async function openBinHistory(bid){
       +'</div>';
     }).join('');
   }
-  body.innerHTML=html;
+  bodyEl.innerHTML=html;
 }
 
 async function openAssignBinPicker(jobId){
