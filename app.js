@@ -6794,13 +6794,20 @@ async function openLinkBinToJob(bid){
   var b=binItems.find(function(bi){return bi.bid===bid;});if(!b)return;
   document.getElementById('link-bin-ttl').textContent='🔗 Link Bin #'+b.num+' to a Job';
   document.getElementById('link-bin-search').value='';
-  var el=document.getElementById('link-bin-jobs-list');
-  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading active bin jobs...</div>';
+  var inc=document.getElementById('link-bin-include-pickedup'); if(inc) inc.checked=false;
   document.getElementById('link-bin-modal').classList.add('open');
-  // Fetch active bin rental jobs that don't have a bin assigned yet, or match size
-  var res=await db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').neq('bin_instatus','pickedup').order('date',{ascending:false});
+  await loadLinkBinJobs();
+}
+async function loadLinkBinJobs(){
+  var el=document.getElementById('link-bin-jobs-list');
+  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading bin jobs...</div>';
+  var includePickedup=(document.getElementById('link-bin-include-pickedup')||{}).checked;
+  var q=db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled');
+  if(!includePickedup) q=q.neq('bin_instatus','pickedup');
+  var res=await q.order('date',{ascending:false});
   _linkBinJobs=(res.data||[]).map(dbToJob);
-  renderLinkBinJobs(_linkBinJobs);
+  var qStr=(document.getElementById('link-bin-search')||{}).value||'';
+  if(qStr) filterLinkBinJobs(qStr); else renderLinkBinJobs(_linkBinJobs);
 }
 function filterLinkBinJobs(q){
   var lq=q.toLowerCase();
