@@ -6834,6 +6834,51 @@ function renderLinkBinJobs(list){
     +'</div>';
   }).join('');
 }
+var _linkBinFromJobId='';
+function openLinkBinFromJob(jobId){
+  _linkBinFromJobId=jobId;
+  var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
+  document.getElementById('link-bin-from-job-ttl').textContent='🔗 Link a Bin to '+jobId;
+  var grid=document.getElementById('link-bin-from-job-grid');
+  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+  var sorted=[].concat(binItems).sort(function(a,b){
+    if(a.status==='in'&&b.status!=='in')return -1;
+    if(a.status!=='in'&&b.status==='in')return 1;
+    return (a.num||'').localeCompare(b.num||'');
+  });
+  grid.innerHTML=sorted.map(function(b){
+    var col=sizeColors[b.size]||'#22c55e';
+    var statusLbl=b.damage==='oor'?'OOR':(b.status==='in'?'In Yard':'Out (other job)');
+    var statusCol=b.damage==='oor'?'#f59e0b':(b.status==='in'?'#22c55e':'#dc3545');
+    return '<div style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,.1);background:var(--surface)" onclick="linkBinFromJob(\''+b.bid+'\')">'
+      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+'</div>'
+      +'<div style="font-size:13px;font-weight:700">'+b.num+'</div>'
+      +'<div style="font-size:10px;color:'+col+';margin-top:2px">'+b.size+'</div>'
+      +'<div style="font-size:10px;color:'+statusCol+';margin-top:2px">'+statusLbl+'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('link-bin-from-job-modal').classList.add('open');
+}
+async function linkBinFromJob(bid){
+  var jobId=_linkBinFromJobId;if(!jobId)return;
+  var b=binItems.find(function(bi){return bi.bid===bid;});
+  var j=jobs.find(function(jj){return jj.id===jobId;});
+  if(!j||!b)return;
+  if(j.binBid && j.binBid!==bid){
+    binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
+  }
+  j.binBid=bid;
+  j.binSize=b.size;
+  // Only flip the picked bin to 'out' if this job is currently dropped AND the bin is in the yard.
+  // If the bin is already out (on another job), leave it alone — retroactive link only.
+  if(j.binInstatus==='dropped' && b.status==='in') b.status='out';
+  saveBins();
+  var res=await db.from('jobs').update({bin_bid:bid,bin_size:b.size}).eq('job_id',jobId);
+  if(res.error){toast('Error linking bin: '+res.error.message,'error');return;}
+  closeM('link-bin-from-job-modal');
+  toast('Bin #'+b.num+' linked to '+jobId+'!');
+  openDetail(jobId);
+}
 async function linkBinToJob(bid,jobId){
   // Update job to reference this bin
   var b=binItems.find(function(bi){return bi.bid===bid;});
@@ -8075,6 +8120,7 @@ async function openDetail(id){
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
+      if(j.service==='Bin Rental'&&!j.binBid) btns.push('<button class="btn btn-ghost" onclick="openLinkBinFromJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🔗 Link a Bin</button>');
       if(j.service==='Bin Rental'){
         var wcIcon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
         if(j.binWillCall) btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.5);color:#e67e22;background:rgba(230,126,34,.08);font-weight:700">'+wcIcon+'Will Call ON · Clear</button>');

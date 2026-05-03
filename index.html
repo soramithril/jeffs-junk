@@ -1606,6 +1606,20 @@
   </div>
 </div>
 
+<!-- ═══════════ LINK BIN FROM JOB MODAL (retroactive bin assignment) ═══════════ -->
+<div class="modal-overlay" id="link-bin-from-job-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <div class="modal-title" id="link-bin-from-job-ttl">Link a Bin to this Job</div>
+      <button class="modal-close" onclick="closeM('link-bin-from-job-modal')">&#x2715;</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      Pick any bin to link to this job. Bins out on other jobs are allowed for retroactive linking — their current location is not changed.
+    </div>
+    <div id="link-bin-from-job-grid" style="max-height:60vh;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px"></div>
+  </div>
+</div>
+
 <!-- ═══════════ BIN HISTORY MODAL ═══════════ -->
 <div class="modal-overlay" id="bin-history-modal">
   <div class="modal" style="width:720px">
@@ -1942,7 +1956,7 @@
   </div>
 </div>
 
-<script src="app.js?v=93"></script>
+<script src="app.js?v=94"></script>
 </body>
 </html>
                                                                                                                                                          
