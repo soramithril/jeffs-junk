@@ -1889,13 +1889,13 @@ async function refreshDashBinStats(){
       var active=false;
       if(j.binInstatus==='dropped'&&dateStr>=today){
         // Physically out right now — ignore binDropoff (may be a future swap date).
-        // Stay out from today through pickup, or indefinitely if pickup is past/missing.
+        // Out from today through the day before pickup; pickup day = bin returns to yard.
         if(!pick||pick<today) active=true;          // overdue or no pickup scheduled
-        else active=dateStr<=pick;                   // out until pickup day inclusive
+        else active=dateStr<pick;                    // available again on pickup day
       } else if(!drop){
         return;
       } else if(pick){
-        active=dateStr>=drop&&dateStr<=pick;
+        active=dateStr>=drop&&dateStr<pick;
       } else {
         var dropD=new Date(drop+'T12:00:00');
         var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
