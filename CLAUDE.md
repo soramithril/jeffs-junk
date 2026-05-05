@@ -39,9 +39,17 @@ GitHub Pages auto-deploys from `main` branch root. Repo is `soramithril/jeffs-ju
 Edit files in place — no temp clones, no copying around. Then:
 
 1. Run `node --check app.js` after any JS edit to verify it parses. The site is one bad token away from a blank page including the sign-in screen.
-2. If you changed `app.js`, bump the cache buster in `index.html` — the `<script src="app.js?v=N"></script>` line near the bottom. Without this, users will hit cached JS and not see the fix.
+2. If you changed `app.js`, bump THREE things to the same number, in lockstep:
+   - `<script src="app.js?v=N">` in `index.html` (near the bottom)
+   - `var APP_VERSION = 'N';` near the top of `app.js`
+   - the contents of `version.txt` at repo root
+   Without this, users will hit cached JS and not see the fix, and the auto-update banner will misfire.
 3. `git add`, `git commit -m "..."`, `git push origin main`. GitHub Pages deploys in ~30s.
 4. Verify live: `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep 'app.js?v='` should show the new version.
+
+## Auto-update banner
+
+`app.js` polls `version.txt` every 5 minutes (with `cache: 'no-store'` to bypass browser caching). When the fetched version differs from `APP_VERSION`, a sticky "New version available — click to refresh" banner appears in the top center. Clicking it reloads the page. This works around GitHub Pages' fixed cache headers — users on stale HTML still get notified once their cached HTML expires and they pick up the polling code.
 
 ## Modal pattern (gotcha)
 

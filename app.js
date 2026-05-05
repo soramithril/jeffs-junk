@@ -1,4 +1,31 @@
 // ═══════════════════════════════════════
+//  APP VERSION + AUTO-UPDATE NOTIFIER
+// ═══════════════════════════════════════
+// Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
+var APP_VERSION = '98';
+function _checkForUpdate(){
+  fetch('version.txt?_='+Date.now(), {cache:'no-store'})
+    .then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(t){
+      if(!t) return;
+      var latest = t.trim();
+      if(latest && latest !== APP_VERSION) _showUpdateBanner();
+    })
+    .catch(function(){});
+}
+function _showUpdateBanner(){
+  if(document.getElementById('update-banner')) return;
+  var b = document.createElement('div');
+  b.id = 'update-banner';
+  b.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:#1c2025;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.45)';
+  b.textContent = '🔄 New version available — click to refresh';
+  b.onclick = function(){ location.reload(); };
+  document.body.appendChild(b);
+}
+setTimeout(_checkForUpdate, 30*1000);
+setInterval(_checkForUpdate, 5*60*1000);
+
+// ═══════════════════════════════════════
 //  SUPABASE CONNECTION
 // ═══════════════════════════════════════
 var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
