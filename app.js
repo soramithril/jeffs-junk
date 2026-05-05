@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '115';
+var APP_VERSION = '116';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -43,17 +43,34 @@ function _hexOrRgbToRgbCsv(c){
   if(m.length>=6) return parseInt(m.slice(0,2),16)+','+parseInt(m.slice(2,4),16)+','+parseInt(m.slice(4,6),16);
   return null;
 }
+function _isNeutralColor(c){
+  // True for white, black, near-grey — i.e. NOT a brand color
+  var rgb = _hexOrRgbToRgbCsv(c);
+  if(!rgb) return true;
+  var p = rgb.split(',').map(Number);
+  var r=p[0], g=p[1], b=p[2];
+  if(r>240 && g>240 && b>240) return true;          // near white
+  if(r<25 && g<25 && b<25) return true;             // near black
+  if(Math.max(r,g,b)-Math.min(r,g,b) < 25) return true; // low saturation grey
+  return false;
+}
 function _decorateGhostButtons(root){
   var scope = root && root.querySelectorAll ? root : document;
   scope.querySelectorAll('.btn-ghost').forEach(function(btn){
     if(btn._bcDone) return;
     btn._bcDone = true;
     var styleAttr = btn.getAttribute('style') || '';
-    var m = styleAttr.match(/(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
-    if(!m) return;
-    var col = m[1].trim();
-    btn.style.setProperty('--bc', col);
-    var rgb = _hexOrRgbToRgbCsv(col);
+    var colMatch = styleAttr.match(/(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+    var bgMatch  = styleAttr.match(/(?:^|;)\s*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+    var color = colMatch ? colMatch[1].trim() : null;
+    var bg    = bgMatch  ? bgMatch[1].trim()  : null;
+    // Pick the saturated brand-ish color: prefer text color, fall back to background if text is neutral
+    var pick = (color && !_isNeutralColor(color)) ? color
+             : (bg    && !_isNeutralColor(bg))    ? bg
+             : null;
+    if(!pick) return;
+    btn.style.setProperty('--bc', pick);
+    var rgb = _hexOrRgbToRgbCsv(pick);
     if(rgb) btn.style.setProperty('--bc-rgb', rgb);
   });
 }

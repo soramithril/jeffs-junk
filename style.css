@@ -325,8 +325,9 @@ body{
 .bin-book-btn{margin-top:12px;width:100%;padding:8px 0;border-radius:8px;border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.08);color:#22c55e;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s,transform .12s,box-shadow .15s;will-change:transform;}
 .bin-book-btn:hover{background:rgba(34,197,94,.18);box-shadow:0 4px 14px rgba(34,197,94,.22);transform:translateY(-2px);}
 .bin-book-btn:active{transform:scale(.95);box-shadow:none;background:rgba(34,197,94,.25);}
-.bin-dur-btn{flex:1;padding:5px 0;border-radius:6px;border:1px solid rgba(34,197,94,.25);background:rgba(34,197,94,.05);color:#22c55e;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s;}
-.bin-dur-btn:hover{background:rgba(34,197,94,.14);}
+.bin-dur-btn{flex:1;padding:5px 0;border-radius:6px;border:1px solid rgba(34,197,94,.25);background:rgba(34,197,94,.05);color:#22c55e;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:transform .22s cubic-bezier(.22,1,.36,1),background .2s ease,color .2s ease,box-shadow .22s ease,border-color .2s ease;}
+.bin-dur-btn:hover{background:#22c55e;color:#fff;border-color:#22c55e;transform:translateY(-3px) scale(1.04);box-shadow:0 18px 44px rgba(34,197,94,.55),0 8px 16px rgba(34,197,94,.35);}
+.bin-dur-btn:active{transform:translateY(-1px) scale(.99);box-shadow:0 4px 10px rgba(34,197,94,.25);}
 .bin-quick-dur{padding:12px 20px;border-radius:10px;border:2px solid rgba(34,197,94,.3);background:rgba(34,197,94,.05);color:#22c55e;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);white-space:nowrap;}
 .bin-quick-dur:hover{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.6);color:#16a34a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(34,197,94,.15);}
 .bin-quick-dur:active{transform:scale(.95);box-shadow:none;}
@@ -395,13 +396,13 @@ body{
    button's inline `color`) overrides for orange/blue/red/etc. buttons. */
 .btn-ghost{background:var(--surface);color:var(--text);border:1px solid var(--border);}
 .btn-ghost:hover{
-  border-color:var(--bc, var(--accent));
-  background:var(--bc, var(--accent));
-  color:#fff;
+  border-color:var(--bc, var(--accent)) !important;
+  background:var(--bc, var(--accent)) !important;
+  color:#fff !important;
   transform:translateY(-3px) scale(1.04);
   box-shadow:0 18px 44px rgba(var(--bc-rgb, 34,197,94), .55), 0 8px 16px rgba(var(--bc-rgb, 34,197,94), .35);
 }
-.btn-ghost:hover *{color:#fff !important;}
+.btn-ghost:hover *{color:#fff !important;stroke:#fff !important;fill:#fff !important;}
 .btn-ghost:active{transform:translateY(-1px) scale(.99);box-shadow:0 4px 10px rgba(var(--bc-rgb, 34,197,94), .25);}
 .btn-danger{background:rgba(220,53,69,.06);color:var(--red);border:1px solid rgba(220,53,69,.2);}.btn-danger:hover{background:rgba(220,53,69,.2);border-color:var(--red);color:var(--red);transform:translateY(-3px) scale(1.04);box-shadow:0 18px 44px rgba(220,53,69,.45),0 8px 16px rgba(220,53,69,.3);}.btn-danger:active{transform:translateY(-1px) scale(.99);box-shadow:0 4px 10px rgba(220,53,69,.2);}
 .btn-sm{padding:7px 14px;font-size:13px;}
