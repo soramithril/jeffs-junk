@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '108';
+var APP_VERSION = '109';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3239,7 +3239,12 @@ async function refreshDashJobs(){
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     // Sort fixed-time rows to the top of the category
     list = list.slice().sort(function(a,b){
-      function getTm(j){ return j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime||''):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?(j.fbTime||''):(j.service==='Junk Removal'||j.service==='Junk Quote')?(j.junkTime||''):''; }
+      function getTm(j){
+        if(j.service==='Bin Rental') return (isPickup ? j.binPickupTime : j.binDropoffTime) || '';
+        if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') return j.fbTime||'';
+        if(j.service==='Junk Removal'||j.service==='Junk Quote') return j.junkTime||'';
+        return '';
+      }
       var ta=getTm(a), tb=getTm(b);
       if(ta && !tb) return -1;
       if(!ta && tb) return 1;
@@ -3259,7 +3264,13 @@ async function refreshDashJobs(){
           var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
           binBadge='<span style="font-size:13px;font-weight:700;background:rgba(230,126,34,.18);color:#e67e22;border:1px dashed rgba(230,126,34,.6);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(230,126,34,.3)">'+sz2+'</span>';
         }
-        var timeStr=(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?ft(st):'';}());
+        var timeStr=(function(){
+          var st;
+          if(j.service==='Bin Rental') st = isPickup ? j.binPickupTime : j.binDropoffTime;
+          else if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') st = j.fbTime;
+          else if(j.service==='Junk Removal'||j.service==='Junk Quote') st = j.junkTime;
+          return st ? ft(st) : '';
+        })();
         var hasFixedTime = !!timeStr;
         var timeCell = hasFixedTime
           ? '<div style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
@@ -3289,12 +3300,13 @@ async function refreshDashJobs(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        // Pin time, city, and actions to fixed widths so city chips align in a vertical column across all rows
-        var gridCols = '60px 90px minmax(0,1fr) 170px 280px';
+        // Pin city + actions widths so city chips align in a vertical column. Time slot is conditional —
+        // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
+        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
         var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
-          +timeCell
+          +(hasFixedTime?timeCell:'')
           +nameAddrCell
           +'<div style="justify-self:start;min-width:0;max-width:100%;overflow:hidden">'+cityChip+'</div>'
           +'<div style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+actionsHTML+'</div>'
@@ -3702,7 +3714,12 @@ async function renderDash(){
     var showConfirm = showBinActions || title.indexOf('Furniture')>=0;
     // Sort fixed-time rows to the top
     list = list.slice().sort(function(a,b){
-      function getTm(j){ return j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime||''):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?(j.fbTime||''):(j.service==='Junk Removal'||j.service==='Junk Quote')?(j.junkTime||''):''; }
+      function getTm(j){
+        if(j.service==='Bin Rental') return (showBinActions ? j.binPickupTime : j.binDropoffTime) || '';
+        if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') return j.fbTime||'';
+        if(j.service==='Junk Removal'||j.service==='Junk Quote') return j.junkTime||'';
+        return '';
+      }
       var ta=getTm(a), tb=getTm(b);
       if(ta && !tb) return -1;
       if(!ta && tb) return 1;
@@ -3744,7 +3761,10 @@ async function renderDash(){
           ? '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign</button>'
           : '';
         var timeStr = (function(){
-          var st = j.service==='Bin Rental' ? (j.binDropoffTime||j.binPickupTime) : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime : (j.service==='Junk Removal'||j.service==='Junk Quote') ? j.junkTime : '';
+          var st;
+          if(j.service==='Bin Rental') st = showBinActions ? j.binPickupTime : j.binDropoffTime;
+          else if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') st = j.fbTime;
+          else if(j.service==='Junk Removal'||j.service==='Junk Quote') st = j.junkTime;
           return st ? ft(st) : '';
         })();
         var hasFixedTime = !!timeStr;
@@ -3763,12 +3783,13 @@ async function renderDash(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        // Pin time, city, and actions to fixed widths so city chips align in a vertical column across all rows
-        var gridCols = '60px 90px minmax(0,1fr) 170px 280px';
+        // Pin city + actions widths so city chips align in a vertical column. Time slot is conditional —
+        // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
+        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
         var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
-          +timeCell
+          +(hasFixedTime?timeCell:'')
           +nameAddrCell
           +'<div style="justify-self:start;min-width:0;max-width:100%;overflow:hidden">'+cityChip+'</div>'
           +'<div style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+actionsHTML+'</div>'
