@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '116';
+var APP_VERSION = '117';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -54,9 +54,12 @@ function _isNeutralColor(c){
   if(Math.max(r,g,b)-Math.min(r,g,b) < 25) return true; // low saturation grey
   return false;
 }
+// All button-like classes that participate in the punchy hover system.
+// _decorateGhostButtons() scans these and stores each button's accent color as --bc.
+var _BTN_HOVER_SELECTOR = '.btn-ghost,.btn-blue-solid,.bin-book-btn,.bin-quick-dur,.bin-dur-btn,.lb-period-btn,.cal-nav,.filter-chip,.pv-area-btn';
 function _decorateGhostButtons(root){
   var scope = root && root.querySelectorAll ? root : document;
-  scope.querySelectorAll('.btn-ghost').forEach(function(btn){
+  scope.querySelectorAll(_BTN_HOVER_SELECTOR).forEach(function(btn){
     if(btn._bcDone) return;
     btn._bcDone = true;
     var styleAttr = btn.getAttribute('style') || '';
