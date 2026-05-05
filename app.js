@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '118';
+var APP_VERSION = '119';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -1194,6 +1194,15 @@ async function loadAllFromSupabase() {
           if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
             { j.binInstatus='dropped'; }
         });
+        // Log auto-drop in job_changes attributed to "System" (not the current user)
+        var autoChangeRows = dropIds.map(function(id){
+          return {job_id:id, field_name:'Bin Status', old_value:'', new_value:'dropped', changed_by:'System'};
+        });
+        if(autoChangeRows.length){
+          db.from('job_changes').insert(autoChangeRows).then(function(r){
+            if(r.error) console.warn('Auto-drop log insert error:', r.error.message);
+          });
+        }
       }
       // Auto-pickup removed — bin pickup status is user-controlled only
 
@@ -3383,8 +3392,8 @@ async function refreshDashJobs(){
       }).join('')+'</div>';
   }
 
-  var html = makeCat('🚛 Bin Deliveries','#22c55e',dayDropoffs,false)
-    +makeCat('🚚 Bin Pickups','#dc3545',dayPickups,true)
+  var html = makeCat('🚛 Bin Deliveries','#0891b2',dayDropoffs,false)
+    +makeCat('🚚 Bin Pickups','#d97706',dayPickups,true)
     +makeCat('Junk Removals','#eab308',junkRemovals,false)
     +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes,false)
     +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false)
@@ -3865,8 +3874,8 @@ async function renderDash(){
         +'</div>';
       }).join('')+'</div>';
   }
-  var todayHtml = makeTodayCat('🚛 Bin Deliveries','#22c55e',todayBinDropoffs,false)
-    +makeTodayCat('🚚 Bin Pickups','#dc3545',todayBinPickups,true)
+  var todayHtml = makeTodayCat('🚛 Bin Deliveries','#0891b2',todayBinDropoffs,false)
+    +makeTodayCat('🚚 Bin Pickups','#d97706',todayBinPickups,true)
     +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false)
     +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes,false)
     +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false)
@@ -4804,8 +4813,8 @@ async function openCalDayPreview(ds){
   } else {
     // Group into sections: Bin Drop-offs, Bin Pickups, then other services
     var sections=[
-      {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#22c55e', evs:evs.filter(function(e){return e.type==='dropoff';})},
-      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#dc3545', evs:evs.filter(function(e){return e.type==='pickup';})},
+      {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#0891b2', evs:evs.filter(function(e){return e.type==='dropoff';})},
+      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#d97706', evs:evs.filter(function(e){return e.type==='pickup';})},
       {key:'junk',    label:'🗑️ Junk Removal',   col:'#eab308', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
       {key:'quote',   label:'📋 Junk Quotes',    col:'#0d6efd', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
       {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
@@ -8023,6 +8032,19 @@ async function saveJob(e){
     job.binSide     = document.getElementById('f-bside').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
     job.materialType = document.getElementById('f-material-type').value;
+    // Auto-revert: if user changed binDropoff to a future date and the bin was already
+    // marked 'dropped' (e.g. auto-set when the previous date passed), revert to "not dropped".
+    // The bin should re-drop when the new date arrives.
+    if(editId){
+      var _oldJobForDrop = jobs.find(function(x){return x.id===editId;});
+      var _today = todayStr();
+      if(_oldJobForDrop && _oldJobForDrop.binInstatus==='dropped'
+         && _oldJobForDrop.binDropoff !== job.binDropoff
+         && job.binDropoff && job.binDropoff > _today){
+        job.binInstatus = '';
+        if(pickedBin){ pickedBin.status='in'; saveBins(); }
+      }
+    }
     // Mark the newly picked bin as out only when the job is actually dropped
     if(pickedBin && job.binInstatus === 'dropped'){
       pickedBin.status = 'out';
