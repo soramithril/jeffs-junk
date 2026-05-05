@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '119';
+var APP_VERSION = '120';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -835,7 +835,8 @@ function patchJob(jobId, fields) {
     recurring:'recurring', recurInterval:'recur_interval', materialType:'material_type',
     toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
     depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
-    clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call'};
+    clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
+    dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id'};
   var dbFields = {};
   Object.keys(fields).forEach(function(k){
     var col = keyMap[k] || k;
@@ -3382,8 +3383,9 @@ async function refreshDashJobs(){
         // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
         var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
         var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
+        var crewLeg = (j.service==='Bin Rental') ? (isPickup?'pickup':'dropoff') : null;
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
-          +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
+          +'<div>'+jobCrewAvatarsHTML(j, crewLeg)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
           +'<div style="justify-self:start;min-width:0;max-width:100%;overflow:hidden">'+cityChip+'</div>'
@@ -3865,8 +3867,9 @@ async function renderDash(){
         // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
         var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
         var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
+        var crewLeg = (j.service==='Bin Rental') ? (showBinActions?'pickup':'dropoff') : null;
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
-          +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
+          +'<div>'+jobCrewAvatarsHTML(j, crewLeg)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
           +'<div style="justify-self:start;min-width:0;max-width:100%;overflow:hidden">'+cityChip+'</div>'
@@ -7165,9 +7168,19 @@ function crewAvatarInitials(name){
   return (first.slice(0,3)||'?').toUpperCase();
 }
 // Render the avatar stack for a job. Click → openAssignCrewPicker.
-function jobCrewAvatarsHTML(j){
-  var ids=j.assignedCrewIds||[];
-  var stack='<span class="job-avatar-stack" onclick="event.stopPropagation();openAssignCrewPicker(\''+j.id+'\')" title="Assign employees">';
+// `leg` is 'dropoff' or 'pickup' for Bin Rental rows in the deliveries/pickups
+// sections — shows ONLY that leg's crew (not the union). Other services pass
+// no leg and use the legacy assignedCrewIds union.
+function jobCrewAvatarsHTML(j, leg){
+  var ids;
+  if(j.service==='Bin Rental' && (leg==='dropoff' || leg==='pickup')){
+    var single = (leg==='dropoff') ? j.dropoffCrewId : j.pickupCrewId;
+    ids = single ? [single] : [];
+  } else {
+    ids = j.assignedCrewIds||[];
+  }
+  var legArg = leg ? ",'"+leg+"'" : '';
+  var stack='<span class="job-avatar-stack" onclick="event.stopPropagation();openAssignCrewPicker(\''+j.id+'\''+legArg+')" title="Assign employees">';
   if(!ids.length){
     stack+='<span class="job-avatar job-avatar-empty">+</span>';
   } else {
@@ -7181,18 +7194,31 @@ function jobCrewAvatarsHTML(j){
   return stack;
 }
 
-async function openAssignCrewPicker(jobId){
+async function openAssignCrewPicker(jobId, leg){
   var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
   closeM('detail-modal');
-  var assigned=j.assignedCrewIds||[];
-  var html='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Tap an employee to assign or unassign. Multiple can be assigned to one job.</div>';
+  // For Bin Rental + leg, show that leg's single assigned crew
+  var assigned;
+  if(j.service==='Bin Rental' && (leg==='dropoff' || leg==='pickup')){
+    var legId = (leg==='dropoff') ? j.dropoffCrewId : j.pickupCrewId;
+    assigned = legId ? [legId] : [];
+  } else {
+    assigned = j.assignedCrewIds||[];
+  }
+  window._assignCrewLeg = leg || null;
+  var legHeading = '';
+  if(leg==='dropoff') legHeading = '<div style="font-size:13px;color:#0891b2;font-weight:700;margin-bottom:8px">🚛 Drop-off driver</div>';
+  else if(leg==='pickup') legHeading = '<div style="font-size:13px;color:#d97706;font-weight:700;margin-bottom:8px">🚚 Pickup driver</div>';
+  var legHelpText = leg ? 'Tap an employee to assign as the '+(leg==='dropoff'?'drop-off':'pickup')+' driver. Different from the other leg.' : 'Tap an employee to assign or unassign. Multiple can be assigned to one job.';
+  var html=legHeading+'<div style="font-size:13px;color:var(--muted);margin-bottom:12px">'+legHelpText+'</div>';
   if(!crewMembers.length){
     html+='<div style="text-align:center;padding:20px;color:var(--muted)">No employees yet. Add one below.</div>';
   } else {
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">';
     crewMembers.forEach(function(c){
       var on=assigned.indexOf(c.id)>=0;
-      html+='<div onclick="toggleAssignCrew(\''+jobId+'\',\''+c.id+'\')" '
+      var legArg2 = leg ? ",'"+leg+"'" : '';
+      html+='<div onclick="toggleAssignCrew(\''+jobId+'\',\''+c.id+'\''+legArg2+')" '
         +'style="padding:10px;border:2px solid '+(on?crewAvatarColor(c.id):'var(--border)')+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,197,94,.05)':'var(--surface2)')+';display:flex;align-items:center;gap:10px;transition:all .15s">'
         +'<span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:32px;height:32px;font-size:12px">'+crewAvatarInitials(c.name)+'</span>'
         +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+c.name+'</span>'
@@ -7221,24 +7247,39 @@ function addCrewFromPicker(){
     if(r.error)return alert('Error: '+r.error.message);
     if(r.data&&r.data[0]){
       crewMembers.push({id:r.data[0].id, name:r.data[0].name});
-      // Re-render picker so the new employee shows up immediately
-      if(window._assignCrewJobId) openAssignCrewPicker(window._assignCrewJobId);
+      // Re-render picker so the new employee shows up immediately (preserving leg)
+      if(window._assignCrewJobId) openAssignCrewPicker(window._assignCrewJobId, window._assignCrewLeg);
     }
   });
 }
 
-async function toggleAssignCrew(jobId,crewId){
+async function toggleAssignCrew(jobId,crewId,leg){
   var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
-  var ids=(j.assignedCrewIds||[]).slice();
-  var idx=ids.indexOf(crewId);
-  if(j.service==='Bin Rental'){
-    // Single-driver-per-bin-job: assigning a new crew replaces existing.
-    ids = (idx>=0) ? [] : [crewId];
-  } else if(idx>=0) ids.splice(idx,1); else ids.push(crewId);
-  j.assignedCrewIds=ids;
-  patchJob(j.id,{assignedCrewIds:ids});
-  // Refresh modal in place
-  openAssignCrewPicker(jobId);
+  if(j.service==='Bin Rental' && (leg==='dropoff' || leg==='pickup')){
+    // Per-leg single-driver assignment. Tapping the currently-assigned driver clears it.
+    var legField = (leg==='dropoff') ? 'dropoffCrewId' : 'pickupCrewId';
+    var current = j[legField] || null;
+    var nextLegId = (current === crewId) ? null : crewId;
+    j[legField] = nextLegId;
+    // Keep assignedCrewIds in sync (union of both legs) so leaderboard / legacy
+    // displays still see who was on the job overall.
+    var union = [];
+    if(j.dropoffCrewId) union.push(j.dropoffCrewId);
+    if(j.pickupCrewId && union.indexOf(j.pickupCrewId)<0) union.push(j.pickupCrewId);
+    j.assignedCrewIds = union;
+    var patch = {assignedCrewIds: union};
+    patch[legField] = nextLegId;
+    patchJob(j.id, patch);
+  } else {
+    // Non-Bin-Rental (or no leg specified): legacy union behavior.
+    var ids=(j.assignedCrewIds||[]).slice();
+    var idx=ids.indexOf(crewId);
+    if(idx>=0) ids.splice(idx,1); else ids.push(crewId);
+    j.assignedCrewIds=ids;
+    patchJob(j.id,{assignedCrewIds:ids});
+  }
+  // Refresh modal in place (preserving leg)
+  openAssignCrewPicker(jobId, leg);
   // Refresh dashboard rows
   if(typeof refreshDashJobs==='function') refreshDashJobs();
   if(typeof renderLiveJobs==='function') renderLiveJobs();
@@ -7541,6 +7582,7 @@ function newJob(){
   window._binPresetDays=0;
   var bdtEl=document.getElementById('f-bdrop-time');if(bdtEl)bdtEl.value='';
   var bptEl=document.getElementById('f-bpick-time');if(bptEl)bptEl.value='';
+  var wcEl=document.getElementById('f-bwillcall');if(wcEl){wcEl.checked=false;toggleWillCallForm(false);}
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   document.getElementById('f-bsize').value='';
@@ -7840,6 +7882,8 @@ function openEdit(id){
       document.getElementById('f-bdrop-time').value=j.binDropoffTime||'';
       document.getElementById('f-bpick').value=j.binPickup||'';
       document.getElementById('f-bpick-time').value=j.binPickupTime||'';
+      var wcEl2=document.getElementById('f-bwillcall');
+      if(wcEl2){wcEl2.checked=!!j.binWillCall;toggleWillCallForm(!!j.binWillCall);}
       document.getElementById('f-bside').value=j.binSide||'';
       document.getElementById('f-binstatus').value=j.binInstatus||'';
       // Expand bin picker when editing
@@ -8032,6 +8076,18 @@ async function saveJob(e){
     job.binSide     = document.getElementById('f-bside').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
     job.materialType = document.getElementById('f-material-type').value;
+    var wcChk=document.getElementById('f-bwillcall');
+    job.binWillCall = wcChk ? !!wcChk.checked : false;
+    if(job.binWillCall){ job.binPickup=''; job.binPickupTime=''; }
+    // Preserve per-leg crew assignments (set via Dispatch / per-leg picker) so
+    // saving the job from the form doesn't blank them out.
+    if(editId){
+      var _oldJobForCrew = jobs.find(function(x){return x.id===editId;});
+      if(_oldJobForCrew){
+        job.dropoffCrewId = _oldJobForCrew.dropoffCrewId || null;
+        job.pickupCrewId  = _oldJobForCrew.pickupCrewId  || null;
+      }
+    }
     // Auto-revert: if user changed binDropoff to a future date and the bin was already
     // marked 'dropped' (e.g. auto-set when the previous date passed), revert to "not dropped".
     // The bin should re-drop when the new date arrives.
@@ -8234,6 +8290,15 @@ async function openDetail(id){
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
       +(j.swapCount?'<div class="detail-item"><label>Swap Outs</label><span>'+j.swapCount+'</span></div>':'')
+      +(function(){
+        // Show dropoff / pickup driver attribution per leg (separately, since they may differ)
+        var dropC = j.dropoffCrewId ? (crewMembers.find(function(c){return c.id===j.dropoffCrewId;})||{}).name : null;
+        var pickC = j.pickupCrewId  ? (crewMembers.find(function(c){return c.id===j.pickupCrewId;})||{}).name  : null;
+        var dropTxt = dropC ? '<span style="color:#0891b2;font-weight:700">'+dropC+'</span>' : '<span style="color:var(--muted);font-style:italic">Not assigned</span>';
+        var pickTxt = pickC ? '<span style="color:#d97706;font-weight:700">'+pickC+'</span>' : '<span style="color:var(--muted);font-style:italic">Not assigned</span>';
+        return '<div class="detail-item"><label>🚛 Dropped by</label><span>'+dropTxt+'</span></div>'
+             + '<div class="detail-item"><label>🚚 Picked up by</label><span>'+pickTxt+'</span></div>';
+      })()
       +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.3);color:#22c55e;width:100%">📦 Assign Bin</button></div>')+'</div>';
   }
   // Show recurring badge for non-bin services
@@ -8932,6 +8997,21 @@ function toggleWillCall(id,e){
   patchJob(id,{binWillCall:next});
   toast(next?'Marked as Will Call — pickup is tentative':'Will Call cleared');
   refresh();
+}
+// Form-level Will Call toggle (used inside the New/Edit Job modal — distinct from
+// the detail-view toggleWillCall(id,e) which patches an existing job by id).
+function toggleWillCallForm(checked){
+  var pick=document.getElementById('f-bpick');
+  var pickTime=document.getElementById('f-bpick-time');
+  if(!pick||!pickTime) return;
+  if(checked){
+    pick.value=''; pickTime.value='';
+    pick.disabled=true; pickTime.disabled=true;
+    pick.style.opacity='0.45'; pickTime.style.opacity='0.45';
+  } else {
+    pick.disabled=false; pickTime.disabled=false;
+    pick.style.opacity='1'; pickTime.style.opacity='1';
+  }
 }
 function scheduleWillCallPickup(id,e){
   if(e)e.stopPropagation();
