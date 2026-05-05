@@ -204,6 +204,20 @@
         </div>
         <div id="dash-pricing-display" style="padding:10px 14px;"></div>
       </div>
+    </div>
+
+    <!-- RIGHT: Today's Jobs (top) + Will Call (under) -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
+          <div>
+            <div id="workload-header" class="card-head">📍 Today's Jobs</div>
+            <div id="dash-today-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="go('jobs')">All Jobs →</button>
+        </div>
+        <div id="dash-today-jobs" style="padding:4px 0"></div>
+      </div>
       <div class="chart-card" id="card-will-call" style="padding:0;overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:10px;">
@@ -216,18 +230,6 @@
         </div>
         <div id="dash-will-call-list" style="padding:4px 0"></div>
       </div>
-    </div>
-
-    <!-- RIGHT: Today's Jobs -->
-    <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
-        <div>
-          <div id="workload-header" class="card-head">📍 Today's Jobs</div>
-          <div id="dash-today-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="go('jobs')">All Jobs →</button>
-      </div>
-      <div id="dash-today-jobs" style="padding:4px 0"></div>
     </div>
 
   </div>
@@ -1960,7 +1962,7 @@
   </div>
 </div>
 
-<script src="app.js?v=107"></script>
+<script src="app.js?v=108"></script>
 </body>
 </html>
                                                                                                                                                          
