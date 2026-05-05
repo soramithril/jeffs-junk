@@ -1339,6 +1339,17 @@ input[type=date],input[type=time]{position:relative;}
   box-shadow:0 4px 10px rgba(var(--bc-rgb, 34,197,94), .25);
 }
 
+/* Solid-bg buttons (e.g. Pick Up — blue bg + white text) — invert on hover:
+   bg becomes white, text + icons take on the button's brand color, glow stays brand. */
+.btn-inv-hover:hover{
+  background:#fff !important;
+  color:var(--bc) !important;
+  border-color:var(--bc) !important;
+}
+.btn-inv-hover:hover *{
+  color:var(--bc) !important;stroke:var(--bc) !important;fill:var(--bc) !important;
+}
+
 /* Modal close X — punchy red invert (since closing is a destructive action) */
 .modal-close{transition:transform .22s cubic-bezier(.22,1,.36,1),background .2s ease,color .2s ease,box-shadow .2s ease,border-color .2s ease;}
 .modal-close:hover{

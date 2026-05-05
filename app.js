@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '117';
+var APP_VERSION = '118';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -67,11 +67,19 @@ function _decorateGhostButtons(root){
     var bgMatch  = styleAttr.match(/(?:^|;)\s*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
     var color = colMatch ? colMatch[1].trim() : null;
     var bg    = bgMatch  ? bgMatch[1].trim()  : null;
-    // Pick the saturated brand-ish color: prefer text color, fall back to background if text is neutral
-    var pick = (color && !_isNeutralColor(color)) ? color
-             : (bg    && !_isNeutralColor(bg))    ? bg
-             : null;
-    if(!pick) return;
+    // Pick the saturated brand-ish color. If text is white/neutral and bg is brand colored,
+    // the button is "solid" — mark it so hover inverts (bg→white, text→brand color).
+    var textBrand = color && !_isNeutralColor(color);
+    var bgBrand   = bg    && !_isNeutralColor(bg);
+    var pick;
+    if(textBrand){
+      pick = color;
+    } else if(bgBrand){
+      pick = bg;
+      btn.classList.add('btn-inv-hover'); // solid-bg button → inverse hover
+    } else {
+      return;
+    }
     btn.style.setProperty('--bc', pick);
     var rgb = _hexOrRgbToRgbCsv(pick);
     if(rgb) btn.style.setProperty('--bc-rgb', rgb);
