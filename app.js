@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '128';
+var APP_VERSION = '129';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -7563,7 +7563,7 @@ function newJob(){
   _selectedClientObj=null;
   window._binPresetDays=null;
   document.getElementById('modal-ttl').textContent='New Job';document.getElementById('save-btn').textContent='Save Job';
-  document.getElementById('f-svc').value='';document.getElementById('f-status').value='';
+  setSvc('');document.getElementById('f-status').value='';
   document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
   document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
@@ -7793,8 +7793,7 @@ function initBinPicker(existingBid, existingSize){
 function bookBin(size, presetDays){
   go('jobs');
   newJob();
-  document.getElementById('f-svc').value='Bin Rental';
-  document.getElementById('f-svc').dispatchEvent(new Event('change'));
+  setSvc('Bin Rental');
   setTimeout(function(){
     initBinPicker('', size);
     if(presetDays){
@@ -7808,7 +7807,7 @@ function openEdit(id){
   editId=id;closeM('detail-modal');renderClientSelectOptions();
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
-    document.getElementById('f-svc').value=j.service||'';document.getElementById('f-status').value=j.status||'';
+    setSvc(j.service||'');document.getElementById('f-status').value=j.status||'';
     // Populate names from job's names array, falling back to single name
     var editNames=j.names&&j.names.length?j.names:[j.name||''];
     document.getElementById('f-names-wrap').innerHTML=editNames.map(function(n){return _jobNameRow(n);}).join('')||_jobNameRow('');
@@ -8860,7 +8859,7 @@ function convertQuoteToJob(quoteId){
   _selectedClientObj=null;
   document.getElementById('modal-ttl').textContent='Convert Quote → New Job';
   document.getElementById('save-btn').textContent='Create Job';
-  document.getElementById('f-svc').value='Junk Removal';
+  setSvc('Junk Removal');
   document.getElementById('f-status').value='';
   document.getElementById('f-name').value=q.name||'';
   document.getElementById('f-phone').value=q.phone||'';
@@ -9012,6 +9011,49 @@ function toggleWillCall(id,e){
   toast(next?'Marked as Will Call — pickup is tentative':'Will Call cleared');
   refresh();
 }
+// ── Service-type segmented picker ───────────────────────────────────
+// Renders 5 color-coded buttons. The selected one fills with its brand color
+// (white text). The hidden #f-svc input keeps the chosen service so all the
+// existing saveJob/editJob/etc. code that reads f-svc.value works unchanged.
+function _setSvcBtnState(btn, active){
+  if(!btn) return;
+  var color = btn.getAttribute('data-color');
+  var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
+  if(active){
+    btn.style.background = color;
+    btn.style.color = '#fff';
+    btn.style.borderColor = color;
+    btn.style.boxShadow = '0 6px 18px rgba('+rgbCsv+',.25)';
+    btn.classList.add('svc-pick-active');
+  } else {
+    btn.style.background = '';
+    btn.style.color = color;
+    btn.style.borderColor = 'rgba('+rgbCsv+',.4)';
+    btn.style.boxShadow = '';
+    btn.classList.remove('svc-pick-active');
+  }
+}
+// Public — called by the segmented picker buttons
+function pickSvc(btn){
+  if(!btn) return;
+  var svc = btn.getAttribute('data-svc');
+  document.querySelectorAll('.svc-pick-btn').forEach(function(b){
+    _setSvcBtnState(b, b===btn);
+  });
+  document.getElementById('f-svc').value = svc;
+  toggleBin();
+  clearErr('f-svc');
+}
+// Programmatic — keeps the picker UI and hidden input in sync. Use this in
+// newJob/editJob/quick-create flows instead of poking f-svc.value directly.
+function setSvc(value){
+  document.getElementById('f-svc').value = value || '';
+  document.querySelectorAll('.svc-pick-btn').forEach(function(b){
+    _setSvcBtnState(b, b.getAttribute('data-svc')===value);
+  });
+  toggleBin();
+}
+
 // Form-level Will Call toggle (used inside the New/Edit Job modal — distinct from
 // the detail-view toggleWillCall(id,e) which patches an existing job by id).
 // Called with no arg from the button (toggles current state) OR with a boolean

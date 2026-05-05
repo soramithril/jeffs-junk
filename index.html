@@ -1309,14 +1309,17 @@
       <input id="f-date" type="hidden"><div class="field-error-msg" id="err-f-date" style="display:none">Date is required.</div>
       <input id="f-time" type="hidden"><div class="field-error-msg" id="err-f-time" style="display:none"></div>
 
-      <!-- ── SERVICE TYPE (full width, first pick) ── -->
+      <!-- ── SERVICE TYPE (segmented picker, color-coded per service) ── -->
       <div class="form-group" style="margin-bottom:16px">
         <label>Service Type <span style="color:#dc3545">*</span></label>
-        <select id="f-svc" onchange="toggleBin();clearErr('f-svc')">
-          <option value="">Select...</option>
-          <option>Bin Rental</option><option>Junk Removal</option><option>Junk Quote</option>
-          <option>Furniture Pickup</option><option>Furniture Delivery</option>
-        </select>
+        <div id="f-svc-picker" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+          <button type="button" data-svc="Bin Rental" data-color="#0891b2" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#0891b2;border-color:rgba(8,145,178,.4);text-align:center;line-height:1.25">🚛 Bin Rental</button>
+          <button type="button" data-svc="Junk Removal" data-color="#eab308" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#eab308;border-color:rgba(234,179,8,.4);text-align:center;line-height:1.25">🗑️ Junk Removal</button>
+          <button type="button" data-svc="Junk Quote" data-color="#0d6efd" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#0d6efd;border-color:rgba(13,110,253,.4);text-align:center;line-height:1.25">📋 Junk Quote</button>
+          <button type="button" data-svc="Furniture Pickup" data-color="#8b5cf6" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#8b5cf6;border-color:rgba(139,92,246,.4);text-align:center;line-height:1.25">🛋️ Furn Pickup</button>
+          <button type="button" data-svc="Furniture Delivery" data-color="#f97316" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#f97316;border-color:rgba(249,115,22,.4);text-align:center;line-height:1.25">📦 Furn Delivery</button>
+        </div>
+        <input type="hidden" id="f-svc" value="">
         <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
       </div>
 
@@ -1967,7 +1970,7 @@
   </div>
 </div>
 
-<script src="app.js?v=128"></script>
+<script src="app.js?v=129"></script>
 </body>
 </html>
                                                                                                                                                          
