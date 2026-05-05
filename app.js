@@ -7290,6 +7290,9 @@ document.addEventListener('keydown',function(e){
     var openModals=document.querySelectorAll('.modal-overlay.open');
     if(openModals.length){
       var last=openModals[openModals.length-1];
+      if(last.id==='bin-avail-warning-modal' && _binAvailWarningResolver){
+        resolveBinAvailWarning(false); return;
+      }
       last.classList.remove('open');
       document.body.classList.remove('modal-open');
     }
