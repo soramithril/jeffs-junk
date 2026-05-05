@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '114';
+var APP_VERSION = '115';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -27,6 +27,47 @@ setInterval(_checkForUpdate, 5*60*1000);
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible') _checkForUpdate();
 });
+
+// ═══════════════════════════════════════
+//  GHOST BUTTON HOVER-INVERSION DECORATOR
+// ═══════════════════════════════════════
+// Reads each .btn-ghost's inline `color` and stores it as `--bc` (and `--bc-rgb`)
+// so the CSS hover rule can invert (bg becomes that color, text goes white) and
+// drop a matching colored shadow. Avoids editing every button inline.
+function _hexOrRgbToRgbCsv(c){
+  if(!c) return null;
+  var m;
+  if((m = c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/))) return m[1]+','+m[2]+','+m[3];
+  m = c.replace('#','');
+  if(m.length===3) m = m.split('').map(function(x){return x+x;}).join('');
+  if(m.length>=6) return parseInt(m.slice(0,2),16)+','+parseInt(m.slice(2,4),16)+','+parseInt(m.slice(4,6),16);
+  return null;
+}
+function _decorateGhostButtons(root){
+  var scope = root && root.querySelectorAll ? root : document;
+  scope.querySelectorAll('.btn-ghost').forEach(function(btn){
+    if(btn._bcDone) return;
+    btn._bcDone = true;
+    var styleAttr = btn.getAttribute('style') || '';
+    var m = styleAttr.match(/(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+    if(!m) return;
+    var col = m[1].trim();
+    btn.style.setProperty('--bc', col);
+    var rgb = _hexOrRgbToRgbCsv(col);
+    if(rgb) btn.style.setProperty('--bc-rgb', rgb);
+  });
+}
+// Watch the whole DOM for new ghost buttons and decorate them as they appear
+new MutationObserver(function(muts){
+  muts.forEach(function(m){
+    m.addedNodes && m.addedNodes.forEach(function(n){
+      if(n.nodeType===1) _decorateGhostButtons(n);
+    });
+  });
+}).observe(document.documentElement, {childList:true, subtree:true});
+// Initial pass once the DOM is ready
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){_decorateGhostButtons();});
+else _decorateGhostButtons();
 
 // ═══════════════════════════════════════
 //  SUPABASE CONNECTION
