@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '101';
+var APP_VERSION = '102';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -7947,11 +7947,13 @@ async function saveJob(e){
   if(!cid && job.name){
     var exists = clients.some(function(c){return c.name.toLowerCase()===job.name.toLowerCase();});
     if(!exists){
-      // Generate new client ID
-      var maxR=await db.from('clients').select('cid').order('cid',{ascending:false}).limit(1);
-      var maxCid=maxR.data&&maxR.data.length?maxR.data[0].cid:'CL-0000';
-      var maxNum=parseInt((maxCid||'').replace('CL-',''))||0;
-      var newCid='CL-'+String(maxNum+1).padStart(4,'0');
+      // Mint new client ID atomically via Postgres sequence — prevents two parallel saves from minting the same cid
+      var cidR = await db.rpc('next_client_cid');
+      if(cidR.error || !cidR.data){
+        toast('⚠ Failed to generate client ID: '+(cidR.error?cidR.error.message:'no data')+' — try again','error');
+        _saveJobLock=false; return;
+      }
+      var newCid = cidR.data;
       // Create full client with all the job data
       var newClient={
         cid:newCid,
