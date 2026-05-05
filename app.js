@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '99';
+var APP_VERSION = '100';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -10601,13 +10601,14 @@ function renderBinSizeAvailability(){
 var _binAvailWarningResolver=null;
 function showBinAvailWarning(size, dateStr){
   return new Promise(function(resolve){
+    var m=document.getElementById('bin-avail-warning-modal');
+    if(!m){ resolve(false); return; }
     _binAvailWarningResolver=resolve;
     var line=document.getElementById('bin-avail-warning-line1');
     var dateLabel=dateStr;
     try{ dateLabel=fd(dateStr); }catch(e){}
     if(line) line.innerHTML='There are no <strong style="color:#ff8a92">'+size+'</strong> bins available for <strong style="color:#ff8a92">'+dateLabel+'</strong>.';
-    var m=document.getElementById('bin-avail-warning-modal');
-    if(m) m.classList.add("open");
+    m.classList.add("open");
   });
 }
 function resolveBinAvailWarning(proceed){
