@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '131';
+var APP_VERSION = '132';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -9017,13 +9017,6 @@ function toggleWillCall(id,e){
 // existing saveJob/editJob/etc. code that reads f-svc.value works unchanged.
 function _setSvcBtnState(btn, active){
   if(!btn) return;
-  // Bin Rental uses a fixed diagonal-split style (CSS class handles all visual
-  // states). Just toggle the active class so :hover and active CSS rules can fire.
-  if(btn.classList.contains('svc-pick-bin-split')){
-    if(active) btn.classList.add('svc-pick-active');
-    else btn.classList.remove('svc-pick-active');
-    return;
-  }
   var color = btn.getAttribute('data-color');
   var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
   if(active){
