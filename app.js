@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '123';
+var APP_VERSION = '124';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3777,7 +3777,8 @@ async function renderDash(){
   var countEl = document.getElementById('dash-today-count');
   if(countEl){
     function _countChip(rgbCsv, color, icon, count, label){
-      return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;background:rgba('+rgbCsv+',.12);color:'+color+';border:1px solid rgba('+rgbCsv+',.35);font-size:11px;font-weight:700;line-height:1.5;white-space:nowrap">'+icon+' '+count+' '+label+'</span>';
+      // Neutral pill with colored count number — uses color as accent, not background.
+      return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;background:var(--surface2);color:var(--text-secondary);border:1px solid var(--border);font-size:11px;font-weight:600;line-height:1.5;white-space:nowrap">'+icon+' <strong style="color:'+color+';font-weight:800">'+count+'</strong> '+label+'</span>';
     }
     var chips = [];
     if(todayBinDropoffs.length) chips.push(_countChip('8,145,178','#0891b2','🚛',todayBinDropoffs.length,'drop'+(todayBinDropoffs.length!==1?'s':'')));
@@ -3868,12 +3869,13 @@ async function renderDash(){
         var actionsHTML = (assignBinBtn||actionBtn||confirmedPill)
           ? '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+assignBinBtn+actionBtn+'</div>'
           : '<div></div>';
-        // Tint each row with its section color so the dashboard pops on heavy days.
-        // Fixed-time rows get a stronger gradient + colored border for emphasis.
+        // Neutral row background — color is reserved for the section-color border-left
+        // (category accent) and for the shadow on fixed-time rows (status emphasis).
+        // This keeps the dashboard calm overall and lets status colors (red/orange) pop.
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var rowBg = hasFixedTime
-          ? 'background:linear-gradient(90deg,rgba('+rgbCsv+',.16) 0%,rgba('+rgbCsv+',.06) 60%,var(--surface) 100%);border:1px solid rgba('+rgbCsv+',.45);box-shadow:0 1px 3px rgba('+rgbCsv+',.12)'
-          : 'background:linear-gradient(90deg,rgba('+rgbCsv+',.09) 0%,var(--surface) 70%);border:1px solid rgba('+rgbCsv+',.22)';
+          ? 'background:var(--surface);border:1px solid var(--border-strong);box-shadow:0 4px 14px rgba('+rgbCsv+',.18)'
+          : 'background:var(--surface);border:1px solid var(--border)';
         // Pin city + actions widths so city chips align in a vertical column. Time slot is conditional —
         // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
         var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
