@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '127';
+var APP_VERSION = '128';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -9014,17 +9014,33 @@ function toggleWillCall(id,e){
 }
 // Form-level Will Call toggle (used inside the New/Edit Job modal — distinct from
 // the detail-view toggleWillCall(id,e) which patches an existing job by id).
-function toggleWillCallForm(checked){
+// Called with no arg from the button (toggles current state) OR with a boolean
+// from newJob/editJob to force a specific state.
+function toggleWillCallForm(forceState){
+  var chk=document.getElementById('f-bwillcall');
+  var btn=document.getElementById('f-bwillcall-btn');
   var pick=document.getElementById('f-bpick');
   var pickTime=document.getElementById('f-bpick-time');
-  if(!pick||!pickTime) return;
-  if(checked){
+  if(!chk||!pick||!pickTime) return;
+  var active = (forceState===undefined) ? !chk.checked : !!forceState;
+  chk.checked = active;
+  if(active){
     pick.value=''; pickTime.value='';
     pick.disabled=true; pickTime.disabled=true;
     pick.style.opacity='0.45'; pickTime.style.opacity='0.45';
+    if(btn){
+      btn.style.background='rgba(230,126,34,.18)';
+      btn.style.borderColor='#e67e22';
+      btn.innerHTML='📞 Will Call ON — click to turn off';
+    }
   } else {
     pick.disabled=false; pickTime.disabled=false;
     pick.style.opacity='1'; pickTime.style.opacity='1';
+    if(btn){
+      btn.style.background='';
+      btn.style.borderColor='rgba(230,126,34,.4)';
+      btn.innerHTML='📞 Will Call — no pickup date scheduled';
+    }
   }
 }
 function scheduleWillCallPickup(id,e){
