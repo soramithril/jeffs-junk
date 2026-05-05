@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '122';
+var APP_VERSION = '123';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3772,16 +3772,24 @@ async function renderDash(){
     workloadHdr.innerHTML = wLabel;
   }
 
-  // Count line for sub-header
+  // Count line for sub-header — render as color-coded pill chips so it matches the
+  // tinted job rows below and is scannable at a glance on heavy days.
   var countEl = document.getElementById('dash-today-count');
   if(countEl){
-    var parts = [];
-    if(todayBinDropoffs.length) parts.push(todayBinDropoffs.length+' bin drop'+(todayBinDropoffs.length!==1?'s':''));
-    if(todayBinPickups.length)  parts.push(todayBinPickups.length+' pickup'+(todayBinPickups.length!==1?'s':''));
-    if(todayJunkRemovals.length)parts.push(todayJunkRemovals.length+' junk');
-    if(todayFurnPickups.length+todayFurnDelivs.length) parts.push((todayFurnPickups.length+todayFurnDelivs.length)+' furniture');
-    if(unconfirmedToday>0) parts.push('<span style="color:#e67e22;font-weight:600">'+unconfirmedToday+' not ready for pickup 📞</span>');
-    countEl.innerHTML = parts.join(' · ') || 'Nothing booked';
+    function _countChip(rgbCsv, color, icon, count, label){
+      return '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;background:rgba('+rgbCsv+',.12);color:'+color+';border:1px solid rgba('+rgbCsv+',.35);font-size:11px;font-weight:700;line-height:1.5;white-space:nowrap">'+icon+' '+count+' '+label+'</span>';
+    }
+    var chips = [];
+    if(todayBinDropoffs.length) chips.push(_countChip('8,145,178','#0891b2','🚛',todayBinDropoffs.length,'drop'+(todayBinDropoffs.length!==1?'s':'')));
+    if(todayBinPickups.length)  chips.push(_countChip('217,119,6','#d97706','🚚',todayBinPickups.length,'pickup'+(todayBinPickups.length!==1?'s':'')));
+    if(todayJunkRemovals.length)chips.push(_countChip('234,179,8','#a16207','🗑️',todayJunkRemovals.length,'junk'));
+    if(todayJunkQuotes.length)  chips.push(_countChip('13,110,253','#0d6efd','📋',todayJunkQuotes.length,'quote'+(todayJunkQuotes.length!==1?'s':'')));
+    var furnTotal = todayFurnPickups.length + todayFurnDelivs.length;
+    if(furnTotal)               chips.push(_countChip('139,92,246','#8b5cf6','🛋️',furnTotal,'furniture'));
+    if(unconfirmedToday>0)      chips.push(_countChip('230,126,34','#e67e22','📞',unconfirmedToday,'not ready'));
+    countEl.innerHTML = chips.length
+      ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">'+chips.join('')+'</div>'
+      : '<span style="color:var(--muted)">Nothing booked</span>';
   }
 
   // Today card urgency
