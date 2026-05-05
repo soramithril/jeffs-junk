@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '124';
+var APP_VERSION = '125';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -2055,6 +2055,7 @@ async function refreshDashBinStats(){
     // Per-card availability styling
     var availLbl=isFull?'Fully Booked':(isToday?'AVAILABLE':'PROJECTED AVAILABLE');
     var availColor=isFull?'#ff5560':'#22c55e';
+    var availStroke=isFull?'#991b1b':'#15803d';
     var availShadow=isFull
       ?'0 2px 8px rgba(220,53,69,.4),0 4px 24px rgba(220,53,69,.2)'
       :'0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)';
@@ -2076,7 +2077,7 @@ async function refreshDashBinStats(){
       +overduePill
       +fullPill
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--text);letter-spacing:2px;margin-bottom:10px;font-weight:900;position:relative;z-index:1">'+s.toUpperCase()+'</div>'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:'+availColor+';margin-bottom:2px;text-shadow:'+availShadow+';position:relative;z-index:1">'+inY+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:88px;line-height:1;color:'+availColor+';-webkit-text-stroke:0.6px '+availStroke+';margin-bottom:2px;text-shadow:'+availShadow+';position:relative;z-index:1">'+inY+'</div>'
       +'<div style="font-size:11px;color:'+availLblColor+';text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;position:relative;z-index:1">'+availLbl+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-bottom:12px;position:relative;z-index:1">'+out+' / '+tot+' out</div>'
       +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn"'+(bookBtnStyle?' style="'+bookBtnStyle+'"':'')+'>'+bookBtnLbl+'</button>'
