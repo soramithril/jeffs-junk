@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '106';
+var APP_VERSION = '107';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3289,8 +3289,8 @@ async function refreshDashJobs(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        // Always reserve time slot + pin city to 170px so cities align in a vertical row across all jobs
-        var gridCols = '60px 90px minmax(0,1fr) 170px auto';
+        // Pin time, city, and actions to fixed widths so city chips align in a vertical column across all rows
+        var gridCols = '60px 90px minmax(0,1fr) 170px 280px';
         var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
@@ -3763,8 +3763,8 @@ async function renderDash(){
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
-        // Always reserve time slot + pin city to 170px so cities align in a vertical row across all jobs
-        var gridCols = '60px 90px minmax(0,1fr) 170px auto';
+        // Pin time, city, and actions to fixed widths so city chips align in a vertical column across all rows
+        var gridCols = '60px 90px minmax(0,1fr) 170px 280px';
         var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
         return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j)+'</div>'
