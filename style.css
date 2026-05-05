@@ -1302,4 +1302,4 @@ input[type=date],input[type=time]{position:relative;}
 .pv-area-btn:not(.active) .pv-area-towns{display:none}
 
 /* ── Dashboard: soft green wash behind cards ── */
-body:has(#view-dashboard.active){background:var(--accent-light);}
+body:has(#view-dashboard.active){background:#dcfce7;}
