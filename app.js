@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '98';
+var APP_VERSION = '99';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -24,6 +24,9 @@ function _showUpdateBanner(){
 }
 setTimeout(_checkForUpdate, 30*1000);
 setInterval(_checkForUpdate, 5*60*1000);
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible') _checkForUpdate();
+});
 
 // ═══════════════════════════════════════
 //  SUPABASE CONNECTION
