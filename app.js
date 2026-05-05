@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '100';
+var APP_VERSION = '101';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -773,14 +773,20 @@ function patchJob(jobId, fields) {
     dbFields[col] = fields[k];
   });
   db.from('jobs').update(dbFields).eq('job_id', jobId).then(function(r){
-    if(r.error) console.error('patchJob error ('+jobId+'):', r.error.message);
+    if(r.error){
+      console.error('patchJob error ('+jobId+'):', r.error.message);
+      toast('⚠ Save failed: '+r.error.message+' — refresh and retry','error');
+    }
   });
 }
 
 function saveSingleJob(j) {
   _clientStatsCache = null; // invalidate client stats cache
   db.from('jobs').upsert(jobToDb(j), {onConflict:'job_id'}).then(function(r){
-    if(r.error) console.error('Save job error:', r.error.message);
+    if(r.error){
+      console.error('Save job error:', r.error.message);
+      toast('⚠ Save failed: '+r.error.message+' — refresh and retry','error');
+    }
   });
 }
 
@@ -801,7 +807,10 @@ function saveClients() {
 
 function saveSingleClient(c) {
   db.from('clients').upsert(clientToDb(c), {onConflict:'cid'}).then(function(r){
-    if(r.error) console.error('Save client error:', r.error.message);
+    if(r.error){
+      console.error('Save client error:', r.error.message);
+      toast('⚠ Save failed: '+r.error.message+' — refresh and retry','error');
+    }
   });
 }
 
@@ -2159,6 +2168,7 @@ function addCrewMember(){
   });
 }
 function removeCrewMember(id){
+  if(!canDelete){ toast('⚠ You don\'t have permission to remove crew.','error'); return; }
   if(!confirm('Remove this crew member?'))return;
   crewMembers=crewMembers.filter(function(c){return c.id!==id;});
   // Remove from all today's assignments
@@ -7161,6 +7171,7 @@ function saveBinItem(e){
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }
 function delBinItem(bid){
+  if(!canDelete){ toast('⚠ You don\'t have permission to delete bins.','error'); return; }
   var assigned=jobs.find(function(j){return j.binBid===bid;});
   if(assigned){toast('⚠ Bin is assigned to job '+assigned.id+' — unassign it first.','error');return;}
   if(!confirm('Delete this bin?'))return;
@@ -7324,7 +7335,10 @@ document.addEventListener('keydown',function(e){
         resolveBinAvailWarning(false); return;
       }
       last.classList.remove('open');
-      document.body.classList.remove('modal-open');
+      // Only release body lock if no other overlays remain open (preserves stacked-modal scroll lock)
+      if(!document.querySelectorAll('.modal-overlay.open').length){
+        document.body.classList.remove('modal-open');
+      }
     }
   }
 });
@@ -7891,6 +7905,19 @@ async function saveJob(e){
     job.junkDate = job.date;
   }
 
+  // Release prior bin first — runs even when service was changed AWAY from Bin Rental
+  // (otherwise the old bin would stay marked 'out' forever as a phantom)
+  if(editId){
+    var oldJob = jobs.find(function(x){return x.id===editId;});
+    if(oldJob && oldJob.binBid){
+      var newBid = (svc==='Bin Rental') ? getPickedBinBid() : '';
+      if(oldJob.binBid !== newBid){
+        binItems.forEach(function(b){if(b.bid===oldJob.binBid) b.status='in';});
+        saveBins();
+      }
+    }
+  }
+
   if(svc==='Bin Rental'){
     var pickedBid = getPickedBinBid();
     var pickedBin = pickedBid ? binItems.find(function(b){return b.bid===pickedBid;}) : null;
@@ -7904,13 +7931,6 @@ async function saveJob(e){
     job.binSide     = document.getElementById('f-bside').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
     job.materialType = document.getElementById('f-material-type').value;
-    // Sync binItems: if a bin was previously assigned to this job, release it first
-    if(editId){
-      var oldJob = jobs.find(function(x){return x.id===editId;});
-      if(oldJob && oldJob.binBid && oldJob.binBid !== pickedBid){
-        binItems.forEach(function(b){if(b.bid===oldJob.binBid) b.status='in';});
-      }
-    }
     // Mark the newly picked bin as out only when the job is actually dropped
     if(pickedBin && job.binInstatus === 'dropped'){
       pickedBin.status = 'out';
@@ -8030,17 +8050,33 @@ async function saveJob(e){
 
   } finally { _saveJobLock = false; }
 }
-function delJob(id){
+async function delJob(id){
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this job?'))return;
   var j=jobs.find(function(x){return x.id===id;});
-  if(j && j.binBid){
-    binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});
+  if(!j) return;
+  // Snapshot bin state so we can restore if the DB delete fails
+  var binStatusBefore = {};
+  if(j.binBid){
+    binItems.forEach(function(b){if(b.bid===j.binBid){binStatusBefore[b.bid]=b.status;b.status='in';}});
     saveBins();
   }
   jobs=jobs.filter(function(jj){return jj.id!==id;});
-  deleteJobFromDb(id);
-  toast('Deleted.');closeM('detail-modal');refresh();
+  closeM('detail-modal');refresh();
+  // DB delete with rollback on error
+  var r = await db.from('jobs').delete().eq('job_id', id);
+  if(r.error){
+    console.error('Delete job error:', r.error.message);
+    toast('⚠ Delete failed: '+r.error.message+' — restoring','error');
+    jobs.push(j);
+    Object.keys(binStatusBefore).forEach(function(bid){
+      binItems.forEach(function(b){if(b.bid===bid) b.status=binStatusBefore[bid];});
+    });
+    saveBins();
+    refresh();
+    return;
+  }
+  toast('Deleted.');
 }
 function cancelJob(id){
   if(!confirm('Mark this job as Cancelled?'))return;
@@ -8833,26 +8869,26 @@ function renderToday(){
   // Today's jobs
   var el=document.getElementById('today-jobs-list');
   el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+j.name+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+escHtml(j.name||'')+'</strong></div>'
     +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?' · '+ft(st):'';})()+' · '+j.id+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No jobs scheduled today</div>';
   // Overdue
   var od=document.getElementById('today-overdue-list');
   od.innerHTML=overdueJobs.length?overdueJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:8px;background:rgba(220,53,69,.05)">'
     +'<div style="display:flex;justify-content:space-between;align-items:center">'
-    +'<strong style="color:#dc3545;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'+j.name+'</strong>'
+    +'<strong style="color:#dc3545;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'+escHtml(j.name||'')+'</strong>'
     +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px">✅ Picked Up</button>'
     +'</div>'
     +'<div style="font-size:12px;color:var(--muted)">Pickup was: '+fd(j.binPickup)+'</div>'
-    +'<div style="font-size:12px;color:var(--muted)">'+(j.address||'')+'</div>'
+    +'<div style="font-size:12px;color:var(--muted)">'+escHtml(j.address||'')+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No overdue pickups</div>';
   // Long bins
   var lb=document.getElementById('today-long-bins');
   lb.innerHTML=longBins.length?longBins.map(function(j){
     var drop=j.binDropoff||j.date;var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
     return'<div style="padding:8px 12px;border:1px solid rgba(230,126,34,.3);border-radius:8px;margin-bottom:8px;background:rgba(230,126,34,.04);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-    +'<strong>'+j.name+'</strong><span style="margin-left:8px;color:#e67e22;font-size:12px;font-weight:700">'+days+' days out</span>'
-    +'<div style="font-size:12px;color:var(--muted)">'+(j.binSize||'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
+    +'<strong>'+escHtml(j.name||'')+'</strong><span style="margin-left:8px;color:#e67e22;font-size:12px;font-weight:700">'+days+' days out</span>'
+    +'<div style="font-size:12px;color:var(--muted)">'+escHtml(j.binSize||'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No bins out that long</div>';
   // Crew workload
   var cr=document.getElementById('today-crew');
@@ -10165,7 +10201,7 @@ function openAddVehicle(){
   document.getElementById('v-color').value='#dc3545';
   document.querySelectorAll('.veh-color-opt').forEach(function(o){o.classList.remove('selected');if(o.getAttribute('data-color')==='#dc3545')o.classList.add('selected');});
   clearErr('v-name');
-  document.getElementById('vehicle-modal').style.display='flex';
+  openM('vehicle-modal');
 }
 function openEditVehicle(vid){
   var v=vehicles.find(function(x){return x.vid===vid;});if(!v)return;
@@ -10182,7 +10218,7 @@ function openEditVehicle(vid){
   document.getElementById('v-oil-interval').value=v.oilInterval||'';
   document.getElementById('v-color').value=v.color||'#dc3545';
   document.querySelectorAll('.veh-color-opt').forEach(function(o){o.classList.remove('selected');if(o.getAttribute('data-color')===(v.color||'#dc3545'))o.classList.add('selected');});
-  document.getElementById('vehicle-modal').style.display='flex';
+  openM('vehicle-modal');
 }
 function selectVehColor(c,el){
   document.getElementById('v-color').value=c;
@@ -10196,7 +10232,7 @@ function saveVehicle(){
   if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?v:x;});}
   else{vehicles.push(v);if(!vehBlocks[v.vid])vehBlocks[v.vid]={};}
   saveVehicles();renderVehicles();
-  document.getElementById('vehicle-modal').style.display='none';
+  closeM('vehicle-modal');
   toast(editVehicleId?'Vehicle updated!':'Vehicle added!');
 }
 async function delVehicle(vid){
