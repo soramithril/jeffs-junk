@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bin Deliveries / Pickups — Color Mockup</title>
+<style>
+  :root{
+    --surface:#fff;
+    --surface2:#f1f3f5;
+    --border:#e9ecef;
+    --border-strong:#dee2e6;
+    --text:#1a1a2e;
+    --text-secondary:#495057;
+    --muted:#868e96;
+  }
+  body{margin:0;background:#f8f9fa;font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);padding:32px 24px;font-size:14px;line-height:1.5;}
+  h1{margin:0 0 4px;font-weight:800;font-size:22px;letter-spacing:-0.01em;}
+  .sub{color:var(--muted);margin:0 0 32px;font-size:13px;}
+  .opt{margin-bottom:28px;background:#fff;border-radius:12px;border:1px solid var(--border);padding:18px 20px 14px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .opt-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .opt-name{font-weight:700;font-size:16px;}
+  .opt-vibe{color:var(--muted);font-size:12px;}
+  .opt-hex{font-family:'SF Mono',Consolas,monospace;font-size:11px;color:var(--muted);margin-top:2px;}
+  .row{display:grid;grid-template-columns:60px 90px minmax(0,1fr) 170px 280px;gap:10px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-radius:0 8px 8px 0;font-size:12.5px;margin-bottom:5px;}
+  .row.fixed{border:1px solid var(--border-strong);}
+  .avatar{width:32px;height:32px;border-radius:50%;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text-secondary);}
+  .time{display:flex;flex-direction:column;gap:2px;}
+  .time-num{font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:.5px;line-height:1;}
+  .time-fixed{font-size:8.5px;font-weight:700;background:rgba(255,255,255,.04);border-radius:3px;padding:1px 5px;align-self:start;letter-spacing:.5px;}
+  .name-cell{display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden;}
+  .nm{color:var(--text);font-weight:600;font-size:13px;flex-shrink:0;}
+  .addr{color:var(--muted);font-weight:400;font-size:11px;}
+  .city-chip{font-family:'Bebas Neue',Impact,sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;display:inline-block;}
+  .actions{display:flex;gap:6px;justify-content:flex-end;align-items:center;}
+  .bin-badge{font-size:13px;font-weight:700;border-radius:6px;padding:5px 12px;letter-spacing:.4px;}
+  .pill-btn{font-size:11px;padding:5px 14px;border-radius:6px;font-weight:700;border:1px solid;display:inline-flex;align-items:center;gap:5px;}
+  .label-strip{display:flex;gap:24px;margin:10px 0 6px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+  .swatch{display:inline-flex;align-items:center;gap:6px;}
+  .swatch-dot{width:14px;height:14px;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<h1>Bin Deliveries / Pickups — Color Options</h1>
+<p class="sub">Each option shows one delivery row and one pickup row, exactly as they appear on the dashboard's "Today's Jobs" card. Edge-only accent style.</p>
+
+<!-- ════ TEMPLATE — repeated per option, only the two color hex values change ════ -->
+
+<!-- CURRENT: Teal + Amber -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">Current — Teal + Amber</div>
+      <div class="opt-hex">#0891b2 / #d97706</div>
+    </div>
+    <div class="opt-vibe">Cool / warm split, professional</div>
+  </div>
+  <div class="row" style="border-left:5px solid #0891b2;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#0891b2">9:00 AM</span><span class="time-fixed" style="color:#0891b2;border:1px solid #0891b2">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(8,145,178,.1);color:#0891b2;border:1px solid rgba(8,145,178,.4);border-left:3px solid #0891b2;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #d97706;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#d97706">2:30 PM</span><span class="time-fixed" style="color:#d97706;border:1px solid #d97706">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(217,119,6,.1);color:#d97706;border:1px solid rgba(217,119,6,.4);border-left:3px solid #d97706;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<!-- A: Teal + Pink -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">A — Teal + Pink</div>
+      <div class="opt-hex">#0891b2 / #ec4899</div>
+    </div>
+    <div class="opt-vibe">Cool / warm with energy</div>
+  </div>
+  <div class="row" style="border-left:5px solid #0891b2;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#0891b2">9:00 AM</span><span class="time-fixed" style="color:#0891b2;border:1px solid #0891b2">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(8,145,178,.1);color:#0891b2;border:1px solid rgba(8,145,178,.4);border-left:3px solid #0891b2;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #ec4899;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#ec4899">2:30 PM</span><span class="time-fixed" style="color:#ec4899;border:1px solid #ec4899">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(236,72,153,.1);color:#ec4899;border:1px solid rgba(236,72,153,.4);border-left:3px solid #ec4899;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<!-- B: Indigo + Sienna -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">B — Indigo + Sienna</div>
+      <div class="opt-hex">#4f46e5 / #b45309</div>
+    </div>
+    <div class="opt-vibe">Premium, rich</div>
+  </div>
+  <div class="row" style="border-left:5px solid #4f46e5;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#4f46e5">9:00 AM</span><span class="time-fixed" style="color:#4f46e5;border:1px solid #4f46e5">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(79,70,229,.1);color:#4f46e5;border:1px solid rgba(79,70,229,.4);border-left:3px solid #4f46e5;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #b45309;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#b45309">2:30 PM</span><span class="time-fixed" style="color:#b45309;border:1px solid #b45309">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(180,83,9,.1);color:#b45309;border:1px solid rgba(180,83,9,.4);border-left:3px solid #b45309;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<!-- C: Sky + Crimson -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">C — Sky + Crimson</div>
+      <div class="opt-hex">#0284c7 / #be123c</div>
+    </div>
+    <div class="opt-vibe">Bold, dynamic — crimson is close to error red</div>
+  </div>
+  <div class="row" style="border-left:5px solid #0284c7;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#0284c7">9:00 AM</span><span class="time-fixed" style="color:#0284c7;border:1px solid #0284c7">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(2,132,199,.1);color:#0284c7;border:1px solid rgba(2,132,199,.4);border-left:3px solid #0284c7;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #be123c;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#be123c">2:30 PM</span><span class="time-fixed" style="color:#be123c;border:1px solid #be123c">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(190,18,60,.1);color:#be123c;border:1px solid rgba(190,18,60,.4);border-left:3px solid #be123c;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<!-- D: Slate + Rose -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">D — Slate + Rose</div>
+      <div class="opt-hex">#475569 / #e11d48</div>
+    </div>
+    <div class="opt-vibe">Deliveries recede, pickups stand out (priority cue)</div>
+  </div>
+  <div class="row" style="border-left:5px solid #475569;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#475569">9:00 AM</span><span class="time-fixed" style="color:#475569;border:1px solid #475569">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(71,85,105,.1);color:#475569;border:1px solid rgba(71,85,105,.4);border-left:3px solid #475569;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #e11d48;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#e11d48">2:30 PM</span><span class="time-fixed" style="color:#e11d48;border:1px solid #e11d48">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(225,29,72,.1);color:#e11d48;border:1px solid rgba(225,29,72,.4);border-left:3px solid #e11d48;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<!-- E: Charcoal + Mustard -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">E — Charcoal + Mustard</div>
+      <div class="opt-hex">#334155 / #ca8a04</div>
+    </div>
+    <div class="opt-vibe">Most subdued — mustard is close to junk yellow</div>
+  </div>
+  <div class="row" style="border-left:5px solid #334155;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#334155">9:00 AM</span><span class="time-fixed" style="color:#334155;border:1px solid #334155">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(51,65,85,.1);color:#334155;border:1px solid rgba(51,65,85,.4);border-left:3px solid #334155;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #ca8a04;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#ca8a04">2:30 PM</span><span class="time-fixed" style="color:#ca8a04;border:1px solid #ca8a04">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(202,138,4,.1);color:#ca8a04;border:1px solid rgba(202,138,4,.4);border-left:3px solid #ca8a04;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<!-- F: Cyan + Fuchsia -->
+<div class="opt">
+  <div class="opt-hd">
+    <div>
+      <div class="opt-name">F — Cyan + Fuchsia</div>
+      <div class="opt-hex">#0e7490 / #c026d3</div>
+    </div>
+    <div class="opt-vibe">Vivid contrast, distinct</div>
+  </div>
+  <div class="row" style="border-left:5px solid #0e7490;">
+    <div class="avatar" style="background:#fda4af">SJ</div>
+    <div class="time"><span class="time-num" style="color:#0e7490">9:00 AM</span><span class="time-fixed" style="color:#0e7490;border:1px solid #0e7490">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚛 Bin Delivery</span><span class="addr">· 123 Maple St</span></div>
+    <span class="city-chip" style="background:rgba(14,116,144,.1);color:#0e7490;border:1px solid rgba(14,116,144,.4);border-left:3px solid #0e7490;">Barrie</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">14 YD · #5</span></div>
+  </div>
+  <div class="row" style="border-left:5px solid #c026d3;">
+    <div class="avatar" style="background:#86efac">MK</div>
+    <div class="time"><span class="time-num" style="color:#c026d3">2:30 PM</span><span class="time-fixed" style="color:#c026d3;border:1px solid #c026d3">FIXED</span></div>
+    <div class="name-cell"><span class="nm">🚚 Bin Pickup</span><span class="addr">· 456 Oak Ave</span></div>
+    <span class="city-chip" style="background:rgba(192,38,211,.1);color:#c026d3;border:1px solid rgba(192,38,211,.4);border-left:3px solid #c026d3;">Innisfil</span>
+    <div class="actions"><span class="bin-badge" style="background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);">#12</span><span class="pill-btn" style="color:#fff;background:#2563eb;border-color:#2563eb">→ Pick Up</span></div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:32px;text-align:center;">Reply with the option letter (or "current") and I'll apply it across the dashboard.</p>
+
+</body>
+</html>
