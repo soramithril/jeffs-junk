@@ -130,14 +130,22 @@ body{
   color:#fff;font-weight:600;
   margin-bottom:10px;
   box-shadow:0 2px 6px rgba(34,197,94,.22);
-  transition:transform .2s ease, box-shadow .2s ease;
+  transition:transform .2s ease;
+}
+/* Pulsing-glow animation runs only while hovering. Background stays green. */
+@keyframes njBtnGlowPulse {
+  0%,100% { box-shadow: 0 8px 22px rgba(34,197,94,.4); }
+  50%     { box-shadow: 0 16px 36px rgba(34,197,94,.65); }
 }
 .nav-item-action:hover{
-  transform:translateY(-2px);
-  box-shadow:0 10px 24px rgba(34,197,94,.45);
+  background:linear-gradient(135deg,#22c55e,#16a34a);
+  color:#fff;
+  transform:translateY(-2px) scale(1.03);
+  animation: njBtnGlowPulse 1.4s ease-in-out infinite;
 }
 .nav-item-action:active{
   transform:translateY(0);
+  animation:none;
   box-shadow:0 2px 6px rgba(34,197,94,.25);
 }
 .nav-item-action .icon{color:#fff;}
