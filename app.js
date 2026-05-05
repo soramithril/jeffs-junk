@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '121';
+var APP_VERSION = '122';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3860,15 +3860,18 @@ async function renderDash(){
         var actionsHTML = (assignBinBtn||actionBtn||confirmedPill)
           ? '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+assignBinBtn+actionBtn+'</div>'
           : '<div></div>';
+        // Tint each row with its section color so the dashboard pops on heavy days.
+        // Fixed-time rows get a stronger gradient + colored border for emphasis.
+        var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var rowBg = hasFixedTime
-          ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
-          : 'background:var(--surface2);border:1px solid var(--border)';
+          ? 'background:linear-gradient(90deg,rgba('+rgbCsv+',.16) 0%,rgba('+rgbCsv+',.06) 60%,var(--surface) 100%);border:1px solid rgba('+rgbCsv+',.45);box-shadow:0 1px 3px rgba('+rgbCsv+',.12)'
+          : 'background:linear-gradient(90deg,rgba('+rgbCsv+',.09) 0%,var(--surface) 70%);border:1px solid rgba('+rgbCsv+',.22)';
         // Pin city + actions widths so city chips align in a vertical column. Time slot is conditional —
         // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
         var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
-        var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.6' : '';
+        var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.55' : '';
         var crewLeg = (j.service==='Bin Rental') ? (showBinActions?'pickup':'dropoff') : null;
-        return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:10px;'+rowBg+';border-left:4px solid '+color+';border-radius:0 6px 6px 0;margin:0 8px 4px;cursor:pointer;font-size:12px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
+        return '<div style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:11px 12px;'+rowBg+';border-left:5px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 5px;cursor:pointer;font-size:12.5px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div>'+jobCrewAvatarsHTML(j, crewLeg)+'</div>'
           +(hasFixedTime?timeCell:'')
           +nameAddrCell
