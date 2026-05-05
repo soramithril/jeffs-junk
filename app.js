@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '125';
+var APP_VERSION = '126';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3364,7 +3364,7 @@ async function refreshDashJobs(){
         if(j.service==='Bin Rental'&&isPickup&&j.binInstatus==='pickedup'){
           actionBtn='<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#4ade80;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.45);border-radius:6px;padding:5px 12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Click to undo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Picked Up</button>';
         } else if(j.service==='Bin Rental'&&isPickup){
-          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#fff;background:#2563eb;border:1px solid #2563eb;border-radius:6px;padding:5px 14px;font-weight:700;box-shadow:0 1px 3px rgba(37,99,235,0.4);display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
+          actionBtn='<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#ec4899;border-color:rgba(236,72,153,.4);border-radius:6px;padding:5px 14px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
             +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 Confirm</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
           actionBtn='<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 '+(j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup')+'</button>';
@@ -3396,7 +3396,7 @@ async function refreshDashJobs(){
   }
 
   var html = makeCat('🚛 Bin Deliveries','#0891b2',dayDropoffs,false)
-    +makeCat('🚚 Bin Pickups','#d97706',dayPickups,true)
+    +makeCat('🚚 Bin Pickups','#ec4899',dayPickups,true)
     +makeCat('Junk Removals','#eab308',junkRemovals,false)
     +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes,false)
     +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false)
@@ -3783,7 +3783,7 @@ async function renderDash(){
     }
     var chips = [];
     if(todayBinDropoffs.length) chips.push(_countChip('8,145,178','#0891b2','🚛',todayBinDropoffs.length,'drop'+(todayBinDropoffs.length!==1?'s':'')));
-    if(todayBinPickups.length)  chips.push(_countChip('217,119,6','#d97706','🚚',todayBinPickups.length,'pickup'+(todayBinPickups.length!==1?'s':'')));
+    if(todayBinPickups.length)  chips.push(_countChip('236,72,153','#ec4899','🚚',todayBinPickups.length,'pickup'+(todayBinPickups.length!==1?'s':'')));
     if(todayJunkRemovals.length)chips.push(_countChip('234,179,8','#a16207','🗑️',todayJunkRemovals.length,'junk'));
     if(todayJunkQuotes.length)  chips.push(_countChip('13,110,253','#0d6efd','📋',todayJunkQuotes.length,'quote'+(todayJunkQuotes.length!==1?'s':'')));
     var furnTotal = todayFurnPickups.length + todayFurnDelivs.length;
@@ -3824,7 +3824,7 @@ async function renderDash(){
         if(j.service==='Bin Rental'&&showBinActions&&j.binInstatus==='pickedup'){
           actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#4ade80;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.45);border-radius:6px;padding:5px 12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Click to undo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Picked Up</button>';
         } else if(j.service==='Bin Rental'&&showBinActions){
-          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#fff;background:#2563eb;border:1px solid #2563eb;border-radius:6px;padding:5px 14px;font-weight:700;box-shadow:0 1px 3px rgba(37,99,235,0.4);display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
+          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#ec4899;border-color:rgba(236,72,153,.4);border-radius:6px;padding:5px 14px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
             +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 Confirm</button>':'');
         } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
           var cfmWord = j.service==='Furniture Delivery'?'Drop-Off':'Pickup';
@@ -3892,7 +3892,7 @@ async function renderDash(){
       }).join('')+'</div>';
   }
   var todayHtml = makeTodayCat('🚛 Bin Deliveries','#0891b2',todayBinDropoffs,false)
-    +makeTodayCat('🚚 Bin Pickups','#d97706',todayBinPickups,true)
+    +makeTodayCat('🚚 Bin Pickups','#ec4899',todayBinPickups,true)
     +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false)
     +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes,false)
     +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false)
@@ -4831,7 +4831,7 @@ async function openCalDayPreview(ds){
     // Group into sections: Bin Drop-offs, Bin Pickups, then other services
     var sections=[
       {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#0891b2', evs:evs.filter(function(e){return e.type==='dropoff';})},
-      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#d97706', evs:evs.filter(function(e){return e.type==='pickup';})},
+      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#ec4899', evs:evs.filter(function(e){return e.type==='pickup';})},
       {key:'junk',    label:'🗑️ Junk Removal',   col:'#eab308', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
       {key:'quote',   label:'📋 Junk Quotes',    col:'#0d6efd', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
       {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
@@ -7222,7 +7222,7 @@ async function openAssignCrewPicker(jobId, leg){
   window._assignCrewLeg = leg || null;
   var legHeading = '';
   if(leg==='dropoff') legHeading = '<div style="font-size:13px;color:#0891b2;font-weight:700;margin-bottom:8px">🚛 Drop-off driver</div>';
-  else if(leg==='pickup') legHeading = '<div style="font-size:13px;color:#d97706;font-weight:700;margin-bottom:8px">🚚 Pickup driver</div>';
+  else if(leg==='pickup') legHeading = '<div style="font-size:13px;color:#ec4899;font-weight:700;margin-bottom:8px">🚚 Pickup driver</div>';
   var legHelpText = leg ? 'Tap an employee to assign as the '+(leg==='dropoff'?'drop-off':'pickup')+' driver. Different from the other leg.' : 'Tap an employee to assign or unassign. Multiple can be assigned to one job.';
   var html=legHeading+'<div style="font-size:13px;color:var(--muted);margin-bottom:12px">'+legHelpText+'</div>';
   if(!crewMembers.length){
@@ -8309,7 +8309,7 @@ async function openDetail(id){
         var dropC = j.dropoffCrewId ? (crewMembers.find(function(c){return c.id===j.dropoffCrewId;})||{}).name : null;
         var pickC = j.pickupCrewId  ? (crewMembers.find(function(c){return c.id===j.pickupCrewId;})||{}).name  : null;
         var dropTxt = dropC ? '<span style="color:#0891b2;font-weight:700">'+dropC+'</span>' : '<span style="color:var(--muted);font-style:italic">Not assigned</span>';
-        var pickTxt = pickC ? '<span style="color:#d97706;font-weight:700">'+pickC+'</span>' : '<span style="color:var(--muted);font-style:italic">Not assigned</span>';
+        var pickTxt = pickC ? '<span style="color:#ec4899;font-weight:700">'+pickC+'</span>' : '<span style="color:var(--muted);font-style:italic">Not assigned</span>';
         return '<div class="detail-item"><label>🚛 Dropped by</label><span>'+dropTxt+'</span></div>'
              + '<div class="detail-item"><label>🚚 Picked up by</label><span>'+pickTxt+'</span></div>';
       })()
