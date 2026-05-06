@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bin Card — Stats Area Layouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f8f9fa;--surface:#ffffff;--surface2:#f1f3f5;
+    --border:#e9ecef;--border-strong:#dee2e6;
+    --text:#1a1a2e;--muted:#868e96;
+    --accent:#22c55e;--accent-stroke:#15803d;
+    --red:#dc3545;--red-stroke:#991b1b;
+    --orange:#f97316;
+    --shadow-sm:0 2px 8px rgba(0,0,0,0.06),0 0 1px rgba(0,0,0,0.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;padding:32px 40px}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:2px;margin:0 0 4px}
+  .lead{color:var(--muted);font-size:13px;margin-bottom:24px;max-width:760px;line-height:1.6}
+  .legend{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:28px;font-size:13px;color:#495057;display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+  .legend b{color:var(--text)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:24px}
+  .variant{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:14px}
+  .variant-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .variant-name{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px}
+  .variant-num{font-size:11px;color:var(--muted);font-weight:600}
+  .variant-desc{font-size:12px;color:var(--muted);line-height:1.5;min-height:48px}
+
+  .frame{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;width:312px}
+  .frame .grid2x2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+
+  /* SHARED card chrome — V3-C: photo zone top, body below */
+  .card{position:relative;overflow:hidden;border-radius:6px;text-align:left;padding:0}
+  .card.full{border-top:5px solid #dc3545;background:linear-gradient(180deg,rgba(220,53,69,0.06) 0%,var(--surface) 60%);box-shadow:inset 0 0 0 1px rgba(220,53,69,0.15)}
+  .photo{position:relative;height:140px;background-color:var(--surface2);background-position:center;background-size:contain;background-repeat:no-repeat;border-bottom:1px solid var(--border)}
+  .full .photo{background-color:#fff5f5}
+  .size-chip{position:absolute;bottom:6px;left:6px;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.5px;font-weight:900;background:rgba(255,255,255,.88);padding:2px 7px;border-radius:5px;color:var(--text)}
+  .pill{position:absolute;top:6px;right:6px;background:rgba(220,53,69,.15);color:var(--red);font-size:9px;font-weight:700;padding:3px 7px;border-radius:10px;letter-spacing:.4px;white-space:nowrap;z-index:2}
+  .pill.full{background:rgba(220,53,69,.18);color:#ff6b75}
+  .body{padding:12px 12px 14px}
+
+  /* Big number (kept across all variants) */
+  .big{
+    font-family:'Bebas Neue',sans-serif;font-size:68px;line-height:.9;
+    color:var(--accent);-webkit-text-stroke:0.5px var(--accent-stroke);
+    text-shadow:0 2px 10px rgba(34,197,94,.5),0 6px 24px rgba(34,197,94,.22);
+    font-variant-numeric:tabular-nums;
+  }
+  .big.full{color:var(--red);-webkit-text-stroke:0.5px var(--red-stroke);text-shadow:0 2px 10px rgba(220,53,69,.55),0 6px 28px rgba(220,53,69,.3)}
+  .big.low{color:var(--orange);-webkit-text-stroke:0.5px #9a3412;text-shadow:0 2px 10px rgba(249,115,22,.5),0 6px 24px rgba(249,115,22,.22)}
+
+  /* Common book button */
+  .book-btn{width:100%;padding:7px 10px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+  .book-btn.full{background:transparent;color:#ff6b75;border:1px dashed rgba(220,53,69,.5)}
+
+  /* ============================================================
+     STATS-A: Current (baseline)
+     ============================================================ */
+  .sA .stats{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .sA .meta .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;line-height:1.2}
+  .sA .meta .sub{font-size:11px;color:var(--muted);line-height:1.3;margin-top:2px}
+  .sA .full .meta .lbl{color:#ff6b75}
+
+  /* ============================================================
+     STATS-B: Big fraction — "6/7" with /7 smaller
+     ============================================================ */
+  .sB .stats{display:flex;align-items:baseline;gap:2px;margin-bottom:6px;line-height:1}
+  .sB .denom{font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:.9;color:var(--muted);font-variant-numeric:tabular-nums}
+  .sB .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:10px}
+  .sB .full .lbl{color:#ff6b75}
+
+  /* ============================================================
+     STATS-C: Number + capacity bar
+     ============================================================ */
+  .sC .num-row{margin-bottom:8px}
+  .sC .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;line-height:1;margin-top:2px}
+  .sC .bar-wrap{margin-bottom:10px}
+  .sC .bar{height:6px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;overflow:hidden;margin-top:6px}
+  .sC .bar i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a)}
+  .sC .full .bar i{background:linear-gradient(90deg,var(--red),#991b1b)}
+  .sC .bar-row{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.6px}
+
+  /* ============================================================
+     STATS-D: Status word ("PLENTY"/"LOW"/"FULL")
+     ============================================================ */
+  .sD .stats{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .sD .status-word{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;line-height:1;color:var(--accent)}
+  .sD .status-word.low{color:var(--orange)}
+  .sD .status-word.full{color:var(--red)}
+  .sD .sub{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-top:3px;margin-bottom:10px}
+
+  /* ============================================================
+     STATS-E: Dots row — bin counter
+     ============================================================ */
+  .sE .stats{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .sE .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;line-height:1.2}
+  .sE .dots{display:flex;gap:3px;flex-wrap:wrap;margin:6px 0 10px}
+  .sE .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 4px rgba(34,197,94,.4)}
+  .sE .dot.out{background:var(--surface2);box-shadow:none;border:1px solid var(--border-strong)}
+
+  /* ============================================================
+     STATS-F: Number + 3-up tabular stats
+     ============================================================ */
+  .sF .stats{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .sF .mini{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;flex:1;align-self:stretch;padding-top:2px}
+  .sF .mini .row{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;line-height:1.4}
+  .sF .mini .row b{color:var(--text);font-weight:800}
+
+  /* ============================================================
+     STATS-G: Stacked centered
+     ============================================================ */
+  .sG .body{text-align:center}
+  .sG .stats{margin-bottom:8px}
+  .sG .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-top:2px}
+  .sG .full .lbl{color:#ff6b75}
+
+  /* ============================================================
+     STATS-H: Inline single sentence
+     ============================================================ */
+  .sH .stats{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .sH .sentence{font-size:12px;color:var(--muted);line-height:1.4}
+  .sH .sentence b{color:var(--text);font-weight:700}
+
+</style>
+</head>
+<body>
+  <h1>Bin Card — Stats Area Layouts</h1>
+  <div class="lead">
+    Big glowing number stays the same across all options (green / amber / red). Only the supporting label + count layout changes.
+    Mock data: <b>4 yard</b> 3/5 (1 OD) · <b>7 yard</b> 0/3 FULL · <b>14 yard</b> 6/7 (1 out) · <b>20 yard</b> 3/4
+  </div>
+
+  <div class="legend">
+    <div><b>Frame:</b> 312px (live fleet panel width)</div>
+    <div><b>Card:</b> 141px wide × ~280px tall</div>
+    <div><b>Number:</b> 68px Bebas Neue, glowing</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- A: CURRENT -->
+    <div class="variant sA">
+      <div class="variant-head"><div class="variant-name">A · Current</div><div class="variant-num">baseline</div></div>
+      <div class="variant-desc">Number on the left, AVAILABLE label and "1/7 out" stacked on the right.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="meta"><div class="lbl">AVAILABLE</div><div class="sub">2 / 5 out</div></div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div class="meta"><div class="lbl">FULLY BOOKED</div><div class="sub">3 / 3 out</div></div></div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div class="meta"><div class="lbl">AVAILABLE</div><div class="sub">1 / 7 out</div></div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="meta"><div class="lbl">AVAILABLE</div><div class="sub">1 / 4 out</div></div></div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- B: BIG FRACTION -->
+    <div class="variant sB">
+      <div class="variant-head"><div class="variant-name">B · Big fraction</div><div class="variant-num">"6/7" combined</div></div>
+      <div class="variant-desc">Big glowing number paired with a smaller "/ total" so the ratio reads as one shape. AVAILABLE label below.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="denom">/ 5</div></div><div class="lbl">Available</div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div class="denom">/ 3</div></div><div class="lbl">Available</div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div class="denom">/ 7</div></div><div class="lbl">Available</div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="denom">/ 4</div></div><div class="lbl">Available</div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- C: CAPACITY BAR -->
+    <div class="variant sC">
+      <div class="variant-head"><div class="variant-name">C · Capacity bar</div><div class="variant-num">utilization fill</div></div>
+      <div class="variant-desc">Number stays prominent. Underneath, a horizontal bar shows what fraction is out vs available — quantitative at a glance.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="num-row"><div class="big">3</div><div class="lbl">Available</div></div><div class="bar-wrap"><div class="bar"><i style="width:60%"></i></div><div class="bar-row"><span>3 in yard</span><span>2 out</span></div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="num-row"><div class="big full">0</div><div class="lbl">Available</div></div><div class="bar-wrap"><div class="bar"><i style="width:0%"></i></div><div class="bar-row"><span>0 in yard</span><span>3 out</span></div></div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="num-row"><div class="big">6</div><div class="lbl">Available</div></div><div class="bar-wrap"><div class="bar"><i style="width:86%"></i></div><div class="bar-row"><span>6 in yard</span><span>1 out</span></div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="num-row"><div class="big">3</div><div class="lbl">Available</div></div><div class="bar-wrap"><div class="bar"><i style="width:75%"></i></div><div class="bar-row"><span>3 in yard</span><span>1 out</span></div></div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- D: STATUS WORD -->
+    <div class="variant sD">
+      <div class="variant-head"><div class="variant-name">D · Status word</div><div class="variant-num">"PLENTY / LOW / FULL"</div></div>
+      <div class="variant-desc">Short status word color-matched to the number — at-a-glance health label. Fewer numbers, more meaning.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div><div class="status-word">PLENTY</div></div></div><div class="sub">3 of 5 in yard</div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div><div class="status-word full">SOLD OUT</div></div></div><div class="sub">0 of 3 in yard</div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div><div class="status-word">PLENTY</div></div></div><div class="sub">6 of 7 in yard</div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div><div class="status-word">PLENTY</div></div></div><div class="sub">3 of 4 in yard</div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- E: DOTS ROW -->
+    <div class="variant sE">
+      <div class="variant-head"><div class="variant-name">E · Dot indicator</div><div class="variant-num">visual inventory</div></div>
+      <div class="variant-desc">Each bin in the fleet is a dot — green dot = in yard, hollow dot = out. Visual count without numbers.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="lbl">of 5<br>available</div></div><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot out"></span><span class="dot out"></span></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div class="lbl">of 3<br>sold out</div></div><div class="dots"><span class="dot out"></span><span class="dot out"></span><span class="dot out"></span></div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div class="lbl">of 7<br>available</div></div><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot out"></span></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="lbl">of 4<br>available</div></div><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot out"></span></div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- F: TABULAR 3-UP -->
+    <div class="variant sF">
+      <div class="variant-head"><div class="variant-name">F · Mini tabular</div><div class="variant-num">label : count rows</div></div>
+      <div class="variant-desc">Number on the left, three little label-value rows on the right (Avail / Out / Total). Most informative.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="mini"><div class="row">Avail<b>3</b></div><div class="row">Out<b>2</b></div><div class="row">Total<b>5</b></div><div class="row">OD<b style="color:var(--red)">1</b></div></div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div class="mini"><div class="row">Avail<b>0</b></div><div class="row">Out<b>3</b></div><div class="row">Total<b>3</b></div><div class="row">OD<b>0</b></div></div></div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div class="mini"><div class="row">Avail<b>6</b></div><div class="row">Out<b>1</b></div><div class="row">Total<b>7</b></div><div class="row">OD<b>0</b></div></div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="mini"><div class="row">Avail<b>3</b></div><div class="row">Out<b>1</b></div><div class="row">Total<b>4</b></div><div class="row">OD<b>0</b></div></div></div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- G: STACKED CENTERED -->
+    <div class="variant sG">
+      <div class="variant-head"><div class="variant-name">G · Stacked centered</div><div class="variant-num">all centered</div></div>
+      <div class="variant-desc">Big number centered, then "OF 7 AVAILABLE" as one line below. Symmetric, calm, premium look.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="lbl">of 5 available</div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div class="lbl">of 3 — sold out</div></div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div class="lbl">of 7 available</div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="lbl">of 4 available</div></div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+    <!-- H: INLINE SENTENCE -->
+    <div class="variant sH">
+      <div class="variant-head"><div class="variant-name">H · Inline sentence</div><div class="variant-num">human-readable</div></div>
+      <div class="variant-desc">Number + plain-English sentence next to it: "available · 1 out". Reads like prose, not a dashboard.</div>
+      <div class="frame"><div class="grid2x2">
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png')"><div class="size-chip">4 YARD</div><div class="pill">⚠ 1 OD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="sentence"><b>available</b><br>2 out · 5 total</div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card full"><div class="photo"><div class="size-chip">7 YARD</div><div class="pill full">⚠ FULL</div></div><div class="body"><div class="stats"><div class="big full">0</div><div class="sentence"><b>sold out</b><br>3 out · 3 total</div></div><button class="book-btn full">Book Anyway</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png')"><div class="size-chip">14 YARD</div></div><div class="body"><div class="stats"><div class="big">6</div><div class="sentence"><b>available</b><br>1 out · 7 total</div></div><button class="book-btn">📅 Book</button></div></div>
+        <div class="card"><div class="photo" style="background-image:url('https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png')"><div class="size-chip">20 YARD</div></div><div class="body"><div class="stats"><div class="big">3</div><div class="sentence"><b>available</b><br>1 out · 4 total</div></div><button class="book-btn">📅 Book</button></div></div>
+      </div></div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:40px;padding:18px 22px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;color:#495057;line-height:1.6">
+    <b>Pick one (or remix)</b> — give me the letter (A–H) you want for the live dashboard, or describe a combination.
+  </div>
+
+</body>
+</html>

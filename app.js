@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '144';
+var APP_VERSION = '145';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3967,6 +3967,14 @@ async function renderDash(){
   renderDashLongBins();
   renderWeekCal();
   renderDashBinsOut();
+
+  // If the user has the picker on a non-today date (e.g. assigning crew to
+  // tomorrow's jobs), the dash-today-jobs panel was just overwritten with
+  // today's data above. Re-render it with the picker's date so we don't
+  // snap them back.
+  if(datePicker.value && datePicker.value !== todayS){
+    refreshDashJobs();
+  }
 
   // Keep hidden stub IDs up to date so nothing else breaks
   var upcomingHdrEl=document.getElementById('upcoming-hdr-lbl');
