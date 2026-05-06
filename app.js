@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '141';
+var APP_VERSION = '142';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -2067,28 +2067,28 @@ async function refreshDashBinStats(){
     else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
     else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
     // V3-C layout: photo zone on top with size chip + status pill, stats horizontal below
-    var photoStyle='position:relative;height:64px;background-color:var(--surface2);border-bottom:1px solid var(--border)';
-    if(imgUrl) photoStyle+=';background-image:url('+imgUrl+');background-size:74%;background-position:center;background-repeat:no-repeat';
+    var photoStyle='position:relative;height:140px;background-color:var(--surface2);border-bottom:1px solid var(--border)';
+    if(imgUrl) photoStyle+=';background-image:url('+imgUrl+');background-size:contain;background-position:center;background-repeat:no-repeat';
     if(isFull) photoStyle+=';background-color:#fff5f5';
     var pillHtml='';
-    if(od>0) pillHtml='<div style="position:absolute;top:4px;right:4px;background:rgba(220,53,69,.15);color:#dc3545;font-size:8px;font-weight:700;padding:2px 5px;border-radius:8px;letter-spacing:.4px;white-space:nowrap;z-index:2">⚠ '+od+' OD</div>';
-    else if(isFull) pillHtml='<div style="position:absolute;top:4px;right:4px;background:rgba(220,53,69,.18);color:#ff6b75;font-size:8px;font-weight:700;padding:2px 5px;border-radius:8px;letter-spacing:.4px;display:flex;align-items:center;gap:3px;white-space:nowrap;z-index:2"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>FULL</div>';
+    if(od>0) pillHtml='<div style="position:absolute;top:6px;right:6px;background:rgba(220,53,69,.15);color:#dc3545;font-size:9px;font-weight:700;padding:3px 7px;border-radius:10px;letter-spacing:.4px;white-space:nowrap;z-index:2">⚠ '+od+' OVERDUE</div>';
+    else if(isFull) pillHtml='<div style="position:absolute;top:6px;right:6px;background:rgba(220,53,69,.18);color:#ff6b75;font-size:9px;font-weight:700;padding:3px 7px;border-radius:10px;letter-spacing:.4px;display:flex;align-items:center;gap:4px;white-space:nowrap;z-index:2"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>FULL</div>';
     var bookBtnStyle=isFull?'background:transparent;color:#ff8a92;border:1px dashed rgba(220,53,69,0.5)':'';
     var bookBtnLbl=isFull?'📅 Book Anyway':'📅 Book';
     return '<div class="bin-size-card" style="'+cardStyle+';padding:0;text-align:left">'
       +'<div style="'+photoStyle+'">'
         +pillHtml
-        +'<div style="position:absolute;bottom:4px;left:6px;font-family:\'Bebas Neue\',sans-serif;font-size:11px;letter-spacing:1px;font-weight:900;background:rgba(255,255,255,.85);padding:1px 5px;border-radius:4px;color:var(--text)">'+s.toUpperCase()+'</div>'
+        +'<div style="position:absolute;bottom:6px;left:6px;font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:1.5px;font-weight:900;background:rgba(255,255,255,.88);padding:2px 7px;border-radius:5px;color:var(--text)">'+s.toUpperCase()+'</div>'
       +'</div>'
-      +'<div style="padding:8px 10px">'
-        +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:34px;line-height:1;color:'+availColor+';-webkit-text-stroke:0.4px '+availStroke+'">'+inY+'</div>'
+      +'<div style="padding:12px 12px 14px">'
+        +'<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:56px;line-height:.9;color:'+availColor+';-webkit-text-stroke:0.5px '+availStroke+';text-shadow:'+availShadow+'">'+inY+'</div>'
           +'<div>'
-            +'<div style="font-size:8px;color:'+availLblColor+';text-transform:uppercase;letter-spacing:.8px;font-weight:700;line-height:1.2">'+availLbl+'</div>'
-            +'<div style="font-size:9px;color:var(--muted);line-height:1.2">'+out+'/'+tot+' out</div>'
+            +'<div style="font-size:10px;color:'+availLblColor+';text-transform:uppercase;letter-spacing:1px;font-weight:700;line-height:1.2">'+availLbl+'</div>'
+            +'<div style="font-size:11px;color:var(--muted);line-height:1.3;margin-top:2px">'+out+' / '+tot+' out</div>'
           +'</div>'
         +'</div>'
-        +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn" style="font-size:9px;padding:4px 6px'+(bookBtnStyle?';'+bookBtnStyle:'')+'">'+bookBtnLbl+'</button>'
+        +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn" style="font-size:11px;padding:7px 10px'+(bookBtnStyle?';'+bookBtnStyle:'')+'">'+bookBtnLbl+'</button>'
       +'</div>'
       +'</div>';
   }).join('');
