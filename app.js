@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '143';
+var APP_VERSION = '144';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -3610,7 +3610,9 @@ async function renderDash(){
   var sameDayLastWeekS = ymdLocal(sameDayLastWeek);
 
   var datePicker = document.getElementById('dash-bin-date');
-  datePicker.value = todayS;
+  // Preserve user's chosen date across re-renders (e.g. realtime refresh after
+  // crew assignment). Only seed today's date if the picker has no value yet.
+  if(!datePicker.value) datePicker.value = todayS;
   updateDashDateLabel();
   document.getElementById('today-lbl').textContent = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
