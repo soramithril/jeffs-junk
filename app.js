@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '142';
+var APP_VERSION = '143';
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -2057,8 +2057,8 @@ async function refreshDashBinStats(){
     var availColor=isFull?'#ff5560':'#22c55e';
     var availStroke=isFull?'#991b1b':'#15803d';
     var availShadow=isFull
-      ?'0 2px 8px rgba(220,53,69,.4),0 4px 24px rgba(220,53,69,.2)'
-      :'0 2px 8px rgba(34,197,94,.35),0 4px 20px rgba(34,197,94,.15)';
+      ?'0 2px 10px rgba(220,53,69,.55),0 6px 28px rgba(220,53,69,.3)'
+      :'0 2px 10px rgba(34,197,94,.5),0 6px 24px rgba(34,197,94,.22)';
     var availLblColor=isFull?'#ff6b75':'var(--muted)';
     var cardStyle='position:relative;overflow:hidden';
     if(isFull) cardStyle+=';border-top:5px solid #dc3545;background:linear-gradient(180deg,rgba(220,53,69,0.06) 0%,var(--surface) 60%);box-shadow:inset 0 0 0 1px rgba(220,53,69,0.15)';
@@ -2082,7 +2082,7 @@ async function refreshDashBinStats(){
       +'</div>'
       +'<div style="padding:12px 12px 14px">'
         +'<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:56px;line-height:.9;color:'+availColor+';-webkit-text-stroke:0.5px '+availStroke+';text-shadow:'+availShadow+'">'+inY+'</div>'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:68px;line-height:.9;color:'+availColor+';-webkit-text-stroke:0.5px '+availStroke+';text-shadow:'+availShadow+';font-variant-numeric:tabular-nums">'+inY+'</div>'
           +'<div>'
             +'<div style="font-size:10px;color:'+availLblColor+';text-transform:uppercase;letter-spacing:1px;font-weight:700;line-height:1.2">'+availLbl+'</div>'
             +'<div style="font-size:11px;color:var(--muted);line-height:1.3;margin-top:2px">'+out+' / '+tot+' out</div>'
