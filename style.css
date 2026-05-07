@@ -1588,9 +1588,10 @@ input[type=date],input[type=time]{position:relative;}
   /* Detail-section padding tighter */
   .detail-section { padding: 14px; margin-bottom: 14px; }
 
-  /* Tables: allow horizontal scroll inside their wrapper instead of pushing the page wider */
-  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
-  thead, tbody, tr { display: table; width: 100%; table-layout: fixed; }
+  /* Tables: rely on the existing .table-wrap horizontal scroll (set in markup).
+     Don't override table display — that breaks column sizing and causes text overlap. */
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+  .table-wrap table { min-width: 720px; }
 
   /* Bin picker / form-group with hard-coded widths inside the modal */
   .form-group[style*="flex:0 0 80px"] { flex: 1 1 100% !important; min-width: 0 !important; }
@@ -1604,6 +1605,41 @@ input[type=date],input[type=time]{position:relative;}
   .stat-value { font-size: 20px !important; }
   /* Bin size cards already 1 col on this breakpoint per existing rule; keep grid sane */
   #dash-bin-by-size { gap: 8px !important; }
+}
+
+/* ── Bin fleet cards: compact for mobile so all 4 fit in view ── */
+@media (max-width: 768px) {
+  /* Photo zone: shrink from 140px → 70px */
+  .bin-size-card > div:first-child {
+    height: 70px !important;
+  }
+  /* Tighten the body of the card */
+  .bin-size-card > div:last-child {
+    padding: 8px 8px 10px !important;
+  }
+  /* Big availability number: shrink from 68px → 36px */
+  .bin-size-card > div:last-child > div:first-child > div:first-child {
+    font-size: 36px !important;
+  }
+  /* "of N available" label */
+  .bin-size-card > div:last-child > div:first-child > div:last-child {
+    font-size: 9px !important;
+    letter-spacing: 1px !important;
+  }
+  /* Margin between number block and Book button */
+  .bin-size-card > div:last-child > div:first-child {
+    margin-bottom: 6px !important;
+  }
+  /* Book button slimmer */
+  .bin-size-card .bin-book-btn {
+    padding: 6px 8px !important;
+    font-size: 10px !important;
+  }
+  /* Size chip on photo */
+  .bin-size-card > div:first-child > div:last-child {
+    font-size: 10px !important;
+    padding: 1px 5px !important;
+  }
 }
 
 /* ── Unassigned bin alert banner ── */
