@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '147';
+var APP_VERSION = '148';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7705,21 +7705,77 @@ function _lightboxNav(delta){
 
 function _renderJobPhotosDetail(j){
   var photos = j.photos || [];
-  if(!photos.length) return '';
   var thumbs = photos.map(function(url, i){
     var thumb = _cloudinaryDeliveryUrl(url, {width:200});
     return '<div class="photo-thumb" onclick="_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')">'
       + '<img src="'+thumb+'" alt="" loading="lazy">'
       + '</div>';
   }).join('');
-  return '<div class="detail-section"><div class="detail-section-title">📷 Photos ('+photos.length+')</div>'
-    + '<div class="photo-thumb-grid">'+thumbs+'</div></div>';
+  var addBtn = '<label class="photo-add-btn" style="margin-left:auto">'
+    + '<input type="file" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
+    + '<span>📷 Add Photos</span></label>';
+  return '<div class="detail-section" id="detail-photos-'+j.id+'">'
+    + '<div class="detail-section-title" style="display:flex;align-items:center">📷 Photos ('+photos.length+')'+addBtn+'</div>'
+    + '<div class="photo-thumb-grid" id="detail-photos-grid-'+j.id+'">'+thumbs+'</div>'
+    + '</div>';
+}
+
+async function _patchJobPhotos(jobId, photos){
+  var local = jobs.find(function(j){ return j.id === jobId; });
+  if(local) local.photos = photos.slice();
+  var r = await db.from('jobs').update({photos: photos}).eq('job_id', jobId);
+  if(r.error){
+    toast('⚠ Photos save failed: '+r.error.message,'error');
+    return false;
+  }
+  return true;
+}
+
+async function _addPhotosToJob(jobId, inp){
+  if(!inp.files || !inp.files.length) return;
+  if(!_cloudinaryConfigured()){
+    toast('⚠ Photo upload not yet configured','error');
+    inp.value = ''; return;
+  }
+  var job = jobs.find(function(j){ return j.id === jobId; });
+  if(!job){ inp.value = ''; return; }
+  var grid = document.getElementById('detail-photos-grid-'+jobId);
+  var files = [].slice.call(inp.files);
+  inp.value = '';
+  for(var i = 0; i < files.length; i++){
+    var placeholder = document.createElement('div');
+    placeholder.className = 'photo-thumb photo-thumb-uploading';
+    placeholder.textContent = 'Uploading…';
+    if(grid) grid.appendChild(placeholder);
+    try {
+      var secureUrl = await _uploadPhotoToCloudinary(files[i]);
+      var newPhotos = (job.photos || []).slice();
+      newPhotos.push(secureUrl);
+      var ok = await _patchJobPhotos(jobId, newPhotos);
+      placeholder.remove();
+      if(ok){
+        var fresh = jobs.find(function(j){ return j.id === jobId; });
+        var section = document.getElementById('detail-photos-'+jobId);
+        if(section && fresh){
+          var wrapper = document.createElement('div');
+          wrapper.innerHTML = _renderJobPhotosDetail(fresh);
+          section.parentNode.replaceChild(wrapper.firstChild, section);
+        }
+      }
+    } catch(err){
+      console.error('photo upload failed:', err);
+      placeholder.textContent = '❌ Failed';
+      (function(p){ setTimeout(function(){ p.remove(); }, 2500); })(placeholder);
+      toast('Photo upload failed: '+err.message, 'error');
+    }
+  }
 }
 
 window._addPhotosFromInput = _addPhotosFromInput;
 window._removeFormPhoto = _removeFormPhoto;
 window._openPhotoLightbox = _openPhotoLightbox;
 window._lightboxNav = _lightboxNav;
+window._addPhotosToJob = _addPhotosToJob;
 
 function newJob(){
   editId=null;
