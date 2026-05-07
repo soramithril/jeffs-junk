@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '154';
+var APP_VERSION = '155';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1918,8 +1918,11 @@ function render(name){
   else if(name==='advisor') renderAdvisor();
   else if(name==='bininventory') renderBinInventory();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderMaintSections);}
+  // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
+  if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
+  if(typeof _loadUnassignedBinAlertJobs === 'function') _loadUnassignedBinAlertJobs();
 }
-function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));_renderUnassignedBinBanner();_loadUnassignedBinAlertJobs();}
+function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
 
 // ─── BADGES ───
 function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
