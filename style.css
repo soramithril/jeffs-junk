@@ -856,6 +856,16 @@ input[type=date],input[type=time]{position:relative;}
   .cat-section thead th:last-child,.cat-section tbody td:last-child{display:none;}
   /* Chart cards inside dashboard */
   .dash-2col .chart-card{padding:14px;}
+  /* Modal sizing: 60px side padding on fullpage modals eats too much screen on a phone */
+  .modal-overlay.fullpage .modal{padding:20px 12px 24px;}
+  .modal{padding:20px 14px;width:100vw;max-width:100vw;border-radius:0;max-height:100vh;}
+  .form-actions{flex-direction:column;gap:8px;}
+  .form-actions .btn{width:100%;min-height:44px;}
+  /* Tap-target sizing for inputs in modals */
+  .form-group input,.form-group select,.form-group textarea{min-height:42px;font-size:16px;}
+  /* Detail modal action grid: stack buttons */
+  .det-btn-grid{grid-template-columns:1fr!important;}
+  .det-btn-grid .btn{min-height:44px;}
 }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr!important;}

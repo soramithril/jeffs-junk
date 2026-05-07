@@ -2,13 +2,32 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '148';
+var APP_VERSION = '149';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
 var CLOUDINARY_CLOUD_NAME = 'dglezca2l';
 var CLOUDINARY_PRESET = 'jeffs_junk';
 var _formPhotos = [];           // photo URLs being assembled in the open job/quote modal
+
+// ── Job field maps (single source of truth) ──
+// When adding a new column to the jobs table, update these in this order:
+//   1. dbToJob()  — add the read-from-DB line
+//   2. jobToDb()  — add the write-to-DB line
+//   3. JOB_KEY_MAP below if the JS camelCase name differs from the snake_case DB column
+//   4. JOB_LABEL_MAP below if you want pretty labels in the change history
+var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
+  status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
+  binDropoff:'bin_dropoff', paid:'paid', etransferRefundSent:'etransfer_refund_sent',
+  binBid:'bin_bid', binSide:'bin_side', price:'price', notes:'notes', phone:'phone',
+  name:'name', address:'address', city:'city', service:'service', binSize:'bin_size',
+  binDuration:'bin_duration', time:'time', referral:'referral', payMethod:'pay_method',
+  recurring:'recurring', recurInterval:'recur_interval', materialType:'material_type',
+  toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
+  depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
+  clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
+  dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id'};
+var JOB_LABEL_MAP = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid',assignedCrewIds:'Assigned Crew',binWillCall:'Will Call'};
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -815,15 +834,14 @@ function save() {
 function patchJob(jobId, fields) {
   _clientStatsCache = null;
   updateSidebarStats();
-  // Log changes to job_changes
-  var labelMap = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid',assignedCrewIds:'Assigned Crew',binWillCall:'Will Call'};
+  // Log changes to job_changes (uses JOB_LABEL_MAP defined at top of file)
   var oldJob = jobs.find(function(j){return j.id===jobId;});
   var changeRows = [];
   var userEmail = currentUser ? currentUser.email : 'system';
   var userName = (currentUser && currentUser.displayName) ? currentUser.displayName : (currentUser ? userEmail.split('@')[0] : 'system');
   Object.keys(fields).forEach(function(k){
     if(k==='editedBy'||k==='editedByEmail') return;
-    var label = labelMap[k] || k;
+    var label = JOB_LABEL_MAP[k] || k;
     var oldVal = oldJob ? String(oldJob[k]||'') : '';
     var newVal = String(fields[k]||'');
     if(oldVal !== newVal) changeRows.push({job_id:jobId, field_name:label, old_value:oldVal, new_value:newVal, changed_by:userName});
@@ -833,21 +851,10 @@ function patchJob(jobId, fields) {
       if(r.error) console.warn('job_changes insert error:', r.error.message);
     });
   }
-  // Map camelCase JS keys to snake_case DB columns
-  var keyMap = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
-    status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
-    binDropoff:'bin_dropoff', paid:'paid', etransferRefundSent:'etransfer_refund_sent',
-    binBid:'bin_bid', binSide:'bin_side', price:'price', notes:'notes', phone:'phone',
-    name:'name', address:'address', city:'city', service:'service', binSize:'bin_size',
-    binDuration:'bin_duration', time:'time', referral:'referral', payMethod:'pay_method',
-    recurring:'recurring', recurInterval:'recur_interval', materialType:'material_type',
-    toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
-    depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
-    clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
-    dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id'};
+  // Map camelCase JS keys to snake_case DB columns (uses JOB_KEY_MAP defined at top of file)
   var dbFields = {};
   Object.keys(fields).forEach(function(k){
-    var col = keyMap[k] || k;
+    var col = JOB_KEY_MAP[k] || k;
     dbFields[col] = fields[k];
   });
   db.from('jobs').update(dbFields).eq('job_id', jobId).then(function(r){
