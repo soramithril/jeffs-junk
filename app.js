@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '156';
+var APP_VERSION = '157';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3585,6 +3585,9 @@ async function renderDashLongBins(){
     :emptyStateHTML('🟢','All On Schedule','No bins have been out longer than expected.');
 }
 async function renderDash(){
+  // Banner: kick off fetch + re-render every time dashboard renders
+  if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
+  if(typeof _loadUnassignedBinAlertJobs === 'function') _loadUnassignedBinAlertJobs(true);
   // ── Skeleton loading: show placeholders while data loads (v18) ──
   var skTodayJobs=document.getElementById('dash-today-jobs');
   if(skTodayJobs) skTodayJobs.innerHTML=skeletonRows(4);
@@ -7127,6 +7130,7 @@ function _confirmReassignBinFromJob(bid, toJobId){
 async function _doReassignBin(bid, fromJobId, toJobId){
   closeM('reassign-bin-modal');
   closeM('link-bin-from-job-modal');
+  closeM('assign-bin-modal');
   var bin = binItems.find(function(b){ return b.bid === bid; });
   var oldJob = jobs.find(function(j){ return j.id === fromJobId; });
   var newJob = jobs.find(function(j){ return j.id === toJobId; });
@@ -7270,11 +7274,17 @@ async function openAssignBinPicker(jobId){
   var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
   closeM('detail-modal');
   var size=j.binSize;
-  var availBins=binItems.filter(function(b){return b.status==='in'&&(!size||b.size===size);})
-    .sort(function(a,b){return (a.num||'').localeCompare(b.num||'',undefined,{numeric:true,sensitivity:'base'});});
-  var html='<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Showing '+availBins.length+' available'+(size?' '+size:'')+' bins</div>';
-  if(!availBins.length){html+='<div style="text-align:center;padding:20px;color:var(--muted)">No available bins of this size</div>';}
-  else{
+  var matchSize=function(b){ return !size || b.size===size; };
+  var sortByNum=function(a,b){return (a.num||'').localeCompare(b.num||'',undefined,{numeric:true,sensitivity:'base'});};
+  var availBins=binItems.filter(function(b){return b.status==='in'&&matchSize(b)&&b.damage!=='oor';}).sort(sortByNum);
+  var unavailBins=binItems.filter(function(b){return b.status==='out'&&matchSize(b)&&b.damage!=='oor';}).sort(sortByNum);
+
+  var html='';
+  // ── Available section ──
+  html+='<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">✅ Available ('+availBins.length+')'+(size?' · '+size:'')+'</div>';
+  if(!availBins.length){
+    html+='<div style="text-align:center;padding:14px;color:var(--muted);font-size:12px;background:var(--surface2);border-radius:8px;margin-bottom:8px">No available bins'+(size?' of this size':'')+'</div>';
+  } else {
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">';
     availBins.forEach(function(b){
       html+='<div style="padding:10px;border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\'" onclick="doAssignBin(\''+jobId+'\',\''+b.bid+'\')">'
@@ -7285,6 +7295,21 @@ async function openAssignBinPicker(jobId){
     });
     html+='</div>';
   }
+
+  // ── Unavailable section (transfer option) ──
+  if(unavailBins.length){
+    html+='<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔄 Unavailable — currently out (tap to transfer)</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">';
+    unavailBins.forEach(function(b){
+      html+='<div style="padding:10px;border:2px solid rgba(220,53,69,.25);border-radius:8px;text-align:center;cursor:pointer;background:var(--surface2);opacity:.85;transition:all .15s" onmouseover="this.style.borderColor=\'#dc3545\';this.style.opacity=\'1\'" onmouseout="this.style.borderColor=\'rgba(220,53,69,.25)\';this.style.opacity=\'.85\'" onclick="_confirmReassignBinFromJob(\''+b.bid+'\',\''+jobId+'\')">'
+        +'<div style="font-weight:700;font-size:14px">#'+b.num+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+b.size+'</div>'
+        +'<div style="font-size:10px;color:#dc3545">Out (other job)</div>'
+        +'</div>';
+    });
+    html+='</div>';
+  }
+
   document.getElementById('assign-bin-body').innerHTML=html;
   document.getElementById('assign-bin-modal').classList.add('open');
   window._assignBinJobId=jobId;
