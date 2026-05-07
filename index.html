@@ -1547,6 +1547,16 @@
         </select>
       </div>
 
+      <div class="form-group full">
+        <label>📷 Photos</label>
+        <div class="photo-section">
+          <div id="f-photos-grid" class="photo-thumb-grid"></div>
+          <label class="photo-add-btn">
+            <input type="file" id="f-photo-input" accept="image/*" multiple style="display:none" onchange="_addPhotosFromInput(this)">
+            <span>📷 Add Photos</span>
+          </label>
+        </div>
+      </div>
       <div class="form-group full"><label>Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div class="form-group full" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
@@ -1970,7 +1980,17 @@
   </div>
 </div>
 
-<script src="app.js?v=146"></script>
+<div class="modal-overlay" id="photo-lightbox-modal" onclick="if(event.target===this)closeM('photo-lightbox-modal')">
+  <div class="photo-lightbox-content">
+    <button class="photo-lightbox-close" onclick="closeM('photo-lightbox-modal')">&#x2715;</button>
+    <button class="photo-lightbox-nav photo-lightbox-prev" id="photo-lightbox-prev" onclick="_lightboxNav(-1)">&#x2039;</button>
+    <img id="photo-lightbox-img" alt="">
+    <button class="photo-lightbox-nav photo-lightbox-next" id="photo-lightbox-next" onclick="_lightboxNav(1)">&#x203A;</button>
+    <div class="photo-lightbox-counter" id="photo-lightbox-counter"></div>
+  </div>
+</div>
+
+<script src="app.js?v=147"></script>
 </body>
 </html>
                                                                                                                                                          

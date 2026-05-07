@@ -2,7 +2,13 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '146';
+var APP_VERSION = '147';
+
+// ── Cloudinary photo upload config ──
+// Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
+var CLOUDINARY_CLOUD_NAME = 'dglezca2l';
+var CLOUDINARY_PRESET = 'jeffs_junk';
+var _formPhotos = [];           // photo URLs being assembled in the open job/quote modal
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -646,6 +652,7 @@ function dbToJob(r) {
     assignedCrewIds: r.assigned_crew_ids || [],
     dropoffCrewId: r.dropoff_crew_id || null,
     pickupCrewId:  r.pickup_crew_id  || null,
+    photos:        r.photos           || [],
   };
 }
 
@@ -765,6 +772,7 @@ function jobToDb(j) {
     assigned_crew_ids: j.assignedCrewIds || [],
     dropoff_crew_id: j.dropoffCrewId || null,
     pickup_crew_id:  j.pickupCrewId  || null,
+    photos:      j.photos      || [],
   };
 }
 
@@ -7572,6 +7580,147 @@ function toggleBin(){
     }
   }
 }
+// ── Photo upload helpers (Cloudinary) ──
+function _cloudinaryConfigured(){
+  return !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_PRESET);
+}
+
+async function _compressImage(file){
+  var maxEdge = 1920, quality = 0.82;
+  var bitmap = await createImageBitmap(file, {imageOrientation:'from-image'});
+  var sw = bitmap.width, sh = bitmap.height;
+  var scale = Math.min(1, maxEdge / Math.max(sw, sh));
+  var w = Math.round(sw * scale), h = Math.round(sh * scale);
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+  return new Promise(function(resolve, reject){
+    canvas.toBlob(function(blob){
+      if(blob) resolve(blob); else reject(new Error('toBlob failed'));
+    }, 'image/jpeg', quality);
+  });
+}
+
+async function _uploadPhotoToCloudinary(file){
+  if(!_cloudinaryConfigured()) throw new Error('Cloudinary not configured — fill in CLOUDINARY_CLOUD_NAME and CLOUDINARY_PRESET at the top of app.js');
+  var blob = await _compressImage(file);
+  var fd = new FormData();
+  fd.append('file', blob);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+  var res = await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD_NAME+'/image/upload', {method:'POST', body:fd});
+  if(!res.ok) throw new Error('Upload failed: HTTP '+res.status);
+  var data = await res.json();
+  if(!data.secure_url) throw new Error('Upload failed: no secure_url returned');
+  return data.secure_url;
+}
+
+function _cloudinaryDeliveryUrl(url, opts){
+  if(!url || url.indexOf('/upload/') < 0) return url;
+  var transforms = ['f_auto','q_auto'];
+  if(opts && opts.width) transforms.push('w_'+opts.width);
+  return url.replace('/upload/', '/upload/'+transforms.join(',')+'/');
+}
+
+async function _addPhotosFromInput(inp){
+  if(!inp.files || !inp.files.length) return;
+  if(!_cloudinaryConfigured()){
+    toast('⚠ Photo upload not yet configured — Cloudinary cloud name + preset needed in app.js','error');
+    inp.value = ''; return;
+  }
+  var grid = document.getElementById('f-photos-grid');
+  var files = [].slice.call(inp.files);
+  inp.value = '';
+  for(var i = 0; i < files.length; i++){
+    var placeholder = document.createElement('div');
+    placeholder.className = 'photo-thumb photo-thumb-uploading';
+    placeholder.textContent = 'Uploading…';
+    if(grid) grid.appendChild(placeholder);
+    try {
+      var secureUrl = await _uploadPhotoToCloudinary(files[i]);
+      _formPhotos.push(secureUrl);
+      placeholder.remove();
+      _renderFormPhotos();
+    } catch(err){
+      console.error('photo upload failed:', err);
+      placeholder.textContent = '❌ Failed';
+      (function(p){ setTimeout(function(){ p.remove(); }, 2500); })(placeholder);
+      toast('Photo upload failed: '+err.message, 'error');
+    }
+  }
+}
+
+function _renderFormPhotos(){
+  var grid = document.getElementById('f-photos-grid');
+  if(!grid) return;
+  grid.innerHTML = _formPhotos.map(function(url, i){
+    var thumb = _cloudinaryDeliveryUrl(url, {width:200});
+    return '<div class="photo-thumb" onclick="_openPhotoLightbox('+i+',\'form\')">'
+      + '<img src="'+thumb+'" alt="" loading="lazy">'
+      + '<button type="button" class="photo-thumb-remove" onclick="event.stopPropagation();_removeFormPhoto('+i+')" title="Remove">×</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _removeFormPhoto(i){
+  _formPhotos.splice(i, 1);
+  _renderFormPhotos();
+}
+
+function _openPhotoLightbox(idx, source, jobId){
+  var photos;
+  if(source === 'form') photos = _formPhotos;
+  else if(source === 'job'){
+    var j = jobs.find(function(x){ return x.id === jobId; });
+    photos = j ? (j.photos || []) : [];
+  } else photos = [];
+  if(!photos.length) return;
+  window._lightboxPhotos = photos;
+  window._lightboxIdx = Math.max(0, Math.min(idx, photos.length - 1));
+  _renderLightbox();
+  document.getElementById('photo-lightbox-modal').classList.add('open');
+}
+
+function _renderLightbox(){
+  var photos = window._lightboxPhotos || [];
+  var idx = window._lightboxIdx || 0;
+  if(!photos.length) return;
+  var img = document.getElementById('photo-lightbox-img');
+  if(img) img.src = _cloudinaryDeliveryUrl(photos[idx], {});
+  var counter = document.getElementById('photo-lightbox-counter');
+  if(counter) counter.textContent = (idx + 1) + ' / ' + photos.length;
+  var prev = document.getElementById('photo-lightbox-prev');
+  var next = document.getElementById('photo-lightbox-next');
+  if(prev) prev.style.visibility = idx > 0 ? 'visible' : 'hidden';
+  if(next) next.style.visibility = idx < photos.length - 1 ? 'visible' : 'hidden';
+}
+
+function _lightboxNav(delta){
+  var photos = window._lightboxPhotos || [];
+  var idx = (window._lightboxIdx || 0) + delta;
+  if(idx >= 0 && idx < photos.length){
+    window._lightboxIdx = idx;
+    _renderLightbox();
+  }
+}
+
+function _renderJobPhotosDetail(j){
+  var photos = j.photos || [];
+  if(!photos.length) return '';
+  var thumbs = photos.map(function(url, i){
+    var thumb = _cloudinaryDeliveryUrl(url, {width:200});
+    return '<div class="photo-thumb" onclick="_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')">'
+      + '<img src="'+thumb+'" alt="" loading="lazy">'
+      + '</div>';
+  }).join('');
+  return '<div class="detail-section"><div class="detail-section-title">📷 Photos ('+photos.length+')</div>'
+    + '<div class="photo-thumb-grid">'+thumbs+'</div></div>';
+}
+
+window._addPhotosFromInput = _addPhotosFromInput;
+window._removeFormPhoto = _removeFormPhoto;
+window._openPhotoLightbox = _openPhotoLightbox;
+window._lightboxNav = _lightboxNav;
+
 function newJob(){
   editId=null;
   _selectedClientObj=null;
@@ -7618,6 +7767,8 @@ function newJob(){
   var bps=document.getElementById('bin-picker-selected');if(bps){bps.style.display='none';bps.innerHTML='';delete bps.dataset.bid;}
   var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='none';
   var bpa=document.getElementById('bin-picker-arrow');if(bpa)bpa.style.transform='rotate(0deg)';
+  _formPhotos = [];
+  _renderFormPhotos();
   document.getElementById('job-modal').classList.add('open');
 }
 
@@ -7931,6 +8082,8 @@ function openEdit(id){
     if(recOpts){recOpts.style.display=(j.recurring?'block':'none');}
     var recInt=document.getElementById('f-recur-interval');
     if(recInt&&j.recurInterval){recInt.value=j.recurInterval;}
+    _formPhotos = (j.photos || []).slice();
+    _renderFormPhotos();
     document.getElementById('job-modal').classList.add('open');
   },150);
 }
@@ -7979,6 +8132,12 @@ async function saveJob(e){
       banner.innerHTML = '⚠️ Please fix the following:<ul style="margin:6px 0 0 16px">' + errs.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul>';
       banner.style.display = 'block';
     }
+    _saveJobLock = false; return;
+  }
+
+  // Block save while photos are still uploading
+  if(document.querySelector('.photo-thumb-uploading')){
+    toast('⏳ Wait for photos to finish uploading before saving','error');
     _saveJobLock = false; return;
   }
 
@@ -8067,6 +8226,7 @@ async function saveJob(e){
     editedByEmail:  editId ? userEmail : '',
     // Preserve crew assignment when editing — form has no crew field, so without this it gets cleared
     assignedCrewIds: editId ? (jobs.find(function(j){return j.id===editId;})||{}).assignedCrewIds || [] : [],
+    photos:    _formPhotos.slice(),
   };
 
   // Auto-populate scheduling dates from main date if not set
@@ -8353,6 +8513,7 @@ async function openDetail(id){
     +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':''):'')
     +'</div></div>':'')
     +bin
+    +_renderJobPhotosDetail(j)
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
     +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+j.internalNotes+'</p></div>':'')
@@ -8895,6 +9056,8 @@ function convertQuoteToJob(quoteId){
   document.getElementById('bin-extra').style.display='none';
   toggleBin();
   ['f-svc','f-name','f-date'].forEach(clearErr);
+  _formPhotos = (q.photos || []).slice();
+  _renderFormPhotos();
   document.getElementById('job-modal').classList.add('open');
 }
 function markUnconfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});patchJob(id,{confirmed:false});toast('Confirmation removed.');refresh();}
