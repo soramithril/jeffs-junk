@@ -1533,3 +1533,75 @@ input[type=date],input[type=time]{position:relative;}
   font-size:13px;
   font-weight:600;
 }
+
+/* ════════════════════════════════════════
+   COMPREHENSIVE MOBILE PASS (≤768px / ≤480px)
+   ──────────────────────────────────────────
+   Targets the recurring mobile issues across all views:
+   - horizontal overflow from inline-styled fixed widths
+   - dashboard header pile-up
+   - vehicle strip / date picker overflowing iPhone width
+   - inline-styled multi-column grids not stacking
+   - filter chips and search bars not wrapping
+   - tap targets too small
+   - iOS auto-zoom on focused inputs
+   ════════════════════════════════════════ */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; }
+  .view { overflow-x: hidden; }
+
+  /* Dashboard page header: stack the title + fleet stats + tomorrow pill */
+  #view-dashboard .page-header { flex-wrap: wrap; gap: 8px; }
+  #dash-fleet-header { flex: 1 1 100% !important; margin: 0 !important; gap: 12px !important; flex-wrap: wrap; justify-content: flex-start !important; }
+  #dash-fleet-header > div:first-child { gap: 14px !important; }
+  #dash-tomorrow-pill { width: 100%; box-sizing: border-box; text-align: center; }
+
+  /* Vehicle strip: kill inline min-width that overflows iPhone width */
+  #dash-vehicle-strip { padding: 8px; gap: 6px; flex-wrap: wrap; }
+  #dash-vehicle-strip > div[style*="min-width:320px"],
+  #dash-vehicle-strip > div[style*="min-width: 320px"] {
+    min-width: 0 !important;
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Force inline-styled multi-column grids in dashboard sections to stack */
+  #view-dashboard [style*="grid-template-columns:minmax"],
+  #view-dashboard [style*="grid-template-columns: minmax"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Jobs view: full-width search */
+  #view-jobs .search-input { flex: 1 1 100% !important; max-width: 100% !important; margin-left: 0 !important; }
+
+  /* Filter chip rows wrap */
+  .filters-bar, .filter-row { flex-wrap: wrap !important; gap: 6px; }
+
+  /* iOS — 16px input font kills auto-zoom-on-focus */
+  input, select, textarea { font-size: 16px; }
+
+  /* Tap-target minimums (Apple HIG = 44x44, .btn-sm allowed slightly less) */
+  .btn { min-height: 38px; }
+  .btn-sm { min-height: 30px; }
+
+  /* Detail-section padding tighter */
+  .detail-section { padding: 14px; margin-bottom: 14px; }
+
+  /* Tables: allow horizontal scroll inside their wrapper instead of pushing the page wider */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  thead, tbody, tr { display: table; width: 100%; table-layout: fixed; }
+
+  /* Bin picker / form-group with hard-coded widths inside the modal */
+  .form-group[style*="flex:0 0 80px"] { flex: 1 1 100% !important; min-width: 0 !important; }
+}
+
+@media (max-width: 480px) {
+  .main { padding: 64px 10px 20px !important; }
+  .page-title { font-size: 26px !important; }
+  .chart-card { padding: 12px; }
+  .bin-fleet-hero { padding: 12px; }
+  .stat-value { font-size: 20px !important; }
+  /* Bin size cards already 1 col on this breakpoint per existing rule; keep grid sane */
+  #dash-bin-by-size { gap: 8px !important; }
+}
