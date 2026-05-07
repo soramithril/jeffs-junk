@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '153';
+var APP_VERSION = '154';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3227,8 +3227,6 @@ function aggregateLbRows(rows,isCrewMode){
 
 async function renderDashMaintAlert(){
   var el=document.getElementById('dash-maint-alert');if(!el)return;
-  var res=await db.from('maintenance_schedules').select('*,vehicle_odometers(odometer_km)').in('status',['due','overdue']);
-  // fallback: just query maintenance_schedules
   var mRes=await db.from('maintenance_schedules').select('*').in('status',['due','overdue']);
   var alerts=mRes.data||[];
   if(!alerts.length){el.style.display='none';return;}
