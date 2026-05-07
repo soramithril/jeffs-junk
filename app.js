@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '157';
+var APP_VERSION = '158';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1577,9 +1577,7 @@ async function saveClient(e){
   // Validate referral
   var refVal=document.getElementById('c-referral').value;
   if(refVal==='__add_new__') refVal='';
-  var refErrEl=document.getElementById('err-c-referral');
-  if(!refVal){if(refErrEl)refErrEl.style.display='block';return;}
-  if(refErrEl)refErrEl.style.display='none';
+  if(!refVal){toast('Referral source is required','error');return;}
   // Collect phones with types
   var phoneRows=document.querySelectorAll('#c-phones-wrap .c-phone-inp');
   var extRows=document.querySelectorAll('#c-phones-wrap .c-ext-inp');
