@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '155';
+var APP_VERSION = '156';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7981,7 +7981,7 @@ function _renderUnassignedBinBanner(){
       + (j.binDropoff ? ' &middot; dropped ' + fd(j.binDropoff) : '')
       + (j.binSize ? ' &middot; ' + j.binSize : '')
       + '</span>'
-      + '<button class="bin-alert-action" onclick="_openDetailFromBanner(\''+j.id+'\')">Assign</button>'
+      + '<button class="bin-alert-action" onclick="_dismissBinBanner();openLinkBinFromJob(\''+j.id+'\')">Assign</button>'
       + '<button class="bin-alert-close" onclick="_dismissBinBanner()" aria-label="Dismiss">&times;</button>';
   } else {
     html = '<span class="bin-alert-icon">⚠</span>'
@@ -8016,12 +8016,13 @@ function _openUnassignedBinList(){
   }
   var rows = list.map(function(j){
     var addr = (j.address || '') + (j.city ? ', ' + j.city : '');
+    var displayName = (j.names && j.names.length) ? j.names.join(' & ') : (j.name || '(no name)');
     return '<div class="bin-alert-row">'
       + '<div class="bin-alert-row-info">'
-      + '<div class="bin-alert-row-id">'+j.id+(j.binSize?' &middot; '+j.binSize:'')+'</div>'
+      + '<div class="bin-alert-row-id">'+displayName+(j.binSize?' &middot; '+j.binSize:'')+'</div>'
       + '<div class="bin-alert-row-meta">'+(addr || '—')+(j.binDropoff?' &middot; dropped '+fd(j.binDropoff):'')+'</div>'
       + '</div>'
-      + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openDetail(\''+j.id+'\')">Assign</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openLinkBinFromJob(\''+j.id+'\')">Assign</button>'
       + '</div>';
   }).join('');
   modal.innerHTML = '<div class="modal" style="max-width:560px;width:96vw">'
