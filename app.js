@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '150';
+var APP_VERSION = '151';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1919,7 +1919,7 @@ function render(name){
   else if(name==='bininventory') renderBinInventory();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderMaintSections);}
 }
-function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
+function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));_renderUnassignedBinBanner();}
 
 // ─── BADGES ───
 function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
@@ -7783,6 +7783,105 @@ window._removeFormPhoto = _removeFormPhoto;
 window._openPhotoLightbox = _openPhotoLightbox;
 window._lightboxNav = _lightboxNav;
 window._addPhotosToJob = _addPhotosToJob;
+
+// ── Unassigned bin alert banner ──
+// Triggers on Bin Rental jobs whose scheduled dropoff was at least 1 day ago
+// and still have no bin (binBid empty). Dismiss is in-memory: reload restores.
+var _binBannerDismissed = false;
+
+function _getUnassignedBinJobs(){
+  var t = new Date(); t.setHours(0,0,0,0);
+  var cutoff = new Date(t); cutoff.setDate(cutoff.getDate() - 1);
+  var cutoffStr = cutoff.toISOString().split('T')[0];
+  return jobs.filter(function(j){
+    if(j.service !== 'Bin Rental') return false;
+    if(j.binBid) return false;
+    if(!j.binDropoff) return false;
+    if(j.status === 'Cancelled') return false;
+    return j.binDropoff <= cutoffStr;
+  }).sort(function(a,b){
+    return (a.binDropoff||'').localeCompare(b.binDropoff||'');
+  });
+}
+
+function _renderUnassignedBinBanner(){
+  var existing = document.getElementById('bin-alert-banner');
+  if(_binBannerDismissed){ if(existing) existing.remove(); return; }
+  var list = _getUnassignedBinJobs();
+  if(!list.length){ if(existing) existing.remove(); return; }
+  var main = document.querySelector('.main');
+  if(!main) return;
+  if(!existing){
+    existing = document.createElement('div');
+    existing.id = 'bin-alert-banner';
+    main.insertBefore(existing, main.firstChild);
+  }
+  var html;
+  if(list.length === 1){
+    var j = list[0];
+    var addr = (j.address || '').split(',')[0] || j.city || '';
+    html = '<span class="bin-alert-icon">⚠</span>'
+      + '<span class="bin-alert-text"><strong>'+j.id+'</strong> needs a bin assigned'
+      + (addr ? ' &mdash; ' + addr : '')
+      + (j.binDropoff ? ' &middot; dropped ' + fd(j.binDropoff) : '')
+      + (j.binSize ? ' &middot; ' + j.binSize : '')
+      + '</span>'
+      + '<button class="bin-alert-action" onclick="_openDetailFromBanner(\''+j.id+'\')">Assign</button>'
+      + '<button class="bin-alert-close" onclick="_dismissBinBanner()" aria-label="Dismiss">&times;</button>';
+  } else {
+    html = '<span class="bin-alert-icon">⚠</span>'
+      + '<span class="bin-alert-text"><strong>'+list.length+'</strong> bin rentals need bins assigned'
+      + ' &mdash; earliest drop ' + fd(list[0].binDropoff)
+      + '</span>'
+      + '<button class="bin-alert-action" onclick="_openUnassignedBinList()">View list</button>'
+      + '<button class="bin-alert-close" onclick="_dismissBinBanner()" aria-label="Dismiss">&times;</button>';
+  }
+  existing.innerHTML = html;
+}
+
+function _dismissBinBanner(){
+  _binBannerDismissed = true;
+  var b = document.getElementById('bin-alert-banner');
+  if(b) b.remove();
+}
+
+function _openDetailFromBanner(jobId){
+  openDetail(jobId);
+}
+
+function _openUnassignedBinList(){
+  var list = _getUnassignedBinJobs();
+  var modal = document.getElementById('bin-alert-list-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'bin-alert-list-modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = function(e){ if(e.target === modal) closeM('bin-alert-list-modal'); };
+    document.body.appendChild(modal);
+  }
+  var rows = list.map(function(j){
+    var addr = (j.address || '') + (j.city ? ', ' + j.city : '');
+    return '<div class="bin-alert-row">'
+      + '<div class="bin-alert-row-info">'
+      + '<div class="bin-alert-row-id">'+j.id+(j.binSize?' &middot; '+j.binSize:'')+'</div>'
+      + '<div class="bin-alert-row-meta">'+(addr || '—')+(j.binDropoff?' &middot; dropped '+fd(j.binDropoff):'')+'</div>'
+      + '</div>'
+      + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openDetail(\''+j.id+'\')">Assign</button>'
+      + '</div>';
+  }).join('');
+  modal.innerHTML = '<div class="modal" style="max-width:560px;width:96vw">'
+    + '<div class="modal-header">'
+      + '<div class="modal-title">⚠ Unassigned bins (' + list.length + ')</div>'
+      + '<button class="modal-close" onclick="closeM(\'bin-alert-list-modal\')">&times;</button>'
+    + '</div>'
+    + '<div style="padding:0;max-height:60vh;overflow-y:auto">' + (rows || '<p style="color:var(--muted);padding:14px;text-align:center">No jobs need bin assignment.</p>') + '</div>'
+    + '</div>';
+  modal.classList.add('open');
+}
+
+window._dismissBinBanner = _dismissBinBanner;
+window._openUnassignedBinList = _openUnassignedBinList;
+window._openDetailFromBanner = _openDetailFromBanner;
 
 function newJob(){
   editId=null;
