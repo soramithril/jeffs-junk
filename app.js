@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '152';
+var APP_VERSION = '153';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1919,7 +1919,7 @@ function render(name){
   else if(name==='bininventory') renderBinInventory();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderMaintSections);}
 }
-function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));_renderUnassignedBinBanner();}
+function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));_renderUnassignedBinBanner();_loadUnassignedBinAlertJobs();}
 
 // ─── BADGES ───
 function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
@@ -7030,24 +7030,140 @@ function openLinkBinFromJob(jobId){
   document.getElementById('link-bin-from-job-ttl').textContent='🔗 Link a Bin to '+jobId;
   var grid=document.getElementById('link-bin-from-job-grid');
   var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
-  var sorted=[].concat(binItems).sort(function(a,b){
-    if(a.status==='in'&&b.status!=='in')return -1;
-    if(a.status!=='in'&&b.status==='in')return 1;
-    return (a.num||'').localeCompare(b.num||'');
+  var byNum=function(a,b){return (a.num||'').localeCompare(b.num||'');};
+  var available=[],unavailable=[];
+  binItems.forEach(function(b){
+    if(b.damage==='oor')return; // skip out-of-repair
+    if(b.status==='in')available.push(b);
+    else unavailable.push(b);
   });
-  grid.innerHTML=sorted.map(function(b){
+  available.sort(byNum);unavailable.sort(byNum);
+  function cardHtml(b,isAvail){
     var col=sizeColors[b.size]||'#22c55e';
-    var statusLbl=b.damage==='oor'?'OOR':(b.status==='in'?'In Yard':'Out (other job)');
-    var statusCol=b.damage==='oor'?'#f59e0b':(b.status==='in'?'#22c55e':'#dc3545');
-    return '<div style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,.1);background:var(--surface)" onclick="linkBinFromJob(\''+b.bid+'\')">'
+    var statusLbl=isAvail?'In Yard':'Out (other job)';
+    var statusCol=isAvail?'#22c55e':'#dc3545';
+    var clickHandler=isAvail
+      ?"linkBinFromJob('"+b.bid+"')"
+      :"_confirmReassignBinFromJob('"+b.bid+"','"+jobId+"')";
+    var cardStyle=isAvail
+      ?'background:var(--surface);border:2px solid rgba(255,255,255,.1)'
+      :'background:var(--surface2);border:2px solid rgba(220,53,69,.25);opacity:.85';
+    return '<div style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;'+cardStyle+'" onclick="'+clickHandler+'">'
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+'</div>'
       +'<div style="font-size:13px;font-weight:700">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+col+';margin-top:2px">'+b.size+'</div>'
       +'<div style="font-size:10px;color:'+statusCol+';margin-top:2px">'+statusLbl+'</div>'
       +'</div>';
-  }).join('');
+  }
+  var html='';
+  if(available.length){
+    html+='<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:6px 4px 0">✅ Available ('+available.length+')</div>';
+    html+=available.map(function(b){return cardHtml(b,true);}).join('');
+  }
+  if(unavailable.length){
+    html+='<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 4px 0;padding-top:14px;border-top:1px solid var(--border)">🔄 Unavailable — currently out (tap to transfer)</div>';
+    html+=unavailable.map(function(b){return cardHtml(b,false);}).join('');
+  }
+  if(!available.length && !unavailable.length){
+    html='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted)">No bins available.</div>';
+  }
+  grid.innerHTML=html;
   document.getElementById('link-bin-from-job-modal').classList.add('open');
 }
+
+// Confirm modal for transferring an out-bin from one job to another (same-day swap)
+function _confirmReassignBinFromJob(bid, toJobId){
+  var bin = binItems.find(function(b){ return b.bid === bid; });
+  if(!bin){ toast('Bin not found','error'); return; }
+  // Find the job currently using this bin — prefer one with binInstatus='dropped'
+  var oldJob = jobs.find(function(j){ return j.binBid === bid && j.binInstatus === 'dropped'; })
+            || jobs.find(function(j){ return j.binBid === bid; });
+  if(!oldJob){
+    if(confirm('This bin is marked out, but no job claims it. Assign anyway?')){
+      linkBinFromJob(bid);
+    }
+    return;
+  }
+  var newJob = jobs.find(function(j){ return j.id === toJobId; });
+  if(!newJob){ toast('Job not found','error'); return; }
+  var oldAddr = (oldJob.address||'').split(',')[0] || oldJob.city || '—';
+  var newAddr = (newJob.address||'').split(',')[0] || newJob.city || '—';
+
+  var modal = document.getElementById('reassign-bin-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'reassign-bin-modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = function(e){ if(e.target === modal) closeM('reassign-bin-modal'); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div class="modal" style="max-width:520px;width:96vw">'
+    + '<div class="modal-header">'
+      + '<div class="modal-title">🔄 Transfer Bin #'+bin.num+' ('+bin.size+')?</div>'
+      + '<button class="modal-close" onclick="closeM(\'reassign-bin-modal\')">&times;</button>'
+    + '</div>'
+    + '<div style="padding:6px 4px 10px;font-size:14px;line-height:1.55">'
+      + '<p style="margin:0 0 12px">This bin is currently out at:</p>'
+      + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px">'
+        + '<div style="font-weight:700">'+oldJob.id+' &middot; '+oldAddr+'</div>'
+        + (oldJob.name?'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+oldJob.name+'</div>':'')
+      + '</div>'
+      + '<p style="margin:0 0 10px">Confirming will:</p>'
+      + '<ul style="margin:0 0 14px 18px;padding:0;line-height:1.7">'
+        + '<li>Mark <strong>'+oldJob.id+'</strong> as picked up</li>'
+        + '<li>Assign Bin #'+bin.num+' to <strong>'+newJob.id+' &middot; '+newAddr+'</strong> and mark it dropped</li>'
+      + '</ul>'
+      + '<p style="margin:0;color:var(--muted);font-size:12px">Use this when your driver picks the bin up from one job and delivers it directly to another the same day.</p>'
+    + '</div>'
+    + '<div class="form-actions" style="margin-top:8px">'
+      + '<button class="btn btn-ghost" onclick="closeM(\'reassign-bin-modal\')">Cancel</button>'
+      + '<button class="btn btn-primary" onclick="_doReassignBin(\''+bid+'\',\''+oldJob.id+'\',\''+toJobId+'\')">Confirm Transfer</button>'
+    + '</div>'
+    + '</div>';
+  modal.classList.add('open');
+}
+
+async function _doReassignBin(bid, fromJobId, toJobId){
+  closeM('reassign-bin-modal');
+  closeM('link-bin-from-job-modal');
+  var bin = binItems.find(function(b){ return b.bid === bid; });
+  var oldJob = jobs.find(function(j){ return j.id === fromJobId; });
+  var newJob = jobs.find(function(j){ return j.id === toJobId; });
+  if(!bin || !oldJob || !newJob){ toast('Could not find bin/job','error'); return; }
+
+  // If the new job already had a different bin, release it back to the yard
+  if(newJob.binBid && newJob.binBid !== bid){
+    binItems.forEach(function(b){ if(b.bid === newJob.binBid) b.status = 'in'; });
+  }
+
+  // 1. Mark old job as picked up — bin returns from pickup
+  oldJob.binInstatus = 'pickedup';
+  writeBinHistory(oldJob);
+
+  // 2. Assign bin to new job, marked dropped (bin physically there now)
+  newJob.binBid = bid;
+  newJob.binSize = bin.size;
+  newJob.binInstatus = 'dropped';
+
+  // 3. Bin status stays 'out' (never returned to yard)
+  bin.status = 'out';
+  saveBins();
+
+  // 4. Persist both job updates
+  var r = await Promise.all([
+    db.from('jobs').update({bin_instatus:'pickedup'}).eq('job_id', fromJobId),
+    db.from('jobs').update({bin_bid:bid, bin_size:bin.size, bin_instatus:'dropped'}).eq('job_id', toJobId)
+  ]);
+  if(r[0].error){ toast('Error updating '+fromJobId+': '+r[0].error.message,'error'); return; }
+  if(r[1].error){ toast('Error updating '+toJobId+': '+r[1].error.message,'error'); return; }
+
+  toast('Bin #'+bin.num+' transferred: '+fromJobId+' → '+toJobId);
+  openDetail(toJobId);
+  refresh();
+}
+
+window._confirmReassignBinFromJob = _confirmReassignBinFromJob;
+window._doReassignBin = _doReassignBin;
 async function linkBinFromJob(bid){
   var jobId=_linkBinFromJobId;if(!jobId)return;
   var b=binItems.find(function(bi){return bi.bid===bid;});
@@ -7788,6 +7904,44 @@ window._addPhotosToJob = _addPhotosToJob;
 // Triggers on Bin Rental jobs whose scheduled dropoff was at least 1 day ago
 // and still have no bin (binBid empty). Dismiss is in-memory: reload restores.
 var _binBannerDismissed = false;
+var _binAlertLoading = false;
+var _binAlertLastFetch = 0;
+var _BIN_ALERT_COOLDOWN_MS = 30000;
+
+// Fetches matching jobs from Supabase and merges into jobs[]. Dashboard's
+// own data loaders skip past-dropoff-no-bin jobs, so the banner needs its
+// own fetch to see them.
+async function _loadUnassignedBinAlertJobs(force){
+  if(_binAlertLoading) return;
+  if(!force && (Date.now() - _binAlertLastFetch) < _BIN_ALERT_COOLDOWN_MS) return;
+  _binAlertLoading = true;
+  _binAlertLastFetch = Date.now();
+  try {
+    var t = new Date(); t.setHours(0,0,0,0);
+    var cutoff = new Date(t); cutoff.setDate(cutoff.getDate() - 1);
+    var cutoffStr = cutoff.toISOString().split('T')[0];
+    var r = await db.from('jobs').select(JOB_LIST_COLS)
+      .eq('service','Bin Rental')
+      .neq('status','Cancelled')
+      .neq('bin_instatus','pickedup')
+      .lte('bin_dropoff', cutoffStr);
+    if(!r.error && r.data){
+      r.data.forEach(function(row){
+        if(row.bin_bid) return; // skip jobs that already have a bin
+        var j = dbToJob(row);
+        var idx = jobs.findIndex(function(x){ return x.id === j.id; });
+        if(idx >= 0) jobs[idx] = j; else jobs.push(j);
+      });
+    } else if(r.error){
+      console.error('Bin alert fetch error:', r.error.message);
+    }
+  } catch(e) {
+    console.error('Bin alert fetch exception:', e);
+  } finally {
+    _binAlertLoading = false;
+  }
+  _renderUnassignedBinBanner();
+}
 
 function _getUnassignedBinJobs(){
   var t = new Date(); t.setHours(0,0,0,0);
