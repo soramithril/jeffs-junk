@@ -30,7 +30,7 @@ The dashboard is one static site, three files at repo root:
 
 Other folders:
 - `docs/` — business PDFs.
-- `assets/` — includes a 38MB `intro-bg.mp4`. Don't churn this.
+- `assets/` — includes `intro-bg.mp4` (~8 MB). Don't churn this.
 
 GitHub Pages auto-deploys from `main` branch root. Repo is `soramithril/jeffs-junk`.
 
