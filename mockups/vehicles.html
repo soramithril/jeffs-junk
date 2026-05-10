@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vehicles Page — Design Mockups</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --surface2:#f1f3f6; --border:#e2e6ec;
+    --text:#1c2025; --muted:#6b7280; --accent:#dc3545;
+    --green:#22c55e; --orange:#e67e22; --red:#dc3545; --yellow:#eab308; --blue:#3b82f6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'DM Sans','Segoe UI',sans-serif;font-size:14px}
+  h1,h2,h3{margin:0}
+  a{color:var(--accent);text-decoration:none}
+
+  /* Page header */
+  .page-hdr{padding:28px 32px 18px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+  .page-hdr h1{font-size:22px;letter-spacing:-.2px;margin-bottom:4px}
+  .page-hdr p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{padding:8px 16px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-weight:600;font-size:13px;color:var(--text)}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tab small{display:block;font-weight:400;font-size:10.5px;letter-spacing:.4px;margin-top:1px;opacity:.85}
+
+  .mockup{display:none;padding:28px 32px 60px}
+  .mockup.active{display:block}
+  .mockup .intro{max-width:780px;margin-bottom:22px}
+  .mockup .intro h2{font-size:18px;margin-bottom:6px}
+  .mockup .intro p{color:var(--muted);font-size:13px;line-height:1.55;margin:0}
+
+  /* Generic card primitives */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.3px}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .pill-green{background:rgba(34,197,94,.12);color:var(--green)}
+  .pill-orange{background:rgba(230,126,34,.13);color:var(--orange)}
+  .pill-red{background:rgba(220,53,69,.12);color:var(--red)}
+  .pill-blue{background:rgba(59,130,246,.12);color:var(--blue)}
+  .pill-grey{background:rgba(107,114,128,.13);color:var(--muted)}
+  .pill-yellow{background:rgba(234,179,8,.18);color:#a16207}
+
+  .btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:600;cursor:pointer;font-size:13px}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn-ghost{background:transparent}
+  .btn-sm{padding:5px 9px;font-size:12px}
+
+  .muted{color:var(--muted);font-size:12px}
+  .row-flex{display:flex;align-items:center;gap:12px}
+
+  /* ─── MOCKUP A: Sidebar + Detail Panel ─── */
+  .a-grid{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
+  .a-sidebar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;max-height:760px;overflow-y:auto}
+  .a-search{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:10px}
+  .a-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .a-chip{padding:4px 10px;border-radius:99px;background:var(--surface2);font-size:11px;color:var(--muted);cursor:pointer;border:1px solid transparent}
+  .a-chip.on{background:rgba(220,53,69,.1);color:var(--accent);border-color:rgba(220,53,69,.25)}
+  .a-list{display:flex;flex-direction:column;gap:6px}
+  .a-item{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+  .a-item:hover{background:var(--surface2)}
+  .a-item.sel{background:rgba(220,53,69,.06);border-color:rgba(220,53,69,.25)}
+  .a-vcolor{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .a-name{font-weight:600;font-size:13px;line-height:1.2}
+  .a-sub{font-size:11px;color:var(--muted)}
+  .a-flags{display:flex;gap:3px;margin-left:auto}
+  .a-flag{font-size:13px}
+
+  .a-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .a-hero{padding:22px 26px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fafbfc 0%,#fff 100%)}
+  .a-hero-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+  .a-hero-name{font-size:22px;font-weight:700;letter-spacing:-.3px;display:flex;align-items:center;gap:10px}
+  .a-hero-color{width:14px;height:14px;border-radius:50%;display:inline-block}
+  .a-hero-meta{color:var(--muted);font-size:13px;margin-top:2px}
+  .a-stats{display:flex;gap:12px;flex-wrap:wrap}
+  .a-stat{flex:1;min-width:140px;padding:13px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+  .a-stat-num{font-family:'Bebas Neue','Oswald',sans-serif;font-size:24px;line-height:1;margin-bottom:4px;letter-spacing:.5px}
+  .a-stat-lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+
+  .a-tabs{display:flex;gap:0;padding:0 26px;border-bottom:1px solid var(--border);background:#fafbfc}
+  .a-tab{padding:13px 18px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+  .a-tab.on{color:var(--accent);border-color:var(--accent)}
+
+  .a-body{padding:22px 26px}
+  .a-section h3{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);font-weight:700;margin-bottom:10px}
+  .a-block-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)}
+  .a-block-date{font-weight:600;font-size:13px}
+  .a-block-meta{font-size:12px;color:var(--muted)}
+  .a-add-block{margin-top:14px;padding:14px;background:var(--surface2);border-radius:10px;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px}
+  .a-add-block input,.a-add-block select{padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:#fff}
+
+  .a-maint-row{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:9px;margin-bottom:6px;border-left:3px solid var(--green)}
+  .a-maint-row.due{border-color:var(--orange);background:rgba(230,126,34,.05)}
+  .a-maint-row.overdue{border-color:var(--red);background:rgba(220,53,69,.06)}
+  .a-maint-name{font-weight:600;font-size:13px}
+  .a-maint-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+  /* ─── MOCKUP B: Status-First Cards ─── */
+  .b-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .b-stat{padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+  .b-stat-num{font-family:'Bebas Neue','Oswald',sans-serif;font-size:30px;line-height:1;letter-spacing:.5px}
+  .b-stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-top:4px}
+
+  .b-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .b-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
+  .b-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.05)}
+  .b-card-stripe{position:absolute;top:0;left:0;right:0;height:3px;background:var(--vcolor)}
+  .b-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+  .b-card-name{font-weight:700;font-size:15px;letter-spacing:-.1px}
+  .b-card-type{font-size:12px;color:var(--muted)}
+  .b-card-color{width:32px;height:32px;border-radius:8px;background:var(--vcolor);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+  .b-flags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;min-height:22px}
+  .b-detail{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:1px dashed var(--border)}
+  .b-detail-l{color:var(--muted)}
+  .b-detail-r{font-weight:600}
+  .b-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
+
+  /* ─── MOCKUP C: Dashboard + Table ─── */
+  .c-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+  .c-kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px}
+  .c-kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .c-kpi-num{font-family:'Bebas Neue','Oswald',sans-serif;font-size:26px;line-height:1}
+  .c-kpi-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-top:2px}
+
+  .c-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .c-search{flex:1;min-width:240px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+  .c-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  table.c-table{width:100%;border-collapse:collapse;font-size:13px}
+  table.c-table thead{background:var(--surface2)}
+  table.c-table th{padding:11px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)}
+  table.c-table td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+  table.c-table tr:last-child td{border-bottom:0}
+  table.c-table tbody tr{cursor:pointer}
+  table.c-table tbody tr:hover{background:var(--surface2)}
+
+  .c-truck{display:flex;align-items:center;gap:10px}
+  .c-truck-color{width:8px;height:32px;border-radius:3px;flex-shrink:0}
+  .c-truck-name{font-weight:600}
+  .c-truck-type{color:var(--muted);font-size:11.5px}
+  .c-status-grp{display:flex;gap:4px}
+
+  /* Drawer (used by C, but visible inline as a faux-overlay below table for demo) */
+  .c-drawer-demo{margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0;overflow:hidden;display:flex}
+  .c-drawer-side{width:6px;background:#dc3545}
+  .c-drawer-body{padding:20px 24px;flex:1}
+  .c-drawer-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+  .c-drawer-name{font-size:18px;font-weight:700}
+
+  .footer-note{text-align:center;color:var(--muted);font-size:12px;padding:20px 0}
+</style>
+</head>
+<body>
+
+<header class="page-hdr">
+  <h1>🚗 Vehicles page — design mockups</h1>
+  <p>Three layouts for the same data. Click a tab to swap. Mockups are static — buttons don't do anything.</p>
+  <div class="tabs">
+    <button class="tab active" data-target="mockup-a">Option A<small>List + Detail Panel</small></button>
+    <button class="tab" data-target="mockup-b">Option B<small>Status-First Cards</small></button>
+    <button class="tab" data-target="mockup-c">Option C<small>Dashboard + Table</small></button>
+  </div>
+</header>
+
+<!-- ════════════════════════════════ OPTION A ════════════════════════════════ -->
+<section id="mockup-a" class="mockup active">
+  <div class="intro">
+    <h2>Option A — List + Detail Panel</h2>
+    <p>Mirrors your Bin Fleet page. Skim the left column for the truck you want, click → full detail loads on the right with tabs (Overview, Blocked Days, Maintenance, Service History). The inline "block these days" form lives inside the panel, not duplicated per card.</p>
+  </div>
+  <div class="a-grid">
+    <!-- Sidebar -->
+    <aside class="a-sidebar">
+      <input class="a-search" placeholder="Search trucks…">
+      <div class="a-filters">
+        <span class="a-chip on">All <span class="muted">(4)</span></span>
+        <span class="a-chip">Bin</span>
+        <span class="a-chip">Junk</span>
+        <span class="a-chip">Furniture</span>
+        <span class="a-chip">Needs attention</span>
+      </div>
+      <div class="a-list">
+        <div class="a-item sel">
+          <span class="a-vcolor" style="background:#dc3545"></span>
+          <div>
+            <div class="a-name">Junk Truck 1</div>
+            <div class="a-sub">Junk · ABC-1234</div>
+          </div>
+          <div class="a-flags">
+            <span class="a-flag" title="Oil OK">🟢</span>
+            <span class="a-flag" title="1 maintenance due soon">🟡</span>
+          </div>
+        </div>
+        <div class="a-item">
+          <span class="a-vcolor" style="background:#e67e22"></span>
+          <div>
+            <div class="a-name">Bin Truck 2</div>
+            <div class="a-sub">Bin · DEF-5678</div>
+          </div>
+          <div class="a-flags">
+            <span class="a-flag" title="Oil overdue">🔴</span>
+            <span class="a-flag" title="Sticker expiring">🟡</span>
+          </div>
+        </div>
+        <div class="a-item">
+          <span class="a-vcolor" style="background:#3b82f6"></span>
+          <div>
+            <div class="a-name">Furniture Truck</div>
+            <div class="a-sub">Furniture · GHI-9012</div>
+          </div>
+          <div class="a-flags">
+            <span class="a-flag">🟢</span>
+          </div>
+        </div>
+        <div class="a-item">
+          <span class="a-vcolor" style="background:#22c55e"></span>
+          <div>
+            <div class="a-name">Bin Truck 3</div>
+            <div class="a-sub">Bin · JKL-3456</div>
+          </div>
+          <div class="a-flags">
+            <span class="a-flag">🟢</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:14px">+ Add Vehicle</button>
+    </aside>
+
+    <!-- Detail panel -->
+    <div class="a-panel">
+      <div class="a-hero">
+        <div class="a-hero-top">
+          <div>
+            <div class="a-hero-name"><span class="a-hero-color" style="background:#dc3545"></span>Junk Truck 1</div>
+            <div class="a-hero-meta">Junk Truck · Plate ABC-1234 · Active</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm">✏️ Edit</button>
+            <button class="btn btn-sm">🗑️ Delete</button>
+          </div>
+        </div>
+        <div class="a-stats">
+          <div class="a-stat">
+            <div class="a-stat-num" style="color:var(--green)">🟢 OK</div>
+            <div class="a-stat-lbl">Oil — 45d ago · 78,450 km</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-stat-num" style="color:var(--orange)">🟡 Aug 26</div>
+            <div class="a-stat-lbl">Sticker expires in 3 mo</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-stat-num">0</div>
+            <div class="a-stat-lbl">Days off this month</div>
+          </div>
+          <div class="a-stat">
+            <div class="a-stat-num" style="color:var(--orange)">1</div>
+            <div class="a-stat-lbl">Maintenance due</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="a-tabs">
+        <div class="a-tab on">Overview</div>
+        <div class="a-tab">Blocked Days <span class="muted">(0)</span></div>
+        <div class="a-tab">Maintenance <span class="muted">(2)</span></div>
+        <div class="a-tab">Service History <span class="muted">(7)</span></div>
+      </div>
+
+      <div class="a-body">
+        <!-- Overview -->
+        <div class="a-section" style="margin-bottom:22px">
+          <h3>🔧 Maintenance status</h3>
+          <div class="a-maint-row due">
+            <div>
+              <div class="a-maint-name">🟡 Brake inspection</div>
+              <div class="a-maint-sub">every 20,000 km · 1,550 km remaining · last: Mar 12 at 76,900 km</div>
+            </div>
+            <div style="display:flex;gap:6px"><button class="btn btn-sm">✅ Done</button></div>
+          </div>
+          <div class="a-maint-row">
+            <div>
+              <div class="a-maint-name">🟢 Tire rotation</div>
+              <div class="a-maint-sub">every 10,000 km · 6,700 km remaining · last: Apr 28 at 71,750 km</div>
+            </div>
+            <div style="display:flex;gap:6px"><button class="btn btn-sm">✅ Done</button></div>
+          </div>
+        </div>
+
+        <div class="a-section">
+          <h3>🚫 Upcoming blocked days</h3>
+          <div style="font-size:13px;color:var(--muted);padding:18px;text-align:center;background:var(--surface2);border-radius:10px">No upcoming blocked days. Add some below.</div>
+          <div class="a-add-block">
+            <input type="date" placeholder="From">
+            <input type="date" placeholder="To">
+            <select><option>Service / Repair</option><option>Personal Use</option><option>Out of Area</option><option>Other</option></select>
+            <button class="btn btn-primary">+ Block days</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════ OPTION B ════════════════════════════════ -->
+<section id="mockup-b" class="mockup">
+  <div class="intro">
+    <h2>Option B — Status-First Cards</h2>
+    <p>Each card answers <em>"does this truck need my attention right now?"</em> at a glance — a coloured top stripe (calendar colour), pills for any active issue (oil, sticker, blocked, maintenance), and the absolute minimum data underneath. Click a card to open a full-detail modal with everything (blocked-days timeline, maintenance, history, edit). The bulky inline "block days" form moves into the modal.</p>
+  </div>
+
+  <div class="b-stats">
+    <div class="b-stat"><div class="b-stat-num">4</div><div class="b-stat-lbl">Total Vehicles</div></div>
+    <div class="b-stat"><div class="b-stat-num" style="color:var(--red)">1</div><div class="b-stat-lbl">Oil Overdue</div></div>
+    <div class="b-stat"><div class="b-stat-num" style="color:var(--orange)">2</div><div class="b-stat-lbl">Maintenance Due</div></div>
+    <div class="b-stat"><div class="b-stat-num" style="color:var(--orange)">3</div><div class="b-stat-lbl">Days Off Upcoming</div></div>
+  </div>
+
+  <div class="b-grid">
+    <!-- Card 1 — clean -->
+    <div class="b-card" style="--vcolor:#dc3545">
+      <div class="b-card-stripe"></div>
+      <div class="b-card-head">
+        <div>
+          <div class="b-card-name">Junk Truck 1</div>
+          <div class="b-card-type">Junk · ABC-1234</div>
+        </div>
+        <div class="b-card-color">🚛</div>
+      </div>
+      <div class="b-flags">
+        <span class="pill pill-orange"><span class="dot"></span>1 maint due</span>
+      </div>
+      <div class="b-detail"><span class="b-detail-l">Oil change</span><span class="b-detail-r" style="color:var(--green)">🟢 45d</span></div>
+      <div class="b-detail"><span class="b-detail-l">Sticker</span><span class="b-detail-r">Aug 2026</span></div>
+      <div class="b-detail"><span class="b-detail-l">Days off (next 30)</span><span class="b-detail-r">0</span></div>
+      <div class="b-card-foot">
+        <span>Tap to manage →</span>
+        <span>78,450 km</span>
+      </div>
+    </div>
+
+    <!-- Card 2 — needs attention -->
+    <div class="b-card" style="--vcolor:#e67e22">
+      <div class="b-card-stripe"></div>
+      <div class="b-card-head">
+        <div>
+          <div class="b-card-name">Bin Truck 2</div>
+          <div class="b-card-type">Bin · DEF-5678</div>
+        </div>
+        <div class="b-card-color">🚛</div>
+      </div>
+      <div class="b-flags">
+        <span class="pill pill-red"><span class="dot"></span>Oil overdue</span>
+        <span class="pill pill-yellow"><span class="dot"></span>Sticker 30d</span>
+      </div>
+      <div class="b-detail"><span class="b-detail-l">Oil change</span><span class="b-detail-r" style="color:var(--red)">🔴 210d</span></div>
+      <div class="b-detail"><span class="b-detail-l">Sticker</span><span class="b-detail-r" style="color:var(--orange)">Jun 2026</span></div>
+      <div class="b-detail"><span class="b-detail-l">Days off (next 30)</span><span class="b-detail-r">3</span></div>
+      <div class="b-card-foot">
+        <span>Tap to manage →</span>
+        <span>112,800 km</span>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="b-card" style="--vcolor:#3b82f6">
+      <div class="b-card-stripe"></div>
+      <div class="b-card-head">
+        <div>
+          <div class="b-card-name">Furniture Truck</div>
+          <div class="b-card-type">Furniture · GHI-9012</div>
+        </div>
+        <div class="b-card-color">🚛</div>
+      </div>
+      <div class="b-flags">
+        <span class="pill pill-green"><span class="dot"></span>All clear</span>
+      </div>
+      <div class="b-detail"><span class="b-detail-l">Oil change</span><span class="b-detail-r" style="color:var(--green)">🟢 75d</span></div>
+      <div class="b-detail"><span class="b-detail-l">Sticker</span><span class="b-detail-r">Dec 2026</span></div>
+      <div class="b-detail"><span class="b-detail-l">Days off (next 30)</span><span class="b-detail-r">1</span></div>
+      <div class="b-card-foot">
+        <span>Tap to manage →</span>
+        <span>54,200 km</span>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="b-card" style="--vcolor:#22c55e">
+      <div class="b-card-stripe"></div>
+      <div class="b-card-head">
+        <div>
+          <div class="b-card-name">Bin Truck 3</div>
+          <div class="b-card-type">Bin · JKL-3456</div>
+        </div>
+        <div class="b-card-color">🚛</div>
+      </div>
+      <div class="b-flags">
+        <span class="pill pill-green"><span class="dot"></span>All clear</span>
+        <span class="pill pill-orange"><span class="dot"></span>1 maint due</span>
+      </div>
+      <div class="b-detail"><span class="b-detail-l">Oil change</span><span class="b-detail-r" style="color:var(--green)">🟢 30d</span></div>
+      <div class="b-detail"><span class="b-detail-l">Sticker</span><span class="b-detail-r">Nov 2026</span></div>
+      <div class="b-detail"><span class="b-detail-l">Days off (next 30)</span><span class="b-detail-r">0</span></div>
+      <div class="b-card-foot">
+        <span>Tap to manage →</span>
+        <span>105,000 km</span>
+      </div>
+    </div>
+
+    <!-- Add card -->
+    <div class="b-card" style="--vcolor:#94a3b8;border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:240px;text-align:center;color:var(--muted);font-weight:600">
+      <div>
+        <div style="font-size:32px;margin-bottom:8px">+</div>
+        Add Vehicle
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════ OPTION C ════════════════════════════════ -->
+<section id="mockup-c" class="mockup">
+  <div class="intro">
+    <h2>Option C — Dashboard + Table</h2>
+    <p>For when the question is "what across the whole fleet needs work?". KPI strip at the top, sortable/searchable table below. Click a row → side drawer slides out with all details and the block-days/maintenance forms (drawer shown inline below the table for this mockup). Densest layout — best if you grow past 5–6 trucks.</p>
+  </div>
+
+  <div class="c-kpis">
+    <div class="c-kpi"><div class="c-kpi-icon" style="background:rgba(220,53,69,.12);color:var(--red)">🚛</div><div><div class="c-kpi-num">4</div><div class="c-kpi-lbl">Total Vehicles</div></div></div>
+    <div class="c-kpi"><div class="c-kpi-icon" style="background:rgba(220,53,69,.12);color:var(--red)">⛽</div><div><div class="c-kpi-num">1</div><div class="c-kpi-lbl">Oil Overdue</div></div></div>
+    <div class="c-kpi"><div class="c-kpi-icon" style="background:rgba(230,126,34,.13);color:var(--orange)">🔧</div><div><div class="c-kpi-num">2</div><div class="c-kpi-lbl">Maintenance Due</div></div></div>
+    <div class="c-kpi"><div class="c-kpi-icon" style="background:rgba(234,179,8,.18);color:#a16207">📋</div><div><div class="c-kpi-num">1</div><div class="c-kpi-lbl">Sticker Expiring</div></div></div>
+    <div class="c-kpi"><div class="c-kpi-icon" style="background:rgba(59,130,246,.12);color:var(--blue)">🚫</div><div><div class="c-kpi-num">3</div><div class="c-kpi-lbl">Days Blocked (30d)</div></div></div>
+  </div>
+
+  <div class="c-toolbar">
+    <input class="c-search" placeholder="Search trucks, plates, notes…">
+    <button class="btn">All types ▾</button>
+    <button class="btn">Status ▾</button>
+    <button class="btn btn-primary">+ Add Vehicle</button>
+  </div>
+
+  <div class="c-table-wrap">
+    <table class="c-table">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Status</th>
+          <th>Oil</th>
+          <th>Sticker</th>
+          <th>Maintenance</th>
+          <th>Days off (30d)</th>
+          <th>Odometer</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:rgba(220,53,69,.04)">
+          <td>
+            <div class="c-truck">
+              <div class="c-truck-color" style="background:#dc3545"></div>
+              <div><div class="c-truck-name">Junk Truck 1</div><div class="c-truck-type">Junk · ABC-1234</div></div>
+            </div>
+          </td>
+          <td><span class="pill pill-orange"><span class="dot"></span>Maint due</span></td>
+          <td><span style="color:var(--green);font-weight:600">🟢 45d</span></td>
+          <td>Aug 2026</td>
+          <td>1 due in 1,550 km</td>
+          <td>0</td>
+          <td>78,450 km</td>
+          <td><button class="btn btn-sm btn-ghost">Manage →</button></td>
+        </tr>
+        <tr>
+          <td>
+            <div class="c-truck">
+              <div class="c-truck-color" style="background:#e67e22"></div>
+              <div><div class="c-truck-name">Bin Truck 2</div><div class="c-truck-type">Bin · DEF-5678</div></div>
+            </div>
+          </td>
+          <td><div class="c-status-grp"><span class="pill pill-red"><span class="dot"></span>Oil</span><span class="pill pill-yellow"><span class="dot"></span>Sticker</span></div></td>
+          <td><span style="color:var(--red);font-weight:600">🔴 210d</span></td>
+          <td><span style="color:var(--orange)">Jun 2026</span></td>
+          <td>OK</td>
+          <td>3</td>
+          <td>112,800 km</td>
+          <td><button class="btn btn-sm btn-ghost">Manage →</button></td>
+        </tr>
+        <tr>
+          <td>
+            <div class="c-truck">
+              <div class="c-truck-color" style="background:#3b82f6"></div>
+              <div><div class="c-truck-name">Furniture Truck</div><div class="c-truck-type">Furniture · GHI-9012</div></div>
+            </div>
+          </td>
+          <td><span class="pill pill-green"><span class="dot"></span>OK</span></td>
+          <td><span style="color:var(--green);font-weight:600">🟢 75d</span></td>
+          <td>Dec 2026</td>
+          <td>OK</td>
+          <td>1</td>
+          <td>54,200 km</td>
+          <td><button class="btn btn-sm btn-ghost">Manage →</button></td>
+        </tr>
+        <tr>
+          <td>
+            <div class="c-truck">
+              <div class="c-truck-color" style="background:#22c55e"></div>
+              <div><div class="c-truck-name">Bin Truck 3</div><div class="c-truck-type">Bin · JKL-3456</div></div>
+            </div>
+          </td>
+          <td><span class="pill pill-orange"><span class="dot"></span>Maint due</span></td>
+          <td><span style="color:var(--green);font-weight:600">🟢 30d</span></td>
+          <td>Nov 2026</td>
+          <td>1 due in 800 km</td>
+          <td>0</td>
+          <td>105,000 km</td>
+          <td><button class="btn btn-sm btn-ghost">Manage →</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Drawer demo (in real life, slides out from right) -->
+  <div class="c-drawer-demo">
+    <div class="c-drawer-side"></div>
+    <div class="c-drawer-body">
+      <div class="c-drawer-hdr">
+        <div>
+          <div class="c-drawer-name">Junk Truck 1</div>
+          <div class="muted" style="font-size:13px;margin-top:2px">Junk Truck · Plate ABC-1234 · 78,450 km</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm">✏️ Edit</button>
+          <button class="btn btn-sm">🗑️</button>
+          <button class="btn btn-sm btn-ghost">✕</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">
+        <div class="card" style="padding:13px"><div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700">Oil</div><div style="font-weight:700;color:var(--green);margin-top:4px">🟢 OK · 45d ago</div></div>
+        <div class="card" style="padding:13px"><div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700">Sticker</div><div style="font-weight:700;margin-top:4px">Aug 2026</div></div>
+        <div class="card" style="padding:13px"><div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700">Days Off (30d)</div><div style="font-weight:700;margin-top:4px">0</div></div>
+      </div>
+
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px">🔧 Maintenance</div>
+      <div class="a-maint-row due"><div><div class="a-maint-name">🟡 Brake inspection</div><div class="a-maint-sub">1,550 km remaining · last Mar 12</div></div><button class="btn btn-sm">✅ Done</button></div>
+      <div class="a-maint-row"><div><div class="a-maint-name">🟢 Tire rotation</div><div class="a-maint-sub">6,700 km remaining · last Apr 28</div></div><button class="btn btn-sm">✅ Done</button></div>
+
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin:18px 0 8px">🚫 Block days off</div>
+      <div class="a-add-block">
+        <input type="date">
+        <input type="date">
+        <select><option>Service / Repair</option><option>Personal Use</option></select>
+        <button class="btn btn-primary">+ Block</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="footer-note">Mockups are static — buttons don't do anything. Pick a direction and we'll wire it up.</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+      document.querySelectorAll('.mockup').forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active');
+      document.getElementById(t.dataset.target).classList.add('active');
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+  });
+</script>
+</body>
+</html>
