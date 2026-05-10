@@ -1572,6 +1572,18 @@ input[type=date],input[type=time]{position:relative;}
     grid-template-columns: 1fr !important;
   }
 
+  /* Dashboard hero row (Bin Fleet + Today's Jobs) and second row (Overdue + Bins Out Long):
+     stack on phones. Class-based, in case the attribute selector above doesn't match. */
+  #view-dashboard .dash-s1,
+  #view-dashboard .dash-s4,
+  #view-dashboard .dash-2col {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  /* Prevent grid items from blowing out their column */
+  #view-dashboard .dash-s1 > *,
+  #view-dashboard .dash-s4 > * { min-width: 0; }
+
   /* Jobs view: full-width search */
   #view-jobs .search-input { flex: 1 1 100% !important; max-width: 100% !important; margin-left: 0 !important; }
 
