@@ -36,16 +36,20 @@ GitHub Pages auto-deploys from `main` branch root. Repo is `soramithril/jeffs-ju
 
 ## Dev workflow
 
+Live site: **https://soramithril.github.io/jeffs-junk/** — GitHub Pages auto-deploys from `main` in ~30s. This is where verification happens; there's no local dev server.
+
 Edit files in place — no temp clones, no copying around. Then:
 
-1. Run `node --check app.js` after any JS edit to verify it parses. The site is one bad token away from a blank page including the sign-in screen.
+1. No local parse check — `node` isn't installed on this machine. JS syntax errors blank the whole site (including the sign-in screen), so verify on the live site after pushing (step 4).
 2. If you changed `app.js`, bump THREE things to the same number, in lockstep:
    - `<script src="app.js?v=N">` in `index.html` (near the bottom)
    - `var APP_VERSION = 'N';` near the top of `app.js`
    - the contents of `version.txt` at repo root
    Without this, users will hit cached JS and not see the fix, and the auto-update banner will misfire.
 3. `git add`, `git commit -m "..."`, `git push origin main`. GitHub Pages deploys in ~30s.
-4. Verify live: `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep 'app.js?v='` should show the new version.
+4. Verify live two ways:
+   - `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep -ao 'app.js?v=[0-9]*'` — should show the new version (use `-a` because index.html trips ripgrep's binary heuristic).
+   - Load the live site in a browser to catch JS syntax errors that curl can't see.
 
 ## Auto-update banner
 
