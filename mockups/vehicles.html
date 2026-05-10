@@ -26,6 +26,87 @@
 
   .mockup{display:none;padding:28px 32px 60px}
   .mockup.active{display:block}
+
+  /* ─── MOCKUP D: All-info dense, scan-friendly, color-coded ─── */
+  .d-stats-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+  .d-stat-tile{padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);position:relative;overflow:hidden}
+  .d-stat-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .d-stat-tile.green::before{background:var(--green)}
+  .d-stat-tile.orange::before{background:var(--orange)}
+  .d-stat-tile.red::before{background:var(--red)}
+  .d-stat-tile.blue::before{background:var(--blue)}
+  .d-stat-tile.grey::before{background:var(--muted)}
+  .d-stat-num{font-family:'Bebas Neue','Oswald',sans-serif;font-size:26px;line-height:1}
+  .d-stat-lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-top:3px}
+
+  .d-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px}
+  .d-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;position:relative}
+  .d-stripe{width:6px;flex-shrink:0;background:var(--vcolor)}
+  .d-card.severity-red .d-stripe{box-shadow:inset 0 0 0 0,0 0 0 0;background:linear-gradient(180deg,var(--red),var(--vcolor))}
+  .d-card.severity-orange .d-stripe{background:linear-gradient(180deg,var(--orange),var(--vcolor))}
+  .d-body{flex:1;padding:14px 16px}
+
+  /* Header */
+  .d-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .d-hdr-left{display:flex;align-items:center;gap:10px;min-width:0}
+  .d-truck-bg{width:40px;height:40px;border-radius:9px;background:var(--vcolor);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .d-hdr-name{font-weight:700;font-size:15px;letter-spacing:-.1px;line-height:1.2}
+  .d-hdr-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .d-overall{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-left:6px}
+  .d-overall.ok{background:rgba(34,197,94,.12);color:var(--green)}
+  .d-overall.warn{background:rgba(230,126,34,.13);color:var(--orange)}
+  .d-overall.bad{background:rgba(220,53,69,.12);color:var(--red)}
+  .d-actions{display:flex;gap:4px;flex-shrink:0}
+  .d-icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)}
+  .d-icon-btn:hover{background:var(--surface2);color:var(--text)}
+
+  /* Health row: 4 mini-tiles */
+  .d-health{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+  .d-htile{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);position:relative;overflow:hidden}
+  .d-htile.ok{background:rgba(34,197,94,.06);border-color:rgba(34,197,94,.25)}
+  .d-htile.warn{background:rgba(230,126,34,.07);border-color:rgba(230,126,34,.3)}
+  .d-htile.bad{background:rgba(220,53,69,.06);border-color:rgba(220,53,69,.3)}
+  .d-htile-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px}
+  .d-htile-val{font-size:13px;font-weight:700;line-height:1.15}
+  .d-htile.ok .d-htile-val{color:var(--green)}
+  .d-htile.warn .d-htile-val{color:var(--orange)}
+  .d-htile.bad .d-htile-val{color:var(--red)}
+  .d-htile-sub{font-size:10.5px;color:var(--muted);margin-top:2px}
+
+  /* 30-day timeline */
+  .d-tl-wrap{margin-bottom:12px}
+  .d-tl-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+  .d-tl-title{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700}
+  .d-tl-legend{font-size:10.5px;color:var(--muted)}
+  .d-tl{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:22px;border-radius:5px;overflow:hidden;background:var(--surface2);padding:2px}
+  .d-tl-cell{border-radius:2px;background:#e8ecf1}
+  .d-tl-cell.today{background:#1c2025;border:1px solid #1c2025}
+  .d-tl-cell.weekend{background:#dde2e8}
+  .d-tl-cell.blocked{background:var(--red)}
+  .d-tl-cell.blocked-personal{background:var(--blue)}
+  .d-tl-cell.blocked-service{background:var(--orange)}
+  .d-tl-cell.blocked-other{background:#a78bfa}
+  .d-tl-foot{display:flex;flex-wrap:wrap;gap:8px;font-size:10.5px;color:var(--muted);margin-top:4px}
+  .d-tl-key{display:flex;align-items:center;gap:4px}
+  .d-tl-keysq{width:10px;height:10px;border-radius:2px}
+
+  /* Maintenance list */
+  .d-maint{margin-bottom:10px}
+  .d-maint-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin-bottom:5px}
+  .d-maint-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:7px;margin-bottom:4px;border-left:3px solid var(--green);background:rgba(34,197,94,.05);font-size:12px}
+  .d-maint-row.due{border-color:var(--orange);background:rgba(230,126,34,.07)}
+  .d-maint-row.overdue{border-color:var(--red);background:rgba(220,53,69,.07)}
+  .d-maint-name{font-weight:600;font-size:12.5px}
+  .d-maint-sub{font-size:10.5px;color:var(--muted);margin-top:1px}
+  .d-maint-cta{padding:3px 9px;font-size:11px;border:1px solid var(--border);border-radius:5px;background:var(--surface);font-weight:600;cursor:pointer}
+
+  /* Footer: history + add-days */
+  .d-foot{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .d-hist{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+  .d-hist b{color:var(--text)}
+  .d-add-days{margin-left:auto;display:flex;gap:5px}
+  .d-add-days input,.d-add-days select{padding:5px 7px;font-size:11.5px;border:1px solid var(--border);border-radius:6px;background:#fff}
+  .d-add-days button{padding:5px 10px;font-size:11.5px;background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:6px;cursor:pointer;font-weight:600}
   .mockup .intro{max-width:780px;margin-bottom:22px}
   .mockup .intro h2{font-size:18px;margin-bottom:6px}
   .mockup .intro p{color:var(--muted);font-size:13px;line-height:1.55;margin:0}
@@ -155,14 +236,291 @@
   <h1>🚗 Vehicles page — design mockups</h1>
   <p>Three layouts for the same data. Click a tab to swap. Mockups are static — buttons don't do anything.</p>
   <div class="tabs">
-    <button class="tab active" data-target="mockup-a">Option A<small>List + Detail Panel</small></button>
+    <button class="tab active" data-target="mockup-d">Option D ⭐<small>All-info dense card</small></button>
+    <button class="tab" data-target="mockup-a">Option A<small>List + Detail Panel</small></button>
     <button class="tab" data-target="mockup-b">Option B<small>Status-First Cards</small></button>
     <button class="tab" data-target="mockup-c">Option C<small>Dashboard + Table</small></button>
   </div>
 </header>
 
+<!-- ════════════════════════════════ OPTION D (DEFAULT) ════════════════════════════════ -->
+<section id="mockup-d" class="mockup active">
+  <div class="intro">
+    <h2>Option D — All-info dense card ⭐</h2>
+    <p>Everything from the current page <em>without</em> the wall-of-text feel. Each card has a fixed 5-zone layout: <b>identity</b> (color stripe + name + plate) → <b>4 health tiles</b> (oil / sticker / days off / maintenance, each color-coded green/orange/red) → <b>30-day timeline</b> (each square = a day; red = blocked-service, blue = personal, etc.) → <b>maintenance list</b> (color by status) → <b>footer</b> (service-history toggle + inline "block days"). The whole card has a left edge stripe in red/orange/green showing overall fleet health at a glance.</p>
+  </div>
+
+  <!-- Top fleet-wide strip -->
+  <div class="d-stats-strip">
+    <div class="d-stat-tile blue"><div class="d-stat-num">4</div><div class="d-stat-lbl">Vehicles</div></div>
+    <div class="d-stat-tile red"><div class="d-stat-num">1</div><div class="d-stat-lbl">Oil overdue</div></div>
+    <div class="d-stat-tile orange"><div class="d-stat-num">2</div><div class="d-stat-lbl">Maintenance due</div></div>
+    <div class="d-stat-tile orange"><div class="d-stat-num">1</div><div class="d-stat-lbl">Sticker expiring</div></div>
+    <div class="d-stat-tile grey"><div class="d-stat-num">3</div><div class="d-stat-lbl">Days off (30d)</div></div>
+  </div>
+
+  <div class="d-grid">
+    <!-- Card 1 — Junk Truck 1 — orange severity (1 maint due) -->
+    <div class="d-card severity-orange" style="--vcolor:#dc3545">
+      <div class="d-stripe"></div>
+      <div class="d-body">
+        <div class="d-hdr">
+          <div class="d-hdr-left">
+            <div class="d-truck-bg">🚛</div>
+            <div>
+              <div class="d-hdr-name">Junk Truck 1 <span class="d-overall warn">⚠ 1 issue</span></div>
+              <div class="d-hdr-sub">Junk · ABC-1234 · 78,450 km</div>
+            </div>
+          </div>
+          <div class="d-actions"><button class="d-icon-btn">✏️</button><button class="d-icon-btn">🗑️</button></div>
+        </div>
+
+        <div class="d-health">
+          <div class="d-htile ok"><div class="d-htile-lbl">Oil</div><div class="d-htile-val">🟢 OK</div><div class="d-htile-sub">45d ago · 78,450 km</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Sticker</div><div class="d-htile-val">🟢 Aug 26</div><div class="d-htile-sub">3 mo away</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Days off</div><div class="d-htile-val">0</div><div class="d-htile-sub">next 30 days</div></div>
+          <div class="d-htile warn"><div class="d-htile-lbl">Maintenance</div><div class="d-htile-val">🟡 1 due</div><div class="d-htile-sub">brakes · 1,550 km</div></div>
+        </div>
+
+        <div class="d-tl-wrap">
+          <div class="d-tl-hdr"><span class="d-tl-title">Next 30 days</span><span class="d-tl-legend">May 9 – Jun 8</span></div>
+          <div class="d-tl">
+            <div class="d-tl-cell today" title="Today"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+          </div>
+          <div class="d-tl-foot">
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#1c2025"></span>Today</span>
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#dde2e8"></span>Weekend</span>
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#dc3545"></span>Service</span>
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#3b82f6"></span>Personal</span>
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#e67e22"></span>Out of area</span>
+          </div>
+        </div>
+
+        <div class="d-maint">
+          <div class="d-maint-hdr">🔧 Maintenance schedules</div>
+          <div class="d-maint-row due">
+            <div><div class="d-maint-name">🟡 Brake inspection</div><div class="d-maint-sub">every 20,000 km · 1,550 km left · last Mar 12</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+          <div class="d-maint-row">
+            <div><div class="d-maint-name">🟢 Tire rotation</div><div class="d-maint-sub">every 10,000 km · 6,700 km left · last Apr 28</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+        </div>
+
+        <div class="d-foot">
+          <div class="d-hist">🔧 <b>7 repairs</b> · <b>$3,420</b> total ▸</div>
+          <div class="d-add-days">
+            <input type="date">
+            <input type="date">
+            <select><option>Service</option><option>Personal</option><option>Out of area</option></select>
+            <button>+ Block</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 — Bin Truck 2 — RED severity (oil overdue + sticker soon + days off) -->
+    <div class="d-card severity-red" style="--vcolor:#e67e22">
+      <div class="d-stripe"></div>
+      <div class="d-body">
+        <div class="d-hdr">
+          <div class="d-hdr-left">
+            <div class="d-truck-bg">🚛</div>
+            <div>
+              <div class="d-hdr-name">Bin Truck 2 <span class="d-overall bad">⚠ 2 issues</span></div>
+              <div class="d-hdr-sub">Bin · DEF-5678 · 112,800 km</div>
+            </div>
+          </div>
+          <div class="d-actions"><button class="d-icon-btn">✏️</button><button class="d-icon-btn">🗑️</button></div>
+        </div>
+
+        <div class="d-health">
+          <div class="d-htile bad"><div class="d-htile-lbl">Oil</div><div class="d-htile-val">🔴 210d</div><div class="d-htile-sub">overdue 30d</div></div>
+          <div class="d-htile warn"><div class="d-htile-lbl">Sticker</div><div class="d-htile-val">🟡 Jun 26</div><div class="d-htile-sub">expires 30 days</div></div>
+          <div class="d-htile warn"><div class="d-htile-lbl">Days off</div><div class="d-htile-val">3</div><div class="d-htile-sub">May 14, 15, 22</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Maintenance</div><div class="d-htile-val">🟢 OK</div><div class="d-htile-sub">all on track</div></div>
+        </div>
+
+        <div class="d-tl-wrap">
+          <div class="d-tl-hdr"><span class="d-tl-title">Next 30 days</span><span class="d-tl-legend">3 days blocked</span></div>
+          <div class="d-tl">
+            <div class="d-tl-cell today"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell blocked-service"></div><div class="d-tl-cell blocked-service"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell blocked-personal"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+          </div>
+          <div class="d-tl-foot">
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#dc3545"></span>Service · May 14–15</span>
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#3b82f6"></span>Personal · May 22</span>
+          </div>
+        </div>
+
+        <div class="d-maint">
+          <div class="d-maint-hdr">🔧 Maintenance schedules</div>
+          <div class="d-maint-row">
+            <div><div class="d-maint-name">🟢 Oil change</div><div class="d-maint-sub">every 8,000 km · OVERDUE — book service ASAP</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+          <div class="d-maint-row">
+            <div><div class="d-maint-name">🟢 DOT inspection</div><div class="d-maint-sub">annual · next: Sep 2026</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+        </div>
+
+        <div class="d-foot">
+          <div class="d-hist">🔧 <b>12 repairs</b> · <b>$8,915</b> total ▸</div>
+          <div class="d-add-days">
+            <input type="date">
+            <input type="date">
+            <select><option>Service</option><option>Personal</option></select>
+            <button>+ Block</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3 — Furniture Truck — GREEN, all clear -->
+    <div class="d-card" style="--vcolor:#3b82f6">
+      <div class="d-stripe"></div>
+      <div class="d-body">
+        <div class="d-hdr">
+          <div class="d-hdr-left">
+            <div class="d-truck-bg">🚛</div>
+            <div>
+              <div class="d-hdr-name">Furniture Truck <span class="d-overall ok">All clear</span></div>
+              <div class="d-hdr-sub">Furniture · GHI-9012 · 54,200 km</div>
+            </div>
+          </div>
+          <div class="d-actions"><button class="d-icon-btn">✏️</button><button class="d-icon-btn">🗑️</button></div>
+        </div>
+
+        <div class="d-health">
+          <div class="d-htile ok"><div class="d-htile-lbl">Oil</div><div class="d-htile-val">🟢 75d</div><div class="d-htile-sub">at 50,200 km</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Sticker</div><div class="d-htile-val">🟢 Dec 26</div><div class="d-htile-sub">7 mo away</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Days off</div><div class="d-htile-val">1</div><div class="d-htile-sub">May 18 personal</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Maintenance</div><div class="d-htile-val">🟢 OK</div><div class="d-htile-sub">all on track</div></div>
+        </div>
+
+        <div class="d-tl-wrap">
+          <div class="d-tl-hdr"><span class="d-tl-title">Next 30 days</span><span class="d-tl-legend">1 day blocked</span></div>
+          <div class="d-tl">
+            <div class="d-tl-cell today"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell blocked-personal"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+          </div>
+          <div class="d-tl-foot">
+            <span class="d-tl-key"><span class="d-tl-keysq" style="background:#3b82f6"></span>Personal · May 18</span>
+          </div>
+        </div>
+
+        <div class="d-maint">
+          <div class="d-maint-hdr">🔧 Maintenance schedules</div>
+          <div class="d-maint-row">
+            <div><div class="d-maint-name">🟢 Oil change</div><div class="d-maint-sub">every 8,000 km · 4,800 km left · last Feb 23</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+        </div>
+
+        <div class="d-foot">
+          <div class="d-hist">🔧 <b>3 repairs</b> · <b>$1,140</b> total ▸</div>
+          <div class="d-add-days">
+            <input type="date">
+            <input type="date">
+            <select><option>Service</option><option>Personal</option></select>
+            <button>+ Block</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4 — Bin Truck 3 — orange (1 maint due) -->
+    <div class="d-card severity-orange" style="--vcolor:#22c55e">
+      <div class="d-stripe"></div>
+      <div class="d-body">
+        <div class="d-hdr">
+          <div class="d-hdr-left">
+            <div class="d-truck-bg">🚛</div>
+            <div>
+              <div class="d-hdr-name">Bin Truck 3 <span class="d-overall warn">⚠ 1 issue</span></div>
+              <div class="d-hdr-sub">Bin · JKL-3456 · 105,000 km</div>
+            </div>
+          </div>
+          <div class="d-actions"><button class="d-icon-btn">✏️</button><button class="d-icon-btn">🗑️</button></div>
+        </div>
+
+        <div class="d-health">
+          <div class="d-htile ok"><div class="d-htile-lbl">Oil</div><div class="d-htile-val">🟢 30d</div><div class="d-htile-sub">at 102,800 km</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Sticker</div><div class="d-htile-val">🟢 Nov 26</div><div class="d-htile-sub">6 mo away</div></div>
+          <div class="d-htile ok"><div class="d-htile-lbl">Days off</div><div class="d-htile-val">0</div><div class="d-htile-sub">next 30 days</div></div>
+          <div class="d-htile warn"><div class="d-htile-lbl">Maintenance</div><div class="d-htile-val">🟡 1 due</div><div class="d-htile-sub">brakes · 800 km</div></div>
+        </div>
+
+        <div class="d-tl-wrap">
+          <div class="d-tl-hdr"><span class="d-tl-title">Next 30 days</span><span class="d-tl-legend">No blocks</span></div>
+          <div class="d-tl">
+            <div class="d-tl-cell today"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+            <div class="d-tl-cell weekend"></div><div class="d-tl-cell weekend"></div>
+            <div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div><div class="d-tl-cell"></div>
+          </div>
+          <div class="d-tl-foot">
+            <span class="d-tl-key">No blocked days in next 30 days</span>
+          </div>
+        </div>
+
+        <div class="d-maint">
+          <div class="d-maint-hdr">🔧 Maintenance schedules</div>
+          <div class="d-maint-row due">
+            <div><div class="d-maint-name">🟡 Brake inspection</div><div class="d-maint-sub">every 20,000 km · 800 km left · last Jan 8</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+          <div class="d-maint-row">
+            <div><div class="d-maint-name">🟢 Tire rotation</div><div class="d-maint-sub">every 10,000 km · 4,200 km left · last Mar 30</div></div>
+            <button class="d-maint-cta">Done</button>
+          </div>
+        </div>
+
+        <div class="d-foot">
+          <div class="d-hist">🔧 <b>5 repairs</b> · <b>$2,830</b> total ▸</div>
+          <div class="d-add-days">
+            <input type="date">
+            <input type="date">
+            <select><option>Service</option><option>Personal</option></select>
+            <button>+ Block</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ════════════════════════════════ OPTION A ════════════════════════════════ -->
-<section id="mockup-a" class="mockup active">
+<section id="mockup-a" class="mockup">
   <div class="intro">
     <h2>Option A — List + Detail Panel</h2>
     <p>Mirrors your Bin Fleet page. Skim the left column for the truck you want, click → full detail loads on the right with tabs (Overview, Blocked Days, Maintenance, Service History). The inline "block these days" form lives inside the panel, not duplicated per card.</p>
