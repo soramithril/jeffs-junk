@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '158';
+var APP_VERSION = '159';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1572,12 +1572,19 @@ async function saveClient(e){
     var v=toTitleCase(el.value.trim()); el.value=v; return v;
   }).filter(Boolean);
   var errEl=document.getElementById('err-c-name');
-  if(!names.length){if(errEl)errEl.style.display='block';return;}
+  if(!names.length){
+    if(errEl)errEl.style.display='block';
+    _showValidationErrorModal(['At least one contact name is required.'], 'c-names-wrap');
+    return;
+  }
   if(errEl)errEl.style.display='none';
   // Validate referral
   var refVal=document.getElementById('c-referral').value;
   if(refVal==='__add_new__') refVal='';
-  if(!refVal){toast('Referral source is required','error');return;}
+  if(!refVal){
+    _showValidationErrorModal(['Referral source is required.'], 'c-referral');
+    return;
+  }
   // Collect phones with types
   var phoneRows=document.querySelectorAll('#c-phones-wrap .c-phone-inp');
   var extRows=document.querySelectorAll('#c-phones-wrap .c-ext-inp');
@@ -8067,6 +8074,51 @@ window._dismissBinBanner = _dismissBinBanner;
 window._openUnassignedBinList = _openUnassignedBinList;
 window._openDetailFromBanner = _openDetailFromBanner;
 
+// Center-screen "Cannot save" modal for hard form validation errors that block save.
+// Stacks on top of any open form modal (z-index 700). On dismiss, scrolls focusFieldId
+// into view and focuses the first inner input/select/textarea so the user lands on it.
+function _showValidationErrorModal(errs, focusFieldId, opts){
+  opts = opts || {};
+  var title = opts.title || 'Cannot save';
+  var modal = document.getElementById('validation-error-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'validation-error-modal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '700';
+    document.body.appendChild(modal);
+  }
+  var rows = errs.map(function(e){return '<li style="margin:6px 0">'+e+'</li>';}).join('');
+  modal.innerHTML = '<div class="modal" style="max-width:440px;width:92vw;border-top:4px solid #dc3545">'
+    + '<div class="modal-header" style="border-bottom:1px solid rgba(220,53,69,.2)">'
+      + '<div class="modal-title" style="color:#dc3545"><span style="font-size:20px;margin-right:8px">⚠</span>'+title+'</div>'
+    + '</div>'
+    + '<div style="padding:18px 20px">'
+      + '<div style="font-size:14px;color:var(--text);margin-bottom:8px">Please fix the following before saving:</div>'
+      + '<ul style="margin:8px 0 0 20px;padding:0;font-size:14px;color:#dc3545;font-weight:600">'+rows+'</ul>'
+    + '</div>'
+    + '<div class="form-actions" style="padding:14px 20px;border-top:1px solid var(--border)">'
+      + '<button class="btn btn-primary" id="validation-error-ok" style="background:#dc3545;border-color:#dc3545">OK, fix it</button>'
+    + '</div>'
+  + '</div>';
+  modal.classList.add('open');
+  var dismiss = function(){
+    modal.classList.remove('open');
+    if(focusFieldId){
+      var el = document.getElementById(focusFieldId);
+      if(el){
+        if(el.scrollIntoView) el.scrollIntoView({behavior:'smooth', block:'center'});
+        var target = (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')
+          ? el : el.querySelector('input,select,textarea');
+        if(target) setTimeout(function(){ try{target.focus();}catch(e){} }, 300);
+      }
+    }
+  };
+  document.getElementById('validation-error-ok').onclick = dismiss;
+  modal.onclick = function(e){ if(e.target === modal) dismiss(); };
+}
+window._showValidationErrorModal = _showValidationErrorModal;
+
 function newJob(){
   editId=null;
   _selectedClientObj=null;
@@ -8466,11 +8518,12 @@ async function saveJob(e){
 
   // Validate and collect errors
   var errs = [];
-  if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); }
-  if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); }
-  if(!date)     { showErr('f-date');     errs.push('Date is required.'); }
-  if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); }
-  if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); }
+  var firstErrField = null;
+  if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); if(!firstErrField) firstErrField='f-svc'; }
+  if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); if(!firstErrField) firstErrField='f-names-wrap'; }
+  if(!date)     { showErr('f-date');     errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
+  if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
+  if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='f-bsize'; }
   var timeVal=document.getElementById('f-time').value;
 
   if(errs.length) {
@@ -8478,6 +8531,7 @@ async function saveJob(e){
       banner.innerHTML = '⚠️ Please fix the following:<ul style="margin:6px 0 0 16px">' + errs.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul>';
       banner.style.display = 'block';
     }
+    _showValidationErrorModal(errs, firstErrField);
     _saveJobLock = false; return;
   }
 
