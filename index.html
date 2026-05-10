@@ -234,26 +234,6 @@
 
   </div>
 
-  <!-- ROW 1: hidden stubs to keep JS happy -->
-  <div style="display:none">
-    <div id="dash-stat-today"></div>
-    <div id="dash-stat-unconf-card"><div id="dash-stat-unconf"></div></div>
-    <div id="dash-stat-overdue-card">
-      <div style="font-size:26px;line-height:1;flex-shrink:0;">🔴</div>
-      <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Overdue Pickups</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--red)" id="dash-stat-overdue">—</div>
-      </div>
-    </div>
-    <div class="chart-card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;">
-      <div style="font-size:26px;line-height:1;flex-shrink:0;">🚛</div>
-      <div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:2px;">Bins Out</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--text)" id="s-bins-out">—</div>
-      </div>
-    </div>
-  </div>
-
   <!-- ROW 2: Bins Currently Out — full width -->
   <div class="dash-section dash-s3" style="margin-bottom:24px;">
     <div class="chart-card" style="padding:0;overflow:visible;">
@@ -267,10 +247,6 @@
       <div id="dash-bins-out-list" style="padding:10px 12px;"></div>
     </div>
   </div>
-
-  <!-- Hidden stub for callback list so JS doesn't error -->
-  <div style="display:none"><div id="dash-callback-list"></div></div>
-
 
   <!-- ROW 3: Overdue + Bins Out Long -->
   <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
@@ -293,17 +269,6 @@
       </div>
       <div id="dash-long-bins" style="padding:10px 12px;"></div>
     </div>
-  </div>
-
-  <!-- Hidden stubs so old JS writes don't throw errors -->
-  <div style="display:none">
-    <span id="s-total"></span><span id="s-active"></span><span id="s-done"></span>
-    <span id="s-unpaid"></span><span id="s-month-rev"></span>
-    <span id="s-week-jobs"></span><span id="s-week-rev"></span><span id="s-outstanding"></span>
-    <span id="dash-bin-count"></span><span id="dash-junk-count"></span><span id="dash-furn-count"></span>
-    <tbody id="dash-bin-tbody"></tbody><tbody id="dash-junk-tbody"></tbody><tbody id="dash-furn-tbody"></tbody>
-    <span id="upcoming-hdr-lbl"></span>
-    <div id="dash-workload"></div><div id="card-workload"></div>
   </div>
 
 </div>
@@ -2005,7 +1970,7 @@
   </div>
 </div>
 
-<script src="app.js?v=163"></script>
+<script src="app.js?v=164"></script>
 </body>
 </html>
                                                                                                                                                          

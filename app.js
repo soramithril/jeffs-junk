@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '163';
+var APP_VERSION = '164';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3308,10 +3308,6 @@ async function refreshDashJobs(){
     countEl.innerHTML = parts.join(' · ') || 'Nothing booked';
   }
 
-  // Update stat pill
-  var statToday = document.getElementById('dash-stat-today');
-  if(statToday) statToday.textContent = total;
-
   // Urgency state
   var card = document.getElementById('card-today-jobs');
   if(card) card.className = 'chart-card urgency-neutral';
@@ -3656,54 +3652,9 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).eq('date',sameDayLastWeekS).neq('status','Cancelled')
   ]);
 
-  // Write hidden stat IDs that other code may reference
-  var total      = rTotal.count||0;
-  var active     = rActive.count||0;
-  var done       = rDone.count||0; // now holds cancelled count
-  var unpaidCount= rUnpaid.count||0;
-  var monthRev   = (rMonthRev.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
-  var weekJobs   = rWeekJobs.count||0;
-  var weekRev    = (rWeekRev.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
-  var outstanding= (rOutstanding.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
-  animCount(document.getElementById('s-total'),total,'','',700);
-  animCount(document.getElementById('s-active'),active,'','',700);
-  animCount(document.getElementById('s-done'),done,'','',700);
-  animCount(document.getElementById('s-unpaid'),unpaidCount,'','',700);
-  animCount(document.getElementById('s-month-rev'),Math.round(monthRev),'$','',700);
+  // Sidebar mini-stat: jobs this week
+  var weekJobs = rWeekJobs.count||0;
   document.getElementById('m-active').textContent=weekJobs;
-  var wjEl=document.getElementById('s-week-jobs');if(wjEl)animCount(wjEl,weekJobs);
-  var wrEl=document.getElementById('s-week-rev');if(wrEl)animCount(wrEl,Math.round(weekRev),'$');
-  var osEl=document.getElementById('s-outstanding');if(osEl)animCount(osEl,Math.round(outstanding),'$');
-
-  // ── Trend badges (v18) ────────────────────────────────────
-  var lastWeekJobCount = rLastWeekJobs.count||0;
-  var lastWeekRevTotal = (rLastWeekRev.data||[]).reduce(function(s,r){return s+(parseFloat(r.price)||0);},0);
-  var sameDayLastWeekCount = rSameDayLastWeek.count||0;
-
-  function trendBadge(current, previous, invert){
-    if(!previous) return '<span class="trend-badge trend-neutral">—</span>';
-    var diff = current - previous;
-    var pct = Math.round(Math.abs(diff)/previous*100);
-    if(diff===0) return '<span class="trend-badge trend-neutral">→ 0%</span>';
-    var up = diff>0;
-    var cls = invert ? (up?'trend-up-bad':'trend-down-good') : (up?'trend-up':'trend-down-bad');
-    var arrow = up ? '▲' : '▼';
-    return '<span class="trend-badge '+cls+'"><span style="font-size:10px">'+arrow+'</span> '+pct+'%</span>';
-  }
-
-  // Inject trend into week-jobs stat if element exists
-  if(wjEl){
-    var wjParent=wjEl.parentElement;
-    var existingTrend=wjParent.querySelector('.trend-badge');
-    if(existingTrend)existingTrend.remove();
-    wjEl.insertAdjacentHTML('afterend','<div style="margin-top:4px">'+trendBadge(weekJobs,lastWeekJobCount)+'<span class="stat-compare-text" style="margin-left:6px">vs '+lastWeekJobCount+' last wk</span></div>');
-  }
-  if(wrEl){
-    var wrParent=wrEl.parentElement;
-    var existingTrend2=wrParent.querySelector('.trend-badge');
-    if(existingTrend2)existingTrend2.parentElement.remove();
-    wrEl.insertAdjacentHTML('afterend','<div style="margin-top:4px">'+trendBadge(Math.round(weekRev),Math.round(lastWeekRevTotal))+'<span class="stat-compare-text" style="margin-left:6px">vs $'+Math.round(lastWeekRevTotal).toLocaleString()+' last wk</span></div>');
-  }
 
   // Bin stats (delegated)
   refreshDashBinStats();
@@ -3741,21 +3692,8 @@ async function renderDash(){
   var totalTodayCount = allToday.length;
   var unconfirmedToday = allToday.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
 
-  // ── QUICK STAT PILLS ──────────────────────────────────────
-  var statToday = document.getElementById('dash-stat-today');
-  if(statToday) statToday.textContent = totalTodayCount;
-
-  var statUnconf = document.getElementById('dash-stat-unconf');
-  if(statUnconf) statUnconf.textContent = unconfirmedToday;
-  var statUnconfCard = document.getElementById('dash-stat-unconf-card');
-  if(statUnconfCard) statUnconfCard.style.borderLeft = unconfirmedToday > 0 ? '4px solid #e67e22' : '';
-
   var overdueJobs = (rOverdue.data||[]).map(dbToJob);
   overdueJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
-  var statOverdue = document.getElementById('dash-stat-overdue');
-  if(statOverdue) statOverdue.textContent = overdueJobs.length;
-  var statOverdueCard = document.getElementById('dash-stat-overdue-card');
-  if(statOverdueCard) statOverdueCard.style.borderLeft = overdueJobs.length > 0 ? '4px solid #dc3545' : '';
 
   // ── TOMORROW PILL in header ───────────────────────────────
   var tomorrowJobs = (rTomorrowJobs.data||[]).map(dbToJob);
@@ -3977,10 +3915,6 @@ async function renderDash(){
   if(datePicker.value && datePicker.value !== todayS){
     refreshDashJobs();
   }
-
-  // Keep hidden stub IDs up to date so nothing else breaks
-  var upcomingHdrEl=document.getElementById('upcoming-hdr-lbl');
-  if(upcomingHdrEl) upcomingHdrEl.textContent='';
 }
 
 async function renderWillCallCard(){
