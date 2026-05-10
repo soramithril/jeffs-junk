@@ -1815,3 +1815,105 @@ input[type=date],input[type=time]{position:relative;}
 .h-tl-foot{display:flex;flex-wrap:wrap;gap:10px;font-size:10.5px;color:var(--muted);margin-top:8px}
 .h-tl-key{display:flex;align-items:center;gap:4px}
 .h-tl-keysq{width:10px;height:10px;border-radius:2px}
+
+/* ── Mobile breakpoint: phones (≤ 768px) ── */
+@media (max-width: 768px){
+  /* Inbox: tighter padding, action buttons wrap below message */
+  .h-inbox{padding:14px 12px;border-radius:11px;margin-bottom:12px}
+  .h-alert{padding:10px 11px;gap:10px;flex-wrap:wrap;border-radius:9px}
+  .h-alert-icon{width:30px;height:30px;font-size:14px}
+  .h-alert-sev{height:30px}
+  .h-alert-body{flex:1 1 60%;min-width:0}
+  .h-alert-msg{font-size:13px}
+  .h-alert-meta{font-size:11px}
+  .h-alert-actions{flex-basis:100%;order:99;justify-content:flex-end;flex-wrap:wrap}
+  .h-alert-cta{font-size:11px;padding:5px 10px}
+  .h-inbox-title{font-size:12.5px}
+
+  /* KPIs: 2x2 grid, drop the trend caption */
+  .h-kpis{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+  .h-kpi{padding:11px 13px}
+  .h-kpi-icon{width:32px;height:32px;font-size:14px}
+  .h-kpi-num{font-size:20px}
+  .h-kpi-trend{display:none}
+
+  /* Filter chips header: stack title above chips */
+  .h-list-hdr{flex-direction:column;align-items:flex-start;gap:8px}
+  .h-list-tools{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .h-list-tools::-webkit-scrollbar{height:0;display:none}
+  .h-chip{flex-shrink:0;white-space:nowrap}
+
+  /* Vehicle rows: reflow from 8-col grid into stacked block layout */
+  .h-vehicles{border-radius:11px}
+  .h-row{
+    display:block;
+    position:relative;
+    padding:14px 14px 12px 16px;
+  }
+  /* Stripe: thin vertical bar on the left edge */
+  .h-row > *:nth-child(1){
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width:5px;
+    height:auto;
+    border-radius:0;
+  }
+  /* Photo: top-right corner */
+  .h-row > *:nth-child(2){
+    position:absolute;
+    right:50px; top:12px;
+    width:42px;height:36px;
+    font-size:20px;
+  }
+  /* Name+meta block — clear photo and actions */
+  .h-row > *:nth-child(3){
+    margin-bottom:10px;
+    padding-right:100px;
+  }
+  /* Three status cells side-by-side as 1/3 columns */
+  .h-row > *:nth-child(4),
+  .h-row > *:nth-child(5),
+  .h-row > *:nth-child(6){
+    display:inline-block;
+    width:calc(33.333% - 6px);
+    vertical-align:top;
+    margin-right:6px;
+    margin-bottom:10px;
+    padding:6px 8px;
+    background:var(--surface2);
+    border-radius:6px;
+  }
+  .h-row > *:nth-child(6){margin-right:0}
+  .h-status-val{font-size:11.5px}
+  .h-status-sub{font-size:10px;line-height:1.2}
+  /* Timeline: full-width band */
+  .h-row > *:nth-child(7){
+    display:block;
+    width:100%;
+    margin-bottom:0;
+  }
+  /* Hover-only actions don't work on touch — make them always visible, top-right */
+  .h-row > *:nth-child(8){
+    position:absolute;
+    right:8px; top:12px;
+    opacity:1;
+    flex-direction:row;
+  }
+  .h-act-btn{width:26px;height:26px;font-size:12px}
+
+  /* Drawer: tighten left indent, single column already handled at 900px */
+  .h-drawer{padding:14px 14px 18px}
+  .h-drawer-section h4{font-size:10px}
+  .h-detail-row{padding:8px 10px;font-size:12px}
+
+  /* Block-days form: 2x2 grid with button full-width */
+  .h-block-form{grid-template-columns:1fr 1fr;gap:5px}
+  .h-block-form button{grid-column:1/3}
+  .h-block-extra input{min-width:100px;font-size:11.5px}
+  .h-add-maint select{min-width:0;flex-basis:100%}
+  .h-add-maint input{width:100%}
+  .h-add-maint button{flex:1}
+
+  /* Page header: smaller title on phones */
+  #view-vehicles .page-header{flex-direction:column;align-items:flex-start;gap:8px}
+}
