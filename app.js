@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '164';
+var APP_VERSION = '165';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1702,7 +1702,7 @@ function atabsSync(groupId) {
   var hl = document.getElementById('atabs-' + groupId + '-hl');
   if (!hl) return;
   var active = wrap.querySelector('.atab.active');
-  if (!active) return;
+  if (!active) { hl.style.width = '0'; return; }
   var wrapRect = wrap.getBoundingClientRect();
   var tabRect  = active.getBoundingClientRect();
   hl.style.left  = (tabRect.left - wrapRect.left) + 'px';
@@ -1727,7 +1727,7 @@ function _patchAtabs() {
     setSvc = function(v, el) {
       _s(v, el);
       if (el) {
-        document.querySelectorAll('#atabs-svc .atab').forEach(function(b){ b.classList.remove('active'); });
+        document.querySelectorAll('#atabs-svc .atab, #atabs-view .atab').forEach(function(b){ b.classList.remove('active'); });
         el.classList.add('active');
       }
       atabsSync('svc');
