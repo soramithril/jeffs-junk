@@ -27,6 +27,112 @@
   .mockup{display:none;padding:28px 32px 60px}
   .mockup.active{display:block}
 
+  /* ─── MOCKUP H: Action Center (research-led) ─── */
+  .h-research{background:#fffbe6;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:12.5px;color:#78350f;line-height:1.55}
+  .h-research b{color:#78350f}
+  .h-research code{background:rgba(120,53,15,.1);padding:1px 5px;border-radius:3px;font-size:11.5px}
+
+  /* Alert Inbox */
+  .h-inbox{background:linear-gradient(180deg,rgba(220,53,69,.04),transparent);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+  .h-inbox-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .h-inbox-title{font-size:13px;font-weight:700;letter-spacing:-.1px;display:flex;align-items:center;gap:8px}
+  .h-inbox-title .h-pulse{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(220,53,69,.7);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(220,53,69,.55)}70%{box-shadow:0 0 0 8px rgba(220,53,69,0)}100%{box-shadow:0 0 0 0 rgba(220,53,69,0)}}
+  .h-inbox-count{font-size:11.5px;color:var(--muted)}
+
+  .h-alert{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;margin-bottom:6px;border:1px solid var(--border);background:#fff;transition:transform .12s}
+  .h-alert:hover{transform:translateX(2px)}
+  .h-alert.urgent{background:linear-gradient(90deg,rgba(220,53,69,.08),rgba(220,53,69,.02));border-color:rgba(220,53,69,.35)}
+  .h-alert.warn{background:linear-gradient(90deg,rgba(230,126,34,.07),rgba(230,126,34,.01));border-color:rgba(230,126,34,.3)}
+  .h-alert-sev{width:6px;height:34px;border-radius:3px;flex-shrink:0}
+  .h-alert.urgent .h-alert-sev{background:var(--red)}
+  .h-alert.warn .h-alert-sev{background:var(--orange)}
+  .h-alert-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .h-alert.urgent .h-alert-icon{background:rgba(220,53,69,.12)}
+  .h-alert.warn .h-alert-icon{background:rgba(230,126,34,.12)}
+  .h-alert-body{flex:1;min-width:0}
+  .h-alert-msg{font-size:13.5px;font-weight:600;line-height:1.3;color:var(--text)}
+  .h-alert-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .h-alert-actions{display:flex;gap:6px;flex-shrink:0}
+  .h-alert-cta{padding:6px 12px;font-size:12px;font-weight:600;border:1px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;color:var(--text)}
+  .h-alert.urgent .h-alert-cta.primary{background:var(--red);color:#fff;border-color:var(--red)}
+  .h-alert.warn .h-alert-cta.primary{background:var(--orange);color:#fff;border-color:var(--orange)}
+  .h-alert-snooze{padding:6px 8px;font-size:14px;background:none;border:none;color:var(--muted);cursor:pointer;border-radius:5px}
+  .h-alert-snooze:hover{background:var(--surface2);color:var(--text)}
+
+  .h-empty-inbox{text-align:center;padding:18px;color:var(--muted);font-size:13px}
+  .h-empty-inbox .ico{font-size:28px;margin-bottom:6px;display:block}
+
+  /* KPI strip — compact */
+  .h-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+  .h-kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between}
+  .h-kpi-l{display:flex;align-items:center;gap:11px}
+  .h-kpi-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .h-kpi-num{font-family:'Bebas Neue','Oswald',sans-serif;font-size:22px;line-height:1}
+  .h-kpi-lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-top:2px}
+  .h-kpi-trend{font-size:11px;color:var(--muted)}
+
+  /* Vehicle row list */
+  .h-list-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 4px}
+  .h-list-title{font-size:13px;font-weight:700;letter-spacing:-.1px}
+  .h-list-tools{display:flex;gap:6px}
+  .h-chip{padding:5px 11px;font-size:11.5px;font-weight:600;border:1px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;color:var(--muted)}
+  .h-chip.on{background:var(--text);color:#fff;border-color:var(--text)}
+
+  .h-vehicles{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .h-row{display:grid;grid-template-columns:6px 56px minmax(180px,1.2fr) 0.9fr 0.9fr 0.9fr 1.4fr 90px;gap:14px;padding:13px 16px;align-items:center;border-bottom:1px solid var(--border);transition:background .1s;position:relative;cursor:pointer}
+  .h-row:last-child{border-bottom:0}
+  .h-row:hover{background:var(--surface2)}
+  .h-row.expanded{background:var(--surface2);border-bottom:0}
+  .h-row.urgent{background:linear-gradient(90deg,rgba(220,53,69,.04) 0%,rgba(220,53,69,0) 60%)}
+  .h-row.urgent:hover{background:linear-gradient(90deg,rgba(220,53,69,.07) 0%,rgba(220,53,69,0) 60%)}
+
+  .h-stripe{height:46px;border-radius:3px}
+  .h-photo{width:56px;height:46px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--border)}
+  .h-photo.has-img{background-size:cover;background-position:center}
+
+  .h-name{font-weight:700;font-size:14px;letter-spacing:-.1px}
+  .h-meta{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .h-name-flags{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}
+
+  .h-status{display:flex;flex-direction:column;gap:2px;font-size:12px}
+  .h-status-val{font-weight:700;display:flex;align-items:center;gap:4px}
+  .h-status-val.ok{color:var(--green)}
+  .h-status-val.warn{color:var(--orange)}
+  .h-status-val.bad{color:var(--red)}
+  .h-status-sub{font-size:10.5px;color:var(--muted)}
+
+  .h-tl-mini{display:grid;grid-template-columns:repeat(30,1fr);gap:1.5px;height:22px;border-radius:5px;background:var(--surface2);padding:2px}
+  .h-tl-mini .c{border-radius:1.5px;background:#e8ecf1}
+  .h-tl-mini .c.today{background:#1c2025}
+  .h-tl-mini .c.weekend{background:#dde2e8}
+  .h-tl-mini .c.svc{background:var(--red)}
+  .h-tl-mini .c.per{background:var(--blue)}
+  .h-tl-mini .c.out{background:var(--orange)}
+
+  .h-row-actions{display:flex;justify-content:flex-end;gap:4px;opacity:0;transition:opacity .1s}
+  .h-row:hover .h-row-actions{opacity:1}
+  .h-row.expanded .h-row-actions{opacity:1}
+  .h-act-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)}
+  .h-act-btn:hover{background:var(--surface2);color:var(--text)}
+
+  /* Expanded row drawer */
+  .h-drawer{display:none;padding:0 16px 18px 76px;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .h-row.expanded + .h-drawer{display:block}
+  .h-drawer-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px}
+  .h-drawer-tab{padding:10px 16px;font-size:12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+  .h-drawer-tab.on{color:var(--accent);border-color:var(--accent)}
+  .h-drawer-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
+  .h-drawer-section h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin:0 0 8px}
+  .h-detail-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#fff;border-radius:8px;margin-bottom:5px;font-size:12.5px;border-left:3px solid var(--green)}
+  .h-detail-row.due{border-color:var(--orange);background:rgba(230,126,34,.04)}
+  .h-detail-row.overdue{border-color:var(--red);background:rgba(220,53,69,.04)}
+  .h-detail-row b{font-weight:600}
+  .h-detail-row .h-detail-sub{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .h-block-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-top:8px}
+  .h-block-form input,.h-block-form select{padding:6px 9px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff}
+  .h-block-form button{padding:6px 12px;font-size:12px;background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:6px;cursor:pointer;font-weight:600}
+
   /* ─── MOCKUP D: All-info dense, scan-friendly, color-coded ─── */
   .d-stats-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
   .d-stat-tile{padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);position:relative;overflow:hidden}
@@ -236,15 +342,318 @@
   <h1>🚗 Vehicles page — design mockups</h1>
   <p>Three layouts for the same data. Click a tab to swap. Mockups are static — buttons don't do anything.</p>
   <div class="tabs">
-    <button class="tab active" data-target="mockup-d">Option D ⭐<small>All-info dense card</small></button>
+    <button class="tab active" data-target="mockup-h">Option H ⭐<small>Action Center (research-led)</small></button>
+    <button class="tab" data-target="mockup-d">Option D<small>All-info dense card</small></button>
     <button class="tab" data-target="mockup-a">Option A<small>List + Detail Panel</small></button>
     <button class="tab" data-target="mockup-b">Option B<small>Status-First Cards</small></button>
     <button class="tab" data-target="mockup-c">Option C<small>Dashboard + Table</small></button>
   </div>
 </header>
 
-<!-- ════════════════════════════════ OPTION D (DEFAULT) ════════════════════════════════ -->
-<section id="mockup-d" class="mockup active">
+<!-- ════════════════════════════════ OPTION H — ACTION CENTER (DEFAULT) ════════════════════════════════ -->
+<section id="mockup-h" class="mockup active">
+  <div class="intro">
+    <h2>Option H — Action Center ⭐</h2>
+    <p>Designed from <em>actual fleet-app patterns</em> (Fleetio, FleetTrack Pro redesign case study, Hicron Software design guide). Three deliberate moves:</p>
+  </div>
+
+  <div class="h-research">
+    <b>Why this layout, in one paragraph:</b> Fleet apps that work all do the same three things. (1) <b>Service reminders bubble UP</b> into a dedicated alert feed at the top — they don't live buried inside vehicle cards. (2) <b>Critical alerts must look distinct from minor ones</b> — the FleetTrack Pro redesign found that "alerts visually indistinguishable from minor warnings" was the #1 problem (sound familiar?). (3) <b>Reduce columns</b>: that redesign cut a 36-column vehicle table down to 10 with status chips and inline progress bars. The current page has 9 vertical sections per truck — same disease.
+  </div>
+
+  <!-- ZONE 1: Action Inbox -->
+  <div class="h-inbox">
+    <div class="h-inbox-hdr">
+      <div class="h-inbox-title"><span class="h-pulse"></span>⚠ Needs attention</div>
+      <div class="h-inbox-count">3 alerts · last refreshed just now</div>
+    </div>
+
+    <div class="h-alert urgent">
+      <div class="h-alert-sev"></div>
+      <div class="h-alert-icon">⛽</div>
+      <div class="h-alert-body">
+        <div class="h-alert-msg">Bin Truck 2 — oil change overdue by 30 days</div>
+        <div class="h-alert-meta">Last changed Oct 11, 2025 at 102,800 km · current 112,800 km · interval 8,000 km</div>
+      </div>
+      <div class="h-alert-actions">
+        <button class="h-alert-cta primary">✅ Mark serviced</button>
+        <button class="h-alert-cta">Block service days</button>
+        <button class="h-alert-snooze" title="Snooze 7 days">💤</button>
+      </div>
+    </div>
+
+    <div class="h-alert warn">
+      <div class="h-alert-sev"></div>
+      <div class="h-alert-icon">📋</div>
+      <div class="h-alert-body">
+        <div class="h-alert-msg">Bin Truck 2 — yellow sticker expires in 30 days (Jun 2026)</div>
+        <div class="h-alert-meta">Schedule renewal at MTO before Jun 30</div>
+      </div>
+      <div class="h-alert-actions">
+        <button class="h-alert-cta primary">Update expiry</button>
+        <button class="h-alert-snooze">💤</button>
+      </div>
+    </div>
+
+    <div class="h-alert warn">
+      <div class="h-alert-sev"></div>
+      <div class="h-alert-icon">🔧</div>
+      <div class="h-alert-body">
+        <div class="h-alert-msg">Junk Truck 1 — brake inspection due in 1,550 km</div>
+        <div class="h-alert-meta">Last serviced Mar 12, 2026 · interval 20,000 km · current 78,450 km</div>
+      </div>
+      <div class="h-alert-actions">
+        <button class="h-alert-cta primary">✅ Mark serviced</button>
+        <button class="h-alert-snooze">💤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZONE 2: Fleet KPIs -->
+  <div class="h-kpis">
+    <div class="h-kpi">
+      <div class="h-kpi-l">
+        <div class="h-kpi-icon" style="background:rgba(34,197,94,.12);color:var(--green)">✓</div>
+        <div><div class="h-kpi-num">75%</div><div class="h-kpi-lbl">PM Compliance</div></div>
+      </div>
+      <div class="h-kpi-trend">3 of 4 on track</div>
+    </div>
+    <div class="h-kpi">
+      <div class="h-kpi-l">
+        <div class="h-kpi-icon" style="background:rgba(220,53,69,.12);color:var(--red)">⛽</div>
+        <div><div class="h-kpi-num">1</div><div class="h-kpi-lbl">Oil overdue</div></div>
+      </div>
+      <div class="h-kpi-trend">▲ +1 this week</div>
+    </div>
+    <div class="h-kpi">
+      <div class="h-kpi-l">
+        <div class="h-kpi-icon" style="background:rgba(230,126,34,.13);color:var(--orange)">🔧</div>
+        <div><div class="h-kpi-num">2</div><div class="h-kpi-lbl">Maintenance due</div></div>
+      </div>
+      <div class="h-kpi-trend">brake · brake</div>
+    </div>
+    <div class="h-kpi">
+      <div class="h-kpi-l">
+        <div class="h-kpi-icon" style="background:rgba(59,130,246,.12);color:var(--blue)">🚫</div>
+        <div><div class="h-kpi-num">3</div><div class="h-kpi-lbl">Days off (30d)</div></div>
+      </div>
+      <div class="h-kpi-trend">May 14, 15, 22</div>
+    </div>
+  </div>
+
+  <!-- ZONE 3: Vehicle list -->
+  <div class="h-list-hdr">
+    <div class="h-list-title">🚛 Fleet</div>
+    <div class="h-list-tools">
+      <button class="h-chip on">All (4)</button>
+      <button class="h-chip">Needs attention (2)</button>
+      <button class="h-chip">Bin</button>
+      <button class="h-chip">Junk</button>
+      <button class="h-chip">Furniture</button>
+      <button class="h-chip" style="margin-left:8px;background:var(--accent);color:#fff;border-color:var(--accent)">+ Add Vehicle</button>
+    </div>
+  </div>
+
+  <div class="h-vehicles">
+    <!-- Row 1: Junk Truck 1 (orange — brake due) — EXPANDED -->
+    <div class="h-row expanded">
+      <div class="h-stripe" style="background:#dc3545"></div>
+      <div class="h-photo">🚛</div>
+      <div>
+        <div class="h-name">Junk Truck 1<span class="h-name-flags"><span title="1 issue">🟡</span></span></div>
+        <div class="h-meta">Junk · ABC-1234 · 78,450 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Oil OK</div>
+        <div class="h-status-sub">45d ago · 78,450 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Sticker</div>
+        <div class="h-status-sub">Aug 2026 · 3 mo</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val warn">🟡 Brakes due</div>
+        <div class="h-status-sub">in 1,550 km</div>
+      </div>
+      <div class="h-tl-mini">
+        <div class="c today"></div><div class="c"></div><div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+      </div>
+      <div class="h-row-actions">
+        <button class="h-act-btn" title="Edit">✏️</button>
+        <button class="h-act-btn" title="Delete">🗑️</button>
+      </div>
+    </div>
+    <div class="h-drawer">
+      <div class="h-drawer-tabs">
+        <div class="h-drawer-tab on">Overview</div>
+        <div class="h-drawer-tab">Maintenance (2)</div>
+        <div class="h-drawer-tab">Service log (7)</div>
+        <div class="h-drawer-tab">Block days (0)</div>
+        <div class="h-drawer-tab">Photos</div>
+      </div>
+      <div class="h-drawer-grid">
+        <div class="h-drawer-section">
+          <h4>🔧 Maintenance schedules</h4>
+          <div class="h-detail-row due">
+            <div><b>🟡 Brake inspection</b><div class="h-detail-sub">every 20,000 km · 1,550 km left · last Mar 12 at 76,900 km</div></div>
+            <button class="h-alert-cta">✅ Mark done</button>
+          </div>
+          <div class="h-detail-row">
+            <div><b>🟢 Tire rotation</b><div class="h-detail-sub">every 10,000 km · 6,700 km left · last Apr 28</div></div>
+            <button class="h-alert-cta">✅ Mark done</button>
+          </div>
+        </div>
+        <div class="h-drawer-section">
+          <h4>🚫 Block days off</h4>
+          <div class="h-detail-row" style="border-color:var(--muted);background:#fff">
+            <div><b>No upcoming blocked days</b><div class="h-detail-sub">Add a date range below</div></div>
+          </div>
+          <div class="h-block-form">
+            <input type="date" placeholder="From">
+            <input type="date" placeholder="To">
+            <select><option>Service</option><option>Personal</option><option>Out of area</option></select>
+            <button>+ Block</button>
+          </div>
+          <h4 style="margin-top:14px">🔧 Recent service</h4>
+          <div class="h-detail-row" style="background:#fff">
+            <div><b>Apr 28, 2026</b> — Tire rotation<div class="h-detail-sub">at 71,750 km · $120 · 1d</div></div>
+          </div>
+          <div class="h-detail-row" style="background:#fff">
+            <div><b>Mar 12, 2026</b> — Brake pads (front)<div class="h-detail-sub">at 76,900 km · $385 · 1d</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Bin Truck 2 (RED — oil overdue) -->
+    <div class="h-row urgent">
+      <div class="h-stripe" style="background:#e67e22"></div>
+      <div class="h-photo">🚛</div>
+      <div>
+        <div class="h-name">Bin Truck 2<span class="h-name-flags"><span title="2 issues">🔴</span></span></div>
+        <div class="h-meta">Bin · DEF-5678 · 112,800 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val bad">🔴 Oil overdue</div>
+        <div class="h-status-sub">210d · -30d</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val warn">🟡 Sticker</div>
+        <div class="h-status-sub">Jun 2026 · 30d</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Maint OK</div>
+        <div class="h-status-sub">all on track</div>
+      </div>
+      <div class="h-tl-mini">
+        <div class="c today"></div><div class="c"></div><div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c svc"></div><div class="c svc"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c per"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+      </div>
+      <div class="h-row-actions">
+        <button class="h-act-btn">✏️</button>
+        <button class="h-act-btn">🗑️</button>
+      </div>
+    </div>
+
+    <!-- Row 3: Furniture Truck (GREEN — clean) -->
+    <div class="h-row">
+      <div class="h-stripe" style="background:#3b82f6"></div>
+      <div class="h-photo">🚛</div>
+      <div>
+        <div class="h-name">Furniture Truck<span class="h-name-flags"><span title="OK">🟢</span></span></div>
+        <div class="h-meta">Furniture · GHI-9012 · 54,200 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Oil OK</div>
+        <div class="h-status-sub">75d · 50,200 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Sticker</div>
+        <div class="h-status-sub">Dec 2026 · 7 mo</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Maint OK</div>
+        <div class="h-status-sub">all on track</div>
+      </div>
+      <div class="h-tl-mini">
+        <div class="c today"></div><div class="c"></div><div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c per"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+      </div>
+      <div class="h-row-actions">
+        <button class="h-act-btn">✏️</button>
+        <button class="h-act-btn">🗑️</button>
+      </div>
+    </div>
+
+    <!-- Row 4: Bin Truck 3 (orange — brake due) -->
+    <div class="h-row">
+      <div class="h-stripe" style="background:#22c55e"></div>
+      <div class="h-photo">🚛</div>
+      <div>
+        <div class="h-name">Bin Truck 3<span class="h-name-flags"><span title="1 issue">🟡</span></span></div>
+        <div class="h-meta">Bin · JKL-3456 · 105,000 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Oil OK</div>
+        <div class="h-status-sub">30d · 102,800 km</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val ok">🟢 Sticker</div>
+        <div class="h-status-sub">Nov 2026 · 6 mo</div>
+      </div>
+      <div class="h-status">
+        <div class="h-status-val warn">🟡 Brakes due</div>
+        <div class="h-status-sub">in 800 km</div>
+      </div>
+      <div class="h-tl-mini">
+        <div class="c today"></div><div class="c"></div><div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c weekend"></div><div class="c weekend"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+      </div>
+      <div class="h-row-actions">
+        <button class="h-act-btn">✏️</button>
+        <button class="h-act-btn">🗑️</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:18px;padding:14px 18px;background:rgba(34,197,94,.05);border:1px dashed rgba(34,197,94,.3);border-radius:10px;color:var(--muted);font-size:12.5px;line-height:1.6">
+    <b style="color:var(--text)">Why this is genuinely different from current page:</b><br>
+    • <b>Action Inbox at top</b> — no more scanning every card to find what's broken. Click "Mark serviced" inline to clear.<br>
+    • <b>Severity is visual</b> — urgent rows are tinted red, the broken truck is impossible to confuse with a healthy one.<br>
+    • <b>Rows not cards</b> — you fit 4-8 trucks on one screen, not 1-2.<br>
+    • <b>Click a row to expand</b> — the maintenance, service log, block-days form, photos all live in tabs inside an inline drawer (just like Fleetio). No sub-page navigation, no modal stack.<br>
+    • <b>30-day timeline per row</b> — see the next month's blocks without leaving the page.<br>
+    • <b>One-click actions on hover</b> — edit/delete buttons appear only when needed, cutting visual noise (FleetTrack Pro redesign pattern).
+  </div>
+</section>
+
+<!-- ════════════════════════════════ OPTION D ════════════════════════════════ -->
+<section id="mockup-d" class="mockup">
   <div class="intro">
     <h2>Option D — All-info dense card ⭐</h2>
     <p>Everything from the current page <em>without</em> the wall-of-text feel. Each card has a fixed 5-zone layout: <b>identity</b> (color stripe + name + plate) → <b>4 health tiles</b> (oil / sticker / days off / maintenance, each color-coded green/orange/red) → <b>30-day timeline</b> (each square = a day; red = blocked-service, blue = personal, etc.) → <b>maintenance list</b> (color by status) → <b>footer</b> (service-history toggle + inline "block days"). The whole card has a left edge stripe in red/orange/green showing overall fleet health at a glance.</p>
