@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '170';
+var APP_VERSION = '171';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -6684,7 +6684,7 @@ function newJob(){
   _selectedClientObj=null;
   window._binPresetDays=null;
   document.getElementById('modal-ttl').textContent='New Job';document.getElementById('save-btn').textContent='Save Job';
-  setSvc('');document.getElementById('f-status').value='';
+  setFormSvc('');document.getElementById('f-status').value='';
   document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
   document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
@@ -6916,7 +6916,7 @@ function initBinPicker(existingBid, existingSize){
 function bookBin(size, presetDays){
   go('jobs');
   newJob();
-  setSvc('Bin Rental');
+  setFormSvc('Bin Rental');
   setTimeout(function(){
     initBinPicker('', size);
     if(presetDays){
@@ -6930,7 +6930,7 @@ function openEdit(id){
   editId=id;closeM('detail-modal');renderClientSelectOptions();
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
-    setSvc(j.service||'');document.getElementById('f-status').value=j.status||'';
+    setFormSvc(j.service||'');document.getElementById('f-status').value=j.status||'';
     // Populate names from job's names array, falling back to single name
     var editNames=j.names&&j.names.length?j.names:[j.name||''];
     document.getElementById('f-names-wrap').innerHTML=editNames.map(function(n){return _jobNameRow(n);}).join('')||_jobNameRow('');
@@ -7979,7 +7979,7 @@ function convertQuoteToJob(quoteId){
   _selectedClientObj=null;
   document.getElementById('modal-ttl').textContent='Convert Quote → New Job';
   document.getElementById('save-btn').textContent='Create Job';
-  setSvc('Junk Removal');
+  setFormSvc('Junk Removal');
   document.getElementById('f-status').value='';
   document.getElementById('f-name').value=q.name||'';
   document.getElementById('f-phone').value=q.phone||'';
@@ -8168,7 +8168,10 @@ function pickSvc(btn){
 }
 // Programmatic — keeps the picker UI and hidden input in sync. Use this in
 // newJob/editJob/quick-create flows instead of poking f-svc.value directly.
-function setSvc(value){
+// Renamed from setSvc to avoid collision with the All Jobs filter setSvc(v,el)
+// — function declarations of the same name silently let the later one win, which
+// silently broke the filter for some time.
+function setFormSvc(value){
   document.getElementById('f-svc').value = value || '';
   document.querySelectorAll('.svc-pick-btn').forEach(function(b){
     _setSvcBtnState(b, b.getAttribute('data-svc')===value);
