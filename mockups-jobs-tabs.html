@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>All Jobs filter tabs — mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f8fa;
+    --surface:#ffffff;
+    --surface2:#f1f3f5;
+    --text:#1a1a1a;
+    --muted:#6b7280;
+    --border:rgba(0,0,0,.1);
+    --border-strong:rgba(0,0,0,.18);
+    --accent:#22c55e;
+  }
+  *{box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);margin:0;padding:30px;line-height:1.5}
+  .container{max-width:1100px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 8px 0;font-weight:700}
+  .lede{color:var(--muted);font-size:14px;margin-bottom:30px}
+  .option{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 26px;margin-bottom:22px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .option-title{font-size:14px;font-weight:700;color:var(--text);margin:0 0 4px 0}
+  .option-sub{font-size:12px;color:var(--muted);margin:0 0 18px 0}
+  .pros-cons{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;font-size:12px}
+  .pros, .cons{padding:10px 14px;border-radius:8px}
+  .pros{background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2)}
+  .cons{background:rgba(220,53,69,.05);border:1px solid rgba(220,53,69,.18)}
+  .pros b, .cons b{font-size:11px;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+  .pros b{color:#16a34a}
+  .cons b{color:#dc3545}
+  .mock-area{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-top:8px}
+
+  /* ── ATABS pill style (copied from app's style.css) ── */
+  .atabs-wrap{position:relative;display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px;vertical-align:middle}
+  .atabs-track{position:relative;display:flex;align-items:center;gap:0;z-index:2}
+  .atab{position:relative;z-index:2;padding:5px 13px;border-radius:999px;border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap;transition:color .2s}
+  .atab:hover{color:var(--text)}
+  .atab.active{color:#fff;font-weight:600;background:#22c55e;border-radius:999px}
+
+  /* ── Row helpers ── */
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row-label{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:6px}
+  .divider{display:inline-block;width:1px;height:24px;background:var(--border-strong);margin:0 4px;vertical-align:middle}
+
+  /* ── Checkbox toggle ── */
+  .toggle{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);background:var(--surface);border-radius:999px;font-size:12px;font-weight:500;color:var(--text);cursor:pointer}
+  .toggle input{margin:0;accent-color:#22c55e}
+
+  /* ── Dropdown button ── */
+  .ddbtn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);background:var(--surface);border-radius:999px;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;font-family:'Inter',sans-serif}
+  .ddbtn .caret{font-size:10px;color:var(--muted)}
+
+  /* ── Sidebar-style "pages" preview for Option E ── */
+  .sidebar-preview{display:inline-flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;font-size:12px;color:var(--text);min-width:180px}
+  .sidebar-label{font-size:9px;font-weight:700;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;padding:6px 10px 2px}
+  .sidebar-item{padding:6px 10px;border-radius:6px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:8px;font-weight:500}
+  .sidebar-item.active{background:rgba(34,197,94,.1);color:#16a34a;font-weight:600}
+
+  /* ── Single-line current state highlight ── */
+  .current-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:4px;background:rgba(0,0,0,.06);color:var(--muted);margin-left:8px;vertical-align:middle}
+  .recommended-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:4px;background:rgba(34,197,94,.15);color:#16a34a;margin-left:8px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>All Jobs — filter tabs layout options</h1>
+  <p class="lede">Five takes on how to lay out the service tabs + view filters on the All Jobs page. Click any pill to see the active state. None of these are wired up to real data — visual only.</p>
+
+  <!-- ── OPTION A: Current (control) ── -->
+  <div class="option">
+    <div class="option-title">Option A — Current state <span class="current-badge">LIVE NOW</span></div>
+    <div class="option-sub">Two pill rows side by side. No labels. Shared mutually-exclusive state — clicking one row clears the other.</div>
+    <div class="mock-area">
+      <div class="row">
+        <div class="atabs-wrap"><div class="atabs-track">
+          <button class="atab active">All Services</button>
+          <button class="atab">🚛 Bin</button>
+          <button class="atab">🧹 Junk</button>
+          <button class="atab">📋 Quote</button>
+          <button class="atab">🛋️ Pickup</button>
+          <button class="atab">📦 Delivery</button>
+        </div></div>
+        <div class="atabs-wrap"><div class="atabs-track">
+          <button class="atab">🚫 Cancelled</button>
+          <button class="atab">📦 Bins Out</button>
+          <button class="atab">♻️ Recurring</button>
+        </div></div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros"><b>Pros</b>Visually groups services together. Single state — easy to implement.</div>
+      <div class="cons"><b>Cons</b>Two adjacent pill rows imply they combine (AND), but they don't. No labels explain the difference.</div>
+    </div>
+  </div>
+
+  <!-- ── OPTION B: Labeled rows ── -->
+  <div class="option">
+    <div class="option-title">Option B — Labeled groups</div>
+    <div class="option-sub">Same structure as A but with tiny uppercase captions above each pill row.</div>
+    <div class="mock-area">
+      <div class="row" style="align-items:flex-start">
+        <div>
+          <span class="row-label">Service</span>
+          <div class="atabs-wrap"><div class="atabs-track">
+            <button class="atab active">All Services</button>
+            <button class="atab">🚛 Bin</button>
+            <button class="atab">🧹 Junk</button>
+            <button class="atab">📋 Quote</button>
+            <button class="atab">🛋️ Pickup</button>
+            <button class="atab">📦 Delivery</button>
+          </div></div>
+        </div>
+        <div>
+          <span class="row-label">Views</span>
+          <div class="atabs-wrap"><div class="atabs-track">
+            <button class="atab">🚫 Cancelled</button>
+            <button class="atab">📦 Bins Out</button>
+            <button class="atab">♻️ Recurring</button>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros"><b>Pros</b>Tiny change — just two text labels. Tells the user the rows are different concepts. Lowest-risk improvement.</div>
+      <div class="cons"><b>Cons</b>Still doesn't fix that the three "view" tabs are different concepts mashed together. Still mutually-exclusive when it doesn't look it.</div>
+    </div>
+  </div>
+
+  <!-- ── OPTION C: Checkbox + dropdown ── -->
+  <div class="option">
+    <div class="option-title">Option C — Checkbox + "More views" dropdown <span class="recommended-badge">MY PICK</span></div>
+    <div class="option-sub"><i>Cancelled</i> becomes an orthogonal checkbox that combines with services. <i>Bins Out</i> and <i>Recurring</i> move to a dropdown next to the search bar.</div>
+    <div class="mock-area">
+      <div class="row">
+        <div class="atabs-wrap"><div class="atabs-track">
+          <button class="atab active">All Services</button>
+          <button class="atab">🚛 Bin</button>
+          <button class="atab">🧹 Junk</button>
+          <button class="atab">📋 Quote</button>
+          <button class="atab">🛋️ Pickup</button>
+          <button class="atab">📦 Delivery</button>
+        </div></div>
+        <label class="toggle"><input type="checkbox"> Show cancelled</label>
+        <button class="ddbtn">More views <span class="caret">▾</span></button>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros"><b>Pros</b>Clean — service row only has services. <i>Cancelled</i> can combine with any service (e.g. "cancelled Bin Rentals only"). Dropdown hides the rarely-used <i>Bins Out</i>/<i>Recurring</i> until needed.</div>
+      <div class="cons"><b>Cons</b>Largest behavior change. Cancelled jobs now show inline (with a faded style) rather than in their own section — has to be wired up.</div>
+    </div>
+  </div>
+
+  <!-- ── OPTION D: Single row with divider ── -->
+  <div class="option">
+    <div class="option-title">Option D — One row with a visible divider</div>
+    <div class="option-sub">Revert to one pill row (pre-split state) but add a vertical divider between services and views.</div>
+    <div class="mock-area">
+      <div class="row">
+        <div class="atabs-wrap"><div class="atabs-track">
+          <button class="atab active">All Services</button>
+          <button class="atab">🚛 Bin</button>
+          <button class="atab">🧹 Junk</button>
+          <button class="atab">📋 Quote</button>
+          <button class="atab">🛋️ Pickup</button>
+          <button class="atab">📦 Delivery</button>
+          <span class="divider"></span>
+          <button class="atab">🚫 Cancelled</button>
+          <button class="atab">📦 Bins Out</button>
+          <button class="atab">♻️ Recurring</button>
+        </div></div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros"><b>Pros</b>Smallest visual change. The divider hints "these belong to a different group" without changing state semantics.</div>
+      <div class="cons"><b>Cons</b>Doesn't really separate the concepts — they still look like part of one list. A divider is a weak signal.</div>
+    </div>
+  </div>
+
+  <!-- ── OPTION E: Move special views to sidebar ── -->
+  <div class="option">
+    <div class="option-title">Option E — Move special views into the sidebar</div>
+    <div class="option-sub">All Jobs row keeps only the real services. <i>Bins Out</i> and <i>Recurring</i> become their own sidebar pages (like <i>Live Jobs</i>). <i>Cancelled</i> stays as a checkbox toggle.</div>
+    <div class="mock-area">
+      <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <div class="row-label" style="margin-bottom:8px">Sidebar (excerpt)</div>
+          <div class="sidebar-preview">
+            <div class="sidebar-label">Menu</div>
+            <div class="sidebar-item active">📋 All Jobs</div>
+            <div class="sidebar-item">📅 Calendar</div>
+            <div class="sidebar-item">👥 Clients</div>
+            <div class="sidebar-item">📄 Documents</div>
+            <div class="sidebar-label">Bin management</div>
+            <div class="sidebar-item">🚛 Bin Fleet</div>
+            <div class="sidebar-item">📦 Bins Out</div>
+            <div class="sidebar-item">♻️ Recurring</div>
+            <div class="sidebar-item">🗺️ Bin Map</div>
+            <div class="sidebar-item">🚗 Vehicles</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:300px">
+          <div class="row-label" style="margin-bottom:8px">All Jobs filters</div>
+          <div class="row">
+            <div class="atabs-wrap"><div class="atabs-track">
+              <button class="atab active">All Services</button>
+              <button class="atab">🚛 Bin</button>
+              <button class="atab">🧹 Junk</button>
+              <button class="atab">📋 Quote</button>
+              <button class="atab">🛋️ Pickup</button>
+              <button class="atab">📦 Delivery</button>
+            </div></div>
+            <label class="toggle"><input type="checkbox"> Show cancelled</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros"><b>Pros</b>Cleanest separation — <i>Bins Out</i> and <i>Recurring</i> get treated as the views they actually are. Reaches them from anywhere via the sidebar, not just from inside All Jobs.</div>
+      <div class="cons"><b>Cons</b>Most disruptive — moves nav around. Users who relied on the current placement need to relearn where things live.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:30px;padding:18px 22px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:12px;font-size:13px;line-height:1.6">
+    <b>My recommendation:</b> <b>Option C</b>. It fixes the conceptual mismatch (cancelled is orthogonal, not a service), keeps the row focused on actual services, and stashes the rare views in a dropdown. Option B is the safer "almost no-op" alternative if you don't want the behavior change.
+  </div>
+</div>
+</body>
+</html>
