@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '159';
+var APP_VERSION = '160';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -15,7 +15,8 @@ var _formPhotos = [];           // photo URLs being assembled in the open job/qu
 //   1. dbToJob()  — add the read-from-DB line
 //   2. jobToDb()  — add the write-to-DB line
 //   3. JOB_KEY_MAP below if the JS camelCase name differs from the snake_case DB column
-//   4. JOB_LABEL_MAP below if you want pretty labels in the change history
+//   4. The CASE map inside the `log_job_changes` Postgres trigger if you want a
+//      pretty label for that column in the edit-history view.
 var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
   status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
   binDropoff:'bin_dropoff', paid:'paid', etransferRefundSent:'etransfer_refund_sent',
@@ -27,7 +28,6 @@ var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed
   depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
   clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
   dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id'};
-var JOB_LABEL_MAP = {status:'Status',confirmed:'Confirmed',emailConfirmed:'Email Confirmed',emailSent:'Email Sent',binInstatus:'Bin Status',date:'Date',binPickup:'Pickup',binDropoff:'Drop-off',paid:'Paid',etransferRefundSent:'E-Transfer Refund',binBid:'Bin',binSide:'Driveway Side',price:'Price',notes:'Notes',phone:'Phone',name:'Name',address:'Address',city:'City',service:'Service',binSize:'Bin Size',binDuration:'Duration',time:'Time',referral:'Referral',payMethod:'Pay Method',recurring:'Recurring',recurInterval:'Recur Interval',materialType:'Material',toolsNeeded:'Tools Needed',swapCount:'Swap Count',deposit:'Deposit',depositPaid:'Deposit Paid',assignedCrewIds:'Assigned Crew',binWillCall:'Will Call'};
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -830,27 +830,12 @@ function save() {
   updateSidebarStats();
 }
 
-// Surgical update: only writes the fields you pass for one job
+// Surgical update: only writes the fields you pass for one job.
+// Change-history logging is handled by the `log_job_changes` Postgres trigger
+// on the jobs table — do NOT insert into job_changes from here.
 function patchJob(jobId, fields) {
   _clientStatsCache = null;
   updateSidebarStats();
-  // Log changes to job_changes (uses JOB_LABEL_MAP defined at top of file)
-  var oldJob = jobs.find(function(j){return j.id===jobId;});
-  var changeRows = [];
-  var userEmail = currentUser ? currentUser.email : 'system';
-  var userName = (currentUser && currentUser.displayName) ? currentUser.displayName : (currentUser ? userEmail.split('@')[0] : 'system');
-  Object.keys(fields).forEach(function(k){
-    if(k==='editedBy'||k==='editedByEmail') return;
-    var label = JOB_LABEL_MAP[k] || k;
-    var oldVal = oldJob ? String(oldJob[k]||'') : '';
-    var newVal = String(fields[k]||'');
-    if(oldVal !== newVal) changeRows.push({job_id:jobId, field_name:label, old_value:oldVal, new_value:newVal, changed_by:userName});
-  });
-  if(changeRows.length){
-    db.from('job_changes').insert(changeRows).then(function(r){
-      if(r.error) console.warn('job_changes insert error:', r.error.message);
-    });
-  }
   // Map camelCase JS keys to snake_case DB columns (uses JOB_KEY_MAP defined at top of file)
   var dbFields = {};
   Object.keys(fields).forEach(function(k){
@@ -1202,7 +1187,9 @@ async function loadAllFromSupabase() {
         .lte('bin_dropoff', today2);
       if (pastDropJobs.data && pastDropJobs.data.length) {
         var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
-        await db.from('jobs').update({bin_instatus:'dropped'}).in('job_id',dropIds);
+        // Use auto_drop_bins RPC so the log_job_changes trigger attributes the
+        // bulk update to "System" instead of whoever happens to be logged in.
+        await db.rpc('auto_drop_bins', { drop_ids: dropIds });
         var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
         if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
         binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
@@ -1210,15 +1197,6 @@ async function loadAllFromSupabase() {
           if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
             { j.binInstatus='dropped'; }
         });
-        // Log auto-drop in job_changes attributed to "System" (not the current user)
-        var autoChangeRows = dropIds.map(function(id){
-          return {job_id:id, field_name:'Bin Status', old_value:'', new_value:'dropped', changed_by:'System'};
-        });
-        if(autoChangeRows.length){
-          db.from('job_changes').insert(autoChangeRows).then(function(r){
-            if(r.error) console.warn('Auto-drop log insert error:', r.error.message);
-          });
-        }
       }
       // Auto-pickup removed — bin pickup status is user-controlled only
 
@@ -8755,20 +8733,9 @@ async function saveJob(e){
     }
   }
 
-  // Build change log before replacing the old job
-  var changeRows = [];
+  // Replace local job in memory (DB-side change history is handled by the
+  // `log_job_changes` Postgres trigger — do NOT insert into job_changes here).
   if(editId){
-    var oldJob = jobs.find(function(j){return j.id===editId;});
-    if(oldJob){
-      var trackFields = {service:'Service',status:'Status',name:'Name',phone:'Phone',address:'Address',city:'City',date:'Date',time:'Time',price:'Price',paid:'Paid',payMethod:'Pay Method',notes:'Notes',referral:'Referral',binSize:'Bin Size',binDuration:'Duration',binDropoff:'Drop-off',binDropoffTime:'Drop-off Time',binPickup:'Pickup',binPickupTime:'Pickup Time',binSide:'Driveway Side',binInstatus:'Bin Status',materialType:'Material',toolsNeeded:'Tools Needed',recurring:'Recurring',recurInterval:'Recur Interval'};
-      Object.keys(trackFields).forEach(function(k){
-        var oldVal = String(oldJob[k]||'');
-        var newVal = String(job[k]||'');
-        if(oldVal !== newVal){
-          changeRows.push({job_id:editId, field_name:trackFields[k], old_value:oldVal, new_value:newVal, changed_by:userName});
-        }
-      });
-    }
     var idx = jobs.findIndex(function(j){return j.id===editId;});
     if(idx >= 0) jobs[idx] = job; else jobs.push(job);
     toast('Job updated!');
@@ -8787,12 +8754,8 @@ async function saveJob(e){
       console.error('saveJob error:', dbRes.error);
       _saveJobLock = false; return;
     }
-    // Log field-level changes
-    if(changeRows.length){
-      db.from('job_changes').insert(changeRows).then(function(r){
-        if(r.error) console.warn('job_changes insert error:', r.error.message);
-      });
-    }
+    // Field-level change history is written by the log_job_changes Postgres
+    // trigger \u2014 no client-side insert needed.
     _clientStatsCache = null;
     toast('\u2705 ' + job.id + ' saved!');
   } catch(ex){
