@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=44">
+<link rel="stylesheet" href="style.css?v=45">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -300,71 +300,78 @@
   </div>
   <div id="jobs-filters-area" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
 
-    <!-- Row 1: Service + Status -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <!-- Row 1: Service + View -->
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
 
-      <!-- Service Tabs -->
-      <div class="atabs-wrap" id="atabs-svc" style="position:relative;">
-        <div class="atabs-highlight" id="atabs-svc-hl"></div>
-        <div class="atabs-track">
-          <button class="atab active" data-group="svc" data-val="all"        onclick="setSvc('all',this)">All Services</button>
-          <button class="atab"        data-group="svc" data-val="Bin Rental"  onclick="setSvc('Bin Rental',this)">🚛 Bin</button>
-          <button class="atab"        data-group="svc" data-val="Junk Removal" onclick="setSvc('Junk Removal',this)">🧹 Junk</button>
-          <button class="atab"        data-group="svc" data-val="Junk Quote"  onclick="setSvc('Junk Quote',this)">📋 Quote</button>
-          <button class="atab"        data-group="svc" data-val="Furniture Pickup" onclick="setSvc('Furniture Pickup',this)">🛋️ Pickup</button>
-          <button class="atab"        data-group="svc" data-val="Furniture Delivery" onclick="setSvc('Furniture Delivery',this)">📦 Delivery</button>
+      <!-- Service -->
+      <div class="filter-group">
+        <span class="filter-group-label">Service</span>
+        <div class="atabs-wrap" id="atabs-svc" style="position:relative;">
+          <div class="atabs-highlight" id="atabs-svc-hl"></div>
+          <div class="atabs-track">
+            <button class="atab active" data-group="svc" data-val="all"        onclick="setSvc('all',this)">All Services</button>
+            <button class="atab"        data-group="svc" data-val="Bin Rental"  onclick="setSvc('Bin Rental',this)">🚛 Bin</button>
+            <button class="atab"        data-group="svc" data-val="Junk Removal" onclick="setSvc('Junk Removal',this)">🧹 Junk</button>
+            <button class="atab"        data-group="svc" data-val="Junk Quote"  onclick="setSvc('Junk Quote',this)">📋 Quote</button>
+            <button class="atab"        data-group="svc" data-val="Furniture Pickup" onclick="setSvc('Furniture Pickup',this)">🛋️ Pickup</button>
+            <button class="atab"        data-group="svc" data-val="Furniture Delivery" onclick="setSvc('Furniture Delivery',this)">📦 Delivery</button>
+          </div>
         </div>
       </div>
 
-      <!-- View Tabs (not services — filters / status views) -->
-      <div class="atabs-wrap" id="atabs-view" style="position:relative;">
-        <div class="atabs-track">
-          <button class="atab" data-group="svc" data-val="Cancelled" onclick="setSvc('Cancelled',this)">🚫 Cancelled</button>
-          <button class="atab" data-group="svc" data-val="BinsOut" onclick="setSvc('BinsOut',this)">📦 Bins Out</button>
-          <button class="atab" data-group="svc" data-val="Recurring" onclick="setSvc('Recurring',this)">♻️ Recurring</button>
+      <!-- View (filters / status views, not services) -->
+      <div class="filter-group">
+        <span class="filter-group-label">View</span>
+        <div class="atabs-wrap" id="atabs-view" style="position:relative;">
+          <div class="atabs-track">
+            <button class="atab" data-group="svc" data-val="Cancelled" onclick="setSvc('Cancelled',this)">🚫 Cancelled</button>
+            <button class="atab" data-group="svc" data-val="BinsOut" onclick="setSvc('BinsOut',this)">📦 Bins Out</button>
+            <button class="atab" data-group="svc" data-val="Recurring" onclick="setSvc('Recurring',this)">♻️ Recurring</button>
+          </div>
         </div>
       </div>
-
-
 
     </div>
 
-    <!-- Row 2: Date + Bin Drop + Search -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <!-- Row 2: Date + Bin Drop + Sort + Search -->
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
 
-      <!-- Date Tabs -->
-      <div class="atabs-wrap" id="atabs-date" style="position:relative;">
-        <div class="atabs-highlight" id="atabs-date-hl"></div>
-        <div class="atabs-track">
-          <button class="atab active" data-group="date" id="jdtf-all"   onclick="setJobDateFilter('all',this)">All Time</button>
-          <button class="atab"        data-group="date" id="jdtf-today"  onclick="setJobDateFilter('today',this)">Today</button>
-          <button class="atab"        data-group="date" id="jdtf-week"   onclick="setJobDateFilter('week',this)">This Week</button>
-          <button class="atab"        data-group="date" id="jdtf-month"  onclick="setJobDateFilter('month',this)">This Month</button>
+      <!-- Date -->
+      <div class="filter-group">
+        <span class="filter-group-label">Date</span>
+        <div class="atabs-wrap" id="atabs-date" style="position:relative;">
+          <div class="atabs-highlight" id="atabs-date-hl"></div>
+          <div class="atabs-track">
+            <button class="atab active" data-group="date" id="jdtf-all"   onclick="setJobDateFilter('all',this)">All Time</button>
+            <button class="atab"        data-group="date" id="jdtf-today"  onclick="setJobDateFilter('today',this)">Today</button>
+            <button class="atab"        data-group="date" id="jdtf-week"   onclick="setJobDateFilter('week',this)">This Week</button>
+            <button class="atab"        data-group="date" id="jdtf-month"  onclick="setJobDateFilter('month',this)">This Month</button>
+          </div>
         </div>
       </div>
 
-      <!-- Bin Drop Tabs -->
-      <div class="atabs-wrap" id="atabs-bin" style="position:relative;">
-        <div class="atabs-highlight" id="atabs-bin-hl"></div>
-        <div class="atabs-track">
-          <button class="atab active" data-group="bin" id="jbdf-all"      onclick="setBinDropFilter('all',this)">All Bins</button>
-          <button class="atab"        data-group="bin" id="jbdf-pending"   onclick="setBinDropFilter('pending',this)">⏳ Not Dropped</button>
-          <button class="atab"        data-group="bin" id="jbdf-dropped"   onclick="setBinDropFilter('dropped',this)">🚛 Dropped</button>
-          <button class="atab"        data-group="bin" id="jbdf-pickedup"  onclick="setBinDropFilter('pickedup',this)">✔ Picked Up</button>
+      <!-- Bin Drop (only relevant for Bin Rentals — hidden when service is Junk/Furniture/etc.) -->
+      <div class="filter-group" id="filter-group-bin">
+        <span class="filter-group-label">Bin Drop</span>
+        <div class="atabs-wrap" id="atabs-bin" style="position:relative;">
+          <div class="atabs-highlight" id="atabs-bin-hl"></div>
+          <div class="atabs-track">
+            <button class="atab active" data-group="bin" id="jbdf-all"      onclick="setBinDropFilter('all',this)">All Bins</button>
+            <button class="atab"        data-group="bin" id="jbdf-pending"   onclick="setBinDropFilter('pending',this)">⏳ Not Dropped</button>
+            <button class="atab"        data-group="bin" id="jbdf-dropped"   onclick="setBinDropFilter('dropped',this)">🚛 Dropped</button>
+            <button class="atab"        data-group="bin" id="jbdf-pickedup"  onclick="setBinDropFilter('pickedup',this)">✔ Picked Up</button>
+          </div>
         </div>
       </div>
 
-      <!-- Sort Tabs -->
-      <div class="atabs-wrap" id="atabs-sort" style="position:relative;">
-        <div class="atabs-highlight" id="atabs-sort-hl"></div>
-        <div class="atabs-track">
-          <button class="atab active" data-group="sort" id="jsort-date"     onclick="toggleJobSort('date')">📅 By Date</button>
-          <button class="atab"        data-group="sort" id="jsort-created"  onclick="toggleJobSort('createdAt')">🆕 Recently Added</button>
-        </div>
+      <!-- Sort (single toggle button: cycles between By Date and Recently Added) -->
+      <div class="filter-group">
+        <span class="filter-group-label">Sort</span>
+        <button id="jsort-toggle" class="atab-toggle-btn" onclick="cycleJobSort()">📅 By Date</button>
       </div>
 
       <!-- Search -->
-      <input class="search-input" type="text" placeholder="🔍 Search name, phone, address, city..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:300px;margin-left:auto">
+      <input class="search-input" type="text" placeholder="🔍 Search name, phone, address, city..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:300px;margin-left:auto;align-self:flex-end">
 
     </div>
   </div>
@@ -1985,14 +1992,14 @@
   </div>
 </div>
 
-<script src="app-documents.js?v=169"></script>
-<script src="app-drdcalc.js?v=169"></script>
-<script src="app-dispatch.js?v=169"></script>
-<script src="app-leaderboard.js?v=169"></script>
-<script src="app-analytics.js?v=169"></script>
-<script src="app-utilization.js?v=169"></script>
-<script src="app-advisor.js?v=169"></script>
-<script src="app.js?v=169"></script>
+<script src="app-documents.js?v=170"></script>
+<script src="app-drdcalc.js?v=170"></script>
+<script src="app-dispatch.js?v=170"></script>
+<script src="app-leaderboard.js?v=170"></script>
+<script src="app-analytics.js?v=170"></script>
+<script src="app-utilization.js?v=170"></script>
+<script src="app-advisor.js?v=170"></script>
+<script src="app.js?v=170"></script>
 </body>
 </html>
                                                                                                                                                          

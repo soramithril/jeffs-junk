@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '169';
+var APP_VERSION = '170';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3154,6 +3154,10 @@ function setSvc(v,el){
   svcF=v;
   document.querySelectorAll('#view-jobs .filter-chip').forEach(function(c){c.classList.remove('active');});
   if(el)el.classList.add('active');
+  // Bin Drop filter only applies to Bin Rentals — hide it for other services.
+  // Visible when service is 'all' (table shows bin rows too) or 'Bin Rental'.
+  var binGroup=document.getElementById('filter-group-bin');
+  if(binGroup) binGroup.style.display=(v==='all'||v==='Bin Rental')?'':'none';
   // Handle BinsOut special view
   var binsOutView=document.getElementById('jobs-bins-out-view');
   var catView=document.getElementById('jobs-cat-view');
@@ -3392,12 +3396,19 @@ function toggleCatSection(el){
 }
 function toggleJobSort(field){
   if(jobSort===field){jobSortDir=jobSortDir*-1;}else{jobSort=field;jobSortDir=(field==='date'||field==='createdAt')?-1:1;}
-  // Reflect Sort tab state — pills only highlight for date / createdAt sorts
-  var dateBtn=document.getElementById('jsort-date');
-  var createdBtn=document.getElementById('jsort-created');
-  if(dateBtn) dateBtn.classList.toggle('active', jobSort==='date');
-  if(createdBtn) createdBtn.classList.toggle('active', jobSort==='createdAt');
+  _updateSortToggleBtn();
   renderJobs();
+}
+// Sort toggle (single button) — cycles between "By Date" and "Recently Added"
+function cycleJobSort(){
+  toggleJobSort(jobSort==='date'?'createdAt':'date');
+}
+function _updateSortToggleBtn(){
+  var btn=document.getElementById('jsort-toggle');
+  if(!btn) return;
+  if(jobSort==='date')             btn.textContent='📅 By Date';
+  else if(jobSort==='createdAt')   btn.textContent='🆕 Recently Added';
+  else                             btn.textContent='↕ Sort: '+jobSort;
 }
 function sortJobList(arr){
   var dir=jobSortDir;

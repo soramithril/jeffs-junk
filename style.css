@@ -918,6 +918,14 @@ input[type=date],input[type=time]{position:relative;}
 .atab:hover{ color:var(--text); }
 .atab.active{ color:#fff; font-weight:600; background:#22c55e; border-radius:999px; }
 
+/* Filter-group wrapper: tiny uppercase caption above each pill group */
+.filter-group{ display:inline-flex; flex-direction:column; gap:5px; }
+.filter-group-label{ font-size:10px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; line-height:1; padding-left:6px; }
+
+/* Single-button sort toggle (cycles between sort fields) */
+.atab-toggle-btn{ display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:999px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; line-height:1.4; height:30px; }
+.atab-toggle-btn:hover{ background:var(--surface2); }
+
 /* The sliding green pill behind the active tab */
 .atabs-highlight{
   position:absolute;
