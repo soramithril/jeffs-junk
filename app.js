@@ -7944,11 +7944,14 @@ async function _loadUnassignedBinAlertJobs(force){
     var t = new Date(); t.setHours(0,0,0,0);
     var cutoff = new Date(t); cutoff.setDate(cutoff.getDate() - 1);
     var cutoffStr = cutoff.toISOString().split('T')[0];
+    var floor = new Date(t); floor.setDate(floor.getDate() - 30);
+    var floorStr = floor.toISOString().split('T')[0];
     var r = await db.from('jobs').select(JOB_LIST_COLS)
       .eq('service','Bin Rental')
       .neq('status','Cancelled')
       .neq('bin_instatus','pickedup')
-      .lte('bin_dropoff', cutoffStr);
+      .lte('bin_dropoff', cutoffStr)
+      .gte('bin_dropoff', floorStr);
     if(!r.error && r.data){
       r.data.forEach(function(row){
         if(row.bin_bid) return; // skip jobs that already have a bin
@@ -7971,12 +7974,14 @@ function _getUnassignedBinJobs(){
   var t = new Date(); t.setHours(0,0,0,0);
   var cutoff = new Date(t); cutoff.setDate(cutoff.getDate() - 1);
   var cutoffStr = cutoff.toISOString().split('T')[0];
+  var floor = new Date(t); floor.setDate(floor.getDate() - 30);
+  var floorStr = floor.toISOString().split('T')[0];
   return jobs.filter(function(j){
     if(j.service !== 'Bin Rental') return false;
     if(j.binBid) return false;
     if(!j.binDropoff) return false;
     if(j.status === 'Cancelled') return false;
-    return j.binDropoff <= cutoffStr;
+    return j.binDropoff <= cutoffStr && j.binDropoff >= floorStr;
   }).sort(function(a,b){
     return (a.binDropoff||'').localeCompare(b.binDropoff||'');
   });
