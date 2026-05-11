@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '174';
+var APP_VERSION = '175';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -10494,8 +10494,8 @@ function _drawCustomerInfo(page, font, fontBold, H, j, clientPhones, email) {
   dt(email, 55, 210);
 }
 
-// Item row baselines (yFromTop) — 9 rows per page, matching template horizontal lines
-var _FORM_ITEM_ROWS = [358, 392, 426, 461, 495, 528];
+// Item row baselines (yFromTop) — matches template horizontal lines, ~34pt spacing
+var _FORM_ITEM_ROWS = [358, 392, 426, 461, 495, 528, 562];
 
 // Draw items on a page; items is array of strings (descriptions from notes)
 // Pass showUnit=true for FB forms (4 cols), false for Junk Removal (3 cols)
@@ -10651,8 +10651,8 @@ async function _printFbForm(jobId, kind) {
 
     var items = _notesToItems(j.items);
     var itemYOff = isDropOff ? 2 : 0;
-    // FB Pickup form has room for one more row at same spacing (528 + 34 = 562)
-    var itemRows = isDropOff ? null : [358, 392, 426, 461, 495, 528, 562];
+    // FB Drop-Off form has room for 3 more rows at same ~34pt spacing
+    var itemRows = isDropOff ? [358, 392, 426, 461, 495, 528, 562, 596, 630] : null;
     var printed = _drawItemsOnPage(page, font, H, items, 0, itemYOff, itemRows);
     var idx = printed;
     while (idx < items.length) {
