@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '173';
+var APP_VERSION = '174';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -606,7 +606,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
@@ -628,6 +628,8 @@ function dbToJob(r) {
     date:       r.date       || '',
     time:       r.time       || '',
     price:      r.price != null ? String(r.price) : '',
+    quotedAmount: r.quoted_amount != null ? String(r.quoted_amount) : '',
+    estDurationMin: r.est_duration_min != null ? r.est_duration_min : '',
     paid:       r.paid       || 'Unpaid',
     notes:      r.notes      || '',
     internalNotes: r.internal_notes || '',
@@ -751,6 +753,8 @@ function jobToDb(j) {
     date:        j.date        || null,
     time:        j.time        || '',
     price:       j.price !== '' && j.price != null ? parseFloat(j.price) : null,
+    quoted_amount: j.quotedAmount !== '' && j.quotedAmount != null ? parseFloat(j.quotedAmount) : null,
+    est_duration_min: j.estDurationMin !== '' && j.estDurationMin != null ? parseInt(j.estDurationMin, 10) : null,
     paid:        j.paid        || 'Unpaid',
     notes:       j.notes       || '',
     internal_notes: j.internalNotes || '',
@@ -2880,7 +2884,11 @@ async function renderDash(){
         var _cc = _cityColor(j.city);
         var cityChip = (j.city && _cc) ? '<span style="background:'+_cc.bg+';color:'+_cc.fg+';border:1px solid '+_cc.bd+';border-left:3px solid '+_cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;box-sizing:border-box">'+j.city+'</span>' : '';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
-        var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
+        // rgbCsv used by both duration chip and row shadow below
+        var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
+        var durStr = (j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
+        var durChip = durStr ? '<span style="font-size:10.5px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 7px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
+        var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChip+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var confirmedPill = (showConfirm && cfm && j.service !== 'Bin Rental') ? '<span style="font-size:11px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:3px 8px">✅</span>' : '';
         var actionsHTML = (assignBinBtn||actionBtn||confirmedPill)
           ? '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+assignBinBtn+actionBtn+'</div>'
@@ -2888,7 +2896,6 @@ async function renderDash(){
         // Neutral row background — color is reserved for the section-color border-left
         // (category accent) and for the shadow on fixed-time rows (status emphasis).
         // This keeps the dashboard calm overall and lets status colors (red/orange) pop.
-        var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var rowBg = hasFixedTime
           ? 'background:var(--surface);border:1px solid var(--border-strong);box-shadow:0 4px 14px rgba('+rgbCsv+',.18)'
           : 'background:var(--surface);border:1px solid var(--border)';
@@ -6255,6 +6262,8 @@ function toggleBin(){
       document.getElementById('junk-date-label').textContent=isQuote?'Quote Date':'Job Date';
       document.getElementById('junk-time-label').textContent=isQuote?'Quote Time':'Job Time';
       var qaw=document.getElementById('quote-amount-wrap');if(qaw)qaw.style.display=isQuote?'block':'none';
+      var jrpw=document.getElementById('junk-removal-pricing-wrap');if(jrpw)jrpw.style.display=isQuote?'none':'block';
+      var jdw=document.getElementById('junk-duration-wrap');if(jdw)jdw.style.display=isQuote?'none':'block';
     }
   }
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
@@ -6691,6 +6700,10 @@ function newJob(){
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
   var now=new Date();document.getElementById('f-date').value=now.toISOString().split('T')[0];document.getElementById('f-time').value=now.toTimeString().slice(0,5);
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';var qaiC=document.getElementById('f-quote-amount');if(qaiC)qaiC.value='';
+  var fjqC=document.getElementById('f-junk-quoted');if(fjqC)fjqC.value='';
+  var fjaC=document.getElementById('f-junk-actual');if(fjaC)fjaC.value='';
+  var fedC=document.getElementById('f-est-duration');if(fedC)fedC.value='';
+  var fbedC=document.getElementById('f-fb-est-duration');if(fbedC)fbedC.value='';
   document.getElementById('f-business-name').value='';
   document.getElementById('f-fb-date').value='';document.getElementById('f-fb-time').value='';
   document.getElementById('fb-schedule-wrap').style.display='none';
@@ -6833,6 +6846,23 @@ function _avoidSundayPickup(dateStr){
   return dateStr;
 }
 
+function fmtDur(min){
+  var m=parseInt(min,10);
+  if(!m||m<=0) return '';
+  var h=Math.floor(m/60), r=m%60;
+  if(h===0) return r+'m';
+  if(r===0) return h+'h';
+  return h+'h '+r+'m';
+}
+function setEstDuration(min){
+  var inp=document.getElementById('f-est-duration');if(!inp)return;
+  inp.value=String(min);
+}
+function setFbEstDuration(min){
+  var inp=document.getElementById('f-fb-est-duration');if(!inp)return;
+  inp.value=String(min);
+}
+
 function setBinDuration(days){
   // Toggle off if same duration clicked again
   if(window._binPresetDays===days){
@@ -6972,6 +7002,13 @@ function openEdit(id){
       document.getElementById('junk-time-label').textContent=isQEdit?'Quote Time':'Job Time';
       var qawE=document.getElementById('quote-amount-wrap');if(qawE)qawE.style.display=isQEdit?'block':'none';
       var qaiE=document.getElementById('f-quote-amount');if(qaiE)qaiE.value=isQEdit?(j.price||''):'';
+      var jrpwE=document.getElementById('junk-removal-pricing-wrap');if(jrpwE)jrpwE.style.display=isQEdit?'none':'block';
+      var jdwE=document.getElementById('junk-duration-wrap');if(jdwE)jdwE.style.display=isQEdit?'none':'block';
+      if(!isQEdit){
+        var fjqE=document.getElementById('f-junk-quoted');if(fjqE)fjqE.value=j.quotedAmount||'';
+        var fjaE=document.getElementById('f-junk-actual');if(fjaE)fjaE.value=j.price||'';
+        var fedE=document.getElementById('f-est-duration');if(fedE)fedE.value=j.estDurationMin||'';
+      }
     }
     var isFurnEdit=j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
     document.getElementById('fb-schedule-wrap').style.display=isFurnEdit?'block':'none';
@@ -6980,6 +7017,7 @@ function openEdit(id){
       document.getElementById('fb-schedule-label').textContent=isDelivEdit?'Delivery Schedule':'Pickup Schedule';
       document.getElementById('fb-date-label').textContent=isDelivEdit?'Delivery Date':'Pickup Date';
       document.getElementById('fb-time-label').textContent=isDelivEdit?'Delivery Time':'Pickup Time';
+      var fbedE=document.getElementById('f-fb-est-duration');if(fbedE)fbedE.value=j.estDurationMin||'';
     }
     document.getElementById('f-notes').value=j.notes||'';
     var fin2=document.getElementById('f-internal-notes');if(fin2)fin2.value=j.internalNotes||'';
@@ -7162,7 +7200,13 @@ async function saveJob(e){
     city:      city,
     date:      date,
     time:      document.getElementById('f-time').value,
-    price:     svc==='Junk Quote' ? (document.getElementById('f-quote-amount').value || '') : document.getElementById('f-price').value,
+    price:     svc==='Junk Quote' ? (document.getElementById('f-quote-amount').value || '')
+              : (svc==='Junk Removal' ? (document.getElementById('f-junk-actual').value || '')
+              : document.getElementById('f-price').value),
+    quotedAmount: svc==='Junk Removal' ? (document.getElementById('f-junk-quoted').value || '') : '',
+    estDurationMin: (svc==='Junk Removal') ? (document.getElementById('f-est-duration').value || '')
+                  : ((svc==='Furniture Delivery'||svc==='Furniture Pickup') ? (document.getElementById('f-fb-est-duration').value || '')
+                  : ''),
     paid:      document.getElementById('f-paid').value || 'Unpaid',
     payMethod: document.getElementById('f-paymethod').value,
     referral:  referral || (editId ? (jobs.find(function(j){return j.id===editId;})||{}).referral || '' : ''),
@@ -7454,7 +7498,8 @@ async function openDetail(id){
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
-    +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':''):'')
+    +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+(j.service==='Junk Removal'?_renderJunkRemovalPricing(j):'')+(j.service==='Junk Removal'&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
+    +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':'')
     +'</div></div>':'')
     +bin
     +_renderJobPhotosDetail(j)
@@ -7578,6 +7623,28 @@ function toggleJobHistory(jobId){
 }
 
 // ── DRD embedded in Furniture Pickup job detail ──
+function _renderJunkRemovalPricing(j){
+  var quoted=j.quotedAmount;
+  var actual=j.price;
+  var hasQuoted=quoted!==''&&quoted!=null;
+  var hasActual=actual!==''&&actual!=null;
+  if(!hasQuoted&&!hasActual) return '';
+  var html='';
+  if(hasQuoted) html+='<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:var(--muted)">'+fm(quoted)+'</span></div>';
+  if(hasActual){
+    var delta='';
+    if(hasQuoted){
+      var d=parseFloat(actual)-parseFloat(quoted);
+      if(Math.abs(d)>0.005){
+        var s=d>0?'+':'−';
+        var c=d>0?'#22c55e':'#dc3545';
+        delta=' <span style="font-size:11px;font-weight:700;color:'+c+'">('+s+'$'+Math.abs(d).toFixed(2)+')</span>';
+      }
+    }
+    html+='<div class="detail-item"><label>💵 Actual Paid</label><span style="font-weight:700;color:#22c55e">'+fm(actual)+delta+'</span></div>';
+  }
+  return html;
+}
 function _parseDrdData(j){
   // Try to parse DRD data from items field
   try{
@@ -7991,6 +8058,10 @@ function convertQuoteToJob(quoteId){
   document.getElementById('f-paid').value=q.paid||'Unpaid';
   document.getElementById('f-paymethod').value=q.payMethod||'';
   document.getElementById('f-referral').value=q.referral||'';
+  // Carry quote amount → both Quoted and Actual fields on the new Junk Removal
+  var fjqConv=document.getElementById('f-junk-quoted');if(fjqConv)fjqConv.value=q.price||'';
+  var fjaConv=document.getElementById('f-junk-actual');if(fjaConv)fjaConv.value=q.price||'';
+  var fedConv=document.getElementById('f-est-duration');if(fedConv)fedConv.value='';
   document.getElementById('f-notes').value=(q.notes?'Converted from quote '+quoteId+'.\n'+q.notes:'Converted from quote '+quoteId+'.');
   document.getElementById('f-client-select').value=q.clientId||'';
   document.getElementById('f-client-search').value='';
@@ -10474,7 +10545,10 @@ async function printJunkRemoval(jobId) {
     dt(_fmtTime(j.junkTime || j.time), 478, 192);     // Junk Removal Time
 
     // Line total at top of quoted price row
-    var price = parseFloat(j.price) || 0;
+    // For Junk Removal, prefer the quoted amount (printed form is the customer-facing quote);
+    // fall back to price for legacy jobs that don't have a separate quoted amount.
+    var priceSource = (j.service==='Junk Removal' && j.quotedAmount!==''&&j.quotedAmount!=null) ? j.quotedAmount : j.price;
+    var price = parseFloat(priceSource) || 0;
     if (price > 0) dt('$' + price.toFixed(2), 525, 296);
 
     // Items list (rows of table)
