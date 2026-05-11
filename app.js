@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '172';
+var APP_VERSION = '173';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -10428,18 +10428,19 @@ var _FORM_ITEM_ROWS = [358, 392, 426, 461, 495, 528];
 
 // Draw items on a page; items is array of strings (descriptions from notes)
 // Pass showUnit=true for FB forms (4 cols), false for Junk Removal (3 cols)
-function _drawItemsOnPage(page, font, H, items, startIdx, yOffset) {
+function _drawItemsOnPage(page, font, H, items, startIdx, yOffset, rows) {
   var black = PDFLib.rgb(0,0,0);
   var drawn = 0;
   var off = yOffset || 0;
-  for (var k = 0; k < _FORM_ITEM_ROWS.length && (startIdx + drawn) < items.length; k++) {
+  var rowYs = rows || _FORM_ITEM_ROWS;
+  for (var k = 0; k < rowYs.length && (startIdx + drawn) < items.length; k++) {
     var desc = items[startIdx + drawn];
     // Truncate long descriptions to fit description column (~270pt wide)
     var maxW = 270;
     while (desc.length > 0 && font.widthOfTextAtSize(desc, 10) > maxW) {
       desc = desc.slice(0, -1);
     }
-    page.drawText(desc, { x: 127, y: H - (_FORM_ITEM_ROWS[k] + off), size: 10, font: font, color: black });
+    page.drawText(desc, { x: 127, y: H - (rowYs[k] + off), size: 10, font: font, color: black });
     drawn++;
   }
   return drawn;
@@ -10576,7 +10577,9 @@ async function _printFbForm(jobId, kind) {
 
     var items = _notesToItems(j.items);
     var itemYOff = isDropOff ? 2 : 0;
-    var printed = _drawItemsOnPage(page, font, H, items, 0, itemYOff);
+    // FB Pickup form has room for one more row at same spacing (528 + 34 = 562)
+    var itemRows = isDropOff ? null : [358, 392, 426, 461, 495, 528, 562];
+    var printed = _drawItemsOnPage(page, font, H, items, 0, itemYOff, itemRows);
     var idx = printed;
     while (idx < items.length) {
       var srcBytes = Uint8Array.from(atob(b64), function(c){return c.charCodeAt(0);});
@@ -10584,7 +10587,7 @@ async function _printFbForm(jobId, kind) {
       var copied = await pdfDoc.copyPages(srcDoc, [0]);
       var newPage = pdfDoc.addPage(copied[0]);
       drawHeader(newPage);
-      idx += _drawItemsOnPage(newPage, font, H, items, idx, itemYOff);
+      idx += _drawItemsOnPage(newPage, font, H, items, idx, itemYOff, itemRows);
     }
 
     var filledBytes = await pdfDoc.save();
