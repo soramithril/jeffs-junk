@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '171';
+var APP_VERSION = '172';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -6270,8 +6270,8 @@ function toggleBin(){
   }
   var drdWrap=document.getElementById('drd-inline-wrap');
   if(drdWrap){
-    drdWrap.style.display=(svc==='Furniture Pickup'||svc==='Furniture Delivery')?'block':'none';
-    if(svc==='Furniture Pickup'||svc==='Furniture Delivery') renderDrdModalGrid();
+    drdWrap.style.display=(svc==='Furniture Pickup')?'block':'none';
+    if(svc==='Furniture Pickup') renderDrdModalGrid();
   }
   if(isBin){
     // Auto-fill drop-off date to today if empty
@@ -6985,22 +6985,21 @@ function openEdit(id){
     var fin2=document.getElementById('f-internal-notes');if(fin2)fin2.value=j.internalNotes||'';
     var drdData=null;
     try{drdData=_parseDrdData(j);}catch(e){console.error('DRD parse error:',e);}
-    if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery') && drdData){
+    if(j.service==='Furniture Pickup' && drdData){
       document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');
       document.getElementById('items-wrap').style.display='block';
     } else {
-      var rawItems=(drdData?'':(j.items||''));
-      var itemLines=rawItems.split(/\r?\n/).filter(function(s){return s.trim().length>0;});
-      document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s.trim());}).join(''):_jobItemRow('');
+      var itemLines=_notesToItems(j.items||'');
+      document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s);}).join(''):_jobItemRow('');
       var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
       document.getElementById('items-wrap').style.display=hasItems?'block':'none';
     }
-    // Show DRD inline for Furniture Pickup
+    // Show DRD inline for Furniture Pickup only
     try{
       var drdWrap=document.getElementById('drd-inline-wrap');
       if(drdWrap){
         _clearDrdModal();
-        if(j.service==='Furniture Pickup'||j.service==='Furniture Delivery'){
+        if(j.service==='Furniture Pickup'){
           drdWrap.style.display='block';
           renderDrdModalGrid();
           if(drdData) _fillDrdModal(drdData);
@@ -7169,7 +7168,7 @@ async function saveJob(e){
     referral:  referral || (editId ? (jobs.find(function(j){return j.id===editId;})||{}).referral || '' : ''),
     notes:     document.getElementById('f-notes').value.trim(),
     internalNotes: (document.getElementById('f-internal-notes')||{value:''}).value.trim(),
-    items:     (svc==='Furniture Pickup'||svc==='Furniture Delivery') ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
+    items:     (svc==='Furniture Pickup') ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
     businessName: document.getElementById('f-business-name').value.trim(),
     fbDate: document.getElementById('f-fb-date').value,
@@ -7463,7 +7462,7 @@ async function openDetail(id){
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
     +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+j.internalNotes+'</p></div>':'')
     +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:#e67e22">'+j.toolsNeeded+'</p></div>':'')
-    +(j.service==='Furniture Pickup'||j.service==='Furniture Delivery'?'<div id="drd-detail-section"></div>':'')
+    +(j.service==='Furniture Pickup'?'<div id="drd-detail-section"></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
       +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:#e67e22;font-weight:600">'+j.editedBy+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
@@ -7528,8 +7527,8 @@ async function openDetail(id){
 
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
-  // Render embedded DRD form for Furniture Pickup and Delivery jobs
-  if(j.service==='Furniture Pickup'||j.service==='Furniture Delivery'){
+  // Render embedded DRD form for Furniture Pickup only
+  if(j.service==='Furniture Pickup'){
     setTimeout(function(){ renderDrdInDetail(j); },50);
   }
 }
