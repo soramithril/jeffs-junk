@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '176';
+var APP_VERSION = '177';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2431,7 +2431,10 @@ async function refreshDashJobs(){
         var _cc = _cityColor(j.city);
         var cityChip = (j.city && _cc) ? '<span style="background:'+_cc.bg+';color:'+_cc.fg+';border:1px solid '+_cc.bd+';border-left:3px solid '+_cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;box-sizing:border-box">'+j.city+'</span>' : '';
         var nameAddrTitle = (j.name + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
-        var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden"><span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
+        var rgbCsvW = _hexOrRgbToRgbCsv(color) || '34,197,94';
+        var durStrW = (j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
+        var durChipW = durStrW ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsvW+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStrW+'</span>' : '';
+        var nameAddrCell = '<div title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChipW+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var actionBtn='';
         if(j.service==='Bin Rental'&&isPickup&&j.binInstatus==='pickedup'){
           actionBtn='<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#4ade80;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.45);border-radius:6px;padding:5px 12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Click to undo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Picked Up</button>';
