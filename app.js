@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '175';
+var APP_VERSION = '176';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7501,6 +7501,7 @@ async function openDetail(id){
     +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+(j.service==='Junk Removal'?_renderJunkRemovalPricing(j):'')+(j.service==='Junk Removal'&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
     +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':'')
     +'</div></div>':'')
+    +_renderItemsDetail(j)
     +bin
     +_renderJobPhotosDetail(j)
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
@@ -7623,6 +7624,16 @@ function toggleJobHistory(jobId){
 }
 
 // ── DRD embedded in Furniture Pickup job detail ──
+function _renderItemsDetail(j){
+  if(j.service!=='Furniture Delivery' && j.service!=='Junk Removal') return '';
+  var lines=_notesToItems(j.items);
+  if(!lines.length) return '';
+  var color=j.service==='Furniture Delivery'?'#f97316':'#eab308';
+  return '<div class="detail-section"><div class="detail-section-title" style="color:'+color+'">📦 Items <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px;color:var(--muted)">'+lines.length+'</span></div>'
+    +'<ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.7">'
+    +lines.map(function(s){return '<li>'+s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</li>';}).join('')
+    +'</ul></div>';
+}
 function _renderJunkRemovalPricing(j){
   var quoted=j.quotedAmount;
   var actual=j.price;
