@@ -866,6 +866,19 @@ input[type=date],input[type=time]{position:relative;}
   /* Detail modal action grid: stack buttons */
   .det-btn-grid{grid-template-columns:1fr!important;}
   .det-btn-grid .btn{min-height:44px;}
+  /* Today's Jobs rows: 2-row card layout on phones (avatars + name on top,
+     time/city/actions on bottom). Overrides the desktop inline grid columns. */
+  .today-job-row{
+    grid-template-columns:auto minmax(0,1fr) auto!important;
+    grid-template-areas:"avatars name name" "time city actions"!important;
+    gap:4px 8px!important;
+    padding:10px 12px!important;
+  }
+  .today-job-row .tjr-avatars{grid-area:avatars;}
+  .today-job-row .tjr-time{grid-area:time;}
+  .today-job-row .tjr-name{grid-area:name;white-space:normal!important;overflow:visible!important;}
+  .today-job-row .tjr-city{grid-area:city;}
+  .today-job-row .tjr-actions{grid-area:actions;flex-wrap:wrap;justify-content:flex-end;}
 }
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr!important;}
