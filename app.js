@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '183';
+var APP_VERSION = '184';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -6572,9 +6572,8 @@ function _renderJobPhotosDetail(j){
       + '<img src="'+thumb+'" alt="" loading="lazy">'
       + '</div>';
   }).join('');
-  var addBtn = '<label class="btn btn-blue-solid btn-sm" style="margin-left:auto">'
-    + '<input type="file" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
-    + '<span>📷 Add Photos</span></label>';
+  var addBtn = '<input type="file" id="photo-input-'+j.id+'" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
+    + '<button type="button" class="btn btn-blue-solid btn-sm" style="margin-left:auto" onclick="document.getElementById(\'photo-input-'+j.id+'\').click()">📷 Add Photos</button>';
   return '<div class="detail-section" id="detail-photos-'+j.id+'">'
     + '<div class="detail-section-title" style="display:flex;align-items:center">📷 Photos ('+photos.length+')'+addBtn+'</div>'
     + '<div class="photo-thumb-grid" id="detail-photos-grid-'+j.id+'">'+thumbs+'</div>'
