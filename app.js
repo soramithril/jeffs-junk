@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '185';
+var APP_VERSION = '186';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -4544,19 +4544,9 @@ async function openClientDetail(cid){
     if (r.error||!r.data) return;
     cl = dbToClient(r.data); clients.push(cl);
   }
-  // Fetch jobs for this client — by client_cid first, then also by name match for old records
-  var [rjCid, rjName] = await Promise.all([
-    db.from('jobs').select('*').eq('client_cid', cid).order('date',{ascending:false}),
-    db.from('jobs').select('*').ilike('name', cl.name).order('date',{ascending:false})
-  ]);
-  var seenIds = {};
-  var clientJobs = [];
-  [(rjCid.data||[]), (rjName.data||[])].forEach(function(arr){
-    arr.map(dbToJob).forEach(function(j){
-      if(!seenIds[j.id]){ seenIds[j.id]=true; clientJobs.push(j); }
-    });
-  });
-  clientJobs.sort(function(a,b){return b.date.localeCompare(a.date);});
+  // Fetch jobs strictly by client_cid — every job is linked, no name-fallback needed
+  var rjCid = await db.from('jobs').select('*').eq('client_cid', cid).order('date',{ascending:false});
+  var clientJobs = (rjCid.data||[]).map(dbToJob);
   clientJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
   var bins = clientJobs.filter(function(j){return j.service==='Bin Rental';}).length;
@@ -9217,11 +9207,15 @@ function doMergeClients() {
   });
 
   // ── Update ALL jobs in Supabase (local array is incomplete) ──
+  // After jobs are re-linked, delete the secondary client so it doesn't reappear on refresh
   db.from('jobs').update({ client_cid: pid, name: pc.name, phone: pc.phone }).eq('client_cid', sid).then(function(r){
     if (r.error) console.warn('Merge jobs update error:', r.error.message);
+    db.from('clients').delete().eq('cid', sid).then(function(d){
+      if (d.error) console.warn('Merge secondary delete error:', d.error.message);
+    });
   });
 
-  // ── Remove secondary client ──
+  // ── Remove secondary client from local cache ──
   clients = clients.filter(function(c){return c.cid !== sid;});
 
   _clientStatsCache = null;
