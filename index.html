@@ -149,16 +149,16 @@
         <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#22c55e;-webkit-text-stroke:0.5px #15803d" id="s-bins-in">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Yard</span></div>
         <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:var(--text)" id="s-bins-total">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</span></div>
       </div>
-      <div style="flex:0 1 220px;display:flex;align-items:center;gap:8px;min-width:140px;">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;">
         <div style="flex:1;height:6px;background:rgba(0,0,0,0.07);border-radius:3px"><div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#dc3545,#f97316);border-radius:3px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
         <span id="s-bins-pct-lbl" style="font-size:10px;color:var(--muted);white-space:nowrap">0% deployed</span>
       </div>
-      <div id="global-search-wrap" style="flex:1;position:relative;min-width:180px;max-width:380px;">
-        <input id="global-search-input" type="text" placeholder="🔍 Search jobs or clients…" autocomplete="off" oninput="globalSearchDebounce(this.value)" onfocus="if(this.value.length>=2)globalSearchLive(this.value)" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('global-search-results').style.display='none';this.blur();}" style="width:100%;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:1000;"></div>
-      </div>
     </div>
     <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
+    <div id="global-search-wrap" style="position:relative;flex:0 0 280px;min-width:200px;max-width:380px;margin-left:auto;">
+      <input id="global-search-input" type="text" placeholder="🔍 Search jobs or clients…" autocomplete="off" oninput="globalSearchDebounce(this.value)" onfocus="if(this.value.length>=2)globalSearchLive(this.value)" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('global-search-results').style.display='none';this.blur();}" style="width:100%;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:1000;"></div>
+    </div>
   </div>
 
   <!-- VEHICLE STATUS STRIP + DATE PICKER -->
@@ -2035,7 +2035,7 @@
 <script src="app-analytics.js?v=171"></script>
 <script src="app-utilization.js?v=171"></script>
 <script src="app-advisor.js?v=171"></script>
-<script src="app.js?v=186"></script>
+<script src="app.js?v=187"></script>
 </body>
 </html>
                                                                                                                                                          
