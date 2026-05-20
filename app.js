@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '182';
+var APP_VERSION = '183';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -701,9 +701,10 @@ function populateReferralDropdowns(){
 async function addReferralSource(selectId){
   var name=prompt('Enter new referral source name:');
   if(!name||!name.trim())return document.getElementById(selectId).value='';
-  name=name.trim();
-  if(referralSources.indexOf(name)>=0){
-    document.getElementById(selectId).value=name;return;
+  name=name.trim().toLowerCase().replace(/\b\w/g,function(c){return c.toUpperCase();});
+  var existing=referralSources.find(function(s){return s.toLowerCase()===name.toLowerCase();});
+  if(existing){
+    document.getElementById(selectId).value=existing;return;
   }
   var res=await db.from('referral_sources').insert({name:name});
   if(res.error){toast('Error saving referral source: '+res.error.message,'error');document.getElementById(selectId).value='';return;}
