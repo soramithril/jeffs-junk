@@ -1584,10 +1584,8 @@
         <label>📷 Photos</label>
         <div class="photo-section">
           <div id="f-photos-grid" class="photo-thumb-grid"></div>
-          <label class="photo-add-btn">
-            <input type="file" id="f-photo-input" accept="image/*" multiple style="display:none" onchange="_addPhotosFromInput(this)">
-            <span>📷 Add Photos</span>
-          </label>
+          <input type="file" id="f-photo-input" accept="image/*" multiple style="display:none" onchange="_addPhotosFromInput(this)">
+          <button type="button" class="btn btn-blue-solid btn-sm" onclick="document.getElementById('f-photo-input').click()">📷 Add Photos</button>
         </div>
       </div>
       <div class="form-group full"><label>Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
@@ -2037,7 +2035,7 @@
 <script src="app-analytics.js?v=171"></script>
 <script src="app-utilization.js?v=171"></script>
 <script src="app-advisor.js?v=171"></script>
-<script src="app.js?v=184"></script>
+<script src="app.js?v=185"></script>
 </body>
 </html>
                                                                                                                                                          
