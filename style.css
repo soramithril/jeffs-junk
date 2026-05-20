@@ -1475,21 +1475,6 @@ input[type=date],input[type=time]{position:relative;}
   padding:0;
 }
 .photo-thumb-remove:hover{ background:rgba(220,53,69,.9); }
-.photo-add-btn{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:8px 14px;
-  border-radius:8px;
-  background:rgba(13,110,253,.12);
-  color:#0d6efd;
-  border:1px solid rgba(13,110,253,.4);
-  font-size:13px;
-  font-weight:600;
-  cursor:pointer;
-  user-select:none;
-}
-.photo-add-btn:hover{ background:rgba(13,110,253,.2); }
 
 #photo-lightbox-modal{ background:rgba(0,0,0,.92); z-index:9999; }
 .photo-lightbox-content{

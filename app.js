@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '180';
+var APP_VERSION = '181';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -4559,7 +4559,7 @@ function renderClientQuoteHistory(cid){
             +'<td>'+escHtml(q.service||'—')+'</td>'
             +'<td>'+escHtml(q.subject||'—')+'</td>'
             +'<td>'+escHtml(q.to_email||'—')+'</td>'
-            +'<td style="text-align:right"><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">🗑️</button></td>'
+            +'<td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">🗑️</button></td>'
             +'</tr>'
             +'<tr id="qbody-'+q.id+'" style="display:none"><td colspan="6" style="background:rgba(0,0,0,.15);padding:12px 16px"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;margin:0;color:var(--text)">'+escHtml(q.body||'')+'</pre></td></tr>';
         }).join('')
@@ -6490,7 +6490,7 @@ function _renderJobPhotosDetail(j){
       + '<img src="'+thumb+'" alt="" loading="lazy">'
       + '</div>';
   }).join('');
-  var addBtn = '<label class="photo-add-btn" style="margin-left:auto">'
+  var addBtn = '<label class="btn btn-blue-solid btn-sm" style="margin-left:auto">'
     + '<input type="file" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
     + '<span>📷 Add Photos</span></label>';
   return '<div class="detail-section" id="detail-photos-'+j.id+'">'
