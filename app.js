@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '181';
+var APP_VERSION = '182';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3960,7 +3960,7 @@ async function clientSearchLive(q){
   box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
   try{
     var r=await db.from('clients').select(CLIENT_LIST_COLS)
-      .or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%')
+      .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%')
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Search error: '+r.error.message+'</div>';return;}
     if(!r.data||!r.data.length){box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found for "'+q+'"</div>';return;}
@@ -3968,11 +3968,92 @@ async function clientSearchLive(q){
       var ph=c.phone||(c.phones&&c.phones[0]?(c.phones[0].num||c.phones[0]):'');
       return '<div onclick="selectClientResult(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
         +'<strong>'+c.name+'</strong>'+(ph?' <span style="color:var(--muted)">· '+ph+'</span>':'')
+        +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+c.business_name+'</span>':'')
         +(c.city?' <span style="color:var(--muted);font-size:11px">· '+c.city+'</span>':'')+'</div>';
     }).join('');
     r.data.forEach(function(c){var cl=dbToClient(c);var idx=clients.findIndex(function(x){return x.cid===cl.cid;});if(idx>=0)clients[idx]=cl;else clients.push(cl);});
   }catch(ex){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Error: '+ex.message+'</div>';}
 }
+
+// ─── GLOBAL SEARCH (dashboard top bar) ───
+var _globalSearchTimer = null;
+function globalSearchDebounce(q){
+  clearTimeout(_globalSearchTimer);
+  _globalSearchTimer = setTimeout(function(){ globalSearchLive(q); }, 220);
+}
+async function globalSearchLive(q){
+  var box = document.getElementById('global-search-results');
+  if(!box) return;
+  q = (q||'').trim();
+  if(q.length < 2){ box.style.display='none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching…</div>';
+  try {
+    var clientsP = db.from('clients').select('cid,name,business_name,phone,city')
+      .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,email.ilike.%'+q+'%')
+      .order('name').limit(6);
+    var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid')
+      .or('job_id.ilike.%'+q+'%,name.ilike.%'+q+'%,business_name.ilike.%'+q+'%')
+      .order('date',{ascending:false}).limit(6);
+    var results = await Promise.all([clientsP, jobsP]);
+    var cs = (results[0].data||[]);
+    var js = (results[1].data||[]);
+    if(!cs.length && !js.length){
+      box.innerHTML = '<div style="padding:12px 14px;color:var(--muted);font-size:13px">No matches for "'+escHtml(q)+'"</div>';
+      return;
+    }
+    var html = '';
+    if(cs.length){
+      html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Clients</div>';
+      html += cs.map(function(c){
+        var ph = c.phone || '';
+        return '<div onclick="_openClientFromGlobalSearch(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+          +'<strong>'+escHtml(c.name||'—')+'</strong>'
+          +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
+          +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
+          +(c.city?' <span style="color:var(--muted);font-size:11px">· '+escHtml(c.city)+'</span>':'')
+          +'</div>';
+      }).join('');
+    }
+    if(js.length){
+      html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Jobs</div>';
+      html += js.map(function(j){
+        return '<div onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+          +jid(j.job_id, j.service)
+          +' <strong style="margin-left:6px">'+escHtml(j.name||'—')+'</strong>'
+          +(j.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(j.business_name)+'</span>':'')
+          +' <span style="color:var(--muted);font-size:11px">· '+escHtml(j.service||'')+'</span>'
+          +(j.date?' <span style="color:var(--muted);font-size:11px">· '+fd(j.date)+'</span>':'')
+          +'</div>';
+      }).join('');
+    }
+    box.innerHTML = html;
+  } catch(ex){
+    box.innerHTML = '<div style="padding:10px 14px;color:#dc3545;font-size:13px">Error: '+escHtml(ex.message)+'</div>';
+  }
+}
+function _openClientFromGlobalSearch(cid){
+  var box=document.getElementById('global-search-results');
+  if(box) box.style.display='none';
+  var input=document.getElementById('global-search-input');
+  if(input) input.value='';
+  openClientDetail(cid);
+}
+function _openJobFromGlobalSearch(jobId){
+  var box=document.getElementById('global-search-results');
+  if(box) box.style.display='none';
+  var input=document.getElementById('global-search-input');
+  if(input) input.value='';
+  openDetail(jobId);
+}
+document.addEventListener('click', function(e){
+  var wrap=document.getElementById('global-search-wrap');
+  if(!wrap) return;
+  if(!wrap.contains(e.target)){
+    var box=document.getElementById('global-search-results');
+    if(box) box.style.display='none';
+  }
+});
 
 function selectClientResult(cid){
   var cl=clients.find(function(c){return c.cid===cid;});
@@ -4265,7 +4346,7 @@ async function loadClientsPage() {
     if(q) {
       // Search: single query, no batching (avoids running the same search N times)
       var cqSearch = db.from('clients').select(CLIENT_LIST_COLS).order('name',{ascending:true})
-        .or('name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%,email.ilike.%'+q+'%,address.ilike.%'+q+'%');
+        .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%,email.ilike.%'+q+'%,address.ilike.%'+q+'%');
       var rSearch = await cqSearch;
       allClientRows = rSearch.data || [];
     } else {
