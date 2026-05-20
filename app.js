@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '179';
+var APP_VERSION = '180';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1169,6 +1169,12 @@ async function loadAllFromSupabase() {
         });
       }
     } catch(e){ console.warn('Email presets load error:',e); }
+
+    // Load quote correspondence (emails sent from the app) so client profiles show history
+    try {
+      var rQuotes = await db.from('quote_correspondence').select('*').order('sent_at',{ascending:false});
+      if(!rQuotes.error && rQuotes.data) quoteCorrespondence = rQuotes.data;
+    } catch(e){ console.warn('Quote correspondence load error:',e); }
 
     // Load referral sources from Supabase
     try {
@@ -4523,6 +4529,7 @@ async function openClientDetail(cid){
     +'</div>'
     +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Bin Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
+    +renderClientQuoteHistory(cl.cid)
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
     +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+cl.internalNotes+'</p></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
@@ -4531,6 +4538,50 @@ async function openClientDetail(cid){
     +'<button class="btn btn-danger" onclick="delClient(\''+cl.cid+'\')">🗑️ Delete</button>'
     +'</div>';
   document.getElementById('client-detail-modal').classList.add('open');
+}
+
+// ─── CLIENT QUOTE HISTORY ───
+function renderClientQuoteHistory(cid){
+  var quotes = (quoteCorrespondence||[]).filter(function(q){return q.client_id===cid;})
+    .sort(function(a,b){return (b.sent_at||'').localeCompare(a.sent_at||'');});
+  var rows;
+  if(!quotes.length){
+    rows = '<p style="font-size:13px;color:var(--muted);margin:0">No emailed quotes yet — quotes sent from the app will appear here.</p>';
+  } else {
+    rows = '<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Sent by</th><th>Service</th><th>Subject</th><th>To</th><th></th></tr></thead><tbody>'
+      + quotes.map(function(q){
+          var d = (q.sent_at||'').slice(0,10);
+          var dateStr = d ? fd(d) : '—';
+          var timeStr = (q.sent_at||'').length>=16 ? ft(q.sent_at.slice(11,16)) : '';
+          return '<tr style="cursor:pointer" onclick="toggleQuoteBody(\''+q.id+'\')">'
+            +'<td>'+dateStr+(timeStr?'<div style="font-size:11px;color:var(--muted)">'+timeStr+'</div>':'')+'</td>'
+            +'<td>'+escHtml(q.sent_by||'—')+'</td>'
+            +'<td>'+escHtml(q.service||'—')+'</td>'
+            +'<td>'+escHtml(q.subject||'—')+'</td>'
+            +'<td>'+escHtml(q.to_email||'—')+'</td>'
+            +'<td style="text-align:right"><button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">🗑️</button></td>'
+            +'</tr>'
+            +'<tr id="qbody-'+q.id+'" style="display:none"><td colspan="6" style="background:rgba(0,0,0,.15);padding:12px 16px"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;margin:0;color:var(--text)">'+escHtml(q.body||'')+'</pre></td></tr>';
+        }).join('')
+      + '</tbody></table></div>';
+  }
+  return '<div class="detail-section"><div class="detail-section-title">📧 Quote History</div>'+rows+'</div>';
+}
+
+function toggleQuoteBody(id){
+  var row = document.getElementById('qbody-'+id);
+  if(!row) return;
+  row.style.display = row.style.display==='none' ? 'table-row' : 'none';
+}
+
+function deleteQuoteRecord(id, cid){
+  if(!confirm('Delete this quote record? The original email in your mail app is not affected.')) return;
+  db.from('quote_correspondence').delete().eq('id', id).then(function(r){
+    if(r.error){ toast('Delete failed: '+r.error.message,'error'); return; }
+    quoteCorrespondence = quoteCorrespondence.filter(function(q){return q.id!==id;});
+    if(cid) openClientDetail(cid);
+    toast('Quote record deleted.');
+  });
 }
 
 
@@ -8634,6 +8685,7 @@ function resetInactivityTimer() {
 // ═══════════════════════════════════════
 var emailJobId = null;
 var emailPresets = {};
+var quoteCorrespondence = [];
 
 var defaultPresets = {
   bin_dropoff: {
@@ -8724,11 +8776,28 @@ function sendEmail() {
   if (!emailRegex.test(to)) { showErr('email-to'); document.getElementById('err-email-to').textContent='That doesn\'t look like a valid email address (e.g. name@example.com).'; return; }
   var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.open(mailto, '_blank');
+  var clientIdForRecord = null, serviceForRecord = null;
   if (emailJobId) {
+    jobs.forEach(function(j){if(j.id===emailJobId){clientIdForRecord=j.clientId||null;serviceForRecord=j.service||null;}});
     jobs.forEach(function(j){if(j.id===emailJobId){j.emailSent=true;j.emailConfirmed=true;}});
     patchJob(emailJobId,{emailSent:true,emailConfirmed:true});
     document.getElementById('email-sent-note').style.display = 'block';
     toast('Email client opened & marked as sent!');
+  }
+  if (clientIdForRecord) {
+    var sentBy = (currentUser && currentUser.displayName) ? currentUser.displayName : (currentUser && currentUser.email ? currentUser.email : 'unknown');
+    db.from('quote_correspondence').insert({
+      client_id: clientIdForRecord,
+      job_id: emailJobId || null,
+      to_email: to,
+      subject: subject,
+      body: body,
+      service: serviceForRecord,
+      sent_by: sentBy
+    }).select().then(function(r){
+      if(r.error){ console.warn('Quote correspondence save failed:', r.error.message); return; }
+      if(r.data && r.data.length) quoteCorrespondence.unshift(r.data[0]);
+    });
   }
 }
 
