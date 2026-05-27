@@ -6,6 +6,7 @@ var DOCUMENTS = [
   { name: 'Furniture Drop-Off',          file: '2026 FB Drop Off - final draft.pdf' },
   { name: 'Furniture Pick-Up',           file: '2026 FB Pick-up final draft.pdf' },
   { name: 'Junk Removal Agreement',      file: '2026 Junk Removal - final draft.pdf' },
+  { name: 'Junk Quote Form',             file: '2026 Junk Quote - final draft.pdf' },
   { name: 'Donation Receiving Document', file: '2026_DONATION_RECEIVING_DOCUMENT-1.pdf' }
 ];
 function renderDocuments(){
