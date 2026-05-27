@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '188';
+var APP_VERSION = '189';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -8047,12 +8047,15 @@ async function printDrdForJob(jobId){
     // Other items
     var OTHER_NAME_FIELDS=['Untitled130','Untitled131','Untitled132','Untitled133','Untitled134','Untitled135','Untitled136','Untitled137','Untitled138','Untitled139','Untitled140','Untitled141','Untitled142','Untitled143','Untitled144','Untitled145','Untitled146'];
     var OTHER_QTY_FIELDS=['Untitled95','Untitled96','Untitled97','Untitled98','Untitled99','Untitled100','Untitled101','Untitled102','Untitled103','Untitled104','Untitled105','Untitled106','Untitled107','Untitled108','Untitled109','Untitled110','Untitled111'];
+    // Value column numbering runs top→bottom as 129, 128, ..., 113
+    var OTHER_VAL_FIELDS=['Untitled129','Untitled128','Untitled127','Untitled126','Untitled125','Untitled124','Untitled123','Untitled122','Untitled121','Untitled120','Untitled119','Untitled118','Untitled117','Untitled116','Untitled115','Untitled114','Untitled113'];
     var oi=0;
     drdData.otherItems.forEach(function(item){
       if(oi>=OTHER_NAME_FIELDS.length)return;
       if(item.name||item.qty>0){
         setField(OTHER_NAME_FIELDS[oi],item.name);
         if(item.qty>0)setField(OTHER_QTY_FIELDS[oi],String(item.qty));
+        if(item.val>0)setField(OTHER_VAL_FIELDS[oi],item.val.toFixed(2));
         oi++;
       }
     });
@@ -9612,15 +9615,25 @@ async function drdDownloadPDF() {
       'Untitled105','Untitled106','Untitled107','Untitled108','Untitled109',
       'Untitled110','Untitled111'
     ];
+    // Value column numbering runs top→bottom as 129, 128, ..., 113
+    var OTHER_VAL_FIELDS = [
+      'Untitled129','Untitled128','Untitled127','Untitled126','Untitled125',
+      'Untitled124','Untitled123','Untitled122','Untitled121','Untitled120',
+      'Untitled119','Untitled118','Untitled117','Untitled116','Untitled115',
+      'Untitled114','Untitled113'
+    ];
     var otherNames = document.querySelectorAll('#drd-other-rows .drd-other-name');
     var otherQtys  = document.querySelectorAll('#drd-other-rows .drd-other-qty');
+    var otherVals  = document.querySelectorAll('#drd-other-rows .drd-other-val');
     var oi = 0;
     for(var j = 0; j < otherNames.length && oi < OTHER_NAME_FIELDS.length; j++) {
       var oName = otherNames[j].value.trim();
       var oQty  = otherQtys[j] ? (parseInt(otherQtys[j].value) || 0) : 0;
+      var oVal  = otherVals[j] ? (parseFloat(otherVals[j].value) || 0) : 0;
       if(oName || oQty > 0) {
         setField(OTHER_NAME_FIELDS[oi], oName);
         if(oQty > 0) setField(OTHER_QTY_FIELDS[oi], String(oQty));
+        if(oVal > 0) setField(OTHER_VAL_FIELDS[oi], oVal.toFixed(2));
         oi++;
       }
     }
