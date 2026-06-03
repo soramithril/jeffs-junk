@@ -502,8 +502,6 @@ async function renderDispatch(){
             var ft2 = dispatchParseClock(j.binDropoffTime);
             if(clock > ft2 + 5) warns.push('May miss '+ft(j.binDropoffTime)+' drop');
             clock = Math.max(clock, ft2);
-          } else if(j._isPickup && clock < 570){
-            warns.push('Pickup before 9:30am');
           }
           html += dispatchRenderCard(j, clock);
           clock += j._estMinutes;
