@@ -33,26 +33,78 @@ function dispatchEstimateMinutes(job, kind){
   if(kind === 'swap-delivery')       return 2*c + 5;
   return 0;
 }
+var DISPATCH_COMBO_MAX_KM = 15; // pickup→delivery legs farther apart than this aren't worth combining
+function dispatchHaversineKm(a, b){
+  if(!a || !b) return Infinity;
+  var R = 6371, dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
+  var la1 = a.lat*Math.PI/180, la2 = b.lat*Math.PI/180;
+  var h = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function dispatchJobAddrStr(j){
+  var a = (j.address||'').trim();
+  if(!a) return '';
+  return a + ', ' + (j.city||'').trim() + ', ON, Canada';
+}
+// Resolved coordinate for a job: geofence coord (best) else cached geocode of its address.
+function dispatchJobCoord(j){
+  if(j._lat != null && j._lng != null) return {lat:j._lat, lng:j._lng};
+  var addr = dispatchJobAddrStr(j);
+  if(addr && geoCache[addr]) return geoCache[addr];
+  return null;
+}
+// Pair pickups with deliveries by REAL proximity: same property first (on-site swap),
+// then globally nearest under DISPATCH_COMBO_MAX_KM so the best swaps win the match.
 function dispatchFindSwaps(jobsList){
   var pickups = jobsList.filter(function(j){return j._isPickup;});
   var deliveries = jobsList.filter(function(j){return j._isDelivery;});
-  var partner = {};
-  var used = {};
+  var cand = [];
   pickups.forEach(function(p){
-    if(partner[p.id]) return;
-    var pm = dispatchJobMins(p);
-    for(var i=0; i<deliveries.length; i++){
-      var d = deliveries[i];
-      if(used[d.id] || partner[d.id]) continue;
-      if(Math.abs(pm - dispatchJobMins(d)) <= 10){
-        partner[p.id] = d.id;
-        partner[d.id] = p.id;
-        used[d.id] = true;
-        break;
-      }
-    }
+    var pAddr = dispatchJobAddrStr(p), pc = dispatchJobCoord(p);
+    deliveries.forEach(function(d){
+      var dist = (pAddr && pAddr === dispatchJobAddrStr(d)) ? 0 : dispatchHaversineKm(pc, dispatchJobCoord(d));
+      if(dist <= DISPATCH_COMBO_MAX_KM) cand.push({p:p.id, d:d.id, dist:dist});
+    });
+  });
+  cand.sort(function(a,b){return a.dist - b.dist;});
+  var partner = {}, used = {};
+  cand.forEach(function(c){
+    if(used[c.p] || used[c.d]) return;
+    partner[c.p] = c.d; partner[c.d] = c.p;
+    used[c.p] = true; used[c.d] = true;
   });
   return partner;
+}
+// Orders one lane's legs: timed drops first (by time), then drop→pick→drop
+// alternation with combo pickups kept next to their delivery partner.
+// Returns {jobs, warnings}. Soft 9:30 preference is ordering-only (no clock floor).
+function dispatchOrderLaneJobs(jobs){
+  var warnings = [];
+  var fixed = [], drops = [], picks = [];
+  jobs.forEach(function(j){
+    if(j._isDelivery && j.binDropoffTime) fixed.push(j);
+    else if(j._isDelivery) drops.push(j);
+    else picks.push(j);
+  });
+  fixed.sort(function(a,b){ return dispatchParseClock(a.binDropoffTime) - dispatchParseClock(b.binDropoffTime); });
+  for(var i=1;i<fixed.length;i++){
+    if(fixed[i].binDropoffTime === fixed[i-1].binDropoffTime) warnings.push('Two timed drops at '+ft(fixed[i].binDropoffTime));
+  }
+  var byId = {}; jobs.forEach(function(j){ byId[j.id]=j; });
+  var ordered = fixed.slice();
+  var used = {}; ordered.forEach(function(j){ used[j.id]=true; });
+  var di = 0, pi = 0;
+  while(di<drops.length || pi<picks.length){
+    while(di<drops.length && used[drops[di].id]) di++;
+    if(di<drops.length){ ordered.push(drops[di]); used[drops[di].id]=true; di++; }
+    while(pi<picks.length && used[picks[pi].id]) pi++;
+    if(pi<picks.length){
+      var p = picks[pi]; ordered.push(p); used[p.id]=true; pi++;
+      var partner = p._partnerId && byId[p._partnerId];
+      if(partner && !used[partner.id]){ ordered.push(partner); used[partner.id]=true; }
+    }
+  }
+  return {jobs: ordered, warnings: warnings};
 }
 async function dispatchLoadJobs(dateISO){
   var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled')
@@ -107,6 +159,33 @@ async function dispatchFillUnknownDriveTimes(){
     }
     if(anyFilled) renderDispatch();
   } finally { _dispatchOsrmInflight = false; }
+}
+var _dispatchGeoInflight = false;
+// Geocodes addresses that have no coordinate yet (so combo matching can use real
+// distance), one per ~1.2s to respect Nominatim, then re-renders once.
+function dispatchFillMissingCoords(){
+  if(_dispatchGeoInflight) return;
+  var queue = [];
+  _dispatchJobsCache.forEach(function(j){
+    if(dispatchJobCoord(j)) return;
+    var addr = dispatchJobAddrStr(j);
+    if(addr && queue.indexOf(addr) < 0) queue.push(addr);
+  });
+  if(!queue.length) return;
+  _dispatchGeoInflight = true;
+  var i = 0, anyFilled = false;
+  (function next(){
+    if(i >= queue.length){
+      _dispatchGeoInflight = false;
+      if(anyFilled) renderDispatch();
+      return;
+    }
+    geocode(queue[i], function(r){
+      if(r) anyFilled = true;
+      i++;
+      setTimeout(next, 1200);
+    });
+  })();
 }
 function dispatchFmtTotal(mins){
   if(!mins) return '0m';
@@ -252,7 +331,8 @@ function dispatchRenderCard(j, clockStartMins){
   var pinTxt = j._isPickup ? 'P' : 'D';
   var pinBg  = j._isPickup ? 'rgba(13,110,253,.18)' : 'rgba(234,179,8,.18)';
   var pinFg  = j._isPickup ? '#0d6efd' : '#eab308';
-  var swapBadge = j._partnerId ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);padding:1px 5px;border-radius:4px;margin-left:4px">COMBO</span>' : '';
+  var comboCol = j._comboColor || '#22c55e';
+  var swapBadge = j._partnerId ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:'+comboCol+';background:'+comboCol+'22;border:1px solid '+comboCol+'66;padding:1px 5px;border-radius:4px;margin-left:4px">COMBO &#8594; #'+j._partnerId+'</span>' : '';
   var working = dispatchGetWorkingIds();
   var assigned = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
   var optsHtml = '<option value="">— Unassigned</option>';
@@ -270,7 +350,9 @@ function dispatchRenderCard(j, clockStartMins){
     var endMins = clockStartMins + j._estMinutes;
     clockTxt = '<div style="font-size:10px;color:#22c55e;font-weight:700;margin-bottom:4px">'+dispatchFmtClock(clockStartMins)+'–'+dispatchFmtClock(endMins)+'</div>';
   }
-  var card = '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:6px;cursor:grab">';
+  var cardBorder = j._partnerId ? 'border:1px solid '+comboCol+'66;border-left:4px solid '+comboCol : 'border:1px solid var(--border)';
+  var cardBg = j._partnerId ? comboCol+'14' : 'var(--surface)';
+  var card = '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="background:'+cardBg+';'+cardBorder+';border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:6px;cursor:grab">';
   card += clockTxt;
   card += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
   card += '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:'+pinBg+';color:'+pinFg+';font-size:11px;font-weight:700">'+pinTxt+'</span>';
@@ -295,7 +377,10 @@ async function renderDispatch(){
     j._isPickup = (j.binPickup === _dispatchDate);
     j._isDelivery = (j.binDropoff === _dispatchDate && !j._isPickup);
     var g = _dispatchGeofences[j.id];
-    if(g && g.drive_minutes_from_yard != null) j._driveMins = g.drive_minutes_from_yard;
+    if(g){
+      if(g.drive_minutes_from_yard != null) j._driveMins = g.drive_minutes_from_yard;
+      if(g.lat != null && g.lng != null){ j._lat = g.lat; j._lng = g.lng; }
+    }
   });
   var swapPartner = dispatchFindSwaps(todayJobs);
   todayJobs.forEach(function(j){
@@ -304,6 +389,18 @@ async function renderDispatch(){
     j._kind = kind;
     j._partnerId = partnerId || null;
     j._estMinutes = dispatchEstimateMinutes(j, kind);
+  });
+  // Give each combo pair a shared color so the two linked cards are obvious.
+  var comboPalette = ['#22c55e','#0ea5e9','#a855f7','#f97316','#ec4899','#14b8a6','#eab308'];
+  var _ci = 0, _seenPair = {};
+  todayJobs.forEach(function(j){
+    if(j._partnerId && !_seenPair[j.id]){
+      var col = comboPalette[_ci++ % comboPalette.length];
+      j._comboColor = col;
+      var p = todayJobs.find(function(x){return x.id===j._partnerId;});
+      if(p) p._comboColor = col;
+      _seenPair[j.id] = true; _seenPair[j._partnerId] = true;
+    }
   });
   var laneSet = {};
   workingIds.forEach(function(id){ laneSet[id] = true; });
@@ -385,11 +482,23 @@ async function renderDispatch(){
       if(!laneJobs.length){
         html += '<div style="font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic">No jobs assigned. Drag here.</div>';
       } else {
+        var ord = dispatchOrderLaneJobs(laneJobs);
+        var warns = ord.warnings;
         var clock = startMins;
-        laneJobs.forEach(function(j){
+        ord.jobs.forEach(function(j){
+          if(j._isDelivery && j.binDropoffTime){
+            var ft2 = dispatchParseClock(j.binDropoffTime);
+            if(clock > ft2 + 5) warns.push('May miss '+ft(j.binDropoffTime)+' drop');
+            clock = Math.max(clock, ft2);
+          } else if(j._isPickup && clock < 570){
+            warns.push('Pickup before 9:30am');
+          }
           html += dispatchRenderCard(j, clock);
           clock += j._estMinutes;
         });
+        if(warns.length){
+          html += '<div style="margin-top:6px;font-size:11px;color:#d97706;background:#f59e0b18;border:1px solid #f59e0b55;border-radius:6px;padding:4px 8px;line-height:1.4">&#9888; '+warns.join('; ')+'</div>';
+        }
       }
       html += '</div>';
     });
@@ -399,4 +508,5 @@ async function renderDispatch(){
   }
   host.innerHTML = html;
   dispatchFillUnknownDriveTimes();
+  dispatchFillMissingCoords();
 }
