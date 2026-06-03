@@ -75,35 +75,47 @@ function dispatchFindSwaps(jobsList){
   });
   return partner;
 }
-// Orders one lane's legs: timed drops first (by time), then drop→pick→drop
-// alternation with combo pickups kept next to their delivery partner.
-// Returns {jobs, warnings}. Soft 9:30 preference is ordering-only (no clock floor).
+// Reorders a list so every combo pair is back-to-back (pickup immediately
+// followed by its delivery partner); non-combo cards keep their order.
+function dispatchGroupCombos(list){
+  var byId = {}; list.forEach(function(j){ byId[j.id]=j; });
+  var done = {}, out = [];
+  list.forEach(function(j){
+    if(done[j.id]) return;
+    var p = j._partnerId && byId[j._partnerId];
+    if(p && !done[p.id]){
+      var pick = j._isPickup ? j : p, drop = j._isPickup ? p : j;
+      out.push(pick); done[pick.id] = true;
+      out.push(drop); done[drop.id] = true;
+    } else { out.push(j); done[j.id] = true; }
+  });
+  return out;
+}
+// Orders one lane's legs: timed drops first (by time), then combos (kept strictly
+// back-to-back), then loose drops, then loose pickups (soft 9:30 preference).
+// Returns {jobs, warnings}. Nothing is dropped — the final pass catches everything.
 function dispatchOrderLaneJobs(jobs){
   var warnings = [];
-  var fixed = [], drops = [], picks = [];
-  jobs.forEach(function(j){
-    if(j._isDelivery && j.binDropoffTime) fixed.push(j);
-    else if(j._isDelivery) drops.push(j);
-    else picks.push(j);
-  });
-  fixed.sort(function(a,b){ return dispatchParseClock(a.binDropoffTime) - dispatchParseClock(b.binDropoffTime); });
+  var byId = {}; jobs.forEach(function(j){ byId[j.id]=j; });
+  var done = {}, ordered = [];
+  function emit(j){ if(!j || done[j.id]) return; ordered.push(j); done[j.id] = true; }
+  function emitPair(j){
+    if(!j || done[j.id]) return;
+    var p = j._partnerId && byId[j._partnerId];
+    if(p && !done[p.id]){
+      var pick = j._isPickup ? j : p, drop = j._isPickup ? p : j;
+      emit(pick); emit(drop);
+    } else emit(j);
+  }
+  var fixed = jobs.filter(function(j){ return j._isDelivery && j.binDropoffTime; })
+    .sort(function(a,b){ return dispatchParseClock(a.binDropoffTime) - dispatchParseClock(b.binDropoffTime); });
   for(var i=1;i<fixed.length;i++){
     if(fixed[i].binDropoffTime === fixed[i-1].binDropoffTime) warnings.push('Two timed drops at '+ft(fixed[i].binDropoffTime));
   }
-  var byId = {}; jobs.forEach(function(j){ byId[j.id]=j; });
-  var ordered = fixed.slice();
-  var used = {}; ordered.forEach(function(j){ used[j.id]=true; });
-  var di = 0, pi = 0;
-  while(di<drops.length || pi<picks.length){
-    while(di<drops.length && used[drops[di].id]) di++;
-    if(di<drops.length){ ordered.push(drops[di]); used[drops[di].id]=true; di++; }
-    while(pi<picks.length && used[picks[pi].id]) pi++;
-    if(pi<picks.length){
-      var p = picks[pi]; ordered.push(p); used[p.id]=true; pi++;
-      var partner = p._partnerId && byId[p._partnerId];
-      if(partner && !used[partner.id]){ ordered.push(partner); used[partner.id]=true; }
-    }
-  }
+  fixed.forEach(emitPair);                                                  // 1. timed drops first (+ partners)
+  jobs.forEach(function(j){ if(!done[j.id] && j._partnerId) emitPair(j); }); // 2. remaining combos, back-to-back
+  jobs.forEach(function(j){ if(!done[j.id] && j._isDelivery) emit(j); });    // 3. loose drops
+  jobs.forEach(function(j){ if(!done[j.id]) emit(j); });                     // 4. loose pickups last
   return {jobs: ordered, warnings: warnings};
 }
 async function dispatchLoadJobs(dateISO){
@@ -459,7 +471,7 @@ async function renderDispatch(){
     html += '<div style="font-size:13px;color:var(--muted);font-style:italic">No unassigned jobs. Drag a card here to unassign.</div>';
   } else {
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
-    unassigned.forEach(function(j){ html += dispatchRenderCard(j); });
+    dispatchGroupCombos(unassigned).forEach(function(j){ html += dispatchRenderCard(j); });
     html += '</div>';
   }
   html += '</div>';
