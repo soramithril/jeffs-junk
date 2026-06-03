@@ -1626,6 +1626,12 @@
         <div class="form-group"><label>Type</label><select id="bi-type"><option value="regular">Regular</option><option value="low">Low-Wide</option></select></div>
         <div class="form-group"><label>Size</label><select id="bi-size"><option value="4 yard">4 Yard</option><option value="7 yard">7 Yard</option><option value="14 yard">14 Yard</option><option value="20 yard">20 Yard</option></select></div>
         <div class="form-group"><label>Colour</label><select id="bi-color"><option value="green">🟢 Green</option><option value="black">⚫ Black</option></select></div>
+        <div class="form-group full" style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:8px 12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#f59e0b">
+            <input type="checkbox" id="bi-show" style="width:15px;height:15px;accent-color:#f59e0b">
+            ⭐ Show / Display Bin — cleanest bins, use for trade shows
+          </label>
+        </div>
         <div class="form-group"><label>Condition</label><select id="bi-dmg"><option value="good">✅ No Damage</option><option value="damage">⚠️ Has Damage</option></select></div>
         <div class="form-group"><label>Status</label><select id="bi-status"><option value="in">In Yard</option><option value="out">Out on Job</option></select></div>
         <div class="form-group"><label>Rotation</label><select id="bi-oor"><option value="active">✅ In Rotation</option><option value="oor">⛔ Out of Rotation</option></select></div>
@@ -1634,6 +1640,29 @@
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" onclick="closeM('bin-modal')">Cancel</button>
         <button type="submit" class="btn btn-primary" id="bin-save-btn">Add Bin</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════ RELOCATE BIN MODAL ═══════════ -->
+<div class="modal-overlay" id="relocate-modal">
+  <div class="modal" style="width:460px">
+    <div class="modal-header">
+      <div class="modal-title">🚚 Relocate Bin</div>
+      <button class="modal-close" onclick="closeM('relocate-modal')">&#x2715;</button>
+    </div>
+    <form onsubmit="saveRelocate(event)" novalidate>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Move this bin to a new location. Set the new address, the date it gets moved, and the new pickup date.</div>
+      <div class="form-grid">
+        <div class="form-group full"><label>New Address</label><input id="reloc-addr" type="text" placeholder="Street address" autocomplete="off"></div>
+        <div class="form-group full"><label>City</label><input id="reloc-city" type="text" placeholder="City"></div>
+        <div class="form-group"><label>Move / Drop-off Date</label><input id="reloc-move-date" type="date"></div>
+        <div class="form-group"><label>New Pickup Date</label><input id="reloc-pickup-date" type="date"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeM('relocate-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Relocate</button>
       </div>
     </form>
   </div>
@@ -1848,6 +1877,23 @@
   </div>
 </div>
 
+<!-- ═══════════ CLIENT INTERNAL NOTES POPUP ═══════════ -->
+<div class="modal-overlay" id="client-notes-modal">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <div class="modal-title" style="color:#eab308">🔒 Internal Notes</div>
+      <button class="modal-close" onclick="closeM('client-notes-modal')">&#x2715;</button>
+    </div>
+    <div style="padding:4px 2px 8px">
+      <div id="client-notes-name" style="font-weight:700;font-size:14px;margin-bottom:10px"></div>
+      <div id="client-notes-body" style="font-size:14px;line-height:1.6;white-space:pre-wrap;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:12px 14px"></div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" onclick="closeM('client-notes-modal')">Got it</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ CLIENT DETAIL MODAL ═══════════ -->
 <div class="modal-overlay fullpage" id="client-detail-modal">
   <div class="modal">
@@ -2035,7 +2081,7 @@
 <script src="app-analytics.js?v=171"></script>
 <script src="app-utilization.js?v=171"></script>
 <script src="app-advisor.js?v=171"></script>
-<script src="app.js?v=189"></script>
+<script src="app.js?v=190"></script>
 </body>
 </html>
                                                                                                                                                          

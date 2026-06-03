@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '189';
+var APP_VERSION = '190';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -610,7 +610,7 @@ var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,addres
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
-var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,created_at,blacklisted';
+var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,internal_notes,created_at,blacklisted';
 
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
@@ -931,7 +931,8 @@ function saveBins() {
       color: bin.color || 'green',
       damage: bin.damage || 'good',
       status: bin.status || 'in',
-      notes: bin.notes || ''
+      notes: bin.notes || '',
+      show_bin: bin.show_bin || false
     };
     db.from('bin_items').upsert(row, {onConflict:'bid'}).then(function(r){
       if (r.error) {
@@ -4068,6 +4069,14 @@ function selectClientResult(cid){
   if(badge){badge.style.display='flex';}
   if(nm){nm.textContent='✅ '+cl.name+(cl.phone?' · '+cl.phone:'');}
   fillClientFromSelect(cid);
+  showClientNotesPopup(cl);
+}
+
+function showClientNotesPopup(cl){
+  if(!cl||!cl.internalNotes||!cl.internalNotes.trim())return;
+  document.getElementById('client-notes-name').textContent=cl.name||'';
+  document.getElementById('client-notes-body').textContent=cl.internalNotes;
+  document.getElementById('client-notes-modal').classList.add('open');
 }
 
 function clearClientSelection(){
@@ -5474,6 +5483,7 @@ function makeBinRow(b){
   var togLbl=b.status==='in'?'<span class="sdot"></span>In Yard':'<span class="sdot"></span>Out';
   var dmg=b.damage==='damage'?'<span class="dmg-flag">⚠ Dmg</span>':'<span class="dmg-ok">—</span>';
   var oorFlag=b.damage==='oor'?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">⛔ OOR</span>':'';
+  var showFlag=b.show_bin?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap" title="Show / display bin — use for trade shows">⭐ Show</span>':'';
   var rowCls=b.damage==='oor'?' class="row-damaged"':b.damage==='damage'?' class="row-damaged"':'';
   // Show current job/location for bins marked 'out'
   var locationCell='<td style="font-size:11px;max-width:150px"></td>';
@@ -5485,7 +5495,7 @@ function makeBinRow(b){
       locationCell='<td style="font-size:11px"><span style="color:#e67e22">⚠ Not linked</span> <button class="ra-btn" style="font-size:10px;padding:2px 6px;color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')">🔗 Link</button></td>';
     }
   }
-  return '<tr'+rowCls+'><td><span class="bnum '+numCls+'" style="cursor:pointer" onclick="event.stopPropagation();openBinHistory(\''+b.bid+'\')">'+b.num+'</span></td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
+  return '<tr'+rowCls+'><td><span class="bnum '+numCls+'" style="cursor:pointer" onclick="event.stopPropagation();openBinHistory(\''+b.bid+'\')">'+b.num+'</span>'+(showFlag?' '+showFlag:'')+'</td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
     +locationCell
     +'<td>'+dmg+(oorFlag?' '+oorFlag:'')+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
@@ -5753,7 +5763,7 @@ function openLinkBinFromJob(jobId){
       ?'background:var(--surface);border:2px solid rgba(255,255,255,.1)'
       :'background:var(--surface2);border:2px solid rgba(220,53,69,.25);opacity:.85';
     return '<div style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;'+cardStyle+'" onclick="'+clickHandler+'">'
-      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+'</div>'
+      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+col+';margin-top:2px">'+b.size+'</div>'
       +'<div style="font-size:10px;color:'+statusCol+';margin-top:2px">'+statusLbl+'</div>'
@@ -6174,6 +6184,7 @@ function openAddBin(){
   editBinId=null;document.getElementById('bin-modal-ttl').textContent='Add Bin';document.getElementById('bin-save-btn').textContent='Add Bin';
   document.getElementById('bi-num').value='';document.getElementById('bi-type').value='regular';document.getElementById('bi-size').value='14 yard';
   document.getElementById('bi-color').value='green';document.getElementById('bi-dmg').value='good';document.getElementById('bi-status').value='in';document.getElementById('bi-notes').value='';
+  document.getElementById('bi-show').checked=false;
   document.getElementById('err-bi-num').textContent='Bin number or name is required.';
   clearErr('bi-num');
   document.getElementById('bin-modal').classList.add('open');
@@ -6183,6 +6194,7 @@ function editBinItem(bid){
   editBinId=bid;document.getElementById('bin-modal-ttl').textContent='Edit Bin';document.getElementById('bin-save-btn').textContent='Save Changes';
   document.getElementById('bi-num').value=b.num||'';document.getElementById('bi-type').value=b.type||'regular';document.getElementById('bi-size').value=b.size||'14 yard';
   document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage==='oor'?'good':b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-oor').value=b.damage==='oor'?'oor':'active';document.getElementById('bi-notes').value=b.notes||'';
+  document.getElementById('bi-show').checked=!!b.show_bin;
   document.getElementById('bin-modal').classList.add('open');
 }
 function saveBinItem(e){
@@ -6193,7 +6205,7 @@ function saveBinItem(e){
   var isDupe=binItems.some(function(b){return b.num.toLowerCase()===num.toLowerCase()&&b.bid!==editBinId;});
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
   var oorVal=document.getElementById('bi-oor').value==='oor';
-  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim()};
+  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked};
   if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)binItems[i]=bin;else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }
@@ -6897,7 +6909,7 @@ function renderBinPicker(selectedBid){
       +'border:2px solid '+(isSel?col:(isOut?'rgba(100,100,100,.3)':'rgba(255,255,255,.1)'))+';'
       +'background:'+(isSel?'rgba(34,197,94,.12)':(isOut?'rgba(60,60,60,.3)':'var(--surface)'))+'';
     return '<div style="'+baseStyle+'" '+(isOut?'title="Already out on a job"':'onclick="selectBinFromPicker(\''+b.bid+'\')"')+'>'
-      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+'</div>'
+      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:'+(isOut?'var(--muted)':'var(--text)')+'">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+(isOut?'var(--muted)':col)+';margin-top:2px">'+b.size+'</div>'
       +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'#22c55e')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
@@ -7675,6 +7687,7 @@ async function openDetail(id){
       if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e;font-weight:700">⚡ Convert to Job</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22;position:relative">📅 Extend Pickup</button>');
+      if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openRelocate(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🚚 Relocate</button>');
       if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
@@ -8153,6 +8166,42 @@ function extendBinToDate(jobId){
   refresh();
 }
 
+var _relocateJobId=null;
+var _relocAutoInit=false;
+function openRelocate(jobId){
+  var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
+  _relocateJobId=jobId;
+  var street=j.address?j.address.split(',')[0].trim():'';
+  document.getElementById('reloc-addr').value=street;
+  document.getElementById('reloc-city').value=j.city||'';
+  document.getElementById('reloc-move-date').value=j.binDropoff||todayStr();
+  document.getElementById('reloc-pickup-date').value=j.binPickup||'';
+  if(!_relocAutoInit){
+    _relocAutoInit=true;
+    var ai=document.getElementById('reloc-addr');
+    var ci=document.getElementById('reloc-city');
+    attachAddressAutocomplete(ai,function(stp,cty){ai.value=stp;if(cty&&ci)ci.value=cty;});
+  }
+  document.getElementById('relocate-modal').classList.add('open');
+}
+function saveRelocate(e){
+  if(e)e.preventDefault();
+  var jobId=_relocateJobId;
+  var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
+  var addr=document.getElementById('reloc-addr').value.trim();
+  var city=document.getElementById('reloc-city').value.trim();
+  var moveDate=document.getElementById('reloc-move-date').value;
+  var pickupDate=document.getElementById('reloc-pickup-date').value;
+  if(!addr){toast('⚠ Enter a new address.','error');return;}
+  j.address=addr;j.city=city;
+  if(moveDate)j.binDropoff=moveDate;
+  if(pickupDate)j.binPickup=pickupDate;
+  patchJob(jobId,{address:j.address,city:j.city,binDropoff:j.binDropoff,binPickup:j.binPickup});
+  toast('Bin relocated to '+addr+'.');
+  closeM('relocate-modal');
+  openDetail(jobId);refresh();
+}
+
 function markEmailConfirmed(id){
   jobs.forEach(function(j){if(j.id===id)j.emailConfirmed=true;});
   patchJob(id,{emailConfirmed:true});toast('Email confirmation sent!');openDetail(id);refresh();
@@ -8174,6 +8223,7 @@ function newJobForClient(cid){
     if(badge)badge.style.display='flex';
     if(nm)nm.textContent='✅ '+cl.name+(cl.phone?' · '+cl.phone:'');
     fillClientFromSelect(cid);
+    showClientNotesPopup(cl);
   },50);
 }
 
