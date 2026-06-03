@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '193';
+var APP_VERSION = '194';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -40,12 +40,18 @@ function _checkForUpdate(){
 }
 function _showUpdateBanner(){
   if(document.getElementById('update-banner')) return;
-  var b = document.createElement('div');
-  b.id = 'update-banner';
-  b.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;background:#1c2025;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.45)';
-  b.textContent = '🔄 New version available — click to refresh';
-  b.onclick = function(){ location.reload(); };
-  document.body.appendChild(b);
+  var o = document.createElement('div');
+  o.id = 'update-banner';
+  o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(10,12,15,0.92);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#1c2025;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:40px 36px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6)';
+  card.innerHTML = '<div style="font-size:48px;margin-bottom:16px">🔄</div>'+
+    '<div style="font-size:22px;font-weight:800;margin-bottom:10px">New version available</div>'+
+    '<div style="font-size:14px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:28px">A newer version of the dashboard is ready. Update now to get the latest features and fixes.</div>'+
+    '<button style="background:#22c55e;color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Update now</button>';
+  o.appendChild(card);
+  o.onclick = function(){ location.reload(); };
+  document.body.appendChild(o);
 }
 setTimeout(_checkForUpdate, 30*1000);
 setInterval(_checkForUpdate, 5*60*1000);
