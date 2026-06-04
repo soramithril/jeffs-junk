@@ -12,16 +12,28 @@ function setAnalyticsPeriod(p, el){
   if(wk) wk.style.display=p==='week'?'flex':'none';
   if(mo) mo.style.display=p==='month'?'flex':'none';
   if(yr) yr.style.display=p==='year'?'flex':'none';
+  var alln=document.getElementById('an-all-note'); if(alln) alln.style.display=p==='all'?'block':'none';
+  // Comparison is opt-in — reset to a single period whenever the period changes
+  document.querySelectorAll('.an-compare-group').forEach(function(g){g.style.display='none';});
+  document.querySelectorAll('.an-compare-btn').forEach(function(b){b.style.display='';});
   var now=new Date();
   if(p==='week'){
     var wa=document.getElementById('an-week-a'); if(wa&&!wa.value) wa.value=toWeekValue(now);
-    var wb=document.getElementById('an-week-b'); if(wb&&!wb.value){var pv=new Date(now);pv.setDate(pv.getDate()-7);wb.value=toWeekValue(pv);}
   }
   if(p==='month'){
     var ma=document.getElementById('an-month-a'); if(ma&&!ma.value) ma.value=now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);
-    var mb=document.getElementById('an-month-b'); if(mb&&!mb.value){var pm=new Date(now.getFullYear(),now.getMonth()-1,1);mb.value=pm.getFullYear()+'-'+(pm.getMonth()<9?'0':'')+(pm.getMonth()+1);}
   }
-  if(p==='year'){populateYearSelects();var ya=document.getElementById('an-year-a');if(ya&&!ya.value)ya.value=now.getFullYear();var yb=document.getElementById('an-year-b');if(yb&&!yb.value)yb.value=now.getFullYear()-1;}
+  if(p==='year'){populateYearSelects();var ya=document.getElementById('an-year-a');if(ya&&!ya.value)ya.value=now.getFullYear();}
+  renderAnalytics();
+}
+// Reveal the opt-in "Compare to" picker and pre-fill it so a comparison shows immediately
+function analyticsToggleCompare(){
+  document.querySelectorAll('.an-compare-group').forEach(function(g){g.style.display='flex';});
+  document.querySelectorAll('.an-compare-btn').forEach(function(b){b.style.display='none';});
+  var now=new Date();
+  if(analyticsPeriod==='week'){var wb=document.getElementById('an-week-b');if(wb&&!wb.value){var pv=new Date(now);pv.setDate(pv.getDate()-7);wb.value=toWeekValue(pv);}}
+  else if(analyticsPeriod==='month'){var mb=document.getElementById('an-month-b');if(mb&&!mb.value){var pm=new Date(now.getFullYear(),now.getMonth()-1,1);mb.value=pm.getFullYear()+'-'+(pm.getMonth()<9?'0':'')+(pm.getMonth()+1);}}
+  else if(analyticsPeriod==='year'){var yb=document.getElementById('an-year-b');if(yb&&!yb.value)yb.value=now.getFullYear()-1;}
   renderAnalytics();
 }
 function toWeekValue(d){
@@ -59,6 +71,8 @@ function clearCompareB(){
   if(analyticsPeriod==='week'){var e=document.getElementById('an-week-b');if(e)e.value='';}
   if(analyticsPeriod==='month'){var e=document.getElementById('an-month-b');if(e)e.value='';}
   if(analyticsPeriod==='year'){var e=document.getElementById('an-year-b');if(e)e.value='';}
+  document.querySelectorAll('.an-compare-group').forEach(function(g){g.style.display='none';});
+  document.querySelectorAll('.an-compare-btn').forEach(function(b){b.style.display='';});
   renderAnalytics();
 }
 function getAnalyticsDates(){
@@ -187,7 +201,9 @@ async function renderAnalytics(){
 
 function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   var lbl=document.getElementById('analytics-compare-lbl');
-  if(lbl)lbl.innerHTML='<strong style="color:var(--accent)">A: '+dates.a.label+'</strong>'+(hasB?' <span style="color:var(--muted)">vs</span> <strong style="color:#e67e22">B: '+dates.b.label+'</strong>':'');
+  if(lbl)lbl.innerHTML=hasB
+    ?'<strong style="color:var(--accent)">Showing: '+dates.a.label+'</strong> <span style="color:var(--muted)">vs</span> <strong style="color:#e67e22">Compare to: '+dates.b.label+'</strong>'
+    :'<strong style="color:var(--accent)">Showing: '+dates.a.label+'</strong>';
 
   var aBin=aJobs.filter(function(j){return j.service==='Bin Rental';}).length;
   var bBin=bJobs.filter(function(j){return j.service==='Bin Rental';}).length;

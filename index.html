@@ -623,7 +623,7 @@
   <!-- Period selector -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-      <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">View Period</span>
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">What to look at</span>
       <!-- Animated period tabs -->
       <div class="atabs-wrap" id="atabs-analytics" style="position:relative;">
         <div class="atabs-highlight" id="atabs-analytics-hl"></div>
@@ -639,12 +639,13 @@
     <!-- Week pickers -->
     <div id="an-week-pickers" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted);white-space:nowrap">📅 Period A:</span>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">Showing:</span>
         <input type="week" id="an-week-a" class="bin-date-picker" onchange="renderAnalytics()">
       </div>
-      <span style="color:var(--muted);font-size:18px">vs</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted);white-space:nowrap">📅 Period B:</span>
+      <button class="btn btn-ghost btn-sm an-compare-btn" onclick="analyticsToggleCompare()">+ Compare to another period</button>
+      <div class="an-compare-group" style="display:none;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-size:14px">vs</span>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">Compare to:</span>
         <input type="week" id="an-week-b" class="bin-date-picker" onchange="renderAnalytics()">
         <button class="btn btn-ghost btn-sm" onclick="clearCompareB()">✕ Clear</button>
       </div>
@@ -652,12 +653,13 @@
     <!-- Month pickers -->
     <div id="an-month-pickers" style="display:none;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted);white-space:nowrap">📅 Period A:</span>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">Showing:</span>
         <input type="month" id="an-month-a" class="bin-date-picker" onchange="renderAnalytics()">
       </div>
-      <span style="color:var(--muted);font-size:18px">vs</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted);white-space:nowrap">📅 Period B:</span>
+      <button class="btn btn-ghost btn-sm an-compare-btn" onclick="analyticsToggleCompare()">+ Compare to another period</button>
+      <div class="an-compare-group" style="display:none;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-size:14px">vs</span>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">Compare to:</span>
         <input type="month" id="an-month-b" class="bin-date-picker" onchange="renderAnalytics()">
         <button class="btn btn-ghost btn-sm" onclick="clearCompareB()">✕ Clear</button>
       </div>
@@ -665,18 +667,20 @@
     <!-- Year pickers -->
     <div id="an-year-pickers" style="display:none;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted);white-space:nowrap">📅 Period A:</span>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">Showing:</span>
         <select id="an-year-a" class="bin-date-picker" style="width:100px" onchange="renderAnalytics()"></select>
       </div>
-      <span style="color:var(--muted);font-size:18px">vs</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:var(--muted);white-space:nowrap">📅 Period B:</span>
+      <button class="btn btn-ghost btn-sm an-compare-btn" onclick="analyticsToggleCompare()">+ Compare to another period</button>
+      <div class="an-compare-group" style="display:none;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-size:14px">vs</span>
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">Compare to:</span>
         <select id="an-year-b" class="bin-date-picker" style="width:100px" onchange="renderAnalytics()">
           <option value="">— None —</option>
         </select>
         <button class="btn btn-ghost btn-sm" onclick="clearCompareB()">✕ Clear</button>
       </div>
     </div>
+    <div id="an-all-note" style="display:none;font-size:13px;color:var(--muted)">Showing all data since 2023 — every job on record.</div>
   </div>
 
   <div id="analytics-compare-lbl" style="font-size:12px;color:var(--muted);margin-bottom:16px;padding:0 2px"></div>
@@ -2087,10 +2091,10 @@
 <script src="app-drdcalc.js?v=171"></script>
 <script src="app-dispatch.js?v=193"></script>
 <script src="app-leaderboard.js?v=171"></script>
-<script src="app-analytics.js?v=171"></script>
+<script src="app-analytics.js?v=200"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
-<script src="app.js?v=199"></script>
+<script src="app.js?v=200"></script>
 </body>
 </html>
                                                                                                                                                          
