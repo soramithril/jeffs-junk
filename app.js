@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '212';
+var APP_VERSION = '213';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -63,7 +63,7 @@ document.addEventListener('visibilitychange', function(){
 // Sections stay stacked; the top chips smooth-scroll to a section and show live counts.
 function dashJump(id){
   var el = document.getElementById(id);
-  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  if(el) el.scrollIntoView({block:'start'});
 }
 function _dashCountRows(id){
   var el = document.getElementById(id); if(!el) return 0;
