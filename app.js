@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '210';
+var APP_VERSION = '211';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -81,11 +81,12 @@ function _dashCountRows(id){
   return kids.length;
 }
 function dashSyncTabCounts(){
-  var map = {binsout:'dash-bins-out-list', overdue:'dash-overdue', longbins:'dash-long-bins'};
-  Object.keys(map).forEach(function(k){
-    var b = document.getElementById('dash-tab-n-'+k);
-    if(b) b.textContent = _dashCountRows(map[k]);
-  });
+  // Overdue & Long lists are flat rows — count children. Bins Out is grouped under a
+  // single wrapper, so use the already-computed "bins out" stat instead.
+  var bo = document.getElementById('dash-tab-n-binsout');
+  if(bo){ var s = document.getElementById('s-bins-out-fleet'); bo.textContent = (s && s.textContent) ? s.textContent : _dashCountRows('dash-bins-out-list'); }
+  var ov = document.getElementById('dash-tab-n-overdue'); if(ov) ov.textContent = _dashCountRows('dash-overdue');
+  var lb = document.getElementById('dash-tab-n-longbins'); if(lb) lb.textContent = _dashCountRows('dash-long-bins');
 }
 (function _dashTabsBoot(){
   function init(){
@@ -94,10 +95,10 @@ function dashSyncTabCounts(){
     try { last = localStorage.getItem('dash_ref_tab') || 'binsout'; } catch(e){}
     if(!document.querySelector('#dash-ref-panels > [data-panel="'+last+'"]')) last = 'binsout';
     dashTab(last);
-    ['dash-bins-out-list','dash-overdue','dash-long-bins'].forEach(function(id){
+    ['dash-bins-out-list','dash-overdue','dash-long-bins','s-bins-out-fleet'].forEach(function(id){
       var el = document.getElementById(id); if(!el || el._dashObs) return;
       el._dashObs = new MutationObserver(dashSyncTabCounts);
-      el._dashObs.observe(el, {childList:true});
+      el._dashObs.observe(el, {childList:true, characterData:true, subtree:true});
     });
     dashSyncTabCounts();
   }
