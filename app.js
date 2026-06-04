@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '213';
+var APP_VERSION = '214';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3072,7 +3072,7 @@ async function renderWillCallCard(){
   wcJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   if(countEl) countEl.textContent = wcJobs.length ? (wcJobs.length+' job'+(wcJobs.length===1?'':'s')+' awaiting customer call') : '';
   if(!wcJobs.length){
-    listEl.innerHTML='<div style="padding:18px 20px;font-size:13px;color:var(--muted);font-style:italic">No jobs flagged for Will Call.</div>';
+    listEl.innerHTML='<div style="grid-column:1/-1;padding:18px 20px;font-size:13px;color:var(--muted);font-style:italic">No jobs flagged for Will Call.</div>';
     return;
   }
   var iconLoc='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
@@ -3090,7 +3090,7 @@ async function renderWillCallCard(){
     var addrStr=j.address?j.address.split(',')[0]:'';
     var tentDate=j.binPickup?'<span style="color:var(--muted);font-size:11px;flex-shrink:0">tentative '+fd(j.binPickup)+'</span>':'';
     var schedBtn='<button class="btn btn-ghost btn-sm" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07);flex-shrink:0;display:inline-flex;align-items:center;gap:4px">'+iconCal+' Schedule Pickup</button>';
-    return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid #e67e22;border-radius:0 8px 8px 0;margin:0 8px 4px;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
+    return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid #e67e22;border-radius:0 8px 8px 0;margin:0;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
       +jobCrewAvatarsHTML(j)
       +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
         +'<span style="flex-shrink:0">'+j.name+'</span>'
