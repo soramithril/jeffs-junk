@@ -11,7 +11,7 @@ async function renderUtilization(){
   var win30Start=new Date(Date.now()-window30*86400000).toISOString().split('T')[0];
   var totalBinCount=binItems.length;
   var totalPossibleDays=totalBinCount*windowDays;
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#818cf8','20 yard':'#e76f7e'};
 
   // Fetch all bin rental jobs from Supabase (not the limited in-memory set)
   var utilJobs=[];
@@ -73,21 +73,23 @@ async function renderUtilization(){
     });
     return !wasUsed;
   });
+  // Count of distinct sizes that had no rentals in 30 days (idle detection is by size)
+  var idleSizeCount=Object.keys(idleBins.reduce(function(m,b){m[b.size]=1;return m;},{})).length;
 
   // Use binItems.status as the single source of truth for current in/out
   // (same as renderBinInventory does — so all three pages always agree)
   var currentOut=binItems.filter(function(b){return b.status==='out';}).length;
   var currentIn=binItems.filter(function(b){return b.status==='in';}).length;
   document.getElementById('util-metrics').innerHTML=
-    '<div class="metric-box"><div class="metric-val" id="utm-util" style="color:var(--accent)">0%</div><div class="metric-lbl">Overall Utilization (90d)</div></div>'
-    +'<div class="metric-box"><div class="metric-val" id="utm-days">0</div><div class="metric-lbl">Bin-Days Rented (90d)</div></div>'
-    +'<div class="metric-box"><div class="metric-val" id="utm-dur">0d</div><div class="metric-lbl">Avg Rental Duration</div></div>'
-    +'<div class="metric-box"><div class="metric-val" id="utm-idle" style="color:'+(idleBins.length>0?'#dc3545':'#22c55e')+'">0</div><div class="metric-lbl">Idle Bins (30d)</div></div>'
+    '<div class="metric-box"><div class="metric-val" id="utm-util" style="color:var(--accent)">0%</div><div class="metric-lbl">Overall Utilization (90d)</div><div style="font-size:10px;color:var(--muted);margin-top:3px">share of fleet time actually rented</div></div>'
+    +'<div class="metric-box"><div class="metric-val" id="utm-days">0</div><div class="metric-lbl">Bin-Days Rented (90d)</div><div style="font-size:10px;color:var(--muted);margin-top:3px">one bin out for one day = 1 bin-day</div></div>'
+    +'<div class="metric-box"><div class="metric-val" id="utm-dur">0d</div><div class="metric-lbl">Avg Rental Duration</div><div style="font-size:10px;color:var(--muted);margin-top:3px">typical drop-off to pick-up</div></div>'
+    +'<div class="metric-box"><div class="metric-val" id="utm-idle" style="color:'+(idleSizeCount>0?'#dc3545':'#22c55e')+'">0</div><div class="metric-lbl">Idle Sizes (30d)</div><div style="font-size:10px;color:var(--muted);margin-top:3px">sizes with no rentals in 30 days</div></div>'
     +'<div class="metric-box" style="grid-column:1/-1"><div style="display:flex;justify-content:center;gap:32px"><div style="text-align:center"><div class="metric-val" style="color:#dc3545">'+currentOut+'</div><div class="metric-lbl">Currently Out</div></div><div style="text-align:center"><div class="metric-val" style="color:#22c55e">'+currentIn+'</div><div class="metric-lbl">Currently In Yard</div></div><div style="text-align:center"><div class="metric-val" style="color:var(--text)">'+totalBinCount+'</div><div class="metric-lbl">Total Fleet</div></div></div><div style="height:8px;background:var(--surface2);border-radius:4px;margin:12px 0"><div style="height:100%;background:#dc3545;border-radius:4px;width:'+Math.round(totalBinCount?currentOut/totalBinCount*100:0)+'%"></div></div><div style="font-size:12px;color:var(--muted);text-align:center">'+Math.round(totalBinCount?currentOut/totalBinCount*100:0)+'% of fleet currently deployed</div></div>';
   requestAnimationFrame(function(){
     animCount(document.getElementById('utm-util'),utilPct,'','%');
     animCount(document.getElementById('utm-days'),rentedDays);
-    animCount(document.getElementById('utm-idle'),idleBins.length);
+    animCount(document.getElementById('utm-idle'),idleSizeCount);
     var durEl=document.getElementById('utm-dur');if(durEl)durEl.textContent=avgDur+'d';
   });
 
@@ -124,6 +126,12 @@ async function renderUtilization(){
     :utilPct>65?'✅ Healthy utilization — fleet is performing well'
     :utilPct>40?'⚠️ Moderate utilization — review pricing or run promotions'
     :'📉 Low utilization — consider promotions or reducing fleet size';
+  var recoExplain=utilPct>85?'Your bins are out almost all the time — demand is outpacing your fleet.'
+    :utilPct>65?'Your fleet is busy and earning well.'
+    :utilPct>40?'Your bins sit idle a fair bit — there is room to drive more rentals.'
+    :'A lot of your fleet is sitting unused right now.';
+  var recoTop=document.getElementById('util-reco-top');
+  if(recoTop)recoTop.innerHTML='<div style="background:linear-gradient(135deg,#f0fdf4,#eff6ff);border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px"><div style="font-size:15px;font-weight:700;color:var(--text)">'+recommendation+'</div><div style="font-size:13px;color:var(--text-secondary);margin-top:4px">'+recoExplain+'</div></div>';
 
   // Best performing size
   var bestSize=sizeData.length?sizeData[0].key:'N/A';

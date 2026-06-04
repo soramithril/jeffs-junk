@@ -933,7 +933,6 @@
     <div><div class="page-title page-title-sm">Furniture Quote Calculator</div><div class="page-sub">Pick items the customer is asking about — get a total in real time. No job is created until you decide to.</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="drdcClear()">Clear</button>
-      <button class="btn btn-primary" onclick="drdcStartJob()">Start a Job</button>
     </div>
   </div>
 
@@ -941,6 +940,7 @@
     <input id="drdc-search" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
   </div>
 
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Enter a quantity next to each item to build a quote.</div>
   <div id="drdc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
 
   <div style="margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">
@@ -954,11 +954,11 @@
   <div style="position:sticky;bottom:0;background:var(--surface);border:1px solid var(--border);border-top:2px solid #22c55e;padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">
     <div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">
       <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Items</div><div style="font-size:22px;font-weight:800" id="drdc-total-items">0</div></div>
-      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Quote total</div><div style="font-size:28px;font-weight:800;color:#22c55e;font-family:'Bebas Neue',sans-serif">$<span id="drdc-total-value">0.00</span></div></div>
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Quote total</div><div style="font-size:28px;font-weight:800;color:#22c55e;font-family:'Bebas Neue',sans-serif">$<span id="drdc-total-value">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Standard rate · before tax</div></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="drdcCopy()">📋 Copy Total</button>
-      <button class="btn btn-primary" onclick="drdcStartJob()">Start a Job from This</button>
+      <button class="btn btn-primary" onclick="drdcStartJob()">Start a Job</button>
     </div>
   </div>
 </div>
@@ -1034,6 +1034,7 @@
     <div><div class="page-title page-title-sm">📊 Bin Utilization</div><div class="page-sub">Maximize your fleet efficiency</div></div>
     
   </div>
+  <div id="util-reco-top" style="margin-bottom:16px"></div>
   <div class="metric-row" id="util-metrics"></div>
   <div class="analytics-grid">
     <div class="chart-card">
@@ -1058,7 +1059,7 @@
     </div>
     <div class="chart-card">
       <div class="chart-title">Idle vs Active Fleet</div>
-      <div class="chart-sub">Bins with zero rentals in 30 days</div>
+      <div class="chart-sub">Sizes with no rentals in 30 days</div>
       <div id="util-idle" style="margin-top:12px"></div>
     </div>
     <div class="chart-card analytics-full">
@@ -2079,9 +2080,9 @@
 <script src="app-dispatch.js?v=193"></script>
 <script src="app-leaderboard.js?v=171"></script>
 <script src="app-analytics.js?v=171"></script>
-<script src="app-utilization.js?v=171"></script>
+<script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=171"></script>
-<script src="app.js?v=195"></script>
+<script src="app.js?v=196"></script>
 </body>
 </html>
                                                                                                                                                          
