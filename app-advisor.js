@@ -4,6 +4,9 @@
 
 // ─── AI ADVISOR ───────────────────────────────────────────────────
 var _advisorHasRun = false;
+var _advisorRecs = [];
+var _advisorFilter = 'all';
+var _advisorShowAll = false;
 function renderAdvisor(){
   if(!_advisorHasRun){ _advisorHasRun=true; runAdvisor(); }
 }
@@ -12,6 +15,8 @@ function advisorShowState(state){
     var el=document.getElementById('advisor-'+s);
     if(el) el.style.display=(s===state)?'block':'none';
   });
+  var rb=document.getElementById('advisor-run-btn');
+  if(rb) rb.innerHTML=(state==='results')?'&#128260; Refresh':'&#9654; Run Analysis';
 }
 function advisorProgress(pct,msg){
   var bar=document.getElementById('advisor-progress-bar');
@@ -527,7 +532,7 @@ async function runAdvisor(){
         {label:'Total Jobs',val:totalJobs.toLocaleString()},
         {label:'YoY Growth',val:(yoyPct>=0?'+':'')+yoyPct+'%'},
         {label:'Repeat Rate',val:repeatRate+'%'},
-        {label:'Avg Days to Return',val:avgGap+' days'},
+        {label:'Avg Days Between Visits',val:avgGap+' days'},
         {label:'Fleet (14yd)',val:(f14.total||54)+' bins'},
         {label:'14yd Demand',val:demand14pct+'%'}
       ];
@@ -546,12 +551,12 @@ async function runAdvisor(){
       var priorityBg = {HIGH:'rgba(220,53,69,.06)',MEDIUM:'rgba(230,126,34,.05)',LOW:'rgba(34,197,94,.05)'};
       var priorityBorder = {HIGH:'rgba(220,53,69,.22)',MEDIUM:'rgba(230,126,34,.18)',LOW:'rgba(34,197,94,.14)'};
       var catIcons = {FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️',SALES:'💰',CAPACITY:'📊',STRATEGY:'🧭',EXPANSION:'🗺️',SCHEDULING:'📆'};
-      cards.innerHTML = recs.map(function(r){
+      cards.innerHTML = recs.map(function(r,_ci){
         var col = statusColors[r.status]||'#22c55e';
         var bg = priorityBg[r.priority]||'var(--surface)';
         var bord = priorityBorder[r.priority]||'var(--border)';
         var icon = catIcons[r.category]||'💡';
-        return '<div style="background:'+bg+';border:1px solid '+bord+';border-left:4px solid '+col+';border-radius:12px;padding:18px 20px;">'
+        return '<div class="adv-card" data-status="'+r.status+'" data-idx="'+_ci+'" style="background:'+bg+';border:1px solid '+bord+';border-left:4px solid '+col+';border-radius:12px;padding:18px 20px;">'
           +'<div style="display:flex;align-items:flex-start;gap:12px;">'
           +'<div style="font-size:24px;flex-shrink:0;margin-top:2px;">'+icon+'</div>'
           +'<div style="flex:1;">'
@@ -570,6 +575,7 @@ async function runAdvisor(){
           +'</div>';
       }).join('');
     }
+    _advisorRecs = recs; _advisorFilter = 'all'; _advisorShowAll = false; advisorApplyFilterCap();
 
     var ts = document.getElementById('advisor-timestamp');
     if(ts) ts.textContent = 'Generated '+new Date().toLocaleString('en-CA',{dateStyle:'medium',timeStyle:'short'});
@@ -579,8 +585,34 @@ async function runAdvisor(){
   }catch(err){
     console.error('Advisor error:',err);
     var errEl = document.getElementById('advisor-error-msg');
-    if(errEl) errEl.textContent = err.message||'Unknown error';
+    if(errEl) errEl.textContent = "Couldn't load your data — please try again in a moment.";
     advisorShowState('error');
   }
 }
+
+// Filter chips + "show top 8" cap — operate on the already-rendered cards (show/hide only)
+function advisorApplyFilterCap(){
+  var recs=_advisorRecs||[];
+  var counts={all:recs.length,urgent:0,opportunity:0,positive:0};
+  recs.forEach(function(r){counts[r.status]=(counts[r.status]||0)+1;});
+  var chipDefs=[{k:'all',label:'All'},{k:'urgent',label:'Urgent',color:'#dc3545'},{k:'opportunity',label:'Opportunities',color:'#e67e22'},{k:'positive',label:'Good news',color:'#22c55e'}];
+  var fbar=document.getElementById('advisor-filter');
+  if(fbar){
+    fbar.innerHTML=chipDefs.map(function(c){
+      var on=_advisorFilter===c.k; var col=c.color||'#1a1a2e';
+      return '<button onclick="advisorSetFilter(\''+c.k+'\')" style="border:1px solid '+(on?col:'var(--border)')+';background:'+(on?col:'var(--surface)')+';color:'+(on?'#fff':'var(--muted)')+';padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">'+c.label+' ('+(counts[c.k]||0)+')</button>';
+    }).join('');
+  }
+  var cap=8, shownCount=0, matchCount=0;
+  document.querySelectorAll('#advisor-cards .adv-card').forEach(function(el){
+    var st=el.getAttribute('data-status');
+    var match=(_advisorFilter==='all'||st===_advisorFilter);
+    if(match){ matchCount++; if(_advisorShowAll||shownCount<cap){ el.style.display=''; shownCount++; } else { el.style.display='none'; } }
+    else { el.style.display='none'; }
+  });
+  var sa=document.getElementById('advisor-showall');
+  if(sa){ sa.innerHTML=(!_advisorShowAll && matchCount>cap)?'<button class="btn btn-ghost" onclick="advisorShowAllRecs()">Show all '+matchCount+' recommendations</button>':''; }
+}
+function advisorSetFilter(f){ _advisorFilter=f; _advisorShowAll=false; advisorApplyFilterCap(); }
+function advisorShowAllRecs(){ _advisorShowAll=true; advisorApplyFilterCap(); }
 
