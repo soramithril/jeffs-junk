@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '203';
+var APP_VERSION = '204';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1918,6 +1918,7 @@ function render(name){
   else if(name==='binmap') renderMap();
   else if(name==='advisor') renderAdvisor();
   else if(name==='bininventory') renderBinInventory();
+  else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderVehicles);}
   else if(name==='documents') renderDocuments();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
@@ -7686,6 +7687,7 @@ async function openDetail(id){
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
     +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
+    +'<button class="btn btn-ghost" onclick="openDamageReport(\''+j.id+'\')" style="justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">⚠️ Report Damage</button>'
     +(j.emailConfirmed
       ?'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center">✅ Email Sent</button>'
       :'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>')

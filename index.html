@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=203">
+<link rel="stylesheet" href="style.css?v=204">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -94,6 +94,7 @@
     <button class="nav-item" onclick="go('calendar')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span>Calendar</span></button>
     <button class="nav-item" onclick="go('clients')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Clients</span></button>
     <button class="nav-item" onclick="go('documents')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span>Documents</span></button>
+    <button class="nav-item" onclick="go('damage')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span>Damage Reports</span></button>
     <div class="nav-label">Bin Management</div>
     <button class="nav-item" onclick="go('bininventory')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><span>Bin Fleet</span></button>
     <button class="nav-item" onclick="go('binmap')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></span><span>Bin Map</span></button>
@@ -803,6 +804,18 @@
     <div><div class="page-title">Documents</div><div class="page-sub">Service agreements and reference PDFs — tap any card to open</div></div>
   </div>
   <div id="documents-list"></div>
+</div>
+
+<div id="view-damage" class="view">
+  <div class="page-header">
+    <div><div class="page-title page-title-sm">⚠️ Damage Reports</div><div class="page-sub" id="damage-sub">Track property damage on jobs — photos, who, how, when</div></div>
+    <button class="btn btn-primary" onclick="openDamageReport('')">+ New Damage Report</button>
+  </div>
+  <div class="filters-bar" style="margin-bottom:14px;align-items:center;gap:10px">
+    <input type="text" placeholder="Search reports — customer, what was damaged, job…" oninput="damageSearch(this.value)" style="flex:1;min-width:200px;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:14px">
+    <div id="damage-filters" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+  <div id="damage-list"></div>
 </div>
 
 <!-- ══ OUR PRICES MODAL ══ -->
@@ -2100,6 +2113,52 @@
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="damage-modal">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:0;max-width:540px;width:94%;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
+      <div class="modal-title" id="dmg-title" style="font-size:19px">Report Damage</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('damage-modal')">✕</button>
+    </div>
+    <div style="padding:18px 22px;overflow-y:auto">
+      <label class="dmg-lbl" style="margin-top:0">Job</label>
+      <div style="position:relative">
+        <input type="text" id="dmg-job" placeholder="Type a job # or customer to link…" oninput="damageJobSearch(this.value)" autocomplete="off" class="dmg-in">
+        <div id="dmg-job-results" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;box-shadow:var(--shadow-md);z-index:10;max-height:240px;overflow-y:auto"></div>
+      </div>
+      <div class="dmg-grid2">
+        <div><label class="dmg-lbl">Customer</label><input type="text" id="dmg-customer" class="dmg-in"></div>
+        <div><label class="dmg-lbl">Address</label><input type="text" id="dmg-address" class="dmg-in"></div>
+      </div>
+      <label class="dmg-lbl">What was damaged? *</label>
+      <input type="text" id="dmg-what" list="dmg-what-list" placeholder="e.g. Driveway" class="dmg-in">
+      <datalist id="dmg-what-list"><option value="Driveway"></option><option value="Lawn / Grass"></option><option value="Fence"></option><option value="Garage door"></option><option value="House / Siding"></option><option value="Garden / Landscaping"></option><option value="Vehicle"></option><option value="Other"></option></datalist>
+      <label class="dmg-lbl">How did it happen?</label>
+      <textarea id="dmg-desc" placeholder="Describe what happened…" class="dmg-in" style="min-height:80px;resize:vertical"></textarea>
+      <div class="dmg-grid2">
+        <div><label class="dmg-lbl">Who was responsible?</label><select id="dmg-crew" class="dmg-in"></select></div>
+        <div><label class="dmg-lbl">Date it happened</label><input type="date" id="dmg-date" class="dmg-in"></div>
+      </div>
+      <div class="dmg-grid2">
+        <div><label class="dmg-lbl">Repair cost</label><input type="number" id="dmg-cost" min="0" step="0.01" placeholder="0.00" class="dmg-in"></div>
+        <div><label class="dmg-lbl">Status</label><select id="dmg-status" class="dmg-in"><option value="open">Open</option><option value="resolved">Resolved</option></select></div>
+      </div>
+      <div class="dmg-grid2">
+        <div><label class="dmg-lbl">Bin involved (optional)</label><select id="dmg-bin" class="dmg-in"></select></div>
+        <div><label class="dmg-lbl">Vehicle involved (optional)</label><select id="dmg-vehicle" class="dmg-in"></select></div>
+      </div>
+      <label class="dmg-lbl">Photos</label>
+      <div id="dmg-photos-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer">📷 Add photos<input type="file" accept="image/*" multiple onchange="damageAddPhotos(this)" style="display:none"></label>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;padding:14px 22px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" id="dmg-del-btn" onclick="delDamageReport()" style="color:#dc3545;border-color:rgba(220,53,69,.4);display:none">🗑 Delete</button>
+      <div style="display:flex;gap:10px;margin-left:auto">
+        <button class="btn btn-ghost" onclick="closeM('damage-modal')">Cancel</button>
+        <button class="btn btn-primary" id="dmg-save-btn" onclick="saveDamageReport()">Save report</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script src="app-documents.js?v=195"></script>
 <script src="app-drdcalc.js?v=171"></script>
 <script src="app-dispatch.js?v=201"></script>
@@ -2107,7 +2166,8 @@
 <script src="app-analytics.js?v=200"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
-<script src="app.js?v=203"></script>
+<script src="app-damage.js?v=204"></script>
+<script src="app.js?v=204"></script>
 </body>
 </html>
                                                                                                                                                          
