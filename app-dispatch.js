@@ -271,10 +271,11 @@ async function dispatchAssignJob(jobId, crewId, leg){
   if(typeof renderLiveJobs==='function') renderLiveJobs();
   renderDispatch();
 }
-async function dispatchBalanceRoutes(){
+async function dispatchBalanceRoutes(mode){
+  mode = mode || 'fill';
   var working = dispatchGetWorkingIds();
   if(!working.length){ toast('Pick at least one driver first.'); return; }
-  if(!confirm('Auto-balance today\'s bin jobs across '+working.length+' driver(s)? Existing assignments will be overwritten.')) return;
+  function legAssigned(j){ return j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||''); }
   var partner = dispatchFindSwaps(_dispatchJobsCache);
   var seen = {};
   var units = [];
@@ -290,10 +291,20 @@ async function dispatchBalanceRoutes(){
       seen[j.id] = true;
     }
   });
-  units.sort(function(a,b){return b.total - a.total;});
   var totals = {}; working.forEach(function(id){ totals[id]=0; });
+  var unitsToAssign;
+  if(mode === 'all'){
+    if(!confirm('Re-balance ALL bin jobs across '+working.length+' driver(s)? This REPLACES your current assignments.')) return;
+    unitsToAssign = units;
+  } else {
+    // Fill only: keep existing assignments, seed lane loads from them, distribute only the unassigned jobs
+    _dispatchJobsCache.forEach(function(j){ var c=legAssigned(j); if(c && totals[c]!=null) totals[c]+=(j._estMinutes||0); });
+    unitsToAssign = units.filter(function(u){ return u.jobs.every(function(j){ return !legAssigned(j); }); });
+    if(!unitsToAssign.length){ toast('All jobs are already assigned — nothing to fill.'); return; }
+  }
+  unitsToAssign.sort(function(a,b){return b.total - a.total;});
   var assignments = [];
-  units.forEach(function(u){
+  unitsToAssign.forEach(function(u){
     var best = working[0];
     working.forEach(function(id){ if(totals[id] < totals[best]) best = id; });
     u.jobs.forEach(function(j){
@@ -320,7 +331,7 @@ async function dispatchBalanceRoutes(){
   }
   if(typeof refreshDashJobs==='function') refreshDashJobs();
   if(typeof renderLiveJobs==='function') renderLiveJobs();
-  toast('Balanced '+assignments.length+' assignments across '+working.length+' driver(s).');
+  toast((mode==='all'?'Re-balanced ':'Filled ')+assignments.length+' assignment(s) across '+working.length+' driver(s).');
   renderDispatch();
 }
 function dispatchOnDragStart(ev, jobId, leg){
@@ -367,7 +378,7 @@ function dispatchRenderCard(j, clockStartMins){
   var card = '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="background:'+cardBg+';'+cardBorder+';border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:6px;cursor:grab">';
   card += clockTxt;
   card += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-  card += '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:'+pinBg+';color:'+pinFg+';font-size:11px;font-weight:700">'+pinTxt+'</span>';
+  card += '<span title="'+(j._isPickup?'Pickup':'Delivery')+'" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:'+pinBg+';color:'+pinFg+';font-size:11px;font-weight:700">'+pinTxt+'</span>';
   card += '<span style="font-weight:700">'+j.id+'</span>'+swapBadge;
   card += '<span style="margin-left:auto;font-weight:600;color:var(--muted)">+'+j._estMinutes+'m</span>';
   card += '</div>';
@@ -439,11 +450,23 @@ async function renderDispatch(){
   // Today button (always shown)
   html += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Today</button>';
   // Balance routes (primary action, icon, pushed to right via margin-left:auto)
-  html += '<button onclick="dispatchBalanceRoutes()" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-family:inherit">';
+  html += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
+  html += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
   html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>';
-  html += 'Balance routes';
+  html += 'Fill unassigned';
   html += '</button>';
+  html += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
+  html += '</div>';
   html += '</div></div>';
+  // Numbered steps + P/D legend
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted)">';
+  html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">1.</strong> Pick a date</span>';
+  html += '<span style="color:var(--border)">&rsaquo;</span>';
+  html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">2.</strong> Pick who&rsquo;s working</span>';
+  html += '<span style="color:var(--border)">&rsaquo;</span>';
+  html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">3.</strong> Assign each stop</span>';
+  html += '<span style="margin-left:6px"><span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(13,110,253,.18);color:#0d6efd;font-size:10px;font-weight:700;align-items:center;justify-content:center;vertical-align:-3px">P</span> = pickup &nbsp; <span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(234,179,8,.18);color:#eab308;font-size:10px;font-weight:700;align-items:center;justify-content:center;vertical-align:-3px">D</span> = delivery &nbsp;&middot;&nbsp; times are rough estimates</span>';
+  html += '</div>';
   html += '<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
   html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
   html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
