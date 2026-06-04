@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '211';
+var APP_VERSION = '212';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -59,20 +59,11 @@ document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible') _checkForUpdate();
 });
 
-// ─── DASHBOARD REFERENCE TABS (Bins Out / Overdue / Bins Out Long) ───
-// Collapses three long stacked lists into one tabbed panel; each list scrolls
-// internally. Render targets keep their IDs, so existing renderers are untouched.
-function dashTab(name){
-  document.querySelectorAll('#dash-ref-tabs button').forEach(function(b){
-    var on = b.dataset.tab === name;
-    b.style.color = on ? 'var(--text)' : 'var(--muted)';
-    b.style.borderBottomColor = on ? 'var(--accent)' : 'transparent';
-    b.style.fontWeight = on ? '700' : '600';
-  });
-  document.querySelectorAll('#dash-ref-panels > [data-panel]').forEach(function(p){
-    p.style.display = p.dataset.panel === name ? '' : 'none';
-  });
-  try { localStorage.setItem('dash_ref_tab', name); } catch(e){}
+// ─── DASHBOARD QUICK-JUMP CHIPS (Bins Out / Overdue / Bins Out Long) ───
+// Sections stay stacked; the top chips smooth-scroll to a section and show live counts.
+function dashJump(id){
+  var el = document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function _dashCountRows(id){
   var el = document.getElementById(id); if(!el) return 0;
@@ -88,13 +79,9 @@ function dashSyncTabCounts(){
   var ov = document.getElementById('dash-tab-n-overdue'); if(ov) ov.textContent = _dashCountRows('dash-overdue');
   var lb = document.getElementById('dash-tab-n-longbins'); if(lb) lb.textContent = _dashCountRows('dash-long-bins');
 }
-(function _dashTabsBoot(){
+(function _dashChipsBoot(){
   function init(){
-    if(!document.getElementById('dash-ref-tabs')) return setTimeout(init, 400);
-    var last = 'binsout';
-    try { last = localStorage.getItem('dash_ref_tab') || 'binsout'; } catch(e){}
-    if(!document.querySelector('#dash-ref-panels > [data-panel="'+last+'"]')) last = 'binsout';
-    dashTab(last);
+    if(!document.getElementById('dash-tab-n-binsout')) return setTimeout(init, 400);
     ['dash-bins-out-list','dash-overdue','dash-long-bins','s-bins-out-fleet'].forEach(function(id){
       var el = document.getElementById(id); if(!el || el._dashObs) return;
       el._dashObs = new MutationObserver(dashSyncTabCounts);

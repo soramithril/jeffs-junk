@@ -162,6 +162,13 @@
     </div>
   </div>
 
+  <!-- QUICK-JUMP CHIPS -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    <button onclick="dashJump('sec-binsout')" style="display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" onmouseover="this.style.background='var(--surface)';this.style.borderColor='var(--accent)'" onmouseout="this.style.background='var(--surface2)';this.style.borderColor='var(--border)'">📦 Bins Out <span id="dash-tab-n-binsout" style="min-width:18px;padding:0 6px;border-radius:10px;background:var(--surface);font-size:11px;font-weight:700;text-align:center">0</span></button>
+    <button onclick="dashJump('card-overdue')" style="display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" onmouseover="this.style.background='var(--surface)';this.style.borderColor='#dc3545'" onmouseout="this.style.background='var(--surface2)';this.style.borderColor='var(--border)'">🔴 Overdue <span id="dash-tab-n-overdue" style="min-width:18px;padding:0 6px;border-radius:10px;background:var(--surface);font-size:11px;font-weight:700;text-align:center">0</span></button>
+    <button onclick="dashJump('sec-longbins')" style="display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:20px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" onmouseover="this.style.background='var(--surface)';this.style.borderColor='#e67e22'" onmouseout="this.style.background='var(--surface2)';this.style.borderColor='var(--border)'">🟡 Bins Out Long <span id="dash-tab-n-longbins" style="min-width:18px;padding:0 6px;border-radius:10px;background:var(--surface);font-size:11px;font-weight:700;text-align:center">0</span></button>
+  </div>
+
   <!-- VEHICLE STATUS STRIP + DATE PICKER -->
   <div id="dash-vehicle-strip" style="position:relative;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
     <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;white-space:nowrap">🚗 Vehicles</div>
@@ -240,56 +247,40 @@
 
   </div>
 
-  <!-- ROW 2: Tabbed reference lists — Bins Out / Overdue / Bins Out Long -->
-  <div class="dash-section" style="margin-bottom:24px;">
-    <div id="dash-ref-tabs" style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap">
-      <button data-tab="binsout" onclick="dashTab('binsout')" style="border:0;background:none;border-bottom:2px solid var(--accent);padding:8px 14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:var(--text)">📦 Bins Currently Out <span id="dash-tab-n-binsout" style="display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:10px;background:var(--surface2);font-size:11px;font-weight:700">0</span></button>
-      <button data-tab="overdue" onclick="dashTab('overdue')" style="border:0;background:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted)">🔴 Overdue Pickups <span id="dash-tab-n-overdue" style="display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:10px;background:var(--surface2);font-size:11px;font-weight:700">0</span></button>
-      <button data-tab="longbins" onclick="dashTab('longbins')" style="border:0;background:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted)">🟡 Bins Out Long <span id="dash-tab-n-longbins" style="display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:10px;background:var(--surface2);font-size:11px;font-weight:700">0</span></button>
+  <!-- ROW 2: Bins Currently Out — full width -->
+  <div id="sec-binsout" class="dash-section dash-s3" style="margin-bottom:24px;scroll-margin-top:14px">
+    <div class="chart-card" style="padding:0;overflow:visible;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div>
+          <div class="card-head"><span class="emo">📦</span>Bins Currently Out</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">All bins deployed with customer details</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
+      </div>
+      <div id="dash-bins-out-list" style="padding:10px 12px;"></div>
     </div>
-    <div id="dash-ref-panels">
+  </div>
 
-      <!-- PANEL: Bins Currently Out -->
-      <div data-panel="binsout">
-        <div class="chart-card" style="padding:0;overflow:visible;">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-            <div>
-              <div class="card-head"><span class="emo">📦</span>Bins Currently Out</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px;">All bins deployed with customer details</div>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
-          </div>
-          <div id="dash-bins-out-list" style="padding:10px 12px;max-height:62vh;overflow-y:auto;"></div>
+  <!-- ROW 3: Overdue + Bins Out Long -->
+  <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
+    <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;scroll-margin-top:14px">
+      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div class="card-head"><span class="emo">🔴</span>Overdue Pickups</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickup date has passed</div>
+      </div>
+      <div id="dash-overdue" style="padding:10px 12px;min-height:0"></div>
+    </div>
+    <div id="sec-longbins" class="chart-card" style="padding:0;overflow:hidden;scroll-margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+        <div>
+          <div class="card-head"><span class="emo">🟡</span>Bins Out Long</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Getting close — worth a call</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+          Over <input type="number" id="dash-days-threshold" value="7" min="1" max="30" style="width:44px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:6px;font-size:12px;text-align:center" onchange="renderDashLongBins()"> days
         </div>
       </div>
-
-      <!-- PANEL: Overdue Pickups -->
-      <div data-panel="overdue" style="display:none">
-        <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
-          <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-            <div class="card-head"><span class="emo">🔴</span>Overdue Pickups</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickup date has passed</div>
-          </div>
-          <div id="dash-overdue" style="padding:10px 12px;min-height:0;max-height:62vh;overflow-y:auto;"></div>
-        </div>
-      </div>
-
-      <!-- PANEL: Bins Out Long -->
-      <div data-panel="longbins" style="display:none">
-        <div class="chart-card" style="padding:0;overflow:hidden;">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-            <div>
-              <div class="card-head"><span class="emo">🟡</span>Bins Out Long</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px;">Getting close — worth a call</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
-              Over <input type="number" id="dash-days-threshold" value="7" min="1" max="30" style="width:44px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:6px;font-size:12px;text-align:center" onchange="renderDashLongBins()"> days
-            </div>
-          </div>
-          <div id="dash-long-bins" style="padding:10px 12px;max-height:62vh;overflow-y:auto;"></div>
-        </div>
-      </div>
-
+      <div id="dash-long-bins" style="padding:10px 12px;"></div>
     </div>
   </div>
 
@@ -2198,7 +2189,7 @@
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
-<script src="app.js?v=211"></script>
+<script src="app.js?v=212"></script>
 </body>
 </html>
                                                                                                                                                          
