@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=202">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -2087,6 +2087,19 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="bin-note-modal">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;max-width:420px;width:90%;box-shadow:var(--shadow-lg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="modal-title" id="bin-note-title" style="font-size:18px">Note</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('bin-note-modal')">✕</button>
+    </div>
+    <textarea id="bin-note-text" placeholder="e.g. Back wheel cracked — needs welding" style="width:100%;box-sizing:border-box;min-height:100px;background:var(--surface2);border:1px solid var(--border-strong);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--text);resize:vertical"></textarea>
+    <div class="form-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeM('bin-note-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBinNote()">Save note</button>
+    </div>
+  </div>
+</div>
 <script src="app-documents.js?v=195"></script>
 <script src="app-drdcalc.js?v=171"></script>
 <script src="app-dispatch.js?v=201"></script>
@@ -2094,7 +2107,7 @@
 <script src="app-analytics.js?v=200"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
-<script src="app.js?v=201"></script>
+<script src="app.js?v=202"></script>
 </body>
 </html>
                                                                                                                                                          

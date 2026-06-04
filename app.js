@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '201';
+var APP_VERSION = '202';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -5488,7 +5488,7 @@ function makeBinRow(b){
   var togCls=b.status==='in'?'stog stog-in':'stog stog-out';
   var togLbl=b.status==='in'?'<span class="sdot"></span>In Yard':'<span class="sdot"></span>Out';
   var dmg=b.damage==='damage'?'<span class="dmg-flag">⚠ Dmg</span>':'<span class="dmg-ok">—</span>';
-  var oorFlag=b.damage==='oor'?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">⛔ OOR</span>':'';
+  var oorFlag=b.damage==='oor'?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">⛔ Retired</span>':'';
   var showFlag=b.show_bin?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap" title="Show / display bin — use for trade shows">⭐ Show</span>':'';
   var rowCls=b.damage==='oor'?' class="row-damaged"':b.damage==='damage'?' class="row-damaged"':'';
   // Show current job/location for bins marked 'out'
@@ -5504,8 +5504,27 @@ function makeBinRow(b){
   return '<tr'+rowCls+'><td><span class="bnum '+numCls+'" style="cursor:pointer" onclick="event.stopPropagation();openBinHistory(\''+b.bid+'\')">'+b.num+'</span>'+(showFlag?' '+showFlag:'')+'</td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
     +locationCell
-    +'<td>'+dmg+(oorFlag?' '+oorFlag:'')+'</td><td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(b.notes||'')+'</td>'
+    +'<td>'+dmg+(oorFlag?' '+oorFlag:'')+'</td><td style="font-size:11px;color:var(--muted);max-width:175px">'+(b.notes?'<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">'+b.notes+'</div>':'<div style="font-style:italic;opacity:.6;margin-bottom:3px">No notes</div>')+'<button class="ra-btn" style="font-size:10px;padding:2px 7px;color:#22c55e;border-color:rgba(34,197,94,.4)" onclick="event.stopPropagation();openBinNote(\''+b.bid+'\')">'+(b.notes?'✏ Edit note':'+ Add note')+'</button></td>'
     +'<td><div class="ra"><button class="ra-btn" style="color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="openBinHistory(\''+b.bid+'\')">📜 History</button><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
+}
+var _binNoteBid=null;
+function openBinNote(bid){
+  var b=binItems.find(function(x){return x.bid===bid;});
+  if(!b)return;
+  _binNoteBid=bid;
+  var t=document.getElementById('bin-note-title'); if(t)t.textContent='Note — Bin '+b.num;
+  var ta=document.getElementById('bin-note-text'); if(ta)ta.value=b.notes||'';
+  document.getElementById('bin-note-modal').classList.add('open');
+  setTimeout(function(){var x=document.getElementById('bin-note-text');if(x)x.focus();},50);
+}
+function saveBinNote(){
+  var b=binItems.find(function(x){return x.bid===_binNoteBid;});
+  if(!b)return;
+  b.notes=document.getElementById('bin-note-text').value.trim();
+  saveBins();
+  closeM('bin-note-modal');
+  renderBinInventory();
+  toast('Note saved for bin '+b.num+'.');
 }
 function quickToggleStatus(bid){
   var b=binItems.find(function(bi){return bi.bid===bid;});

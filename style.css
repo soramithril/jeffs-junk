@@ -655,7 +655,7 @@ textarea{resize:vertical;min-height:80px;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 .dmg-flag{color:#dc3545;font-size:12px;font-weight:700;}
 .dmg-ok{color:var(--border);font-size:11px;}
-.ra{display:flex;gap:4px;opacity:0;transition:opacity .15s;}
+.ra{display:flex;gap:4px;flex-wrap:wrap;opacity:1;transition:opacity .15s;}
 .fleet-table tbody tr:hover .ra{opacity:1;}
 .ra-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px;transition:all .12s;}
 .ra-btn:hover{border-color:var(--accent);color:var(--accent);}
