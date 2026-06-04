@@ -1803,7 +1803,7 @@ input[type=date],input[type=time]{position:relative;}
 .h-tl-mini .c.per{background:#3b82f6}
 .h-tl-mini .c.out{background:#e67e22}
 .h-tl-mini .c.oth{background:#a78bfa}
-.h-row-actions{display:flex;justify-content:flex-end;gap:4px;opacity:0;transition:opacity .1s}
+.h-row-actions{display:flex;justify-content:flex-end;gap:4px;opacity:1;transition:opacity .1s}
 .h-row:hover .h-row-actions,.h-row.expanded .h-row-actions{opacity:1}
 .h-act-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);font-family:inherit}
 .h-act-btn:hover{background:var(--surface2);color:var(--text)}

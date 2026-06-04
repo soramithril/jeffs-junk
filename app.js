@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '202';
+var APP_VERSION = '203';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -10062,7 +10062,7 @@ function _renderVehicleKPIs(dashVehicles, alerts){
     Object.keys(blocks).forEach(function(d){ if(d>=today && d<=endStr) daysOff30++; });
   });
   el.innerHTML = '<div class="h-kpis">'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(34,197,94,.12);color:#22c55e">✓</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">PM Compliance</div></div></div><div class="h-kpi-trend">'+compliant+' of '+dashVehicles.length+' on track</div></div>'
+    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(34,197,94,.12);color:#22c55e">✓</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+dashVehicles.length+' on track</div></div>'
     +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(220,53,69,.12);color:#dc3545">⛽</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
     +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(230,126,34,.13);color:#e67e22">🔧</div><div><div class="h-kpi-num">'+maintDue+'</div><div class="h-kpi-lbl">Maintenance due</div></div></div></div>'
     +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6">🚫</div><div><div class="h-kpi-num">'+daysOff30+'</div><div class="h-kpi-lbl">Days off (30d)</div></div></div></div>'
@@ -10175,7 +10175,7 @@ function _renderVehicleDrawer(v){
         +addMaintForm
       +'</div>'
       +'<div class="h-drawer-section">'
-        +'<h4>🚫 Block days off'+(upcoming.length?' ('+upcoming.length+')':'')+'</h4>'
+        +'<h4>🚫 Mark out of service'+(upcoming.length?' ('+upcoming.length+')':'')+'</h4>'
         +upcomingRows
         +'<div class="h-block-form">'
           +'<input type="date" id="veh-from-'+v.vid+'">'
