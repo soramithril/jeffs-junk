@@ -10,6 +10,7 @@ var _damagePhotos = [];
 var _damageEditId = null;
 var _damageFilter = 'all';
 var _damageQuery = '';
+var _dmgBinBid = '';
 
 function _dEsc(s){ return (s == null ? '' : (''+s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function _damageVehicles(){ return (typeof vehicles !== 'undefined' && vehicles) ? vehicles : (typeof dashVehicles !== 'undefined' && dashVehicles ? dashVehicles : []); }
@@ -104,6 +105,7 @@ function damagePickJob(jobId){
   if(j){
     document.getElementById('dmg-customer').value=(j.names&&j.names.length?j.names.join(', '):(j.name||''));
     document.getElementById('dmg-address').value=(j.address||'')+(j.city?', '+j.city:'');
+    if(j.binBid){ _dmgBinBid=j.binBid; renderDamageBinPicker(_dmgBinBid); }
   }
   var box=document.getElementById('dmg-job-results'); if(box){ box.style.display='none'; box.innerHTML=''; }
 }
@@ -111,15 +113,47 @@ function damagePickJob(jobId){
 function _damagePopulateSelects(){
   var crew=document.getElementById('dmg-crew');
   if(crew) crew.innerHTML='<option value="">— Select crew member —</option>'+(crewMembers||[]).map(function(c){return '<option value="'+c.id+'">'+_dEsc(c.name)+'</option>';}).join('');
-  var bin=document.getElementById('dmg-bin');
-  if(bin) bin.innerHTML='<option value="">— None —</option>'+(binItems||[]).map(function(b){return '<option value="'+b.bid+'">Bin '+_dEsc(b.num||b.bid)+(b.size?' · '+_dEsc(b.size):'')+'</option>';}).join('');
   var veh=document.getElementById('dmg-vehicle');
   if(veh) veh.innerHTML='<option value="">— None —</option>'+_damageVehicles().map(function(v){return '<option value="'+v.vid+'">'+_dEsc(v.name||v.vid)+'</option>';}).join('');
 }
 
+// Clickable bin grid, styled to match the bin-rental picker (renderBinPicker).
+// Optional: a "None" card clears the selection. All bins are selectable since
+// damage can apply to a bin currently out on a job.
+function renderDamageBinPicker(selectedBid){
+  var grid=document.getElementById('dmg-bin-grid');
+  if(!grid) return;
+  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+  var bins=[].concat(binItems||[]).sort(function(a,b){return (a.num||'').localeCompare(b.num||'');});
+  var noneSel=!selectedBid;
+  var html='<div onclick="selectDamageBin(\'\')" style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:2px solid '+(noneSel?'#22c55e':'rgba(255,255,255,.1)')+';background:'+(noneSel?'rgba(34,197,94,.12)':'var(--surface)')+'">'
+    +'<div style="font-size:18px;margin-bottom:4px">—</div><div style="font-size:13px;font-weight:700;color:var(--text)">None</div><div style="font-size:10px;color:var(--muted);margin-top:2px">no bin</div></div>';
+  html+=bins.map(function(b){
+    var isSel=b.bid===selectedBid;
+    var col=sizeColors[b.size]||'#22c55e';
+    var isOut=b.status==='out';
+    var style='border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:2px solid '+(isSel?col:'rgba(255,255,255,.1)')+';background:'+(isSel?'rgba(34,197,94,.12)':'var(--surface)');
+    return '<div style="'+style+'" onclick="selectDamageBin(\''+b.bid+'\')">'
+      +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+_dEsc(b.num||b.bid)+'</div>'
+      +'<div style="font-size:10px;color:'+col+';margin-top:2px">'+_dEsc(b.size||'')+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'#22c55e')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'</div>';
+  }).join('');
+  grid.innerHTML=html;
+  var sel=document.getElementById('dmg-bin-selected');
+  if(sel){
+    var b=(binItems||[]).find(function(x){return x.bid===selectedBid;});
+    if(b){ sel.style.display='block'; sel.innerHTML='✅ Selected: <strong>Bin '+_dEsc(b.num||b.bid)+'</strong>'+(b.size?' · '+_dEsc(b.size):''); }
+    else { sel.style.display='none'; sel.innerHTML=''; }
+  }
+}
+function selectDamageBin(bid){ _dmgBinBid=bid||''; renderDamageBinPicker(_dmgBinBid); }
+
 function _damageResetForm(){
   ['dmg-job','dmg-customer','dmg-address','dmg-what','dmg-desc','dmg-cost'].forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
   var box=document.getElementById('dmg-job-results'); if(box){ box.style.display='none'; box.innerHTML=''; }
+  _dmgBinBid='';
 }
 
 function openDamageReport(jobId){
@@ -130,7 +164,6 @@ function openDamageReport(jobId){
   document.getElementById('dmg-date').value=todayStr();
   document.getElementById('dmg-status').value='open';
   document.getElementById('dmg-crew').value='';
-  document.getElementById('dmg-bin').value='';
   document.getElementById('dmg-vehicle').value='';
   if(jobId){
     document.getElementById('dmg-job').value=jobId;
@@ -138,8 +171,10 @@ function openDamageReport(jobId){
     if(j){
       document.getElementById('dmg-customer').value=(j.names&&j.names.length?j.names.join(', '):(j.name||''));
       document.getElementById('dmg-address').value=(j.address||'')+(j.city?', '+j.city:'');
+      _dmgBinBid=j.binBid||'';
     }
   }
+  renderDamageBinPicker(_dmgBinBid);
   _renderDamagePhotos();
   document.getElementById('damage-modal').classList.add('open');
 }
@@ -160,7 +195,8 @@ function openDamageEdit(id){
   document.getElementById('dmg-date').value=d.incident_date||'';
   document.getElementById('dmg-cost').value=(d.cost!=null?d.cost:'');
   document.getElementById('dmg-status').value=d.status||'open';
-  document.getElementById('dmg-bin').value=d.bin_bid||'';
+  _dmgBinBid=d.bin_bid||'';
+  renderDamageBinPicker(_dmgBinBid);
   document.getElementById('dmg-vehicle').value=d.vehicle_vid||'';
   _renderDamagePhotos();
   document.getElementById('damage-modal').classList.add('open');
@@ -204,7 +240,7 @@ async function saveDamageReport(){
     incident_date: document.getElementById('dmg-date').value || null,
     cost: (costRaw===''||costRaw==null) ? null : parseFloat(costRaw),
     status: document.getElementById('dmg-status').value || 'open',
-    bin_bid: document.getElementById('dmg-bin').value || null,
+    bin_bid: _dmgBinBid || null,
     vehicle_vid: document.getElementById('dmg-vehicle').value || null,
     photos: _damagePhotos.slice()
   };

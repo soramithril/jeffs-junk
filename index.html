@@ -2142,10 +2142,10 @@
         <div><label class="dmg-lbl">Repair cost</label><input type="number" id="dmg-cost" min="0" step="0.01" placeholder="0.00" class="dmg-in"></div>
         <div><label class="dmg-lbl">Status</label><select id="dmg-status" class="dmg-in"><option value="open">Open</option><option value="resolved">Resolved</option></select></div>
       </div>
-      <div class="dmg-grid2">
-        <div><label class="dmg-lbl">Bin involved (optional)</label><select id="dmg-bin" class="dmg-in"></select></div>
-        <div><label class="dmg-lbl">Vehicle involved (optional)</label><select id="dmg-vehicle" class="dmg-in"></select></div>
-      </div>
+      <label class="dmg-lbl">Bin involved (optional)</label>
+      <div id="dmg-bin-selected" style="display:none;font-size:13px;margin-bottom:8px;color:#22c55e"></div>
+      <div id="dmg-bin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-bottom:14px"></div>
+      <div><label class="dmg-lbl">Vehicle involved (optional)</label><select id="dmg-vehicle" class="dmg-in"></select></div>
       <label class="dmg-lbl">Photos</label>
       <div id="dmg-photos-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📷 Add photos<input type="file" accept="image/*" multiple onchange="damageAddPhotos(this)" style="display:none"></label>
@@ -2166,8 +2166,8 @@
 <script src="app-analytics.js?v=200"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
-<script src="app-damage.js?v=204"></script>
-<script src="app.js?v=206"></script>
+<script src="app-damage.js?v=207"></script>
+<script src="app.js?v=207"></script>
 </body>
 </html>
                                                                                                                                                          
