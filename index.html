@@ -240,40 +240,56 @@
 
   </div>
 
-  <!-- ROW 2: Bins Currently Out — full width -->
-  <div class="dash-section dash-s3" style="margin-bottom:24px;">
-    <div class="chart-card" style="padding:0;overflow:visible;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div>
-          <div class="card-head"><span class="emo">📦</span>Bins Currently Out</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">All bins deployed with customer details</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
-      </div>
-      <div id="dash-bins-out-list" style="padding:10px 12px;"></div>
+  <!-- ROW 2: Tabbed reference lists — Bins Out / Overdue / Bins Out Long -->
+  <div class="dash-section" style="margin-bottom:24px;">
+    <div id="dash-ref-tabs" style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap">
+      <button data-tab="binsout" onclick="dashTab('binsout')" style="border:0;background:none;border-bottom:2px solid var(--accent);padding:8px 14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:var(--text)">📦 Bins Currently Out <span id="dash-tab-n-binsout" style="display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:10px;background:var(--surface2);font-size:11px;font-weight:700">0</span></button>
+      <button data-tab="overdue" onclick="dashTab('overdue')" style="border:0;background:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted)">🔴 Overdue Pickups <span id="dash-tab-n-overdue" style="display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:10px;background:var(--surface2);font-size:11px;font-weight:700">0</span></button>
+      <button data-tab="longbins" onclick="dashTab('longbins')" style="border:0;background:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted)">🟡 Bins Out Long <span id="dash-tab-n-longbins" style="display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:10px;background:var(--surface2);font-size:11px;font-weight:700">0</span></button>
     </div>
-  </div>
+    <div id="dash-ref-panels">
 
-  <!-- ROW 3: Overdue + Bins Out Long -->
-  <div class="dash-section dash-s4 dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;align-items:start">
-    <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
-      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div class="card-head"><span class="emo">🔴</span>Overdue Pickups</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickup date has passed</div>
-      </div>
-      <div id="dash-overdue" style="padding:10px 12px;min-height:0"></div>
-    </div>
-    <div class="chart-card" style="padding:0;overflow:hidden;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div>
-          <div class="card-head"><span class="emo">🟡</span>Bins Out Long</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Getting close — worth a call</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
-          Over <input type="number" id="dash-days-threshold" value="7" min="1" max="30" style="width:44px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:6px;font-size:12px;text-align:center" onchange="renderDashLongBins()"> days
+      <!-- PANEL: Bins Currently Out -->
+      <div data-panel="binsout">
+        <div class="chart-card" style="padding:0;overflow:visible;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+            <div>
+              <div class="card-head"><span class="emo">📦</span>Bins Currently Out</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">All bins deployed with customer details</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
+          </div>
+          <div id="dash-bins-out-list" style="padding:10px 12px;max-height:62vh;overflow-y:auto;"></div>
         </div>
       </div>
-      <div id="dash-long-bins" style="padding:10px 12px;"></div>
+
+      <!-- PANEL: Overdue Pickups -->
+      <div data-panel="overdue" style="display:none">
+        <div class="chart-card urgency-neutral" id="card-overdue" style="padding:0;overflow:hidden;">
+          <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+            <div class="card-head"><span class="emo">🔴</span>Overdue Pickups</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Bin pickup date has passed</div>
+          </div>
+          <div id="dash-overdue" style="padding:10px 12px;min-height:0;max-height:62vh;overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <!-- PANEL: Bins Out Long -->
+      <div data-panel="longbins" style="display:none">
+        <div class="chart-card" style="padding:0;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+            <div>
+              <div class="card-head"><span class="emo">🟡</span>Bins Out Long</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">Getting close — worth a call</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+              Over <input type="number" id="dash-days-threshold" value="7" min="1" max="30" style="width:44px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:6px;font-size:12px;text-align:center" onchange="renderDashLongBins()"> days
+            </div>
+          </div>
+          <div id="dash-long-bins" style="padding:10px 12px;max-height:62vh;overflow-y:auto;"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -2113,6 +2129,21 @@
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="maint-popup-modal">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:0;max-width:460px;width:94%;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
+      <div class="modal-title" style="font-size:19px">🔧 Tell Jeff</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('maint-popup-modal')">✕</button>
+    </div>
+    <div style="padding:18px 22px;overflow-y:auto">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">These trucks need maintenance — let Jeff know what needs to be done:</div>
+      <div id="maint-popup-body"></div>
+    </div>
+    <div style="padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+      <button onclick="closeM('maint-popup-modal')" style="background:#22c55e;color:#fff;border:0;padding:9px 20px;border-radius:9px;font-weight:700;cursor:pointer;font-family:inherit">Got it</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="damage-modal">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:0;max-width:540px;width:94%;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
@@ -2162,12 +2193,12 @@
 <script src="app-documents.js?v=195"></script>
 <script src="app-drdcalc.js?v=171"></script>
 <script src="app-dispatch.js?v=201"></script>
-<script src="app-leaderboard.js?v=171"></script>
+<script src="app-leaderboard.js?v=210"></script>
 <script src="app-analytics.js?v=200"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
-<script src="app.js?v=207"></script>
+<script src="app.js?v=210"></script>
 </body>
 </html>
                                                                                                                                                          

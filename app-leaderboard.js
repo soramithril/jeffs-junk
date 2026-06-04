@@ -219,13 +219,12 @@ var _lbImprovChart=null;
 
 // ── Crew-to-vehicle auto-assignments ──
 // locked: true = cannot be removed (Max, Darrin)
-// locked: false = auto-assigned daily but user can remove (Neil, Jordan, Josh)
+// locked: false = auto-assigned daily but user can remove (Neil, Kevin)
 var AUTO_ASSIGNMENTS=[
   {crew:'Max',    vehicleMatch:'SILVERADO',      locked:true},
   {crew:'Darrin', vehicleMatch:'Darrin Truck',    locked:true},
   {crew:'Neil',   vehicleMatch:'2020',            locked:false},
-  {crew:'Jordan', vehicleMatch:'Furniture Bank',  locked:false},
-  {crew:'Josh',   vehicleMatch:'L7 2023',         locked:false}
+  {crew:'Kevin',  vehicleMatch:'L7 2023',         locked:false}
 ];
 
 function isPermanentAssignment(crewName, vid){

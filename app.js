@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '207';
+var APP_VERSION = '210';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -58,6 +58,51 @@ setInterval(_checkForUpdate, 5*60*1000);
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible') _checkForUpdate();
 });
+
+// ─── DASHBOARD REFERENCE TABS (Bins Out / Overdue / Bins Out Long) ───
+// Collapses three long stacked lists into one tabbed panel; each list scrolls
+// internally. Render targets keep their IDs, so existing renderers are untouched.
+function dashTab(name){
+  document.querySelectorAll('#dash-ref-tabs button').forEach(function(b){
+    var on = b.dataset.tab === name;
+    b.style.color = on ? 'var(--text)' : 'var(--muted)';
+    b.style.borderBottomColor = on ? 'var(--accent)' : 'transparent';
+    b.style.fontWeight = on ? '700' : '600';
+  });
+  document.querySelectorAll('#dash-ref-panels > [data-panel]').forEach(function(p){
+    p.style.display = p.dataset.panel === name ? '' : 'none';
+  });
+  try { localStorage.setItem('dash_ref_tab', name); } catch(e){}
+}
+function _dashCountRows(id){
+  var el = document.getElementById(id); if(!el) return 0;
+  var kids = el.children;
+  if(kids.length === 1 && /\bno\b/i.test(kids[0].textContent||'') && (kids[0].textContent||'').length < 70) return 0;
+  return kids.length;
+}
+function dashSyncTabCounts(){
+  var map = {binsout:'dash-bins-out-list', overdue:'dash-overdue', longbins:'dash-long-bins'};
+  Object.keys(map).forEach(function(k){
+    var b = document.getElementById('dash-tab-n-'+k);
+    if(b) b.textContent = _dashCountRows(map[k]);
+  });
+}
+(function _dashTabsBoot(){
+  function init(){
+    if(!document.getElementById('dash-ref-tabs')) return setTimeout(init, 400);
+    var last = 'binsout';
+    try { last = localStorage.getItem('dash_ref_tab') || 'binsout'; } catch(e){}
+    if(!document.querySelector('#dash-ref-panels > [data-panel="'+last+'"]')) last = 'binsout';
+    dashTab(last);
+    ['dash-bins-out-list','dash-overdue','dash-long-bins'].forEach(function(id){
+      var el = document.getElementById(id); if(!el || el._dashObs) return;
+      el._dashObs = new MutationObserver(dashSyncTabCounts);
+      el._dashObs.observe(el, {childList:true});
+    });
+    dashSyncTabCounts();
+  }
+  init();
+})();
 
 // ═══════════════════════════════════════
 //  GHOST BUTTON HOVER-INVERSION DECORATOR
@@ -2300,20 +2345,35 @@ function changeVehicleStatus(vid,newStatus){
 
 // LEADERBOARD (Driver / Crew) lives in app-leaderboard.js
 async function renderDashMaintAlert(){
-  var el=document.getElementById('dash-maint-alert');if(!el)return;
+  // The old always-on bar is retired — full maintenance detail lives on the Vehicles page.
+  var bar=document.getElementById('dash-maint-alert'); if(bar) bar.style.display='none';
   var mRes=await db.from('maintenance_schedules').select('*').in('status',['due','overdue']);
   var alerts=mRes.data||[];
-  if(!alerts.length){el.style.display='none';return;}
-  // match to vehicle names
-  var vehMap={};vehicles.forEach(function(v){vehMap[v.vid]=v.name;});
-  var html='<div style="font-weight:700;margin-bottom:6px">🔧 Maintenance Alerts</div>';
-  html+=alerts.map(function(a){
-    var icon=a.status==='overdue'?'🔴':'🟡';
-    var vName=vehMap[a.vid]||a.vid;
-    return '<div style="font-size:12px;margin-bottom:2px">'+icon+' <strong>'+vName+'</strong> — '+a.maintenance_type+' is '+(a.status==='overdue'?'<span style="color:#dc3545;font-weight:700">OVERDUE</span>':'<span style="color:#e67e22;font-weight:700">DUE SOON</span>')+(a.next_due_km?' (due at '+a.next_due_km.toLocaleString()+' km)':'')+'</div>';
-  }).join('');
-  el.innerHTML=html;
-  el.style.display='block';
+  if(!alerts.length) return;
+  // Pop up only for items we haven't shown before. Keyed by vehicle+type+due km so a
+  // re-occurrence after service pops once, while the same outstanding item never nags again.
+  var shown={};
+  try { shown=JSON.parse(localStorage.getItem('maint_popup_shown')||'{}'); } catch(e){}
+  var keyOf=function(a){ return a.vid+'|'+a.maintenance_type+'|'+(a.next_due_km||''); };
+  var fresh=alerts.filter(function(a){ return !shown[keyOf(a)]; });
+  if(!fresh.length) return;
+  var vehMap={}; vehicles.forEach(function(v){ vehMap[v.vid]=v.name; });
+  var body=document.getElementById('maint-popup-body');
+  if(body){
+    body.innerHTML=fresh.map(function(a){
+      var vName=vehMap[a.vid]||a.vid;
+      var statusTxt=a.status==='overdue'?'<span style="color:#dc3545;font-weight:700">OVERDUE</span>':'<span style="color:#e67e22;font-weight:700">due soon</span>';
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px">'
+        +'<div style="font-size:20px;flex-shrink:0">'+(a.status==='overdue'?'🔴':'🟡')+'</div>'
+        +'<div style="font-size:13px;line-height:1.45"><strong>'+_esc(vName)+'</strong> — '+_esc(a.maintenance_type)+' is '+statusTxt+(a.next_due_km?' (due at '+a.next_due_km.toLocaleString()+' km)':'')+'</div>'
+        +'</div>';
+    }).join('');
+  }
+  var modal=document.getElementById('maint-popup-modal');
+  if(modal) modal.classList.add('open');
+  // Mark shown immediately so it won't reappear on the next render/refresh.
+  fresh.forEach(function(a){ shown[keyOf(a)]=1; });
+  try { localStorage.setItem('maint_popup_shown', JSON.stringify(shown)); } catch(e){}
 }
 
 // Map a city name to a deterministic color from a 6-color palette (same city → same color)
@@ -2991,7 +3051,8 @@ async function renderDash(){
     ? overdueJobs.map(function(j){return'<div style="padding:8px 10px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:8px;background:rgba(220,53,69,.04);display:flex;align-items:center;gap:8px;">'
       +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
       +'<strong style="color:#dc3545">'+j.name+'</strong>'
-      +'<div style="font-size:12px;color:var(--muted);margin-top:1px;">'+(j.binPickup?'Pickup was: '+fd(j.binPickup):'No pickup date set')+(j.binSize?' · '+j.binSize:'')+'</div>'
+      +(j.address?'<div style="font-size:12px;color:var(--muted);margin-top:1px;">📍 '+_esc(j.address)+(j.city?', '+_esc(j.city):'')+'</div>':'')
+      +'<div style="font-size:12px;color:var(--muted);margin-top:1px;">'+(j.binBid?'<span style="color:var(--text);font-weight:600">Bin #'+_esc(j.binBid)+'</span> · ':'')+(j.binPickup?'Pickup was: '+fd(j.binPickup):'No pickup date set')+(j.binSize?' · '+j.binSize:'')+'</div>'
       +'</div>'
       +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>'
       +'</div>';}).join('')
