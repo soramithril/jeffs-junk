@@ -751,7 +751,7 @@
 <!-- ═══════════════ COMPETITION PRICING ═══════════════ -->
 <div id="view-pricing" class="view">
   <div class="page-header">
-    <div><div class="page-title page-title-sm">Competition Pricing</div><div class="page-sub">Track competitor rates vs your prices by city</div></div>
+    <div><div class="page-title page-title-sm">Competition Pricing</div><div class="page-sub">Quote a customer, and see how your prices compare</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="openEditOurPrices()">Edit Our Prices</button>
@@ -762,11 +762,12 @@
   <!-- View mode toggle -->
   <div class="filters-bar" style="margin-bottom:14px;align-items:center">
     <span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:6px">View:</span>
-    <button class="filter-chip active" id="pview-console" onclick="setPricingView('console',this)">📞 Live</button>
-    <button class="filter-chip" id="pview-grid" onclick="setPricingView('grid',this)">📊 Planning</button>
-    <button class="filter-chip" id="pview-cards" onclick="setPricingView('cards',this)">📱 Mobile</button>
-    <button class="filter-chip" id="pview-classic" onclick="setPricingView('classic',this)">📋 Classic</button>
+    <button class="filter-chip active" id="pview-console" onclick="setPricingView('console',this)">📞 Quote a Customer</button>
+    <button class="filter-chip" id="pview-grid" onclick="setPricingView('grid',this)">📊 Compare Prices</button>
+    <button class="filter-chip" id="pview-cards" onclick="setPricingView('cards',this)" style="display:none">📱 Mobile</button>
+    <button class="filter-chip" id="pview-classic" onclick="setPricingView('classic',this)" style="display:none">📋 Classic</button>
   </div>
+  <div style="font-size:12px;color:var(--muted);margin:-4px 0 14px">Use <strong>Quote a Customer</strong> when you're on the phone; <strong>Compare Prices</strong> to see how you stack up.</div>
 
   <!-- Category tabs (only used by Classic view) -->
   <div class="filters-bar" id="pcat-tabs" style="margin-bottom:20px;display:none">
@@ -2089,7 +2090,7 @@
 <script src="app-analytics.js?v=171"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
-<script src="app.js?v=198"></script>
+<script src="app.js?v=199"></script>
 </body>
 </html>
                                                                                                                                                          

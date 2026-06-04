@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '198';
+var APP_VERSION = '199';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -11600,9 +11600,9 @@ function renderPricingGridView(){
   html += '</div>';
 
   html += '<div class="pv-grid-summary">';
-  html += '<div class="pv-stat"><div class="lbl">Pricing power</div><div class="val val-green">'+counts.cheap+'</div></div>';
+  html += '<div class="pv-stat"><div class="lbl">You\'re cheapest</div><div class="val val-green">'+counts.cheap+'</div></div>';
   html += '<div class="pv-stat"><div class="lbl">Mid-pack</div><div class="val val-orange">'+counts.mid+'</div></div>';
-  html += '<div class="pv-stat"><div class="lbl">Highest in market</div><div class="val val-red">'+counts.expensive+'</div></div>';
+  html += '<div class="pv-stat"><div class="lbl">You\'re priciest</div><div class="val val-red">'+counts.expensive+'</div></div>';
   html += '<div class="pv-stat"><div class="lbl">No competitor data</div><div class="val">'+counts.none+'</div></div>';
   html += '</div>';
 
