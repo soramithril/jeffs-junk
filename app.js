@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '220';
+var APP_VERSION = '221';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -76,13 +76,12 @@ function dashSyncTabCounts(){
   // single wrapper, so use the already-computed "bins out" stat instead.
   var bo = document.getElementById('dash-tab-n-binsout');
   if(bo){ var s = document.getElementById('s-bins-out-fleet'); bo.textContent = (s && s.textContent) ? s.textContent : _dashCountRows('dash-bins-out-list'); }
-  var ov = document.getElementById('dash-tab-n-overdue'); if(ov) ov.textContent = _dashCountRows('dash-overdue');
-  var lb = document.getElementById('dash-tab-n-longbins'); if(lb) lb.textContent = _dashCountRows('dash-long-bins');
+  var at = document.getElementById('dash-tab-n-attention'); if(at) at.textContent = _dashCountRows('dash-attention-list');
 }
 (function _dashChipsBoot(){
   function init(){
     if(!document.getElementById('dash-tab-n-binsout')) return setTimeout(init, 400);
-    ['dash-bins-out-list','dash-overdue','dash-long-bins','s-bins-out-fleet'].forEach(function(id){
+    ['dash-bins-out-list','dash-attention-list','s-bins-out-fleet'].forEach(function(id){
       var el = document.getElementById(id); if(!el || el._dashObs) return;
       el._dashObs = new MutationObserver(dashSyncTabCounts);
       el._dashObs.observe(el, {childList:true, characterData:true, subtree:true});
@@ -2674,35 +2673,72 @@ function makeDashRowsFurn(list){
   if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
   return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
-async function renderDashLongBins(){
-  var threshold=parseInt((document.getElementById('dash-days-threshold')||{}).value)||7;
-  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-threshold);
-  var cutoffS=cutoff.toISOString().split('T')[0];
-  // Fetch all dropped bins where dropoff/date is older than threshold
-  var rLong=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').lte('bin_dropoff',cutoffS);
-  var longBins=(rLong.data||[]).map(dbToJob);
-  // Also catch dropped bins with no bin_dropoff but old job date
-  var rLong2=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').is('bin_dropoff',null).lte('date',cutoffS);
-  (rLong2.data||[]).forEach(function(row){var j=dbToJob(row);if(!longBins.find(function(x){return x.id===j.id;}))longBins.push(j);});
-  // Merge into local jobs array
-  longBins.forEach(function(j){if(!jobs.find(function(x){return x.id===j.id;}))jobs.push(j);});
-  document.getElementById('dash-long-bins').innerHTML=longBins.length
-    ?longBins.map(function(j){
-      var drop=j.binDropoff||j.date;
-      var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
-      var urgColor=days>=14?'#dc3545':'#e67e22';
-      return'<div style="padding:8px 10px;border:1px solid rgba(230,126,34,.3);border-radius:8px;margin-bottom:8px;background:rgba(230,126,34,.04);display:flex;align-items:center;gap:8px;">'
-        +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-        +'<div style="display:flex;align-items:center;gap:8px;">'
-        +'<strong>'+j.name+'</strong>'
-        +'<span style="color:'+urgColor+';font-size:12px;font-weight:700;margin-left:auto">'+days+' days out</span>'
-        +'</div>'
-        +'<div style="font-size:12px;color:var(--muted);margin-top:1px;">'+(j.binSize||'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):' · No pickup date set')+(j.phone?'<span style="margin-left:8px;font-weight:600;color:var(--text)">'+j.phone+'</span>':'')+'</div>'
-        +'</div>'
-        +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>'
-        +'</div>';
-    }).join('')
-    :emptyStateHTML('🟢','All On Schedule','No bins have been out longer than expected.');
+// Merged "Overdue Pickups" + "Bins Out Long" into one full-width list.
+// A bin needs attention if its pickup date has passed (overdue) OR it has been
+// out 7+ days. Severity: red = overdue or out 14+ days, amber = out 7-13 days.
+async function renderBinsAttention(){
+  var host=document.getElementById('dash-attention-list');
+  if(!host)return;
+  var todayS=todayStr();
+  // One query: every active dropped bin. Filter + grade in JS.
+  var r=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled');
+  var all=(r.data||[]).map(dbToJob);
+  all.forEach(function(j){
+    var drop=j.binDropoff||j.date;
+    j._days=drop?Math.max(0,Math.floor((Date.now()-new Date(drop+'T12:00:00').getTime())/86400000)):0;
+    j._overdue=!!(j.binPickup && j.binPickup<todayS);
+  });
+  var att=all.filter(function(j){return j._overdue || j._days>=7;});
+  // Overdue first, then most days out
+  att.sort(function(a,b){ if(a._overdue!==b._overdue)return a._overdue?-1:1; return b._days-a._days; });
+  // Merge into local jobs array so action buttons resolve
+  att.forEach(function(j){if(!jobs.find(function(x){return x.id===j.id;}))jobs.push(j);});
+
+  var sub=document.getElementById('dash-attention-sub');
+  if(sub){
+    var nOver=att.filter(function(j){return j._overdue;}).length;
+    sub.textContent = att.length
+      ? att.length+' bin'+(att.length===1?'':'s')+' need'+(att.length===1?'s':'')+' attention'+(nOver?' · '+nOver+' overdue':'')
+      : 'Overdue or out a long time — call these customers';
+  }
+
+  if(!att.length){
+    host.innerHTML=emptyStateHTML('✅','All Clear','No bins are overdue or out longer than expected. Nice work.');
+    return;
+  }
+
+  host.innerHTML=att.map(function(j){
+    var sev=(j._overdue||j._days>=14)?'red':'amber';
+    var c=sev==='red'
+      ? {bd:'#dc3545',pBg:'rgba(220,53,69,.15)',pBd:'rgba(220,53,69,.4)',pFg:'#dc3545'}
+      : {bd:'#e67e22',pBg:'rgba(230,126,34,.15)',pBd:'rgba(230,126,34,.4)',pFg:'#e67e22'};
+    var hasBin=!!j.binBid;
+    var binPill=hasBin
+      ? '<span style="font-size:11px;font-weight:700;background:'+c.pBg+';color:'+c.pFg+';border:1px solid '+c.pBd+';border-radius:5px;padding:2px 9px;white-space:nowrap">#'+_esc(j.binBid)+'</span>'
+      : '<span style="font-size:11px;font-weight:700;background:rgba(13,110,253,.1);color:#0d6efd;border:1px dashed rgba(13,110,253,.45);border-radius:5px;padding:2px 9px;white-space:nowrap">no bin</span>';
+    var addr=(j.address?_esc(j.address.split(',')[0]):'')+(j.city?' · '+_esc(j.city):'');
+    var pickInfo=j._overdue
+      ? '<span style="color:'+c.pFg+';font-weight:600">⏰ pickup was '+fd(j.binPickup)+'</span>'
+      : (j.binPickup?'<span style="color:var(--muted)">pickup '+fd(j.binPickup)+'</span>':'<span style="color:var(--muted)">no pickup date</span>');
+    var detailBits=[];
+    if(j.phone) detailBits.push('<span style="color:#0d6efd;font-weight:600;flex-shrink:0">📞 '+_esc(j.phone)+'</span>');
+    if(addr) detailBits.push('<span style="color:var(--muted)">📍 '+addr+'</span>');
+    if(j.binSize) detailBits.push('<span style="color:var(--muted)">'+_esc(j.binSize)+'</span>');
+    detailBits.push(pickInfo);
+    var daysPill='<span style="font-size:11px;font-weight:700;background:'+c.pBg+';color:'+c.pFg+';border:1px solid '+c.pBd+';border-radius:5px;padding:2px 9px;white-space:nowrap;justify-self:end">'+j._days+' day'+(j._days===1?'':'s')+'</span>';
+    var actionBtn=hasBin
+      ? '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">✅ Picked Up</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">📦 Assign Bin</button>';
+    return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:12.5px" onclick="openDetail(\''+j.id+'\')">'
+      +binPill
+      +'<div style="min-width:0;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden">'
+        +'<span style="font-weight:700;font-size:13px;flex-shrink:0">'+_esc(j.name)+'</span>'
+        +detailBits.join('<span style="color:var(--border-strong)">·</span>')
+      +'</div>'
+      +daysPill
+      +actionBtn
+    +'</div>';
+  }).join('');
 }
 async function renderDash(){
   // Banner: kick off fetch + re-render every time dashboard renders
@@ -2711,8 +2747,8 @@ async function renderDash(){
   // ── Skeleton loading: show placeholders while data loads (v18) ──
   var skTodayJobs=document.getElementById('dash-today-jobs');
   if(skTodayJobs) skTodayJobs.innerHTML=skeletonRows(4);
-  var skOverdue=document.getElementById('dash-overdue');
-  if(skOverdue) skOverdue.innerHTML=skeletonRows(2);
+  var skAttention=document.getElementById('dash-attention-list');
+  if(skAttention) skAttention.innerHTML=skeletonRows(2);
   var skBinsOut=document.getElementById('dash-bins-out-list');
   if(skBinsOut) skBinsOut.innerHTML=skeletonRows(3);
   var skCallback=document.getElementById('dash-callback-list');
@@ -2760,7 +2796,7 @@ async function renderDash(){
     rTotal, rActive, rDone, rUnpaid, rMonthRev,
     rTodayJobs, rWeekJobs, rWeekRev,
     rBinCounts, rJunkCount, rFurnCount,
-    rOutstanding, rOverdue, rBinPickupsToday, rBinDropoffsToday,
+    rOutstanding, rBinPickupsToday, rBinDropoffsToday,
     rTomorrowJobs, rUnconfirmed14,
     rTodayFurn, rTodayJunk,
     rLastWeekJobs, rLastWeekRev, rSameDayLastWeek
@@ -2777,7 +2813,6 @@ async function renderDash(){
     db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
     db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
     db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
-    db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled').or('bin_pickup.lt.'+todayS+',bin_pickup.is.null'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
@@ -2833,9 +2868,6 @@ async function renderDash(){
   var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs));
   var totalTodayCount = allToday.length;
   var unconfirmedToday = allToday.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
-
-  var overdueJobs = (rOverdue.data||[]).map(dbToJob);
-  overdueJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
   // ── TOMORROW PILL in header ───────────────────────────────
   var tomorrowJobs = (rTomorrowJobs.data||[]).map(dbToJob);
@@ -3036,22 +3068,8 @@ async function renderDash(){
     }
   }
 
-  // ── OVERDUE PICKUPS ───────────────────────────────────────
-  document.getElementById('dash-overdue').innerHTML = overdueJobs.length
-    ? overdueJobs.map(function(j){return'<div style="padding:8px 10px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:8px;background:rgba(220,53,69,.04);display:flex;align-items:center;gap:8px;">'
-      +'<div style="flex:1;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-      +'<strong style="color:#dc3545">'+j.name+'</strong>'
-      +(j.address?'<div style="font-size:12px;color:var(--muted);margin-top:1px;">📍 '+_esc(j.address)+(j.city?', '+_esc(j.city):'')+'</div>':'')
-      +'<div style="font-size:12px;color:var(--muted);margin-top:1px;">'+(j.binBid?'<span style="color:var(--text);font-weight:600">Bin #'+_esc(j.binBid)+'</span> · ':'')+(j.binPickup?'Pickup was: '+fd(j.binPickup):'No pickup date set')+(j.binSize?' · '+j.binSize:'')+'</div>'
-      +'</div>'
-      +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px;white-space:nowrap">✅ Picked Up</button>'
-      +'</div>';}).join('')
-    :emptyStateHTML('✅','All Clear!','No overdue pickups right now. Nice work keeping things on track.');
-
-  var overdueCard=document.getElementById('card-overdue');
-  if(overdueCard) overdueCard.className='chart-card '+(overdueJobs.length>0?'urgency-warn':'urgency-ok');
-
-  renderDashLongBins();
+  // ── BINS NEEDING ATTENTION (merged overdue + long-out) ────
+  renderBinsAttention();
   renderWeekCal();
   renderDashBinsOut();
 
