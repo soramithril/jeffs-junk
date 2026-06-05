@@ -234,7 +234,19 @@ function setBookingsPeriod(p){
 function setBookingsCustomStart(v){ _bookingsCustomStart = v; if(_bookingsPeriod === 'custom') renderBookings(); }
 function setBookingsCustomEnd(v){ _bookingsCustomEnd = v; if(_bookingsPeriod === 'custom') renderBookings(); }
 
+// Service → accent color, matching the Today's Jobs category colors.
+function _bkSvcColor(svc){
+  return ({
+    'Bin Rental':       '#0891b2',
+    'Junk Removal':     '#eab308',
+    'Junk Quote':       '#0d6efd',
+    'Furniture Pickup': '#8b5cf6',
+    'Furniture Delivery':'#f97316'
+  })[svc] || 'var(--accent)';
+}
+
 // ── Booked Today dashboard widget (visible to everyone) ─────
+// Styled to match the Today's Jobs rows for dashboard unity.
 async function renderTodayBookings(){
   var host = document.getElementById('dash-today-bookings');
   if(!host) return;
@@ -246,39 +258,41 @@ async function renderTodayBookings(){
     .select('job_id,name,service,created_by,created_at,status')
     .gte('created_at', startISO).lt('created_at', endISO)
     .order('created_at', { ascending: false });
-  if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px">Could not load today\'s bookings.</div>'; return; }
+  if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 16px">Could not load today\'s bookings.</div>'; return; }
   var list = r.data || [];
   var n = list.length;
+
+  var countEl = document.getElementById('dash-bookings-count');
+  if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' booked today') : '';
 
   var moreBtn = document.getElementById('dash-bookings-more');
   if(moreBtn) moreBtn.style.display = (typeof canAccessAnalytics === 'function' && canAccessAnalytics()) ? '' : 'none';
 
-  // Headline
-  var headline = '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:'+(n?'14px':'0')+'">'+
-                  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;line-height:.9;color:var(--accent)">'+n+'</span>'+
-                  '<span style="font-size:13px;color:var(--text);font-weight:600">job'+(n===1?'':'s')+' booked today</span>'+
-                '</div>';
+  if(!list.length){
+    host.innerHTML = (typeof emptyStateHTML === 'function')
+      ? emptyStateHTML('📝','Nothing Booked Yet','No new jobs have been entered today.')
+      : '<div style="font-size:13px;color:var(--muted);padding:10px 16px">No bookings yet today.</div>';
+    return;
+  }
 
-  // Job rows — sb() for service, jid() for ID, relative time
-  var rows = list.slice(0, 8).map(function(j){
+  host.innerHTML = list.map(function(j){
     var ts = j.created_at ? new Date(j.created_at) : null;
     var tsStr = ts ? _bkRelTime(ts) : '';
     var cancelled = (j.status === 'Cancelled');
-    var rowOp = cancelled ? 'opacity:.55;text-decoration:line-through;' : '';
-    var color = _bkUserColor(j.created_by||'unknown');
-    return '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;transition:background .15s;'+rowOp+'" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'transparent\'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
-              '<span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_bkEsc(j.name||'—')+'</span>'+
-              '<span>'+(j.service?sb(j.service):'')+'</span>'+
-              '<span style="display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:11px">'+
-                '<span style="width:20px;height:20px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'+_bkInitial(j.created_by||'?')+'</span>'+
-                _bkEsc(j.created_by||'')+
-              '</span>'+
-              '<span style="color:var(--muted);font-size:11px;white-space:nowrap">'+tsStr+'</span>'+
+    var rowOp = cancelled ? ';opacity:.55' : '';
+    var nameStyle = cancelled ? 'text-decoration:line-through;' : '';
+    var svcColor = _bkSvcColor(j.service);
+    var uColor = _bkUserColor(j.created_by||'unknown');
+    return '<div class="today-job-row" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+svcColor+';border-radius:0 8px 8px 0;margin:0 8px 5px;cursor:pointer;font-size:12.5px'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
+              '<div style="min-width:0;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden">'+
+                '<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0;'+nameStyle+'">'+_bkEsc(j.name||'—')+'</span>'+
+                (j.service?sb(j.service):'')+
+              '</div>'+
+              '<div style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;justify-self:end;white-space:nowrap">'+
+                '<span style="width:22px;height:22px;border-radius:50%;background:'+uColor+';color:#fff;font-weight:700;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'+_bkEsc(_bkInitial(j.created_by||'?'))+'</span>'+
+                '<span>'+_bkEsc(j.created_by||'—')+'</span>'+
+              '</div>'+
+              '<div style="color:var(--muted);font-size:11px;justify-self:end;white-space:nowrap;min-width:62px;text-align:right">'+tsStr+'</div>'+
             '</div>';
   }).join('');
-  var listHtml = list.length
-    ? rows + (list.length > 8 ? '<div style="text-align:center;font-size:11px;color:var(--muted);padding:6px">+ '+(list.length-8)+' more</div>' : '')
-    : '<div style="font-size:13px;color:var(--muted);padding:6px 0">No bookings yet today.</div>';
-
-  host.innerHTML = headline + listHtml;
 }

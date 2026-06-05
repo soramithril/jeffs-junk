@@ -220,7 +220,7 @@
       </div>
     </div>
 
-    <!-- RIGHT: Today's Jobs (top) + Will Call (under) -->
+    <!-- RIGHT: Today's Jobs -->
     <div style="display:flex;flex-direction:column;gap:16px;">
       <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
@@ -232,20 +232,24 @@
         </div>
         <div id="dash-today-jobs" style="padding:4px 0"></div>
       </div>
-      <div class="chart-card" id="card-will-call" style="padding:0;overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span style="display:inline-flex;color:#e67e22"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
-            <div>
-              <div class="card-head" style="margin:0">Will Call</div>
-              <div id="dash-will-call-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
-            </div>
-          </div>
-        </div>
-        <div id="dash-will-call-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:6px;padding:8px"></div>
-      </div>
     </div>
 
+  </div>
+
+  <!-- ROW: Will Call — full width -->
+  <div class="dash-section dash-s2" style="margin-bottom:24px">
+    <div class="chart-card" id="card-will-call" style="padding:0;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="display:inline-flex;color:#e67e22"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+          <div>
+            <div class="card-head" style="margin:0">Will Call</div>
+            <div id="dash-will-call-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
+          </div>
+        </div>
+      </div>
+      <div id="dash-will-call-list" style="display:flex;flex-direction:column;gap:6px;padding:8px"></div>
+    </div>
   </div>
 
   <!-- ROW 2: Bins Currently Out — full width -->
@@ -287,15 +291,15 @@
 
   <!-- ROW 4: Booked Today -->
   <div class="dash-section dash-s5" style="margin-bottom:24px">
-    <div class="chart-card" style="padding:0;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
+    <div class="chart-card urgency-neutral" style="padding:0;overflow:visible">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
         <div>
-          <div class="card-head"><span class="emo">📝</span>Booked Today</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Jobs entered into the system today, by user</div>
+          <div class="card-head">📝 Booked Today</div>
+          <div id="dash-bookings-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
         </div>
         <button id="dash-bookings-more" class="btn btn-ghost btn-sm" onclick="go('bookings')" style="display:none">All Bookings →</button>
       </div>
-      <div id="dash-today-bookings" style="padding:12px 16px;"></div>
+      <div id="dash-today-bookings" style="padding:4px 0"></div>
     </div>
   </div>
 
@@ -2226,8 +2230,8 @@
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
-<script src="app-bookings.js?v=219"></script>
-<script src="app.js?v=219"></script>
+<script src="app-bookings.js?v=220"></script>
+<script src="app.js?v=220"></script>
 </body>
 </html>
                                                                                                                                                          
