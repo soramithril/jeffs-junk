@@ -66,7 +66,7 @@ async function renderBookings(){
   var endISO = ymdLocal(endDate) + 'T00:00:00';
 
   var r = await db.from('jobs')
-    .select('id,name,service,date,created_at,created_by,status')
+    .select('job_id,name,service,date,created_at,created_by,status')
     .gte('created_at', startISO)
     .lt('created_at', endISO)
     .order('created_at', { ascending: false });
@@ -204,8 +204,8 @@ async function renderBookings(){
       var zebraBg = idx%2 ? 'rgba(0,0,0,.018)' : 'transparent';
       var color = _bkUserColor(j.created_by||'unknown');
       var avatar = '<span style="display:inline-flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:11px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'+_bkInitial(j.created_by||'?')+'</span>'+_bkEsc(j.created_by||'—')+'</span>';
-      html += '<tr style="cursor:pointer;border-top:1px solid var(--border);background:'+zebraBg+';'+rowStyle+'" onmouseover="this.style.background=\'rgba(34,197,94,.06)\'" onmouseout="this.style.background=\''+zebraBg+'\'" onclick="openDetail(\''+_bkEsc(j.id)+'\')">'+
-                '<td style="padding:10px 14px">'+jid(j.id, j.service)+'</td>'+
+      html += '<tr style="cursor:pointer;border-top:1px solid var(--border);background:'+zebraBg+';'+rowStyle+'" onmouseover="this.style.background=\'rgba(34,197,94,.06)\'" onmouseout="this.style.background=\''+zebraBg+'\'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
+                '<td style="padding:10px 14px">'+jid(j.job_id, j.service)+'</td>'+
                 '<td style="padding:10px 14px;font-weight:600">'+_bkEsc(j.name||'—')+'</td>'+
                 '<td style="padding:10px 14px">'+(j.service?sb(j.service):'—')+'</td>'+
                 '<td style="padding:10px 14px">'+fd(j.date)+'</td>'+
@@ -245,7 +245,7 @@ async function renderTodayBookings(){
   var endD = new Date(t + 'T00:00:00'); endD.setDate(endD.getDate()+1);
   var endISO = ymdLocal(endD) + 'T00:00:00';
   var r = await db.from('jobs')
-    .select('id,name,service,created_by,created_at,status')
+    .select('job_id,name,service,created_by,created_at,status')
     .gte('created_at', startISO).lt('created_at', endISO)
     .order('created_at', { ascending: false });
   if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px">Could not load today\'s bookings.</div>'; return; }
@@ -289,8 +289,8 @@ async function renderTodayBookings(){
     var cancelled = (j.status === 'Cancelled');
     var rowOp = cancelled ? 'opacity:.55;text-decoration:line-through;' : '';
     var color = _bkUserColor(j.created_by||'unknown');
-    return '<div style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:12px;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;transition:background .15s;'+rowOp+'" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'transparent\'" onclick="openDetail(\''+_bkEsc(j.id)+'\')">'+
-              '<span>'+jid(j.id, j.service)+'</span>'+
+    return '<div style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:12px;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;transition:background .15s;'+rowOp+'" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'transparent\'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
+              '<span>'+jid(j.job_id, j.service)+'</span>'+
               '<span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_bkEsc(j.name||'—')+'</span>'+
               '<span>'+(j.service?sb(j.service):'')+'</span>'+
               '<span style="display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:11px">'+
