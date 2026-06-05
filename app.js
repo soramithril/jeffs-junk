@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '228';
+var APP_VERSION = '229';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1920,7 +1920,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','analytics','utilization','pricing','drdcalc','dispatch','leaderboard','advisor','bookings'];
+var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','maintenance','analytics','utilization','pricing','drdcalc','dispatch','leaderboard','advisor','bookings'];
 var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
 function canAccessAnalytics(){
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
@@ -1968,6 +1968,7 @@ function render(name){
   else if(name==='bininventory') renderBinInventory();
   else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderVehicles);}
+  else if(name==='maintenance') renderMaintenance();
   else if(name==='documents') renderDocuments();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
@@ -9976,7 +9977,7 @@ function snoozeVehicleAlert(key){
     s[key] = Date.now() + 7*24*3600*1000;
     localStorage.setItem('veh_alerts_snoozed', JSON.stringify(s));
   } catch(e){}
-  renderVehicles();
+  _rerenderFleet();
 }
 
 function _vehOilStatus(v){
@@ -10100,8 +10101,8 @@ function _buildVehicleAlerts(){
   return alerts;
 }
 
-function _renderVehicleInbox(alerts){
-  var el = document.getElementById('vehicle-inbox');
+function _renderVehicleInbox(alerts, elId){
+  var el = document.getElementById(elId||'vehicle-inbox');
   if(!el) return;
   if(!alerts.length){
     el.innerHTML = '<div class="h-inbox" style="background:linear-gradient(180deg,rgba(34,197,94,.05),transparent);border-color:rgba(34,197,94,.2)">'
@@ -10308,7 +10309,7 @@ async function markOilServicedQuick(vid){
   if(odo && odo.odometer_km) v.oilKm = String(odo.odometer_km);
   saveVehicles();
   toast('✅ Oil change recorded for '+v.name);
-  renderVehicles();
+  _rerenderFleet();
 }
 
 function _focusVehBlockForm(vid){
@@ -10396,6 +10397,98 @@ function renderVehicles(){
   _renderVehicleRows(dashVehicles, alerts);
 }
 
+// Re-render whichever fleet view is active so maintenance actions reflect instantly.
+function _rerenderFleet(){
+  var mv = document.getElementById('view-maintenance');
+  if(mv && mv.classList.contains('active') && typeof renderMaintenance === 'function'){ renderMaintenance(); return; }
+  renderVehicles();
+}
+
+// ── MAINTENANCE PAGE ───────────────────────────────────────
+// Fleet-wide service view. Reuses the Vehicles page's alert engine
+// (_buildVehicleAlerts) for the actionable inbox; adds maintenance KPIs and a
+// full km-schedule table with live "km left" computed from the odometer.
+async function renderMaintenance(){
+  var kpiEl=document.getElementById('maint-kpis');
+  var inboxEl=document.getElementById('maint-inbox');
+  var schedEl=document.getElementById('maint-schedules');
+  var subEl=document.getElementById('maint-sub');
+  if(schedEl) schedEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Loading…</div>';
+  await loadMaintenanceForVehicles();
+  var fleet=(typeof vehicles!=='undefined'?vehicles:[]).filter(function(v){return !v.leaderboardOnly;});
+  if(!fleet.length){
+    if(kpiEl) kpiEl.innerHTML='';
+    if(inboxEl) inboxEl.innerHTML='';
+    if(schedEl) schedEl.innerHTML=emptyStateHTML('🚛','No vehicles yet','Add your trucks on the Vehicles page to track maintenance.');
+    return;
+  }
+
+  // Actionable inbox — reuse the fleet alert engine (oil, sticker, km-service)
+  _renderVehicleInbox(_buildVehicleAlerts(), 'maint-inbox');
+
+  // Flatten every km-schedule with live km-left from the odometer
+  var rows=[];
+  var compliant=0, oilOverdue=0, stickerFlag=0;
+  fleet.forEach(function(v){
+    var oil=_vehOilStatus(v), st=_vehStickerStatus(v), mw=_vehMaintWorstStatus(v.vid);
+    if(oil.state!=='bad'&&mw.state!=='bad'&&st.state!=='bad') compliant++;
+    if(oil.state==='bad') oilOverdue++;
+    if(st.state==='bad'||st.state==='warn') stickerFlag++;
+    var odo=window._odometerCache&&window._odometerCache[v.vid];
+    var odoKm=odo?odo.odometer_km:null;
+    (_maintCache[v.vid]||[]).forEach(function(s){
+      var kmLeft=(s.next_due_km!=null&&odoKm!=null)?(s.next_due_km-odoKm):null;
+      var sev=kmLeft!=null ? (kmLeft<=0?'overdue':kmLeft<=500?'due':'ok')
+                           : (s.status==='overdue'?'overdue':s.status==='due'?'due':'ok');
+      rows.push({v:v,s:s,kmLeft:kmLeft,sev:sev});
+    });
+  });
+  var serviceDue=rows.filter(function(r){return r.sev==='overdue'||r.sev==='due';}).length;
+  var compPct=Math.round(100*compliant/fleet.length);
+  if(subEl) subEl.textContent=fleet.length+' vehicle'+(fleet.length!==1?'s':'')+' · '+serviceDue+' service item'+(serviceDue!==1?'s':'')+' due';
+
+  if(kpiEl){
+    kpiEl.innerHTML='<div class="h-kpis">'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(34,197,94,.12);color:#22c55e">✓</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+fleet.length+' on track</div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(220,53,69,.12);color:#dc3545">⛽</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(230,126,34,.13);color:#e67e22">🔧</div><div><div class="h-kpi-num">'+serviceDue+'</div><div class="h-kpi-lbl">Service due</div></div></div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6">📋</div><div><div class="h-kpi-num">'+stickerFlag+'</div><div class="h-kpi-lbl">Sticker expiring</div></div></div></div>'
+    +'</div>';
+  }
+
+  if(schedEl){
+    if(!rows.length){
+      schedEl.innerHTML='<div class="chart-card" style="padding:0;overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--border)"><div class="card-head" style="margin:0">🔧 Service Schedules</div></div>'+emptyStateHTML('🔧','No schedules yet','Add km-based service schedules on the Vehicles page.')+'</div>';
+    } else {
+      rows.sort(function(a,b){ var ak=a.kmLeft==null?1e12:a.kmLeft, bk=b.kmLeft==null?1e12:b.kmLeft; return ak-bk; });
+      var SC={overdue:{bd:'#dc3545',bg:'rgba(220,53,69,.15)',fg:'#dc3545',pbd:'rgba(220,53,69,.4)'},due:{bd:'#e67e22',bg:'rgba(230,126,34,.15)',fg:'#e67e22',pbd:'rgba(230,126,34,.4)'},ok:{bd:'#22c55e',bg:'rgba(34,197,94,.12)',fg:'#16a34a',pbd:'rgba(34,197,94,.35)'}};
+      var body=rows.map(function(r,idx){
+        var c=SC[r.sev];
+        var zebra=idx%2?'rgba(0,0,0,.018)':'transparent';
+        var kmLeftTxt=r.kmLeft==null?'no odometer':(r.kmLeft<=0?Math.abs(r.kmLeft).toLocaleString()+' km over':r.kmLeft.toLocaleString()+' km left');
+        var pill='<span style="font-size:11px;font-weight:700;background:'+c.bg+';color:'+c.fg+';border:1px solid '+c.pbd+';border-radius:5px;padding:2px 9px;white-space:nowrap">'+kmLeftTxt+'</span>';
+        var last=r.s.last_service_date?fd(r.s.last_service_date)+(r.s.last_service_km?' · '+r.s.last_service_km.toLocaleString()+' km':''):'—';
+        return '<tr style="border-top:1px solid var(--border);background:'+zebra+';border-left:4px solid '+c.bd+'">'
+          +'<td style="padding:9px 12px;font-weight:700">'+_esc(r.v.name)+'</td>'
+          +'<td style="padding:9px 12px">'+_esc(r.s.maintenance_type)+'</td>'
+          +'<td style="padding:9px 12px;color:var(--muted)">every '+(r.s.interval_km?r.s.interval_km.toLocaleString():'—')+' km</td>'
+          +'<td style="padding:9px 12px;color:var(--muted)">'+last+'</td>'
+          +'<td style="padding:9px 12px">'+(r.s.next_due_km!=null?r.s.next_due_km.toLocaleString()+' km':'—')+'</td>'
+          +'<td style="padding:9px 12px">'+pill+'</td>'
+          +'<td style="padding:9px 12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+r.s.id+'\',\''+r.v.vid+'\')" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35)">✅ Mark serviced</button></td>'
+        +'</tr>';
+      }).join('');
+      schedEl.innerHTML='<div class="chart-card" style="padding:0;overflow:hidden">'
+        +'<div style="padding:14px 18px;border-bottom:1px solid var(--border)"><div class="card-head" style="margin:0">🔧 Service Schedules</div><div style="font-size:11px;color:var(--muted);margin-top:2px">All km-based schedules, soonest due first</div></div>'
+        +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+          +'<thead><tr style="text-align:left;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">'
+            +'<th style="padding:10px 12px">Vehicle</th><th style="padding:10px 12px">Service</th><th style="padding:10px 12px">Interval</th><th style="padding:10px 12px">Last done</th><th style="padding:10px 12px">Next due</th><th style="padding:10px 12px">Status</th><th style="padding:10px 12px"></th>'
+          +'</tr></thead><tbody>'+body+'</tbody></table></div>'
+      +'</div>';
+    }
+  }
+}
+
 
 // ── Maintenance Schedules ──
 var _maintCache={};
@@ -10415,7 +10508,7 @@ async function loadMaintenanceForVehicles(){
 // Maintenance is rendered inline by the vehicle row drawer (renderVehicles).
 // Kept as an alias so external callers (markMaintDone, addMaintSchedule, etc.)
 // don't need to know about the rewrite.
-function renderMaintSections(){ renderVehicles(); }
+function renderMaintSections(){ _rerenderFleet(); }
 
 async function addMaintSchedule(vid){
   var typeEl=document.getElementById('maint-type-'+vid);
