@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '223';
+var APP_VERSION = '224';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2673,6 +2673,25 @@ function makeDashRowsFurn(list){
   if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
   return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
+// Inline SVG icon helper (Feather-style, stroke=currentColor) — used by the bins
+// dashboard sections in place of emoji for a cleaner, more professional look.
+function _svgIcon(name, size, extra){
+  size = size || 12;
+  var p = {
+    phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+    pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+    cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    check: '<polyline points="20 6 9 17 4 12"/>',
+    box: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+    alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+    home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    truck: '<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>'
+  };
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0;'+(extra||'')+'">'+p[name]+'</svg>';
+}
+
 // Merged "Overdue Pickups" + "Bins Out Long" into one full-width list.
 // A bin needs attention if its pickup date has passed (overdue) OR it has been
 // out 7+ days. Severity: red = overdue or out 14+ days, amber = out 7-13 days.
@@ -2703,7 +2722,7 @@ async function renderBinsAttention(){
   }
 
   if(!att.length){
-    host.innerHTML=emptyStateHTML('✅','All Clear','No bins are overdue or out longer than expected. Nice work.');
+    host.innerHTML=emptyStateHTML('<span style="color:#22c55e">'+_svgIcon('check',40)+'</span>','All Clear','No bins are overdue or out longer than expected. Nice work.');
     return;
   }
 
@@ -2718,17 +2737,17 @@ async function renderBinsAttention(){
       : '<span style="font-size:11px;font-weight:700;background:rgba(13,110,253,.1);color:#0d6efd;border:1px dashed rgba(13,110,253,.45);border-radius:5px;padding:2px 9px;white-space:nowrap">no bin</span>';
     var addr=(j.address?_esc(j.address.split(',')[0]):'')+(j.city?' · '+_esc(j.city):'');
     var pickInfo=j._overdue
-      ? '<span style="color:'+c.pFg+';font-weight:600">⏰ pickup was '+fd(j.binPickup)+'</span>'
+      ? '<span style="color:'+c.pFg+';font-weight:600">'+_svgIcon('clock',12,'margin-right:3px')+'pickup was '+fd(j.binPickup)+'</span>'
       : (j.binPickup?'<span style="color:var(--muted)">pickup '+fd(j.binPickup)+'</span>':'<span style="color:var(--muted)">no pickup date</span>');
     var detailBits=[];
-    if(j.phone) detailBits.push('<span style="color:#0d6efd;font-weight:600;flex-shrink:0">📞 '+_esc(j.phone)+'</span>');
-    if(addr) detailBits.push('<span style="color:var(--muted)">📍 '+addr+'</span>');
+    if(j.phone) detailBits.push('<span style="color:#0d6efd;font-weight:600;flex-shrink:0">'+_svgIcon('phone',12,'margin-right:3px')+_esc(j.phone)+'</span>');
+    if(addr) detailBits.push('<span style="color:var(--muted)">'+_svgIcon('pin',12,'margin-right:3px')+addr+'</span>');
     if(j.binSize) detailBits.push('<span style="color:var(--muted)">'+_esc(j.binSize)+'</span>');
     detailBits.push(pickInfo);
     var daysPill='<span style="font-size:11px;font-weight:700;background:'+c.pBg+';color:'+c.pFg+';border:1px solid '+c.pBd+';border-radius:5px;padding:2px 9px;white-space:nowrap;justify-self:end">'+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var actionBtn=hasBin
-      ? '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">✅ Picked Up</button>'
-      : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">📦 Assign Bin</button>';
+      ? '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">'+_svgIcon('check',12,'margin-right:4px')+'Picked Up</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">'+_svgIcon('box',12,'margin-right:4px')+'Assign Bin</button>';
     return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:12.5px" onclick="openDetail(\''+j.id+'\')">'
       +binPill
       +'<div style="min-width:0;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden">'
@@ -3136,7 +3155,7 @@ async function renderDashBinsOut(){
   var assignedJobs=droppedJobs.filter(function(j){return !!j.binBid;});
   var unassignedJobs=droppedJobs.filter(function(j){return !j.binBid && j.binDropoff && j.binDropoff<=_today;});
 
-  if(!assignedJobs.length&&!unassignedJobs.length){el.innerHTML=emptyStateHTML('🏠','All Bins Home','Every bin is back in the yard. Ready for the next job.');return;}
+  if(!assignedJobs.length&&!unassignedJobs.length){el.innerHTML=emptyStateHTML('<span style="color:#22c55e">'+_svgIcon('home',40)+'</span>','All Bins Home','Every bin is back in the yard. Ready for the next job.');return;}
 
   // Group assigned jobs by size
   var grouped={};
@@ -3169,15 +3188,15 @@ async function renderDashBinsOut(){
       : '';
     var addr=j.address?_esc(j.address.split(',')[0]):'';
     var bits=['<span style="font-weight:700;font-size:13px;flex-shrink:0">'+_esc(j.name)+'</span>'];
-    if(j.phone) bits.push('<span style="color:#0d6efd;font-weight:600;flex-shrink:0">📞 '+_esc(j.phone)+'</span>');
-    if(addr) bits.push('<span style="color:var(--muted);overflow:hidden;text-overflow:ellipsis">📍 '+addr+'</span>');
+    if(j.phone) bits.push('<span style="color:#0d6efd;font-weight:600;flex-shrink:0">'+_svgIcon('phone',12,'margin-right:3px')+_esc(j.phone)+'</span>');
+    if(addr) bits.push('<span style="color:var(--muted);overflow:hidden;text-overflow:ellipsis">'+_svgIcon('pin',12,'margin-right:3px')+addr+'</span>');
     if(!assigned && j.binSize) bits.push('<span style="color:var(--muted);flex-shrink:0">'+_esc(j.binSize)+'</span>');
-    if(assigned && j.binPickup) bits.push('<span style="color:#9b59b6;font-weight:600;flex-shrink:0">🗓 '+fd(j.binPickup)+'</span>');
+    if(assigned && j.binPickup) bits.push('<span style="color:#9b59b6;font-weight:600;flex-shrink:0">'+_svgIcon('cal',12,'margin-right:3px')+fd(j.binPickup)+'</span>');
     if(cityChip) bits.push(cityChip);
     var daysPill='<span style="font-size:11px;font-weight:700;background:'+s.c.pBg+';color:'+s.c.pFg+';border:1px solid '+s.c.pBd+';border-radius:5px;padding:2px 9px;white-space:nowrap;justify-self:end">'+s.days+' day'+(s.days===1?'':'s')+'</span>';
     var btn=assigned
-      ? '<button class="btn btn-ghost btn-sm" onclick="dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">✅ Picked Up</button>'
-      : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">📦 Assign Bin</button>';
+      ? '<button class="btn btn-ghost btn-sm" onclick="dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">'+_svgIcon('check',12,'margin-right:4px')+'Picked Up</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">'+_svgIcon('box',12,'margin-right:4px')+'Assign Bin</button>';
     return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+s.c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:12.5px;margin:0 8px 5px" onclick="openDetail(\''+j.id+'\')">'
       +binPill
       +'<div style="min-width:0;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden">'+bits.join('')+'</div>'
@@ -3193,7 +3212,7 @@ async function renderDashBinsOut(){
   var html='';
   // Unassigned first — needs action
   if(unassignedJobs.length){
-    html+=_szHead('⚠️ No Bin Assigned',unassignedJobs.length,'#e67e22','rgba(230,126,34,.12)')
+    html+=_szHead(_svgIcon('alert',17,'margin-right:6px')+'No Bin Assigned',unassignedJobs.length,'#e67e22','rgba(230,126,34,.12)')
       +unassignedJobs.map(function(j){return _binRow(j,false);}).join('');
   }
   // Then size-grouped assigned bins
