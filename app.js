@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '222';
+var APP_VERSION = '223';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3148,69 +3148,60 @@ async function renderDashBinsOut(){
   var sizeOrder=['4 yard','7 yard','14 yard','20 yard','Unknown'];
   var sizeKeys=Object.keys(grouped).sort(function(a,b){return (sizeOrder.indexOf(a)===-1?99:sizeOrder.indexOf(a))-(sizeOrder.indexOf(b)===-1?99:sizeOrder.indexOf(b));});
 
-  function _daysOutBadge(dropDate){
-    if(!dropDate)return '';
-    var d0=new Date(dropDate+'T12:00:00'),now=new Date();
-    var days=Math.max(0,Math.floor((now-d0)/86400000));
-    var bg,color,border;
-    if(days>=14){bg='rgba(220,53,69,.15)';color='#dc3545';border='rgba(220,53,69,.4)';}
-    else if(days>=7){bg='rgba(230,126,34,.15)';color='#e67e22';border='rgba(230,126,34,.4)';}
-    else{bg='rgba(34,197,94,.12)';color='#22c55e';border='rgba(34,197,94,.35)';}
-    return '<span style="font-size:11px;font-weight:700;background:'+bg+';color:'+color+';border:1px solid '+border+';border-radius:5px;padding:1px 7px;white-space:nowrap">'+days+' day'+(days!==1?'s':'')+'</span>';
+  // Unified row matching "Bins Needing Attention": severity-colored left border +
+  // graded days-out pill, full width. assigned=true → bin pill + Picked Up; else "no bin" + Assign.
+  function _binSev(dropDate){
+    var d0=dropDate?new Date(dropDate+'T12:00:00'):null;
+    var days=d0?Math.max(0,Math.floor((Date.now()-d0)/86400000)):0;
+    var c=days>=14?{bd:'#dc3545',pBg:'rgba(220,53,69,.15)',pFg:'#dc3545',pBd:'rgba(220,53,69,.4)'}
+      :days>=7?{bd:'#e67e22',pBg:'rgba(230,126,34,.15)',pFg:'#e67e22',pBd:'rgba(230,126,34,.4)'}
+      :{bd:'#22c55e',pBg:'rgba(34,197,94,.12)',pFg:'#16a34a',pBd:'rgba(34,197,94,.35)'};
+    return {days:days,c:c};
   }
-  function renderAssignedCard(j){
-    var dropDate=j.binDropoff||j.date;
-    var daysBadge=_daysOutBadge(dropDate);
-    var pickupBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(34,197,94,.3);color:#22c55e;border-radius:6px;margin-left:auto;flex-shrink:0">✅ Picked Up</button>';
-    return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #dc3545;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        +'<span style="font-size:12px;background:rgba(220,53,69,.12);color:#dc3545;border:1px solid rgba(220,53,69,.35);border-radius:5px;padding:1px 7px;font-weight:700">'+j.binBid+'</span>'
-        +'<strong style="font-size:13px">'+j.name+'</strong>'
-        +daysBadge
-        +pickupBtn
-      +'</div>'
-      +'<div style="font-size:11px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'
-        +(j.phone?'<span style="color:#0d6efd;font-weight:600">📞 '+j.phone+'</span>':'')
-        +'<span style="color:var(--muted)">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+'</span>'
-        +(j.binPickup?'<span style="color:#9b59b6;font-weight:600">🗓 Pickup: '+fd(j.binPickup)+'</span>':'')
-      +'</div>'
+  function _binRow(j,assigned){
+    var s=_binSev(j.binDropoff||j.date);
+    var binPill=assigned
+      ? '<span style="font-size:11px;font-weight:700;background:rgba(8,145,178,.12);color:#0891b2;border:1px solid rgba(8,145,178,.35);border-radius:5px;padding:2px 9px;white-space:nowrap">#'+_esc(j.binBid)+'</span>'
+      : '<span style="font-size:11px;font-weight:700;background:rgba(13,110,253,.1);color:#0d6efd;border:1px dashed rgba(13,110,253,.45);border-radius:5px;padding:2px 9px;white-space:nowrap">no bin</span>';
+    var cc=(typeof _cityColor==='function')?_cityColor(j.city):null;
+    var cityChip=(j.city&&cc)
+      ? '<span style="background:'+cc.bg+';color:'+cc.fg+';border:1px solid '+cc.bd+';border-left:3px solid '+cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:14px;padding:2px 10px;border-radius:5px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;line-height:1.3;flex-shrink:0">'+_esc(j.city)+'</span>'
+      : '';
+    var addr=j.address?_esc(j.address.split(',')[0]):'';
+    var bits=['<span style="font-weight:700;font-size:13px;flex-shrink:0">'+_esc(j.name)+'</span>'];
+    if(j.phone) bits.push('<span style="color:#0d6efd;font-weight:600;flex-shrink:0">📞 '+_esc(j.phone)+'</span>');
+    if(addr) bits.push('<span style="color:var(--muted);overflow:hidden;text-overflow:ellipsis">📍 '+addr+'</span>');
+    if(!assigned && j.binSize) bits.push('<span style="color:var(--muted);flex-shrink:0">'+_esc(j.binSize)+'</span>');
+    if(assigned && j.binPickup) bits.push('<span style="color:#9b59b6;font-weight:600;flex-shrink:0">🗓 '+fd(j.binPickup)+'</span>');
+    if(cityChip) bits.push(cityChip);
+    var daysPill='<span style="font-size:11px;font-weight:700;background:'+s.c.pBg+';color:'+s.c.pFg+';border:1px solid '+s.c.pBd+';border-radius:5px;padding:2px 9px;white-space:nowrap;justify-self:end">'+s.days+' day'+(s.days===1?'':'s')+'</span>';
+    var btn=assigned
+      ? '<button class="btn btn-ghost btn-sm" onclick="dashMarkPickedUp(\''+j.id+'\',\''+(j.binBid||'')+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">✅ Picked Up</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">📦 Assign Bin</button>';
+    return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+s.c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:12.5px;margin:0 8px 5px" onclick="openDetail(\''+j.id+'\')">'
+      +binPill
+      +'<div style="min-width:0;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden">'+bits.join('')+'</div>'
+      +daysPill
+      +btn
     +'</div>';
   }
-
-  function renderUnassignedCard(j){
-    var dropDate=j.binDropoff||j.date;
-    var daysBadge=_daysOutBadge(dropDate);
-    var assignBtn='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAssignBinPicker(\''+j.id+'\')" style="font-size:11px;white-space:nowrap;padding:3px 10px;border:1px solid rgba(230,126,34,.3);color:#e67e22;border-radius:6px;margin-left:auto;flex-shrink:0">Assign Bin</button>';
-    return '<div style="padding:8px 12px;border:1px solid var(--border);border-left:3px solid #e67e22;border-radius:0 8px 8px 0;margin-bottom:5px;background:var(--surface2);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        +'<strong style="font-size:13px">'+j.name+'</strong>'
-        +(j.binSize?'<span style="font-size:11px;font-weight:600;background:rgba(13,110,253,.12);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 7px">'+j.binSize+'</span>':'')
-        +daysBadge
-        +assignBtn
-      +'</div>'
-      +'<div style="font-size:11px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'
-        +(j.phone?'<span style="color:#0d6efd;font-weight:600">📞 '+j.phone+'</span>':'')
-        +'<span style="color:var(--muted)">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+'</span>'
-      +'</div>'
-    +'</div>';
+  function _szHead(label,count,color,bg){
+    return '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:14px 14px 6px;display:flex;align-items:center;gap:8px">'+label
+      +' <span style="font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;background:'+bg+';color:'+color+';border-radius:10px;padding:1px 8px">'+count+'</span></div>';
   }
 
-  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">';
-  // Unassigned column first if there are any
+  var html='';
+  // Unassigned first — needs action
   if(unassignedJobs.length){
-    html+='<div>'
-      +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#e67e22;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #e67e22">No Bin Assigned <span style="font-size:11px;font-weight:600">('+unassignedJobs.length+')</span></div>'
-      +unassignedJobs.map(renderUnassignedCard).join('')
-    +'</div>';
+    html+=_szHead('⚠️ No Bin Assigned',unassignedJobs.length,'#e67e22','rgba(230,126,34,.12)')
+      +unassignedJobs.map(function(j){return _binRow(j,false);}).join('');
   }
   // Then size-grouped assigned bins
   html+=sizeKeys.map(function(sz){
-    return '<div>'
-      +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--border)">'+sz+' <span style="font-size:11px;font-weight:600;color:var(--accent)">('+grouped[sz].length+')</span></div>'
-      +grouped[sz].map(renderAssignedCard).join('')
-    +'</div>';
+    var label=sz==='Unknown'?'UNKNOWN':sz.replace(/\s*yard/i,' YARD').toUpperCase();
+    return _szHead(label,grouped[sz].length,'#0891b2','rgba(8,145,178,.1)')
+      +grouped[sz].map(function(j){return _binRow(j,true);}).join('');
   }).join('');
-  html+='</div>';
   el.innerHTML=html;
 }
 

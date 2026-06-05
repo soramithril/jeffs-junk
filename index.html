@@ -253,15 +253,12 @@
 
   <!-- ROW 2: Bins Currently Out — full width -->
   <div id="sec-binsout" class="dash-section dash-s3" style="margin-bottom:24px;scroll-margin-top:14px">
-    <div class="chart-card" style="padding:0;overflow:visible;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);">
-        <div>
-          <div class="card-head"><span class="emo">📦</span>Bins Currently Out</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">All bins deployed with customer details</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="go('bininventory')">Bin Fleet →</button>
+    <div class="chart-card" style="padding:0;overflow:hidden;">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);">
+        <div class="card-head">📦 Bins Currently Out</div>
+        <div id="dash-bins-out-sub" style="font-size:12px;color:var(--muted);margin-top:2px;">All bins deployed, grouped by size</div>
       </div>
-      <div id="dash-bins-out-list" style="padding:10px 12px;"></div>
+      <div id="dash-bins-out-list" style="padding:6px 0 10px;"></div>
     </div>
   </div>
 
@@ -2223,7 +2220,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=222"></script>
-<script src="app.js?v=222"></script>
+<script src="app.js?v=223"></script>
 </body>
 </html>
                                                                                                                                                          
