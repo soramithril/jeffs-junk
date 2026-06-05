@@ -248,13 +248,6 @@ async function renderTodayBookings(){
     .order('created_at', { ascending: false });
   if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px">Could not load today\'s bookings.</div>'; return; }
   var list = r.data || [];
-  var byUser = {};
-  list.forEach(function(j){
-    var u = j.created_by || 'unknown';
-    if(!byUser[u]) byUser[u] = 0;
-    byUser[u]++;
-  });
-  var users = Object.keys(byUser).sort(function(a,b){ return byUser[b] - byUser[a]; });
   var n = list.length;
 
   var moreBtn = document.getElementById('dash-bookings-more');
@@ -265,20 +258,6 @@ async function renderTodayBookings(){
                   '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;line-height:.9;color:var(--accent)">'+n+'</span>'+
                   '<span style="font-size:13px;color:var(--text);font-weight:600">job'+(n===1?'':'s')+' booked today</span>'+
                 '</div>';
-
-  // User pills with initial avatars (medal on leader if >1 user)
-  var chips = users.length
-    ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:'+(list.length?'14px':'0')+'">' + users.map(function(u, idx){
-        var color = _bkUserColor(u);
-        var medal = (idx===0 && users.length>1) ? '<span style="font-size:12px">🥇</span>' : '';
-        return '<div style="display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:4px 12px 4px 4px;font-size:12.5px;font-weight:600">'+
-                  '<span style="width:24px;height:24px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:11px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'+_bkInitial(u)+'</span>'+
-                  '<span>'+_bkEsc(u)+'</span>'+
-                  '<span style="color:var(--accent);font-weight:700">'+byUser[u]+'</span>'+
-                  medal+
-                '</div>';
-      }).join('') + '</div>'
-    : '';
 
   // Job rows — sb() for service, jid() for ID, relative time
   var rows = list.slice(0, 8).map(function(j){
@@ -301,5 +280,5 @@ async function renderTodayBookings(){
     ? rows + (list.length > 8 ? '<div style="text-align:center;font-size:11px;color:var(--muted);padding:6px">+ '+(list.length-8)+' more</div>' : '')
     : '<div style="font-size:13px;color:var(--muted);padding:6px 0">No bookings yet today.</div>';
 
-  host.innerHTML = headline + chips + listHtml;
+  host.innerHTML = headline + listHtml;
 }
