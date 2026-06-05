@@ -264,6 +264,8 @@ async function renderTodayBookings(){
 
   var countEl = document.getElementById('dash-bookings-count');
   if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' booked today') : '';
+  var chipEl = document.getElementById('dash-tab-n-bookings');
+  if(chipEl) chipEl.textContent = n;
 
   var moreBtn = document.getElementById('dash-bookings-more');
   if(moreBtn) moreBtn.style.display = (typeof canAccessAnalytics === 'function' && canAccessAnalytics()) ? '' : 'none';
