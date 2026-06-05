@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '214';
+var APP_VERSION = '215';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1906,7 +1906,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','analytics','utilization','pricing','drdcalc','dispatch','leaderboard','advisor'];
+var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','analytics','utilization','pricing','drdcalc','dispatch','leaderboard','advisor','bookings'];
 var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
 function canAccessAnalytics(){
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
@@ -1919,7 +1919,7 @@ function toggleNavSection(id){
   if(arrow)arrow.style.transform=open?'rotate(-90deg)':'rotate(90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -1950,6 +1950,7 @@ function render(name){
   else if(name==='dispatch') renderDispatch();
   else if(name==='binmap') renderMap();
   else if(name==='advisor') renderAdvisor();
+  else if(name==='bookings') renderBookings();
   else if(name==='bininventory') renderBinInventory();
   else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderVehicles);}
@@ -2800,6 +2801,7 @@ async function renderDash(){
   refreshDashBinStats();
   renderDashVehicleStatus();
   renderDashMaintAlert();
+  if(typeof renderTodayBookings === 'function') renderTodayBookings();
 
   // ── Today's jobs ──────────────────────────────────────────
   var todayJobs        = (rTodayJobs.data||[]).map(dbToJob);
