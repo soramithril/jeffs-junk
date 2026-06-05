@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '227';
+var APP_VERSION = '228';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -65,6 +65,21 @@ function dashJump(id){
   var el = document.getElementById(id);
   if(el) el.scrollIntoView({block:'start'});
 }
+// Back-to-top floating button — the page scrolls the window (.main has no overflow).
+function scrollToTop(){ window.scrollTo({top:0,behavior:'smooth'}); }
+(function _backToTopBoot(){
+  function init(){
+    var btn=document.getElementById('back-to-top');
+    if(!btn){ setTimeout(init,400); return; }
+    function onScroll(){
+      var y=window.pageYOffset||document.documentElement.scrollTop||0;
+      btn.style.display = y>300 ? 'inline-flex' : 'none';
+    }
+    window.addEventListener('scroll',onScroll,{passive:true});
+    onScroll();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
 function _dashCountRows(id){
   var el = document.getElementById(id); if(!el) return 0;
   var kids = el.children;
