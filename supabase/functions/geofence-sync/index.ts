@@ -21,6 +21,7 @@ import {
   getAutoZones,
   ZONE_PREFIX,
 } from "../_shared/geotab-client.ts";
+import { pickDuplicates, pickExpired } from "../_shared/sweep-logic.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -255,6 +256,40 @@ async function handleNightlyCleanup(groupId: string): Promise<string> {
   return `Nightly cleanup complete. ${results.length} zones removed: ${results.join(", ") || "none"}`;
 }
 
+/**
+ * Defensive daily sweep: list every BIN_AUTO_ zone in the Bin Rentals group,
+ * remove any whose activeTo is in the past, and dedupe same-name zones (keep
+ * the one with the latest activeTo).
+ *
+ * Does not consult our `geofences` table — this is the catch-all that runs
+ * even if our DB state has drifted from Geotab's. Then prunes any geofences
+ * table rows whose zone_id we just removed.
+ */
+async function handleExpirySweep(groupId: string): Promise<string> {
+  const zones = await getAutoZones(groupId);
+  const now = new Date();
+
+  const expired = pickExpired(zones, now);
+  const dupes = pickDuplicates(zones);
+  const toDelete = Array.from(new Set([...expired, ...dupes]));
+
+  for (const id of toDelete) {
+    await deleteZone(id);
+  }
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("geofences")
+      .delete()
+      .in("zone_id", toDelete);
+    if (error) {
+      console.warn(`geofences row cleanup partial failure: ${error.message}`);
+    }
+  }
+
+  return `Expiry sweep complete. Scanned ${zones.length}, removed ${expired.length} expired + ${dupes.length} duplicates.`;
+}
+
 // --- Main handler ---
 
 Deno.serve(async (req) => {
@@ -291,6 +326,11 @@ Deno.serve(async (req) => {
 
       case "nightly-cleanup": {
         message = await handleNightlyCleanup(groupId);
+        break;
+      }
+
+      case "expiry-sweep": {
+        message = await handleExpirySweep(groupId);
         break;
       }
 

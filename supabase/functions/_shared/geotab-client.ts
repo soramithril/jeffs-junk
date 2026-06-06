@@ -170,8 +170,31 @@ function buildCirclePoints(lat: number, lng: number, radiusMeters: number): Coor
 }
 
 /**
- * Create a geofence zone in Geotab for a job.
- * Returns the Geotab zone ID.
+ * Get zones with an exact name match inside the Bin Rentals group.
+ * Used for idempotent zone creation and same-name de-dup in the daily sweep.
+ */
+export async function getZonesByName(
+  name: string,
+  groupId: string,
+): Promise<{ id: string; name: string; activeTo: string }[]> {
+  const zones = (await call("Get", {
+    typeName: "Zone",
+    search: { groups: [{ id: groupId }], name },
+    resultsLimit: 100,
+  })) as { id: string; name: string; activeTo: string }[];
+  // Defense-in-depth: Geotab name search has historically been loose; enforce exact match.
+  return zones.filter((z) => z.name === name);
+}
+
+/**
+ * Create a geofence zone in Geotab for a job (idempotent).
+ *
+ * Race protection: if one or more zones with the same name already exist in the
+ * Bin Rentals group (e.g. a duplicate webhook fired before our Supabase row was
+ * upserted), keep the first, remove the rest, and return the first one's id
+ * instead of creating a new one.
+ *
+ * Returns the Geotab zone ID (existing or new).
  */
 export async function createZone(
   jobId: string,
@@ -182,6 +205,14 @@ export async function createZone(
   activeTo: string,
 ): Promise<string> {
   const zoneName = `${ZONE_PREFIX}${jobId}`;
+
+  const existing = await getZonesByName(zoneName, groupId);
+  if (existing.length > 0) {
+    for (let i = 1; i < existing.length; i++) {
+      await deleteZone(existing[i].id);
+    }
+    return existing[0].id;
+  }
 
   const zone: GeotabZone = {
     name: zoneName,
@@ -211,14 +242,18 @@ export async function deleteZone(zoneId: string): Promise<void> {
 /**
  * Get all BIN_AUTO_ zones that belong to the Bin Rentals group.
  * Returns zones matching BOTH conditions (prefix + group).
+ *
+ * resultsLimit is bumped high because Geotab's default page size has
+ * silently truncated responses in the past, letting orphans accumulate.
  */
-export async function getAutoZones(groupId: string): Promise<{ id: string; name: string }[]> {
+export async function getAutoZones(
+  groupId: string,
+): Promise<{ id: string; name: string; activeTo: string }[]> {
   const zones = (await call("Get", {
     typeName: "Zone",
-    search: {
-      groups: [{ id: groupId }],
-    },
-  })) as { id: string; name: string }[];
+    search: { groups: [{ id: groupId }] },
+    resultsLimit: 50000,
+  })) as { id: string; name: string; activeTo: string }[];
 
   // Filter to only BIN_AUTO_ prefixed zones (defense in depth)
   return zones.filter((z) => z.name.startsWith(ZONE_PREFIX));
