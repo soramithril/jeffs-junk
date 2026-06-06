@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '232';
+var APP_VERSION = '233';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3562,7 +3562,10 @@ function ljStatus(j,today,geoPickedUp){
     var isPickDay=j.binPickup===today;
     if(isPickDay && (j.binInstatus==='pickedup' || geoDone)) return 'done';
     if(isPickDay) return 'pending';
-    if(isDropDay && j.binInstatus==='dropped') return 'onsite';
+    // Drop day: Live Jobs is visual only. binInstatus='dropped' is set by the
+    // page-load auto-drop block for inventory accuracy and does NOT mean the
+    // truck has actually arrived. Treat drop day as pending until either the
+    // user marks it picked up OR a Geotab signal arrives (Task 3).
     if(isDropDay && j.binInstatus==='pickedup') return 'done';
     return 'pending';
   }
