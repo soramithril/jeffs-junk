@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=204">
+<link rel="stylesheet" href="style.css?v=205">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -341,6 +341,15 @@
     <div style="display:flex;gap:10px;align-items:center">
       <span class="lj-pulse" id="lj-pulse"></span>
       <span style="font-size:12px;color:var(--muted)" id="lj-last-update"></span>
+    </div>
+  </div>
+  <div id="lj-map-wrap">
+    <div id="lj-map"></div>
+    <div id="lj-map-banner" class="lj-map-banner"></div>
+    <div class="lj-map-controls">
+      <label class="lj-map-toggle"><input type="checkbox" id="lj-focus-toggle" checked> Auto-focus on zone events</label>
+      <label class="lj-map-overtime">Over-time after <input type="number" id="lj-overtime-min" min="5" max="600" step="5" value="90"> min</label>
+      <span id="lj-map-status" class="lj-map-status">Connecting…</span>
     </div>
   </div>
   <div class="lj-stats" id="lj-stats"></div>
@@ -2239,7 +2248,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=226"></script>
-<script src="app.js?v=233"></script>
+<script src="app.js?v=234"></script>
 </body>
 </html>
                                                                                                                                                          

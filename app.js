@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '233';
+var APP_VERSION = '234';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3546,16 +3546,231 @@ function sortJobList(arr){
     return 0;
   });
 }
+// ─── LIVE MAP ───
+// Visual-only Geotab layer for the Live Jobs page. Polls the geotab-proxy
+// edge function every 5s for the six whitelisted trucks, draws today's
+// BIN_AUTO_ zones from MyGeotab, runs client-side point-in-polygon, and
+// emits enter/exit signals that ljStatus reads. Never writes to Supabase
+// or to MyGeotab — pure visual layer over the existing list.
+var LiveMap = (function(){
+  var map = null;
+  var zoneLayers = new Map();      // jobId -> L.Polygon
+  var truckMarkers = new Map();    // deviceId -> L.Marker
+  var zoneMeta = new Map();        // jobId -> { name, points, lat, lng, activeFrom, activeTo }
+  var liveStatus = new Map();      // jobId -> 'onsite' | 'done'
+  var pickupTs = new Map();        // jobId -> ISO timestamp the truck left
+  var presence = new Map();        // deviceId -> { jobId, since } when inside a zone
+  var autoFocus = true;
+  var overtimeMin = 90;
+  var pollHandle = null;
+  var zoneReloadHandle = null;
+  var bannerHideHandle = null;
+  var started = false;
+
+  function pointInPolygon(lat, lng, poly){
+    var inside = false;
+    for(var i=0, j=poly.length-1; i<poly.length; j=i++){
+      var xi=poly[i].lng, yi=poly[i].lat, xj=poly[j].lng, yj=poly[j].lat;
+      var hit = ((yi>lat)!==(yj>lat)) && (lng < (xj-xi)*(lat-yi)/((yj-yi)||1e-12) + xi);
+      if(hit) inside = !inside;
+    }
+    return inside;
+  }
+
+  function initials(name){
+    return (name||'').split(/\s+/).map(function(p){return p[0];}).filter(Boolean).slice(0,2).join('').toUpperCase();
+  }
+  function escAttr(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+  function ensureMap(){
+    if(map) return map;
+    if(typeof L === 'undefined') return null;
+    var el = document.getElementById('lj-map');
+    if(!el) return null;
+    map = L.map(el, { zoomControl: true }).setView([44.40, -79.90], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap'
+    }).addTo(map);
+    var ft = document.getElementById('lj-focus-toggle');
+    if(ft){ ft.checked = autoFocus; ft.onchange = function(){ autoFocus = !!ft.checked; }; }
+    var ot = document.getElementById('lj-overtime-min');
+    if(ot){
+      ot.value = overtimeMin;
+      ot.onchange = function(){
+        var v = parseInt(ot.value, 10);
+        if(v >= 5 && v <= 600) overtimeMin = v;
+        else ot.value = overtimeMin;
+      };
+    }
+    return map;
+  }
+
+  function focusZone(jobId){
+    var layer = zoneLayers.get(jobId);
+    if(layer && map){
+      map.fitBounds(layer.getBounds(), { padding:[40,40], maxZoom:17, animate:true });
+    }
+  }
+
+  function showBanner(kind, msg){
+    var el = document.getElementById('lj-map-banner');
+    if(!el) return;
+    el.textContent = msg;
+    el.className = 'lj-map-banner show ' + kind;
+    if(bannerHideHandle) clearTimeout(bannerHideHandle);
+    bannerHideHandle = setTimeout(function(){ el.className='lj-map-banner'; }, 8000);
+  }
+
+  async function loadZones(){
+    if(!map) return;
+    try {
+      var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'zones' })
+      });
+      var d = await r.json();
+      if(!d.ok) throw new Error(d.error || 'zones failed');
+      var today = todayStr();
+      var todayJobIds = new Set();
+      jobs.forEach(function(j){
+        if(j.service!=='Bin Rental' || j.status==='Cancelled') return;
+        if(j.binDropoff===today || j.binPickup===today) todayJobIds.add(j.id);
+      });
+
+      zoneLayers.forEach(function(layer){ map.removeLayer(layer); });
+      zoneLayers.clear();
+      zoneMeta.clear();
+
+      (d.zones||[]).forEach(function(z){
+        if(!todayJobIds.has(z.jobId)) return;
+        if(!z.points || z.points.length < 3) return;
+        var latlngs = z.points.map(function(p){ return [p.lat, p.lng]; });
+        var layer = L.polygon(latlngs, { color:'#ff8c00', weight:2, fillColor:'#ffa500', fillOpacity:0.20 }).addTo(map);
+        layer.bindTooltip(z.name, { direction:'top' });
+        zoneLayers.set(z.jobId, layer);
+        var sumLat=0, sumLng=0;
+        z.points.forEach(function(p){ sumLat+=p.lat; sumLng+=p.lng; });
+        zoneMeta.set(z.jobId, {
+          name: z.name, points: z.points, jobId: z.jobId,
+          lat: sumLat/z.points.length, lng: sumLng/z.points.length,
+          activeFrom: z.activeFrom, activeTo: z.activeTo
+        });
+      });
+    } catch(e){ console.warn('LiveMap.loadZones:', e); }
+  }
+
+  function setStatusText(msg){
+    var el = document.getElementById('lj-map-status');
+    if(el) el.textContent = msg;
+  }
+
+  async function pollDevices(){
+    if(!map) return;
+    try {
+      var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'device-status' })
+      });
+      var d = await r.json();
+      if(!d.ok) throw new Error(d.error || 'device-status failed');
+      var now = Date.now();
+      var listEl = (d.devices||[]).length;
+      setStatusText('Live · '+listEl+' trucks · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
+
+      var anyTransition = false;
+      (d.devices||[]).forEach(function(dev){
+        var inJobId = null;
+        zoneMeta.forEach(function(z, jobId){
+          if(inJobId) return;
+          if(pointInPolygon(dev.lat, dev.lng, z.points)) inJobId = jobId;
+        });
+
+        var prev = presence.get(dev.id);
+        var prevJobId = prev ? prev.jobId : null;
+
+        if(inJobId !== prevJobId){
+          if(prevJobId){
+            presence.delete(dev.id);
+            liveStatus.set(prevJobId, 'done');
+            pickupTs.set(prevJobId, new Date().toISOString());
+            var zPrev = zoneMeta.get(prevJobId);
+            showBanner('exit', dev.name + ' left ' + (zPrev ? zPrev.name : prevJobId));
+            if(autoFocus) focusZone(prevJobId);
+            anyTransition = true;
+          }
+          if(inJobId){
+            presence.set(dev.id, { jobId: inJobId, since: now });
+            liveStatus.set(inJobId, 'onsite');
+            var zIn = zoneMeta.get(inJobId);
+            showBanner('enter', dev.name + ' on site at ' + (zIn ? zIn.name : inJobId));
+            if(autoFocus) focusZone(inJobId);
+            anyTransition = true;
+          }
+        }
+
+        var onMin = 0;
+        if(inJobId && presence.get(dev.id)) onMin = Math.floor((now - presence.get(dev.id).since)/60000);
+        var cls = inJobId ? (onMin >= overtimeMin ? 'overtime' : 'onsite') : '';
+        var iconHtml = '<div class="lj-truck-marker '+cls+'">'+initials(dev.name)+'</div>';
+        var icon = L.divIcon({ className:'', iconSize:[26,26], iconAnchor:[13,13], html: iconHtml });
+
+        var marker = truckMarkers.get(dev.id);
+        if(marker){
+          marker.setLatLng([dev.lat, dev.lng]);
+          marker.setIcon(icon);
+        } else {
+          marker = L.marker([dev.lat, dev.lng], { icon: icon }).addTo(map);
+          truckMarkers.set(dev.id, marker);
+        }
+        var tipBody = inJobId
+          ? 'On site '+onMin+' min<br>'+escAttr((zoneMeta.get(inJobId)||{}).name||'')
+          : (dev.isDriving?'Moving':'Stopped')+' · '+Math.round(dev.speed||0)+' km/h';
+        marker.bindTooltip('<div class="lj-truck-tip"><b>'+escAttr(dev.name)+'</b><br>'+tipBody+'</div>', { direction:'top' });
+      });
+
+      if(anyTransition && typeof renderLiveJobs === 'function') renderLiveJobs();
+    } catch(e){
+      console.warn('LiveMap.pollDevices:', e);
+      setStatusText('Disconnected — retrying…');
+    }
+  }
+
+  function start(){
+    if(started){ if(map) setTimeout(function(){ map.invalidateSize(); }, 50); return; }
+    if(!ensureMap()){ setTimeout(start, 300); return; }
+    started = true;
+    setTimeout(function(){ if(map) map.invalidateSize(); }, 100);
+    loadZones().then(pollDevices);
+    pollHandle = setInterval(pollDevices, 5000);
+    zoneReloadHandle = setInterval(loadZones, 60000);
+  }
+
+  function getLiveStatus(jobId){ return liveStatus.get(jobId); }
+  function getPickupTimestamp(jobId){ return pickupTs.get(jobId); }
+  function focusJob(jobId){ focusZone(jobId); }
+
+  return {
+    start: start,
+    getLiveStatus: getLiveStatus,
+    getPickupTimestamp: getPickupTimestamp,
+    focusJob: focusJob
+  };
+})();
+
 // ─── LIVE JOBS ───
 
 /**
  * Determine Live Jobs status for a job.
- * Drop-off side reads bin_instatus (edge function still auto-sets 'dropped').
- * Pick-up side is visual-only: crosses off if a geofence pickup notification
- * exists for today (geoPickedUp) OR the user manually clicked Picked Up.
+ * The Geotab live signal (LiveMap) takes priority — if a truck is inside this
+ * job's BIN_AUTO_ zone right now, the row is 'onsite'; after the truck leaves,
+ * 'done' with a pickup timestamp. Otherwise falls back to user-driven state:
+ * pickup day + manual 'pickedup' (or a geofence_notifications pickup) → done.
  * Never writes anything — Live Jobs is fully isolated.
  */
 function ljStatus(j,today,geoPickedUp){
+  var live = LiveMap.getLiveStatus(j.id);
+  if(live === 'onsite') return 'onsite';
+  if(live === 'done')   return 'done';
   var geoDone = geoPickedUp && geoPickedUp.has(j.id);
   if(j.service==='Bin Rental'){
     var isDropDay=j.binDropoff===today;
@@ -3576,6 +3791,8 @@ function ljStatus(j,today,geoPickedUp){
 }
 
 async function renderLiveJobs(){
+  // Kick off the Geotab visual layer. Idempotent — safe to call on every render.
+  try { LiveMap.start(); } catch(e){ console.warn('LiveMap.start:', e); }
   var today=todayStr();
   var todayJobs=jobs.filter(function(j){
     if(j.status==='Cancelled') return false;
@@ -3652,10 +3869,16 @@ async function renderLiveJobs(){
     var statusCls=st==='done'?'lj-done':st==='onsite'?'lj-onsite':'lj-pending';
     var statusLabel=st==='done'?'Completed':st==='onsite'?'On Site':'Pending';
     var vehicleHtml='';
-    if(st==='done' && j.completedByVehicle){
-      vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
+    if(st==='done'){
+      var liveTs = LiveMap.getPickupTimestamp(j.id);
+      if(liveTs){
+        var t = new Date(liveTs);
+        vehicleHtml = '<span class="lj-vehicle">· Done @ '+t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>';
+      } else if(j.completedByVehicle){
+        vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
+      }
     }
-    return '<div class="lj-row '+statusCls+'" onclick="openDetail(\''+j.id+'\')">'
+    return '<div class="lj-row '+statusCls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
         +jobCrewAvatarsHTML(j)

@@ -1047,6 +1047,22 @@ input[type=date],input[type=time]{position:relative;}
 .toast{transition:transform .3s ease,opacity .3s ease;}
 
 /* ── Live Jobs Page ── */
+#lj-map-wrap{margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);}
+#lj-map{height:380px;width:100%;background:#e9eef3;}
+.lj-map-banner{display:none;padding:8px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border);background:#fff7e0;color:#7c5800;}
+.lj-map-banner.show{display:block;}
+.lj-map-banner.enter{background:#e7f6ec;color:#155724;}
+.lj-map-banner.exit{background:#e3f0ff;color:#0d3a7d;}
+.lj-map-controls{display:flex;gap:14px;align-items:center;padding:8px 12px;font-size:12px;color:var(--muted);flex-wrap:wrap;border-top:1px solid var(--border);}
+.lj-map-toggle{display:flex;gap:6px;align-items:center;cursor:pointer;}
+.lj-map-overtime input{width:54px;margin:0 4px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;}
+.lj-map-status{margin-left:auto;font-style:italic;}
+.lj-truck-marker{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#0d6efd;color:#fff;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.lj-truck-marker.onsite{background:#22c55e;}
+.lj-truck-marker.overtime{background:#dc3545;animation:ljTruckPulse 1.2s ease-in-out infinite;}
+@keyframes ljTruckPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.lj-truck-tip{font-size:12px;line-height:1.3;}
+.lj-truck-tip b{display:block;font-size:13px;}
 .lj-stats{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
 .lj-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;flex:1;min-width:70px;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;}
 .lj-stat-num{font-size:16px;font-weight:700;color:var(--text);}
