@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '230';
+var APP_VERSION = '231';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1241,30 +1241,12 @@ async function loadAllFromSupabase() {
     } catch(e){ console.warn('Referral sources load error:',e); }
 
     hideLoading();
-    // ── Auto-mark bins as dropped/pickedup when dates have passed ──
+    // Bin status is user-controlled only. We no longer auto-flip
+    // bin_instatus or bin_items.status based on the calendar — Live Jobs is
+    // a visual indicator, not an inventory mutator. The reconcile block below
+    // only propagates state the user has already set.
     _suppressBinNotify = true;
     try {
-      var today2 = todayStr();
-      var pastDropJobs = await db.from('jobs').select('job_id,bin_bid')
-        .eq('service','Bin Rental')
-        .or('bin_instatus.is.null,bin_instatus.eq.')
-        .not('bin_dropoff','is',null)
-        .lt('bin_dropoff', today2);
-      if (pastDropJobs.data && pastDropJobs.data.length) {
-        var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
-        // Use auto_drop_bins RPC so the log_job_changes trigger attributes the
-        // bulk update to "System" instead of whoever happens to be logged in.
-        await db.rpc('auto_drop_bins', { drop_ids: dropIds });
-        var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
-        if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
-        binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
-        jobs.forEach(function(j){
-          if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<today2&&(!j.binInstatus||j.binInstatus===''))
-            { j.binInstatus='dropped'; }
-        });
-      }
-      // Auto-pickup removed — bin pickup status is user-controlled only
-
       // Reconcile bin_items.status with actual assignments:
       // any bin assigned to a currently-dropped Bin Rental job must be 'out'.
       var assignedOutJobs = await db.from('jobs').select('bin_bid')
