@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '230';
+var APP_VERSION = '232';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1249,7 +1249,7 @@ async function loadAllFromSupabase() {
         .eq('service','Bin Rental')
         .or('bin_instatus.is.null,bin_instatus.eq.')
         .not('bin_dropoff','is',null)
-        .lt('bin_dropoff', today2);
+        .lte('bin_dropoff', today2);
       if (pastDropJobs.data && pastDropJobs.data.length) {
         var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
         // Use auto_drop_bins RPC so the log_job_changes trigger attributes the
@@ -1259,7 +1259,7 @@ async function loadAllFromSupabase() {
         if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
         binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
         jobs.forEach(function(j){
-          if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<today2&&(!j.binInstatus||j.binInstatus===''))
+          if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
             { j.binInstatus='dropped'; }
         });
       }
