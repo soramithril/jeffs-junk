@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '235';
+var APP_VERSION = '236';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -8026,7 +8026,6 @@ async function openDetail(id){
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
     +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
-    +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Type</button>'
     +(j.emailConfirmed
       ?'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center">✅ Email Sent</button>'
       :'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>')
@@ -8035,6 +8034,7 @@ async function openDetail(id){
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
+    +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Job</button>'
     +'<button class="btn btn-ghost" onclick="openDamageReport(\''+j.id+'\')" style="justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">⚠️ Report Damage</button>'
     +'</div></div>'
 
