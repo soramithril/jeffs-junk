@@ -25,13 +25,15 @@ function drdcRecalc(){
     var qty=el?(parseInt(el.value)||0):0;
     totalItems+=qty; totalFee+=qty*item.fee; totalVal+=qty*item.val;
   });
-  // Custom rows carry a single price = what the customer pays (counts toward the fee total only)
+  // Custom rows carry their own pays + receipt values, entered by the user
   var otherQtys=document.querySelectorAll('#drdc-other-rows .drdc-other-qty');
+  var otherFees=document.querySelectorAll('#drdc-other-rows .drdc-other-fee');
   var otherVals=document.querySelectorAll('#drdc-other-rows .drdc-other-val');
   otherQtys.forEach(function(el,i){
     var qty=parseInt(el.value)||0;
+    var fee=parseFloat(otherFees[i]?otherFees[i].value:0)||0;
     var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
-    totalItems+=qty; totalFee+=qty*val;
+    totalItems+=qty; totalFee+=qty*fee; totalVal+=qty*val;
   });
   var ti=document.getElementById('drdc-total-items');
   var tf=document.getElementById('drdc-total-pay');
@@ -46,7 +48,8 @@ function drdcAddOtherRow(){
   row.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';
   row.innerHTML='<input type="text" class="form-input drdc-other-name" placeholder="Item description" style="font-size:13px;padding:6px 10px;flex:1">'
     +'<input type="number" class="form-input drdc-other-qty" placeholder="Qty" min="0" style="font-size:13px;padding:6px 10px;width:60px;text-align:center" oninput="drdcRecalc()">'
-    +'<input type="number" class="form-input drdc-other-val" placeholder="$ ea" min="0" step="0.01" style="font-size:13px;padding:6px 10px;width:75px;text-align:center" oninput="drdcRecalc()">'
+    +'<input type="number" class="form-input drdc-other-fee" placeholder="$ pays" min="0" step="0.01" style="font-size:13px;padding:6px 10px;width:80px;text-align:center" oninput="drdcRecalc()">'
+    +'<input type="number" class="form-input drdc-other-val" placeholder="$ receipt" min="0" step="0.01" style="font-size:13px;padding:6px 10px;width:90px;text-align:center" oninput="drdcRecalc()">'
     +'<button type="button" onclick="this.parentElement.remove();drdcRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
