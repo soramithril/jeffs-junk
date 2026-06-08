@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '240';
+var APP_VERSION = '241';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -9152,6 +9152,7 @@ async function onLoginSuccess() {
   setUserCardSignedIn(uname, role);
   applyDeleteVisibility();
   applyAnalyticsVisibility();
+  applySettingsVisibility();
   document.getElementById('login-screen').style.display = 'none';
   resetInactivityTimer();
   loadAllFromSupabase();
@@ -9171,6 +9172,14 @@ function applyAnalyticsVisibility(){
     if(nav)nav.style.display='none';
     if(navLabel)navLabel.style.display='none';
   }
+}
+// Settings section is manager-only — same access list as Analytics.
+function applySettingsVisibility(){
+  var show=canAccessAnalytics();
+  var nav=document.getElementById('nav-settings');
+  var navLabel=document.getElementById('nav-settings-label');
+  if(navLabel)navLabel.style.display=show?'':'none';
+  if(nav)nav.style.display=show?'':'none';
 }
 
 function handleAdminBtn() {
