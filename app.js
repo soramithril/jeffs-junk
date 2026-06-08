@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '234';
+var APP_VERSION = '235';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7568,6 +7568,24 @@ function openEdit(id){
     document.getElementById('job-modal').classList.add('open');
   },150);
 }
+// Open the Edit modal and jump straight to the service-type picker so a job can
+// be converted to a different type (e.g. Bin Rental → Junk Removal) when a client
+// changes their mind — without re-entering shared customer details. Reuses the
+// existing openEdit + saveJob path; saveJob already releases the old bin and
+// remaps the type-specific date fields on a service change.
+function changeJobType(id){
+  openEdit(id);
+  // openEdit reveals the modal on a 150ms timeout — wait past it, then highlight.
+  setTimeout(function(){
+    var picker=document.getElementById('f-svc-picker');
+    if(!picker) return;
+    picker.scrollIntoView({behavior:'smooth', block:'center'});
+    picker.classList.remove('svc-picker-flash');
+    void picker.offsetWidth; // force reflow so the animation restarts on repeat use
+    picker.classList.add('svc-picker-flash');
+    setTimeout(function(){ picker.classList.remove('svc-picker-flash'); }, 2600);
+  }, 400);
+}
 async function saveJob(e){
   if(e && e.preventDefault) e.preventDefault();
   if(_saveJobLock){ console.warn("saveJob already running"); return; }
@@ -8008,6 +8026,7 @@ async function openDetail(id){
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
     +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
+    +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Type</button>'
     +(j.emailConfirmed
       ?'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center">✅ Email Sent</button>'
       :'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>')
