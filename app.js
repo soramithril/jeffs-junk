@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '241';
+var APP_VERSION = '242';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3321,12 +3321,33 @@ function setSvc(v,el){
   if(binsOutView)binsOutView.style.display='none';
   jobsPage=0;loadJobsPage(0);
 }
+// Resolve the job a bin is currently at: prefer a live 'dropped' job, and if more
+// than one claims the bin, the most recently dropped. Stops the Bin Fleet location
+// from flip-flopping when a bin is mistakenly dropped on two jobs at once.
+function binCurrentJob(bid){
+  var matches=jobs.filter(function(j){return j.binBid===bid && j.status!=='Cancelled';});
+  if(!matches.length) return null;
+  matches.sort(function(a,b){
+    var ad=a.binInstatus==='dropped'?1:0, bd=b.binInstatus==='dropped'?1:0;
+    if(ad!==bd) return bd-ad;
+    return String(b.binDropoff||b.date||'').localeCompare(String(a.binDropoff||a.date||''));
+  });
+  return matches[0];
+}
+// Another live job that still has this bin marked dropped — used to warn before
+// double-dropping the same physical bin on two jobs.
+function binDroppedElsewhere(bid, exceptId){
+  if(!bid) return null;
+  return jobs.find(function(j){
+    return j.binBid===bid && j.id!==exceptId && j.binInstatus==='dropped' && j.status!=='Cancelled';
+  });
+}
 function renderJobsBinsOut(){
   var el=document.getElementById('jobs-bins-out-list');if(!el)return;
   var outBins=binItems.filter(function(b){return b.status==='out';});
   if(!outBins.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">All bins are currently in the yard</div>';return;}
   el.innerHTML='<div style="display:grid;gap:6px">'+outBins.map(function(b){
-    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Cancelled';});
+    var curJob=binCurrentJob(b.bid);
     var name=curJob?curJob.name:'Unknown';
     var addr=curJob?(curJob.address||'').split(',')[0]:'';
     var city=curJob?curJob.city:'';
@@ -5843,7 +5864,7 @@ function makeBinRow(b){
   // Show current job/location for bins marked 'out'
   var locationCell='<td style="font-size:11px;max-width:150px"></td>';
   if(b.status==='out'){
-    var curJob=jobs.find(function(j){return j.binBid===b.bid&&j.status!=='Cancelled';});
+    var curJob=binCurrentJob(b.bid);
     if(curJob){
       locationCell='<td style="font-size:11px;max-width:150px"><span style="color:#22c55e;cursor:pointer;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block" onclick="openDetail(\''+curJob.id+'\')" title="'+curJob.name+' · '+curJob.address+'">📍 '+curJob.name+'</span><div style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(curJob.address?curJob.address.split(',')[0]:'')+'</div></td>';
     } else {
@@ -7822,6 +7843,15 @@ async function saveJob(e){
         if(pickedBin){ pickedBin.status='in'; saveBins(); }
       }
     }
+    // Guard against double-dropping: if this bin is still dropped on another live
+    // job, warn before marking it out here.
+    if(job.binInstatus === 'dropped' && pickedBid){
+      var _otherDrop = binDroppedElsewhere(pickedBid, editId);
+      if(_otherDrop){
+        var _bnS=(binItems.find(function(b){return b.bid===pickedBid;})||{num:pickedBid}).num;
+        if(!confirm('⚠ Bin '+_bnS+' is still marked dropped at job '+_otherDrop.id+' ('+_otherDrop.name+').\n\nPick it up there first to avoid double-booking. Save and drop here anyway?')){ _saveJobLock=false; return; }
+      }
+    }
     // Mark the newly picked bin as out only when the job is actually dropped
     if(pickedBin && job.binInstatus === 'dropped'){
       pickedBin.status = 'out';
@@ -8676,6 +8706,11 @@ function writeBinHistory(j){
 function markDropped(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  var _other=binDroppedElsewhere(j.binBid, id);
+  if(_other){
+    var _bn=(binItems.find(function(b){return b.bid===j.binBid;})||{num:j.binBid}).num;
+    if(!confirm('⚠ Bin '+_bn+' is still marked dropped at job '+_other.id+' ('+_other.name+').\n\nPick it up there first to avoid double-booking the same bin. Drop it here anyway?')) return;
+  }
   j.binInstatus='dropped';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
   patchJob(id,{binInstatus:'dropped'});
@@ -8699,6 +8734,11 @@ function markBinPickedUp2(id){
 function revertPickedUp(id){
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j){console.error('revertPickedUp: job not found in local array',id);toast('⚠ Job not found — try reopening');return;}
+  var _otherR=binDroppedElsewhere(j.binBid, id);
+  if(_otherR){
+    var _bnR=(binItems.find(function(b){return b.bid===j.binBid;})||{num:j.binBid}).num;
+    if(!confirm('⚠ Bin '+_bnR+' is still marked dropped at job '+_otherR.id+' ('+_otherR.name+').\n\nReverting this pickup would double-book the bin. Continue anyway?')) return;
+  }
   j.binInstatus='dropped';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
   patchJob(id,{binInstatus:'dropped'});
