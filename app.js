@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '239';
+var APP_VERSION = '240';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1225,6 +1225,12 @@ async function loadAllFromSupabase() {
       }
     } catch(e){ console.warn('Email presets load error:',e); }
 
+    // Load furniture price overrides (Settings → Furniture Prices) from Supabase
+    try {
+      var rFurn = await db.from('furniture_prices').select('*');
+      if(!rFurn.error && rFurn.data) applyFurniturePrices(rFurn.data);
+    } catch(e){ console.warn('Furniture prices load error:',e); }
+
     // Load quote correspondence (emails sent from the app) so client profiles show history
     try {
       var rQuotes = await db.from('quote_correspondence').select('*').order('sent_at',{ascending:false});
@@ -2305,11 +2311,32 @@ function renderCrewList(){
   var el=document.getElementById('crew-list');if(!el)return;
   if(!crewMembers.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">No crew members yet. Add one below.</div>';return;}
   el.innerHTML=crewMembers.map(function(c){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">'
-      +'<span style="font-size:13px">'+c.name+'</span>'
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'
+      +'<input type="color" value="'+(c.color||'#22c55e')+'" title="Driver colour" onchange="setCrewColor(\''+c.id+'\',this.value)" style="width:26px;height:26px;border:none;background:none;cursor:pointer;padding:0;flex:0 0 auto">'
+      +'<span style="flex:1;font-size:13px">'+c.name+'</span>'
+      +'<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px" onclick="renameCrewMember(\''+c.id+'\')" title="Rename">✎</button>'
       +'<button style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px;padding:2px 6px" onclick="removeCrewMember(\''+c.id+'\')" title="Remove">×</button>'
       +'</div>';
   }).join('');
+}
+function renameCrewMember(id){
+  var c=crewMembers.find(function(x){return x.id===id;});if(!c)return;
+  var name=prompt('Rename driver:',c.name);if(name===null)return;
+  name=name.trim();if(!name)return;
+  c.name=name;
+  db.from('crew_members').update({name:name}).eq('id',id).then(function(r){
+    if(r.error)toast('Rename failed: '+r.error.message,'error');
+  });
+  renderCrewList();
+  renderDashVehicleStatus();
+}
+function setCrewColor(id,color){
+  var c=crewMembers.find(function(x){return x.id===id;});if(!c)return;
+  c.color=color;
+  db.from('crew_members').update({color:color}).eq('id',id).then(function(r){
+    if(r.error)toast('Colour update failed: '+r.error.message,'error');
+  });
+  renderDashVehicleStatus();
 }
 function addCrewMember(){
   var input=document.getElementById('crew-new-name');if(!input)return;
@@ -9826,11 +9853,146 @@ var DRD_ITEMS = [
   {name:'Fan',fee:15,val:25},{name:'Headboards',fee:25,val:50},{name:'Magazine Rack',fee:15,val:25},
   {name:'Sofa - Luxury',fee:100,val:500},{name:'Suitcase',fee:15,val:25},{name:'Throw Rugs',fee:15,val:25}
 ];
-// Display order only — indices into DRD_ITEMS sorted alphabetically by name.
-// Grids render in this order; storage/recalc still use the real index.
-var DRD_ORDER = DRD_ITEMS.map(function(_,i){return i;}).sort(function(a,b){
-  return DRD_ITEMS[a].name.localeCompare(DRD_ITEMS[b].name);
-});
+// Display order only — indices into DRD_ITEMS sorted alphabetically by name,
+// excluding hidden items. Grids render in this order; storage/recalc still use
+// the real index. Rebuild after price overrides change the list.
+var DRD_ORDER = [];
+function rebuildDrdOrder(){
+  DRD_ORDER = DRD_ITEMS.map(function(_,i){return i;})
+    .filter(function(i){ return !DRD_ITEMS[i].hidden; })
+    .sort(function(a,b){ return DRD_ITEMS[a].name.localeCompare(DRD_ITEMS[b].name); });
+}
+rebuildDrdOrder();
+// Merge price overrides from the furniture_prices table into DRD_ITEMS.
+// Existing names override fee/val/hidden IN PLACE (index preserved so saved
+// receipts stay correct); unknown names are appended (new, stable indices).
+function applyFurniturePrices(rows){
+  if(!rows||!rows.length){ rebuildDrdOrder(); return; }
+  var byName={};
+  DRD_ITEMS.forEach(function(it){ byName[it.name.toLowerCase()]=it; });
+  rows.slice().sort(function(a,b){
+    var so=(a.sort_order||0)-(b.sort_order||0);
+    return so!==0?so:String(a.name||'').localeCompare(String(b.name||''));
+  }).forEach(function(r){
+    var nm=String(r.name||'').trim(); if(!nm) return;
+    var existing=byName[nm.toLowerCase()];
+    if(existing){
+      existing.fee=Number(r.fee)||0;
+      existing.val=Number(r.val)||0;
+      existing.hidden=(r.active===false);
+    } else if(r.active!==false){
+      var ni={name:nm, fee:Number(r.fee)||0, val:Number(r.val)||0};
+      DRD_ITEMS.push(ni);
+      byName[nm.toLowerCase()]=ni;
+    }
+  });
+  rebuildDrdOrder();
+}
+// ── Furniture Price List editor (Settings → Furniture Prices) ──
+function _furnPriceRow(idx, name, fee, val, hidden, isNew){
+  var inpCss='padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;text-align:center';
+  if(isNew){
+    return '<div class="furn-row" data-new="1" style="display:flex;gap:8px;align-items:center;padding:5px 0">'
+      +'<input type="text" class="furn-name" placeholder="Item name" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px">'
+      +'<input type="number" class="furn-fee" min="0" step="0.01" style="width:80px;'+inpCss+'">'
+      +'<input type="number" class="furn-val" min="0" step="0.01" style="width:80px;'+inpCss+'">'
+      +'<button title="Remove row" onclick="this.parentElement.remove()" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px;padding:0 4px;width:24px">×</button>'
+      +'</div>';
+  }
+  return '<div class="furn-row" data-idx="'+idx+'" data-hidden="'+(hidden?'1':'0')+'" style="display:flex;gap:8px;align-items:center;padding:5px 0'+(hidden?';opacity:.5':'')+'">'
+    +'<div style="flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+name+'">'+name+'</div>'
+    +'<input type="number" class="furn-fee" min="0" step="0.01" value="'+fee+'" style="width:80px;'+inpCss+'">'
+    +'<input type="number" class="furn-val" min="0" step="0.01" value="'+val+'" style="width:80px;'+inpCss+'">'
+    +'<button title="'+(hidden?'Restore':'Hide')+'" onclick="furnToggleHide(this)" style="background:none;border:none;color:'+(hidden?'#22c55e':'#dc3545')+';cursor:pointer;font-size:15px;padding:0 4px;width:24px">'+(hidden?'↺':'×')+'</button>'
+    +'</div>';
+}
+function furnToggleHide(btn){
+  var row=btn.closest('.furn-row'); if(!row) return;
+  var hidden=row.getAttribute('data-hidden')!=='1';
+  row.setAttribute('data-hidden', hidden?'1':'0');
+  row.style.opacity=hidden?'.5':'';
+  btn.textContent=hidden?'↺':'×';
+  btn.style.color=hidden?'#22c55e':'#dc3545';
+  btn.title=hidden?'Restore':'Hide';
+}
+function furnAddNewRow(){
+  var nameEl=document.getElementById('furn-new-name');
+  var feeEl=document.getElementById('furn-new-fee');
+  var valEl=document.getElementById('furn-new-val');
+  var name=(nameEl.value||'').trim();
+  if(!name){ toast('Enter an item name first.','error'); nameEl.focus(); return; }
+  var list=document.getElementById('furn-price-list'); if(!list) return;
+  list.insertAdjacentHTML('beforeend', _furnPriceRow(null, name, 0, 0, false, true));
+  var rows=list.querySelectorAll('.furn-row[data-new="1"]');
+  var last=rows[rows.length-1];
+  if(last){
+    last.querySelector('.furn-name').value=name;
+    last.querySelector('.furn-fee').value=feeEl.value||0;
+    last.querySelector('.furn-val').value=valEl.value||0;
+    last.scrollIntoView({block:'nearest'});
+  }
+  nameEl.value=''; feeEl.value=''; valEl.value='';
+}
+function openFurniturePrices(){
+  var rows=DRD_ORDER.map(function(i){ var it=DRD_ITEMS[i]; return _furnPriceRow(i, it.name, it.fee, it.val, false, false); }).join('');
+  var hidden=DRD_ITEMS.map(function(it,i){return {it:it,i:i};}).filter(function(o){return o.it.hidden;})
+    .map(function(o){ return _furnPriceRow(o.i, o.it.name, o.it.fee, o.it.val, true, false); }).join('');
+  var html='<div class="modal-overlay open" id="furn-price-overlay" onclick="if(event.target===this)closeFurniturePrices()">'
+    +'<div style="background:var(--surface);border-radius:14px;padding:20px;max-width:560px;width:94%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:17px;font-weight:700">🛋️ Furniture Price List</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin:4px 0 12px">“Pays” = what the customer is charged · “Receipt” = tax-receipt value. Saves to all devices.</div>'
+    +'<div style="display:flex;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:0 30px 6px 2px"><div style="flex:1">Item</div><div style="width:80px;text-align:center">Pays</div><div style="width:80px;text-align:center">Receipt</div></div>'
+    +'<div id="furn-price-list" style="overflow-y:auto;flex:1;min-height:120px">'+rows
+    +(hidden?('<div style="font-size:11px;color:var(--muted);margin:14px 0 4px;text-transform:uppercase;letter-spacing:1px">Hidden items</div>'+hidden):'')
+    +'</div>'
+    +'<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Add new item</div>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<input id="furn-new-name" type="text" placeholder="Item name" style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
+    +'<input id="furn-new-fee" type="number" min="0" step="0.01" placeholder="Pays" style="width:80px;padding:7px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;text-align:center">'
+    +'<input id="furn-new-val" type="number" min="0" step="0.01" placeholder="Receipt" style="width:80px;padding:7px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;text-align:center">'
+    +'<button class="btn btn-ghost" onclick="furnAddNewRow()" style="font-size:12px;padding:6px 10px">+ Add</button>'
+    +'</div></div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'
+    +'<button class="btn btn-ghost" onclick="closeFurniturePrices()">Cancel</button>'
+    +'<button class="btn btn-primary" onclick="saveFurniturePrices()">Save Prices</button>'
+    +'</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeFurniturePrices(){
+  var el=document.getElementById('furn-price-overlay');
+  if(el) el.remove();
+}
+function saveFurniturePrices(){
+  var rowsEls=document.querySelectorAll('#furn-price-list .furn-row');
+  var collected=[], seen={}, sortCounter=0, dup=false;
+  rowsEls.forEach(function(row){
+    var fee=parseFloat(row.querySelector('.furn-fee').value)||0;
+    var val=parseFloat(row.querySelector('.furn-val').value)||0;
+    var name, active=true;
+    if(row.getAttribute('data-new')==='1'){
+      name=(row.querySelector('.furn-name').value||'').trim();
+      if(!name) return;
+    } else {
+      var idx=parseInt(row.getAttribute('data-idx'));
+      name=DRD_ITEMS[idx]?DRD_ITEMS[idx].name:'';
+      active=row.getAttribute('data-hidden')!=='1';
+    }
+    if(!name) return;
+    var key=name.toLowerCase();
+    if(seen[key]){ dup=true; return; }
+    seen[key]=true;
+    collected.push({name:name, fee:fee, val:val, active:active, sort_order:sortCounter++});
+  });
+  if(dup){ toast('Two items share the same name — please make them unique.','error'); return; }
+  db.from('furniture_prices').upsert(collected, {onConflict:'name'}).then(function(r){
+    if(r.error){ toast('Save failed: '+r.error.message,'error'); return; }
+    applyFurniturePrices(collected);
+    if(document.getElementById('drdc-grid')) renderDrdCalc();
+    closeFurniturePrices();
+    toast('Furniture prices saved!');
+  });
+}
 function renderDRD(){
   var dateEl=document.getElementById('drd-date');
   if(dateEl&&!dateEl.value) dateEl.value=todayStr();
