@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '242';
+var APP_VERSION = '243';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3341,6 +3341,16 @@ function binDroppedElsewhere(bid, exceptId){
   return jobs.find(function(j){
     return j.binBid===bid && j.id!==exceptId && j.binInstatus==='dropped' && j.status!=='Cancelled';
   });
+}
+// Mark a job's bin picked up because the bin is being reassigned elsewhere.
+// The bin stays 'out' (it's moving to the new job, not returning to the yard).
+function _pickupBinFromJob(jobId){
+  var oj=jobs.find(function(x){return x.id===jobId;});
+  if(!oj) return;
+  oj.binInstatus='pickedup';
+  if(typeof writeBinHistory==='function') writeBinHistory(oj);
+  patchJob(jobId,{binInstatus:'pickedup'});
+  toast('Bin picked up from job '+jobId+' ('+oj.name+').');
 }
 function renderJobsBinsOut(){
   var el=document.getElementById('jobs-bins-out-list');if(!el)return;
@@ -7300,10 +7310,12 @@ function renderBinPicker(selectedBid){
     var isOut = b.status==='out';
     var isSel = b.bid === selectedBid;
     var col = sizeColors[b.size]||'#22c55e';
-    var baseStyle = 'border-radius:10px;padding:10px 6px;text-align:center;cursor:'+(isOut?'not-allowed':'pointer')+';'
-      +'border:2px solid '+(isSel?col:(isOut?'rgba(100,100,100,.3)':'rgba(255,255,255,.1)'))+';'
+    var outJob = isOut ? binCurrentJob(b.bid) : null;
+    var outTitle = isOut ? ('Out'+(outJob?(' at '+(outJob.name||'').replace(/"/g,'')):'')+' — click to reassign (will offer to pick up the old job)') : '';
+    var baseStyle = 'border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;'
+      +'border:2px solid '+(isSel?col:(isOut?'rgba(231,111,126,.35)':'rgba(255,255,255,.1)'))+';'
       +'background:'+(isSel?'rgba(34,197,94,.12)':(isOut?'rgba(60,60,60,.3)':'var(--surface)'))+'';
-    return '<div style="'+baseStyle+'" '+(isOut?'title="Already out on a job"':'onclick="selectBinFromPicker(\''+b.bid+'\')"')+'>'
+    return '<div style="'+baseStyle+'" onclick="selectBinFromPicker(\''+b.bid+'\')"'+(isOut?' title="'+outTitle+'"':'')+'>'
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:'+(isOut?'var(--muted)':'var(--text)')+'">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+(isOut?'var(--muted)':col)+';margin-top:2px">'+b.size+'</div>'
@@ -7315,6 +7327,15 @@ function renderBinPicker(selectedBid){
 function selectBinFromPicker(bid){
   var b = binItems.find(function(x){return x.bid===bid;});
   if(!b) return;
+  // Picking a bin that's still dropped on ANOTHER live job: offer to mark that
+  // old job picked up, since the bin is physically moving to this job.
+  if(b.status==='out'){
+    var other=binDroppedElsewhere(bid, editId);
+    if(other){
+      if(!confirm('Bin '+b.num+' is still marked dropped at job '+other.id+' ('+other.name+').\n\nMark it picked up there and use it here? (The bin is moving to this job.)')) return;
+      _pickupBinFromJob(other.id);
+    }
+  }
   document.getElementById('f-bsize').value = b.size;
   // Highlight selected
   renderBinPicker(bid);
