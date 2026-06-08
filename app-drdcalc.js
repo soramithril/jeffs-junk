@@ -4,11 +4,12 @@
 function renderDrdCalc(){
   var g=document.getElementById('drdc-grid');
   if(!g) return;
-  g.innerHTML=DRD_ITEMS.map(function(item,i){
+  g.innerHTML=DRD_ORDER.map(function(i){
+    var item=DRD_ITEMS[i];
     var sid='drdc-qty-'+i;
     return '<div class="drdc-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-      +'<div style="font-size:11px;color:var(--muted)">$'+item.val+' ea</div></div>'
+      +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt</div></div>'
       +'<input type="number" id="'+sid+'" min="0" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdcRecalc()">'
       +'</div>';
   }).join('');
@@ -18,22 +19,25 @@ function renderDrdCalc(){
   drdcFilter();
 }
 function drdcRecalc(){
-  var totalItems=0,totalVal=0;
+  var totalItems=0,totalFee=0,totalVal=0;
   DRD_ITEMS.forEach(function(item,i){
     var el=document.getElementById('drdc-qty-'+i);
     var qty=el?(parseInt(el.value)||0):0;
-    totalItems+=qty; totalVal+=qty*item.val;
+    totalItems+=qty; totalFee+=qty*item.fee; totalVal+=qty*item.val;
   });
+  // Custom rows carry a single price = what the customer pays (counts toward the fee total only)
   var otherQtys=document.querySelectorAll('#drdc-other-rows .drdc-other-qty');
   var otherVals=document.querySelectorAll('#drdc-other-rows .drdc-other-val');
   otherQtys.forEach(function(el,i){
     var qty=parseInt(el.value)||0;
     var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
-    totalItems+=qty; totalVal+=qty*val;
+    totalItems+=qty; totalFee+=qty*val;
   });
   var ti=document.getElementById('drdc-total-items');
-  var tv=document.getElementById('drdc-total-value');
+  var tf=document.getElementById('drdc-total-pay');
+  var tv=document.getElementById('drdc-total-receipt');
   if(ti)ti.textContent=totalItems;
+  if(tf)tf.textContent=totalFee.toFixed(2);
   if(tv)tv.textContent=totalVal.toFixed(2);
 }
 function drdcAddOtherRow(){
@@ -57,8 +61,9 @@ function drdcClear(){
 }
 function drdcCopy(){
   var items=document.getElementById('drdc-total-items').textContent;
-  var val=document.getElementById('drdc-total-value').textContent;
-  var text=items+' items = $'+val;
+  var pay=document.getElementById('drdc-total-pay').textContent;
+  var rec=document.getElementById('drdc-total-receipt').textContent;
+  var text=items+' items · Customer pays $'+pay+' · Tax receipt $'+rec;
   if(navigator.clipboard) navigator.clipboard.writeText(text);
   toast('Copied: '+text);
 }

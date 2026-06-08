@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '236';
+var APP_VERSION = '237';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -8241,7 +8241,8 @@ function renderDrdInDetail(j){
   html+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px">'
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">📦 Donated Items</div>'
     +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:10px" id="drd-d-items-grid">';
-  DRD_ITEMS.forEach(function(item,i){
+  DRD_ORDER.forEach(function(i){
+    var item=DRD_ITEMS[i];
     var qty=qtys[i]||0;
     html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);gap:6px">'
       +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
@@ -9652,7 +9653,8 @@ function renderDrdModalGrid(){
   var g=document.getElementById('drd-m-items-grid');
   if(!g)return;
   if(g.children.length) return; // already rendered
-  g.innerHTML=DRD_ITEMS.map(function(item,i){
+  g.innerHTML=DRD_ORDER.map(function(i){
+    var item=DRD_ITEMS[i];
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);gap:6px">'
       +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
       +'<div style="font-size:9px;color:var(--muted)">$'+item.val+'</div></div>'
@@ -9786,39 +9788,56 @@ function _fillDrdModal(drd){
   drdModalRecalc();
 }
 
+// Each item carries two prices:
+//   fee = Pick Up Fee  → what the customer pays
+//   val = Tax Receipt Value → donation-receipt value (kept as the historical `val`)
+// IMPORTANT: array order is FIXED. Saved Furniture Pickup jobs store DRD
+// quantities positionally (quantities[i] ↔ DRD_ITEMS[i]), so existing items must
+// keep their index. New items are APPENDED at the end. Display is alphabetised
+// separately via DRD_ORDER below — never re-sort this array in place.
 var DRD_ITEMS = [
-  {name:'Air Conditioner',val:100},{name:'Armchair',val:100},{name:'Armoire',val:200},
-  {name:'Artificial Plant',val:50},{name:'Bag of Linens',val:25},{name:'Bar Fridge',val:100},
-  {name:'Bed Frame - Double/Twin',val:75},{name:'Bed Frame - Queen',val:100},{name:'Bench',val:50},
-  {name:'Box - Assorted Home Goods',val:25},{name:'Box - Cookware',val:25},{name:'Box - Dishware',val:25},
-  {name:'Boxspring - Double',val:150},{name:'Boxspring - Queen',val:150},{name:'Boxspring - Twin',val:100},
-  {name:'Buffet Hutch',val:150},{name:'Cabinet',val:150},{name:'CD Stand',val:25},
-  {name:'Chair (dining/kitchen/occas)',val:50},{name:'Chest',val:100},{name:'Coat Rack',val:25},
-  {name:'Credenza',val:150},{name:'Desk',val:100},{name:'Dresser',val:100},
-  {name:'DVD Player',val:25},{name:'Entertainment Unit',val:150},{name:'Filing Cabinet',val:50},
-  {name:'Folding Chair',val:25},{name:'Folding Table',val:50},{name:'Futon - Complete',val:150},
-  {name:'Ironing Board',val:25},{name:'Lamp',val:25},{name:'Laundry Hamper',val:25},
-  {name:'Loveseat',val:150},{name:'Mattress - Double',val:150},{name:'Mattress - Queen',val:150},
-  {name:'Mattress - Twin',val:100},{name:'Microwave',val:50},{name:'Microwave Stand',val:50},
-  {name:'Mirror',val:50},{name:'Office Chair',val:50},{name:'Ottoman',val:50},
-  {name:'Picture - Artwork',val:25},{name:'Recliner',val:100},{name:'Rocking Chair',val:75},
-  {name:'Room Divider',val:25},{name:'Rug',val:75},{name:'Sectional',val:350},
-  {name:'Shelf - Large',val:100},{name:'Shelf - Small',val:75},{name:'Shoe Rack',val:25},
-  {name:'Sideboard',val:150},{name:'Small Appliance',val:25},{name:'Sofa',val:250},
-  {name:'Sofabed',val:300},{name:'Space Heater',val:25},{name:'Stereo',val:25},
-  {name:'Stool (dining/kitchen)',val:25},{name:'Table - Coffee',val:100},{name:'Table - Dining/Kitchen',val:150},
-  {name:'Table - Night',val:50},{name:'Table - Side',val:50},{name:'Television - Tube',val:50},
-  {name:'Television Stand',val:75},{name:'TV - Flat Screen Under 32"',val:100},
-  {name:'TV - Flat Screen Over 32"',val:150},{name:'Trunk',val:75},{name:'TV Tray',val:25},
-  {name:'Vacuum',val:75},{name:'Vanity',val:150},{name:'Wall Unit',val:100},
-  {name:'Wardrobe',val:200},{name:'Waste Basket',val:25}
+  {name:'Air Conditioner',fee:10,val:100},{name:'Armchair',fee:60,val:100},{name:'Armoire',fee:90,val:200},
+  {name:'Artificial Plant',fee:15,val:50},{name:'Bag of Linens',fee:15,val:25},{name:'Bar Fridge',fee:30,val:100},
+  {name:'Bed Frame - Double/Twin',fee:30,val:75},{name:'Bed Frame - Queen',fee:30,val:100},{name:'Bench',fee:30,val:50},
+  {name:'Box - Assorted Home Goods',fee:15,val:25},{name:'Box - Cookware',fee:15,val:25},{name:'Box - Dishware',fee:15,val:25},
+  {name:'Boxspring - Double',fee:60,val:150},{name:'Boxspring - Queen',fee:60,val:150},{name:'Boxspring - Twin',fee:60,val:100},
+  {name:'Buffet Hutch',fee:90,val:150},{name:'Cabinet',fee:60,val:150},{name:'CD Stand',fee:15,val:25},
+  {name:'Chair (dining/kitchen/occas)',fee:15,val:50},{name:'Chest',fee:30,val:100},{name:'Coat Rack',fee:15,val:25},
+  {name:'Credenza',fee:60,val:150},{name:'Desk',fee:60,val:100},{name:'Dresser',fee:60,val:100},
+  {name:'DVD Player',fee:15,val:25},{name:'Entertainment Unit',fee:90,val:150},{name:'Filing Cabinet',fee:15,val:50},
+  {name:'Folding Chair',fee:15,val:25},{name:'Folding Table',fee:15,val:50},{name:'Futon - Complete',fee:90,val:150},
+  {name:'Ironing Board',fee:15,val:25},{name:'Lamp',fee:15,val:25},{name:'Laundry Hamper',fee:15,val:25},
+  {name:'Loveseat',fee:75,val:150},{name:'Mattress - Double',fee:60,val:150},{name:'Mattress - Queen',fee:60,val:150},
+  {name:'Mattress - Twin',fee:60,val:100},{name:'Microwave',fee:15,val:50},{name:'Microwave Stand',fee:30,val:50},
+  {name:'Mirror',fee:15,val:50},{name:'Office Chair',fee:15,val:50},{name:'Ottoman',fee:15,val:50},
+  {name:'Picture - Artwork',fee:10,val:25},{name:'Recliner',fee:60,val:100},{name:'Rocking Chair',fee:30,val:75},
+  {name:'Room Divider',fee:15,val:25},{name:'Rug',fee:30,val:75},{name:'Sectional',fee:150,val:350},
+  {name:'Shelf - Large',fee:60,val:100},{name:'Shelf - Small',fee:30,val:75},{name:'Shoe Rack',fee:15,val:25},
+  {name:'Sideboard',fee:90,val:150},{name:'Small Appliance',fee:15,val:25},{name:'Sofa',fee:100,val:250},
+  {name:'Sofabed',fee:150,val:200},{name:'Space Heater',fee:15,val:25},{name:'Stereo',fee:15,val:25},
+  {name:'Stool (dining/kitchen)',fee:15,val:25},{name:'Table - Coffee',fee:30,val:100},{name:'Table - Dining/Kitchen',fee:60,val:150},
+  {name:'Table - Night',fee:15,val:50},{name:'Table - Side',fee:15,val:50},{name:'Television - Tube',fee:30,val:50},
+  {name:'Television Stand',fee:30,val:75},{name:'TV - Flat Screen Under 32"',fee:15,val:100},
+  {name:'TV - Flat Screen Over 32"',fee:30,val:150},{name:'Trunk',fee:30,val:75},{name:'TV Tray',fee:15,val:25},
+  {name:'Vacuum',fee:15,val:75},{name:'Vanity',fee:60,val:150},{name:'Wall Unit',fee:90,val:100},
+  {name:'Wardrobe',fee:90,val:200},{name:'Waste Basket',fee:15,val:25},
+  // ── Appended 2026-06-08 (new items — keep at end to preserve indices) ──
+  {name:'Clock',fee:15,val:25},{name:'Computer Monitor',fee:15,val:100},{name:'Electric Fireplace',fee:30,val:50},
+  {name:'Fan',fee:15,val:25},{name:'Headboards',fee:25,val:50},{name:'Magazine Rack',fee:15,val:25},
+  {name:'Sofa - Luxury',fee:100,val:500},{name:'Suitcase',fee:15,val:25},{name:'Throw Rugs',fee:15,val:25}
 ];
+// Display order only — indices into DRD_ITEMS sorted alphabetically by name.
+// Grids render in this order; storage/recalc still use the real index.
+var DRD_ORDER = DRD_ITEMS.map(function(_,i){return i;}).sort(function(a,b){
+  return DRD_ITEMS[a].name.localeCompare(DRD_ITEMS[b].name);
+});
 function renderDRD(){
   var dateEl=document.getElementById('drd-date');
   if(dateEl&&!dateEl.value) dateEl.value=todayStr();
   var g=document.getElementById('drd-items-grid');
   if(!g) return;
-  g.innerHTML=DRD_ITEMS.map(function(item,i){
+  g.innerHTML=DRD_ORDER.map(function(i){
+    var item=DRD_ITEMS[i];
     var sid='drd-qty-'+i;
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);gap:8px">'
       +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
