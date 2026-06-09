@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '244';
+var APP_VERSION = '245';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1926,7 +1926,7 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','maintenance','analytics','utilization','pricing','drdcalc','dispatch','leaderboard','advisor','bookings'];
+var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','maintenance','analytics','utilization','pricing','ourprices','drdcalc','dispatch','leaderboard','advisor','bookings'];
 var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
 function canAccessAnalytics(){
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
@@ -1966,6 +1966,7 @@ function render(name){
   else if(name==='utilization') renderUtilization();
   else if(name==='leaderboard') renderLeaderboardPage();
   else if(name==='pricing') renderPricing();
+  else if(name==='ourprices') renderOurPrices();
   else if(name==='drdcalc') renderDrdCalc();
   else if(name==='dispatch') renderDispatch();
   else if(name==='binmap') renderMap();
@@ -5543,41 +5544,170 @@ function renderPricingGrids(){
   document.getElementById('pricing-junk-grid').innerHTML = junkOut || emptyMsg;
 }
 
-// ── Area tabs in "Edit Our Prices" modal ──
-function renderOurAreaTabs(){
-  var wrap = document.getElementById('our-area-tabs');
-  if(!wrap) return;
-  wrap.innerHTML = pricingAreas.map(function(area){
-    var active = area === activeOurArea;
-    return '<div onclick="selectOurArea(\''+area+'\')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'rgba(34,197,94,.1)':'transparent')+';color:'+(active?'var(--accent)':'var(--text)')+';cursor:pointer;font-size:13px;font-weight:'+(active?'700':'400')+';transition:all .15s">'
-      +'<span>'+area+'</span>'
-      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1" title="Rename">✏️</span>'
-      +'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:11px;color:var(--muted);padding:0 2px;line-height:1" title="Delete">✕</span>'
-      +'</div>';
-  }).join('');
-}
+// ── Our Prices page (Settings → Bin & Junk Prices) ──
+// Color-coded full-page editor; replaces the old #our-prices-modal.
+// State lives in pricingAreas, ourPricesV2, activeOurArea. Area tabs at top,
+// green Bin Rental card, orange Junk Removal card, one Save button in the page header.
 
 function selectOurArea(area){
   activeOurArea = area;
-  document.getElementById('our-area-label').textContent = area;
-  var ap = getAreaPrices(area);
-  document.getElementById('our-b4dirt').value = ap.bins&&ap.bins['4 yard dirt']  || '';
-  document.getElementById('our-b4conc').value = ap.bins&&ap.bins['4 yard concrete']  || '';
-  document.getElementById('our-b7dirt').value = ap.bins&&ap.bins['7 yard dirt']  || '';
-  document.getElementById('our-b7conc').value = ap.bins&&ap.bins['7 yard concrete']  || '';
-  document.getElementById('our-b14').value   = ap.bins&&ap.bins['14 yard'] || '';
-  document.getElementById('our-b20').value   = ap.bins&&ap.bins['20 yard'] || '';
-  document.getElementById('our-bm14').value  = ap.bins&&ap.bins['monthly 14 yard'] || '';
-  document.getElementById('our-bm20').value  = ap.bins&&ap.bins['monthly 20 yard'] || '';
-  document.getElementById('our-b-fuel').value= ap.binFuel || '';
-  document.getElementById('our-b-tonne').value= ap.binTonne || '';
-  document.getElementById('our-j-min').value    = ap.junk&&ap.junk.min     || '';
-  document.getElementById('our-j-quarter').value= ap.junk&&ap.junk.quarter || '';
-  document.getElementById('our-j-half').value   = ap.junk&&ap.junk.half    || '';
-  document.getElementById('our-j-full').value   = ap.junk&&ap.junk.full    || '';
-  var townsEl = document.getElementById('our-towns-display');
-  if(townsEl) townsEl.textContent = ap.towns ? 'Towns: '+ap.towns : '';
-  renderOurAreaTabs();
+  renderOurPrices();
+}
+
+function _opNumInput(id, val, placeholder){
+  return '<div style="position:relative">'
+    +'<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;pointer-events:none">$</span>'
+    +'<input id="'+id+'" type="number" min="0" step="0.01" value="'+(val||'')+'" placeholder="'+(placeholder||'0')+'" '
+    +'style="width:100%;padding:14px 14px 14px 30px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;font-weight:700;outline:none;transition:border-color .15s" '
+    +'onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">'
+    +'</div>';
+}
+function _opPctInput(id, val){
+  return '<div style="position:relative">'
+    +'<input id="'+id+'" type="number" min="0" max="100" step="0.1" value="'+(val||'')+'" placeholder="0" '
+    +'style="width:100%;padding:14px 30px 14px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:18px;font-weight:700;outline:none;transition:border-color .15s" '
+    +'onfocus="this.style.borderColor=\'#f59e0b\'" onblur="this.style.borderColor=\'var(--border)\'">'
+    +'<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;pointer-events:none">%</span>'
+    +'</div>';
+}
+function _opField(label, control, hint){
+  return '<div style="display:flex;flex-direction:column;gap:6px">'
+    +'<label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+label+'</label>'
+    +control
+    +(hint?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+hint+'</div>':'')
+    +'</div>';
+}
+
+function renderOurPrices(){
+  var wrap = document.getElementById('ourprices-content');
+  if(!wrap) return;
+
+  // Make sure activeOurArea points at something valid
+  if(pricingAreas.length && pricingAreas.indexOf(activeOurArea)<0){
+    activeOurArea = pricingAreas[0];
+  }
+
+  if(!pricingAreas.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:60px 24px;background:var(--surface);border:1px solid var(--border);border-radius:14px">'
+      +'<div style="font-size:48px;margin-bottom:12px">📍</div>'
+      +'<div style="font-size:16px;font-weight:600;margin-bottom:6px">No service areas yet</div>'
+      +'<div style="font-size:13px;color:var(--muted);margin-bottom:18px">Add a service area to start setting prices.</div>'
+      +'<button class="btn btn-primary" onclick="addOurPricingArea()">+ Add Service Area</button>'
+      +'</div>';
+    return;
+  }
+
+  var ap = getAreaPrices(activeOurArea);
+  var bins = ap.bins || {};
+  var junk = ap.junk || {};
+
+  var areaTabs = pricingAreas.map(function(area){
+    var active = area === activeOurArea;
+    return '<div onclick="selectOurArea(\''+area+'\')" '
+      +'style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;'
+      +'border:1.5px solid '+(active?'var(--accent)':'var(--border)')+';'
+      +'background:'+(active?'rgba(34,197,94,.12)':'var(--surface)')+';'
+      +'color:'+(active?'var(--accent)':'var(--text)')+';'
+      +'cursor:pointer;font-size:14px;font-weight:'+(active?'700':'500')+';transition:all .15s">'
+      +'<span>📍 '+area+'</span>'
+      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:12px;opacity:.6;padding:0 2px" title="Rename">✏️</span>'
+      +'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:14px;opacity:.6;padding:0 2px" title="Delete">✕</span>'
+      +'</div>';
+  }).join('')
+  +'<button class="btn btn-ghost" onclick="addOurPricingArea()" style="padding:10px 18px;border-radius:24px;border:1.5px dashed var(--border);font-size:14px">+ Add Area</button>';
+
+  // Bin Rental card — GREEN theme
+  var binCard = '<div style="background:var(--surface);border:1px solid var(--border);border-top:5px solid #22c55e;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.04)">'
+    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">'
+    +'<div style="width:36px;height:36px;border-radius:10px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🟢</div>'
+    +'<div><div style="font-size:18px;font-weight:700;color:#22c55e">Bin Rental</div>'
+    +'<div style="font-size:12px;color:var(--muted)">Per-delivery price for each bin size</div></div>'
+    +'</div>'
+
+    // Small bins
+    +'<div style="margin-top:20px"><div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;display:inline-block">Small Bins (4 &amp; 7 yard)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">'
+    +_opField('4 Yard Dirt',     _opNumInput('op-b4dirt',  bins['4 yard dirt']))
+    +_opField('4 Yard Concrete', _opNumInput('op-b4conc',  bins['4 yard concrete']))
+    +_opField('7 Yard Dirt',     _opNumInput('op-b7dirt',  bins['7 yard dirt']))
+    +_opField('7 Yard Concrete', _opNumInput('op-b7conc',  bins['7 yard concrete']))
+    +'</div></div>'
+
+    // Large bins
+    +'<div style="margin-top:24px"><div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;display:inline-block">Large Bins (14 &amp; 20 yard)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">'
+    +_opField('14 Yard',          _opNumInput('op-b14',  bins['14 yard']))
+    +_opField('20 Yard',          _opNumInput('op-b20',  bins['20 yard']))
+    +_opField('Monthly 14 Yard',  _opNumInput('op-bm14', bins['monthly 14 yard'], '—'))
+    +_opField('Monthly 20 Yard',  _opNumInput('op-bm20', bins['monthly 20 yard'], '—'))
+    +'</div></div>'
+
+    // Fees
+    +'<div style="margin-top:24px"><div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;display:inline-block">Fees &amp; Surcharges</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">'
+    +_opField('Fuel Surcharge',   _opPctInput('op-b-fuel', ap.binFuel), '% added on top of bin price per delivery')
+    +_opField('Tonne Fee',        _opNumInput('op-b-tonne', ap.binTonne, '0.00'), 'Per-tonne disposal fee — 14 &amp; 20 yard bins only')
+    +'</div></div>'
+    +'</div>';
+
+  // Junk Removal card — ORANGE theme
+  var junkCard = '<div style="background:var(--surface);border:1px solid var(--border);border-top:5px solid #f97316;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.04)">'
+    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">'
+    +'<div style="width:36px;height:36px;border-radius:10px;background:rgba(249,115,22,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🟠</div>'
+    +'<div><div style="font-size:18px;font-weight:700;color:#f97316">Junk Removal</div>'
+    +'<div style="font-size:12px;color:var(--muted)">Truck-load tiers — what a typical pickup costs</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">'
+    +_opField('Min / Small',  _opNumInput('op-j-min',     junk.min))
+    +_opField('¼ Truck',      _opNumInput('op-j-quarter', junk.quarter))
+    +_opField('½ Truck',      _opNumInput('op-j-half',    junk.half))
+    +_opField('Full Truck',   _opNumInput('op-j-full',    junk.full))
+    +'</div></div>';
+
+  var areaBadge = '<div style="display:inline-flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;margin-bottom:20px">'
+    +'<span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Editing prices for</span>'
+    +'<span style="font-size:15px;font-weight:700;color:#22c55e">📍 '+activeOurArea+'</span>'
+    +(ap.towns?'<span style="font-size:12px;color:var(--muted);font-style:italic">— '+ap.towns+'</span>':'')
+    +'</div>';
+
+  wrap.innerHTML = '<div style="margin-bottom:18px">'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">Service Areas</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+areaTabs+'</div>'
+    +'</div>'
+    +areaBadge
+    +binCard
+    +junkCard;
+}
+
+function saveOurPricesFromPage(){
+  if(!pricingAreas.length){ toast('Add a service area first.','error'); return; }
+  var prev = ourPricesV2[activeOurArea] || {};
+  var v = function(id){ return document.getElementById(id) ? document.getElementById(id).value : ''; };
+  ourPricesV2[activeOurArea] = {
+    bins: {
+      '4 yard dirt':     v('op-b4dirt'),
+      '4 yard concrete': v('op-b4conc'),
+      '7 yard dirt':     v('op-b7dirt'),
+      '7 yard concrete': v('op-b7conc'),
+      '14 yard':         v('op-b14'),
+      '20 yard':         v('op-b20'),
+      'monthly 14 yard': v('op-bm14'),
+      'monthly 20 yard': v('op-bm20')
+    },
+    binFuel:  v('op-b-fuel'),
+    binTonne: v('op-b-tonne'),
+    junk: {
+      min:     v('op-j-min'),
+      quarter: v('op-j-quarter'),
+      half:    v('op-j-half'),
+      full:    v('op-j-full')
+    },
+    towns: prev.towns || ''
+  };
+  saveOurPricesData();
+  renderPricing();
+  renderDashPricing();
+  toast('✓ Prices saved for '+activeOurArea);
 }
 
 
@@ -5608,6 +5738,7 @@ function deleteOurArea(area){
   saveCompetitors();
   var nextArea = pricingAreas[0] || null;
   activeOurArea = nextArea || '';
+  renderOurPrices();
   renderPricing();
   toast('Area "'+area+'" deleted.');
 }
@@ -5632,48 +5763,11 @@ function renameOurArea(oldName){
   db.from('our_prices').delete().eq('area',oldName).then(function(r){
     if(r.error) console.warn('Our prices rename/delete failed:',r.error.message);
   });
-  renderOurAreaTabs();
   selectOurArea(newName);
   renderPricing();
   toast('"'+oldName+'" renamed to "'+newName+'".');
 }
 
-function openEditOurPrices(){
-  renderOurAreaTabs();
-  selectOurArea(activeOurArea);
-  document.getElementById('our-prices-modal').classList.add('open');
-}
-
-function saveOurPrices(){
-  var prev = ourPricesV2[activeOurArea] || {};
-  var entry = {
-    bins: {
-      '4 yard dirt':       document.getElementById('our-b4dirt').value,
-      '4 yard concrete':   document.getElementById('our-b4conc').value,
-      '7 yard dirt':       document.getElementById('our-b7dirt').value,
-      '7 yard concrete':   document.getElementById('our-b7conc').value,
-      '14 yard':           document.getElementById('our-b14').value,
-      '20 yard':           document.getElementById('our-b20').value,
-      'monthly 14 yard':   document.getElementById('our-bm14').value,
-      'monthly 20 yard':   document.getElementById('our-bm20').value
-    },
-    binFuel: document.getElementById('our-b-fuel').value,
-    binTonne: document.getElementById('our-b-tonne').value,
-    junk: {
-      min:     document.getElementById('our-j-min').value,
-      quarter: document.getElementById('our-j-quarter').value,
-      half:    document.getElementById('our-j-half').value,
-      full:    document.getElementById('our-j-full').value
-    },
-    towns: prev.towns || ''
-  };
-  ourPricesV2[activeOurArea] = entry;
-  saveOurPricesData();
-  closeM('our-prices-modal');
-  renderPricing();
-  renderDashPricing();
-  toast('Prices saved for '+activeOurArea+'!');
-}
 
 // ── Competitor area dropdown ──
 function populateCompAreaSelect(){

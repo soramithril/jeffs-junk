@@ -116,7 +116,7 @@
     </div>
     <div class="nav-label" id="nav-settings-label" style="display:none">Settings</div>
     <div id="nav-settings" style="display:none">
-    <button class="nav-item" onclick="go('pricing')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Bin &amp; Junk Prices</span></button>
+    <button class="nav-item" onclick="go('ourprices')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Bin &amp; Junk Prices</span></button>
     <button class="nav-item" onclick="openFurniturePrices()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18v3M20 18v3"/><path d="M3 10V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/><path d="M3 18v-2a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2H3z"/><path d="M7 10V8M17 10V8"/></svg></span><span>Furniture Prices</span></button>
     <button class="nav-item" onclick="openCrewManager()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Crew Members</span></button>
     <button class="nav-item" onclick="openUserManager()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><circle cx="18" cy="8" r="3" fill="currentColor" opacity=".3"/></svg></span><span>User Management</span></button>
@@ -828,7 +828,7 @@
     <div><div class="page-title page-title-sm">Competition Pricing</div><div class="page-sub">Quote a customer, and see how your prices compare</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
-      <button class="btn btn-ghost" onclick="openEditOurPrices()">Edit Our Prices</button>
+      <button class="btn btn-ghost" onclick="go('ourprices')">Edit Our Prices</button>
       <button class="btn btn-primary" onclick="openAddCompetitor()">+ Add Competitor</button>
     </div>
   </div>
@@ -867,6 +867,18 @@
   </div>
 </div>
 
+<!-- ═══════════════ OUR PRICES (editor) ═══════════════ -->
+<div id="view-ourprices" class="view">
+  <div class="page-header">
+    <div>
+      <div class="page-title page-title-sm">Our Prices</div>
+      <div class="page-sub">Set your bin rental and junk removal prices per service area</div>
+    </div>
+    <button class="btn btn-primary" onclick="saveOurPricesFromPage()" style="font-size:14px;padding:10px 22px">💾 Save Prices</button>
+  </div>
+  <div id="ourprices-content"></div>
+</div>
+
 <!-- ═══════════════ DOCUMENTS ═══════════════ -->
 <div id="view-documents" class="view">
   <div class="page-header">
@@ -887,65 +899,6 @@
   <div id="damage-list"></div>
 </div>
 
-<!-- ══ OUR PRICES MODAL ══ -->
-<div class="modal-overlay" id="our-prices-modal">
-  <div class="modal" style="max-width:660px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header">
-      <div class="modal-title">Edit Our Prices</div>
-      <button class="modal-close" onclick="closeM('our-prices-modal')">&#x2715;</button>
-    </div>
-
-    <!-- Area selector -->
-    <div style="margin-bottom:4px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Service Area</span>
-        <button class="btn btn-ghost btn-sm" onclick="addOurPricingArea()">+ Add Area</button>
-      </div>
-      <div id="our-area-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:8px 12px;background:var(--surface2);border-radius:8px">
-      <span style="font-size:12px;color:var(--muted)">Editing:</span>
-      <span id="our-area-label" style="font-weight:700;color:var(--accent);font-size:13px">Default</span>
-    </div>
-
-    <div class="divider"></div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px">Bin Rental</div>
-    <div id="our-towns-display" style="font-size:11px;color:var(--muted);margin-bottom:10px;font-style:italic"></div>
-    <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">Small Bins (4 &amp; 7 yard)</div>
-    <div class="form-grid" style="margin-bottom:12px">
-      <div class="form-group"><label>4 Yard Dirt</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4dirt" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>4 Yard Concrete</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b4conc" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>7 Yard Dirt</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7dirt" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>7 Yard Concrete</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b7conc" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-    </div>
-    <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px">Large Bins (14 &amp; 20 yard)</div>
-    <div class="form-grid" style="margin-bottom:12px">
-      <div class="form-group"><label>14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b14" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b20" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>Monthly 14 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-bm14" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>Monthly 20 Yard</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-bm20" type="number" min="0" placeholder="—" style="padding-left:24px"></div></div>
-    </div>
-    <div class="form-grid" style="margin-bottom:4px">
-      <div class="form-group"><label>Fuel Surcharge</label><div style="position:relative"><input id="our-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
-      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted);line-height:1.4">% added on top of bin price per delivery</span></div>
-      <div class="form-group"><label>Tonne Fee <span style="font-weight:400;color:var(--muted);font-size:11px">(14 &amp; 20 yard bins only)</span></label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-b-tonne" type="number" min="0" step="0.01" placeholder="0.00" style="padding-left:24px"></div><div style="font-size:11px;color:var(--muted);margin-top:3px">Per-tonne disposal fee — applies to 14 &amp; 20 yard bins, not 4 &amp; 7 yard</div></div>
-    </div>
-
-    <div class="divider"></div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px">Junk Removal</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Min / Small</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-j-min" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>¼ Truck</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-j-quarter" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>½ Truck</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-j-half" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-      <div class="form-group"><label>Full Truck</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="our-j-full" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
-    </div>
-
-    <div class="form-actions">
-      <button class="btn btn-ghost" onclick="closeM('our-prices-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveOurPrices()">Save Prices</button>
-    </div>
-  </div>
-</div>
 
 <!-- ══ ADD / EDIT COMPETITOR MODAL ══ -->
 <div class="modal-overlay" id="competitor-modal">
@@ -2257,7 +2210,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=226"></script>
-<script src="app.js?v=244"></script>
+<script src="app.js?v=245"></script>
 </body>
 </html>
                                                                                                                                                          
