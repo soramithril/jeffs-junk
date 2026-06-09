@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '243';
+var APP_VERSION = '244';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2360,6 +2360,108 @@ function removeCrewMember(id){
     if(r.error) console.warn('Remove crew failed:',r.error.message);
   });
   renderCrewList();
+}
+
+// ── User Manager Modal (Settings → User Management) ──
+// Edits user_profiles rows (username, role, can_delete) and creates new logins via auth.signUp.
+// The admin's session is restored after signUp so they stay signed in as themselves.
+var _userManagerUsers = [];
+function openUserManager(){
+  var html='<div class="modal-overlay open" id="user-modal-overlay" onclick="if(event.target===this)closeUserManager()">'
+    +'<div style="background:var(--surface);border-radius:14px;padding:24px;max-width:640px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:16px;font-weight:700;margin-bottom:6px">User Management</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Edit roles and permissions, or add a new staff login. Settings/Analytics access is granted by username — ask Jake to add new managers to the access list in code.</div>'
+    +'<div id="user-list" style="margin-bottom:18px"><div style="font-size:12px;color:var(--muted);padding:8px 0">Loading…</div></div>'
+    +'<div style="border-top:1px solid var(--border);padding-top:14px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:8px">Add new staff login</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+    +'<input id="user-new-email" type="email" placeholder="Email" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
+    +'<input id="user-new-password" type="text" placeholder="Temp password (min 6 chars)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
+    +'<input id="user-new-username" type="text" placeholder="Username (display name)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
+    +'<select id="user-new-role" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
+    +'<option value="Driver">Driver</option><option value="Manager">Manager</option><option value="Owner">Owner</option><option value="User">User</option>'
+    +'</select>'
+    +'</div>'
+    +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:10px"><input id="user-new-candelete" type="checkbox"> Can delete records</label>'
+    +'<button class="btn btn-primary" onclick="addNewUser()" style="font-size:12px;padding:8px 16px">Create User</button>'
+    +'</div>'
+    +'<div style="text-align:right;margin-top:18px"><button class="btn btn-ghost" onclick="closeUserManager()">Done</button></div>'
+    +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+  loadUserList();
+}
+function closeUserManager(){
+  var el=document.getElementById('user-modal-overlay');
+  if(el)el.remove();
+}
+async function loadUserList(){
+  var r=await db.from('user_profiles').select('id,username,role,can_delete').order('username');
+  if(r.error){
+    var el=document.getElementById('user-list');
+    if(el)el.innerHTML='<div style="font-size:12px;color:#dc3545">Failed to load: '+r.error.message+'</div>';
+    return;
+  }
+  _userManagerUsers=r.data||[];
+  renderUserList();
+}
+function renderUserList(){
+  var el=document.getElementById('user-list');if(!el)return;
+  if(!_userManagerUsers.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">No users yet.</div>';return;}
+  var roles=['Owner','Manager','Driver','User'];
+  el.innerHTML='<div style="display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 6px 6px;border-bottom:1px solid var(--border)"><div>Username</div><div>Role</div><div>Delete</div><div></div></div>'
+    +_userManagerUsers.map(function(u){
+      var roleOpts=roles.map(function(r){return '<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>';}).join('');
+      return '<div style="display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:8px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--border)">'
+        +'<input type="text" value="'+_esc(u.username||'')+'" onchange="updateUserField(\''+u.id+'\',\'username\',this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
+        +'<select onchange="updateUserField(\''+u.id+'\',\'role\',this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'+roleOpts+'</select>'
+        +'<label style="display:flex;align-items:center;justify-content:center;padding:0 8px"><input type="checkbox" '+(u.can_delete?'checked':'')+' onchange="updateUserField(\''+u.id+'\',\'can_delete\',this.checked)"></label>'
+        +'<button style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px;padding:2px 6px" onclick="removeUserProfile(\''+u.id+'\')" title="Remove profile">×</button>'
+        +'</div>';
+    }).join('');
+}
+function updateUserField(id,field,value){
+  var u=_userManagerUsers.find(function(x){return x.id===id;});
+  if(u) u[field]=value;
+  var patch={};patch[field]=value;
+  db.from('user_profiles').update(patch).eq('id',id).then(function(r){
+    if(r.error){toast('Update failed: '+r.error.message,'error');return;}
+    toast('✓ Saved');
+  });
+}
+function removeUserProfile(id){
+  if(!canDelete){toast('⚠ You don\'t have permission to remove users.','error');return;}
+  if(!confirm('Remove this user profile? This deletes the profile row but the Supabase auth login still exists — Jake will need to delete it in the Supabase dashboard to fully revoke access.'))return;
+  db.from('user_profiles').delete().eq('id',id).then(function(r){
+    if(r.error){toast('Remove failed: '+r.error.message,'error');return;}
+    _userManagerUsers=_userManagerUsers.filter(function(u){return u.id!==id;});
+    renderUserList();
+    toast('✓ Profile removed');
+  });
+}
+async function addNewUser(){
+  var email=(document.getElementById('user-new-email').value||'').trim();
+  var password=(document.getElementById('user-new-password').value||'').trim();
+  var username=(document.getElementById('user-new-username').value||'').trim();
+  var role=document.getElementById('user-new-role').value;
+  var canDel=document.getElementById('user-new-candelete').checked;
+  if(!email||!password||!username){toast('Email, password, and username are required.','error');return;}
+  if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
+  var adminSession=(await db.auth.getSession()).data.session;
+  var signup=await db.auth.signUp({email:email,password:password});
+  if(signup.error){toast('Create failed: '+signup.error.message,'error');return;}
+  var newId=signup.data.user&&signup.data.user.id;
+  if(!newId){toast('Sign-up returned no user.','error');return;}
+  if(adminSession){
+    await db.auth.setSession({access_token:adminSession.access_token,refresh_token:adminSession.refresh_token});
+  }
+  var ins=await db.from('user_profiles').insert({id:newId,username:username,role:role,can_delete:canDel});
+  if(ins.error){toast('Profile insert failed: '+ins.error.message,'error');return;}
+  document.getElementById('user-new-email').value='';
+  document.getElementById('user-new-password').value='';
+  document.getElementById('user-new-username').value='';
+  document.getElementById('user-new-candelete').checked=false;
+  await loadUserList();
+  toast('✓ User created. They can now log in with '+email);
 }
 
 function changeVehicleStatus(vid,newStatus){
