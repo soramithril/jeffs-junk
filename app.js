@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '246';
+var APP_VERSION = '247';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -4480,11 +4480,11 @@ async function globalSearchLive(q){
   box.style.display = 'block';
   box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching…</div>';
   try {
-    var clientsP = db.from('clients').select('cid,name,business_name,phone,city')
-      .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,email.ilike.%'+q+'%')
+    var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
+      .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,email.ilike.%'+q+'%,address.ilike.%'+q+'%,city.ilike.%'+q+'%')
       .order('name').limit(6);
-    var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid')
-      .or('job_id.ilike.%'+q+'%,name.ilike.%'+q+'%,business_name.ilike.%'+q+'%')
+    var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid,address,city')
+      .or('job_id.ilike.%'+q+'%,name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,address.ilike.%'+q+'%,city.ilike.%'+q+'%')
       .order('date',{ascending:false}).limit(6);
     var results = await Promise.all([clientsP, jobsP]);
     var cs = (results[0].data||[]);
@@ -4498,23 +4498,26 @@ async function globalSearchLive(q){
       html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Clients</div>';
       html += cs.map(function(c){
         var ph = c.phone || '';
+        var cLoc=[c.address?(c.address.split(',')[0]):'',c.city].filter(Boolean).join(' · ');
         return '<div onclick="_openClientFromGlobalSearch(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
           +'<strong>'+escHtml(c.name||'—')+'</strong>'
           +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
           +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
-          +(c.city?' <span style="color:var(--muted);font-size:11px">· '+escHtml(c.city)+'</span>':'')
+          +(cLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(cLoc)+'</div>':'')
           +'</div>';
       }).join('');
     }
     if(js.length){
       html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Jobs</div>';
       html += js.map(function(j){
+        var jLoc=[j.address?(j.address.split(',')[0]):'',j.city].filter(Boolean).join(' · ');
         return '<div onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
           +jid(j.job_id, j.service)
           +' <strong style="margin-left:6px">'+escHtml(j.name||'—')+'</strong>'
           +(j.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(j.business_name)+'</span>':'')
           +' <span style="color:var(--muted);font-size:11px">· '+escHtml(j.service||'')+'</span>'
           +(j.date?' <span style="color:var(--muted);font-size:11px">· '+fd(j.date)+'</span>':'')
+          +(jLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(jLoc)+'</div>':'')
           +'</div>';
       }).join('');
     }
@@ -5059,7 +5062,7 @@ async function openClientDetail(cid){
     if(j.service==='Bin Rental'){
       dropInfo=j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:#22c55e">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
     }
-    return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\')" style="cursor:pointer">'
+    return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\',\''+cid+'\')" style="cursor:pointer">'
       +'<td>'+jid(j.id,j.service)+'</td>'
       +'<td>'+sb(j.service)+binInfo+'</td>'
       +'<td>'+fd(j.date)+'</td>'
@@ -8224,7 +8227,7 @@ function cancelJob(id){
   closeM('detail-modal');
   refresh();
 }
-async function openDetail(id){
+async function openDetail(id, returnCid){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});
   if(!j){
     var r=await db.from('jobs').select('*').eq('job_id',id).single();
@@ -8233,7 +8236,16 @@ async function openDetail(id){
     jobs.push(j); // add to local array so action buttons (mark dropped, revert pickup, etc.) work
   }
   document.getElementById('det-ttl').textContent=j.id;
-  document.getElementById('det-crumb').textContent='Jobs › '+(j.service||'Job');
+  // When opened from a client's job list, show a clickable "Back to <client>" crumb
+  // so you can return and pick another job. Otherwise show the normal breadcrumb.
+  var _crumbEl=document.getElementById('det-crumb');
+  if(returnCid){
+    var _rc=clients.find(function(c){return c.cid===returnCid;});
+    var _rcName=_rc?_rc.name:'Client';
+    _crumbEl.innerHTML='<span onclick="closeM(\'detail-modal\');openClientDetail(\''+returnCid+'\')" style="cursor:pointer;color:var(--accent);font-weight:600">‹ Back to '+escHtml(_rcName)+'</span>';
+  } else {
+    _crumbEl.textContent='Jobs › '+(j.service||'Job');
+  }
   var bin='';
   if(j.service==='Bin Rental'){
     var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' side')):'';
