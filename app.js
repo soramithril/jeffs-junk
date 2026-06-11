@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '245';
+var APP_VERSION = '246';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3251,7 +3251,7 @@ async function renderWillCallCard(){
   var listEl=document.getElementById('dash-will-call-list');
   var countEl=document.getElementById('dash-will-call-count');
   if(!listEl)return;
-  var r=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_will_call',true).neq('status','Cancelled').order('bin_pickup');
+  var r=await db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_will_call',true).neq('bin_instatus','pickedup').neq('status','Cancelled').order('bin_pickup');
   var wcJobs=(r.data||[]).map(dbToJob);
   // Merge into local jobs array so action buttons (openDetail, etc.) work
   wcJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
@@ -7880,7 +7880,7 @@ async function saveJob(e){
   if(referral==='__add_new__') referral='';
 
   // Clear previous field errors
-  ['f-svc','f-names','f-date','f-referral'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-referral','f-addr','f-city'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
@@ -7890,6 +7890,12 @@ async function saveJob(e){
   if(!date)     { showErr('f-date');     errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
   if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='f-bsize'; }
+  if(svc==='Bin Rental'){
+    var _binStreet=document.getElementById('f-addr').value.trim();
+    var _binCity=(document.getElementById('f-city').value||'').trim() || extractCity(_binStreet,'');
+    if(!_binStreet){ showErr('f-addr'); errs.push('Address is required for a bin rental.'); if(!firstErrField) firstErrField='f-addr'; }
+    if(!_binCity){ showErr('f-city'); errs.push('City is required for a bin rental.'); if(!firstErrField) firstErrField='f-city'; }
+  }
   var timeVal=document.getElementById('f-time').value;
 
   if(errs.length) {
@@ -8733,32 +8739,109 @@ async function printDrdForJob(jobId){
   }
 }
 
-async function swapOutBin(id){
-  var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
-  if(!confirm('Create a new Swap Out job with the same details?'))return;
-  // Increment swap count on original
-  j.swapCount=(j.swapCount||0)+1;
-  patchJob(j.id,{swapCount:j.swapCount});
-  // Create new job with same details
-  var newId=await nextIdFromDb('Bin Rental');
+// Swap Out modal: ask which day the swap happens (so the existing bin gets
+// scheduled for pickup that day) and — when 2+ bins are out at the same address —
+// which bin (by number) is being swapped out.
+function swapOutBin(id){
+  var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   var today=todayStr();
+  // Bins physically out at this same address are the swap-out candidates
+  var addrKey=(j.address||'').trim().toLowerCase();
+  var candidates=jobs.filter(function(x){
+    return x.service==='Bin Rental' && x.binInstatus==='dropped' && x.status!=='Cancelled'
+      && x.binBid && (x.address||'').trim().toLowerCase()===addrKey;
+  });
+  var defaultId = candidates.some(function(c){return c.id===j.id;}) ? j.id : (candidates[0]?candidates[0].id:j.id);
+
+  var modal=document.getElementById('swap-out-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='swap-out-modal';
+    modal.className='modal-overlay';
+    modal.onclick=function(e){if(e.target===modal)closeM('swap-out-modal');};
+    document.body.appendChild(modal);
+  }
+  var addrLabel=(j.address?j.address.split(',')[0]:'')+(j.city?' · '+j.city:'');
+
+  // Bin chooser — only when 2+ bins out at this address
+  var chooserHtml;
+  if(candidates.length>1){
+    chooserHtml='<div style="margin-bottom:14px">'
+      +'<label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Which bin is being swapped out?</label>'
+      +'<div style="display:flex;flex-direction:column;gap:8px">'
+      +candidates.map(function(c){
+        var bin=c.binBid?binItems.find(function(b){return b.bid===c.binBid;}):null;
+        var binNo='#'+(bin?bin.num:c.binBid);
+        var sz=(c.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
+        var checked=c.id===defaultId?' checked':'';
+        return '<label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface2)">'
+          +'<input type="radio" name="swap-bin-pick" value="'+c.id+'"'+checked+' style="margin:0">'
+          +'<span style="font-weight:700">'+binNo+'</span>'
+          +(sz?'<span style="font-size:12px;color:var(--muted)">'+sz+'</span>':'')
+          +'<span style="font-size:12px;color:var(--muted);margin-left:auto">job '+c.id+'</span>'
+        +'</label>';
+      }).join('')
+      +'</div></div>';
+  } else {
+    chooserHtml='<input type="hidden" name="swap-bin-pick" value="'+defaultId+'">';
+  }
+
+  modal.innerHTML='<div class="modal" style="max-width:480px;width:96vw">'
+    +'<div class="modal-header">'
+      +'<div class="modal-title">🔄 Swap Out Bin</div>'
+      +'<button class="modal-close" onclick="closeM(\'swap-out-modal\')">&times;</button>'
+    +'</div>'
+    +'<div style="padding:6px 4px 10px;font-size:14px;line-height:1.55">'
+      +(addrLabel?'<p style="margin:0 0 12px;color:var(--muted)">'+_esc(addrLabel)+'</p>':'')
+      +chooserHtml
+      +'<div style="margin-bottom:6px">'
+        +'<label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Swap date — is it being swapped today?</label>'
+        +'<input type="date" id="swap-out-date" value="'+today+'" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px">'
+      +'</div>'
+      +'<p style="margin:10px 0 0;color:var(--muted);font-size:12px">The existing bin will be scheduled for pickup on this date, and a new bin drop job will be created for the same day.</p>'
+    +'</div>'
+    +'<div class="form-actions" style="margin-top:8px">'
+      +'<button class="btn btn-ghost" onclick="closeM(\'swap-out-modal\')">Cancel</button>'
+      +'<button class="btn btn-primary" onclick="_doSwapOutBin()">Confirm Swap</button>'
+    +'</div>'
+  +'</div>';
+  modal.classList.add('open');
+}
+
+async function _doSwapOutBin(){
+  var pickEl=document.querySelector('#swap-out-modal input[name="swap-bin-pick"]:checked')
+          || document.querySelector('#swap-out-modal input[name="swap-bin-pick"][type="hidden"]');
+  var dateEl=document.getElementById('swap-out-date');
+  if(!pickEl||!dateEl)return;
+  var oldJob=jobs.find(function(x){return x.id===pickEl.value;});
+  if(!oldJob){toast('Job not found','error');return;}
+  var swapDate=dateEl.value||todayStr();
+  closeM('swap-out-modal');
+
+  // 1. Schedule the existing bin for pickup on the swap date + bump swap count
+  oldJob.binPickup=swapDate;
+  oldJob.swapCount=(oldJob.swapCount||0)+1;
+  patchJob(oldJob.id,{binPickup:swapDate,swapCount:oldJob.swapCount});
+
+  // 2. Create the new drop job for the same day (fresh bin, assigned later)
+  var newId=await nextIdFromDb('Bin Rental');
   var newJob={
     id:newId, service:'Bin Rental', status:'',
-    name:j.name, phone:j.phone, address:j.address, city:j.city,
-    date:today, time:j.time, price:j.price, paid:'Unpaid',
-    notes:'Swap out from job '+j.id+(j.notes?' — '+j.notes:''),
-    referral:j.referral, confirmed:false, emailSent:false,
-    binSize:j.binSize, binDuration:j.binDuration,
-    binDropoff:today, binPickup:'', binInstatus:'',
-    binSide:j.binSide, binBid:'', clientId:j.clientId,
-    deposit:'', depositPaid:false, payMethod:j.payMethod,
-    recurring:j.recurring, recurInterval:j.recurInterval,
-    materialType:j.materialType, toolsNeeded:j.toolsNeeded,
+    name:oldJob.name, phone:oldJob.phone, address:oldJob.address, city:oldJob.city,
+    date:swapDate, time:oldJob.time, price:oldJob.price, paid:'Unpaid',
+    notes:'Swap out from job '+oldJob.id+(oldJob.notes?' — '+oldJob.notes:''),
+    referral:oldJob.referral, confirmed:false, emailSent:false,
+    binSize:oldJob.binSize, binDuration:oldJob.binDuration,
+    binDropoff:swapDate, binPickup:'', binInstatus:'',
+    binSide:oldJob.binSide, binBid:'', clientId:oldJob.clientId,
+    deposit:'', depositPaid:false, payMethod:oldJob.payMethod,
+    recurring:oldJob.recurring, recurInterval:oldJob.recurInterval,
+    materialType:oldJob.materialType, toolsNeeded:oldJob.toolsNeeded,
     emailConfirmed:false, swapCount:0
   };
   jobs.push(newJob);
   await saveSingleJob(newJob);
-  toast('Swap out job '+newId+' created!');
+  toast('Swap booked: bin scheduled for pickup '+fd(swapDate)+', new drop job '+newId+' created.');
   closeM('detail-modal');
   await loadJobsPage(jobsPage);
   openDetail(newId);
@@ -9026,15 +9109,19 @@ function markPickedUp(id,e){
   j.binInstatus='pickedup';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
   writeBinHistory(j);
-  patchJob(id,{binInstatus:'pickedup'});
+  // Picked up = job done, so it's no longer "will call" either
+  var patch={binInstatus:'pickedup'};
+  if(j.binWillCall){ j.binWillCall=false; patch.binWillCall=false; }
+  patchJob(id,patch);
   toast('Bin marked picked up!');
   refresh();
 }
 function dashMarkPickedUp(jobId,bid){
   var j=jobs.find(function(jj){return jj.id===jobId;});
-  if(j){j.binInstatus='pickedup';writeBinHistory(j);}
+  var patch={binInstatus:'pickedup'};
+  if(j){j.binInstatus='pickedup';if(j.binWillCall){j.binWillCall=false;patch.binWillCall=false;}writeBinHistory(j);}
   binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
-  patchJob(jobId,{binInstatus:'pickedup'});saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
+  patchJob(jobId,patch);saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
 }
 function toggleWillCall(id,e){
   if(e)e.stopPropagation();
