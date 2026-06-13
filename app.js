@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '253';
+var APP_VERSION = '254';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2680,9 +2680,10 @@ async function refreshDashJobs(){
           assignBtn='<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign</button>';
         }
         var confirmedPill = (showConfirm && cfm && j.service !== 'Bin Rental') ? '<span style="font-size:11px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:3px 8px">✅</span>' : '';
-        var actionsHTML = (assignBtn||actionBtn||confirmedPill)
-          ? '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+assignBtn+actionBtn+'</div>'
-          : '<div></div>';
+        var emailChip = (j.emailSent||j.emailConfirmed)
+          ? '<button class="btn btn-ghost btn-sm" title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#22c55e;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.1);white-space:nowrap">📧 ✓</button>'
+          : '<button class="btn btn-ghost btn-sm" title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.5);white-space:nowrap">📧 Send</button>';
+        var actionsHTML = '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+emailChip+assignBtn+actionBtn+'</div>';
         var rowBg = hasFixedTime
           ? 'background:linear-gradient(90deg,rgba(34,197,94,0.06) 0%,var(--surface2) 30%);border:1px solid rgba(34,197,94,0.4)'
           : 'background:var(--surface2);border:1px solid var(--border)';
