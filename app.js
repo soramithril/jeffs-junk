@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '256';
+var APP_VERSION = '257';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2023,6 +2023,14 @@ function shiftDashDate(n){
   refreshDashJobs();
   renderTodayBookings();
 }
+// Prominent total-jobs badge in the Today's Jobs header. Shared by both render
+// paths (renderDash for today, refreshDashJobs for a picked date) so they can't drift.
+function setDashJobCountBadge(n){
+  var el=document.getElementById('dash-today-jobcount');
+  if(!el)return;
+  if(n>0){ el.textContent=n+' JOB'+(n===1?'':'S'); el.style.display='inline-flex'; }
+  else { el.style.display='none'; }
+}
 function updateDashDateLabel(){
   var dp=document.getElementById('dash-bin-date');
   var lbl=document.getElementById('dash-date-label');
@@ -2599,6 +2607,7 @@ async function refreshDashJobs(){
   var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(furnPickups).concat(furnDelivs));
   var total = allDay.length;
   var unconf = allDay.filter(function(j){return !j.confirmed;}).length;
+  setDashJobCountBadge(total);
 
   // Update count subheading
   var countEl = document.getElementById('dash-today-count');
@@ -3083,6 +3092,7 @@ async function renderDash(){
 
   // Count line for sub-header — render as color-coded pill chips so it matches the
   // tinted job rows below and is scannable at a glance on heavy days.
+  setDashJobCountBadge(allToday.length);
   var countEl = document.getElementById('dash-today-count');
   if(countEl){
     function _countChip(rgbCsv, color, icon, count, label){

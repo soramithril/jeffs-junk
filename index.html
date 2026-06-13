@@ -233,7 +233,10 @@
       <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
           <div>
-            <div id="workload-header" class="card-head">📍 Today's Jobs</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div id="workload-header" class="card-head">📍 Today's Jobs</div>
+              <span id="dash-today-jobcount" style="display:none;align-items:center;background:var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:21px;line-height:1;padding:3px 13px;border-radius:99px;letter-spacing:1px;white-space:nowrap;box-shadow:0 2px 8px rgba(34,197,94,.35)"></span>
+            </div>
             <div id="dash-today-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="go('jobs')">All Jobs →</button>
@@ -2213,7 +2216,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=229"></script>
-<script src="app.js?v=256"></script>
+<script src="app.js?v=257"></script>
 </body>
 </html>
                                                                                                                                                          
