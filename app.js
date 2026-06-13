@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '249';
+var APP_VERSION = '250';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3271,7 +3271,7 @@ async function renderWillCallCard(){
   wcJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   if(countEl) countEl.textContent = wcJobs.length ? (wcJobs.length+' job'+(wcJobs.length===1?'':'s')+' awaiting customer call') : '';
   if(!wcJobs.length){
-    listEl.innerHTML='<div style="grid-column:1/-1;padding:18px 20px;font-size:13px;color:var(--muted);font-style:italic">No jobs flagged for Will Call.</div>';
+    listEl.innerHTML='<div style="grid-column:1/-1;padding:18px 20px;font-size:13px;color:var(--muted);font-style:italic">No jobs waiting on a customer call.</div>';
     return;
   }
   var iconLoc='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
@@ -4374,6 +4374,7 @@ async function renderCal(){
   });
 }
 function shiftMonth(d){calDate.setMonth(calDate.getMonth()+d);renderCal();}
+function calToday(){calDate=new Date();renderCal();}
 
 // ── Calendar day preview modal ──────────────────────────────
 async function openCalDayPreview(ds){
@@ -6073,7 +6074,7 @@ function renderBinInventory(){
     {val:active,lbl:'Active Fleet',color:'#22c55e',pct:100},
     {val:inYard,lbl:'In Yard',color:'#22c55e',pct:inPct},
     {val:outJob,lbl:'Out on Job',color:'#dc3545',pct:outPct},
-    {val:oor,lbl:'Out of Rotation',color:'#f59e0b',pct:oorPct},
+    {val:oor,lbl:'Retired (not in use)',color:'#f59e0b',pct:oorPct},
     {val:damaged,lbl:'Damaged',color:'#e76f7e',pct:dmgPct},
     {val:green,lbl:'Green Bins',color:'#4ade80',pct:active?Math.round(green/active*100):0},
     {val:black,lbl:'Black Bins',color:'#aaa',pct:active?Math.round(black/active*100):0},
@@ -8431,8 +8432,8 @@ async function openDetail(id, returnCid){
       if(j.service==='Bin Rental'&&!j.binBid) btns.push('<button class="btn btn-ghost" onclick="openLinkBinFromJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🔗 Link a Bin</button>');
       if(j.service==='Bin Rental'){
         var wcIcon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
-        if(j.binWillCall) btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.5);color:#e67e22;background:rgba(230,126,34,.08);font-weight:700">'+wcIcon+'Will Call ON · Clear</button>');
-        else            btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">'+wcIcon+'Mark Will Call</button>');
+        if(j.binWillCall) btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.5);color:#e67e22;background:rgba(230,126,34,.08);font-weight:700">'+wcIcon+'Waiting on Call · Clear</button>');
+        else            btns.push('<button class="btn btn-ghost" onclick="toggleWillCall(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">'+wcIcon+'Mark Waiting on Call</button>');
       }
       if(j.recurring && j.service==='Junk Removal'){
         btns.push('<button class="btn btn-ghost" onclick="scheduleNextRecurringJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">♻️ Next Visit</button>');
@@ -9219,7 +9220,7 @@ function toggleWillCall(id,e){
   var next=!j.binWillCall;
   j.binWillCall=next;
   patchJob(id,{binWillCall:next});
-  toast(next?'Marked as Will Call — pickup is tentative':'Will Call cleared');
+  toast(next?'Marked waiting on customer call — pickup is tentative':'Waiting on customer call cleared');
   refresh();
 }
 // ── Service-type segmented picker ───────────────────────────────────
@@ -9287,7 +9288,7 @@ function toggleWillCallForm(forceState){
     if(btn){
       btn.style.background='rgba(230,126,34,.18)';
       btn.style.borderColor='#e67e22';
-      btn.innerHTML='📞 Will Call ON — click to turn off';
+      btn.innerHTML='📞 Waiting on customer call — click to turn off';
     }
   } else {
     pick.disabled=false; pickTime.disabled=false;
@@ -9295,7 +9296,7 @@ function toggleWillCallForm(forceState){
     if(btn){
       btn.style.background='';
       btn.style.borderColor='rgba(230,126,34,.4)';
-      btn.innerHTML='📞 Will Call — no pickup date scheduled';
+      btn.innerHTML='📞 Waiting on customer call — no pickup date scheduled';
     }
   }
 }
@@ -10913,7 +10914,7 @@ function _buildVehicleAlerts(){
           meta: oil.sub+(v.oilInterval?' · interval '+parseInt(v.oilInterval).toLocaleString()+' km':''),
           actions: [
             {label:'✅ Mark serviced', primary:true, onclick:"markOilServicedQuick('"+v.vid+"')"},
-            {label:'Block days', onclick:"_focusVehBlockForm('"+v.vid+"')"}
+            {label:'Mark out of service', onclick:"_focusVehBlockForm('"+v.vid+"')"}
           ],
           snoozeKey: key,
           vid: v.vid

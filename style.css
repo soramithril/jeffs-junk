@@ -812,7 +812,11 @@ input[type=date],input[type=time]{position:relative;}
   .analytics-full{grid-column:1;}
   .metric-row{grid-template-columns:repeat(2,1fr);}
   .fleet-layout{grid-template-columns:1fr;}
-  .fleet-nav{display:none;}
+  /* On small screens the filter panel becomes a horizontal scrollable chip row */
+  .fleet-nav{position:static;display:flex;flex-direction:row;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .fleet-nav-hdr,.fleet-nav-sec,.fleet-nav-sep{display:none;}
+  .fleet-nav-btn{width:auto;flex-shrink:0;white-space:nowrap;border-bottom:none;border-right:1px solid var(--border);}
+  .fleet-nav-btn.active{border-left:none;box-shadow:inset 0 -2px 0 var(--accent);}
   .fleet-stats{grid-template-columns:repeat(3,1fr);}
   .week-cal-grid{grid-template-columns:repeat(7,1fr);}
   .week-day-name{font-size:9px;}

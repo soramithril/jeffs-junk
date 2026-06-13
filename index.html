@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=205">
+<link rel="stylesheet" href="style.css?v=206">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -251,7 +251,7 @@
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="display:inline-flex;color:#e67e22"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
           <div>
-            <div class="card-head" style="margin:0">Will Call</div>
+            <div class="card-head" style="margin:0">Waiting on Customer Call</div>
             <div id="dash-will-call-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
           </div>
         </div>
@@ -505,11 +505,13 @@
 <div id="view-calendar" class="view">
   <div class="page-header">
     <div><div class="page-title page-title-sm">Calendar</div><div class="page-sub">Schedule view</div></div>
+    <button class="btn btn-blue-solid" onclick="newJob()">+ New Job</button>
   </div>
   <div class="calendar-header">
     <button class="cal-nav" onclick="shiftMonth(-1)">&#8249;</button>
     <div class="cal-month" id="cal-lbl"></div>
     <button class="cal-nav" onclick="shiftMonth(1)">&#8250;</button>
+    <button class="btn btn-ghost btn-sm" onclick="calToday()">Today</button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:7px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
     <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-right:2px;">Key:</span>
@@ -766,17 +768,17 @@
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
         <div>
           <div class="chart-title" style="display:flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.7"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Busiest Days</div>
-          <div class="chart-sub" id="busiest-sub">Job volume by day of week — pick a period B above to compare</div>
+          <div class="chart-sub" id="busiest-sub">Job volume by day of week — pick a compare period above</div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="busiest-grid">
         <div>
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:8px" id="busiest-a-lbl">PERIOD A</div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:8px" id="busiest-a-lbl">SHOWING</div>
           <div class="bar-chart" id="chart-busiest-a"></div>
           <div id="busiest-insight-a" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
         </div>
         <div id="busiest-b-col" style="display:none">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#e67e22;margin-bottom:8px" id="busiest-b-lbl">PERIOD B</div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#e67e22;margin-bottom:8px" id="busiest-b-lbl">COMPARE TO</div>
           <div class="bar-chart" id="chart-busiest-b"></div>
           <div id="busiest-insight-b" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
         </div>
@@ -1683,7 +1685,7 @@
         </div>
         <div class="form-group"><label>Condition</label><select id="bi-dmg"><option value="good">✅ No Damage</option><option value="damage">⚠️ Has Damage</option></select></div>
         <div class="form-group"><label>Status</label><select id="bi-status"><option value="in">In Yard</option><option value="out">Out on Job</option></select></div>
-        <div class="form-group"><label>Rotation</label><select id="bi-oor"><option value="active">✅ In Rotation</option><option value="oor">⛔ Out of Rotation</option></select></div>
+        <div class="form-group"><label>Rotation</label><select id="bi-oor"><option value="active">✅ In use</option><option value="oor">⛔ Retired (not in use)</option></select></div>
         <div class="form-group full"><label>Notes / Damage Description</label><textarea id="bi-notes" placeholder="Optional notes..."></textarea></div>
       </div>
       <div class="form-actions">
@@ -2205,12 +2207,12 @@
 <script src="app-drdcalc.js?v=171"></script>
 <script src="app-dispatch.js?v=201"></script>
 <script src="app-leaderboard.js?v=210"></script>
-<script src="app-analytics.js?v=200"></script>
+<script src="app-analytics.js?v=201"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=226"></script>
-<script src="app.js?v=249"></script>
+<script src="app.js?v=250"></script>
 </body>
 </html>
                                                                                                                                                          

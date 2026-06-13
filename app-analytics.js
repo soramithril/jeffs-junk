@@ -299,7 +299,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     return{html:makeBarChart(data,function(k,i){return i===bIdx?color:'rgba(34,197,94,.2)';}),busiestDay:dayNames[bIdx],busiestCount:counts[bIdx]};
   }
   var cA=buildDayChart(aJobs,'#22c55e');
-  document.getElementById('busiest-a-lbl').innerHTML='<span style="color:var(--accent)">● A: '+dates.a.label+'</span>';
+  document.getElementById('busiest-a-lbl').innerHTML='<span style="color:var(--accent)">● Showing: '+dates.a.label+'</span>';
   document.getElementById('chart-busiest-a').innerHTML=cA.html;
   document.getElementById('busiest-insight-a').innerHTML='🏆 Busiest: <strong>'+cA.busiestDay+'</strong> ('+cA.busiestCount+' jobs)';
   var bCol=document.getElementById('busiest-b-col');
@@ -308,7 +308,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     var cB=buildDayChart(bJobs,'#e67e22');
     bCol.style.display='block';
     bGrid.style.gridTemplateColumns='1fr 1fr';
-    document.getElementById('busiest-b-lbl').innerHTML='<span style="color:#e67e22">● B: '+dates.b.label+'</span>';
+    document.getElementById('busiest-b-lbl').innerHTML='<span style="color:#e67e22">● Compare to: '+dates.b.label+'</span>';
     document.getElementById('chart-busiest-b').innerHTML=cB.html;
     document.getElementById('busiest-insight-b').innerHTML='🏆 Busiest: <strong>'+cB.busiestDay+'</strong> ('+cB.busiestCount+' jobs)'+(cA.busiestDay!==cB.busiestDay?'<br><span style="color:#e67e22">Shift: '+cB.busiestDay+' → '+cA.busiestDay+'</span>':' · same day');
     requestAnimationFrame(function(){animateBars(document.getElementById('chart-busiest-b'));});
