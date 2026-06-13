@@ -250,7 +250,11 @@ function _bkSvcColor(svc){
 async function renderTodayBookings(){
   var host = document.getElementById('dash-today-bookings');
   if(!host) return;
-  var t = todayStr();
+  // Follow the dashboard date picker — shows what was booked (created) on that day
+  var dp = document.getElementById('dash-bin-date');
+  var t = (dp && dp.value) ? dp.value : todayStr();
+  var isToday = (t === todayStr());
+  var dateLbl = new Date(t + 'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   var startISO = t + 'T00:00:00';
   var endD = new Date(t + 'T00:00:00'); endD.setDate(endD.getDate()+1);
   var endISO = ymdLocal(endD) + 'T00:00:00';
@@ -258,12 +262,14 @@ async function renderTodayBookings(){
     .select('job_id,name,service,address,city,bin_size,date,created_by,created_at,status,email_sent,email_confirmed')
     .gte('created_at', startISO).lt('created_at', endISO)
     .order('created_at', { ascending: false });
-  if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 16px">Could not load today\'s bookings.</div>'; return; }
+  if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 16px">Could not load bookings.</div>'; return; }
   var list = r.data || [];
   var n = list.length;
 
+  var titleEl = document.getElementById('dash-bookings-title');
+  if(titleEl) titleEl.textContent = isToday ? '📝 Booked Today' : '📝 Booked ' + dateLbl;
   var countEl = document.getElementById('dash-bookings-count');
-  if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' booked today') : '';
+  if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' booked ' + (isToday ? 'today' : 'on ' + dateLbl)) : '';
   var chipEl = document.getElementById('dash-tab-n-bookings');
   if(chipEl) chipEl.textContent = n;
 
@@ -272,8 +278,8 @@ async function renderTodayBookings(){
 
   if(!list.length){
     host.innerHTML = (typeof emptyStateHTML === 'function')
-      ? emptyStateHTML('📝','Nothing Booked Yet','No new jobs have been entered today.')
-      : '<div style="font-size:13px;color:var(--muted);padding:10px 16px">No bookings yet today.</div>';
+      ? emptyStateHTML('📝','Nothing Booked', isToday ? 'No new jobs have been entered today.' : 'No jobs were entered on ' + dateLbl + '.')
+      : '<div style="font-size:13px;color:var(--muted);padding:10px 16px">No bookings on this date.</div>';
     return;
   }
 
