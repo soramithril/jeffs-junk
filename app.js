@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '250';
+var APP_VERSION = '251';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3171,9 +3171,10 @@ async function renderDash(){
         var bizCell = j.businessName?'<span style="color:var(--accent);font-weight:600;font-size:12px;flex-shrink:0">🏢 '+j.businessName+'</span>':'';
         var nameAddrCell = '<div class="tjr-name" title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChip+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+bizCell+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var confirmedPill = (showConfirm && cfm && j.service !== 'Bin Rental') ? '<span style="font-size:11px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:3px 8px">✅</span>' : '';
-        var actionsHTML = (assignBinBtn||actionBtn||confirmedPill)
-          ? '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+assignBinBtn+actionBtn+'</div>'
-          : '<div></div>';
+        var emailChip = (j.emailSent||j.emailConfirmed)
+          ? '<span title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="cursor:pointer;font-size:11px;color:#22c55e;font-weight:700;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:4px;padding:3px 8px;white-space:nowrap">📧 ✓</span>'
+          : '<button class="btn btn-ghost btn-sm" title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.5);white-space:nowrap">📧 Send</button>';
+        var actionsHTML = '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+emailChip+assignBinBtn+actionBtn+'</div>';
         // Neutral row background — color is reserved for the section-color border-left
         // (category accent) and for the shadow on fixed-time rows (status emphasis).
         // This keeps the dashboard calm overall and lets status colors (red/orange) pop.
@@ -8396,9 +8397,9 @@ async function openDetail(id, returnCid){
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
     +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
-    +(j.emailConfirmed
-      ?'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center">✅ Email Sent</button>'
-      :'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📧 Send Email</button>')
+    +((j.emailSent||j.emailConfirmed)
+      ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#22c55e;background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
+      :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">📧 Email Not Sent — Send Now</button>')
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
@@ -9669,6 +9670,10 @@ var defaultPresets = {
   junk_quote: {
     subject: 'Your Junk Removal Quote',
     body: 'Hi {name},\n\nThank you for requesting a junk removal quote.\n\nWe have scheduled a quote visit for {date}.\n\nAddress: {address}\n\nQuoted amount: {price}\n\nOur team will assess the items and confirm the price on site.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+  },
+  bin_cancelled: {
+    subject: 'Your Bin Rental – Cancellation Confirmation',
+    body: 'Hi {name},\n\nThis confirms that your bin rental scheduled for drop-off on {dropoffDate} has been cancelled.\n\nIf this was a mistake, or you\'d like to rebook for another date, just give us a call or reply to this email.\n\nThank you for considering Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   }
 };
 
@@ -9697,6 +9702,7 @@ function fillEmailTemplate(template, j) {
 
 function guessPresetKey(j) {
   if (j.service === 'Bin Rental') {
+    if (j.status === 'Cancelled') return 'bin_cancelled';
     if (j.binInstatus === 'dropped') return 'bin_pickup';
     return 'bin_dropoff';
   }
@@ -9705,9 +9711,15 @@ function guessPresetKey(j) {
   return 'furniture_bank';
 }
 
-function openEmailModal(id) {
+async function openEmailModal(id) {
   var j = null; jobs.forEach(function(jj){if(jj.id===id)j=jj;});
-  if (!j) return;
+  if (!j) {
+    // Not in memory (e.g. opened from the Booked Today widget) — fetch it
+    var r = await db.from('jobs').select('*').eq('job_id',id).single();
+    if (r.error || !r.data) return;
+    j = dbToJob(r.data);
+    jobs.push(j);
+  }
   emailJobId = id;
   closeM('detail-modal');
   var cl = null; if (j.clientId) clients.forEach(function(c){if(c.cid===j.clientId)cl=c;});

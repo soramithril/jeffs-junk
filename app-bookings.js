@@ -255,7 +255,7 @@ async function renderTodayBookings(){
   var endD = new Date(t + 'T00:00:00'); endD.setDate(endD.getDate()+1);
   var endISO = ymdLocal(endD) + 'T00:00:00';
   var r = await db.from('jobs')
-    .select('job_id,name,service,address,city,bin_size,date,created_by,created_at,status')
+    .select('job_id,name,service,address,city,bin_size,date,created_by,created_at,status,email_sent,email_confirmed')
     .gte('created_at', startISO).lt('created_at', endISO)
     .order('created_at', { ascending: false });
   if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 16px">Could not load today\'s bookings.</div>'; return; }
@@ -295,13 +295,17 @@ async function renderTodayBookings(){
     var cityChip = (j.city && cc)
       ? '<span style="background:'+cc.bg+';color:'+cc.fg+';border:1px solid '+cc.bd+';border-left:3px solid '+cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:14px;padding:2px 10px;border-radius:5px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;line-height:1.3;flex-shrink:0">'+_bkEsc(j.city)+'</span>'
       : '';
+    // Email status chip — green = sent, orange = needs sending (click opens the email modal)
+    var emailChip = (j.email_sent||j.email_confirmed)
+      ? '<span title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="cursor:pointer;font-size:11px;color:#22c55e;font-weight:700;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:4px;padding:3px 8px;white-space:nowrap;flex-shrink:0">📧 ✓</span>'
+      : '<span title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="cursor:pointer;font-size:11px;color:#e67e22;font-weight:700;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.5);border-radius:4px;padding:3px 8px;white-space:nowrap;flex-shrink:0">📧 Send</span>';
     return '<div class="today-job-row" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+svcColor+';border-radius:0 8px 8px 0;margin:0 8px 5px;cursor:pointer;font-size:12.5px'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
               '<div style="min-width:0;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden">'+
                 '<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0;'+nameStyle+'">'+_bkEsc(j.name||'—')+'</span>'+
                 (j.service?sb(j.service):'')+
                 (addr?'<span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+addr+'</span>':'')+
               '</div>'+
-              '<div style="display:flex;align-items:center;gap:8px;justify-self:end">'+sizeBadge+cityChip+'</div>'+
+              '<div style="display:flex;align-items:center;gap:8px;justify-self:end">'+emailChip+sizeBadge+cityChip+'</div>'+
               '<div style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;justify-self:end;white-space:nowrap">'+
                 '<span style="width:22px;height:22px;border-radius:50%;background:'+uColor+';color:#fff;font-weight:700;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'+_bkEsc(_bkInitial(j.created_by||'?'))+'</span>'+
                 '<span>'+_bkEsc(j.created_by||'—')+'</span>'+
