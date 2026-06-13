@@ -344,7 +344,7 @@
   <div class="page-header">
     <div>
       <div class="page-title page-title-sm">Live Jobs</div>
-      <div class="page-sub" id="livejobs-sub">Today's jobs — updated automatically</div>
+      <div class="page-sub" id="livejobs-sub">Today's jobs — auto-refreshes every minute</div>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <span class="lj-pulse" id="lj-pulse"></span>
@@ -566,11 +566,11 @@
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();clearClientRangeFilters()" id="client-range-clear-btn" style="font-size:11px;padding:4px 10px;opacity:0;pointer-events:none;transition:opacity .2s;">✕ Clear All</button>
-          <svg id="client-range-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--muted);transition:transform .25s;transform:rotate(180deg)"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg id="client-range-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--muted);transition:transform .25s;transform:rotate(0deg)"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
       </div>
       <!-- Panel body -->
-      <div id="client-range-body" style="padding:14px 16px;display:block;">
+      <div id="client-range-body" style="padding:14px 16px;display:none;">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="client-range-grid">
           <!-- Bins -->
           <div class="crange-card" data-color="#22c55e" data-color-dim="rgba(34,197,94,.1)">
@@ -2210,7 +2210,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=226"></script>
-<script src="app.js?v=248"></script>
+<script src="app.js?v=249"></script>
 </body>
 </html>
                                                                                                                                                          

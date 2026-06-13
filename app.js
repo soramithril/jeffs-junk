@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '248';
+var APP_VERSION = '249';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1310,10 +1310,24 @@ async function loadJobsPage(page) {
   // Build query with current filters
   var query = db.from('jobs').select(JOB_LIST_COLS, {count:'exact'}).order('date', {ascending: false});
 
-  // Apply search filter server-side
+  // Apply search + date filters server-side. PostgREST gets exactly one .or()
+  // call, so when both are active they're nested under a single and().
+  var searchOr = '';
   if (searchF && searchF.trim()) {
-    query = query.or('name.ilike.%' + searchF + '%,address.ilike.%' + searchF + '%,job_id.ilike.%' + searchF + '%,phone.ilike.%' + searchF + '%,city.ilike.%' + searchF + '%');
+    searchOr = 'name.ilike.%' + searchF + '%,address.ilike.%' + searchF + '%,job_id.ilike.%' + searchF + '%,phone.ilike.%' + searchF + '%,city.ilike.%' + searchF + '%';
   }
+  // A job matches the date filter if ANY of its dates falls in the range
+  // (booking, junk, furniture, bin drop-off, bin pickup) — same as the calendar
+  var dr = jobDateRange();
+  var dateOr = '';
+  if (dr) {
+    dateOr = ['date','junk_date','fb_date','bin_dropoff','bin_pickup'].map(function(c){
+      return 'and(' + c + '.gte.' + dr.start + ',' + c + '.lte.' + dr.end + ')';
+    }).join(',');
+  }
+  if (searchOr && dateOr) query = query.or('and(or(' + searchOr + '),or(' + dateOr + '))');
+  else if (searchOr) query = query.or(searchOr);
+  else if (dateOr) query = query.or(dateOr);
   // Apply service filter
   if (svcF && svcF !== 'all') {
     query = query.eq('service', svcF);
@@ -3482,16 +3496,22 @@ function renderJobsBinsOut(){
   }).join('')+'</div>';
 }
 function setJobStatus(v,el){jobStatusF=v;document.querySelectorAll('[id^="jstf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);}
-function setJobDateFilter(v,el){jobDateF=v;document.querySelectorAll('[id^="jdtf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();}
+function setJobDateFilter(v,el){jobDateF=v;document.querySelectorAll('[id^="jdtf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);}
 function setBinDropFilter(v,el){binDropF=v;document.querySelectorAll('[id^="jbdf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();}
 function setQ(v){searchF=v;renderJobs();}
+// Start/end (inclusive, local time) for the All Jobs date filter; null = no filtering
+function jobDateRange(){
+  if(!jobDateF||jobDateF==='all')return null;
+  var t=new Date();
+  if(jobDateF==='today'){var d=ymdLocal(t);return{start:d,end:d};}
+  if(jobDateF==='week'){var ws=new Date(t);ws.setDate(ws.getDate()-ws.getDay());var we=new Date(ws);we.setDate(we.getDate()+6);return{start:ymdLocal(ws),end:ymdLocal(we)};}
+  if(jobDateF==='month'){return{start:ymdLocal(new Date(t.getFullYear(),t.getMonth(),1)),end:ymdLocal(new Date(t.getFullYear(),t.getMonth()+1,0))};}
+  return null;
+}
 function matchDateFilter(j){
-  if(jobDateF==='all')return true;
-  var today=todayStr();
-  if(jobDateF==='today')return j.date===today;
-  if(jobDateF==='week'){var ws=new Date();ws.setDate(ws.getDate()-ws.getDay());var we=new Date(ws);we.setDate(we.getDate()+6);return j.date>=ws.toISOString().split('T')[0]&&j.date<=we.toISOString().split('T')[0];}
-  if(jobDateF==='month'){var now=new Date();var ms=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];var me=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];return j.date>=ms&&j.date<=me;}
-  return true;
+  var dr=jobDateRange();
+  if(!dr)return true;
+  return [j.date,j.junkDate,j.fbDate,j.binDropoff,j.binPickup].some(function(d){return d&&d>=dr.start&&d<=dr.end;});
 }
 // ── JOB TABLE DROPDOWN MANAGER ──────────────────────────────
 var _jddOpen = null;
@@ -3955,6 +3975,24 @@ async function renderLiveJobs(){
   // Kick off the Geotab visual layer. Idempotent — safe to call on every render.
   try { LiveMap.start(); } catch(e){ console.warn('LiveMap.start:', e); }
   var today=todayStr();
+  // Refresh today's jobs from the DB so this page (and its 60s auto-refresh)
+  // shows new bookings and edits, not just what other pages cached in memory
+  try {
+    var rT = await Promise.all([
+      db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').eq('date',today),
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',today),
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',today),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').eq('fb_date',today),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').eq('junk_date',today)
+    ]);
+    var seenT = {};
+    rT.forEach(function(res){ (res.data||[]).forEach(function(row){
+      if(seenT[row.job_id]) return; seenT[row.job_id]=true;
+      var fresh=dbToJob(row);
+      var idx=jobs.findIndex(function(x){return x.id===fresh.id;});
+      if(idx>=0) jobs[idx]=fresh; else jobs.push(fresh);
+    });});
+  } catch(e){ console.warn('live jobs refresh:', e); }
   var todayJobs=jobs.filter(function(j){
     if(j.status==='Cancelled') return false;
     // Bin rentals: only show if dropoff or pickup is today (date is just booking date)
@@ -4072,7 +4110,17 @@ async function renderLiveJobs(){
     +buildSection('furnPick','🛋️','Furniture Pickups')
     +buildSection('furnDel','📦','Furniture Deliveries')
     +buildSection('other','📌','Other');
+
+  var sub=document.getElementById('livejobs-sub');
+  if(sub) sub.textContent="Today's jobs — auto-refreshes every minute · Updated "+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
 }
+
+// Auto-refresh Live Jobs every 60s while the page is open and the tab is visible
+setInterval(function(){
+  if(document.hidden) return;
+  var v=document.getElementById('view-livejobs');
+  if(v && v.classList.contains('active')) renderLiveJobs();
+}, 60000);
 
 function renderJobs(){
   var q=searchF.toLowerCase();
