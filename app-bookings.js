@@ -295,10 +295,10 @@ async function renderTodayBookings(){
     var cityChip = (j.city && cc)
       ? '<span style="background:'+cc.bg+';color:'+cc.fg+';border:1px solid '+cc.bd+';border-left:3px solid '+cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:14px;padding:2px 10px;border-radius:5px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;line-height:1.3;flex-shrink:0">'+_bkEsc(j.city)+'</span>'
       : '';
-    // Email status chip — green = sent, orange = needs sending (click opens the email modal)
+    // Email status button — green = sent, orange = needs sending (click opens the email modal)
     var emailChip = (j.email_sent||j.email_confirmed)
-      ? '<span title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="cursor:pointer;font-size:11px;color:#22c55e;font-weight:700;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:4px;padding:3px 8px;white-space:nowrap;flex-shrink:0">📧 ✓</span>'
-      : '<span title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="cursor:pointer;font-size:11px;color:#e67e22;font-weight:700;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.5);border-radius:4px;padding:3px 8px;white-space:nowrap;flex-shrink:0">📧 Send</span>';
+      ? '<button class="btn btn-ghost btn-sm" title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="font-size:11px;color:#22c55e;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.1);white-space:nowrap;flex-shrink:0">📧 ✓</button>'
+      : '<button class="btn btn-ghost btn-sm" title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.5);white-space:nowrap;flex-shrink:0">📧 Send</button>';
     return '<div class="today-job-row" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+svcColor+';border-radius:0 8px 8px 0;margin:0 8px 5px;cursor:pointer;font-size:12.5px'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
               '<div style="min-width:0;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden">'+
                 '<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0;'+nameStyle+'">'+_bkEsc(j.name||'—')+'</span>'+

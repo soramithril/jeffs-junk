@@ -114,7 +114,7 @@
     <button class="nav-item" onclick="go('utilization')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span>Bin Utilization</span></button>
     <button class="nav-item" onclick="go('advisor')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span>AI Advisor</span></button>
     </div>
-    <div class="nav-label" id="nav-settings-label" style="display:none">Settings</div>
+    <div class="nav-label" id="nav-settings-label" style="display:none;cursor:pointer;user-select:none;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-settings')">Settings <span id="nav-settings-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▶</span></div>
     <div id="nav-settings" style="display:none">
     <button class="nav-item" onclick="go('ourprices')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Bin &amp; Junk Prices</span></button>
     <button class="nav-item" onclick="openFurniturePrices()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18v3M20 18v3"/><path d="M3 10V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/><path d="M3 18v-2a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2H3z"/><path d="M7 10V8M17 10V8"/></svg></span><span>Furniture Prices</span></button>
@@ -2212,8 +2212,8 @@
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
-<script src="app-bookings.js?v=227"></script>
-<script src="app.js?v=251"></script>
+<script src="app-bookings.js?v=228"></script>
+<script src="app.js?v=252"></script>
 </body>
 </html>
                                                                                                                                                          

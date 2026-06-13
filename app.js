@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '251';
+var APP_VERSION = '252';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3172,7 +3172,7 @@ async function renderDash(){
         var nameAddrCell = '<div class="tjr-name" title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChip+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+bizCell+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
         var confirmedPill = (showConfirm && cfm && j.service !== 'Bin Rental') ? '<span style="font-size:11px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:3px 8px">✅</span>' : '';
         var emailChip = (j.emailSent||j.emailConfirmed)
-          ? '<span title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="cursor:pointer;font-size:11px;color:#22c55e;font-weight:700;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:4px;padding:3px 8px;white-space:nowrap">📧 ✓</span>'
+          ? '<button class="btn btn-ghost btn-sm" title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#22c55e;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.1);white-space:nowrap">📧 ✓</button>'
           : '<button class="btn btn-ghost btn-sm" title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.5);white-space:nowrap">📧 Send</button>';
         var actionsHTML = '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+emailChip+assignBinBtn+actionBtn+'</div>';
         // Neutral row background — color is reserved for the section-color border-left
@@ -9613,8 +9613,9 @@ function applySettingsVisibility(){
   var show=canAccessAnalytics();
   var nav=document.getElementById('nav-settings');
   var navLabel=document.getElementById('nav-settings-label');
-  if(navLabel)navLabel.style.display=show?'':'none';
-  if(nav)nav.style.display=show?'':'none';
+  if(navLabel)navLabel.style.display=show?'flex':'none';
+  // Section starts collapsed — click the Settings label to expand (same as Insights)
+  if(nav)nav.style.display='none';
 }
 
 function handleAdminBtn() {
