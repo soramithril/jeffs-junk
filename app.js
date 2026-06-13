@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '255';
+var APP_VERSION = '256';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -9622,13 +9622,18 @@ function applyAnalyticsVisibility(){
   }
 }
 // Settings section is manager-only — same access list as Analytics.
+// Mirrors applyAnalyticsVisibility exactly so the two collapsible nav sections
+// look and behave identically (label renders block → arrow sits next to the text;
+// the group's open/closed state is owned solely by toggleNavSection).
 function applySettingsVisibility(){
-  var show=canAccessAnalytics();
   var nav=document.getElementById('nav-settings');
   var navLabel=document.getElementById('nav-settings-label');
-  if(navLabel)navLabel.style.display=show?'flex':'none';
-  // Section starts collapsed — click the Settings label to expand (same as Insights)
-  if(nav)nav.style.display='none';
+  if(canAccessAnalytics()){
+    if(navLabel)navLabel.style.display='';
+  } else {
+    if(nav)nav.style.display='none';
+    if(navLabel)navLabel.style.display='none';
+  }
 }
 
 function handleAdminBtn() {
