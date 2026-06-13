@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '259';
+var APP_VERSION = '260';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2031,23 +2031,30 @@ function setDashJobCountBadge(n){
   if(n>0){ el.textContent=n+' JOB'+(n===1?'':'S'); el.style.display='inline-flex'; }
   else { el.style.display='none'; }
 }
-// One flashy, color-coded count pill for the Today's Jobs subheader.
-function dashCountChip(rgbCsv, color, icon, count, label){
-  return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:99px;'
+// One flashy, color-coded count pill for the Today's Jobs subheader. Optional
+// onclick makes it an action chip (cursor + click handler).
+function dashCountChip(rgbCsv, color, icon, count, label, onclick){
+  var click = onclick ? ' onclick="'+onclick+'"' : '';
+  var cursor = onclick ? 'cursor:pointer;' : '';
+  return '<span'+click+' style="'+cursor+'display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:99px;'
     +'background:rgba('+rgbCsv+',.12);border:1px solid rgba('+rgbCsv+',.4);color:'+color+';'
     +'font-size:12px;line-height:1.4;white-space:nowrap">'
     +icon+'<strong style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:.5px">'+count+'</strong>'
     +'<span style="font-weight:600;opacity:.9">'+label+'</span></span>';
 }
 // Builds the full chip row. Shared by both render paths so today + picked-date match.
+// calls = jobs needing a confirmation call (that day); emails = jobs whose email
+// hasn't been sent (that day). Both scroll to the jobs list when clicked.
 function dashCountChipsHTML(c){
+  var jump = "document.getElementById('card-today-jobs').scrollIntoView({behavior:'smooth',block:'start'})";
   var chips=[];
   if(c.dropoffs)     chips.push(dashCountChip('8,145,178','#0891b2','🚛',c.dropoffs,'drop'+(c.dropoffs!==1?'s':'')));
   if(c.pickups)      chips.push(dashCountChip('236,72,153','#ec4899','🚚',c.pickups,'pickup'+(c.pickups!==1?'s':'')));
   if(c.junkRemovals) chips.push(dashCountChip('234,179,8','#a16207','🗑️',c.junkRemovals,'junk'));
   if(c.junkQuotes)   chips.push(dashCountChip('13,110,253','#0d6efd','📋',c.junkQuotes,'quote'+(c.junkQuotes!==1?'s':'')));
   if(c.furniture)    chips.push(dashCountChip('139,92,246','#8b5cf6','🛋️',c.furniture,'furniture'));
-  if(c.unconfirmed)  chips.push(dashCountChip('230,126,34','#e67e22','📞',c.unconfirmed,'unconfirmed'));
+  if(c.calls)        chips.push(dashCountChip('230,126,34','#e67e22','📞',c.calls,'to call',jump));
+  if(c.emails)       chips.push(dashCountChip('20,184,166','#0d9488','📧',c.emails,'to email',jump));
   return chips.length
     ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+chips.join('')+'</div>'
     : '<span style="color:var(--muted)">Nothing booked</span>';
@@ -2627,7 +2634,9 @@ async function refreshDashJobs(){
 
   var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(furnPickups).concat(furnDelivs));
   var total = allDay.length;
-  var unconf = allDay.filter(function(j){return !j.confirmed;}).length;
+  // Calls to make = bin/furniture jobs still unconfirmed that day; emails = jobs whose email hasn't gone out
+  var callsNeeded = allDay.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
+  var emailsNeeded = allDay.filter(function(j){return !(j.emailSent||j.emailConfirmed);}).length;
   setDashJobCountBadge(total);
 
   // Update count subheading — same flashy chips as the today view (shared helper)
@@ -2638,7 +2647,8 @@ async function refreshDashJobs(){
     junkRemovals: junkRemovals.length,
     junkQuotes: junkQuotes.length,
     furniture: furnPickups.length + furnDelivs.length,
-    unconfirmed: unconf
+    calls: callsNeeded,
+    emails: emailsNeeded
   });
 
   // Urgency state
@@ -3113,6 +3123,7 @@ async function renderDash(){
   // Count line for sub-header — render as color-coded pill chips so it matches the
   // tinted job rows below and is scannable at a glance on heavy days.
   setDashJobCountBadge(allToday.length);
+  var emailsToday = allToday.filter(function(j){return !(j.emailSent||j.emailConfirmed);}).length;
   var countEl = document.getElementById('dash-today-count');
   if(countEl) countEl.innerHTML = dashCountChipsHTML({
     dropoffs: todayBinDropoffs.length,
@@ -3120,7 +3131,8 @@ async function renderDash(){
     junkRemovals: todayJunkRemovals.length,
     junkQuotes: todayJunkQuotes.length,
     furniture: todayFurnPickups.length + todayFurnDelivs.length,
-    unconfirmed: unconfirmedToday
+    calls: unconfirmedToday,
+    emails: emailsToday
   });
 
   // Today card urgency
