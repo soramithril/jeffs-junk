@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '247';
+var APP_VERSION = '248';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7180,10 +7180,38 @@ function _renderJobPhotosDetail(j){
   }).join('');
   var addBtn = '<input type="file" id="photo-input-'+j.id+'" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
     + '<button type="button" class="btn btn-blue-solid btn-sm" style="margin-left:auto" onclick="document.getElementById(\'photo-input-'+j.id+'\').click()">📷 Add Photos</button>';
+  var printBtn = photos.length ? '<button type="button" class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="printJobPhotos(\''+j.id+'\')">🖨️ Print Photos</button>' : '';
   return '<div class="detail-section" id="detail-photos-'+j.id+'">'
-    + '<div class="detail-section-title" style="display:flex;align-items:center">📷 Photos ('+photos.length+')'+addBtn+'</div>'
+    + '<div class="detail-section-title" style="display:flex;align-items:center">📷 Photos ('+photos.length+')'+addBtn+printBtn+'</div>'
     + '<div class="photo-thumb-grid" id="detail-photos-grid-'+j.id+'">'+thumbs+'</div>'
     + '</div>';
+}
+
+// Opens a print-friendly window with all job photos (2 per page) and triggers the print dialog.
+function printJobPhotos(jobId){
+  var j = jobs.find(function(x){ return x.id === jobId; });
+  var photos = j ? (j.photos || []) : [];
+  if(!photos.length){ toast('No photos on this job','error'); return; }
+  var w = window.open('', '_blank');
+  if(!w){ toast('⚠ Popup blocked — allow popups to print photos','error'); return; }
+  var name = (j.names && j.names.length) ? j.names.join(', ') : (j.name || '');
+  var addr = (j.address || '') + (j.city ? ', ' + j.city : '');
+  var when = j.junkDate || j.fbDate || j.date;
+  var imgs = photos.map(function(url){
+    return '<div class="ph"><img src="' + _cloudinaryDeliveryUrl(url, {width:1600}) + '"></div>';
+  }).join('');
+  w.document.write('<!DOCTYPE html><html><head><title>Job ' + j.id + ' — Photos</title><style>'
+    + 'body{font-family:Arial,sans-serif;margin:0.4in;color:#000}'
+    + '.hdr{font-size:14px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px}'
+    + '.hdr b{font-size:16px}'
+    + '.ph{text-align:center;margin-bottom:12px;page-break-inside:avoid}'
+    + '.ph img{max-width:100%;max-height:4.4in}'
+    + '</style></head><body>'
+    + '<div class="hdr"><b>Job ' + j.id + '</b> — ' + name + (addr ? ' — ' + addr : '') + (when ? ' — ' + fd(when) : '') + ' — ' + photos.length + ' photo' + (photos.length === 1 ? '' : 's') + '</div>'
+    + imgs
+    + '<script>window.onload=function(){window.print();};<\/script>'
+    + '</body></html>');
+  w.document.close();
 }
 
 async function _patchJobPhotos(jobId, photos){
@@ -7240,6 +7268,7 @@ async function _addPhotosToJob(jobId, inp){
 window._addPhotosFromInput = _addPhotosFromInput;
 window._removeFormPhoto = _removeFormPhoto;
 window._openPhotoLightbox = _openPhotoLightbox;
+window.printJobPhotos = printJobPhotos;
 window._lightboxNav = _lightboxNav;
 window._addPhotosToJob = _addPhotosToJob;
 
