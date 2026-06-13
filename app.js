@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '258';
+var APP_VERSION = '259';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -9816,8 +9816,8 @@ function sendEmail() {
 }
 
 function openEditPresets() {
-  var keys = ['bin_dropoff','bin_pickup','junk_removal','furniture_bank','junk_quote'];
-  var labels = {bin_dropoff:'🚛 Bin Drop-off',bin_pickup:'🚚 Bin Pick-up',junk_removal:'Junk Removal',furniture_bank:'🛋️ Furniture Bank',junk_quote:'📋 Junk Quote'};
+  var keys = ['bin_dropoff','bin_pickup','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
+  var labels = {bin_dropoff:'🚛 Bin Drop-off',bin_pickup:'🚚 Bin Pick-up',junk_removal:'Junk Removal',furniture_bank:'🛋️ Furniture Bank',junk_quote:'📋 Junk Quote',bin_cancelled:'🚫 Bin Cancelled'};
   var html = '';
   keys.forEach(function(k) {
     var p = getPreset(k);
@@ -9833,7 +9833,7 @@ function openEditPresets() {
 }
 
 function savePresets() {
-  var keys = ['bin_dropoff','bin_pickup','junk_removal','furniture_bank','junk_quote'];
+  var keys = ['bin_dropoff','bin_pickup','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
   keys.forEach(function(k) {
     var s = document.getElementById('preset-subj-' + k);
     var b = document.getElementById('preset-body-' + k);
