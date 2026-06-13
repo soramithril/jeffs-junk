@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '252';
+var APP_VERSION = '253';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -735,6 +735,13 @@ function jobSchedDate(j) {
   if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbDate || j.date;
   if (j.service === 'Junk Removal' || j.service === 'Junk Quote') return j.junkDate || j.date;
   return j.date;
+}
+
+// Google Maps driving-directions URL to a single address (starts from the driver's current location)
+function mapsDirUrl(addr){
+  addr = (addr||'').trim();
+  if(!addr) return null;
+  return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(addr)+'&travelmode=driving';
 }
 
 // ── Referral source dropdown helpers ─────────────────────────
@@ -8366,11 +8373,15 @@ async function openDetail(id, returnCid){
   }
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.12);color:#22c55e">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(13,110,253,.15);color:#0d6efd">📧 Email Confirmed</span>':'';
+  var detAddr=((j.address||'')+(j.city?', '+j.city:'')).trim();
+  var detAddrCell=detAddr
+    ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">🧭 Directions</a>'
+    : '—';
   document.getElementById('det-body').innerHTML=
     '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
     +'<div style="font-size:11px;color:var(--muted);margin-top:6px">Created '+fd(j.date)+(j.time?' · '+ft(j.time):'')+'</div>'
     +'</div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+((j.address||'')+(j.city?', '+j.city:'') || '—')+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
     +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+(j.service==='Junk Removal'?_renderJunkRemovalPricing(j):'')+(j.service==='Junk Removal'&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')

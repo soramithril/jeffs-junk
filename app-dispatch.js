@@ -387,6 +387,21 @@ function dispatchRenderCard(j, clockStartMins){
   card += '</div>';
   return card;
 }
+// Google Maps directions URL through every stop in a lane, in dispatch order.
+// Origin is omitted so Maps starts from the driver's current location; the last
+// stop is the destination and the rest become ordered waypoints.
+function dispatchMapsRouteUrl(orderedJobs){
+  var stops = (orderedJobs||[]).map(function(j){ return ((j.address||'')+(j.city?', '+j.city:'')).trim(); }).filter(function(a){return a;});
+  if(!stops.length) return null;
+  var dest = encodeURIComponent(stops[stops.length-1]);
+  var url = 'https://www.google.com/maps/dir/?api=1&destination='+dest+'&travelmode=driving';
+  var way = stops.slice(0,-1);
+  // Google caps the free directions URL at 9 waypoints (+ destination = 10 stops)
+  if(way.length > 9) way = way.slice(0, 9);
+  if(way.length) url += '&waypoints='+way.map(encodeURIComponent).join('%7C');
+  return url;
+}
+
 async function renderDispatch(){
   var host = document.getElementById('view-dispatch');
   if(!host) return;
@@ -508,16 +523,20 @@ async function renderDispatch(){
       var color = crew.color || crewAvatarColor(crew.id);
       var startTime = dispatchGetLaneStart(id);
       var startMins = dispatchParseClock(startTime) || 480;
+      var ord = laneJobs.length ? dispatchOrderLaneJobs(laneJobs) : null;
+      var routeUrl = ord ? dispatchMapsRouteUrl(ord.jobs) : null;
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:10px;padding:10px 10px 8px;min-height:120px">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">';
       html += '<div style="font-weight:700;font-size:14px;color:'+color+'">'+crew.name+'</div>';
       html += '<div style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(34,197,94,.12);color:#22c55e;white-space:nowrap">'+dispatchFmtTotal(laneTotal)+'</div>';
       html += '</div>';
-      html += '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px">Start <input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+id+'\', this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:2px 6px;border-radius:4px;font-size:11px;font-family:inherit"></div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px">';
+      html += '<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">Start <input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+id+'\', this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:2px 6px;border-radius:4px;font-size:11px;font-family:inherit"></div>';
+      if(routeUrl) html += '<a href="'+routeUrl+'" target="_blank" rel="noopener" title="Open this driver\'s stops in order in Google Maps" style="font-size:11px;font-weight:600;color:#0d6efd;background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.35);border-radius:6px;padding:3px 8px;white-space:nowrap;text-decoration:none">🧭 Route in Maps</a>';
+      html += '</div>';
       if(!laneJobs.length){
         html += '<div style="font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic">No jobs assigned. Drag here.</div>';
       } else {
-        var ord = dispatchOrderLaneJobs(laneJobs);
         var warns = ord.warnings;
         var clock = startMins;
         ord.jobs.forEach(function(j){
