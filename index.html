@@ -391,7 +391,7 @@
             <button class="atab"        data-group="svc" data-val="Junk Removal" onclick="setSvc('Junk Removal',this)">🧹 Junk</button>
             <button class="atab"        data-group="svc" data-val="Junk Quote"  onclick="setSvc('Junk Quote',this)">📋 Quote</button>
             <button class="atab"        data-group="svc" data-val="Furniture Pickup" onclick="setSvc('Furniture Pickup',this)">🛋️ Pickup</button>
-            <button class="atab"        data-group="svc" data-val="Furniture Delivery" onclick="setSvc('Furniture Delivery',this)">📦 Delivery</button>
+            <button class="atab"        data-group="svc" data-val="Landscaping" onclick="setSvc('Landscaping',this)">🌿 Landscaping</button>
           </div>
         </div>
       </div>
@@ -469,6 +469,10 @@
     <div class="cat-section">
       <div class="cat-section-header furn" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🛋️ Furniture</div><span class="cat-count" id="jobs-furn-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('service')">Service</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
+    </div>
+    <div class="cat-section">
+      <div class="cat-section-header landscaping" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🌿 Landscaping</div><span class="cat-count" id="jobs-landscaping-count">0 jobs</span></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-landscaping-tbody"></tbody></table></div>
     </div>
     <div id="jobs-cancelled-section" style="display:none">
       <div class="cat-section">
@@ -1370,7 +1374,7 @@
           <button type="button" data-svc="Junk Removal" data-color="#eab308" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#eab308;border-color:rgba(234,179,8,.4);text-align:center;line-height:1.25">🗑️ Junk Removal</button>
           <button type="button" data-svc="Junk Quote" data-color="#0d6efd" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#0d6efd;border-color:rgba(13,110,253,.4);text-align:center;line-height:1.25">📋 Junk Quote</button>
           <button type="button" data-svc="Furniture Pickup" data-color="#8b5cf6" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#8b5cf6;border-color:rgba(139,92,246,.4);text-align:center;line-height:1.25">🛋️ Furniture Pickup</button>
-          <button type="button" data-svc="Furniture Delivery" data-color="#f97316" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#f97316;border-color:rgba(249,115,22,.4);text-align:center;line-height:1.25">📦 Furniture Delivery</button>
+          <button type="button" data-svc="Landscaping" data-color="#65a30d" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#65a30d;border-color:rgba(101,163,13,.4);text-align:center;line-height:1.25">🌿 Landscaping</button>
         </div>
         <input type="hidden" id="f-svc" value="">
         <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
@@ -2216,7 +2220,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=229"></script>
-<script src="app.js?v=260"></script>
+<script src="app.js?v=261"></script>
 </body>
 </html>
                                                                                                                                                          

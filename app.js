@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '260';
+var APP_VERSION = '261';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -733,7 +733,7 @@ function dbToJob(r) {
 // Return the effective scheduled date for a job (delivery/pickup/quote date, not created date)
 function jobSchedDate(j) {
   if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbDate || j.date;
-  if (j.service === 'Junk Removal' || j.service === 'Junk Quote') return j.junkDate || j.date;
+  if (j.service === 'Junk Removal' || j.service === 'Junk Quote' || j.service === 'Landscaping') return j.junkDate || j.date;
   return j.date;
 }
 
@@ -1463,7 +1463,9 @@ async function nextIdFromDb(svc) {
     var r = await db.rpc('next_job_id', { service_type: svc || 'Bin Rental' });
     if (!r.error && r.data) {
       console.log('[nextIdFromDb] sequence (' + svc + ') → ' + r.data);
-      return String(r.data);
+      // Landscaping IDs carry a visible LAND- prefix, zero-padded to 4 digits (LAND-0001).
+      // Its own DB sequence starts at 1.
+      return (svc === 'Landscaping' ? 'LAND-' + String(r.data).padStart(4, '0') : String(r.data));
     }
     console.warn('[nextIdFromDb] rpc failed, falling back:', r.error);
   } catch(ex) {
@@ -1472,7 +1474,7 @@ async function nextIdFromDb(svc) {
   // Fallback: local cache only (unlikely to be needed)
   var maxNum = 0;
   jobs.forEach(function(j) { var n = parseInt(j.id, 10); if (!isNaN(n) && n > maxNum) maxNum = n; });
-  return String(maxNum + 1);
+  return (svc === 'Landscaping' ? 'LAND-' + String(maxNum + 1).padStart(4, '0') : String(maxNum + 1));
 }
 
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
@@ -1726,6 +1728,7 @@ function jobIdCls(id,svc){
   if(id&&id.startsWith('BIN-'))return 'job-id-bin';
   if(id&&id.startsWith('JUNK-'))return 'job-id-junk';
   if(id&&id.startsWith('QT-'))return 'job-id-quote';
+  if(id&&id.startsWith('LAND-'))return 'job-id-landscaping';
   if(id&&id.startsWith('FB-')&&svc==='Furniture Delivery')return 'job-id-furn-del';
   if(id&&id.startsWith('FB-'))return 'job-id-furn';
   // fallback by service type
@@ -1734,6 +1737,7 @@ function jobIdCls(id,svc){
   if(svc==='Junk Quote')return 'job-id-quote';
   if(svc==='Furniture Pickup')return 'job-id-furn';
   if(svc==='Furniture Delivery')return 'job-id-furn-del';
+  if(svc==='Landscaping')return 'job-id-landscaping';
   return 'job-id-bin';
 }
 function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d;}
@@ -2006,7 +2010,7 @@ function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id
 
 // ─── BADGES ───
 function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
-function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
+function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del','Landscaping':'svc-landscaping'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
 function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 
 // ─── DASHBOARD ───
@@ -2052,6 +2056,7 @@ function dashCountChipsHTML(c){
   if(c.pickups)      chips.push(dashCountChip('236,72,153','#ec4899','🚚',c.pickups,'pickup'+(c.pickups!==1?'s':'')));
   if(c.junkRemovals) chips.push(dashCountChip('234,179,8','#a16207','🗑️',c.junkRemovals,'junk'));
   if(c.junkQuotes)   chips.push(dashCountChip('13,110,253','#0d6efd','📋',c.junkQuotes,'quote'+(c.junkQuotes!==1?'s':'')));
+  if(c.landscaping)  chips.push(dashCountChip('101,163,13','#65a30d','🌿',c.landscaping,'landscaping'));
   if(c.furniture)    chips.push(dashCountChip('139,92,246','#8b5cf6','🛋️',c.furniture,'furniture'));
   if(c.calls)        chips.push(dashCountChip('230,126,34','#e67e22','📞',c.calls,'to call',jump));
   if(c.emails)       chips.push(dashCountChip('20,184,166','#0d9488','📧',c.emails,'to email',jump));
@@ -2601,8 +2606,8 @@ async function refreshDashJobs(){
     db.from('jobs').select('*').eq('date', dateS).neq('status','Cancelled').order('time'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup', dateS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+dateS+',and(bin_dropoff.is.null,date.eq.'+dateS+')'),
-    db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+dateS+',and(fb_date.is.null,date.eq.'+dateS+')'),
-    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+dateS+',and(junk_date.is.null,date.eq.'+dateS+')')
+    db.from('jobs').select('*').eq('service','Furniture Pickup').neq('status','Cancelled').or('fb_date.eq.'+dateS+',and(fb_date.is.null,date.eq.'+dateS+')'),
+    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').or('junk_date.eq.'+dateS+',and(junk_date.is.null,date.eq.'+dateS+')')
   ]);
 
   var dayJobs      = (rJobs.data||[]).map(dbToJob);
@@ -2631,8 +2636,9 @@ async function refreshDashJobs(){
   var furnDelivs   = dedup(dayFurn.filter(function(j){return j.service==='Furniture Delivery';}));
   var junkRemovals = dedup(dayJunk.filter(function(j){return j.service==='Junk Removal';}));
   var junkQuotes   = dedup(dayJunk.filter(function(j){return j.service==='Junk Quote';}));
+  var landscaping  = dedup(dayJunk.filter(function(j){return j.service==='Landscaping';}));
 
-  var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(furnPickups).concat(furnDelivs));
+  var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(landscaping).concat(furnPickups).concat(furnDelivs));
   var total = allDay.length;
   // Calls to make = bin/furniture jobs still unconfirmed that day; emails = jobs whose email hasn't gone out
   var callsNeeded = allDay.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
@@ -2646,6 +2652,7 @@ async function refreshDashJobs(){
     pickups: dayPickups.length,
     junkRemovals: junkRemovals.length,
     junkQuotes: junkQuotes.length,
+    landscaping: landscaping.length,
     furniture: furnPickups.length + furnDelivs.length,
     calls: callsNeeded,
     emails: emailsNeeded
@@ -2664,7 +2671,7 @@ async function refreshDashJobs(){
       function getTm(j){
         if(j.service==='Bin Rental') return (isPickup ? j.binPickupTime : j.binDropoffTime) || '';
         if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') return j.fbTime||'';
-        if(j.service==='Junk Removal'||j.service==='Junk Quote') return j.junkTime||'';
+        if(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') return j.junkTime||'';
         return '';
       }
       var ta=getTm(a), tb=getTm(b);
@@ -2690,7 +2697,7 @@ async function refreshDashJobs(){
           var st;
           if(j.service==='Bin Rental') st = isPickup ? j.binPickupTime : j.binDropoffTime;
           else if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') st = j.fbTime;
-          else if(j.service==='Junk Removal'||j.service==='Junk Quote') st = j.junkTime;
+          else if(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') st = j.junkTime;
           return st ? ft(st) : '';
         })();
         var hasFixedTime = !!timeStr;
@@ -2702,7 +2709,7 @@ async function refreshDashJobs(){
         var cityChip = (j.city && _cc) ? '<span style="background:'+_cc.bg+';color:'+_cc.fg+';border:1px solid '+_cc.bd+';border-left:3px solid '+_cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;box-sizing:border-box">'+j.city+'</span>' : '';
         var nameAddrTitle = (j.name + (j.businessName?' — '+j.businessName:'') + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         var rgbCsvW = _hexOrRgbToRgbCsv(color) || '34,197,94';
-        var durStrW = (j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
+        var durStrW = (j.service==='Junk Removal'||j.service==='Landscaping'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChipW = durStrW ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsvW+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStrW+'</span>' : '';
         var bizCellW = j.businessName?'<span style="color:var(--accent);font-weight:600;font-size:12px;flex-shrink:0">🏢 '+j.businessName+'</span>':'';
         var nameAddrCell = '<div class="tjr-name" title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChipW+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+bizCellW+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
@@ -2746,6 +2753,7 @@ async function refreshDashJobs(){
     +makeCat('🚚 Bin Pickups','#ec4899',dayPickups,true)
     +makeCat('Junk Removals','#eab308',junkRemovals,false)
     +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes,false)
+    +makeCat('🌿 Landscaping','#65a30d',landscaping,false)
     +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false)
     +makeCat('📦 Furniture Deliveries','#f97316',furnDelivs,false);
 
@@ -2765,8 +2773,8 @@ async function renderWeekCal(){
   var rByDate = db.from('jobs').select(JOB_LIST_COLS).gte('date',wsS).lte('date',weS).neq('status','Cancelled').order('time');
   var rByDropoff = db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').gte('bin_dropoff',wsS).lte('bin_dropoff',weS).neq('status','Cancelled');
   var rByPickup = db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').gte('bin_pickup',wsS).lte('bin_pickup',weS).neq('status','Cancelled');
-  var rByFbDate = db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).gte('fb_date',wsS).lte('fb_date',weS).neq('status','Cancelled');
-  var rByJunkDate = db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).gte('junk_date',wsS).lte('junk_date',weS).neq('status','Cancelled');
+  var rByFbDate = db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').gte('fb_date',wsS).lte('fb_date',weS).neq('status','Cancelled');
+  var rByJunkDate = db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).gte('junk_date',wsS).lte('junk_date',weS).neq('status','Cancelled');
   var results = await Promise.all([rByDate, rByDropoff, rByPickup, rByFbDate, rByJunkDate]);
   var seen = {};
   var weekJobs = [];
@@ -2789,7 +2797,7 @@ async function renderWeekCal(){
   });
 
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};
+  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del','Landscaping':'svc-landscaping'};
   var hours=[];for(var h=8;h<=17;h++)hours.push(h);
 
   function evTime(ev){
@@ -2802,7 +2810,7 @@ async function renderWeekCal(){
     var icon='', label=j.name;
     if(ev.type==='pickup'){ icon='🚚 '; }
     else if(ev.type==='dropoff'){ icon='🚛 '; }
-    else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 '};icon=iconMap[j.service]||''; }
+    else { var iconMap={'Junk Removal':'🗑️ ','Junk Quote':'📋 ','Furniture Pickup':'🛋️ ','Furniture Delivery':'📦 ','Landscaping':'🌿 '};icon=iconMap[j.service]||''; }
     var chipCls = ev.type==='pickup' ? 'svc-pickup' : (clsMap[j.service]||'');
     var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
     var t=evTime(ev);
@@ -2865,7 +2873,7 @@ async function renderWeekCal(){
       if(!dragJob)return;
       var patch={};
       if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
-      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
+      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'||dragJob.service==='Landscaping'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
       else{patch={date:newDate};dragJob.date=newDate;}
       patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash();
     });
@@ -3045,10 +3053,10 @@ async function renderDash(){
     // Tomorrow's jobs
     db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
     // Bin Rentals with upcoming pickup + Furniture jobs with upcoming date — unconfirmed (for call-back list)
-    db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup','Furniture Delivery']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time'),
+    db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time'),
     // Furniture/junk by their scheduled dates for today
-    db.from('jobs').select('*').in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+todayS+',and(fb_date.is.null,date.eq.'+todayS+')'),
-    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')'),
+    db.from('jobs').select('*').eq('service','Furniture Pickup').neq('status','Cancelled').or('fb_date.eq.'+todayS+',and(fb_date.is.null,date.eq.'+todayS+')'),
+    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')'),
     // Trend comparisons (v18)
     db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lastWeekStartS).lte('date',lastWeekEndS).neq('status','Cancelled'),
     db.from('jobs').select('price').gte('date',lastWeekStartS).lte('date',lastWeekEndS).neq('status','Cancelled'),
@@ -3089,10 +3097,11 @@ async function renderDash(){
   todayFurnAll.concat(todayJunkAll).forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   var todayJunkRemovals = dedup(todayJunkAll.filter(function(j){return j.service==='Junk Removal';}));
   var todayJunkQuotes   = dedup(todayJunkAll.filter(function(j){return j.service==='Junk Quote';}));
+  var todayLandscaping  = dedup(todayJunkAll.filter(function(j){return j.service==='Landscaping';}));
   var todayFurnPickups  = dedup(todayFurnAll.filter(function(j){return j.service==='Furniture Pickup';}));
   var todayFurnDelivs   = dedup(todayFurnAll.filter(function(j){return j.service==='Furniture Delivery';}));
 
-  var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayFurnPickups).concat(todayFurnDelivs));
+  var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayLandscaping).concat(todayFurnPickups).concat(todayFurnDelivs));
   var totalTodayCount = allToday.length;
   var unconfirmedToday = allToday.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
 
@@ -3130,6 +3139,7 @@ async function renderDash(){
     pickups: todayBinPickups.length,
     junkRemovals: todayJunkRemovals.length,
     junkQuotes: todayJunkQuotes.length,
+    landscaping: todayLandscaping.length,
     furniture: todayFurnPickups.length + todayFurnDelivs.length,
     calls: unconfirmedToday,
     emails: emailsToday
@@ -3148,7 +3158,7 @@ async function renderDash(){
       function getTm(j){
         if(j.service==='Bin Rental') return (showBinActions ? j.binPickupTime : j.binDropoffTime) || '';
         if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') return j.fbTime||'';
-        if(j.service==='Junk Removal'||j.service==='Junk Quote') return j.junkTime||'';
+        if(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') return j.junkTime||'';
         return '';
       }
       var ta=getTm(a), tb=getTm(b);
@@ -3195,7 +3205,7 @@ async function renderDash(){
           var st;
           if(j.service==='Bin Rental') st = showBinActions ? j.binPickupTime : j.binDropoffTime;
           else if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') st = j.fbTime;
-          else if(j.service==='Junk Removal'||j.service==='Junk Quote') st = j.junkTime;
+          else if(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') st = j.junkTime;
           return st ? ft(st) : '';
         })();
         var hasFixedTime = !!timeStr;
@@ -3208,7 +3218,7 @@ async function renderDash(){
         var nameAddrTitle = (j.name + (j.businessName?' — '+j.businessName:'') + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
         // rgbCsv used by both duration chip and row shadow below
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
-        var durStr = (j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
+        var durStr = (j.service==='Junk Removal'||j.service==='Landscaping'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10.5px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 7px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
         var bizCell = j.businessName?'<span style="color:var(--accent);font-weight:600;font-size:12px;flex-shrink:0">🏢 '+j.businessName+'</span>':'';
         var nameAddrCell = '<div class="tjr-name" title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChip+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+bizCell+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
@@ -3241,6 +3251,7 @@ async function renderDash(){
     +makeTodayCat('🚚 Bin Pickups','#ec4899',todayBinPickups,true)
     +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false)
     +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes,false)
+    +makeTodayCat('🌿 Landscaping','#65a30d',todayLandscaping,false)
     +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false)
     +makeTodayCat('📦 Furniture Deliveries','#f97316',todayFurnDelivs,false);
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
@@ -4025,8 +4036,8 @@ async function renderLiveJobs(){
       db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').eq('date',today),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',today),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',today),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').eq('fb_date',today),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').eq('junk_date',today)
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').neq('status','Cancelled').eq('fb_date',today),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').eq('junk_date',today)
     ]);
     var seenT = {};
     rT.forEach(function(res){ (res.data||[]).forEach(function(row){
@@ -4065,6 +4076,7 @@ async function renderLiveJobs(){
       return 'binDrop';
     }
     if(j.service==='Junk Removal') return 'junk';
+    if(j.service==='Landscaping') return 'landscaping';
     if(j.service==='Furniture Pickup') return 'furnPick';
     if(j.service==='Furniture Delivery') return 'furnDel';
     return 'other';
@@ -4150,6 +4162,7 @@ async function renderLiveJobs(){
     +buildSection('binSwap','🔄','Bin Swaps')
     +buildSection('binPick','🚚','Bin Pick-ups')
     +buildSection('junk','🗑️','Junk Removals')
+    +buildSection('landscaping','🌿','Landscaping')
     +buildSection('furnPick','🛋️','Furniture Pickups')
     +buildSection('furnDel','📦','Furniture Deliveries')
     +buildSection('other','📌','Other');
@@ -4189,18 +4202,21 @@ function renderJobs(){
     var br=all.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
     var jr=all.filter(function(j){return j.service==='Junk Removal'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     var qr=all.filter(function(j){return j.service==='Junk Quote'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
-    var fr=all.filter(function(j){return (j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    var fr=all.filter(function(j){return j.service==='Furniture Pickup'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    var lr=all.filter(function(j){return j.service==='Landscaping'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-bin-count').textContent=br.length+' job'+(br.length!==1?'s':'');
     document.getElementById('jobs-junk-count').textContent=jr.length+' job'+(jr.length!==1?'s':'');
     document.getElementById('jobs-quote-count').textContent=qr.length+' quote'+(qr.length!==1?'s':'');
     document.getElementById('jobs-furn-count').textContent=fr.length+' job'+(fr.length!==1?'s':'');
+    document.getElementById('jobs-landscaping-count').textContent=lr.length+' job'+(lr.length!==1?'s':'');
     document.getElementById('jobs-bin-tbody').innerHTML=br.length?br.map(makeJobRowNoSvc).join(''):emptyJobRow(8);
     document.getElementById('jobs-junk-tbody').innerHTML=jr.length?jr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-quote-tbody').innerHTML=qr.length?qr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
+    document.getElementById('jobs-landscaping-tbody').innerHTML=lr.length?lr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
   } else if(showingCancelled){
     document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
-    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
     if(cancelledSection) cancelledSection.style.display='block';
     var cr=all.filter(function(j){return j.status==='Cancelled'&&m(j)&&matchDateFilter(j);});
     var crBin  =cr.filter(function(j){return j.service==='Bin Rental';});
@@ -4217,13 +4233,13 @@ function renderJobs(){
     document.getElementById('jobs-cancelled-furn-tbody').innerHTML=crFurn.length?crFurn.map(makeCancelledRowWithSvc).join(''):emptyJobRow(6);
   } else if(svcF==='Recurring'){
     if(cancelledSection) cancelledSection.style.display='none';
-    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
     var filt=all.filter(function(j){return j.recurring&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   } else {
     if(cancelledSection) cancelledSection.style.display='none';
-    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
     var filt=all.filter(function(j){return j.service===svcF&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
@@ -4305,7 +4321,7 @@ async function renderCal(){
   var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
   var today=new Date();
   var todayISO=today.toISOString().split('T')[0];
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del'};
+  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del','Landscaping':'svc-landscaping'};
   var g=document.getElementById('cal-grid');
   var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
   var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
@@ -4320,8 +4336,8 @@ async function renderCal(){
       db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').gte('date',monthStart).lte('date',monthEnd),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',monthStart).lte('bin_dropoff',monthEnd),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').gte('fb_date',monthStart).lte('fb_date',monthEnd),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').gte('junk_date',monthStart).lte('junk_date',monthEnd)
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').neq('status','Cancelled').gte('fb_date',monthStart).lte('fb_date',monthEnd),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').gte('junk_date',monthStart).lte('junk_date',monthEnd)
     ]);
     var seen={};
     [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFbDate.data||[]),(rJunkDate.data||[])].forEach(function(arr){
@@ -4373,7 +4389,7 @@ async function renderCal(){
       } else if(ev.type==='dropoff'){
         icon='🚛'; label=j.name; titleStr='Bin Drop-off · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
       } else {
-        var iconMap={'Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
+        var iconMap={'Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦','Landscaping':'🌿'};
         icon=iconMap[j.service]||''; label=j.name; titleStr=j.service+' · '+j.name+(j.toolsNeeded?' · 🔧 '+j.toolsNeeded:'');
       }
       var evT = ev.type==='dropoff' ? (j.binDropoffTime||'') : ev.type==='pickup' ? (j.binPickupTime||'') : (j.time||'');
@@ -4410,7 +4426,7 @@ async function renderCal(){
       if(!dragJob)return;
       var patch={};
       if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
-      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
+      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'||dragJob.service==='Landscaping'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
       else{patch={date:newDate};dragJob.date=newDate;}
       patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash();
     });
@@ -4430,8 +4446,8 @@ async function openCalDayPreview(ds){
       db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').eq('date',ds),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',ds),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Furniture Pickup','Furniture Delivery']).neq('status','Cancelled').or('fb_date.eq.'+ds+',and(fb_date.is.null,date.eq.'+ds+')'),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote']).neq('status','Cancelled').or('junk_date.eq.'+ds+',and(junk_date.is.null,date.eq.'+ds+')')
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').neq('status','Cancelled').or('fb_date.eq.'+ds+',and(fb_date.is.null,date.eq.'+ds+')'),
+      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').or('junk_date.eq.'+ds+',and(junk_date.is.null,date.eq.'+ds+')')
     ]);
     var seen={};var dayJobs=[];
     [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFb.data||[]),(rJk.data||[])].forEach(function(arr){
@@ -4465,6 +4481,7 @@ async function openCalDayPreview(ds){
       {key:'pickup',  label:'🚚 Bin Pickups',    col:'#ec4899', evs:evs.filter(function(e){return e.type==='pickup';})},
       {key:'junk',    label:'🗑️ Junk Removal',   col:'#eab308', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
       {key:'quote',   label:'📋 Junk Quotes',    col:'#0d6efd', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
+      {key:'landscaping', label:'🌿 Landscaping', col:'#65a30d', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Landscaping';})},
       {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
       {key:'furnd',   label:'📦 Furniture Delivery',col:'#f97316',evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
     ].filter(function(s){return s.evs.length>0;});
@@ -7081,16 +7098,16 @@ function toggleBin(){
   var svc=document.getElementById('f-svc').value;
   var isBin=svc==='Bin Rental';
   var isJunk=svc==='Junk Removal';
-  var hasItems=isJunk||svc==='Furniture Delivery'||svc==='Furniture Pickup';
+  var hasItems=isJunk||svc==='Landscaping'||svc==='Furniture Delivery'||svc==='Furniture Pickup';
   document.getElementById('bin-extra').style.display=isBin?'block':'none';
   document.getElementById('items-wrap').style.display=hasItems?'block':'none';
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
-  var tnw=document.getElementById('tools-needed-wrap');if(tnw)tnw.style.display=(isJunk)?'block':'none';
-  // Show junk schedule section for Junk Quote and Junk Removal
+  var tnw=document.getElementById('tools-needed-wrap');if(tnw)tnw.style.display=(isJunk||svc==='Landscaping')?'block':'none';
+  // Show junk schedule section for Junk Quote, Junk Removal, and Landscaping (Landscaping reuses junk_date)
   var junkSchedWrap=document.getElementById('junk-schedule-wrap');
   if(junkSchedWrap){
-    var isJunkSched=svc==='Junk Quote'||svc==='Junk Removal';
+    var isJunkSched=svc==='Junk Quote'||svc==='Junk Removal'||svc==='Landscaping';
     junkSchedWrap.style.display=isJunkSched?'block':'none';
     if(isJunkSched){
       var isQuote=svc==='Junk Quote';
@@ -7868,7 +7885,7 @@ function openEdit(id){
     document.getElementById('f-business-name').value=j.businessName||'';
     document.getElementById('f-fb-date').value=j.fbDate||'';document.getElementById('f-fb-time').value=j.fbTime||'';
     document.getElementById('f-junk-date').value=j.junkDate||'';document.getElementById('f-junk-time').value=j.junkTime||'';
-    var isJunkSchedEdit=j.service==='Junk Quote'||j.service==='Junk Removal';
+    var isJunkSchedEdit=j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Landscaping';
     document.getElementById('junk-schedule-wrap').style.display=isJunkSchedEdit?'block':'none';
     if(isJunkSchedEdit){
       var isQEdit=j.service==='Junk Quote';
@@ -7904,7 +7921,7 @@ function openEdit(id){
     } else {
       var itemLines=_notesToItems(j.items||'');
       document.getElementById('f-items-wrap').innerHTML=itemLines.length?itemLines.map(function(s){return _jobItemRow(s);}).join(''):_jobItemRow('');
-      var hasItems=j.service==='Junk Removal'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
+      var hasItems=j.service==='Junk Removal'||j.service==='Landscaping'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
       document.getElementById('items-wrap').style.display=hasItems?'block':'none';
     }
     // Show DRD inline for Furniture Pickup only
@@ -7922,7 +7939,7 @@ function openEdit(id){
       }
     }catch(e){console.error('DRD modal error:',e);}
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
-    var tnw3=document.getElementById('tools-needed-wrap');if(tnw3)tnw3.style.display=(j.service==='Junk Removal')?'block':'none';
+    var tnw3=document.getElementById('tools-needed-wrap');if(tnw3)tnw3.style.display=(j.service==='Junk Removal'||j.service==='Landscaping')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
     if(j.service==='Bin Rental'){
       document.getElementById('f-bdur').value=j.binDuration||'';
@@ -8100,10 +8117,10 @@ async function saveJob(e){
     date:      date,
     time:      document.getElementById('f-time').value,
     price:     svc==='Junk Quote' ? (document.getElementById('f-quote-amount').value || '')
-              : (svc==='Junk Removal' ? (document.getElementById('f-junk-actual').value || '')
+              : ((svc==='Junk Removal'||svc==='Landscaping') ? (document.getElementById('f-junk-actual').value || '')
               : document.getElementById('f-price').value),
-    quotedAmount: svc==='Junk Removal' ? (document.getElementById('f-junk-quoted').value || '') : '',
-    estDurationMin: (svc==='Junk Removal') ? (document.getElementById('f-est-duration').value || '')
+    quotedAmount: (svc==='Junk Removal'||svc==='Landscaping') ? (document.getElementById('f-junk-quoted').value || '') : '',
+    estDurationMin: (svc==='Junk Removal'||svc==='Landscaping') ? (document.getElementById('f-est-duration').value || '')
                   : ((svc==='Furniture Delivery'||svc==='Furniture Pickup') ? (document.getElementById('f-fb-est-duration').value || '')
                   : ''),
     paid:      document.getElementById('f-paid').value || 'Unpaid',
@@ -8135,7 +8152,7 @@ async function saveJob(e){
   if((svc==='Furniture Delivery'||svc==='Furniture Pickup') && !job.fbDate && job.date){
     job.fbDate = job.date;
   }
-  if((svc==='Junk Removal'||svc==='Junk Quote') && !job.junkDate && job.date){
+  if((svc==='Junk Removal'||svc==='Junk Quote'||svc==='Landscaping') && !job.junkDate && job.date){
     job.junkDate = job.date;
   }
 
@@ -8419,7 +8436,7 @@ async function openDetail(id, returnCid){
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
-    +(j.service==='Junk Quote'||j.service==='Junk Removal'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+(j.service==='Junk Removal'?_renderJunkRemovalPricing(j):'')+(j.service==='Junk Removal'&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
+    +(j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Landscaping'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+((j.service==='Junk Removal'||j.service==='Landscaping')?_renderJunkRemovalPricing(j):'')+((j.service==='Junk Removal'||j.service==='Landscaping')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
     +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':'')
     +'</div></div>':'')
     +_renderItemsDetail(j)
@@ -9400,7 +9417,7 @@ function renderToday(){
   var el=document.getElementById('today-jobs-list');
   el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
     +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+escHtml(j.name||'')+'</strong></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote')?j.junkTime:'';return st?' · '+ft(st):'';})()+' · '+j.id+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping')?j.junkTime:'';return st?' · '+ft(st):'';})()+' · '+j.id+'</div>'
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No jobs scheduled today</div>';
   // Overdue
   var od=document.getElementById('today-overdue-list');
@@ -9422,10 +9439,10 @@ function renderToday(){
     +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No bins out that long</div>';
   // Crew workload
   var cr=document.getElementById('today-crew');
-  var svcCount={'Bin Rental':0,'Junk Removal':0,'Furniture Pickup':0,'Furniture Delivery':0};
+  var svcCount={'Bin Rental':0,'Junk Removal':0,'Landscaping':0,'Furniture Pickup':0,'Furniture Delivery':0};
   todayJobs.forEach(function(j){if(svcCount.hasOwnProperty(j.service))svcCount[j.service]++;});
-  var svcIcons={'Bin Rental':'🚛','Junk Removal':'🧹','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
-  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#eab308','Furniture Pickup':'#8b5cf6','Furniture Delivery':'#f97316'};
+  var svcIcons={'Bin Rental':'🚛','Junk Removal':'🧹','Landscaping':'🌿','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
+  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#eab308','Landscaping':'#65a30d','Furniture Pickup':'#8b5cf6','Furniture Delivery':'#f97316'};
   cr.innerHTML=Object.keys(svcCount).map(function(k){var v=svcCount[k];return'<div class="bar-row"><div class="bar-label">'+svcIcons[k]+' '+k.split(' ')[0]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(v/Math.max.apply(null,Object.values(svcCount))||0,v>0?0.1:0)*100+'%;background:'+svcColors[k]+'"><span class="bar-fill-label">'+v+'</span></div></div></div>';}).join('');
 }
 
@@ -12167,7 +12184,7 @@ function _rptInsights(d) {
   // Findings
   var f = [];
   if(Math.abs(momChg.v)>=30){f.push({b:momChg.v>0?'Volume surged:':'Volume dropped:',r:d.cur.active+' jobs vs '+d.prev.active+' in '+d.prevName+' ('+momChg.s+momChg.v+'%) \u2014 '+(momChg.v>0?'strongest month-over-month growth.':'investigate the cause.')});}
-  ['Bin Rental','Junk Removal','Furniture Pickup','Furniture Delivery','Junk Quote'].forEach(function(svc){
+  ['Bin Rental','Junk Removal','Landscaping','Furniture Pickup','Furniture Delivery','Junk Quote'].forEach(function(svc){
     var cur=d.cur.byService[svc]||0,prev=d.prev.byService[svc]||0,chg=_rptPct(cur,prev);
     var yc=d.yoy.byService[svc]||0,ychg=_rptPct(cur,yc);
     if(Math.abs(chg.v)>=30&&cur>2){f.push({b:svc+(chg.v>0?' surged:':' declined:'),r:cur+' jobs vs '+prev+' in '+d.prevName+' ('+chg.s+chg.v+'%)'+(Math.abs(ychg.v)>=10?' and '+ychg.s+ychg.v+'% YoY':'')+'.'});}
