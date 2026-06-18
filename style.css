@@ -1591,7 +1591,8 @@ input[type=date],input[type=time]{position:relative;}
   #dash-fleet-header > div:first-child { gap: 14px !important; }
   #dash-tomorrow-pill { width: 100%; box-sizing: border-box; text-align: center; }
 
-  /* Date bar: go full-width on phones instead of overflowing */
+  /* Date bar + jobs-header actions: go full-width on phones instead of overflowing */
+  #dash-jobs-actions { width: 100% !important; }
   #dash-datebar {
     min-width: 0 !important;
     width: 100% !important;
