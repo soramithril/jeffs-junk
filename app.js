@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '271';
+var APP_VERSION = '272';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7222,9 +7222,8 @@ function toggleBin(){
     if(svc==='Furniture Pickup') renderDrdModalGrid();
   }
   if(isBin){
-    // Auto-fill drop-off date to today if empty
-    var bdrop=document.getElementById('f-bdrop');
-    if(bdrop&&!bdrop.value) bdrop.value=new Date().toISOString().split('T')[0];
+    // Drop-off date is left blank on purpose so the user must pick it (see newJob,
+    // which now clears f-bdrop). Do NOT auto-fill to today here.
     setTimeout(function(){initBinPicker('','');},50);
   }
   // Auto-fill email for Furniture Delivery new jobs
@@ -7708,6 +7707,11 @@ function newJob(){
   var junkRecInt=document.getElementById('f-junk-recur-interval');if(junkRecInt)junkRecInt.value='biweekly';
   var junkRecExtra=document.getElementById('junk-recurring-extra');if(junkRecExtra)junkRecExtra.style.display='none';
   window._binPresetDays=0;
+  // Clear bin date/duration fields so a new job never inherits the previously
+  // opened job's drop-off date (the repeat-customer "stale date" bug).
+  var bdEl=document.getElementById('f-bdrop');if(bdEl)bdEl.value='';
+  var bpEl=document.getElementById('f-bpick');if(bpEl)bpEl.value='';
+  var bdurEl=document.getElementById('f-bdur');if(bdurEl)bdurEl.value='';
   var bdtEl=document.getElementById('f-bdrop-time');if(bdtEl)bdtEl.value='';
   var bptEl=document.getElementById('f-bpick-time');if(bptEl)bptEl.value='';
   var wcEl=document.getElementById('f-bwillcall');if(wcEl){wcEl.checked=false;toggleWillCallForm(false);}

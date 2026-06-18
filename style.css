@@ -420,6 +420,13 @@ body{
 .btn-ghost:active{transform:translateY(-1px) scale(.99);box-shadow:0 4px 10px rgba(var(--bc-rgb, 34,197,94), .25);}
 .btn-danger{background:rgba(220,53,69,.06);color:var(--red);border:1px solid rgba(220,53,69,.2);}.btn-danger:hover{background:rgba(220,53,69,.2);border-color:var(--red);color:var(--red);transform:translateY(-3px) scale(1.04);box-shadow:0 18px 44px rgba(220,53,69,.45),0 8px 16px rgba(220,53,69,.3);}.btn-danger:active{transform:translateY(-1px) scale(.99);box-shadow:0 4px 10px rgba(220,53,69,.2);}
 .btn-sm{padding:7px 14px;font-size:13px;}
+/* Today's Jobs rows: shrink the action controls (bin badge, email, assign, pick-up,
+   confirm) so the busiest bin rows fit on one line inside the fixed actions column
+   instead of overflowing onto the city chip. Overrides the inline sizes set in app.js. */
+.today-job-row .tjr-actions{gap:6px!important;}
+.today-job-row .tjr-actions>div{gap:3px!important;}
+.today-job-row .tjr-actions .btn-sm{font-size:10px!important;padding:3px 6px!important;}
+.today-job-row .tjr-actions>span{font-size:11px!important;padding:3px 7px!important;}
 .lb-period-btn{font-family:'Inter',sans-serif;font-size:11px;padding:4px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-weight:600;transition:all .15s;}
 .lb-period-btn:hover{border-color:var(--accent);color:var(--accent);}
 .lb-period-btn.active{background:rgba(34,197,94,.12);color:#15803d;border-color:rgba(34,197,94,.3);}
