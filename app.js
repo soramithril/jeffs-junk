@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '262';
+var APP_VERSION = '263';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2768,8 +2768,7 @@ async function refreshDashJobs(){
     +makeCat('Junk Removals','#eab308',junkRemovals,false)
     +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes,false)
     +makeCat('🌿 Landscaping','#65a30d',landscaping,false)
-    +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false)
-    +makeCat('📦 Furniture Deliveries','#f97316',furnDelivs,false);
+    +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false);
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -3267,8 +3266,7 @@ async function renderDash(){
     +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false)
     +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes,false)
     +makeTodayCat('🌿 Landscaping','#65a30d',todayLandscaping,false)
-    +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false)
-    +makeTodayCat('📦 Furniture Deliveries','#f97316',todayFurnDelivs,false);
+    +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false);
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
@@ -4179,7 +4177,6 @@ async function renderLiveJobs(){
     +buildSection('junk','🗑️','Junk Removals')
     +buildSection('landscaping','🌿','Landscaping')
     +buildSection('furnPick','🛋️','Furniture Pickups')
-    +buildSection('furnDel','📦','Furniture Deliveries')
     +buildSection('other','📌','Other');
 
   var sub=document.getElementById('livejobs-sub');
