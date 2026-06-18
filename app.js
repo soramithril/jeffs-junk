@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '270';
+var APP_VERSION = '271';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -8076,6 +8076,15 @@ function openEdit(id){
     if(recOpts){recOpts.style.display=(j.recurring?'block':'none');}
     var recInt=document.getElementById('f-recur-interval');
     if(recInt&&j.recurInterval){recInt.value=j.recurInterval;}
+    // Junk Removal recurring controls — mirror the Bin Rental load above.
+    // Without this, editing a recurring Junk Removal job always shows the box
+    // unchecked + interval reset to the default, so saved weekly/biweekly never sticks.
+    var jRecChk=document.getElementById('f-junk-recurring');
+    var jRecOpts=document.getElementById('junk-recurring-opts');
+    if(jRecChk){jRecChk.checked=j.recurring||false;}
+    if(jRecOpts){jRecOpts.style.display=(j.recurring?'block':'none');}
+    var jRecInt=document.getElementById('f-junk-recur-interval');
+    if(jRecInt&&j.recurInterval){jRecInt.value=j.recurInterval;}
     _formPhotos = (j.photos || []).slice();
     _renderFormPhotos();
     document.getElementById('job-modal').classList.add('open');
