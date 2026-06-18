@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '267';
+var APP_VERSION = '268';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1980,6 +1980,9 @@ function go(name){
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
+  // Maintenance is now a tab on the Vehicles page — route there with that tab active.
+  if(name==='maintenance'){ _fleetTab='maintenance'; name='vehicles'; }
+  else if(name==='vehicles'){ _fleetTab='vehicles'; }
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var el=document.getElementById('view-'+name);
@@ -2011,9 +2014,9 @@ function render(name){
   else if(name==='bookings') renderBookings();
   else if(name==='bininventory') renderBinInventory();
   else if(name==='damage') renderDamageReports();
-  else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderVehicles);}
+  else if(name==='vehicles'){ switchFleetTab(_fleetTab||'vehicles'); }
   else if(name==='crew') renderCrew();
-  else if(name==='maintenance') renderMaintenance();
+  else if(name==='maintenance'){ switchFleetTab('maintenance'); }
   else if(name==='documents') renderDocuments();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
@@ -11366,10 +11369,24 @@ function renderVehicles(){
   _renderVehicleRows(dashVehicles, alerts);
 }
 
-// Re-render whichever fleet view is active so maintenance actions reflect instantly.
+// Vehicles + Maintenance live on one page as two tabs (see #view-vehicles).
+var _fleetTab = 'vehicles';
+function switchFleetTab(tab){
+  var isVeh = tab !== 'maintenance';
+  _fleetTab = isVeh ? 'vehicles' : 'maintenance';
+  var pv=document.getElementById('fleet-tab-vehicles'), pm=document.getElementById('fleet-tab-maintenance');
+  if(pv) pv.style.display = isVeh ? '' : 'none';
+  if(pm) pm.style.display = isVeh ? 'none' : '';
+  var bv=document.getElementById('fleet-tab-btn-vehicles'), bm=document.getElementById('fleet-tab-btn-maintenance');
+  if(bv) bv.classList.toggle('active', isVeh);
+  if(bm) bm.classList.toggle('active', !isVeh);
+  var add=document.getElementById('fleet-add-vehicle-btn'); if(add) add.style.display = isVeh ? '' : 'none';
+  if(isVeh){ renderVehicles(); if(typeof loadMaintenanceForVehicles==='function') loadMaintenanceForVehicles().then(renderVehicles); }
+  else { renderMaintenance(); }
+}
+// Re-render whichever fleet tab is active so maintenance actions reflect instantly.
 function _rerenderFleet(){
-  var mv = document.getElementById('view-maintenance');
-  if(mv && mv.classList.contains('active') && typeof renderMaintenance === 'function'){ renderMaintenance(); return; }
+  if(_fleetTab==='maintenance' && typeof renderMaintenance === 'function'){ renderMaintenance(); return; }
   renderVehicles();
 }
 
