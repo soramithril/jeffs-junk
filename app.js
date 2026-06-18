@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '261';
+var APP_VERSION = '262';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -639,6 +639,7 @@ function toTitleCase(str) {
 var jobs = [];
 var vehicles = [];
 var vehBlocks = {};
+var crewBlocks = {}; // { crewMemberId: { 'YYYY-MM-DD': [ {id,role,notes,allDay,slotStart,slotEnd} ] } }
 var binItems = [];
 var clients = [];
 var crewMembers = [];
@@ -1180,6 +1181,17 @@ async function loadAllFromSupabase() {
         vehicleAssignments[r.vid].push({id:r.id, crewMemberId:r.crew_member_id, name:crew?crew.name:'Unknown', startedAt:r.started_at, endedAt:r.ended_at});
       });
     } catch(e){ console.warn('Crew/assignments load error:', e); }
+
+    // Load crew availability blocks (employee time-off / bookings)
+    try {
+      var rCrewBlocks = await db.from('crew_blocks').select('*');
+      crewBlocks = {};
+      (rCrewBlocks.data || []).forEach(function(r){
+        if(!crewBlocks[r.crew_member_id]) crewBlocks[r.crew_member_id] = {};
+        if(!crewBlocks[r.crew_member_id][r.date]) crewBlocks[r.crew_member_id][r.date] = [];
+        crewBlocks[r.crew_member_id][r.date].push({id:r.id, role:r.role||'', notes:r.notes||'', allDay:!!r.all_day, slotStart:r.slot_start||'', slotEnd:r.slot_end||''});
+      });
+    } catch(e){ console.warn('Crew blocks load error:', e); }
 
     // Auto-assign default crew to vehicles on app load
     ensureAutoAssignments();
@@ -2000,6 +2012,7 @@ function render(name){
   else if(name==='bininventory') renderBinInventory();
   else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){renderVehicles();loadMaintenanceForVehicles().then(renderVehicles);}
+  else if(name==='crew') renderCrew();
   else if(name==='maintenance') renderMaintenance();
   else if(name==='documents') renderDocuments();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
@@ -2026,6 +2039,7 @@ function shiftDashDate(n){
   refreshDashBinStats();
   refreshDashJobs();
   renderTodayBookings();
+  renderDashCrewStatus();
 }
 // Prominent total-jobs badge in the Today's Jobs header. Shared by both render
 // paths (renderDash for today, refreshDashJobs for a picked date) so they can't drift.
@@ -3070,6 +3084,7 @@ async function renderDash(){
   // Bin stats (delegated)
   refreshDashBinStats();
   renderDashVehicleStatus();
+  renderDashCrewStatus();
   renderDashMaintAlert();
   if(typeof renderTodayBookings === 'function') renderTodayBookings();
 
@@ -6823,13 +6838,20 @@ async function openAssignCrewPicker(jobId, leg){
     html+='<div style="text-align:center;padding:20px;color:var(--muted)">No employees yet. Add one below.</div>';
   } else {
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">';
+    var assignDate = jobSchedDate(j);
     crewMembers.forEach(function(c){
       var on=assigned.indexOf(c.id)>=0;
       var legArg2 = leg ? ",'"+leg+"'" : '';
+      // Warn if this employee is booked off on the job's scheduled date
+      var cst = (typeof crewStatusForDate==='function') ? crewStatusForDate(c.id, assignDate) : {state:'free',label:''};
+      var warn = cst.state!=='free'
+        ? '<span title="Booked off '+fd(assignDate)+': '+(cst.label||'').replace(/"/g,'&quot;')+'" style="color:#dc3545;font-size:11px;font-weight:700;white-space:nowrap">⚠ '+(cst.state==='off'?'off':'busy')+'</span>'
+        : '';
       html+='<div onclick="toggleAssignCrew(\''+jobId+'\',\''+c.id+'\''+legArg2+')" '
-        +'style="padding:10px;border:2px solid '+(on?crewAvatarColor(c.id):'var(--border)')+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,197,94,.05)':'var(--surface2)')+';display:flex;align-items:center;gap:10px;transition:all .15s">'
+        +'style="padding:10px;border:2px solid '+(on?crewAvatarColor(c.id):(cst.state==='off'?'rgba(220,53,69,.5)':'var(--border)'))+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,197,94,.05)':'var(--surface2)')+';display:flex;align-items:center;gap:10px;transition:all .15s">'
         +'<span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:32px;height:32px;font-size:12px">'+crewAvatarInitials(c.name)+'</span>'
         +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+c.name+'</span>'
+        +warn
         +(on?'<span style="margin-left:auto;color:#22c55e;font-size:16px">✓</span>':'')
         +'</div>';
     });
@@ -12840,4 +12862,205 @@ function renderPricingCards(){
   });
   html += '</div>';
   host.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CREW AVAILABILITY (employee scheduling)
+// Mirrors the vehicle-block pattern. Each crew_blocks row is one booking
+// for a crew member on a date: all-day, or a HH:MM–HH:MM window, tagged
+// with a role + optional note. Multiple bookings per day are allowed.
+//   crewBlocks = { crewId: { 'YYYY-MM-DD': [ {id,role,notes,allDay,slotStart,slotEnd} ] } }
+// ═══════════════════════════════════════════════════════════════════
+var CREW_ROLES = ['Bin trucks','Junk removal','Junk quote','Furniture pickup','Other'];
+var _crewOpenId = null;
+
+// Bookings for a crew member on a date (never null).
+function crewDayBlocks(crewId, dateStr){ return ((crewBlocks[crewId]||{})[dateStr])||[]; }
+
+// Summarize availability for a date → {state:'free'|'partial'|'off', label}.
+function crewStatusForDate(crewId, dateStr){
+  var b = crewDayBlocks(crewId, dateStr);
+  if(!b.length) return {state:'free', label:'Available'};
+  var allDay = b.some(function(x){return x.allDay;});
+  var parts = b.map(function(x){
+    var when = x.allDay ? 'all day' : (ft(x.slotStart)+'–'+ft(x.slotEnd));
+    return (x.role||'Booked')+' · '+when;
+  });
+  return {state: allDay?'off':'partial', label: parts.join('  •  ')};
+}
+
+// Insert one row per day across from→to. allDay OR slot window.
+function addCrewBlock(crewId, fromDate, toDate, allDay, slotStart, slotEnd, role, notes){
+  if(!fromDate){ toast('⚠ Pick a start date.'); return; }
+  var from=fromDate, to=toDate||fromDate;
+  if(to < from){ var t=to; to=from; from=t; }
+  if(!allDay && (!slotStart || !slotEnd)){ toast('⚠ Set a start and end time, or choose All day.'); return; }
+  if(!allDay && slotEnd <= slotStart){ toast('⚠ End time must be after start time.'); return; }
+  var rows=[], cur=new Date(from+'T12:00:00'), end=new Date(to+'T12:00:00');
+  while(cur<=end){
+    rows.push({crew_member_id:crewId, date:ymdLocal(cur), role:role||'', notes:notes||'',
+               all_day:!!allDay, slot_start:allDay?null:slotStart, slot_end:allDay?null:slotEnd});
+    cur.setDate(cur.getDate()+1);
+  }
+  db.from('crew_blocks').insert(rows).select().then(function(r){
+    if(r.error){ toast('Failed to save: '+r.error.message,'error'); return; }
+    (r.data||[]).forEach(function(row){
+      if(!crewBlocks[crewId]) crewBlocks[crewId]={};
+      if(!crewBlocks[crewId][row.date]) crewBlocks[crewId][row.date]=[];
+      crewBlocks[crewId][row.date].push({id:row.id, role:row.role||'', notes:row.notes||'', allDay:!!row.all_day, slotStart:row.slot_start||'', slotEnd:row.slot_end||''});
+    });
+    renderCrew(); renderDashCrewStatus();
+    toast('Booking added.');
+  });
+}
+
+// Remove one booking by id.
+function removeCrewBlock(crewId, dateStr, blockId){
+  db.from('crew_blocks').delete().eq('id', blockId).then(function(r){
+    if(r.error) toast('Failed to remove: '+r.error.message,'error');
+  });
+  var arr = (crewBlocks[crewId]||{})[dateStr]||[];
+  if(crewBlocks[crewId]){
+    crewBlocks[crewId][dateStr] = arr.filter(function(x){return x.id!==blockId;});
+    if(!crewBlocks[crewId][dateStr].length) delete crewBlocks[crewId][dateStr];
+  }
+  renderCrew(); renderDashCrewStatus();
+  toast('Booking removed.');
+}
+
+// Quick action: book a crew member off all day for a date.
+function bookCrewOffDate(crewId, dateStr){ addCrewBlock(crewId, dateStr||todayStr(), null, true, null, null, '', ''); }
+
+// Remove ALL of a crew member's bookings on a date.
+function clearCrewDay(crewId, dateStr){
+  var arr = (crewBlocks[crewId]||{})[dateStr]||[];
+  if(!arr.length) return;
+  var ids = arr.map(function(x){return x.id;});
+  db.from('crew_blocks').delete().in('id', ids).then(function(r){
+    if(r.error) toast('Failed to clear: '+r.error.message,'error');
+  });
+  if(crewBlocks[crewId]) delete crewBlocks[crewId][dateStr];
+  renderCrew(); renderDashCrewStatus();
+  toast('Day cleared.');
+}
+
+// ── Dashboard crew availability strip (selected dashboard date) ──
+function dashSelectedDate(){ var dp=document.getElementById('dash-bin-date'); return (dp&&dp.value)?dp.value:todayStr(); }
+function renderDashCrewStatus(){
+  var el=document.getElementById('dash-crew-status'); if(!el) return;
+  if(!crewMembers.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
+  var ds=dashSelectedDate();
+  el.innerHTML=crewMembers.map(function(c){
+    var st=crewStatusForDate(c.id, ds);
+    var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'#22c55e';
+    var icon=st.state==='off'?'🚫':st.state==='partial'?'⏱':'';
+    var tip=(st.state==='free'?'Available':st.label)+' · click to manage';
+    var menuId='crew-menu-'+c.id;
+    var booked=crewDayBlocks(c.id, ds).length>0;
+    var menu='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;min-width:210px;overflow:hidden">'
+      +(booked
+        ?'<div style="padding:8px 14px;font-size:12px;cursor:pointer" onmouseover="this.style.background=\'rgba(34,197,94,.07)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();clearCrewDay(\''+c.id+'\',\''+ds+'\')">✅ Clear bookings ('+fd(ds)+')</div>'
+        :'<div style="padding:8px 14px;font-size:12px;cursor:pointer" onmouseover="this.style.background=\'rgba(220,53,69,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();bookCrewOffDate(\''+c.id+'\',\''+ds+'\')">🚫 Book off all day ('+fd(ds)+')</div>')
+      +'<div style="padding:8px 14px;font-size:12px;cursor:pointer;border-top:1px solid var(--border)" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();go(\'crew\')">📋 Manage availability</div>'
+      +'</div>';
+    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+col+'14;border:1px solid '+col+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
+      +'<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex-shrink:0"></span>'
+      +'<span style="font-weight:600;color:var(--text)">'+c.name+'</span>'
+      +(st.state!=='free'?'<span style="font-size:10px;color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis">'+st.label+'</span>':'')
+      +(icon?'<span style="font-size:10px">'+icon+'</span>':'')
+      +menu
+    +'</div>';
+  }).join('');
+}
+function toggleCrewMenu(id){ var m=document.getElementById(id); if(!m) return; var open=m.style.display!=='none'; closeCrewMenus(); if(!open)m.style.display='block'; }
+function closeCrewMenus(){ document.querySelectorAll('[id^="crew-menu-"]').forEach(function(el){el.style.display='none';}); }
+document.addEventListener('click',function(e){ if(!e.target.closest('[id^="crew-menu-"]')&&!e.target.closest('#dash-crew-status')) closeCrewMenus(); });
+
+// ── Crew Schedule page ──
+function renderCrew(){
+  var host=document.getElementById('crew-page-list'); if(!host) return;
+  var sub=document.getElementById('crew-page-sub');
+  if(sub) sub.textContent=crewMembers.length+' employee'+(crewMembers.length!==1?'s':'')+' · book time off by whole day or time window';
+  if(!crewMembers.length){ host.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No employees yet. <button class="btn btn-primary btn-sm" onclick="openCrewManager()">+ Add crew members</button></div>'; return; }
+  host.innerHTML=crewMembers.map(function(c){ return _renderCrewCard(c); }).join('');
+}
+function _renderCrewCard(c){
+  var open = _crewOpenId===c.id;
+  return '<div class="cat-section" style="margin-bottom:12px">'
+    +'<div class="cat-section-header" style="cursor:pointer;background:var(--surface2);border-radius:'+(open?'10px 10px 0 0':'10px')+'" onclick="toggleCrewCard(\''+c.id+'\')">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+        +'<span class="collapse-arrow" style="transform:rotate('+(open?'90':'0')+'deg);transition:transform .15s">▶</span>'
+        +'<span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:28px;height:28px;font-size:11px">'+crewAvatarInitials(c.name)+'</span>'
+        +'<div class="cat-title" style="color:var(--text)">'+c.name+'</div>'
+      +'</div>'
+      +_renderCrewMiniStrip(c.id)
+    +'</div>'
+    +(open?'<div style="border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px">'+_renderCrewDrawer(c)+'</div>':'')
+  +'</div>';
+}
+// 14-day forward availability strip
+function _renderCrewMiniStrip(crewId){
+  var cells='', base=new Date(todayStr()+'T12:00:00');
+  for(var i=0;i<14;i++){
+    var d=new Date(base); d.setDate(d.getDate()+i); var ds=ymdLocal(d);
+    var st=crewStatusForDate(crewId, ds);
+    var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'rgba(34,197,94,.30)';
+    var weekend=(d.getDay()===0||d.getDay()===6);
+    cells+='<span title="'+fd(ds)+': '+(st.state==='free'?'Available':st.label).replace(/"/g,'&quot;')+'" style="width:11px;height:18px;border-radius:2px;background:'+col+(weekend&&st.state==='free'?';opacity:.4':'')+';display:inline-block"></span>';
+  }
+  return '<div style="display:flex;gap:2px;align-items:center" title="Next 14 days">'+cells+'</div>';
+}
+function _renderCrewDrawer(c){
+  var cid=c.id;
+  var dates=Object.keys(crewBlocks[cid]||{}).filter(function(d){return d>=todayStr();}).sort();
+  var listHtml = dates.length
+    ? dates.map(function(ds){
+        return crewDayBlocks(cid, ds).map(function(b){
+          var when=b.allDay?'All day':(ft(b.slotStart)+' – '+ft(b.slotEnd));
+          return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'
+            +'<span style="font-weight:600;min-width:80px">'+fd(ds)+'</span>'
+            +'<span style="min-width:96px;color:var(--muted)">'+when+'</span>'
+            +'<span style="flex:1">'+(b.role?'<span class="service-badge svc-landscaping">'+b.role+'</span>':'')+(b.notes?' <span style="color:var(--muted)">'+escHtml(b.notes)+'</span>':'')+'</span>'
+            +'<button onclick="removeCrewBlock(\''+cid+'\',\''+ds+'\',\''+b.id+'\')" title="Remove" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>'
+          +'</div>';
+        }).join('');
+      }).join('')
+    : '<div style="font-size:13px;color:var(--muted);padding:6px 0">No upcoming bookings.</div>';
+  var roleOpts=CREW_ROLES.map(function(r){return '<option value="'+r+'">'+r+'</option>';}).join('');
+  return '<div style="display:flex;flex-direction:column;gap:16px">'
+    +'<div>'
+      +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Book time off / reserve for a job</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">'
+        +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">From</label><input type="date" id="crew-from-'+cid+'" value="'+todayStr()+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+        +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">To (optional)</label><input type="date" id="crew-to-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+        +'<label style="display:flex;align-items:center;gap:5px;font-size:13px;padding-bottom:8px;white-space:nowrap"><input type="checkbox" id="crew-allday-'+cid+'" checked onchange="_crewToggleAllDay(\''+cid+'\')"> All day</label>'
+        +'<div id="crew-timewrap-'+cid+'" style="display:none;gap:8px;align-items:flex-end">'
+          +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Start</label><input type="time" id="crew-start-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+          +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">End</label><input type="time" id="crew-end-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+        +'</div>'
+        +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Role</label><select id="crew-role-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"><option value="">— Role —</option>'+roleOpts+'</select></div>'
+        +'<div style="flex:1;min-width:150px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Note (optional)</label><input type="text" id="crew-note-'+cid+'" placeholder="e.g. vacation, appointment" style="width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+        +'<button class="btn btn-primary" style="font-size:13px;padding:8px 16px" onclick="_crewAddFromForm(\''+cid+'\')">+ Add</button>'
+      +'</div>'
+    +'</div>'
+    +'<div>'
+      +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Upcoming bookings</div>'
+      +listHtml
+    +'</div>'
+  +'</div>';
+}
+function toggleCrewCard(cid){ _crewOpenId = (_crewOpenId===cid)?null:cid; renderCrew(); }
+function _crewToggleAllDay(cid){
+  var chk=document.getElementById('crew-allday-'+cid), tw=document.getElementById('crew-timewrap-'+cid);
+  if(tw) tw.style.display=(chk&&chk.checked)?'none':'flex';
+}
+function _crewAddFromForm(cid){
+  addCrewBlock(cid,
+    (document.getElementById('crew-from-'+cid)||{}).value||'',
+    (document.getElementById('crew-to-'+cid)||{}).value||'',
+    (document.getElementById('crew-allday-'+cid)||{}).checked,
+    (document.getElementById('crew-start-'+cid)||{}).value||'',
+    (document.getElementById('crew-end-'+cid)||{}).value||'',
+    (document.getElementById('crew-role-'+cid)||{}).value||'',
+    (document.getElementById('crew-note-'+cid)||{}).value||'');
 }

@@ -499,7 +499,12 @@ async function renderDispatch(){
       var color = c.color || crewAvatarColor(c.id);
       var bg = on ? color+'22' : 'var(--surface)';
       var fg = on ? color : 'var(--text)';
-      html += '<button onclick="dispatchToggleWorking(\''+c.id+'\')" style="border:1px solid '+color+';background:'+bg+';color:'+fg+';padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">'+(on?'&#10003; ':'')+c.name+'</button>';
+      // Flag crew who are booked off / partly booked on the dispatch date
+      var cst = (typeof crewStatusForDate==='function') ? crewStatusForDate(c.id, _dispatchDate) : {state:'free',label:''};
+      var lbl = (cst.label||'').replace(/"/g,'&quot;');
+      var offTag = cst.state==='off' ? ' <span style="font-size:11px" title="Booked off '+fd(_dispatchDate)+': '+lbl+'">🚫</span>'
+                 : cst.state==='partial' ? ' <span style="font-size:11px" title="Partly booked '+fd(_dispatchDate)+': '+lbl+'">⏱</span>' : '';
+      html += '<button onclick="dispatchToggleWorking(\''+c.id+'\')" title="'+(cst.state!=='free'?lbl:'Available')+'" style="border:1px solid '+color+';background:'+bg+';color:'+fg+';padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">'+(on?'&#10003; ':'')+c.name+offTag+'</button>';
     });
   }
   html += '</div></div>';
