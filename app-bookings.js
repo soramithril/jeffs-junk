@@ -272,6 +272,14 @@ async function renderTodayBookings(){
   if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' booked ' + (isToday ? 'today' : 'on ' + dateLbl)) : '';
   var chipEl = document.getElementById('dash-tab-n-bookings');
   if(chipEl) chipEl.textContent = n;
+  // Email-still-to-send badge on the Booked Today pill — counts bookings whose
+  // confirmation email hasn't gone out yet (same rule as each row's 📧 Send chip).
+  var emailsNeeded = list.filter(function(j){ return j.status!=='Cancelled' && !(j.email_sent||j.email_confirmed); }).length;
+  var emChipEl = document.getElementById('dash-tab-n-booking-emails');
+  if(emChipEl){
+    if(emailsNeeded>0){ emChipEl.textContent = '📧 ' + emailsNeeded; emChipEl.style.display = 'inline-flex'; }
+    else { emChipEl.style.display = 'none'; }
+  }
 
   var moreBtn = document.getElementById('dash-bookings-more');
   if(moreBtn) moreBtn.style.display = (typeof canAccessAnalytics === 'function' && canAccessAnalytics()) ? '' : 'none';
