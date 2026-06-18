@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '268';
+var APP_VERSION = '269';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -736,6 +736,11 @@ function jobSchedDate(j) {
   if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbDate || j.date;
   if (j.service === 'Junk Removal' || j.service === 'Junk Quote' || j.service === 'Landscaping') return j.junkDate || j.date;
   return j.date;
+}
+
+// A Landscaping "possible job" — no scheduled date yet (done whenever the crew is free).
+function isPossibleJob(j) {
+  return j.service === 'Landscaping' && !j.junkDate && !j.date;
 }
 
 // Google Maps driving-directions URL to a single address (starts from the driver's current location)
@@ -3321,6 +3326,7 @@ async function renderDash(){
   renderBinsAttention();
   renderWeekCal();
   renderDashBinsOut();
+  renderPossibleJobs();
 
   // If the user has the picker on a non-today date (e.g. assigning crew to
   // tomorrow's jobs), the dash-today-jobs panel was just overwritten with
@@ -3329,6 +3335,54 @@ async function renderDash(){
   if(datePicker.value && datePicker.value !== todayS){
     refreshDashJobs();
   }
+}
+
+// ─── POSSIBLE JOBS (undated Landscaping backlog) ───────────────────────────
+// A "possible job" is a Landscaping job with no scheduled date — done whenever
+// the crew is free. Surfaced as a compact dashboard card + popup so a dispatcher
+// can point idle crew at real work. Date-independent, so it ignores the date bar.
+var _possibleJobs = [];
+async function renderPossibleJobs(){
+  var card=document.getElementById('card-possible-jobs');
+  if(!card) return;
+  var r=await db.from('jobs').select('*').eq('service','Landscaping').is('junk_date',null).is('date',null).neq('status','Cancelled');
+  var list=(r.data||[]).map(dbToJob);
+  list.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
+  list.sort(function(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); });
+  _possibleJobs=list;
+  var countEl=document.getElementById('possible-jobs-count');
+  if(countEl) countEl.textContent=list.length;
+  if(!list.length){ card.style.display='none'; if(_possibleModalIsOpen()) renderPossibleJobsList(); return; }
+  card.style.display='block';
+  var peek=list.slice(0,3).map(function(j){return j.name||j.businessName||j.id;}).join(' · ');
+  if(list.length>3) peek+=' · +'+(list.length-3)+' more';
+  var peekEl=document.getElementById('possible-jobs-peek');
+  if(peekEl) peekEl.textContent=peek;
+  if(_possibleModalIsOpen()) renderPossibleJobsList();
+}
+function _possibleModalIsOpen(){ var m=document.getElementById('possible-jobs-modal'); return !!(m&&m.classList.contains('open')); }
+function openPossibleJobsModal(){
+  renderPossibleJobsList();
+  document.getElementById('possible-jobs-modal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+function renderPossibleJobsList(){
+  var body=document.getElementById('possible-jobs-body');
+  if(!body) return;
+  var list=_possibleJobs||[];
+  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:14px;padding:24px;text-align:center">No possible jobs right now — every landscaping job has a date. 🎉</div>'; return; }
+  body.innerHTML=list.map(function(j){
+    var addr=((j.address||'')+(j.city?', '+j.city:'')).trim()||'—';
+    var phone=(j.phones&&j.phones.length)?j.phones[0].num:(j.phone||'');
+    return '<div onclick="closeM(\'possible-jobs-modal\');openDetail(\''+j.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--border);border-left:4px solid #65a30d;border-radius:0 8px 8px 0;background:var(--surface2);margin-bottom:8px;cursor:pointer">'
+      +'<div style="min-width:0;flex:1">'
+        +'<div style="font-size:14px">'+jid(j.id,j.service)+' <span style="font-weight:700;color:var(--text);margin-left:4px">'+(j.name||j.businessName||'—')+'</span></div>'
+        +'<div style="font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+addr+(phone?' · '+phone:'')+'</div>'
+      +'</div>'
+      +'<span style="font-size:11px;font-style:italic;color:#65a30d;white-space:nowrap;flex-shrink:0">No date yet</span>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeM(\'possible-jobs-modal\');openEdit(\''+j.id+'\')" style="white-space:nowrap;flex-shrink:0;color:#65a30d;border-color:rgba(101,163,13,.4)">📅 Schedule</button>'
+    +'</div>';
+  }).join('');
 }
 
 async function renderWillCallCard(){
@@ -7139,6 +7193,16 @@ function toggleBin(){
       var qaw=document.getElementById('quote-amount-wrap');if(qaw)qaw.style.display=isQuote?'block':'none';
       var jrpw=document.getElementById('junk-removal-pricing-wrap');if(jrpw)jrpw.style.display=isQuote?'none':'block';
       var jdw=document.getElementById('junk-duration-wrap');if(jdw)jdw.style.display=isQuote?'none':'block';
+      // Landscaping-only: offer a "no date yet" option (possible job)
+      var lndWrap=document.getElementById('landscape-nodate-wrap');
+      if(lndWrap){
+        var isLand=svc==='Landscaping';
+        lndWrap.style.display=isLand?'block':'none';
+        if(!isLand){
+          var lndCb=document.getElementById('f-landscape-nodate');if(lndCb)lndCb.checked=false;
+          var ddg=document.getElementById('junk-datetime-grid');if(ddg)ddg.style.display='grid';
+        }
+      }
     }
   }
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
@@ -7176,6 +7240,16 @@ function toggleBin(){
         if(newInps.length>0) newInps[0].value='warehouse@redwoodparkcommunities.com';
       },50);
     }
+  }
+}
+// Landscaping "no date yet" toggle — hides the date/time inputs and clears them.
+function toggleLandscapeNoDate(){
+  var on=document.getElementById('f-landscape-nodate').checked;
+  var grid=document.getElementById('junk-datetime-grid');
+  if(grid) grid.style.display=on?'none':'grid';
+  if(on){
+    var d=document.getElementById('f-junk-date');if(d)d.value='';
+    var t=document.getElementById('f-junk-time');if(t)t.value='';
   }
 }
 // ── Photo upload helpers (Cloudinary) ──
@@ -7612,6 +7686,9 @@ function newJob(){
   document.getElementById('fb-schedule-wrap').style.display='none';
   document.getElementById('f-junk-date').value='';document.getElementById('f-junk-time').value='';
   document.getElementById('junk-schedule-wrap').style.display='none';
+  var lndCbN=document.getElementById('f-landscape-nodate');if(lndCbN)lndCbN.checked=false;
+  var lndWrapN=document.getElementById('landscape-nodate-wrap');if(lndWrapN)lndWrapN.style.display='none';
+  var ddgN=document.getElementById('junk-datetime-grid');if(ddgN)ddgN.style.display='grid';
   document.getElementById('f-notes').value='';var fin=document.getElementById('f-internal-notes');if(fin)fin.value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
   var ft=document.getElementById('f-tools');if(ft)ft.value='';
@@ -7918,6 +7995,14 @@ function openEdit(id){
       var qaiE=document.getElementById('f-quote-amount');if(qaiE)qaiE.value=isQEdit?(j.price||''):'';
       var jrpwE=document.getElementById('junk-removal-pricing-wrap');if(jrpwE)jrpwE.style.display=isQEdit?'none':'block';
       var jdwE=document.getElementById('junk-duration-wrap');if(jdwE)jdwE.style.display=isQEdit?'none':'block';
+      // Landscaping-only "no date yet" toggle — pre-check when this is an undated possible job
+      var lndWrapE=document.getElementById('landscape-nodate-wrap');
+      var lndCbE=document.getElementById('f-landscape-nodate');
+      var isLandE=j.service==='Landscaping';
+      if(lndWrapE) lndWrapE.style.display=isLandE?'block':'none';
+      if(lndCbE) lndCbE.checked=isLandE && !j.junkDate && !j.date;
+      var ddgE=document.getElementById('junk-datetime-grid');
+      if(ddgE) ddgE.style.display=(lndCbE&&lndCbE.checked)?'none':'grid';
       if(!isQEdit){
         var fjqE=document.getElementById('f-junk-quoted');if(fjqE)fjqE.value=j.quotedAmount||'';
         var fjaE=document.getElementById('f-junk-actual');if(fjaE)fjaE.value=j.price||'';
@@ -8042,6 +8127,14 @@ async function saveJob(e){
   var referral = document.getElementById('f-referral').value;
   if(referral==='__add_new__') referral='';
 
+  // Landscaping can be an undated "possible job" (done whenever the crew is free).
+  // When that box is ticked the date is cleared and not required; otherwise a
+  // landscaping job with no main date falls back to today (the date column is
+  // secondary — junkDate carries the real schedule).
+  var landscapeNoDate = (svc==='Landscaping') && !!((document.getElementById('f-landscape-nodate')||{}).checked);
+  if(landscapeNoDate) date='';
+  else if(svc==='Landscaping' && !date) date=todayStr();
+
   // Clear previous field errors
   ['f-svc','f-names','f-date','f-referral','f-addr','f-city'].forEach(clearErr);
 
@@ -8050,7 +8143,7 @@ async function saveJob(e){
   var firstErrField = null;
   if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); if(!firstErrField) firstErrField='f-svc'; }
   if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); if(!firstErrField) firstErrField='f-names-wrap'; }
-  if(!date)     { showErr('f-date');     errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
+  if(!date && !landscapeNoDate) { showErr('f-date'); errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
   if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='f-bsize'; }
   if(svc==='Bin Rental'){
@@ -8076,8 +8169,8 @@ async function saveJob(e){
     _saveJobLock = false; return;
   }
 
-  // Vehicle availability warning
-  if(!editId){
+  // Vehicle availability warning (skip when there's no date to check, e.g. undated landscaping)
+  if(!editId && date){
     var avail=checkVehicleAvailability(svc,date);
     if(!avail.ok&&!confirm(avail.msg)){_saveJobLock=false;return;}
   }
@@ -8177,6 +8270,8 @@ async function saveJob(e){
   if((svc==='Junk Removal'||svc==='Junk Quote'||svc==='Landscaping') && !job.junkDate && job.date){
     job.junkDate = job.date;
   }
+  // Undated landscaping "possible job" — store no scheduled date at all
+  if(landscapeNoDate){ job.date=''; job.junkDate=''; job.junkTime=''; }
 
   // Release prior bin first — runs even when service was changed AWAY from Bin Rental
   // (otherwise the old bin would stay marked 'out' forever as a phantom)
@@ -8339,6 +8434,7 @@ async function saveJob(e){
   _saveJobLock = false;
   closeM('job-modal');
   loadJobsPage(jobsPage);
+  if(typeof renderPossibleJobs==='function') renderPossibleJobs();
   // Always reopen the saved job as detail so user can review/print immediately
   setTimeout(function(){ openDetail(savedJobId); },400);
 
@@ -8458,7 +8554,7 @@ async function openDetail(id, returnCid){
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
-    +(j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Landscaping'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+((j.service==='Junk Removal'||j.service==='Landscaping')?_renderJunkRemovalPricing(j):'')+((j.service==='Junk Removal'||j.service==='Landscaping')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
+    +(j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Landscaping'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):(isPossibleJob(j)?'<span style="color:#65a30d;font-style:italic">No date specified yet</span>':'—'))+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+((j.service==='Junk Removal'||j.service==='Landscaping')?_renderJunkRemovalPricing(j):'')+((j.service==='Junk Removal'||j.service==='Landscaping')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
     +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':'')
     +'</div></div>':'')
     +_renderItemsDetail(j)

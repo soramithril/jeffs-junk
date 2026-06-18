@@ -260,6 +260,19 @@
         </div>
         <div id="dash-today-jobs" style="padding:4px 0"></div>
       </div>
+      <div id="card-possible-jobs" class="chart-card" style="display:none;padding:0;overflow:hidden;cursor:pointer;border:1px solid rgba(101,163,13,.4)" onclick="openPossibleJobsModal()" title="Landscaping jobs with no date yet — click to view all">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 18px">
+          <span style="font-size:20px;line-height:1;flex-shrink:0">🌿</span>
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="card-head" style="margin:0;font-size:16px">Possible Jobs</div>
+              <span id="possible-jobs-count" style="display:inline-flex;align-items:center;background:#65a30d;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;line-height:1;padding:2px 10px;border-radius:99px;letter-spacing:.5px">0</span>
+            </div>
+            <div id="possible-jobs-peek" style="font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Landscaping jobs with no date yet</div>
+          </div>
+          <span style="color:#65a30d;font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0">View all →</span>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1385,6 +1398,18 @@
 
 </main>
 
+<!-- ═══════════ POSSIBLE JOBS MODAL ═══════════ -->
+<div class="modal-overlay" id="possible-jobs-modal">
+  <div class="modal" style="max-width:560px;max-height:85vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">🌿 Possible Jobs <span style="font-weight:400;color:var(--muted);font-size:13px">— landscaping with no date yet</span></div>
+      <button class="modal-close" onclick="closeM('possible-jobs-modal')">&#x2715;</button>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Jobs to do whenever the crew is free. Tap one to view it, or 📅 Schedule to set a date.</div>
+    <div id="possible-jobs-body"></div>
+  </div>
+</div>
+
 <!-- ═══════════ JOB MODAL ═══════════ -->
 <div class="modal-overlay fullpage" id="job-modal">
   <div class="modal">
@@ -1549,7 +1574,13 @@
       <!-- Junk Schedule (Quote / Removal) -->
       <div id="junk-schedule-wrap" style="display:none;margin-bottom:14px">
         <div class="job-form-subsection-label"><span style="font-size:14px">📅</span> <span id="junk-schedule-label">Job Schedule</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div id="landscape-nodate-wrap" style="display:none;margin-bottom:8px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#65a30d">
+            <input type="checkbox" id="f-landscape-nodate" onchange="toggleLandscapeNoDate()" style="width:15px;height:15px;accent-color:#65a30d">
+            🌿 No date yet — do whenever the crew is free
+          </label>
+        </div>
+        <div id="junk-datetime-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
           <div class="form-group"><label id="junk-time-label">Job Time</label><input id="f-junk-time" type="time"></div>
         </div>
@@ -2254,7 +2285,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=229"></script>
-<script src="app.js?v=268"></script>
+<script src="app.js?v=269"></script>
 </body>
 </html>
                                                                                                                                                          
