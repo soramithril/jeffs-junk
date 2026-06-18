@@ -1591,10 +1591,8 @@ input[type=date],input[type=time]{position:relative;}
   #dash-fleet-header > div:first-child { gap: 14px !important; }
   #dash-tomorrow-pill { width: 100%; box-sizing: border-box; text-align: center; }
 
-  /* Vehicle strip: kill inline min-width that overflows iPhone width */
-  #dash-vehicle-strip { padding: 8px; gap: 6px; flex-wrap: wrap; }
-  #dash-vehicle-strip > div[style*="min-width:320px"],
-  #dash-vehicle-strip > div[style*="min-width: 320px"] {
+  /* Date bar: go full-width on phones instead of overflowing */
+  #dash-datebar {
     min-width: 0 !important;
     width: 100% !important;
     flex: 1 1 100% !important;

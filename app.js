@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '263';
+var APP_VERSION = '264';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -12869,7 +12869,7 @@ function renderPricingCards(){
 //   crewBlocks = { crewId: { 'YYYY-MM-DD': [ {id,role,notes,allDay,slotStart,slotEnd} ] } }
 // ═══════════════════════════════════════════════════════════════════
 var CREW_ROLES = ['Bin trucks','Junk removal','Junk quote','Furniture pickup','Other'];
-var _crewOpenId = null;
+var _crewWeekOffset = 0;
 
 // Bookings for a crew member on a date (never null).
 function crewDayBlocks(crewId, dateStr){ return ((crewBlocks[crewId]||{})[dateStr])||[]; }
@@ -12899,7 +12899,7 @@ function addCrewBlock(crewId, fromDate, toDate, allDay, slotStart, slotEnd, role
                all_day:!!allDay, slot_start:allDay?null:slotStart, slot_end:allDay?null:slotEnd});
     cur.setDate(cur.getDate()+1);
   }
-  db.from('crew_blocks').insert(rows).select().then(function(r){
+  return db.from('crew_blocks').insert(rows).select().then(function(r){
     if(r.error){ toast('Failed to save: '+r.error.message,'error'); return; }
     (r.data||[]).forEach(function(row){
       if(!crewBlocks[crewId]) crewBlocks[crewId]={};
@@ -12973,91 +12973,161 @@ function toggleCrewMenu(id){ var m=document.getElementById(id); if(!m) return; v
 function closeCrewMenus(){ document.querySelectorAll('[id^="crew-menu-"]').forEach(function(el){el.style.display='none';}); }
 document.addEventListener('click',function(e){ if(!e.target.closest('[id^="crew-menu-"]')&&!e.target.closest('#dash-crew-status')) closeCrewMenus(); });
 
-// ── Crew Schedule page ──
-function renderCrew(){
+// ── Crew Schedule page — weekly board (employees × days) ──
+// Colored chips = jobs the employee is assigned to (read from the jobs board);
+// red/amber chips = time off (crew_blocks). Click a day's "+ off" to book time off.
+function _crewSvcColor(service, type){
+  if(type==='dropoff') return '#0891b2';
+  if(type==='pickup')  return '#ec4899';
+  return ({'Junk Removal':'#eab308','Junk Quote':'#0d6efd','Landscaping':'#65a30d','Furniture Pickup':'#8b5cf6','Furniture Delivery':'#f97316','Bin Rental':'#0891b2'})[service]||'#64748b';
+}
+function _crewSvcIcon(service, type){
+  if(type==='dropoff') return '🚛';
+  if(type==='pickup')  return '🚚';
+  return ({'Junk Removal':'🗑️','Junk Quote':'📋','Landscaping':'🌿','Furniture Pickup':'🛋️','Furniture Delivery':'📦'})[service]||'•';
+}
+function crewShiftWeek(n){ _crewWeekOffset += n; renderCrew(); }
+function crewThisWeek(){ _crewWeekOffset = 0; renderCrew(); }
+
+async function renderCrew(){
   var host=document.getElementById('crew-page-list'); if(!host) return;
   var sub=document.getElementById('crew-page-sub');
-  if(sub) sub.textContent=crewMembers.length+' employee'+(crewMembers.length!==1?'s':'')+' · book time off by whole day or time window';
+  if(sub) sub.textContent=crewMembers.length+' employee'+(crewMembers.length!==1?'s':'')+' · weekly schedule';
   if(!crewMembers.length){ host.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No employees yet. <button class="btn btn-primary btn-sm" onclick="openCrewManager()">+ Add crew members</button></div>'; return; }
-  host.innerHTML=crewMembers.map(function(c){ return _renderCrewCard(c); }).join('');
-}
-function _renderCrewCard(c){
-  var open = _crewOpenId===c.id;
-  return '<div class="cat-section" style="margin-bottom:12px">'
-    +'<div class="cat-section-header" style="cursor:pointer;background:var(--surface2);border-radius:'+(open?'10px 10px 0 0':'10px')+'" onclick="toggleCrewCard(\''+c.id+'\')">'
-      +'<div style="display:flex;align-items:center;gap:10px">'
-        +'<span class="collapse-arrow" style="transform:rotate('+(open?'90':'0')+'deg);transition:transform .15s">▶</span>'
-        +'<span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:28px;height:28px;font-size:11px">'+crewAvatarInitials(c.name)+'</span>'
-        +'<div class="cat-title" style="color:var(--text)">'+c.name+'</div>'
-      +'</div>'
-      +_renderCrewMiniStrip(c.id)
+
+  var ws=getWeekStart(_crewWeekOffset), we=new Date(ws); we.setDate(we.getDate()+6);
+  var wsS=ymdLocal(ws), weS=ymdLocal(we), todayS=todayStr();
+  var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // Pull this week's jobs WITH crew-assignment columns (not in JOB_LIST_COLS).
+  var COLS='job_id,service,name,date,time,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,fb_date,fb_time,junk_date,junk_time,status,assigned_crew_ids,pickup_crew_id,dropoff_crew_id';
+  var assignMap={};
+  try {
+    var res = await Promise.all([
+      db.from('jobs').select(COLS).neq('status','Cancelled').gte('date',wsS).lte('date',weS),
+      db.from('jobs').select(COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',wsS).lte('bin_dropoff',weS),
+      db.from('jobs').select(COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',wsS).lte('bin_pickup',weS),
+      db.from('jobs').select(COLS).eq('service','Furniture Pickup').neq('status','Cancelled').gte('fb_date',wsS).lte('fb_date',weS),
+      db.from('jobs').select(COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').gte('junk_date',wsS).lte('junk_date',weS)
+    ]);
+    var seen={}, weekJobs=[];
+    res.forEach(function(r){ (r.data||[]).forEach(function(row){ if(!seen[row.job_id]){ seen[row.job_id]=true; weekJobs.push(dbToJob(row)); } }); });
+    function push(crewId, ds, ev){ if(!crewId||!ds||ds<wsS||ds>weS) return; if(!assignMap[crewId]) assignMap[crewId]={}; if(!assignMap[crewId][ds]) assignMap[crewId][ds]=[]; assignMap[crewId][ds].push(ev); }
+    weekJobs.forEach(function(j){
+      if(j.service==='Bin Rental'){
+        var dropDs=j.binDropoff||j.date;
+        if(j.dropoffCrewId) push(j.dropoffCrewId, dropDs, {j:j,type:'dropoff',time:j.binDropoffTime||''});
+        if(j.binPickup && j.pickupCrewId) push(j.pickupCrewId, j.binPickup, {j:j,type:'pickup',time:j.binPickupTime||''});
+      } else {
+        var ds=jobSchedDate(j);
+        var t=(j.service==='Furniture Pickup'?j.fbTime:j.junkTime)||j.time||'';
+        (j.assignedCrewIds||[]).forEach(function(cid){ push(cid, ds, {j:j,type:'job',time:t}); });
+      }
+    });
+  } catch(e){ console.warn('Crew schedule load error:', e); }
+
+  var days=[]; for(var i=0;i<7;i++){ var d=new Date(ws); d.setDate(d.getDate()+i); days.push(d); }
+
+  var legend='<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#0891b2"></span> Bins</span> '
+    +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#eab308"></span> Junk</span> '
+    +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#65a30d"></span> Landscaping</span> '
+    +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#8b5cf6"></span> Furniture</span> '
+    +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545"></span> Time off</span>';
+
+  var html='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
+    +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">‹</button>'
+      +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' – '+fd(weS)+(_crewWeekOffset===0?' · This week':'')+'</span>'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">›</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
     +'</div>'
-    +(open?'<div style="border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px">'+_renderCrewDrawer(c)+'</div>':'')
+    +'<div style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
   +'</div>';
+
+  html+='<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">'
+    +'<table style="width:100%;min-width:760px;table-layout:fixed;border-collapse:collapse">'
+    +'<thead><tr>'
+    +'<th style="width:128px;text-align:left;padding:9px 10px;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Crew</th>';
+  days.forEach(function(d){
+    var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0||d.getDay()===6);
+    html+='<th style="padding:8px 4px;font-size:11px;font-weight:700;color:'+(isT?'var(--accent)':'var(--muted)')+';background:'+(isT?'rgba(34,197,94,.08)':'var(--surface2)')+';border-bottom:1px solid var(--border);border-left:1px solid var(--border)">'+dayNames[d.getDay()]+'<br><span style="font-size:15px;color:'+(isT?'var(--accent)':'var(--text)')+'">'+d.getDate()+'</span></th>';
+  });
+  html+='</tr></thead><tbody>';
+
+  crewMembers.forEach(function(c){
+    html+='<tr>'
+      +'<td style="padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top">'
+        +'<div style="display:flex;align-items:center;gap:8px"><span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:26px;height:26px;font-size:11px">'+crewAvatarInitials(c.name)+'</span><span style="font-weight:600;font-size:13px">'+escHtml(c.name)+'</span></div>'
+      +'</td>';
+    days.forEach(function(d){
+      var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0||d.getDay()===6);
+      var cell='';
+      // time off first
+      crewDayBlocks(c.id, ds).forEach(function(b){
+        var col=b.allDay?'#dc3545':'#e67e22';
+        var lbl=b.allDay?'Off':(ft(b.slotStart)+'–'+ft(b.slotEnd));
+        var tip=(b.role||'Time off')+(b.notes?' — '+b.notes:'')+' · click to remove';
+        cell+='<div onclick="removeCrewBlockConfirm(\''+c.id+'\',\''+ds+'\',\''+b.id+'\')" title="'+tip.replace(/"/g,'&quot;')+'" style="background:'+col+'22;color:'+col+';border-radius:4px;padding:2px 5px;margin-bottom:3px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🚫 '+lbl+(b.role?' · '+b.role:'')+'</div>';
+      });
+      // job chips
+      var evs=((assignMap[c.id]||{})[ds]||[]).slice().sort(function(a,b){ return (a.time||'~').localeCompare(b.time||'~'); });
+      evs.forEach(function(ev){
+        var j=ev.j, col=_crewSvcColor(j.service, ev.type), icon=_crewSvcIcon(j.service, ev.type);
+        var t=ev.time?ft(ev.time)+' ':'';
+        var tip=(ev.type==='dropoff'?'Bin drop-off':ev.type==='pickup'?'Bin pickup':j.service)+' · '+j.name;
+        cell+='<div onclick="openDetail(\''+j.id+'\')" title="'+tip.replace(/"/g,'&quot;')+'" style="background:'+col+'22;color:'+col+';border-radius:4px;padding:2px 5px;margin-bottom:3px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+icon+' '+t+escHtml(j.name)+'</div>';
+      });
+      cell+='<div onclick="openCrewBookoff(\''+c.id+'\',\''+ds+'\')" title="Book time off" style="font-size:11px;color:var(--muted);cursor:pointer;opacity:.45;padding:1px 4px" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.45">+ off</div>';
+      html+='<td style="padding:5px 4px;border-bottom:1px solid var(--border);border-left:1px solid var(--border);vertical-align:top;'+(isT?'background:rgba(34,197,94,.04)':wknd?'background:var(--surface2)':'')+'">'+cell+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  host.innerHTML=html;
 }
-// 14-day forward availability strip
-function _renderCrewMiniStrip(crewId){
-  var cells='', base=new Date(todayStr()+'T12:00:00');
-  for(var i=0;i<14;i++){
-    var d=new Date(base); d.setDate(d.getDate()+i); var ds=ymdLocal(d);
-    var st=crewStatusForDate(crewId, ds);
-    var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'rgba(34,197,94,.30)';
-    var weekend=(d.getDay()===0||d.getDay()===6);
-    cells+='<span title="'+fd(ds)+': '+(st.state==='free'?'Available':st.label).replace(/"/g,'&quot;')+'" style="width:11px;height:18px;border-radius:2px;background:'+col+(weekend&&st.state==='free'?';opacity:.4':'')+';display:inline-block"></span>';
-  }
-  return '<div style="display:flex;gap:2px;align-items:center" title="Next 14 days">'+cells+'</div>';
+
+function removeCrewBlockConfirm(crewId, ds, blockId){
+  if(confirm('Remove this time off?')) removeCrewBlock(crewId, ds, blockId);
 }
-function _renderCrewDrawer(c){
-  var cid=c.id;
-  var dates=Object.keys(crewBlocks[cid]||{}).filter(function(d){return d>=todayStr();}).sort();
-  var listHtml = dates.length
-    ? dates.map(function(ds){
-        return crewDayBlocks(cid, ds).map(function(b){
-          var when=b.allDay?'All day':(ft(b.slotStart)+' – '+ft(b.slotEnd));
-          return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">'
-            +'<span style="font-weight:600;min-width:80px">'+fd(ds)+'</span>'
-            +'<span style="min-width:96px;color:var(--muted)">'+when+'</span>'
-            +'<span style="flex:1">'+(b.role?'<span class="service-badge svc-landscaping">'+b.role+'</span>':'')+(b.notes?' <span style="color:var(--muted)">'+escHtml(b.notes)+'</span>':'')+'</span>'
-            +'<button onclick="removeCrewBlock(\''+cid+'\',\''+ds+'\',\''+b.id+'\')" title="Remove" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>'
-          +'</div>';
-        }).join('');
-      }).join('')
-    : '<div style="font-size:13px;color:var(--muted);padding:6px 0">No upcoming bookings.</div>';
+
+// Compact "book time off" modal (used by the + in each schedule cell)
+function openCrewBookoff(crewId, ds){
+  var c=crewMembers.find(function(x){return x.id===crewId;}); if(!c) return;
+  closeCrewBookoff();
   var roleOpts=CREW_ROLES.map(function(r){return '<option value="'+r+'">'+r+'</option>';}).join('');
-  return '<div style="display:flex;flex-direction:column;gap:16px">'
-    +'<div>'
-      +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Book time off / reserve for a job</div>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">'
-        +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">From</label><input type="date" id="crew-from-'+cid+'" value="'+todayStr()+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
-        +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">To (optional)</label><input type="date" id="crew-to-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
-        +'<label style="display:flex;align-items:center;gap:5px;font-size:13px;padding-bottom:8px;white-space:nowrap"><input type="checkbox" id="crew-allday-'+cid+'" checked onchange="_crewToggleAllDay(\''+cid+'\')"> All day</label>'
-        +'<div id="crew-timewrap-'+cid+'" style="display:none;gap:8px;align-items:flex-end">'
-          +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Start</label><input type="time" id="crew-start-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
-          +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">End</label><input type="time" id="crew-end-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
-        +'</div>'
-        +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Role</label><select id="crew-role-'+cid+'" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"><option value="">— Role —</option>'+roleOpts+'</select></div>'
-        +'<div style="flex:1;min-width:150px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:2px">Note (optional)</label><input type="text" id="crew-note-'+cid+'" placeholder="e.g. vacation, appointment" style="width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
-        +'<button class="btn btn-primary" style="font-size:13px;padding:8px 16px" onclick="_crewAddFromForm(\''+cid+'\')">+ Add</button>'
+  var html='<div class="modal-overlay open" id="crew-bookoff-overlay" onclick="if(event.target===this)closeCrewBookoff()">'
+    +'<div style="background:var(--surface);border-radius:14px;padding:22px;max-width:430px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:16px;font-weight:700;margin-bottom:4px">Book time off — '+escHtml(c.name)+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:16px">Reserve a whole day or a time window, and tag what it\'s for.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:12px">'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:130px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">From</label><input type="date" id="bo-from" value="'+ds+'" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+        +'<div style="flex:1;min-width:130px"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">To (optional)</label><input type="date" id="bo-to" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
       +'</div>'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="bo-allday" checked onchange="document.getElementById(\'bo-timewrap\').style.display=this.checked?\'none\':\'flex\'"> All day</label>'
+      +'<div id="bo-timewrap" style="display:none;gap:10px">'
+        +'<div style="flex:1"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Start</label><input type="time" id="bo-start" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+        +'<div style="flex:1"><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">End</label><input type="time" id="bo-end" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
+      +'</div>'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Role / reason</label><select id="bo-role" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"><option value="">— Role —</option>'+roleOpts+'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">Note (optional)</label><input type="text" id="bo-note" placeholder="e.g. vacation, appointment" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px"></div>'
     +'</div>'
-    +'<div>'
-      +'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Upcoming bookings</div>'
-      +listHtml
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">'
+      +'<button class="btn btn-ghost" onclick="closeCrewBookoff()">Cancel</button>'
+      +'<button class="btn btn-primary" onclick="_crewBookoffSubmit(\''+crewId+'\')">Book off</button>'
     +'</div>'
-  +'</div>';
+  +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
 }
-function toggleCrewCard(cid){ _crewOpenId = (_crewOpenId===cid)?null:cid; renderCrew(); }
-function _crewToggleAllDay(cid){
-  var chk=document.getElementById('crew-allday-'+cid), tw=document.getElementById('crew-timewrap-'+cid);
-  if(tw) tw.style.display=(chk&&chk.checked)?'none':'flex';
-}
-function _crewAddFromForm(cid){
-  addCrewBlock(cid,
-    (document.getElementById('crew-from-'+cid)||{}).value||'',
-    (document.getElementById('crew-to-'+cid)||{}).value||'',
-    (document.getElementById('crew-allday-'+cid)||{}).checked,
-    (document.getElementById('crew-start-'+cid)||{}).value||'',
-    (document.getElementById('crew-end-'+cid)||{}).value||'',
-    (document.getElementById('crew-role-'+cid)||{}).value||'',
-    (document.getElementById('crew-note-'+cid)||{}).value||'');
+function closeCrewBookoff(){ var el=document.getElementById('crew-bookoff-overlay'); if(el) el.remove(); }
+function _crewBookoffSubmit(crewId){
+  var p = addCrewBlock(crewId,
+    (document.getElementById('bo-from')||{}).value||'',
+    (document.getElementById('bo-to')||{}).value||'',
+    (document.getElementById('bo-allday')||{}).checked,
+    (document.getElementById('bo-start')||{}).value||'',
+    (document.getElementById('bo-end')||{}).value||'',
+    (document.getElementById('bo-role')||{}).value||'',
+    (document.getElementById('bo-note')||{}).value||'');
+  if(p && p.then) closeCrewBookoff();
 }
