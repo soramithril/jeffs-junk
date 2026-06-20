@@ -1979,8 +1979,9 @@ input[type=date],input[type=time]{position:relative;}
 
 /* ===== Dashboard redesign — shared ===== */
 /* unified action buttons: neutral at rest, light up to colour on hover */
-.djj-btn{font-size:11px;font-weight:700;border-radius:7px;padding:6px 11px;cursor:pointer;white-space:nowrap;font-family:inherit;display:inline-flex;align-items:center;gap:5px;color:#334155;background:#fff;border:1px solid #e2e8f0;transition:background .14s,border-color .14s,color .14s,transform .12s,box-shadow .14s}
-.djj-btn:active{transform:scale(.94)}
+.djj-btn{font-size:11px;font-weight:700;border-radius:7px;padding:6px 11px;cursor:pointer;white-space:nowrap;font-family:inherit;display:inline-flex;align-items:center;gap:5px;color:#334155;background:#fff;border:1px solid #e2e8f0;transition:background .14s,border-color .14s,color .14s,transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,filter .14s}
+.djj-btn:hover:not(.done){transform:translateY(-2px) scale(1.04);box-shadow:0 8px 18px rgba(0,0,0,.13)}
+.djj-btn:active:not(.done){transform:translateY(0) scale(.95);transition-duration:.06s;box-shadow:0 3px 8px rgba(0,0,0,.12)}
 .djj-btn.assign:hover{background:#e6f6fb;border-color:#7dd3fc;color:#0e7490}
 .djj-btn.confirm:hover{background:#fffbeb;border-color:#fde68a;color:#b45309}
 .djj-btn.email:hover{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
