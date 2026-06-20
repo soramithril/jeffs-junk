@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '278';
+var APP_VERSION = '279';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3360,35 +3360,29 @@ async function renderWillCallCard(){
   var wcJobs=(r.data||[]).map(dbToJob);
   // Merge into local jobs array so action buttons (openDetail, etc.) work
   wcJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
-  if(countEl) countEl.textContent = wcJobs.length ? (wcJobs.length+' job'+(wcJobs.length===1?'':'s')+' awaiting customer call') : '';
+  if(countEl) countEl.textContent = "Contractors call us when the bin's ready · no set pickup date";
   if(!wcJobs.length){
     listEl.innerHTML='<div style="grid-column:1/-1;padding:18px 20px;font-size:13px;color:var(--muted);font-style:italic">No jobs waiting on a customer call.</div>';
     return;
   }
-  var iconLoc='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
-  var iconCal='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
   var rows=wcJobs.map(function(j){
-    var assignedBin=j.binBid?binItems.find(function(b){return b.bid===j.binBid;}):null;
-    var binBadge='';
-    if(assignedBin){
-      var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-      binBadge='<span style="font-size:11px;font-weight:600;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz+' · #'+assignedBin.bid+'</span>';
-    } else if(j.binSize){
-      var sz2=j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-      binBadge='<span style="font-size:11px;font-weight:600;background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.3);border-radius:5px;padding:1px 8px;white-space:nowrap;flex-shrink:0">'+sz2+'</span>';
-    }
-    var addrStr=j.address?j.address.split(',')[0]:'';
-    var tentDate=j.binPickup?'<span style="color:var(--muted);font-size:11px;flex-shrink:0">tentative '+fd(j.binPickup)+'</span>':'';
-    var schedBtn='<button class="btn btn-ghost btn-sm" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07);flex-shrink:0;display:inline-flex;align-items:center;gap:4px">'+iconCal+' Schedule Pickup</button>';
-    return '<div style="padding:8px 10px;border:1px solid var(--border);border-left:4px solid #e67e22;border-radius:0 8px 8px 0;margin:0;background:var(--surface2);cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="openDetail(\''+j.id+'\')">'
-      +jobCrewAvatarsHTML(j)
-      +'<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden;white-space:nowrap;font-size:12px">'
-        +'<span style="flex-shrink:0">'+j.name+'</span>'
-        +binBadge
-        +(tentDate?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span>'+tentDate:'')
-        +(addrStr||j.city?'<span style="color:var(--muted);font-size:12px;flex-shrink:0">·</span><span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis">'+iconLoc+(addrStr?(addrStr+(j.city?' · '+j.city:'')):j.city)+'</span>':'')
-      +'</div>'
-      +'<div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">'+schedBtn+'</div>'
+    var ab=j.binBid?binItems.find(function(b){return b.bid===j.binBid;}):null;
+    var bid=ab?ab.bid:j.binBid;
+    var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
+    var addr=j.address?j.address.split(',')[0]:'';
+    var detail=[sz,(bid?'#'+bid:''),addr,j.city].filter(Boolean).join(' · ');
+    var dropD=j.binDropoff||j.date;
+    var days=dropD?Math.max(0,Math.floor((Date.now()-new Date(dropD+'T12:00:00'))/86400000)):0;
+    var daysPill='<span class="djj-days'+(days>=14?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
+    var bizChip=j.businessName?'<span class="djj-biz">🏢 '+j.businessName+'</span>':'';
+    var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">📞 '+j.phone+'</a>':'';
+    var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
+    return '<div class="djj-row" style="--djj-c:#e67e22" onclick="openDetail(\''+j.id+'\')">'
+      +'<span style="flex:none;width:30px;height:30px;border-radius:8px;background:#f3f0fb;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:14px">🏢</span>'
+      +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+bizChip+'</div>'+(detail?'<div class="djj-sub">'+detail+'</div>':'')+'</div>'
+      +daysPill
+      +phoneBtn
+      +'<div onclick="event.stopPropagation()" style="flex:none;display:flex;gap:6px">'+schedBtn+'</div>'
     +'</div>';
   }).join('');
   listEl.innerHTML=rows;
