@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '282';
+var APP_VERSION = '283';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2009,6 +2009,8 @@ function go(name){
       var parent=n.parentElement;if(parent&&parent.id&&parent.style.display==='none'){parent.style.display='block';var arrow=document.getElementById(parent.id+'-arrow');if(arrow)arrow.style.transform='rotate(90deg)';}
     }
   });
+  var _ai=document.querySelector('.nav-item.active');
+  if(_ai && _ai.closest && _ai.closest('#nav-more')){ var _nm=document.getElementById('nav-more'); if(_nm) _nm.style.display='block'; var _nma=document.getElementById('nav-more-arrow'); if(_nma) _nma.style.transform='rotate(90deg)'; }
   render(name);
   if(el) animateView(el);
   closeSidebar();

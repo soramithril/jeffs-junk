@@ -2024,3 +2024,9 @@ input[type=date],input[type=time]{position:relative;}
 .djj-jump:hover{background:#fff;border-color:#16a34a;color:#16a34a;transform:translateY(-1px);box-shadow:0 5px 12px rgba(22,163,74,.14)}
 .djj-jump:active{transform:translateY(0) scale(.97)}
 .djj-jump-badge{min-width:16px;height:16px;padding:0 5px;border-radius:99px;background:#f0fdf4;color:#16a34a;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+
+/* Sidebar: daily items get a one-line hint; secondary nav collapses under "More tools" */
+.nav-item-daily{align-items:center}
+.nav-item-daily .nav-txt{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.nav-item-daily .nav-hint{font-size:10.5px;font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-item-daily.active .nav-hint{color:var(--accent);opacity:.8}
