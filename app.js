@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '289';
+var APP_VERSION = '290';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2249,7 +2249,7 @@ async function refreshDashBinStats(){
         +'<div style="height:76px"></div>'
         +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:46px;line-height:.9;color:'+numColor+';font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #fff,0 0 7px #fff,0 0 12px #fff">'+inY+'</div>'
         +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700">of '+tot+' &middot; '+out+' out</div>'
-        +'<button onclick="bookBin(\''+s+'\')" style="margin-top:9px;width:100%;background:#f0fdf4;color:#16a34a;border:1px solid #c5edd4;font-family:inherit;font-size:11px;font-weight:700;padding:6px;border-radius:7px;cursor:pointer;transition:background .14s,transform .12s" onmouseover="this.style.background=\'#e3f9ec\'" onmouseout="this.style.background=\'#f0fdf4\'" onmousedown="this.style.transform=\'scale(.96)\'" onmouseup="this.style.transform=\'\'">&#128197; Book</button>'
+        +'<button onclick="bookBin(\''+s+'\')" class="djj-book">&#128197; Book</button>'
       +'</div>'
     +'</div>';
   }).join('');

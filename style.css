@@ -160,6 +160,11 @@ body{
 #nav-more .nav-item{padding:5px 9px;font-size:13px;font-weight:500;color:#1a1a2e;}
 #nav-more .nav-item.active{font-weight:600;}
 #nav-more .nav-item .icon{width:28px;height:28px;border-radius:8px;}
+
+/* Book button on the Bins-available cards — neutral green at rest, fills + lifts on hover */
+.djj-book{margin-top:9px;width:100%;background:#f0fdf4;color:#16a34a;border:1px solid #c5edd4;font-family:inherit;font-size:11px;font-weight:700;padding:6px;border-radius:7px;cursor:pointer;transition:background .14s,border-color .14s,color .14s,transform .16s cubic-bezier(.22,1,.36,1),box-shadow .16s}
+.djj-book:hover{background:#16a34a;color:#fff;border-color:#16a34a;transform:translateY(-2px);box-shadow:0 7px 16px rgba(22,163,74,.34)}
+.djj-book:active{transform:translateY(0) scale(.96);box-shadow:0 2px 6px rgba(22,163,74,.28)}
 .sidebar-footer{padding:16px 24px;border-top:1px solid var(--border);}
 .stats-mini{display:flex;flex-direction:column;gap:8px;}
 .stats-mini-item{display:flex;justify-content:space-between;font-size:12px;}
