@@ -122,9 +122,9 @@ body{
 .logo-sub{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:500;}
 .nav{padding:12px 12px;flex:1;overflow-y:auto;}
 .nav-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:0 12px;margin-bottom:4px;margin-top:12px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text-secondary);transition:all var(--transition);border:none;background:none;width:100%;text-align:left;}
-.nav-item:hover{background:var(--surface2);color:var(--text);}
-.nav-item.active{background:var(--accent-light);color:var(--accent);font-weight:600;border-left:3px solid var(--accent);padding-left:11px;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:8px 11px;border-radius:11px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--text);transition:background .14s,border-color .14s;border:1px solid transparent;background:none;width:100%;text-align:left;margin-bottom:2px;}
+.nav-item:hover{background:#f5f7f4;}
+.nav-item.active{background:#f0fdf4;border-color:#c5edd4;color:#14532d;font-weight:700;}
 .nav-item-action{
   background:linear-gradient(135deg,#22c55e,#16a34a);
   color:#fff;font-weight:600;
@@ -149,7 +149,17 @@ body{
   box-shadow:0 2px 6px rgba(34,197,94,.25);
 }
 .nav-item-action .icon{color:#fff;}
-.nav-item .icon{font-size:16px;width:20px;text-align:center;}
+/* Mockup icon-tile nav: each item's icon sits in a rounded tile (green when active) */
+.nav-item .icon{flex:none;width:34px;height:34px;border-radius:9px;background:#eef1ee;color:#3c5a48;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .14s,color .14s;}
+.nav-item.active .icon{background:var(--accent);color:#fff;}
+.nav-item-action{padding:12px 14px;font-size:14.5px;}
+.nav-item-action .icon{width:auto;height:auto;background:none;border-radius:0;color:#fff;}
+.nav-item-daily .nav-hint{color:var(--muted);}
+.nav-item-daily.active .nav-hint{color:#4d8a64;opacity:1;}
+/* "More tools" sub-items are more compact with smaller tiles */
+#nav-more .nav-item{padding:5px 9px;font-size:13px;font-weight:500;color:#1a1a2e;}
+#nav-more .nav-item.active{font-weight:600;}
+#nav-more .nav-item .icon{width:28px;height:28px;border-radius:8px;}
 .sidebar-footer{padding:16px 24px;border-top:1px solid var(--border);}
 .stats-mini{display:flex;flex-direction:column;gap:8px;}
 .stats-mini-item{display:flex;justify-content:space-between;font-size:12px;}

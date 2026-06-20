@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=283">
+<link rel="stylesheet" href="style.css?v=285">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -93,7 +93,7 @@
     <button class="nav-item nav-item-daily" onclick="go('jobs')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span><span class="nav-txt"><span>All Jobs</span><span class="nav-hint">Find &amp; edit any job</span></span></button>
     <button class="nav-item nav-item-daily" onclick="go('calendar')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span class="nav-txt"><span>Calendar</span><span class="nav-hint">What&#39;s scheduled when</span></span></button>
     <button class="nav-item nav-item-daily" onclick="go('clients')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-txt"><span>Clients</span><span class="nav-hint">Customer list &amp; history</span></span></button>
-    <div class="nav-label" id="nav-more-label" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-more')">More tools <span id="nav-more-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">&#9654;</span></div>
+    <div id="nav-more-label" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:10px;background:var(--surface2);cursor:pointer;user-select:none;margin:10px 0 4px" onclick="toggleNavSection('nav-more')"><span style="font-size:13.5px;font-weight:600;color:var(--text-secondary)">More tools</span><span style="font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:5px">Ops &middot; Bins &middot; Pricing <span id="nav-more-arrow" style="font-size:10px;transition:transform .2s;display:inline-block;transform:rotate(-90deg)">&#9654;</span></span></div>
     <div id="nav-more" style="display:none">
     <button class="nav-item" onclick="go('documents')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span>Documents</span></button>
     <div class="nav-label">Operations</div>
@@ -2251,7 +2251,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=284"></script>
+<script src="app.js?v=285"></script>
 </body>
 </html>
                                                                                                                                                          

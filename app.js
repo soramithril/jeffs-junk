@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '284';
+var APP_VERSION = '285';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2258,16 +2258,21 @@ function renderNeedsYou(){
   var today=todayStr();
   var dt=new Date(today+'T12:00:00'); dt.setDate(dt.getDate()+1);
   var tomorrow=ymdLocal(dt);
+  var dt7=new Date(today+'T12:00:00'); dt7.setDate(dt7.getDate()+7);
+  var sevenOut=ymdLocal(dt7);
   var active=jobs.filter(function(j){
     return j.service==='Bin Rental' && j.status!=='Cancelled' && j.binInstatus!=='pickedup';
   });
   var items=[];
   active.forEach(function(j){
-    if(!(j.emailSent||j.emailConfirmed)) items.push({j:j,kind:'email'});
+    var dropD=j.binDropoff||j.date;
+    var upcoming=dropD && dropD<=sevenOut;            // due within the next 7 days (or already due) — skip far-future bookings
+    if(upcoming && !(j.emailSent||j.emailConfirmed)) items.push({j:j,kind:'email'});
     if(j.binPickup===tomorrow && !j.confirmed) items.push({j:j,kind:'call'});
   });
   var doneToday=active.filter(function(j){
-    return (j.emailSent||j.emailConfirmed) && !(j.binPickup===tomorrow && !j.confirmed);
+    var dropD=j.binDropoff||j.date;
+    return dropD && dropD<=sevenOut && (j.emailSent||j.emailConfirmed) && !(j.binPickup===tomorrow && !j.confirmed);
   }).length;
   el.setAttribute('data-count', items.length);
   renderGreeting();
