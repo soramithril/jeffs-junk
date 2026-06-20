@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '286';
+var APP_VERSION = '287';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2236,7 +2236,7 @@ async function refreshDashBinStats(){
     var numColor=isFull?'#dc3545':'#16a34a';
     var odPill=od>0?'<span style="font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'4-yard-bin','14 yard':'14-yard-bin','20 yard':'20-yard-bin'})[s];
-    var imgHtml=imgKey?'<div style="height:72px;margin:6px 0 2px;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-size:contain;background-position:center;background-repeat:no-repeat'+(isFull?';opacity:.45;filter:grayscale(.3)':'')+'"></div>':'<div style="height:72px"></div>';
+    var imgHtml=imgKey?'<div style="height:101px;margin:6px 0 2px;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-size:contain;background-position:center;background-repeat:no-repeat'+(isFull?';opacity:.45;filter:grayscale(.3)':'')+'"></div>':'<div style="height:101px"></div>';
     return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;min-height:16px;margin-bottom:2px">'
         +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:1px;color:'+ac+'">'+lbl+'</span>'+odPill
