@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '281';
+var APP_VERSION = '282';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -92,11 +92,23 @@ function dashSyncTabCounts(){
   var bo = document.getElementById('dash-tab-n-binsout');
   if(bo){ var s = document.getElementById('s-bins-out-fleet'); bo.textContent = (s && s.textContent) ? s.textContent : _dashCountRows('dash-bins-out-list'); }
   var at = document.getElementById('dash-tab-n-attention'); var _bl = document.getElementById('dash-bins-out-list'); if(at) at.textContent = (_bl && _bl.getAttribute('data-attn')) || 0;
+  updateJumpCounts();
+}
+function updateJumpCounts(){
+  function setC(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  function rowsOf(id,sel){var el=document.getElementById(id);return el?el.querySelectorAll(sel).length:0;}
+  var ny=document.getElementById('dash-needs-you');
+  setC('jb-needsyou',(ny&&ny.getAttribute('data-count'))||0);
+  setC('jb-today',rowsOf('dash-today-jobs','.tjr2'));
+  var s=document.getElementById('s-bins-out-fleet');
+  setC('jb-binsout',(s&&s.textContent)?s.textContent:rowsOf('dash-bins-out-list','.djj-row'));
+  setC('jb-willcall',rowsOf('dash-will-call-list','.djj-row'));
+  setC('jb-booked',rowsOf('dash-today-bookings','.djj-row'));
 }
 (function _dashChipsBoot(){
   function init(){
-    if(!document.getElementById('dash-tab-n-binsout')) return setTimeout(init, 400);
-    ['dash-bins-out-list','dash-attention-list','s-bins-out-fleet'].forEach(function(id){
+    if(!document.getElementById('jb-today')) return setTimeout(init, 400);
+    ['dash-bins-out-list','s-bins-out-fleet','dash-today-jobs','dash-will-call-list','dash-today-bookings','dash-needs-you'].forEach(function(id){
       var el = document.getElementById(id); if(!el || el._dashObs) return;
       el._dashObs = new MutationObserver(dashSyncTabCounts);
       el._dashObs.observe(el, {childList:true, characterData:true, subtree:true});
@@ -2255,6 +2267,7 @@ function renderNeedsYou(){
   var doneToday=active.filter(function(j){
     return (j.emailSent||j.emailConfirmed) && !(j.binPickup===tomorrow && !j.confirmed);
   }).length;
+  el.setAttribute('data-count', items.length);
   if(!items.length){
     el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid #16a34a;background:linear-gradient(135deg,rgba(34,197,94,.08),var(--surface))">'
       +'<span style="font-size:30px;line-height:1">🎉</span>'

@@ -2017,3 +2017,10 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-bin.unassigned{background:#fff7ed;color:#c2410c;border:1px dashed #f0b27a}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
+
+/* Sticky jump-to bar (dashboard) */
+.djj-jumpbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 16px;padding:8px 11px;background:rgba(248,249,250,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:13px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+.djj-jump{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;color:#3c4a40;white-space:nowrap;font-family:inherit;transition:background .14s,border-color .14s,color .14s,transform .12s cubic-bezier(.22,1,.36,1),box-shadow .14s}
+.djj-jump:hover{background:#fff;border-color:#16a34a;color:#16a34a;transform:translateY(-1px);box-shadow:0 5px 12px rgba(22,163,74,.14)}
+.djj-jump:active{transform:translateY(0) scale(.97)}
+.djj-jump-badge{min-width:16px;height:16px;padding:0 5px;border-radius:99px;background:#f0fdf4;color:#16a34a;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
