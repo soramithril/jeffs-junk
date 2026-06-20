@@ -155,20 +155,9 @@
 
   <!-- PAGE HEADER with inline Fleet Status -->
   <div class="page-header" style="align-items:center">
-    <div>
-      <div class="page-title">Dashboard</div>
-      <div class="page-sub" id="today-lbl"></div>
-    </div>
-    <div id="dash-fleet-header" style="display:flex;align-items:center;gap:20px;flex:1;margin:0 24px;">
-      <div style="display:flex;align-items:center;gap:20px;">
-        <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#dc3545;-webkit-text-stroke:0.5px #991b1b" id="s-bins-out-fleet">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Out</span></div>
-        <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:#22c55e;-webkit-text-stroke:0.5px #15803d" id="s-bins-in">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Yard</span></div>
-        <div style="display:flex;align-items:baseline;gap:5px;"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;color:var(--text)" id="s-bins-total">0</span><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total</span></div>
-      </div>
-      <div style="flex:1;display:flex;align-items:center;gap:8px;">
-        <div style="flex:1;height:6px;background:rgba(0,0,0,0.07);border-radius:3px"><div id="s-bins-out-bar" style="height:100%;background:linear-gradient(90deg,#dc3545,#f97316);border-radius:3px;width:0%;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
-        <span id="s-bins-pct-lbl" style="font-size:10px;color:var(--muted);white-space:nowrap">0% deployed</span>
-      </div>
+    <div style="min-width:0">
+      <div id="dash-greeting-sub" style="color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:600;font-size:12px;margin-bottom:2px"></div>
+      <div id="dash-greeting-head" style="font-size:23px;font-weight:800;letter-spacing:-0.6px;color:var(--text)">Here&#39;s your day</div>
     </div>
     <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
     <div id="global-search-wrap" style="position:relative;z-index:1001;flex:0 0 280px;min-width:200px;max-width:380px;margin-left:auto;">
@@ -2262,7 +2251,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=283"></script>
+<script src="app.js?v=284"></script>
 </body>
 </html>
                                                                                                                                                          

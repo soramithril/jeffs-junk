@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '283';
+var APP_VERSION = '284';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2270,6 +2270,7 @@ function renderNeedsYou(){
     return (j.emailSent||j.emailConfirmed) && !(j.binPickup===tomorrow && !j.confirmed);
   }).length;
   el.setAttribute('data-count', items.length);
+  renderGreeting();
   if(!items.length){
     el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid #16a34a;background:linear-gradient(135deg,rgba(34,197,94,.08),var(--surface))">'
       +'<span style="font-size:30px;line-height:1">🎉</span>'
@@ -3019,6 +3020,26 @@ async function renderBinsAttention(){
     +'</div>';
   }).join('');
 }
+// Dashboard greeting — "<date> · Good morning, <name>" + a loose-ends headline.
+function renderGreeting(){
+  var subEl=document.getElementById('dash-greeting-sub');
+  var headEl=document.getElementById('dash-greeting-head');
+  if(!subEl||!headEl) return;
+  var now=new Date();
+  var h=now.getHours();
+  var part=h<12?'Good morning':(h<18?'Good afternoon':'Good evening');
+  var dateStr=now.toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric'});
+  var nameEl=document.getElementById('logged-in-username');
+  var raw=nameEl?(nameEl.textContent||'').trim():'';
+  var nm=(raw && raw!=='—')?raw.split(' ')[0]:'';
+  subEl.textContent=dateStr+' · '+part+(nm?', '+nm:'');
+  var ny=document.getElementById('dash-needs-you');
+  if(!ny || !ny.hasAttribute('data-count')){ headEl.textContent="Here's your day"; return; }
+  var n=parseInt(ny.getAttribute('data-count')||'0',10);
+  headEl.innerHTML = n>0
+    ? "Here's your day — <span style=\"color:var(--accent)\">"+n+" loose end"+(n===1?'':'s')+"</span> to clear"
+    : "Here's your day — <span style=\"color:var(--accent)\">you're all caught up</span> 🎉";
+}
 async function renderDash(){
   // Banner: kick off fetch + re-render every time dashboard renders
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
@@ -3068,7 +3089,7 @@ async function renderDash(){
   // crew assignment). Only seed today's date if the picker has no value yet.
   if(!datePicker.value) datePicker.value = todayS;
   updateDashDateLabel();
-  document.getElementById('today-lbl').textContent = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  renderGreeting();
 
   // Parallel Supabase fetches
   var [
