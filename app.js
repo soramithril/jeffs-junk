@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '276';
+var APP_VERSION = '277';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3119,100 +3119,59 @@ async function renderDash(){
   if(todayCard) todayCard.className = 'chart-card urgency-neutral';
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
-  function makeTodayCat(title,color,list,showBinActions){
-    if(!list.length)return '<div style="margin-bottom:4px"><div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">0</span></div><div style="font-size:13px;color:var(--muted);padding:2px 14px 6px;font-style:italic">No jobs today</div></div>';
-    var showConfirm = showBinActions || title.indexOf('Furniture')>=0;
-    // Sort fixed-time rows to the top
+  function makeTodayCat(title,color,list,isPickup){
+    if(!list.length) return '';
+    var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
       function getTm(j){
-        if(j.service==='Bin Rental') return (showBinActions ? j.binPickupTime : j.binDropoffTime) || '';
+        if(j.service==='Bin Rental') return (isPickup ? j.binPickupTime : j.binDropoffTime) || '';
         if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') return j.fbTime||'';
         if(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') return j.junkTime||'';
         return '';
       }
       var ta=getTm(a), tb=getTm(b);
-      if(ta && !tb) return -1;
-      if(!ta && tb) return 1;
-      if(ta && tb) return ta.localeCompare(tb);
-      return 0;
+      if(ta && !tb) return -1; if(!ta && tb) return 1;
+      if(ta && tb) return ta.localeCompare(tb); return 0;
     });
     return '<div style="margin-bottom:4px">'
       +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
-        var cfm = j.confirmed;
-        var actionBtn = '';
-        if(j.service==='Bin Rental'&&showBinActions&&j.binInstatus==='pickedup'){
-          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markDropped(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#4ade80;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.45);border-radius:6px;padding:5px 12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer" title="Click to undo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Picked Up</button>';
-        } else if(j.service==='Bin Rental'&&showBinActions){
-          actionBtn = '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#ec4899;border-color:rgba(236,72,153,.4);border-radius:6px;padding:5px 14px;font-weight:700;display:inline-flex;align-items:center;gap:5px;cursor:pointer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>Pick Up</button>'
-            +(!cfm?'<button class="btn btn-ghost btn-sm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.3);background:rgba(230,126,34,.07)">📞 Confirm</button>':'');
-        } else if((j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!cfm){
-          var cfmWord = j.service==='Furniture Delivery'?'Drop-Off':'Pickup';
-          actionBtn = '<div class="jdd-wrap" onclick="event.stopPropagation()">'
-            +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.3);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07)" onclick="toggleJdd(this.parentElement)">Confirm '+cfmWord+' ▾</button>'
-            +'<div class="jdd-menu">'
-              +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Mark Confirmed</div>'
-              +'<div class="jdd-divider"></div>'
-              +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">📋 Open Details</div>'
-              +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:\'+j.phone;event.stopPropagation()">📞 '+j.phone+'</div>':'')
-            +'</div>'
-          +'</div>';
-        }
-        var todayAssignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
-        var binBadge = '<span></span>';
-        if(todayAssignedBin){
-          var sz = (j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:13px;font-weight:700;background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.5);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(34,197,94,.3)">'+(showBinActions?'#'+todayAssignedBin.bid:sz+' · #'+todayAssignedBin.bid)+'</span>';
-        } else if(j.binSize){
-          var sz2 = j.binSize.replace(/\s*yard/i,' YD').toUpperCase();
-          binBadge = '<span style="font-size:13px;font-weight:700;background:rgba(230,126,34,.18);color:#e67e22;border:1px dashed rgba(230,126,34,.6);border-radius:6px;padding:5px 12px;text-align:center;white-space:nowrap;letter-spacing:0.4px;text-shadow:0 0 8px rgba(230,126,34,.3)">'+sz2+'</span>';
-        }
-        var assignBinBtn = (j.service==='Bin Rental' && !j.binBid)
-          ? '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.4);white-space:nowrap">📦 Assign</button>'
-          : '';
-        var timeStr = (function(){
-          var st;
-          if(j.service==='Bin Rental') st = showBinActions ? j.binPickupTime : j.binDropoffTime;
-          else if(j.service==='Furniture Delivery'||j.service==='Furniture Pickup') st = j.fbTime;
-          else if(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') st = j.junkTime;
-          return st ? ft(st) : '';
-        })();
-        var hasFixedTime = !!timeStr;
-        var timeCell = hasFixedTime
-          ? '<div class="tjr-time" style="display:flex;flex-direction:column;gap:2px"><span style="color:'+color+';font-weight:700;font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:0.5px;line-height:1;white-space:nowrap">'+timeStr+'</span><span style="font-size:8.5px;font-weight:700;color:'+color+';background:rgba(255,255,255,.04);border:1px solid '+color+';border-radius:3px;padding:1px 5px;text-align:center;letter-spacing:0.5px;align-self:start">FIXED</span></div>'
-          : '<span></span>';
-        var fullAddr = j.address || '';
-        var _cc = _cityColor(j.city);
-        var cityChip = (j.city && _cc) ? '<span style="background:'+_cc.bg+';color:'+_cc.fg+';border:1px solid '+_cc.bd+';border-left:3px solid '+_cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:16px;padding:4px 12px;border-radius:5px;letter-spacing:1.2px;text-transform:uppercase;white-space:nowrap;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;box-sizing:border-box">'+j.city+'</span>' : '';
-        var nameAddrTitle = (j.name + (j.businessName?' — '+j.businessName:'') + (fullAddr ? ' · ' + fullAddr : '')).replace(/"/g,'&quot;');
-        // rgbCsv used by both duration chip and row shadow below
+        var cfm=j.confirmed, isBin=j.service==='Bin Rental';
+        var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
+               : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime
+               : (j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Landscaping') ? j.junkTime : '';
+        var timeStr = st ? ft(st) : '';
+        var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
+        var _cc=_cityColor(j.city);
+        var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz">🏢 '+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Landscaping'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
-        var durChip = durStr ? '<span style="font-size:10.5px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 7px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
-        var bizCell = j.businessName?'<span style="color:var(--accent);font-weight:600;font-size:12px;flex-shrink:0">🏢 '+j.businessName+'</span>':'';
-        var nameAddrCell = '<div class="tjr-name" title="'+nameAddrTitle+'" style="min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden">'+durChip+'<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0">'+j.name+'</span>'+bizCell+(fullAddr?'<span style="color:var(--muted);font-weight:400;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+fullAddr+'</span>':'')+'</div>';
-        var confirmedPill = (showConfirm && cfm && j.service !== 'Bin Rental') ? '<span style="font-size:11px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.1);border-radius:4px;padding:3px 8px">✅</span>' : '';
-        var emailChip = (j.emailSent||j.emailConfirmed)
-          ? '<button class="btn btn-ghost btn-sm" title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#22c55e;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.1);white-space:nowrap">📧 ✓</button>'
-          : '<button class="btn btn-ghost btn-sm" title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.5);white-space:nowrap">📧 Send</button>';
-        var actionsHTML = '<div onclick="event.stopPropagation()" style="display:flex;gap:6px;justify-content:flex-end;align-items:center">'+confirmedPill+emailChip+assignBinBtn+actionBtn+'</div>';
-        // Neutral row background — color is reserved for the section-color border-left
-        // (category accent) and for the shadow on fixed-time rows (status emphasis).
-        // This keeps the dashboard calm overall and lets status colors (red/orange) pop.
-        var rowBg = hasFixedTime
-          ? 'background:var(--surface);border:1px solid var(--border-strong);box-shadow:0 4px 14px rgba('+rgbCsv+',.18)'
-          : 'background:var(--surface);border:1px solid var(--border)';
-        // Pin city + actions widths so city chips align in a vertical column. Time slot is conditional —
-        // without it, name+address (1fr) absorbs the freed 90px so city/actions stay at the same X.
-        var gridCols = hasFixedTime ? '60px 90px minmax(0,1fr) 170px 280px' : '60px minmax(0,1fr) 170px 280px';
-        var rowOpacity = (j.service==='Bin Rental' && j.binInstatus==='pickedup') ? ';opacity:0.55' : '';
-        var crewLeg = (j.service==='Bin Rental') ? (showBinActions?'pickup':'dropoff') : null;
-        return '<div class="today-job-row" style="display:grid;grid-template-columns:'+gridCols+';gap:10px;align-items:center;padding:11px 12px;'+rowBg+';border-left:5px solid '+color+';border-radius:0 8px 8px 0;margin:0 8px 5px;cursor:pointer;font-size:12.5px'+rowOpacity+'" onclick="openDetail(\''+j.id+'\')">'
-          +'<div class="tjr-avatars">'+jobCrewAvatarsHTML(j, crewLeg)+'</div>'
-          +(hasFixedTime?timeCell:'')
-          +nameAddrCell
-          +'<div class="tjr-city" style="justify-self:start;min-width:0;max-width:100%;overflow:hidden">'+cityChip+'</div>'
-          +'<div class="tjr-actions" style="display:flex;align-items:center;gap:10px;justify-self:end">'+binBadge+actionsHTML+'</div>'
+        var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
+        var addr = j.address || '';
+        var binBadge='';
+        if(isBin){
+          var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
+          if(j.binBid){ var ab=binItems.find(function(b){return b.bid===j.binBid;}); var bid=ab?ab.bid:j.binBid;
+            binBadge='<span class="tjr2-bin assigned">'+(isPickup?'#'+bid:sz+' · #'+bid)+'</span>';
+          } else if(j.binSize){ binBadge='<span class="tjr2-bin unassigned">'+sz+' · unassigned</span>'; }
+        }
+        var btns='';
+        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">📦 Assign</button>';
+        if(isBin && isPickup){ btns+=(j.binInstatus==='pickedup')
+          ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
+          : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
+        if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
+          btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">📞 Confirm</button>';
+        btns+=(j.emailSent||j.emailConfirmed)
+          ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
+          : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">📧 Email</button>';
+        var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
+        return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
+          +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="tjr2-binslot">'+binBadge+'</div>'
+          +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
       }).join('')+'</div>';
   }
