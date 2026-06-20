@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '275';
+var APP_VERSION = '276';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2194,9 +2194,12 @@ async function refreshDashBinStats(){
   animCount(document.getElementById('s-bins-in'),binsIn,'','',700);
   var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins,'','',700);
   var mbEl=document.getElementById('m-bins');if(mbEl)mbEl.textContent=binsOut;
+  var fdLbl=document.getElementById('dash-fleet-deployed-lbl');
+  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span style="color:#dc3545;font-weight:800">'+outPct+'%</span>';
   setTimeout(function(){
     var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
     var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% deployed';
+    var fdBar=document.getElementById('dash-fleet-deployed-bar');if(fdBar)fdBar.style.width=outPct+'%';
   },50);
 
   // Minimal fleet card: big number = available, single "X/Y out" subline,
@@ -2209,50 +2212,23 @@ async function refreshDashBinStats(){
     if(!j.binPickup||j.binPickup>=today)return;
     if(sizeOverdue.hasOwnProperty(j.binSize))sizeOverdue[j.binSize]++;
   });
-  var isToday=(dateStr===today);
+  var binAccent={'4 yard':'#16a34a','7 yard':'#f0932b','14 yard':'#0891b2','20 yard':'#dc3545'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
     var isFull=(tot>0&&inY===0);
-    // Per-card availability styling
-    var availLbl=isFull?'Fully Booked':(isToday?'AVAILABLE':'PROJECTED AVAILABLE');
-    var availColor=isFull?'#ff5560':'#22c55e';
-    var availStroke=isFull?'#991b1b':'#15803d';
-    var availShadow=isFull
-      ?'0 2px 10px rgba(220,53,69,.55),0 6px 28px rgba(220,53,69,.3)'
-      :'0 2px 10px rgba(34,197,94,.5),0 6px 24px rgba(34,197,94,.22)';
-    var availLblColor=isFull?'#ff6b75':'var(--muted)';
-    var cardStyle='position:relative;overflow:hidden';
-    if(isFull) cardStyle+=';border-top:5px solid #dc3545;background:linear-gradient(180deg,rgba(220,53,69,0.06) 0%,var(--surface) 60%);box-shadow:inset 0 0 0 1px rgba(220,53,69,0.15)';
-    var imgUrl='';
-    if(s==='4 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/4-yard-bin.png';
-    else if(s==='14 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/14-yard-bin.png';
-    else if(s==='20 yard')imgUrl='https://jeffsjunk.ca/wp-content/uploads/20-yard-bin.png';
-    // V3-C layout: photo zone on top with size chip + status pill, stats horizontal below
-    var photoStyle='position:relative;height:140px;background-color:var(--surface2);border-bottom:1px solid var(--border)';
-    if(imgUrl) photoStyle+=';background-image:url('+imgUrl+');background-size:contain;background-position:center;background-repeat:no-repeat';
-    if(isFull) photoStyle+=';background-color:#fff5f5';
-    var pillHtml='';
-    if(od>0) pillHtml='<div style="position:absolute;top:6px;right:6px;background:rgba(220,53,69,.15);color:#dc3545;font-size:9px;font-weight:700;padding:3px 7px;border-radius:10px;letter-spacing:.4px;white-space:nowrap;z-index:2">⚠ '+od+' OVERDUE</div>';
-    else if(isFull) pillHtml='<div style="position:absolute;top:6px;right:6px;background:rgba(220,53,69,.18);color:#ff6b75;font-size:9px;font-weight:700;padding:3px 7px;border-radius:10px;letter-spacing:.4px;display:flex;align-items:center;gap:4px;white-space:nowrap;z-index:2"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>FULL</div>';
-    var bookBtnStyle=isFull?'background:transparent;color:#ff8a92;border:1px dashed rgba(220,53,69,0.5)':'';
-    var bookBtnLbl=isFull?'📅 Book Anyway':'📅 Book';
-    var stackedLbl = isFull
-      ? 'of '+tot+' — sold out'
-      : (isToday ? 'of '+tot+' available' : 'of '+tot+' projected');
-    return '<div class="bin-size-card" style="'+cardStyle+';padding:0;text-align:center">'
-      +'<div style="'+photoStyle+'">'
-        +pillHtml
-        +'<div style="position:absolute;bottom:6px;left:6px;font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:1.5px;font-weight:900;background:rgba(255,255,255,.88);padding:2px 7px;border-radius:5px;color:var(--text)">'+s.toUpperCase()+'</div>'
+    var ac=binAccent[s]||'#16a34a';
+    var lbl=s.replace(/\s*yard/i,' YD').toUpperCase();
+    var numColor=isFull?'#dc3545':'#16a34a';
+    var odPill=od>0?'<span style="font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;min-height:16px;margin-bottom:2px">'
+        +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:1px;color:'+ac+'">'+lbl+'</span>'+odPill
       +'</div>'
-      +'<div style="padding:12px 12px 14px">'
-        +'<div style="margin-bottom:10px">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:68px;line-height:.9;color:'+availColor+';-webkit-text-stroke:0.5px '+availStroke+';text-shadow:'+availShadow+';font-variant-numeric:tabular-nums">'+inY+'</div>'
-          +'<div style="font-size:10px;color:'+availLblColor+';text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-top:2px">'+stackedLbl+'</div>'
-        +'</div>'
-        +'<button onclick="bookBin(\''+s+'\')" class="bin-book-btn" style="font-size:11px;padding:7px 10px'+(bookBtnStyle?';'+bookBtnStyle:'')+'">'+bookBtnLbl+'</button>'
-      +'</div>'
-      +'</div>';
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:46px;line-height:.9;color:'+numColor+';font-variant-numeric:tabular-nums">'+inY+'</div>'
+      +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700">of '+tot+' &middot; '+out+' out</div>'
+      +'<button onclick="bookBin(\''+s+'\')" style="margin-top:9px;width:100%;background:#f0fdf4;color:#16a34a;border:1px solid #c5edd4;font-family:inherit;font-size:11px;font-weight:700;padding:6px;border-radius:7px;cursor:pointer;transition:background .14s,transform .12s" onmouseover="this.style.background=\'#e3f9ec\'" onmouseout="this.style.background=\'#f0fdf4\'" onmousedown="this.style.transform=\'scale(.96)\'" onmouseup="this.style.transform=\'\'">&#128197; Book</button>'
+    +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
 }
@@ -5436,6 +5412,8 @@ function renderPricing(){
 }
 
 function renderDashPricing(){
+  var _disp=document.getElementById('dash-pricing-display');
+  if(!_disp) return; // pricing card removed from dashboard — nothing to render
   var TAX = 1.13;
   if(!_pricingDDArea && pricingAreas.length) initDashPricingDropdown();
   var area = _pricingDDArea || pricingAreas[0] || '';
