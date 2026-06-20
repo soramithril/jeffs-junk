@@ -292,39 +292,21 @@ async function renderTodayBookings(){
   }
 
   host.innerHTML = list.map(function(j){
-    var ts = j.created_at ? new Date(j.created_at) : null;
-    var tsStr = ts ? _bkRelTime(ts) : '';
-    var cancelled = (j.status === 'Cancelled');
-    var rowOp = cancelled ? ';opacity:.55' : '';
-    var nameStyle = cancelled ? 'text-decoration:line-through;' : '';
-    var svcColor = _bkSvcColor(j.service);
-    var uColor = _bkUserColor(j.created_by||'unknown');
-    var addr = j.address ? _bkEsc(j.address.split(',')[0]) : '';
-    // Bin size badge — same "X YD" treatment as Today's Jobs
-    var sizeBadge = (j.service==='Bin Rental' && j.bin_size)
-      ? '<span style="font-size:11px;font-weight:700;background:rgba(8,145,178,.1);color:#0891b2;border:1px solid rgba(8,145,178,.3);border-radius:5px;padding:2px 8px;white-space:nowrap;flex-shrink:0">'+_bkEsc(j.bin_size.replace(/\s*yard/i,' YD').toUpperCase())+'</span>'
-      : '';
-    // City chip — reuse the dashboard's shared _cityColor palette (matches Today's Jobs)
-    var cc = (typeof _cityColor==='function') ? _cityColor(j.city) : null;
-    var cityChip = (j.city && cc)
-      ? '<span style="background:'+cc.bg+';color:'+cc.fg+';border:1px solid '+cc.bd+';border-left:3px solid '+cc.ac+';font-family:\'Bebas Neue\',sans-serif;font-size:14px;padding:2px 10px;border-radius:5px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;line-height:1.3;flex-shrink:0">'+_bkEsc(j.city)+'</span>'
-      : '';
-    // Email status button — green = sent, orange = needs sending (click opens the email modal)
-    var emailChip = (j.email_sent||j.email_confirmed)
-      ? '<button class="btn btn-ghost btn-sm" title="Email sent — click to view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="font-size:11px;color:#22c55e;border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.1);white-space:nowrap;flex-shrink:0">📧 ✓</button>'
-      : '<button class="btn btn-ghost btn-sm" title="Email not sent — click to send" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')" style="font-size:11px;color:#e67e22;border-color:rgba(230,126,34,.5);white-space:nowrap;flex-shrink:0">📧 Send</button>';
-    return '<div class="today-job-row" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+svcColor+';border-radius:0 8px 8px 0;margin:0 8px 5px;cursor:pointer;font-size:12.5px'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'+
-              '<div style="min-width:0;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden">'+
-                '<span style="color:var(--text);font-weight:600;font-size:13px;flex-shrink:0;'+nameStyle+'">'+_bkEsc(j.name||'—')+'</span>'+
-                (j.service?sb(j.service):'')+
-                (addr?'<span style="color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0">· '+addr+'</span>':'')+
-              '</div>'+
-              '<div style="display:flex;align-items:center;gap:8px;justify-self:end">'+emailChip+sizeBadge+cityChip+'</div>'+
-              '<div style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;justify-self:end;white-space:nowrap">'+
-                '<span style="width:22px;height:22px;border-radius:50%;background:'+uColor+';color:#fff;font-weight:700;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'+_bkEsc(_bkInitial(j.created_by||'?'))+'</span>'+
-                '<span>'+_bkEsc(j.created_by||'—')+'</span>'+
-              '</div>'+
-              '<div style="color:var(--muted);font-size:11px;justify-self:end;white-space:nowrap;min-width:62px;text-align:right">'+tsStr+'</div>'+
-            '</div>';
+    var cancelled=(j.status==='Cancelled');
+    var svcColor=_bkSvcColor(j.service);
+    var ts=j.created_at?new Date(j.created_at):null;
+    var tsStr=ts?_bkRelTime(ts):'';
+    var emailed=(j.email_sent||j.email_confirmed);
+    var emailBtn=emailed
+      ? '<button class="djj-btn done" title="Confirmation email sent — view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">✓ Emailed</button>'
+      : '<button class="djj-btn email" title="Send confirmation email" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">📧 Email</button>';
+    var nameStyle=cancelled?'text-decoration:line-through;':'';
+    var rowOp=cancelled?';opacity:.55':'';
+    return '<div class="djj-row" style="cursor:pointer'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'
+      +'<span style="flex:none;width:9px;height:9px;border-radius:50%;background:'+svcColor+'"></span>'
+      +'<div class="djj-main"><div class="djj-name" style="'+nameStyle+'">'+_bkEsc(j.name||'—')+'</div><div class="djj-sub">'+_bkEsc(j.service||'')+(j.created_by?' · by '+_bkEsc(j.created_by):'')+'</div></div>'
+      +emailBtn
+      +'<span style="flex:none;color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;width:54px;text-align:right">'+tsStr+'</span>'
+    +'</div>';
   }).join('');
 }

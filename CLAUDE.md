@@ -46,7 +46,10 @@ Edit files in place — no temp clones, no copying around. Then:
    - `var APP_VERSION = 'N';` near the top of `app.js`
    - the contents of `version.txt` at repo root
    Without this, users will hit cached JS and not see the fix, and the auto-update banner will misfire.
-2b. If you changed `style.css`, ALSO bump its own cache-buster `<link rel="stylesheet" href="style.css?v=N">` in `index.html` (near the top) — to the same N. This is a SEPARATE query string from `app.js`'s. Forget it and browsers keep serving the old cached stylesheet: new markup renders with class names that have no matching CSS rules, so the page looks broken/unstyled even though the pushed `style.css` file is correct.
+2b. Other files at repo root have their OWN separate `?v=` cache-busters in `index.html` (near the top). If you edit one, bump its query string too — to the same N as this deploy:
+   - `<link rel="stylesheet" href="style.css?v=N">` when you change `style.css`
+   - `<script src="app-bookings.js?v=N">` when you change `app-bookings.js` (the Bookings widget code)
+   These are SEPARATE from `app.js`'s `?v`. Forget one and browsers keep serving the old cached file: e.g. new markup renders with class names that have no matching CSS rules, so the page looks broken/unstyled even though the pushed file is correct. (Whenever `version.txt` changes, also bump `APP_VERSION` in lockstep — otherwise the auto-update banner misfires forever.)
 3. `git add`, `git commit -m "..."`, `git push origin main`. GitHub Pages deploys in ~30s.
 4. Verify live two ways:
    - `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep -ao 'app.js?v=[0-9]*'` — should show the new version (use `-a` because index.html trips ripgrep's binary heuristic).
