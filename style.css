@@ -1976,3 +1976,43 @@ input[type=date],input[type=time]{position:relative;}
   /* Page header: smaller title on phones */
   #view-vehicles .page-header{flex-direction:column;align-items:flex-start;gap:8px}
 }
+
+/* ===== Dashboard redesign — shared ===== */
+/* unified action buttons: neutral at rest, light up to colour on hover */
+.djj-btn{font-size:11px;font-weight:700;border-radius:7px;padding:6px 11px;cursor:pointer;white-space:nowrap;font-family:inherit;display:inline-flex;align-items:center;gap:5px;color:#334155;background:#fff;border:1px solid #e2e8f0;transition:background .14s,border-color .14s,color .14s,transform .12s,box-shadow .14s}
+.djj-btn:active{transform:scale(.94)}
+.djj-btn.assign:hover{background:#e6f6fb;border-color:#7dd3fc;color:#0e7490}
+.djj-btn.confirm:hover{background:#fffbeb;border-color:#fde68a;color:#b45309}
+.djj-btn.email:hover{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
+.djj-btn.call:hover{background:#f0fdf4;border-color:#bbe6cc;color:#16a34a}
+.djj-btn.done{color:#16a34a;background:#f3faf5;border-color:#cdebd6;cursor:default}
+.djj-btn.pickup{color:#fff;background:#db2777;border-color:#db2777}
+.djj-btn.pickup:hover{filter:brightness(1.05)}
+.djj-btn.danger{color:#fff;background:#dc3545;border-color:#dc3545}
+.djj-btn.green{color:#fff;background:#16a34a;border-color:#16a34a}
+/* chips */
+.djj-city{flex:none;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.djj-biz{flex:none;font-size:9.5px;font-weight:700;color:#7c3aed;background:#f3f0fb;border-radius:5px;padding:2px 6px;white-space:nowrap}
+.djj-days{flex:none;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;background:#f1f3f5;color:#475569}
+.djj-days.over{background:#fdecee;color:#dc3545}
+/* generic redesigned list row */
+.djj-row{display:flex;align-items:center;gap:9px;padding:9px 12px;margin:0 10px 6px;border:1px solid #eef0ed;border-left:3px solid var(--djj-c,#cdd5ce);border-radius:8px;background:#fff;transition:background .12s,box-shadow .12s}
+.djj-row:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.djj-row.attn{border-color:#f5c6cb;border-left-color:#dc3545;background:#fff7f7}
+.djj-main{flex:1;min-width:0}
+.djj-name{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djj-sub{font-size:11.5px;color:#8a948c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.djj-sub.attn{color:#c2410c;font-weight:600}
+.djj-section-h{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px;padding:9px 12px 4px}
+
+/* Today's Jobs rows */
+.tjr2{display:flex;align-items:center;gap:9px;padding:9px 12px;margin:0 10px 6px;border:1px solid #eef0ed;border-left:3px solid var(--tjr-c,#cdd5ce);border-radius:8px;background:#fff;cursor:pointer;transition:background .12s,box-shadow .12s}
+.tjr2:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.tjr2.fixed{background:#f4fcf7}
+.tjr2-time{font-family:'Bebas Neue',sans-serif;font-size:15px;line-height:1;flex:none}
+.tjr2-binslot{flex:none;width:132px;display:flex;justify-content:flex-end}
+.tjr2-bin{flex:none;font-size:11px;font-weight:700;border-radius:6px;padding:4px 9px;white-space:nowrap}
+.tjr2-bin.assigned{background:#ecfdf3;color:#047857;border:1px solid #a7e3c4}
+.tjr2-bin.unassigned{background:#fff7ed;color:#c2410c;border:1px dashed #f0b27a}
+.tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
+@media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
