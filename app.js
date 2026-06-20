@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '287';
+var APP_VERSION = '288';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -104,6 +104,9 @@ function updateJumpCounts(){
   setC('jb-binsout',(s&&s.textContent)?s.textContent:rowsOf('dash-bins-out-list','.djj-row'));
   setC('jb-willcall',rowsOf('dash-will-call-list','.djj-row'));
   setC('jb-booked',rowsOf('dash-today-bookings','.djj-row'));
+  var be=rowsOf('dash-today-bookings','.djj-btn.email');
+  var beEl=document.getElementById('jb-booked-emails');
+  if(beEl){ if(be>0){ beEl.textContent='📧 '+be; beEl.style.display='inline-flex'; } else { beEl.style.display='none'; } }
 }
 (function _dashChipsBoot(){
   function init(){
@@ -2236,7 +2239,7 @@ async function refreshDashBinStats(){
     var numColor=isFull?'#dc3545':'#16a34a';
     var odPill=od>0?'<span style="font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'4-yard-bin','14 yard':'14-yard-bin','20 yard':'20-yard-bin'})[s];
-    var imgHtml=imgKey?'<div style="height:101px;margin:6px 0 2px;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-size:contain;background-position:center;background-repeat:no-repeat'+(isFull?';opacity:.45;filter:grayscale(.3)':'')+'"></div>':'<div style="height:101px"></div>';
+    var imgHtml=imgKey?'<div style="height:72px;margin:6px 0 2px;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-size:auto 140%;background-position:center;background-repeat:no-repeat'+(isFull?';opacity:.45;filter:grayscale(.3)':'')+'"></div>':'<div style="height:72px"></div>';
     return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;min-height:16px;margin-bottom:2px">'
         +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:1px;color:'+ac+'">'+lbl+'</span>'+odPill
@@ -2294,9 +2297,11 @@ function renderNeedsYou(){
     var iconBg=isCall?'#fff2e6':'#eaf2ff';
     var icon=isCall?'📞':'✉️';
     var title=isCall?('Confirm pickup — '+j.name):('Send confirmation email — '+j.name);
-    var why=isCall?'pickup tomorrow · confirm bin is ready':'confirmation not sent';
     var szTxt=j.binSize?(' · '+j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):'';
-    var meta='#'+j.id+szTxt+' · '+why;
+    var dropD2=j.binDropoff||j.date;
+    var daysUntil=dropD2?Math.round((new Date(dropD2+'T12:00:00').getTime()-new Date(today+'T12:00:00').getTime())/86400000):null;
+    var goesOut=dropD2?('goes out '+(daysUntil<=0?'today':daysUntil===1?'tomorrow':new Date(dropD2+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · in '+daysUntil+' days')):'';
+    var meta=isCall?('#'+j.id+szTxt+' · pickup tomorrow · confirm bin is ready'):('#'+j.id+szTxt+(goesOut?' · '+goesOut:''));
     var action=isCall
       ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">📞 '+j.phone+'</a>':'')
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
