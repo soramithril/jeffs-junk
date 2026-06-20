@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '288';
+var APP_VERSION = '289';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2239,15 +2239,18 @@ async function refreshDashBinStats(){
     var numColor=isFull?'#dc3545':'#16a34a';
     var odPill=od>0?'<span style="font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'4-yard-bin','14 yard':'14-yard-bin','20 yard':'20-yard-bin'})[s];
-    var imgHtml=imgKey?'<div style="height:72px;margin:6px 0 2px;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-size:auto 140%;background-position:center;background-repeat:no-repeat'+(isFull?';opacity:.45;filter:grayscale(.3)':'')+'"></div>':'<div style="height:72px"></div>';
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;min-height:16px;margin-bottom:2px">'
-        +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:1px;color:'+ac+'">'+lbl+'</span>'+odPill
+    var bgImg=imgKey?'<div style="position:absolute;inset:0;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-repeat:no-repeat;background-position:center 2px;background-size:auto 96px;z-index:0;pointer-events:none'+(isFull?';opacity:.3;filter:grayscale(.4)':';opacity:.95')+'"></div>':'';
+    return '<div style="position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
+      +bgImg
+      +'<div style="position:relative;z-index:1">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;min-height:16px;margin-bottom:2px">'
+          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:1px;color:'+ac+'">'+lbl+'</span>'+odPill
+        +'</div>'
+        +'<div style="height:76px"></div>'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:46px;line-height:.9;color:'+numColor+';font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #fff,0 0 7px #fff,0 0 12px #fff">'+inY+'</div>'
+        +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700">of '+tot+' &middot; '+out+' out</div>'
+        +'<button onclick="bookBin(\''+s+'\')" style="margin-top:9px;width:100%;background:#f0fdf4;color:#16a34a;border:1px solid #c5edd4;font-family:inherit;font-size:11px;font-weight:700;padding:6px;border-radius:7px;cursor:pointer;transition:background .14s,transform .12s" onmouseover="this.style.background=\'#e3f9ec\'" onmouseout="this.style.background=\'#f0fdf4\'" onmousedown="this.style.transform=\'scale(.96)\'" onmouseup="this.style.transform=\'\'">&#128197; Book</button>'
       +'</div>'
-      +imgHtml
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:46px;line-height:.9;color:'+numColor+';font-variant-numeric:tabular-nums">'+inY+'</div>'
-      +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700">of '+tot+' &middot; '+out+' out</div>'
-      +'<button onclick="bookBin(\''+s+'\')" style="margin-top:9px;width:100%;background:#f0fdf4;color:#16a34a;border:1px solid #c5edd4;font-family:inherit;font-size:11px;font-weight:700;padding:6px;border-radius:7px;cursor:pointer;transition:background .14s,transform .12s" onmouseover="this.style.background=\'#e3f9ec\'" onmouseout="this.style.background=\'#f0fdf4\'" onmousedown="this.style.transform=\'scale(.96)\'" onmouseup="this.style.transform=\'\'">&#128197; Book</button>'
     +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
@@ -2297,11 +2300,16 @@ function renderNeedsYou(){
     var iconBg=isCall?'#fff2e6':'#eaf2ff';
     var icon=isCall?'📞':'✉️';
     var title=isCall?('Confirm pickup — '+j.name):('Send confirmation email — '+j.name);
-    var szTxt=j.binSize?(' · '+j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):'';
+    var szClean=j.binSize?(j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):'';
     var dropD2=j.binDropoff||j.date;
     var daysUntil=dropD2?Math.round((new Date(dropD2+'T12:00:00').getTime()-new Date(today+'T12:00:00').getTime())/86400000):null;
-    var goesOut=dropD2?('goes out '+(daysUntil<=0?'today':daysUntil===1?'tomorrow':new Date(dropD2+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · in '+daysUntil+' days')):'';
-    var meta=isCall?('#'+j.id+szTxt+' · pickup tomorrow · confirm bin is ready'):('#'+j.id+szTxt+(goesOut?' · '+goesOut:''));
+    var meta=isCall?[szClean,'pickup tomorrow · confirm bin is ready'].filter(Boolean).join(' · '):szClean;
+    var cdChip='';
+    if(!isCall && dropD2 && daysUntil!=null){
+      var cdc=daysUntil<=0?{bg:'#fdecee',fg:'#dc3545'}:daysUntil===1?{bg:'#fff2e6',fg:'#c2410c'}:daysUntil<=3?{bg:'#fffbeb',fg:'#b45309'}:{bg:'#f0fdf4',fg:'#16a34a'};
+      var cdTxt=daysUntil<=0?'out today':daysUntil===1?'out tomorrow':(new Date(dropD2+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+daysUntil+'d');
+      cdChip='<span style="flex:none;font-size:11.5px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">📅 '+cdTxt+'</span>';
+    }
     var action=isCall
       ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">📞 '+j.phone+'</a>':'')
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
@@ -2309,6 +2317,7 @@ function renderNeedsYou(){
     return '<div style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
       +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title+'</div><div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +cdChip
       +action
     +'</div>';
   }).join('');
