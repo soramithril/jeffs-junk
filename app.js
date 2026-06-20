@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '277';
+var APP_VERSION = '278';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2231,6 +2231,67 @@ async function refreshDashBinStats(){
     +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
+  renderNeedsYou();
+}
+
+// ── NEEDS YOU BEFORE END OF DAY — bin-rental loose ends for today ──────────
+// Bin rentals only, two concerns: (a) confirmation email not yet sent;
+// (b) day-before pickup confirm call (pickup is tomorrow and not confirmed).
+// Reads the in-memory `jobs` array (populated by refreshDashBinStats above).
+function renderNeedsYou(){
+  var el=document.getElementById('dash-needs-you');
+  if(!el) return;
+  var today=todayStr();
+  var dt=new Date(today+'T12:00:00'); dt.setDate(dt.getDate()+1);
+  var tomorrow=ymdLocal(dt);
+  var active=jobs.filter(function(j){
+    return j.service==='Bin Rental' && j.status!=='Cancelled' && j.binInstatus!=='pickedup';
+  });
+  var items=[];
+  active.forEach(function(j){
+    if(!(j.emailSent||j.emailConfirmed)) items.push({j:j,kind:'email'});
+    if(j.binPickup===tomorrow && !j.confirmed) items.push({j:j,kind:'call'});
+  });
+  var doneToday=active.filter(function(j){
+    return (j.emailSent||j.emailConfirmed) && !(j.binPickup===tomorrow && !j.confirmed);
+  }).length;
+  if(!items.length){
+    el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid #16a34a;background:linear-gradient(135deg,rgba(34,197,94,.08),var(--surface))">'
+      +'<span style="font-size:30px;line-height:1">🎉</span>'
+      +'<div><div style="font-size:16px;font-weight:800;color:#14532d">All caught up</div>'
+      +'<div style="font-size:13px;color:var(--muted)">Every bin-rental confirmation email is sent and every day-before pickup call is made.</div></div>'
+    +'</div>';
+    return;
+  }
+  var rowsHtml=items.map(function(it){
+    var j=it.j, isCall=it.kind==='call';
+    var ac=isCall?'#e67e22':'#2563eb';
+    var bg=isCall?'#fffaf5':'#f9fbfd';
+    var iconBg=isCall?'#fff2e6':'#eaf2ff';
+    var icon=isCall?'📞':'✉️';
+    var title=isCall?('Confirm pickup — '+j.name):('Send confirmation email — '+j.name);
+    var why=isCall?'pickup tomorrow · confirm bin is ready':'confirmation not sent';
+    var szTxt=j.binSize?(' · '+j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):'';
+    var meta='#'+j.id+szTxt+' · '+why;
+    var action=isCall
+      ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">📞 '+j.phone+'</a>':'')
+        +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
+      : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>';
+    return '<div style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+      +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title+'</div><div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +action
+    +'</div>';
+  }).join('');
+  el.innerHTML='<div class="chart-card" style="padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
+    +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;padding:0 4px">'
+      +'<span style="width:9px;height:9px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.14)"></span>'
+      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#14532d">Needs you before end of day</span>'
+      +'<span style="margin-left:auto;font-size:12px;color:#4d8a64;font-weight:600">'+items.length+' left &middot; '+doneToday+' done</span>'
+    +'</div>'
+    +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
+    +rowsHtml
+  +'</div>';
 }
 // Legacy aliases — any old calls route to the new Supabase-powered function
 function updateDashBinStats(){refreshDashBinStats();}
