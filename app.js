@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '291';
+var APP_VERSION = '292';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -4197,7 +4197,7 @@ async function renderLiveJobs(){
         vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
       }
     }
-    return '<div data-tour="livejobs-row" class="lj-row '+statusCls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
+    return '<div class="lj-row '+statusCls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
         +jobCrewAvatarsHTML(j)
@@ -13148,13 +13148,13 @@ async function renderCrew(){
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545"></span> Time off</span>';
 
   var html='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
-    +'<div data-tour="crew-weeknav" style="display:flex;align-items:center;gap:6px">'
+    +'<div style="display:flex;align-items:center;gap:6px">'
       +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">‹</button>'
       +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' – '+fd(weS)+(_crewWeekOffset===0?' · This week':'')+'</span>'
       +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">›</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
     +'</div>'
-    +'<div data-tour="crew-legend" style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
   +'</div>';
 
   html+='<div data-tour="crew-grid" style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">'
