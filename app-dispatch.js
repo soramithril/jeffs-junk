@@ -454,10 +454,10 @@ async function renderDispatch(){
   var swapPairs = Object.keys(swapPartner).length / 2;
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
-  html += '<div class="page-sub">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
+  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
   html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
   // Connected date stepper
-  html += '<div style="display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+  html += '<div data-tour="dispatch-datepicker" style="display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
   html += '<button onclick="dispatchShiftDate(-1)" title="Previous day" style="background:transparent;border:0;padding:8px 14px;color:var(--text);cursor:pointer;font-size:18px;line-height:1;border-right:1px solid var(--border);font-family:inherit">&lsaquo;</button>';
   html += '<input type="date" value="'+_dispatchDate+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:transparent;border:0;color:var(--text);padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-width:140px;text-align:center">';
   html += '<button onclick="dispatchShiftDate(1)" title="Next day" style="background:transparent;border:0;padding:8px 14px;color:var(--text);cursor:pointer;font-size:18px;line-height:1;border-left:1px solid var(--border);font-family:inherit">&rsaquo;</button>';
@@ -466,7 +466,7 @@ async function renderDispatch(){
   html += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Today</button>';
   // Balance routes (primary action, icon, pushed to right via margin-left:auto)
   html += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  html += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
+  html += '<button data-tour="dispatch-fill" onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
   html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>';
   html += 'Fill unassigned';
   html += '</button>';
@@ -482,13 +482,13 @@ async function renderDispatch(){
   html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">3.</strong> Assign each stop</span>';
   html += '<span style="margin-left:6px"><span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(13,110,253,.18);color:#0d6efd;font-size:10px;font-weight:700;align-items:center;justify-content:center;vertical-align:-3px">P</span> = pickup &nbsp; <span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(234,179,8,.18);color:#eab308;font-size:10px;font-weight:700;align-items:center;justify-content:center;vertical-align:-3px">D</span> = delivery &nbsp;&middot;&nbsp; times are rough estimates</span>';
   html += '</div>';
-  html += '<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
+  html += '<div data-tour="dispatch-combo-info" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
   html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
   html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
   html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">COMBO</span>';
   html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
   html += '</div></div>';
-  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
+  html += '<div data-tour="dispatch-working" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Working today &mdash; click to toggle</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
   if(!crewMembers.length){
@@ -508,7 +508,7 @@ async function renderDispatch(){
     });
   }
   html += '</div></div>';
-  html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, null)" style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;min-height:60px">';
+  html += '<div data-tour="dispatch-unassigned" ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, null)" style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;min-height:60px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Unassigned ('+unassigned.length+')</div>';
   if(!unassigned.length){
     html += '<div style="font-size:13px;color:var(--muted);font-style:italic">No unassigned jobs. Drag a card here to unassign.</div>';
@@ -519,7 +519,7 @@ async function renderDispatch(){
   }
   html += '</div>';
   if(laneIds.length){
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">';
+    html += '<div data-tour="dispatch-lanes" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">';
     laneIds.forEach(function(id){
       var crew = crewMembers.find(function(c){return c.id===id;});
       if(!crew) return;

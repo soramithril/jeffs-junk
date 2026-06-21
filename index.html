@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=290">
+<link rel="stylesheet" href="style.css?v=291">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -108,16 +108,13 @@
     <div class="nav-label">Quotes &amp; Pricing</div>
     <button class="nav-item" onclick="go('drdcalc')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="12" y1="10" x2="14" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="12" y1="14" x2="14" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="12" y1="18" x2="14" y2="18"/><line x1="16" y1="18" x2="16.01" y2="18"/></svg></span><span>Furniture Quote</span></button>
     <button class="nav-item" onclick="go('pricing')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Competition Pricing</span></button>
-    <div class="nav-label" id="nav-analytics-label" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-analytics')">Insights <span id="nav-analytics-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▶</span></div>
-    <div id="nav-analytics" style="display:none">
+    <div class="nav-label" id="nav-settings-label" style="display:none;cursor:pointer;user-select:none;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-settings')">Admin <span id="nav-settings-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▶</span></div>
+    <div id="nav-settings" style="display:none">
     <button class="nav-item" onclick="go('bookings')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg></span><span>Bookings</span></button>
     <button class="nav-item" onclick="go('analytics')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Analytics</span></button>
     <button class="nav-item" onclick="go('leaderboard')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7.5 4 8 7 8 7s.5-3 3.5-3a2.5 2.5 0 0 1 0 5H10"/><path d="M6 9h4v11H6z"/><path d="M10 9h4v11h-4z" opacity=".5"/><path d="M14 9h4v11h-4z" opacity=".3"/></svg></span><span>Driver Leaderboard</span></button>
     <button class="nav-item" onclick="go('utilization')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span><span>Bin Utilization</span></button>
     <button class="nav-item" onclick="go('advisor')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span>AI Advisor</span></button>
-    </div>
-    <div class="nav-label" id="nav-settings-label" style="display:none;cursor:pointer;user-select:none;align-items:center;justify-content:space-between" onclick="toggleNavSection('nav-settings')">Settings <span id="nav-settings-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(-90deg)">▶</span></div>
-    <div id="nav-settings" style="display:none">
     <button class="nav-item" onclick="go('ourprices')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Bin &amp; Junk Prices</span></button>
     <button class="nav-item" onclick="openFurniturePrices()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18v3M20 18v3"/><path d="M3 10V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/><path d="M3 18v-2a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2H3z"/><path d="M7 10V8M17 10V8"/></svg></span><span>Furniture Prices</span></button>
     <button class="nav-item" onclick="openCrewManager()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Crew Members</span></button>
@@ -127,6 +124,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
+    <button class="nav-item" onclick="openHelp()" title="How to use this app — guides &amp; tour" style="margin-bottom:12px"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span>How to use this app</span></button>
     <div class="stats-mini">
       <div class="stats-mini-item"><span class="stats-mini-label">Jobs This Week</span><span class="stats-mini-value" id="m-active">0</span></div>
       <div class="stats-mini-item"><span class="stats-mini-label">Bins Out</span><span class="stats-mini-value" id="m-bins">0</span></div>
@@ -360,7 +358,7 @@
   <div class="page-header">
     <div><div class="page-title">All Jobs</div><div class="page-sub">Manage all service orders</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-ghost" onclick="openEditPresets()">⚙️ Email Presets</button>
+      <button class="btn btn-ghost" data-tour="jobs-email-presets" onclick="openEditPresets()">⚙️ Email Presets</button>
     </div>
   </div>
   <div id="jobs-filters-area" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
@@ -436,7 +434,7 @@
       </div>
 
       <!-- Search -->
-      <input class="search-input" type="text" placeholder="🔍 Search name, phone, address, city..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:300px;margin-left:auto;align-self:flex-end">
+      <input class="search-input" data-tour="jobs-search" type="text" placeholder="🔍 Search name, phone, address, city..." oninput="doJobSearch(this.value)" style="flex:1;min-width:160px;max-width:300px;margin-left:auto;align-self:flex-end">
 
     </div>
   </div>
@@ -506,9 +504,9 @@
     <button class="cal-nav" onclick="shiftMonth(-1)">&#8249;</button>
     <div class="cal-month" id="cal-lbl"></div>
     <button class="cal-nav" onclick="shiftMonth(1)">&#8250;</button>
-    <button class="btn btn-ghost btn-sm" onclick="calToday()">Today</button>
+    <button class="btn btn-ghost btn-sm" data-tour="calendar-today" onclick="calToday()">Today</button>
   </div>
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:7px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+  <div data-tour="calendar-legend" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:7px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
     <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-right:2px;">Key:</span>
     <span style="font-size:11px;font-weight:600;color:#22c55e;">🚛 Bin Drop-off</span>
     <span style="color:var(--border)">·</span>
@@ -555,7 +553,7 @@
     <!-- Per-service min/max range filters -->
     <div id="client-range-panel" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
       <!-- Panel header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;" onclick="toggleClientRangePanel()">
+      <div data-tour="clients-range-filter" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;" onclick="toggleClientRangePanel()">
         <div style="display:flex;align-items:center;gap:8px;">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--accent);flex-shrink:0"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           <span style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)">Filter by Job Count</span>
@@ -681,7 +679,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <input type="month" id="report-month" class="bin-date-picker" style="width:150px">
-        <button class="btn btn-primary" onclick="openMonthlyReport()">Generate Report</button>
+        <button class="btn btn-primary" data-tour="analytics-generate-report" onclick="openMonthlyReport()">Generate Report</button>
         <button class="btn btn-ghost" onclick="emailMonthlyReport()">📧 Email Report</button>
       </div>
     </div>
@@ -948,7 +946,7 @@
 
 <!-- ═══════════════ BIN MAP ═══════════════ -->
 <div id="view-binmap" class="view">
-  <div class="page-header">
+  <div class="page-header" data-tour="binmap-header">
     <div><div class="page-title page-title-sm">Bin Map</div><div class="page-sub">Currently rented bins only</div></div>
   </div>
   <div class="map-tip">📍 Only showing bins currently out on active rentals · Use full addresses for accurate pins</div>
@@ -1013,7 +1011,7 @@
       
       <button class="btn btn-ghost" onclick="openBinImport()" title="Import bins from CSV">📥 Import CSV</button>
       <button class="btn btn-ghost" onclick="openBinHistoryImport()" title="Import legacy bin history">📜 Import History</button>
-      <button class="btn btn-primary" onclick="openAddBin()">+ Add Bin</button>
+      <button class="btn btn-primary" data-tour="bininventory-addbin" onclick="openAddBin()">+ Add Bin</button>
     </div>
   </div>
   <div class="fleet-stats" id="fleet-stats"></div>
@@ -1303,7 +1301,7 @@
       <button class="btn btn-ghost" onclick="openCrewManager()">Manage Crew Members</button>
     </div>
   </div>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Each row is an employee, each column a day. Colored chips are the jobs they're assigned to — pulled from the jobs board, so assigning someone on a job or in Dispatch shows up here. Click <strong>+ off</strong> in any day to book time off (whole day or a time window).</div>
+  <div data-tour="crew-howto" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Each row is an employee, each column a day. Colored chips are the jobs they're assigned to — pulled from the jobs board, so assigning someone on a job or in Dispatch shows up here. Click <strong>+ off</strong> in any day to book time off (whole day or a time window).</div>
   <div id="crew-page-list"></div>
 </div>
 
@@ -2242,16 +2240,56 @@
 <button id="back-to-top" onclick="scrollToTop()" title="Back to top" aria-label="Back to top" style="display:none;position:fixed;bottom:90px;right:24px;z-index:400;width:46px;height:46px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);box-shadow:var(--shadow-md);cursor:pointer;align-items:center;justify-content:center;transition:background .15s,color .15s,transform .15s" onmouseover="this.style.background='var(--accent)';this.style.color='#fff';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='var(--surface)';this.style.color='var(--text)';this.style.transform='translateY(0)'">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
 </button>
-<script src="app-documents.js?v=195"></script>
+<!-- ═══════════ ONBOARDING: help button, manual & spotlight tour (v=291) ═══════════ -->
+<button id="help-fab" class="help-fab" onclick="openHelp()" title="Help &amp; guides" aria-label="Help and guides">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+</button>
+<div class="modal-overlay" id="help-modal">
+  <div class="modal" style="width:780px;max-width:96vw">
+    <div class="modal-header">
+      <div class="modal-title">📖 How to use Jeff's Junk</div>
+      <button class="modal-close" onclick="closeM('help-modal')" aria-label="Close">&#x2715;</button>
+    </div>
+    <button class="hm-tour-cta" onclick="playFullTour()">
+      <span class="hm-tour-ico"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+      <span class="hm-tour-txt"><h4>Take the full tour</h4><p>A quick guided walkthrough of the main screens — about 60 seconds.</p></span>
+      <span class="hm-tour-go"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+    </button>
+    <div class="hm-search-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="hm-search" class="hm-search" type="text" placeholder="Search guides — e.g. how to add a bin, dispatch a job" oninput="onHelpSearch(this.value)">
+    </div>
+    <div class="hm-chips" id="hm-chips"></div>
+    <div class="hm-grid" id="hm-grid"></div>
+  </div>
+</div>
+<div id="tour-overlay" class="tour-overlay" onclick="if(event.target===this)endTour()">
+  <div id="tour-ring" class="tour-ring"></div>
+  <div id="tour-tip" class="tour-tip">
+    <div class="tour-tip-step">Step <span id="tour-n">1</span> of <span id="tour-tot">5</span></div>
+    <div class="tour-tip-title" id="tour-title"></div>
+    <div class="tour-tip-body" id="tour-body"></div>
+    <div class="tour-tip-foot">
+      <button class="tour-skip" onclick="endTour()">Skip</button>
+      <div class="tour-prog"><div class="tour-prog-fill" id="tour-prog-fill"></div></div>
+      <div class="tour-nav">
+        <button class="btn btn-ghost btn-sm" id="tour-back" onclick="tourPrev()">Back</button>
+        <button class="btn btn-primary btn-sm" id="tour-next" onclick="tourNext()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="app-documents.js?v=291"></script>
 <script src="app-drdcalc.js?v=171"></script>
-<script src="app-dispatch.js?v=202"></script>
+<script src="app-dispatch.js?v=291"></script>
 <script src="app-leaderboard.js?v=210"></script>
 <script src="app-analytics.js?v=201"></script>
 <script src="app-utilization.js?v=196"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=290"></script>
+<script src="app.js?v=291"></script>
+<script src="app-onboarding.js?v=291"></script>
 </body>
 </html>
                                                                                                                                                          

@@ -16,7 +16,7 @@ function renderDocuments(){
   el.innerHTML = groups.map(function(g, i){
     var docs = DOCUMENTS.filter(function(d){ return d.group === g; });
     if(!docs.length) return '';
-    return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:'+(i===0?'4px':'28px')+' 0 10px">'+g+'</div>'
+    return '<div data-tour="documents-group-'+g.toLowerCase().replace(/[^a-z]+/g,'-').replace(/^-|-$/g,'')+'" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:'+(i===0?'4px':'28px')+' 0 10px">'+g+'</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">'
       + docs.map(docCard).join('')
       + '</div>';

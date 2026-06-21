@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '290';
+var APP_VERSION = '291';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -4197,7 +4197,7 @@ async function renderLiveJobs(){
         vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
       }
     }
-    return '<div class="lj-row '+statusCls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
+    return '<div data-tour="livejobs-row" class="lj-row '+statusCls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
         +jobCrewAvatarsHTML(j)
@@ -9636,6 +9636,8 @@ db.auth.onAuthStateChange(function(event, session) {
     currentUser = null;
     canDelete = false;
     appLoaded = false;
+    document.body.classList.remove('signed-in');
+    endTour();
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-username').focus();
     setUserCardSignedOut();
@@ -9777,9 +9779,9 @@ async function onLoginSuccess() {
   currentUser.displayName = uname;
   setUserCardSignedIn(uname, role);
   applyDeleteVisibility();
-  applyAnalyticsVisibility();
   applySettingsVisibility();
   document.getElementById('login-screen').style.display = 'none';
+  document.body.classList.add('signed-in');
   resetInactivityTimer();
   loadAllFromSupabase();
 }
@@ -9789,20 +9791,8 @@ function applyDeleteVisibility() {
     el.style.display = canDelete ? '' : 'none';
   });
 }
-function applyAnalyticsVisibility(){
-  var nav=document.getElementById('nav-analytics');
-  var navLabel=document.getElementById('nav-analytics-label');
-  if(canAccessAnalytics()){
-    if(navLabel)navLabel.style.display='';
-  } else {
-    if(nav)nav.style.display='none';
-    if(navLabel)navLabel.style.display='none';
-  }
-}
-// Settings section is manager-only — same access list as Analytics.
-// Mirrors applyAnalyticsVisibility exactly so the two collapsible nav sections
-// look and behave identically (label renders block → arrow sits next to the text;
-// the group's open/closed state is owned solely by toggleNavSection).
+// Admin section (reports + settings) is manager-only — gated by canAccessAnalytics.
+// The label renders for admins; the group's open/closed state is owned by toggleNavSection.
 function applySettingsVisibility(){
   var nav=document.getElementById('nav-settings');
   var navLabel=document.getElementById('nav-settings-label');
@@ -13158,16 +13148,16 @@ async function renderCrew(){
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545"></span> Time off</span>';
 
   var html='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
-    +'<div style="display:flex;align-items:center;gap:6px">'
+    +'<div data-tour="crew-weeknav" style="display:flex;align-items:center;gap:6px">'
       +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">‹</button>'
       +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' – '+fd(weS)+(_crewWeekOffset===0?' · This week':'')+'</span>'
       +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">›</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
     +'</div>'
-    +'<div style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
+    +'<div data-tour="crew-legend" style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
   +'</div>';
 
-  html+='<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">'
+  html+='<div data-tour="crew-grid" style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">'
     +'<table style="width:100%;min-width:760px;table-layout:fixed;border-collapse:collapse">'
     +'<thead><tr>'
     +'<th style="width:128px;text-align:left;padding:9px 10px;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Crew</th>';
