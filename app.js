@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '292';
+var APP_VERSION = '293';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -9861,6 +9861,10 @@ var defaultPresets = {
   bin_cancelled: {
     subject: 'Your Bin Rental – Cancellation Confirmation',
     body: 'Hi {name},\n\nThis confirms that your bin rental scheduled for drop-off on {dropoffDate} has been cancelled.\n\nIf this was a mistake, or you\'d like to rebook for another date, just give us a call or reply to this email.\n\nThank you for considering Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+  },
+  bin_extension: {
+    subject: 'Your Bin Rental – Extension Confirmation',
+    body: 'Hi {name},\n\nThis confirms that your {binSize} bin rental has been extended.\n\nExtension rate: $25 per day, billed for each additional day past your original pick-up date of {pickupDate}.\n\nWhen you\'re ready for pick-up, just give us a call or reply to this email and we\'ll schedule it.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   }
 };
 
@@ -9963,8 +9967,8 @@ function sendEmail() {
 }
 
 function openEditPresets() {
-  var keys = ['bin_dropoff','bin_pickup','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
-  var labels = {bin_dropoff:'🚛 Bin Drop-off',bin_pickup:'🚚 Bin Pick-up',junk_removal:'Junk Removal',furniture_bank:'🛋️ Furniture Bank',junk_quote:'📋 Junk Quote',bin_cancelled:'🚫 Bin Cancelled'};
+  var keys = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
+  var labels = {bin_dropoff:'🚛 Bin Drop-off',bin_pickup:'🚚 Bin Pick-up',bin_extension:'🗓️ Bin Extension',junk_removal:'Junk Removal',furniture_bank:'🛋️ Furniture Bank',junk_quote:'📋 Junk Quote',bin_cancelled:'🚫 Bin Cancelled'};
   var html = '';
   keys.forEach(function(k) {
     var p = getPreset(k);
@@ -9980,7 +9984,7 @@ function openEditPresets() {
 }
 
 function savePresets() {
-  var keys = ['bin_dropoff','bin_pickup','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
+  var keys = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
   keys.forEach(function(k) {
     var s = document.getElementById('preset-subj-' + k);
     var b = document.getElementById('preset-body-' + k);
