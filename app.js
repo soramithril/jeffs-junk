@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '294';
+var APP_VERSION = '295';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7947,14 +7947,24 @@ function bookBin(size, presetDays){
     }
   },200);
 }
+// A Landscaping job created with no contact name stores its ADDRESS as the name,
+// so the address renders everywhere a name normally appears. For the two places a
+// derived address must NOT masquerade as a real name — the editable name field and
+// email greetings — realName() returns '' so they stay truly nameless (and a re-save
+// re-derives the current address, so it never goes stale).
+function realName(j){
+  if(j.service==='Landscaping' && j.name && j.name===j.address) return '';
+  return j.name || '';
+}
 function openEdit(id){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
   editId=id;closeM('detail-modal');renderClientSelectOptions();
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
     setFormSvc(j.service||'');document.getElementById('f-status').value=j.status||'';
-    // Populate names from job's names array, falling back to single name
-    var editNames=j.names&&j.names.length?j.names:[j.name||''];
+    // Populate names from job's names array, falling back to single name.
+    // realName() blanks an address-derived Landscaping name so the field stays empty.
+    var editNames=j.names&&j.names.length?j.names:[realName(j)];
     document.getElementById('f-names-wrap').innerHTML=editNames.map(function(n){return _jobNameRow(n);}).join('')||_jobNameRow('');
     // Populate phones from job's phones array, falling back to single phone
     var editPhones=j.phones&&j.phones.length?j.phones:(j.phone?[{num:j.phone,ext:'',type:'cell'}]:[]);
@@ -8409,6 +8419,12 @@ async function saveJob(e){
       saveSingleClient(cl);
     }
   }
+
+  // Landscaping with no contact name: display the address in place of the name.
+  // Stored as the job name so it renders everywhere a name appears. Set AFTER the
+  // client blocks above so it never auto-creates a client named after an address;
+  // the edit form / email greeting use realName() to keep it truly nameless.
+  if(svc==='Landscaping' && !names.length){ job.name = job.address; }
 
   // Replace local job in memory (DB-side change history is handled by the
   // `log_job_changes` Postgres trigger — do NOT insert into job_changes here).
@@ -9880,7 +9896,7 @@ function fillEmailTemplate(template, j) {
   var pickupDate = j.binPickup || '';
   var duration = j.binDuration || '';
   return template
-    .replace(/{name}/g, j.name || '')
+    .replace(/{name}/g, realName(j))
     .replace(/{binSize}/g, j.binSize || 'bin')
     .replace(/{date}/g, fd(schedDate) || '')
     .replace(/{dropoffDate}/g, fd(dropoffDate) || '')
