@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '293';
+var APP_VERSION = '294';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -8152,7 +8152,7 @@ async function saveJob(e){
   var errs = [];
   var firstErrField = null;
   if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); if(!firstErrField) firstErrField='f-svc'; }
-  if(!names.length)  { showErr('f-names');     errs.push('At least one contact name is required.'); if(!firstErrField) firstErrField='f-names-wrap'; }
+  if(!names.length && svc!=='Landscaping')  { showErr('f-names');     errs.push('At least one contact name is required.'); if(!firstErrField) firstErrField='f-names-wrap'; }
   if(!date && !landscapeNoDate) { showErr('f-date'); errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
   if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='f-bsize'; }
