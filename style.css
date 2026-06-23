@@ -878,6 +878,10 @@ input[type=date],input[type=time]{position:relative;}
   /* Page header new job button full width on mobile */
   #view-dashboard .page-header{flex-direction:column;align-items:flex-start;gap:10px;}
   #view-dashboard .page-header>div:last-child{width:100%;display:flex;flex-direction:column;gap:8px;}
+  /* Global search: its inline flex:0 0 280px is read as a 280px HEIGHT once the
+     page-header becomes a column on mobile, ballooning the bar into a floating box.
+     Collapse it to the input's height and span full width. */
+  #global-search-wrap{flex:0 0 auto!important;width:100%!important;max-width:none!important;min-width:0!important;margin-left:0!important;}
   #view-dashboard .page-header .btn-primary{width:100%;justify-content:center;}
   #dash-fleet-header{width:100%;justify-content:center;padding:6px 16px!important;}
   /* Fleet header metrics: compact on mobile */
