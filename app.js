@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '304';
+var APP_VERSION = '305';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2743,7 +2743,7 @@ async function refreshDashJobs(){
   var total = allDay.length;
   // Calls to make = bin/furniture jobs still unconfirmed that day; emails = jobs whose email hasn't gone out
   var callsNeeded = allDay.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
-  var emailsNeeded = allDay.filter(function(j){return !(j.emailSent||j.emailConfirmed);}).length;
+  var emailsNeeded = allDay.filter(function(j){return j.service!=='Landscaping' && !(j.emailSent||j.emailConfirmed);}).length;
   setDashJobCountBadge(total);
 
   // Update count subheading — same flashy chips as the today view (shared helper)
@@ -2814,7 +2814,7 @@ async function refreshDashJobs(){
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
         if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
           btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">📞 Confirm</button>';
-        btns+=(j.emailSent||j.emailConfirmed)
+        if(j.service!=='Landscaping') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
           : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">📧 Email</button>';
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
@@ -3230,7 +3230,7 @@ async function renderDash(){
   // Count line for sub-header — render as color-coded pill chips so it matches the
   // tinted job rows below and is scannable at a glance on heavy days.
   setDashJobCountBadge(allToday.length);
-  var emailsToday = allToday.filter(function(j){return !(j.emailSent||j.emailConfirmed);}).length;
+  var emailsToday = allToday.filter(function(j){return j.service!=='Landscaping' && !(j.emailSent||j.emailConfirmed);}).length;
   var countEl = document.getElementById('dash-today-count');
   if(countEl) countEl.innerHTML = dashCountChipsHTML({
     dropoffs: todayBinDropoffs.length,
@@ -3298,7 +3298,7 @@ async function renderDash(){
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
         if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
           btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">📞 Confirm</button>';
-        btns+=(j.emailSent||j.emailConfirmed)
+        if(j.service!=='Landscaping') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
           : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">📧 Email</button>';
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
@@ -3415,40 +3415,35 @@ function renderPossibleJobsList(){
   body.innerHTML=list.map(function(j){
     var addr=((j.address||'')+(j.city?', '+j.city:'')).trim();
     var phone=(j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext.'+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'');
-    var email=(j.emails&&j.emails.length)?j.emails.join(', '):'';
     var custName=(j.names&&j.names.length)?j.names.join(', '):(j.name||'—');
     var items=_notesToItems(j.items||'');
     var photos=j.photos||[];
-    // One labelled cell; skipped entirely when the value is empty.
-    function info(label,val){ return val ? '<div style="min-width:0"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">'+label+'</div><div style="font-size:13px;word-break:break-word;margin-top:1px">'+val+'</div></div>' : ''; }
-    var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
-    var emailLink=email?email.split(', ').map(function(e){return '<a href="mailto:'+e+'" onclick="event.stopPropagation()" style="color:var(--accent)">'+escHtml(e)+'</a>';}).join(', '):'';
-    var infoGrid='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 16px;margin-top:10px">'
+    function info(label,val){ return val ? '<div style="min-width:0"><div class="pj-lbl">'+label+'</div><div class="pj-val">'+val+'</div></div>' : ''; }
+    var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
+    // No email / no pricing — landscaping is in-house.
+    var infoGrid='<div class="pj-grid">'
       +info('Phone', phone?escHtml(phone):'')
-      +info('Email', emailLink)
       +info('Address', addr?(escHtml(addr)+dirLink):'')
       +info('⏱️ Est. Duration', j.estDurationMin?fmtDur(j.estDurationMin):'')
-      +info('💰 Quoted', (j.quotedAmount!==''&&j.quotedAmount!=null)?fm(j.quotedAmount):'')
-      +info('💵 Amount Paid', (j.price!==''&&j.price!=null)?fm(j.price):'')
       +'</div>';
-    var itemsBlock=items.length?'<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px">Items / Tools</div><div style="font-size:13px;line-height:1.5">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
-    var notesBlock=j.notes?'<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px">Notes</div><div style="font-size:13px;line-height:1.5;white-space:pre-wrap">'+escHtml(j.notes)+'</div></div>':'';
+    var scopeBlock=j.notes?'<div class="pj-sec"><div class="pj-lbl">Job details / scope</div><div class="pj-body">'+escHtml(j.notes)+'</div></div>':'';
+    var toolsBlock=items.length?'<div class="pj-sec"><div class="pj-lbl">Tools / materials</div><div class="pj-body">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
     var thumbs=photos.map(function(url,i){ return '<div class="photo-thumb" onclick="event.stopPropagation();_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')"><img src="'+_cloudinaryDeliveryUrl(url,{width:200})+'" alt="" loading="lazy"></div>'; }).join('');
-    var photosBlock=photos.length?'<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
-    var jobNameHtml=j.jobName?'<span style="font-family:Bebas Neue,sans-serif;font-size:21px;letter-spacing:.5px;color:#3f6212;line-height:1">🌿 '+escHtml(j.jobName)+'</span>':'';
-    var crewChip=j.crewSize?'<span class="djj-biz" style="color:#3f6212;background:#eef5e0">👷 '+j.crewSize+' needed</span>':'';
-    return '<div onclick="closeM(\'possible-jobs-modal\');openDetail(\''+j.id+'\')" style="border:1px solid var(--border);border-left:4px solid #65a30d;border-radius:0 10px 10px 0;background:var(--surface2);padding:14px 16px;margin-bottom:12px;cursor:pointer">'
-      +'<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+    var photosBlock=photos.length?'<div class="pj-sec"><div class="pj-lbl">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
+    var jobNameHtml=j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'';
+    var crewChip=j.crewSize?'<span class="pj-pill">👷 '+j.crewSize+' needed</span>':'';
+    return '<div class="pj-card" onclick="closeM(\'possible-jobs-modal\');openDetail(\''+j.id+'\')">'
+      +'<div class="pj-head">'
         +'<div style="min-width:0;flex:1">'
-          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+'</div>'
-          +'<div style="font-weight:700;font-size:15px;margin-top:5px">'+escHtml(custName)+(j.businessName?' <span style="font-weight:500;color:var(--muted);font-size:13px">· '+escHtml(j.businessName)+'</span>':'')+'</div>'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+'<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span></div>'
+          +'<div class="pj-cust">'+escHtml(custName)+(j.businessName?' <span style="font-weight:500;color:var(--muted);font-size:13px">· '+escHtml(j.businessName)+'</span>':'')+'</div>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
-          +'<span style="font-size:11px;font-style:italic;color:#65a30d;white-space:nowrap">No date yet</span>'
-          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeM(\'possible-jobs-modal\');openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#65a30d;border-color:rgba(101,163,13,.4)">📅 Schedule</button>'
+          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">🖨️ Print Form</button>'
+          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeM(\'possible-jobs-modal\');openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">📅 Schedule</button>'
         +'</div>'
       +'</div>'
-      +infoGrid+itemsBlock+notesBlock+photosBlock
+      +infoGrid+scopeBlock+toolsBlock+photosBlock
     +'</div>';
   }).join('');
 }
@@ -3826,7 +3821,6 @@ function makeLandscapingRow(j){
     +'<td style="text-align:center;font-size:15px;font-weight:700;color:#65a30d">'+(j.crewSize?('👷 '+j.crewSize):'<span style="color:var(--muted);font-weight:400">—</span>')+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
-    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
@@ -4339,7 +4333,7 @@ function renderJobs(){
     document.getElementById('jobs-junk-tbody').innerHTML=jr.length?jr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-quote-tbody').innerHTML=qr.length?qr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
-    document.getElementById('jobs-landscaping-tbody').innerHTML=lr.length?lr.map(makeLandscapingRow).join(''):emptyJobRow(8);
+    document.getElementById('jobs-landscaping-tbody').innerHTML=lr.length?lr.map(makeLandscapingRow).join(''):emptyJobRow(7);
   } else if(showingCancelled){
     document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
@@ -7352,6 +7346,28 @@ function _cloudinaryDeliveryUrl(url, opts){
   return url.replace('/upload/', '/upload/'+transforms.join(',')+'/');
 }
 
+// ── Photo upload progress popup ──
+// Clear bottom-center popup that advances per photo, then shows a "done" state.
+var _puToast = null;
+function _photoUploadStart(total){
+  if(!_puToast){ _puToast = document.createElement('div'); _puToast.id = 'photo-upload-toast'; document.body.appendChild(_puToast); }
+  _puToast.style.display = 'block';
+  _photoUploadTick(0, total);
+}
+function _photoUploadTick(done, total){
+  if(!_puToast) return;
+  var pct = total ? Math.round(done/total*100) : 0;
+  _puToast.innerHTML = '<div class="pu-row"><span class="pu-spin"></span><span class="pu-msg">Uploading photo '+Math.min(done+1,total)+' of '+total+'…</span></div>'
+    + '<div class="pu-bar"><div class="pu-bar-fill" style="width:'+pct+'%"></div></div>';
+}
+function _photoUploadDone(added, failed){
+  if(!_puToast) return;
+  _puToast.innerHTML = '<div class="pu-row"><span class="pu-check">✓</span><span class="pu-msg">'+(added>0?(added+' photo'+(added!==1?'s':'')+' added — done'):'No photos added')+(failed>0?' · '+failed+' failed':'')+'</span></div>'
+    + '<div class="pu-bar"><div class="pu-bar-fill" style="width:100%"></div></div>';
+  var t = _puToast;
+  setTimeout(function(){ if(t) t.style.display = 'none'; }, 1800);
+}
+
 async function _addPhotosFromInput(inp){
   if(!inp.files || !inp.files.length) return;
   if(!_cloudinaryConfigured()){
@@ -7361,7 +7377,10 @@ async function _addPhotosFromInput(inp){
   var grid = document.getElementById('f-photos-grid');
   var files = [].slice.call(inp.files);
   inp.value = '';
+  _photoUploadStart(files.length);
+  var added = 0, failed = 0;
   for(var i = 0; i < files.length; i++){
+    _photoUploadTick(i, files.length);
     var placeholder = document.createElement('div');
     placeholder.className = 'photo-thumb photo-thumb-uploading';
     placeholder.textContent = 'Uploading…';
@@ -7371,13 +7390,15 @@ async function _addPhotosFromInput(inp){
       _formPhotos.push(secureUrl);
       placeholder.remove();
       _renderFormPhotos();
+      added++;
     } catch(err){
       console.error('photo upload failed:', err);
       placeholder.textContent = '❌ Failed';
       (function(p){ setTimeout(function(){ p.remove(); }, 2500); })(placeholder);
-      toast('Photo upload failed: '+err.message, 'error');
+      failed++;
     }
   }
+  _photoUploadDone(added, failed);
 }
 
 function _renderFormPhotos(){
@@ -7502,7 +7523,10 @@ async function _addPhotosToJob(jobId, inp){
   var grid = document.getElementById('detail-photos-grid-'+jobId);
   var files = [].slice.call(inp.files);
   inp.value = '';
+  _photoUploadStart(files.length);
+  var added = 0, failed = 0;
   for(var i = 0; i < files.length; i++){
+    _photoUploadTick(i, files.length);
     var placeholder = document.createElement('div');
     placeholder.className = 'photo-thumb photo-thumb-uploading';
     placeholder.textContent = 'Uploading…';
@@ -7514,21 +7538,24 @@ async function _addPhotosToJob(jobId, inp){
       var ok = await _patchJobPhotos(jobId, newPhotos);
       placeholder.remove();
       if(ok){
+        added++;
         var fresh = jobs.find(function(j){ return j.id === jobId; });
         var section = document.getElementById('detail-photos-'+jobId);
         if(section && fresh){
           var wrapper = document.createElement('div');
           wrapper.innerHTML = _renderJobPhotosDetail(fresh);
           section.parentNode.replaceChild(wrapper.firstChild, section);
+          grid = document.getElementById('detail-photos-grid-'+jobId);
         }
-      }
+      } else { failed++; }
     } catch(err){
       console.error('photo upload failed:', err);
       placeholder.textContent = '❌ Failed';
       (function(p){ setTimeout(function(){ p.remove(); }, 2500); })(placeholder);
-      toast('Photo upload failed: '+err.message, 'error');
+      failed++;
     }
   }
+  _photoUploadDone(added, failed);
 }
 
 window._addPhotosFromInput = _addPhotosFromInput;
@@ -8681,9 +8708,9 @@ async function openDetail(id, returnCid){
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
     +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
-    +((j.emailSent||j.emailConfirmed)
+    +(j.service==='Landscaping' ? '' : ((j.emailSent||j.emailConfirmed)
       ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#22c55e;background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
-      :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">📧 Email Not Sent — Send Now</button>')
+      :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">📧 Email Not Sent — Send Now</button>'))
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
