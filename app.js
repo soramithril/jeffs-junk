@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '309';
+var APP_VERSION = '310';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3440,7 +3440,7 @@ function renderPossibleJobsList(){
     var photosBlock=photos.length?'<div class="pj-sec"><div class="pj-lbl">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
     var jobNameHtml=j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'';
     var crewChip=j.crewSize?'<span class="pj-pill">👷 '+j.crewSize+' needed</span>':'';
-    return '<div class="pj-card" onclick="closeM(\'possible-jobs-modal\');openDetail(\''+j.id+'\')">'
+    return '<div class="pj-card" onclick="openDetail(\''+j.id+'\')">'
       +'<div class="pj-head">'
         +'<div style="min-width:0;flex:1">'
           +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+'<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span></div>'
@@ -4344,6 +4344,7 @@ function renderJobs(){
   if(svcF==='all'){
     document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
     if(cancelledSection) cancelledSection.style.display='none';
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
     var br=all.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j)&&matchBinDrop(j);});
     var jr=all.filter(function(j){return j.service==='Junk Removal'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     var qr=all.filter(function(j){return j.service==='Junk Quote'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
@@ -4382,6 +4383,16 @@ function renderJobs(){
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
     var filt=all.filter(function(j){return j.recurring&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
+  } else if(svcF==='Landscaping'){
+    // Landscaping filter shows the clean Landscaping table (Job Name + Guys, no bin/pickup/email),
+    // not the generic single-view that carries Bin / Pickup Confirmed / Email columns.
+    if(cancelledSection) cancelledSection.style.display='none';
+    document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
+    var lsel=document.getElementById('jobs-landscaping-count'); if(lsel)lsel.closest('.cat-section').style.display='block';
+    var lrL=all.filter(function(j){return j.service==='Landscaping'&&j.status!=='Cancelled'&&!j.completed&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    document.getElementById('jobs-landscaping-count').textContent=lrL.length+' job'+(lrL.length!==1?'s':'');
+    document.getElementById('jobs-landscaping-tbody').innerHTML=lrL.length?lrL.map(makeLandscapingRow).join(''):emptyJobRow(7);
   } else if(svcF==='Completed'){
     if(cancelledSection) cancelledSection.style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
