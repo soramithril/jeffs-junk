@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '302';
+var APP_VERSION = '303';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -12235,7 +12235,7 @@ async function printJunkQuote(jobId) { return printJunkRemoval(jobId); }
 // (same approach as printJobPhotos) and trigger the browser print dialog.
 // Jeff White Group (landscaping division) crew work order — black & white printable form.
 // Auto-fills the job's data; leaves on-site fields (crew names, times, sign-off) blank.
-var JWG_LOGO_URL = 'https://soramithril.github.io/jeffs-junk/assets/jwg-logo.png';
+var JWG_LOGO_URL = 'https://soramithril.github.io/jeffs-junk/assets/jwg-logo.png?v=303';
 function printLandscaping(jobId){
   var j = jobs.find(function(x){ return x.id === jobId; });
   if(!j){ toast('Job not found','error'); return; }
@@ -12264,7 +12264,7 @@ function printLandscaping(jobId){
     + '.wo{border:1px solid #999;border-radius:4px;overflow:hidden}'
     + '.hdr{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-bottom:2px solid #111}'
     + '.brand{display:flex;align-items:center;gap:12px}'
-    + '.logo{width:60px;height:60px;object-fit:contain;filter:grayscale(1)}'
+    + '.logo{width:60px;height:60px;object-fit:contain}'
     + '.co{font-size:20px;font-weight:bold;letter-spacing:.5px;line-height:1.05}'
     + '.divn{font-size:10px;letter-spacing:2px;color:#555;margin-top:3px}'
     + '.wt{font-size:15px;font-weight:bold;letter-spacing:1px;text-align:right}'
