@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '303';
+var APP_VERSION = '304';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -12252,11 +12252,15 @@ function printLandscaping(jobId){
   var dateCell = when ? (fd(when)+(j.junkTime?' '+ft(j.junkTime):'')) : line('130px');
   var jobNameCell = j.jobName ? escHtml(j.jobName) : line('260px');
   var crewCell = j.crewSize ? j.crewSize : line('28px');
-  // Tasks: each item becomes a checkbox row, then a few blank rows to write more.
-  var taskRows = items.map(function(s){ return '<div class="task"><span class="cb"></span>'+escHtml(s)+'</div>'; }).join('');
-  var nBlank = Math.max(2, 5 - items.length);
-  for(var b=0;b<nBlank;b++) taskRows += '<div class="task"><span class="cb blank"></span>'+line('78%')+'</div>';
-  var toolsCell = j.toolsNeeded ? escHtml(j.toolsNeeded) : line('92%');
+  // Job details / scope come from the freeform Notes field (where landscaping jobs keep them).
+  var scopeHtml = j.notes ? '<div class="scope">'+escHtml(j.notes)+'</div>' : line('100%')+'<br><br>'+line('100%')+'<br><br>'+line('55%');
+  // Tools / equipment / materials come from the Items field (+ any Tools Needed).
+  var toolsList = items.slice();
+  if(j.toolsNeeded) toolsList = toolsList.concat(j.toolsNeeded.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean));
+  var toolsHtml = toolsList.length ? '<div class="tlist">'+toolsList.map(function(t){return '<div>• '+escHtml(t)+'</div>';}).join('')+'</div>' : line('92%');
+  // Blank checklist rows for the crew to write/check the day's tasks on site.
+  var taskBlanks = '';
+  for(var b=0;b<6;b++) taskBlanks += '<div class="task"><span class="cb"></span>'+line('80%')+'</div>';
   var photoEls = (j.photos||[]).map(function(url){ return '<img src="'+_cloudinaryDeliveryUrl(url,{width:600})+'">'; }).join('');
   var photosBlock = photoEls || '<div class="pbox">Before</div><div class="pbox">After</div><div class="pbox">After</div>';
   w.document.write('<!DOCTYPE html><html><head><title>Work Order — '+j.id+'</title><style>'
@@ -12282,7 +12286,8 @@ function printLandscaping(jobId){
     + '.sect{padding:12px 18px;border-bottom:1px solid #ccc}'
     + '.task{font-size:12px;line-height:2.15}'
     + '.cb{display:inline-block;width:12px;height:12px;border:1.5px solid #111;border-radius:2px;vertical-align:-1px;margin-right:9px} .cb.blank{border-color:#bbb}'
-    + '.notes{font-size:12px;white-space:pre-wrap;min-height:34px}'
+    + '.scope{font-size:13px;line-height:1.6;white-space:pre-wrap;min-height:38px}'
+    + '.tlist{font-size:12px;line-height:1.95}'
     + '.photos{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}'
     + '.photos img{width:1.7in;height:1.25in;object-fit:cover;border:1px solid #999;filter:grayscale(1);page-break-inside:avoid}'
     + '.pbox{width:1.7in;height:1.25in;border:1px solid #bbb;background:#f2f2f2;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px}'
@@ -12307,9 +12312,9 @@ function printLandscaping(jobId){
         + '<div><span class="k">Time in:</span> '+line('62px')+' &nbsp; <span class="k">out:</span> '+line('62px')+'</div>'
       + '</div></div>'
     + '</div>'
-    + '<div class="sect"><div class="sec">Scope of work — tasks</div>'+taskRows+'</div>'
-    + '<div class="cols"><div class="col"><div class="sec">Tools / equipment</div><div class="kv">'+toolsCell+'</div></div>'
-      + '<div class="col"><div class="sec">Notes / special instructions</div><div class="notes">'+escHtml(j.notes||'')+'</div></div></div>'
+    + '<div class="sect"><div class="sec">Job details / scope</div>'+scopeHtml+'</div>'
+    + '<div class="cols"><div class="col"><div class="sec">Tools / equipment / materials</div>'+toolsHtml+'</div>'
+      + '<div class="col"><div class="sec">Tasks / checklist</div>'+taskBlanks+'</div></div>'
     + '<div class="sect"><div class="sec">Reference photos</div><div class="photos">'+photosBlock+'</div></div>'
     + '<div class="signoff"><div class="sec">Completion sign-off</div>'
       + '<span class="cb"></span>Work completed &nbsp;&nbsp;&nbsp;<span class="cb"></span>Follow-up needed'
