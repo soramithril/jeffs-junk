@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '308';
+var APP_VERSION = '309';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -675,7 +675,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,completed,completed_at';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
@@ -744,6 +744,8 @@ function dbToJob(r) {
     pickupCrewId:  r.pickup_crew_id  || null,
     jobName:    r.job_name || '',
     crewSize:   r.crew_size != null ? r.crew_size : '',
+    completed:  r.completed || false,
+    completedAt: r.completed_at || '',
     photos:        r.photos           || [],
   };
 }
@@ -881,6 +883,8 @@ function jobToDb(j) {
     pickup_crew_id:  j.pickupCrewId  || null,
     job_name:    j.jobName || null,
     crew_size:   j.crewSize !== '' && j.crewSize != null ? parseInt(j.crewSize, 10) : null,
+    completed:   j.completed || false,
+    completed_at: j.completedAt || null,
     photos:      j.photos      || [],
   };
 }
@@ -1372,7 +1376,9 @@ async function loadJobsPage(page) {
   else if (searchOr) query = query.or(searchOr);
   else if (dateOr) query = query.or(dateOr);
   // Apply service filter
-  if (svcF && svcF !== 'all') {
+  if (svcF === 'Completed') {
+    query = query.eq('completed', true);
+  } else if (svcF && svcF !== 'all') {
     query = query.eq('service', svcF);
   }
   // Apply status filter
@@ -2737,7 +2743,7 @@ async function refreshDashJobs(){
   var furnDelivs   = dedup(dayFurn.filter(function(j){return j.service==='Furniture Delivery';}));
   var junkRemovals = dedup(dayJunk.filter(function(j){return j.service==='Junk Removal';}));
   var junkQuotes   = dedup(dayJunk.filter(function(j){return j.service==='Junk Quote';}));
-  var landscaping  = dedup(dayJunk.filter(function(j){return j.service==='Landscaping';}));
+  var landscaping  = dedup(dayJunk.filter(function(j){return j.service==='Landscaping'&&!j.completed;}));
 
   var allDay = dedup(dayDropoffs.concat(dayPickups).concat(junkRemovals).concat(junkQuotes).concat(landscaping).concat(furnPickups).concat(furnDelivs));
   var total = allDay.length;
@@ -3195,7 +3201,7 @@ async function renderDash(){
   todayFurnAll.concat(todayJunkAll).forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   var todayJunkRemovals = dedup(todayJunkAll.filter(function(j){return j.service==='Junk Removal';}));
   var todayJunkQuotes   = dedup(todayJunkAll.filter(function(j){return j.service==='Junk Quote';}));
-  var todayLandscaping  = dedup(todayJunkAll.filter(function(j){return j.service==='Landscaping';}));
+  var todayLandscaping  = dedup(todayJunkAll.filter(function(j){return j.service==='Landscaping'&&!j.completed;}));
   var todayFurnPickups  = dedup(todayFurnAll.filter(function(j){return j.service==='Furniture Pickup';}));
   var todayFurnDelivs   = dedup(todayFurnAll.filter(function(j){return j.service==='Furniture Delivery';}));
 
@@ -3387,7 +3393,7 @@ async function renderPossibleJobs(){
   var card=document.getElementById('card-possible-jobs');
   if(!card) return;
   var r=await db.from('jobs').select('*').eq('service','Landscaping').is('junk_date',null).is('date',null).neq('status','Cancelled');
-  var list=(r.data||[]).map(dbToJob);
+  var list=(r.data||[]).map(dbToJob).filter(function(j){return !j.completed;});
   list.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   list.sort(function(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); });
   _possibleJobs=list;
@@ -3824,6 +3830,7 @@ function makeLandscapingRow(j){
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
+    +'<button class="btn btn-ghost btn-sm" data-action="complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#16a34a;border-color:rgba(34,197,94,.4)" title="Mark completed">✅</button>'
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
@@ -3865,6 +3872,22 @@ function makeCancelledRowWithSvc(j){
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
+    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
+    +'</div></td></tr>';
+}
+// Completed landscaping job row (shown in the "✅ Completed" jobs-page view) — 9 cols to match the single-view header.
+function makeCompletedRow(j){
+  var done = j.completedAt ? fd(String(j.completedAt).slice(0,10)) : '—';
+  return '<tr data-jid="'+j.id+'" class="job-row">'
+    +'<td>'+jid(j.id,j.service)+'</td>'
+    +'<td><strong style="font-size:15px">'+(j.jobName?escHtml(j.jobName):escHtml(j.name||''))+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.jobName?escHtml(j.name||'')+' · ':'')+(j.phone||'')+'</span></td>'
+    +'<td>'+sb(j.service)+'</td>'
+    +'<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#16a34a;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:3px 9px">✅ '+done+'</span></td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
+    +'<td></td><td></td><td></td>'
+    +'<td><div style="display:flex;gap:8px">'
+    +'<button class="btn btn-ghost btn-sm" data-action="reopen-complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Reopen job">↩ Reopen</button>'
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
     +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
     +'</div></td></tr>';
@@ -4325,7 +4348,7 @@ function renderJobs(){
     var jr=all.filter(function(j){return j.service==='Junk Removal'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     var qr=all.filter(function(j){return j.service==='Junk Quote'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     var fr=all.filter(function(j){return j.service==='Furniture Pickup'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
-    var lr=all.filter(function(j){return j.service==='Landscaping'&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
+    var lr=all.filter(function(j){return j.service==='Landscaping'&&j.status!=='Cancelled'&&!j.completed&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-bin-count').textContent=br.length+' job'+(br.length!==1?'s':'');
     document.getElementById('jobs-junk-count').textContent=jr.length+' job'+(jr.length!==1?'s':'');
     document.getElementById('jobs-quote-count').textContent=qr.length+' quote'+(qr.length!==1?'s':'');
@@ -4359,6 +4382,12 @@ function renderJobs(){
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
     var filt=all.filter(function(j){return j.recurring&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
+  } else if(svcF==='Completed'){
+    if(cancelledSection) cancelledSection.style.display='none';
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
+    document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
+    var filtC=all.filter(function(j){return j.completed&&m(j)&&matchDateFilter(j);});
+    document.getElementById('jobs-tbody').innerHTML=filtC.length?filtC.map(makeCompletedRow).join(''):emptyJobRow(9);
   } else {
     if(cancelledSection) cancelledSection.style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
@@ -4399,6 +4428,14 @@ function renderJobs(){
         openEdit(id);
       } else if(action==='del'){
         delJob(id);
+      } else if(action==='complete'){
+        if(confirm('Mark this job as completed?')){
+          var jcm=jobs.find(function(x){return x.id===id;});
+          if(jcm){ jcm.completed=true; jcm.completedAt=new Date().toISOString(); patchJob(jcm.id,{completed:true, completed_at:jcm.completedAt}); toast('✅ Job completed.'); loadJobsPage(jobsPage); }
+        }
+      } else if(action==='reopen-complete'){
+        var jro=jobs.find(function(x){return x.id===id;});
+        if(jro){ jro.completed=false; jro.completedAt=''; patchJob(jro.id,{completed:false, completed_at:null}); toast('Job reopened.'); loadJobsPage(jobsPage); }
       } else if(action==='cancel'){
         if(confirm('Mark this job as Cancelled?')){
           var jc=jobs.find(function(x){return x.id===id;});
@@ -8611,6 +8648,28 @@ function cancelJob(id){
   closeM('detail-modal');
   refresh();
 }
+// Landscaping completion — mark a job done (moves it to the Completed category) or reopen it.
+function completeLandscapeJob(id){
+  if(!confirm('Mark this job as completed?'))return;
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.completed=true;
+  j.completedAt=new Date().toISOString();
+  patchJob(id,{completed:true, completed_at:j.completedAt});
+  toast('✅ Job marked completed.');
+  closeM('detail-modal');
+  refresh();
+}
+function reopenLandscapeJob(id){
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.completed=false;
+  j.completedAt='';
+  patchJob(id,{completed:false, completed_at:null});
+  toast('Job reopened.');
+  closeM('detail-modal');
+  refresh();
+}
 async function openDetail(id, returnCid){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});
   if(!j){
@@ -8717,6 +8776,9 @@ async function openDetail(id, returnCid){
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
     +(j.service==='Landscaping'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">🖨️ Print Form</button>':'')
+    +(j.service==='Landscaping'?(j.completed
+        ?'<button class="btn btn-ghost" onclick="reopenLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+' · Reopen</button>'
+        :'<button class="btn btn-ghost" onclick="completeLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.4);color:#16a34a">✅ Mark Completed</button>'):'')
     +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
     +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Job</button>'
