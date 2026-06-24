@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '297';
+var APP_VERSION = '298';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -675,7 +675,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
@@ -742,6 +742,8 @@ function dbToJob(r) {
     assignedCrewIds: r.assigned_crew_ids || [],
     dropoffCrewId: r.dropoff_crew_id || null,
     pickupCrewId:  r.pickup_crew_id  || null,
+    jobName:    r.job_name || '',
+    crewSize:   r.crew_size != null ? r.crew_size : '',
     photos:        r.photos           || [],
   };
 }
@@ -877,6 +879,8 @@ function jobToDb(j) {
     assigned_crew_ids: j.assignedCrewIds || [],
     dropoff_crew_id: j.dropoffCrewId || null,
     pickup_crew_id:  j.pickupCrewId  || null,
+    job_name:    j.jobName || null,
+    crew_size:   j.crewSize !== '' && j.crewSize != null ? parseInt(j.crewSize, 10) : null,
     photos:      j.photos      || [],
   };
 }
@@ -3771,6 +3775,23 @@ function makeJobRowNoSvc(j){
     +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
+// Landscaping list row — its own renderer so Bin/Junk/Quote tables stay untouched.
+// Columns: ID · Job Name · Customer · # Guys · Date · Address · Email · actions (8 cells).
+function makeLandscapingRow(j){
+  var isCancelled = j.status === 'Cancelled';
+  var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
+  return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
+    +'<td>'+jid(j.id,j.service)+'</td>'
+    +'<td style="font-size:14px">'+(j.jobName?'<strong style="color:#65a30d">'+escHtml(j.jobName)+'</strong>':'<span style="color:var(--muted)">—</span>')+'</td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td style="text-align:center;font-size:15px;font-weight:700;color:#65a30d">'+(j.crewSize?('👷 '+j.crewSize):'<span style="color:var(--muted);font-weight:400">—</span>')+'</td>'
+    +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
+    +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
+    +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
+    +'<td><div style="display:flex;gap:8px">'
+    +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
+}
 function makeJobRowWithSvc(j){
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
@@ -4277,7 +4298,7 @@ function renderJobs(){
     document.getElementById('jobs-junk-tbody').innerHTML=jr.length?jr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-quote-tbody').innerHTML=qr.length?qr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
     document.getElementById('jobs-furn-tbody').innerHTML=fr.length?fr.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
-    document.getElementById('jobs-landscaping-tbody').innerHTML=lr.length?lr.map(makeJobRowNoSvc).join(''):emptyJobRow(7);
+    document.getElementById('jobs-landscaping-tbody').innerHTML=lr.length?lr.map(makeLandscapingRow).join(''):emptyJobRow(8);
   } else if(showingCancelled){
     document.getElementById('jobs-cat-view').style.display='block';document.getElementById('jobs-single-view').style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='none';});
@@ -7195,6 +7216,7 @@ function toggleBin(){
       if(lndWrap){
         var isLand=svc==='Landscaping';
         lndWrap.style.display=isLand?'block':'none';
+        var lndFields=document.getElementById('landscape-fields-wrap');if(lndFields)lndFields.style.display=isLand?'block':'none';
         if(!isLand){
           var lndCb=document.getElementById('f-landscape-nodate');if(lndCb)lndCb.checked=false;
           var ddg=document.getElementById('junk-datetime-grid');if(ddg)ddg.style.display='grid';
@@ -7382,9 +7404,11 @@ function _renderJobPhotosDetail(j){
   var addBtn = '<input type="file" id="photo-input-'+j.id+'" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
     + '<button type="button" class="btn btn-blue-solid btn-sm" style="margin-left:auto" onclick="document.getElementById(\'photo-input-'+j.id+'\').click()">📷 Add Photos</button>';
   var printBtn = photos.length ? '<button type="button" class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="printJobPhotos(\''+j.id+'\')">🖨️ Print Photos</button>' : '';
+  // Landscaping detail can carry lots of photos — render them smaller so the info isn't pushed off-screen.
+  var gridCls = (j.service==='Landscaping') ? 'photo-thumb-grid photo-thumb-grid-sm' : 'photo-thumb-grid';
   return '<div class="detail-section" id="detail-photos-'+j.id+'">'
     + '<div class="detail-section-title" style="display:flex;align-items:center">📷 Photos ('+photos.length+')'+addBtn+printBtn+'</div>'
-    + '<div class="photo-thumb-grid" id="detail-photos-grid-'+j.id+'">'+thumbs+'</div>'
+    + '<div class="'+gridCls+'" id="detail-photos-grid-'+j.id+'">'+thumbs+'</div>'
     + '</div>';
 }
 
@@ -7684,6 +7708,9 @@ function newJob(){
   document.getElementById('junk-schedule-wrap').style.display='none';
   var lndCbN=document.getElementById('f-landscape-nodate');if(lndCbN)lndCbN.checked=false;
   var lndWrapN=document.getElementById('landscape-nodate-wrap');if(lndWrapN)lndWrapN.style.display='none';
+  var fjnN=document.getElementById('f-job-name');if(fjnN)fjnN.value='';
+  var fcsN=document.getElementById('f-crew-size');if(fcsN)fcsN.value='';
+  var lndFieldsN=document.getElementById('landscape-fields-wrap');if(lndFieldsN)lndFieldsN.style.display='none';
   var ddgN=document.getElementById('junk-datetime-grid');if(ddgN)ddgN.style.display='grid';
   document.getElementById('f-notes').value='';var fin=document.getElementById('f-internal-notes');if(fin)fin.value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
   _clearDrdModal();var drdW=document.getElementById('drd-inline-wrap');if(drdW)drdW.style.display='none';
@@ -8014,6 +8041,9 @@ function openEdit(id){
       if(lndCbE) lndCbE.checked=isLandE && !j.junkDate && !j.date;
       var ddgE=document.getElementById('junk-datetime-grid');
       if(ddgE) ddgE.style.display=(lndCbE&&lndCbE.checked)?'none':'grid';
+      var lndFieldsE=document.getElementById('landscape-fields-wrap');if(lndFieldsE)lndFieldsE.style.display=isLandE?'block':'none';
+      var fjnE=document.getElementById('f-job-name');if(fjnE)fjnE.value=isLandE?(j.jobName||''):'';
+      var fcsE=document.getElementById('f-crew-size');if(fcsE)fcsE.value=isLandE?(j.crewSize||''):'';
       if(!isQEdit){
         var fjqE=document.getElementById('f-junk-quoted');if(fjqE)fjqE.value=j.quotedAmount||'';
         var fjaE=document.getElementById('f-junk-actual');if(fjaE)fjaE.value=j.price||'';
@@ -8270,6 +8300,8 @@ async function saveJob(e){
     fbTime: document.getElementById('f-fb-time').value,
     junkDate: document.getElementById('f-junk-date').value,
     junkTime: document.getElementById('f-junk-time').value,
+    jobName:  svc==='Landscaping' && document.getElementById('f-job-name') ? document.getElementById('f-job-name').value.trim() : '',
+    crewSize: svc==='Landscaping' && document.getElementById('f-crew-size') ? document.getElementById('f-crew-size').value : '',
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
     recurInterval: svc==='Bin Rental' ? (document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '') : (svc==='Junk Removal' ? (document.getElementById('f-junk-recur-interval') ? document.getElementById('f-junk-recur-interval').value : '') : ''),
@@ -8574,7 +8606,11 @@ async function openDetail(id, returnCid){
     ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">🧭 Directions</a>'
     : '—';
   document.getElementById('det-body').innerHTML=
-    '<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
+    (j.service==='Landscaping'&&(j.jobName||j.crewSize)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
+      +(j.jobName?'<div style="font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:1px;color:#65a30d;line-height:1.1">🌿 '+escHtml(j.jobName)+'</div>':'')
+      +(j.crewSize?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:'+(j.jobName?'2px':'0')+'">👷 '+j.crewSize+' '+(j.crewSize==1?'person':'people')+' needed</div>':'')
+      +'</div>':'')
+    +'<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
     +'<div style="font-size:11px;color:var(--muted);margin-top:6px">Created '+fd(j.date)+(j.time?' · '+ft(j.time):'')+'</div>'
     +'</div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
@@ -8610,6 +8646,7 @@ async function openDetail(id, returnCid){
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
+    +(j.service==='Landscaping'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
     +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
     +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Job</button>'
@@ -12151,6 +12188,60 @@ async function printJunkRemoval(jobId) {
 }
 
 async function printJunkQuote(jobId) { return printJunkRemoval(jobId); }
+
+// ── Landscaping Form Print ──
+// No PDF template exists for Landscaping, so build a clean printable HTML sheet
+// (same approach as printJobPhotos) and trigger the browser print dialog.
+function printLandscaping(jobId){
+  var j = jobs.find(function(x){ return x.id === jobId; });
+  if(!j){ toast('Job not found','error'); return; }
+  var w = window.open('', '_blank');
+  if(!w){ toast('⚠ Popup blocked — allow popups to print','error'); return; }
+  var name = (j.names && j.names.length) ? j.names.join(', ') : (j.name || '');
+  var addr = (j.address || '') + (j.city ? ', ' + j.city : '');
+  var when = j.junkDate || j.date;
+  var items = _notesToItems(j.items || '');
+  var itemsHtml = items.length ? '<ul class="items">'+items.map(function(s){return '<li>'+escHtml(s)+'</li>';}).join('')+'</ul>' : '<div class="muted">—</div>';
+  var photos = (j.photos||[]).map(function(url){ return '<img src="'+_cloudinaryDeliveryUrl(url,{width:800})+'">'; }).join('');
+  function row(label,val){ return '<tr><th>'+label+'</th><td>'+(val||'—')+'</td></tr>'; }
+  w.document.write('<!DOCTYPE html><html><head><title>Landscaping — '+j.id+'</title><style>'
+    + 'body{font-family:Arial,sans-serif;margin:0.5in;color:#000}'
+    + 'h1{font-size:22px;margin:0 0 2px;color:#3f6212}'
+    + '.sub{font-size:12px;color:#555;margin-bottom:12px}'
+    + '.jobname{font-size:19px;font-weight:bold;color:#3f6212;margin:8px 0 12px}'
+    + 'table.info{border-collapse:collapse;width:100%;margin-bottom:8px}'
+    + 'table.info th{text-align:left;width:150px;padding:6px 8px;background:#f0f5e6;border:1px solid #cdd9b5;font-size:13px;vertical-align:top}'
+    + 'table.info td{padding:6px 8px;border:1px solid #cdd9b5;font-size:13px}'
+    + '.crew{font-size:18px;font-weight:bold}'
+    + '.sec-title{font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#3f6212;border-bottom:2px solid #3f6212;padding-bottom:3px;margin:18px 0 8px}'
+    + '.items{margin:0;padding-left:20px;font-size:13px}'
+    + '.items li{margin-bottom:3px}'
+    + '.muted{color:#888;font-size:13px}'
+    + '.notes{font-size:13px;white-space:pre-wrap;border:1px solid #cdd9b5;padding:8px;min-height:46px}'
+    + '.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}'
+    + '.photos img{width:2.2in;height:1.7in;object-fit:cover;border:1px solid #ccc;page-break-inside:avoid}'
+    + '</style></head><body>'
+    + '<h1>🌿 Landscaping Job Form</h1>'
+    + '<div class="sub">'+j.id+(when?' — '+fd(when):'')+(j.junkTime?' '+ft(j.junkTime):'')+'</div>'
+    + (j.jobName?'<div class="jobname">'+escHtml(j.jobName)+'</div>':'')
+    + '<table class="info">'
+    + row('Customer', escHtml(name))
+    + (j.businessName?row('Business', escHtml(j.businessName)):'')
+    + row('Phone', escHtml(j.phone||''))
+    + row('Address', escHtml(addr))
+    + row('Job Date', when?fd(when):'No date yet')
+    + row('People Needed', j.crewSize?'<span class="crew">👷 '+j.crewSize+'</span>':'—')
+    + (j.quotedAmount?row('Quoted Amount', '$'+j.quotedAmount):'')
+    + (j.price?row('Amount Paid', '$'+j.price):'')
+    + '</table>'
+    + '<div class="sec-title">Items / Tools Needed</div>'+itemsHtml
+    + '<div class="sec-title">Notes</div><div class="notes">'+escHtml(j.notes||'')+'</div>'
+    + (photos?'<div class="sec-title">Photos</div><div class="photos">'+photos+'</div>':'')
+    + '<script>window.onload=function(){window.print();};<\/script>'
+    + '</body></html>');
+  w.document.close();
+}
+window.printLandscaping = printLandscaping;
 
 // ── Shared FB Form Print (Drop Off / Pick Up) ──
 async function _printFbForm(jobId, kind) {

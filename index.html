@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Dashboard</title>
 <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMfIEefRJ5b33pXW6LMYdsm7Rj5KlKBKvQiQ&s">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=296">
+<link rel="stylesheet" href="style.css?v=298">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -458,7 +458,7 @@
     </div>
     <div class="cat-section">
       <div class="cat-section-header landscaping" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🌿 Landscaping</div><span class="cat-count" id="jobs-landscaping-count">0 jobs</span></div>
-      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-landscaping-tbody"></tbody></table></div>
+      <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th>Job Name</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th style="text-align:center">👷 Guys</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-landscaping-tbody"></tbody></table></div>
     </div>
     <div id="jobs-cancelled-section" style="display:none">
       <div class="cat-section">
@@ -1544,6 +1544,10 @@
             🌿 No date yet — do whenever the crew is free
           </label>
         </div>
+        <div id="landscape-fields-wrap" style="display:none;margin-bottom:10px">
+          <div class="form-group" style="margin-bottom:10px"><label>🌿 Job Name <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— what the job's called, e.g. "Backyard cleanup"</span></label><input id="f-job-name" type="text" placeholder="Backyard cleanup, hedge trim, sod install…"></div>
+          <div class="form-group"><label>👷 People Needed</label><input id="f-crew-size" type="number" min="0" step="1" placeholder="How many guys?" style="width:160px"></div>
+        </div>
         <div id="junk-datetime-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
           <div class="form-group"><label id="junk-time-label">Job Time</label><input id="f-junk-time" type="time"></div>
@@ -2289,7 +2293,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=297"></script>
+<script src="app.js?v=298"></script>
 <script src="app-onboarding.js?v=292"></script>
 </body>
 </html>

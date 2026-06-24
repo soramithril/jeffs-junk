@@ -1487,6 +1487,8 @@ input[type=date],input[type=time]{position:relative;}
   gap:8px;
 }
 .photo-thumb-grid:not(:empty){ margin-bottom:10px; }
+/* Landscaping detail: smaller thumbnails so job info isn't pushed off-screen */
+.photo-thumb-grid-sm{ grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:6px; }
 .photo-thumb{
   position:relative;
   aspect-ratio:1/1;
