@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '306';
+var APP_VERSION = '307';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -12293,8 +12293,8 @@ function printLandscaping(jobId){
   var photoEls = (j.photos||[]).map(function(url){ return '<img src="'+_cloudinaryDeliveryUrl(url,{width:600})+'">'; }).join('');
   var photosBlock = photoEls || '<div class="pbox">Before</div><div class="pbox">After</div><div class="pbox">After</div>';
   w.document.write('<!DOCTYPE html><html><head><title>Work Order — '+j.id+'</title><style>'
-    + '@page{margin:0.5in} body{font-family:Arial,Helvetica,sans-serif;margin:0.5in;color:#111}'
-    + '.wo{border:1px solid #999;border-radius:4px;overflow:hidden}'
+    + '@page{size:letter;margin:0.5in} html,body{margin:0;padding:0} body{font-family:Arial,Helvetica,sans-serif;color:#111}'
+    + '.wo{width:100%}'
     + '.hdr{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-bottom:2px solid #111}'
     + '.brand{display:flex;align-items:center;gap:12px}'
     + '.logo{width:60px;height:60px;object-fit:contain}'
