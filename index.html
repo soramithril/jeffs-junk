@@ -1363,14 +1363,16 @@
 </main>
 
 <!-- ═══════════ POSSIBLE JOBS MODAL ═══════════ -->
-<div class="modal-overlay" id="possible-jobs-modal">
-  <div class="modal" style="max-width:560px;max-height:85vh;overflow-y:auto">
-    <div class="modal-header">
-      <div class="modal-title">🌿 Possible Jobs <span style="font-weight:400;color:var(--muted);font-size:13px">— landscaping with no date yet</span></div>
-      <button class="modal-close" onclick="closeM('possible-jobs-modal')">&#x2715;</button>
+<div class="modal-overlay fullpage" id="possible-jobs-modal">
+  <div class="modal">
+    <div style="max-width:760px;margin:0 auto">
+      <div class="modal-header">
+        <div class="modal-title">🌿 Possible Jobs <span style="font-weight:400;color:var(--muted);font-size:13px">— landscaping with no date yet</span></div>
+        <button class="modal-close" onclick="closeM('possible-jobs-modal')">&#x2715;</button>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Jobs to do whenever the crew is free. Tap one to view it, or 📅 Schedule to set a date.</div>
+      <div id="possible-jobs-body"></div>
     </div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Jobs to do whenever the crew is free. Tap one to view it, or 📅 Schedule to set a date.</div>
-    <div id="possible-jobs-body"></div>
   </div>
 </div>
 
@@ -2293,7 +2295,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=299"></script>
+<script src="app.js?v=300"></script>
 <script src="app-onboarding.js?v=292"></script>
 </body>
 </html>
