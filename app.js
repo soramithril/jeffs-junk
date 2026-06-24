@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '298';
+var APP_VERSION = '299';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2793,6 +2793,12 @@ async function refreshDashJobs(){
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Landscaping'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
+        // Landscaping: surface the job name + crew so jobs are distinguishable without tapping in.
+        var landChip = '';
+        if(j.service==='Landscaping'){
+          if(j.jobName) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">🌿 '+escHtml(j.jobName)+'</span>';
+          if(j.crewSize) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">👷 '+j.crewSize+'</span>';
+        }
         var addr = j.address || '';
         var binBadge='';
         if(isBin){
@@ -2814,7 +2820,7 @@ async function refreshDashJobs(){
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
-          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
           +'<div class="tjr2-binslot">'+binBadge+'</div>'
           +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
@@ -3271,6 +3277,12 @@ async function renderDash(){
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Landscaping'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
+        // Landscaping: surface the job name + crew so jobs are distinguishable without tapping in.
+        var landChip = '';
+        if(j.service==='Landscaping'){
+          if(j.jobName) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">🌿 '+escHtml(j.jobName)+'</span>';
+          if(j.crewSize) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">👷 '+j.crewSize+'</span>';
+        }
         var addr = j.address || '';
         var binBadge='';
         if(isBin){
@@ -3292,7 +3304,7 @@ async function renderDash(){
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
-          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
           +'<div class="tjr2-binslot">'+binBadge+'</div>'
           +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
@@ -4224,6 +4236,8 @@ async function renderLiveJobs(){
         +jobCrewAvatarsHTML(j)
         +'<div class="lj-info">'
           +'<span class="lj-client">'+j.name+'</span>'
+          +(j.service==='Landscaping'&&j.jobName?'<span style="font-size:12px;font-weight:700;color:#65a30d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🌿 '+escHtml(j.jobName)+'</span>':'')
+          +(j.service==='Landscaping'&&j.crewSize?'<span style="font-size:11px;font-weight:700;color:#65a30d;white-space:nowrap">👷 '+j.crewSize+'</span>':'')
           +'<span class="lj-addr">'+(j.address||'')+(j.city?' · '+j.city:'')+'</span>'
           +vehicleHtml
         +'</div>'
