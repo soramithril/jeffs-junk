@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '305';
+var APP_VERSION = '306';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3420,11 +3420,13 @@ function renderPossibleJobsList(){
     var photos=j.photos||[];
     function info(label,val){ return val ? '<div style="min-width:0"><div class="pj-lbl">'+label+'</div><div class="pj-val">'+val+'</div></div>' : ''; }
     var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
-    // No email / no pricing — landscaping is in-house.
+    // No email (in-house). Pricing IS shown here for in-house use — it's only kept off the printed work order.
     var infoGrid='<div class="pj-grid">'
       +info('Phone', phone?escHtml(phone):'')
       +info('Address', addr?(escHtml(addr)+dirLink):'')
       +info('⏱️ Est. Duration', j.estDurationMin?fmtDur(j.estDurationMin):'')
+      +info('💰 Quoted', (j.quotedAmount!==''&&j.quotedAmount!=null)?fm(j.quotedAmount):'')
+      +info('💵 Amount Paid', (j.price!==''&&j.price!=null)?fm(j.price):'')
       +'</div>';
     var scopeBlock=j.notes?'<div class="pj-sec"><div class="pj-lbl">Job details / scope</div><div class="pj-body">'+escHtml(j.notes)+'</div></div>':'';
     var toolsBlock=items.length?'<div class="pj-sec"><div class="pj-lbl">Tools / materials</div><div class="pj-body">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
