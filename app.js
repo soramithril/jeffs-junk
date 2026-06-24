@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '310';
+var APP_VERSION = '311';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2032,6 +2032,7 @@ function render(name){
   if(name==='dashboard'){ renderDash(); initDashPricingDropdown(); }
   else if(name==='livejobs') renderLiveJobs();
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
+  else if(name==='landscaping') renderLandscapingPage();
   else if(name==='calendar') renderCal();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
   else if(name==='analytics'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
@@ -3456,6 +3457,74 @@ function renderPossibleJobsList(){
   }).join('');
 }
 
+// ─── LANDSCAPING PAGE ──────────────────────────────────────────────────────
+// Dedicated page for the landscaping division: Possible (undated) / Scheduled (dated)
+// / Completed, each as cards. Mark Completed, Reopen, Print, and Schedule live here.
+async function renderLandscapingPage(){
+  var r = await db.from('jobs').select('*').eq('service','Landscaping').neq('status','Cancelled');
+  var list = (r.data||[]).map(dbToJob);
+  list.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
+  var possible  = list.filter(function(j){ return !j.completed && !j.junkDate && !j.date; });
+  var scheduled = list.filter(function(j){ return !j.completed && (j.junkDate || j.date); });
+  var completed = list.filter(function(j){ return j.completed; });
+  possible.sort(function(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); });
+  scheduled.sort(function(a,b){ return (a.junkDate||a.date||'').localeCompare(b.junkDate||b.date||''); });
+  completed.sort(function(a,b){ return (b.completedAt||'').localeCompare(a.completedAt||''); });
+  _renderLsSection('ls-possible', possible, 'possible');
+  _renderLsSection('ls-scheduled', scheduled, 'scheduled');
+  _renderLsSection('ls-completed', completed, 'completed');
+}
+function _renderLsSection(prefix, list, kind){
+  var countEl=document.getElementById(prefix+'-count'); if(countEl) countEl.textContent=list.length;
+  var body=document.getElementById(prefix+'-body'); if(!body) return;
+  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 4px;font-style:italic">'+(kind==='possible'?'No undated jobs — every landscaping job has a date. 🎉':kind==='scheduled'?'No scheduled landscaping jobs.':'No completed jobs yet.')+'</div>'; return; }
+  body.innerHTML=list.map(function(j){ return _landscapeCardHTML(j, kind); }).join('');
+}
+function _landscapeCardHTML(j, kind){
+  var addr=((j.address||'')+(j.city?', '+j.city:'')).trim();
+  var phone=(j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext.'+p.ext:'');}).join(', '):(j.phone||'');
+  var custName=(j.names&&j.names.length)?j.names.join(', '):(j.name||'—');
+  var items=_notesToItems(j.items||'');
+  var photos=j.photos||[];
+  function info(label,val){ return val ? '<div style="min-width:0"><div class="pj-lbl">'+label+'</div><div class="pj-val">'+val+'</div></div>' : ''; }
+  var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
+  var infoGrid='<div class="pj-grid">'
+    +info('Phone', phone?escHtml(phone):'')
+    +info('Address', addr?(escHtml(addr)+dirLink):'')
+    +info('⏱️ Est. Duration', j.estDurationMin?fmtDur(j.estDurationMin):'')
+    +info('💰 Quoted', (j.quotedAmount!==''&&j.quotedAmount!=null)?fm(j.quotedAmount):'')
+    +info('💵 Amount Paid', (j.price!==''&&j.price!=null)?fm(j.price):'')
+    +'</div>';
+  var scopeBlock=j.notes?'<div class="pj-sec"><div class="pj-lbl">Job details / scope</div><div class="pj-body">'+escHtml(j.notes)+'</div></div>':'';
+  var toolsBlock=items.length?'<div class="pj-sec"><div class="pj-lbl">Tools / materials</div><div class="pj-body">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
+  var thumbs=photos.map(function(url,i){ return '<div class="photo-thumb" onclick="event.stopPropagation();_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')"><img src="'+_cloudinaryDeliveryUrl(url,{width:200})+'" alt="" loading="lazy"></div>'; }).join('');
+  var photosBlock=photos.length?'<div class="pj-sec"><div class="pj-lbl">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
+  var jobNameHtml=j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'';
+  var crewChip=j.crewSize?'<span class="pj-pill">👷 '+j.crewSize+' needed</span>':'';
+  var statusPill;
+  if(kind==='completed') statusPill='<span class="pj-pill" style="background:rgba(34,197,94,.12);color:#16a34a">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+'</span>';
+  else if(kind==='scheduled'){ var d=j.junkDate||j.date; statusPill='<span class="pj-pill" style="background:#e0f2f7;color:#0e7490">📅 '+(d?fd(d):'')+(j.junkTime?' '+ft(j.junkTime):'')+'</span>'; }
+  else statusPill='<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span>';
+  var btns;
+  if(kind==='completed'){
+    btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">🖨️ Print</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();reopenLandscapeJob(\''+j.id+'\')" style="white-space:nowrap;color:#16a34a;border-color:rgba(34,197,94,.4)">↩ Reopen</button>';
+  } else {
+    btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">🖨️ Print</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+(kind==='possible'?'📅 Schedule':'✏️ Edit')+'</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();completeLandscapeJob(\''+j.id+'\')" style="white-space:nowrap;color:#16a34a;border-color:rgba(34,197,94,.4)">✅ Mark Completed</button>';
+  }
+  return '<div class="pj-card" onclick="openDetail(\''+j.id+'\')">'
+    +'<div class="pj-head">'
+      +'<div style="min-width:0;flex:1">'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+statusPill+'</div>'
+        +'<div class="pj-cust">'+escHtml(custName)+(j.businessName?' <span style="font-weight:500;color:var(--muted);font-size:13px">· '+escHtml(j.businessName)+'</span>':'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">'+btns+'</div>'
+    +'</div>'
+    +infoGrid+scopeBlock+toolsBlock+photosBlock
+  +'</div>';
+}
 async function renderWillCallCard(){
   var listEl=document.getElementById('dash-will-call-list');
   var countEl=document.getElementById('dash-will-call-count');
@@ -8660,23 +8729,23 @@ function cancelJob(id){
   refresh();
 }
 // Landscaping completion — mark a job done (moves it to the Completed category) or reopen it.
-function completeLandscapeJob(id){
+async function completeLandscapeJob(id){
   if(!confirm('Mark this job as completed?'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.completed=true;
   j.completedAt=new Date().toISOString();
-  patchJob(id,{completed:true, completed_at:j.completedAt});
+  await db.from('jobs').update({completed:true, completed_at:j.completedAt}).eq('job_id',id);
   toast('✅ Job marked completed.');
   closeM('detail-modal');
   refresh();
 }
-function reopenLandscapeJob(id){
+async function reopenLandscapeJob(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.completed=false;
   j.completedAt='';
-  patchJob(id,{completed:false, completed_at:null});
+  await db.from('jobs').update({completed:false, completed_at:null}).eq('job_id',id);
   toast('Job reopened.');
   closeM('detail-modal');
   refresh();
