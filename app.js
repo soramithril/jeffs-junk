@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '300';
+var APP_VERSION = '301';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3413,15 +3413,42 @@ function renderPossibleJobsList(){
   var list=_possibleJobs||[];
   if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:14px;padding:24px;text-align:center">No possible jobs right now — every landscaping job has a date. 🎉</div>'; return; }
   body.innerHTML=list.map(function(j){
-    var addr=((j.address||'')+(j.city?', '+j.city:'')).trim()||'—';
-    var phone=(j.phones&&j.phones.length)?j.phones[0].num:(j.phone||'');
-    return '<div onclick="closeM(\'possible-jobs-modal\');openDetail(\''+j.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--border);border-left:4px solid #65a30d;border-radius:0 8px 8px 0;background:var(--surface2);margin-bottom:8px;cursor:pointer">'
-      +'<div style="min-width:0;flex:1">'
-        +'<div style="font-size:14px">'+jid(j.id,j.service)+' <span style="font-weight:700;color:var(--text);margin-left:4px">'+(j.name||j.businessName||'—')+'</span></div>'
-        +'<div style="font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+addr+(phone?' · '+phone:'')+'</div>'
+    var addr=((j.address||'')+(j.city?', '+j.city:'')).trim();
+    var phone=(j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext.'+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'');
+    var email=(j.emails&&j.emails.length)?j.emails.join(', '):'';
+    var custName=(j.names&&j.names.length)?j.names.join(', '):(j.name||'—');
+    var items=_notesToItems(j.items||'');
+    var photos=j.photos||[];
+    // One labelled cell; skipped entirely when the value is empty.
+    function info(label,val){ return val ? '<div style="min-width:0"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">'+label+'</div><div style="font-size:13px;word-break:break-word;margin-top:1px">'+val+'</div></div>' : ''; }
+    var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent);font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
+    var emailLink=email?email.split(', ').map(function(e){return '<a href="mailto:'+e+'" onclick="event.stopPropagation()" style="color:var(--accent)">'+escHtml(e)+'</a>';}).join(', '):'';
+    var infoGrid='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 16px;margin-top:10px">'
+      +info('Phone', phone?escHtml(phone):'')
+      +info('Email', emailLink)
+      +info('Address', addr?(escHtml(addr)+dirLink):'')
+      +info('⏱️ Est. Duration', j.estDurationMin?fmtDur(j.estDurationMin):'')
+      +info('💰 Quoted', (j.quotedAmount!==''&&j.quotedAmount!=null)?fm(j.quotedAmount):'')
+      +info('💵 Amount Paid', (j.price!==''&&j.price!=null)?fm(j.price):'')
+      +'</div>';
+    var itemsBlock=items.length?'<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px">Items / Tools</div><div style="font-size:13px;line-height:1.5">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
+    var notesBlock=j.notes?'<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px">Notes</div><div style="font-size:13px;line-height:1.5;white-space:pre-wrap">'+escHtml(j.notes)+'</div></div>':'';
+    var thumbs=photos.map(function(url,i){ return '<div class="photo-thumb" onclick="event.stopPropagation();_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')"><img src="'+_cloudinaryDeliveryUrl(url,{width:200})+'" alt="" loading="lazy"></div>'; }).join('');
+    var photosBlock=photos.length?'<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
+    var jobNameHtml=j.jobName?'<span style="font-family:Bebas Neue,sans-serif;font-size:21px;letter-spacing:.5px;color:#3f6212;line-height:1">🌿 '+escHtml(j.jobName)+'</span>':'';
+    var crewChip=j.crewSize?'<span class="djj-biz" style="color:#3f6212;background:#eef5e0">👷 '+j.crewSize+' needed</span>':'';
+    return '<div onclick="closeM(\'possible-jobs-modal\');openDetail(\''+j.id+'\')" style="border:1px solid var(--border);border-left:4px solid #65a30d;border-radius:0 10px 10px 0;background:var(--surface2);padding:14px 16px;margin-bottom:12px;cursor:pointer">'
+      +'<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+        +'<div style="min-width:0;flex:1">'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+'</div>'
+          +'<div style="font-weight:700;font-size:15px;margin-top:5px">'+escHtml(custName)+(j.businessName?' <span style="font-weight:500;color:var(--muted);font-size:13px">· '+escHtml(j.businessName)+'</span>':'')+'</div>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
+          +'<span style="font-size:11px;font-style:italic;color:#65a30d;white-space:nowrap">No date yet</span>'
+          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeM(\'possible-jobs-modal\');openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#65a30d;border-color:rgba(101,163,13,.4)">📅 Schedule</button>'
+        +'</div>'
       +'</div>'
-      +'<span style="font-size:11px;font-style:italic;color:#65a30d;white-space:nowrap;flex-shrink:0">No date yet</span>'
-      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeM(\'possible-jobs-modal\');openEdit(\''+j.id+'\')" style="white-space:nowrap;flex-shrink:0;color:#65a30d;border-color:rgba(101,163,13,.4)">📅 Schedule</button>'
+      +infoGrid+itemsBlock+notesBlock+photosBlock
     +'</div>';
   }).join('');
 }
