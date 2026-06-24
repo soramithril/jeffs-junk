@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '301';
+var APP_VERSION = '302';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -12233,51 +12233,89 @@ async function printJunkQuote(jobId) { return printJunkRemoval(jobId); }
 // ── Landscaping Form Print ──
 // No PDF template exists for Landscaping, so build a clean printable HTML sheet
 // (same approach as printJobPhotos) and trigger the browser print dialog.
+// Jeff White Group (landscaping division) crew work order — black & white printable form.
+// Auto-fills the job's data; leaves on-site fields (crew names, times, sign-off) blank.
+var JWG_LOGO_URL = 'https://soramithril.github.io/jeffs-junk/assets/jwg-logo.png';
 function printLandscaping(jobId){
   var j = jobs.find(function(x){ return x.id === jobId; });
   if(!j){ toast('Job not found','error'); return; }
   var w = window.open('', '_blank');
   if(!w){ toast('⚠ Popup blocked — allow popups to print','error'); return; }
-  var name = (j.names && j.names.length) ? j.names.join(', ') : (j.name || '');
-  var addr = (j.address || '') + (j.city ? ', ' + j.city : '');
-  var when = j.junkDate || j.date;
+  var name  = (j.names && j.names.length) ? j.names.join(', ') : (j.name || '');
+  var addr  = (j.address || '') + (j.city ? ', ' + j.city : '');
+  var phone = (j.phones && j.phones.length) ? j.phones.map(function(p){return p.num+(p.ext?' ext.'+p.ext:'');}).join(', ') : (j.phone || '');
+  var email = (j.emails && j.emails.length) ? j.emails.join(', ') : '';
+  var when  = j.junkDate || j.date;
+  var dur   = j.estDurationMin ? fmtDur(j.estDurationMin) : '';
   var items = _notesToItems(j.items || '');
-  var itemsHtml = items.length ? '<ul class="items">'+items.map(function(s){return '<li>'+escHtml(s)+'</li>';}).join('')+'</ul>' : '<div class="muted">—</div>';
-  var photos = (j.photos||[]).map(function(url){ return '<img src="'+_cloudinaryDeliveryUrl(url,{width:800})+'">'; }).join('');
-  function row(label,val){ return '<tr><th>'+label+'</th><td>'+(val||'—')+'</td></tr>'; }
-  w.document.write('<!DOCTYPE html><html><head><title>Landscaping — '+j.id+'</title><style>'
-    + 'body{font-family:Arial,sans-serif;margin:0.5in;color:#000}'
-    + 'h1{font-size:22px;margin:0 0 2px;color:#3f6212}'
-    + '.sub{font-size:12px;color:#555;margin-bottom:12px}'
-    + '.jobname{font-size:19px;font-weight:bold;color:#3f6212;margin:8px 0 12px}'
-    + 'table.info{border-collapse:collapse;width:100%;margin-bottom:8px}'
-    + 'table.info th{text-align:left;width:150px;padding:6px 8px;background:#f0f5e6;border:1px solid #cdd9b5;font-size:13px;vertical-align:top}'
-    + 'table.info td{padding:6px 8px;border:1px solid #cdd9b5;font-size:13px}'
-    + '.crew{font-size:18px;font-weight:bold}'
-    + '.sec-title{font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#3f6212;border-bottom:2px solid #3f6212;padding-bottom:3px;margin:18px 0 8px}'
-    + '.items{margin:0;padding-left:20px;font-size:13px}'
-    + '.items li{margin-bottom:3px}'
-    + '.muted{color:#888;font-size:13px}'
-    + '.notes{font-size:13px;white-space:pre-wrap;border:1px solid #cdd9b5;padding:8px;min-height:46px}'
-    + '.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}'
-    + '.photos img{width:2.2in;height:1.7in;object-fit:cover;border:1px solid #ccc;page-break-inside:avoid}'
+  function line(w){ return '<span class="fill" style="min-width:'+w+'">&nbsp;</span>'; }
+  var dateCell = when ? (fd(when)+(j.junkTime?' '+ft(j.junkTime):'')) : line('130px');
+  var jobNameCell = j.jobName ? escHtml(j.jobName) : line('260px');
+  var crewCell = j.crewSize ? j.crewSize : line('28px');
+  // Tasks: each item becomes a checkbox row, then a few blank rows to write more.
+  var taskRows = items.map(function(s){ return '<div class="task"><span class="cb"></span>'+escHtml(s)+'</div>'; }).join('');
+  var nBlank = Math.max(2, 5 - items.length);
+  for(var b=0;b<nBlank;b++) taskRows += '<div class="task"><span class="cb blank"></span>'+line('78%')+'</div>';
+  var toolsCell = j.toolsNeeded ? escHtml(j.toolsNeeded) : line('92%');
+  var photoEls = (j.photos||[]).map(function(url){ return '<img src="'+_cloudinaryDeliveryUrl(url,{width:600})+'">'; }).join('');
+  var photosBlock = photoEls || '<div class="pbox">Before</div><div class="pbox">After</div><div class="pbox">After</div>';
+  w.document.write('<!DOCTYPE html><html><head><title>Work Order — '+j.id+'</title><style>'
+    + '@page{margin:0.5in} body{font-family:Arial,Helvetica,sans-serif;margin:0.5in;color:#111}'
+    + '.wo{border:1px solid #999;border-radius:4px;overflow:hidden}'
+    + '.hdr{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-bottom:2px solid #111}'
+    + '.brand{display:flex;align-items:center;gap:12px}'
+    + '.logo{width:60px;height:60px;object-fit:contain;filter:grayscale(1)}'
+    + '.co{font-size:20px;font-weight:bold;letter-spacing:.5px;line-height:1.05}'
+    + '.divn{font-size:10px;letter-spacing:2px;color:#555;margin-top:3px}'
+    + '.wt{font-size:15px;font-weight:bold;letter-spacing:1px;text-align:right}'
+    + '.wm{font-size:11px;color:#555;text-align:right;margin-top:5px;line-height:1.6}'
+    + '.jobbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #111}'
+    + '.lbl{font-size:10px;letter-spacing:1.5px;color:#555}'
+    + '.jobname{font-size:19px;font-weight:bold;line-height:1.15}'
+    + '.crewbox{border:1.5px solid #111;border-radius:4px;padding:5px 16px;text-align:center}'
+    + '.crewbox .n{font-size:21px;font-weight:bold;line-height:1.15}'
+    + '.cols{display:flex;border-bottom:1px solid #ccc}'
+    + '.col{flex:1;padding:12px 18px} .col+.col{border-left:1px solid #ccc}'
+    + '.sec{font-size:10px;letter-spacing:1.5px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #999;padding-bottom:3px;margin-bottom:8px}'
+    + '.kv{font-size:12px;line-height:1.95} .kv .k{color:#666}'
+    + '.fill{display:inline-block;border-bottom:1px solid #999}'
+    + '.sect{padding:12px 18px;border-bottom:1px solid #ccc}'
+    + '.task{font-size:12px;line-height:2.15}'
+    + '.cb{display:inline-block;width:12px;height:12px;border:1.5px solid #111;border-radius:2px;vertical-align:-1px;margin-right:9px} .cb.blank{border-color:#bbb}'
+    + '.notes{font-size:12px;white-space:pre-wrap;min-height:34px}'
+    + '.photos{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}'
+    + '.photos img{width:1.7in;height:1.25in;object-fit:cover;border:1px solid #999;filter:grayscale(1);page-break-inside:avoid}'
+    + '.pbox{width:1.7in;height:1.25in;border:1px solid #bbb;background:#f2f2f2;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px}'
+    + '.signoff{padding:12px 18px;background:#f5f5f5;font-size:12px}'
     + '</style></head><body>'
-    + '<h1>🌿 Landscaping Job Form</h1>'
-    + '<div class="sub">'+j.id+(when?' — '+fd(when):'')+(j.junkTime?' '+ft(j.junkTime):'')+'</div>'
-    + (j.jobName?'<div class="jobname">'+escHtml(j.jobName)+'</div>':'')
-    + '<table class="info">'
-    + row('Customer', escHtml(name))
-    + (j.businessName?row('Business', escHtml(j.businessName)):'')
-    + row('Phone', escHtml(j.phone||''))
-    + row('Address', escHtml(addr))
-    + row('Job Date', when?fd(when):'No date yet')
-    + row('People Needed', j.crewSize?'<span class="crew">👷 '+j.crewSize+'</span>':'—')
-    + (j.quotedAmount?row('Quoted Amount', '$'+j.quotedAmount):'')
-    + (j.price?row('Amount Paid', '$'+j.price):'')
-    + '</table>'
-    + '<div class="sec-title">Items / Tools Needed</div>'+itemsHtml
-    + '<div class="sec-title">Notes</div><div class="notes">'+escHtml(j.notes||'')+'</div>'
-    + (photos?'<div class="sec-title">Photos</div><div class="photos">'+photos+'</div>':'')
+    + '<div class="wo">'
+    + '<div class="hdr"><div class="brand"><img class="logo" src="'+JWG_LOGO_URL+'" onerror="this.style.display=\'none\'"><div><div class="co">JEFF WHITE GROUP</div><div class="divn">LANDSCAPING SERVICES</div></div></div>'
+      + '<div><div class="wt">CREW WORK ORDER</div><div class="wm">Job #'+j.id+'<br>Date: '+dateCell+'</div></div></div>'
+    + '<div class="jobbar"><div><div class="lbl">JOB NAME</div><div class="jobname">'+jobNameCell+'</div></div>'
+      + '<div class="crewbox"><div class="lbl">CREW NEEDED</div><div class="n">'+crewCell+'</div></div></div>'
+    + '<div class="cols">'
+      + '<div class="col"><div class="sec">Customer &amp; Site</div><div class="kv">'
+        + '<div><span class="k">Name:</span> <b>'+escHtml(name)+'</b></div>'
+        + (j.businessName?'<div><span class="k">Business:</span> '+escHtml(j.businessName)+'</div>':'')
+        + '<div><span class="k">Phone:</span> '+escHtml(phone)+'</div>'
+        + (email?'<div><span class="k">Email:</span> '+escHtml(email)+'</div>':'')
+        + '<div><span class="k">Site:</span> '+escHtml(addr)+'</div>'
+      + '</div></div>'
+      + '<div class="col"><div class="sec">Schedule &amp; Crew</div><div class="kv">'
+        + (dur?'<div><span class="k">Est. duration:</span> <b>'+dur+'</b></div>':'')
+        + '<div><span class="k">Crew on site:</span> '+line('150px')+'</div>'
+        + '<div><span class="k">Time in:</span> '+line('62px')+' &nbsp; <span class="k">out:</span> '+line('62px')+'</div>'
+      + '</div></div>'
+    + '</div>'
+    + '<div class="sect"><div class="sec">Scope of work — tasks</div>'+taskRows+'</div>'
+    + '<div class="cols"><div class="col"><div class="sec">Tools / equipment</div><div class="kv">'+toolsCell+'</div></div>'
+      + '<div class="col"><div class="sec">Notes / special instructions</div><div class="notes">'+escHtml(j.notes||'')+'</div></div></div>'
+    + '<div class="sect"><div class="sec">Reference photos</div><div class="photos">'+photosBlock+'</div></div>'
+    + '<div class="signoff"><div class="sec">Completion sign-off</div>'
+      + '<span class="cb"></span>Work completed &nbsp;&nbsp;&nbsp;<span class="cb"></span>Follow-up needed'
+      + '<div style="margin-top:9px">Crew lead: '+line('150px')+' &nbsp; Signature: '+line('160px')+' &nbsp; Completed at: '+line('80px')+'</div>'
+    + '</div>'
+    + '</div>'
     + '<script>window.onload=function(){window.print();};<\/script>'
     + '</body></html>');
   w.document.close();
