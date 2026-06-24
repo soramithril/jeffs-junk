@@ -1493,11 +1493,11 @@ input[type=date],input[type=time]{position:relative;}
 /* Photo upload progress popup */
 #photo-upload-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-lg);box-shadow:0 10px 34px rgba(0,0,0,.18);padding:14px 18px;min-width:270px;max-width:90vw;}
 .pu-row{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--text);}
-.pu-spin{width:16px;height:16px;border:2px solid var(--border-strong);border-top-color:#65a30d;border-radius:50%;animation:pu-spin .7s linear infinite;flex:none;}
+.pu-spin{width:16px;height:16px;border:2px solid var(--border-strong);border-top-color:var(--accent);border-radius:50%;animation:pu-spin .7s linear infinite;flex:none;}
 @keyframes pu-spin{to{transform:rotate(360deg);}}
-.pu-check{color:#65a30d;font-weight:800;font-size:17px;line-height:1;}
+.pu-check{color:var(--accent);font-weight:800;font-size:17px;line-height:1;}
 .pu-bar{margin-top:10px;height:6px;background:var(--surface2);border-radius:4px;overflow:hidden;}
-.pu-bar-fill{height:100%;background:#65a30d;border-radius:4px;transition:width .25s ease;}
+.pu-bar-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .25s ease;}
 
 /* Possible Jobs cards */
 .pj-card{border:1px solid var(--border);border-left:4px solid #65a30d;border-radius:0 var(--radius-lg) var(--radius-lg) 0;background:var(--surface);padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease;}
