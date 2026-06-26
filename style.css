@@ -122,7 +122,7 @@ body{
 .logo-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:500;}
 .nav{padding:12px 12px;flex:1;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
 .nav::-webkit-scrollbar{width:0;height:0;display:none;}
-.nav-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.6);padding:0 12px;margin-bottom:4px;margin-top:12px;}
+.nav-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.8);padding:0 12px;margin-bottom:4px;margin-top:12px;}
 .nav-item{display:flex;align-items:center;gap:12px;padding:8px 11px;border-radius:11px;cursor:pointer;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.95);transition:background .14s,color .14s;border:1px solid transparent;background:none;width:100%;text-align:left;margin-bottom:2px;}
 .nav-item:hover{background:rgba(255,255,255,.12);}
 .nav-item.active{position:relative;background:var(--bg);border-color:transparent;color:#15803d;font-weight:700;width:calc(100% + 12px);margin-right:-12px;border-radius:14px 0 0 14px;}
@@ -149,7 +149,7 @@ body{
 .nav-item.active .icon{background:var(--accent);color:#fff;}
 .nav-item-action{padding:12px 14px;font-size:14.5px;}
 .nav-item-action .icon{width:auto;height:auto;background:none;border-radius:0;color:#15803d;}
-.nav-item-daily .nav-hint{color:rgba(255,255,255,.65);}
+.nav-item-daily .nav-hint{color:rgba(255,255,255,.88);}
 .nav-item-daily.active .nav-hint{color:#4d8a64;opacity:1;}
 /* "More tools" sub-items are more compact with smaller tiles */
 #nav-more .nav-item{padding:5px 9px;font-size:13px;font-weight:500;color:rgba(255,255,255,.9);}
@@ -163,7 +163,7 @@ body{
 .sidebar-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,.16);}
 .stats-mini{display:flex;flex-direction:column;gap:8px;}
 .stats-mini-item{display:flex;justify-content:space-between;font-size:12px;}
-.stats-mini-label{color:rgba(255,255,255,.6);}
+.stats-mini-label{color:rgba(255,255,255,.8);}
 .stats-mini-value{color:#fff;font-weight:600;}
 
 /* Sidebar overlay for mobile */
