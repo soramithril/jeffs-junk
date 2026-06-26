@@ -73,7 +73,7 @@ table.t{width:100%;border-collapse:collapse;min-width:560px}
 .bnum{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:18px;letter-spacing:.4px;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
 .cdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .bday{font-size:11px;font-weight:600;font-family:'Inter',sans-serif;margin-left:1px}
-.igt{color:#b4b2a9}.iyt{color:#a16207}.irt{color:#b02633}
+.igt{color:#b4b2a9}.iok{color:#15803d}.iyt{color:#a16207}.irt{color:#b02633}
 .sp{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;padding:1px 9px;border-radius:6px;letter-spacing:.5px}
 .sp4{background:rgba(34,197,94,.16);color:#15803d}.sp7{background:rgba(230,126,34,.16);color:#b45309}
 .sp14{background:rgba(249,115,22,.14);color:#c2410c}.sp20{background:rgba(220,53,69,.14);color:#b02633}
@@ -163,10 +163,11 @@ table.t{width:100%;border-collapse:collapse;min-width:560px}
   </div>
 
   <div class="legend">
-    <span><b>Idle dot:</b></span>
-    <span><span class="idot ig"></span>&nbsp; out within 30 days</span>
-    <span><span class="idot iy"></span>&nbsp; 30–90 days idle</span>
-    <span><span class="idot ir"></span>&nbsp; 90+ days idle</span>
+    <span><b>Last out:</b></span>
+    <span style="color:#15803d;font-weight:600">under 30d</span>
+    <span style="color:#a16207;font-weight:600">30–90d</span>
+    <span style="color:#b02633;font-weight:600">90+ days</span>
+    <span style="color:#868e96"><span class="cdot" style="background:#22c55e;display:inline-block;vertical-align:middle"></span><span class="cdot" style="background:#34373b;display:inline-block;vertical-align:middle;margin-left:4px"></span> &nbsp;= bin colour</span>
     <span style="margin-left:auto">⋯ = Book · Edit · Delete (admins only)</span>
   </div>
 </div>
@@ -269,8 +270,7 @@ function noteHtml(b){
 }
 function rowHtml(b){
   var band=idleBand(b);
-  var dotCls = band==='out'?'ig':(band==='r'?'ir':(band==='y'?'iy':'ig'));
-  var dayCls = band==='r'?'irt':(band==='y'?'iyt':'igt');
+  var dayCls = band==='r'?'irt':(band==='y'?'iyt':(band==='out'?'igt':'iok'));
   var dayTxt = band==='out'?'out':b.idle+'d';
   var col = b.color==='green'?'#22c55e':'#34373b';
   var spCls = 'sp'+b.size.split(' ')[0];
@@ -284,7 +284,7 @@ function rowHtml(b){
   var flagsCol = flagsHtml(b);
   var statusFull = statusCell + (b.status==='out' && b.loc ? ' <span class="loc">📍 '+b.loc+'</span>' : '');
   return '<tr class="'+(b.cond==='oos'?'row-oos':'')+'">'
-    +'<td><span class="bnum"><span class="idot '+dotCls+'"></span><span class="cdot" style="background:'+col+'"></span>'+b.num+' <span class="bday '+dayCls+'">'+dayTxt+'</span></span></td>'
+    +'<td><span class="bnum"><span class="cdot" style="background:'+col+'"></span>'+b.num+' <span class="bday '+dayCls+'">'+dayTxt+'</span></span></td>'
     +'<td><span class="tc '+typeCls+'">'+typeLbl+'</span></td>'
     +'<td>'+statusFull+'</td>'
     +'<td>'+flagsCol+'</td>'
