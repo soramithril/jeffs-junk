@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '311';
+var APP_VERSION = '312';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -6434,7 +6434,7 @@ function makeBinRow(b){
     +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
     +locationCell
     +'<td>'+dmg+(oorFlag?' '+oorFlag:'')+'</td><td style="font-size:11px;color:var(--muted);max-width:175px">'+(b.notes?'<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">'+b.notes+'</div>':'<div style="font-style:italic;opacity:.6;margin-bottom:3px">No notes</div>')+'<button class="ra-btn" style="font-size:10px;padding:2px 7px;color:#22c55e;border-color:rgba(34,197,94,.4)" onclick="event.stopPropagation();openBinNote(\''+b.bid+'\')">'+(b.notes?'✏ Edit note':'+ Add note')+'</button></td>'
-    +'<td><div class="ra"><button class="ra-btn" style="color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="openBinHistory(\''+b.bid+'\')">📜 History</button><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="bookBin(\''+b.size+'\')">📅 Book</button><button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button><button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
+    +'<td><div class="ra"><button class="ra-btn" style="color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="openBinHistory(\''+b.bid+'\')">📜 History</button><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="bookBin(\''+b.size+'\')">📅 Book</button>'+(canDelete?'<button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button>':'')+'<button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
 }
 var _binNoteBid=null;
 function openBinNote(bid){
@@ -7142,6 +7142,7 @@ async function toggleAssignCrew(jobId,crewId,leg){
 }
 
 function openAddBin(){
+  if(!canDelete){ toast('⚠ You don\'t have permission to add bins.','error'); return; }
   editBinId=null;document.getElementById('bin-modal-ttl').textContent='Add Bin';document.getElementById('bin-save-btn').textContent='Add Bin';
   document.getElementById('bi-num').value='';document.getElementById('bi-type').value='regular';document.getElementById('bi-size').value='14 yard';
   document.getElementById('bi-color').value='green';document.getElementById('bi-dmg').value='good';document.getElementById('bi-status').value='in';document.getElementById('bi-notes').value='';
@@ -7151,6 +7152,7 @@ function openAddBin(){
   document.getElementById('bin-modal').classList.add('open');
 }
 function editBinItem(bid){
+  if(!canDelete){ toast('⚠ You don\'t have permission to edit bins.','error'); return; }
   var b=null;binItems.forEach(function(bi){if(bi.bid===bid)b=bi;});if(!b)return;
   editBinId=bid;document.getElementById('bin-modal-ttl').textContent='Edit Bin';document.getElementById('bin-save-btn').textContent='Save Changes';
   document.getElementById('bi-num').value=b.num||'';document.getElementById('bi-type').value=b.type||'regular';document.getElementById('bi-size').value=b.size||'14 yard';
@@ -7160,6 +7162,7 @@ function editBinItem(bid){
 }
 function saveBinItem(e){
   e.preventDefault();
+  if(!canDelete){ toast('⚠ You don\'t have permission to add or edit bins.','error'); return; }
   var num=document.getElementById('bi-num').value.trim();
   if(!num){showErr('bi-num');return;}
   // Check for duplicate bin number
