@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '321';
+var APP_VERSION = '322';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -7838,11 +7838,12 @@ function _renderUnassignedBinBanner(){
 }
 
 function _dismissBinBanner(){
-  _binBannerDismissed = true;
+  // Closing the bar collapses it to the chip (it does not hide the alert entirely).
   if(_binAlertTimer){ clearTimeout(_binAlertTimer); _binAlertTimer = null; }
+  _binAlertCollapsed = true;
   var b = document.getElementById('bin-alert-banner');
   if(b) b.remove();
-  _removeBinChip();
+  _renderUnassignedBinBanner();
 }
 
 function _openDetailFromBanner(jobId){
@@ -10125,6 +10126,7 @@ function applySettingsVisibility(){
   var navLabel=document.getElementById('nav-settings-label');
   if(canAccessAnalytics()){
     if(navLabel)navLabel.style.display='';
+    if(nav)nav.style.display='grid';
   } else {
     if(nav)nav.style.display='none';
     if(navLabel)navLabel.style.display='none';
@@ -10649,6 +10651,9 @@ function doMergeClients() {
 
 // ─── FURNITURE BANK DRD ───
 // ─── DRD MODAL INLINE HELPERS ───
+// The Edit-Job modal has no inputs for donor postal/email/contact/contactInfo,
+// so it preserves whatever the detail view saved instead of blanking them.
+var _drdModalPreserve = {postal:'',email:'',contact:'',contactInfo:''};
 function renderDrdModalGrid(){
   var g=document.getElementById('drd-m-items-grid');
   if(!g)return;
@@ -10666,20 +10671,23 @@ function renderDrdModalGrid(){
   drdModalRecalc();
 }
 function drdModalRecalc(){
-  var totalItems=0,totalVal=0;
+  var totalItems=0,totalFee=0,totalVal=0;
   DRD_ITEMS.forEach(function(item,i){
     var el=document.getElementById('drd-m-qty-'+i);
     var q=el?(parseInt(el.value)||0):0;
-    totalItems+=q;totalVal+=q*item.val;
+    totalItems+=q;totalFee+=q*item.fee;totalVal+=q*item.val;
   });
   var otherQtys=document.querySelectorAll('.drd-m-other-qty');
+  var otherFees=document.querySelectorAll('.drd-m-other-fee');
   var otherVals=document.querySelectorAll('.drd-m-other-val');
   otherQtys.forEach(function(el,i){
     var qty=parseInt(el.value)||0;
+    var fee=parseFloat(otherFees[i]?otherFees[i].value:0)||0;
     var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
-    totalItems+=qty;totalVal+=qty*val;
+    totalItems+=qty;totalFee+=qty*fee;totalVal+=qty*val;
   });
   var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent=totalItems;
+  var tf=document.getElementById('drd-m-total-pay');if(tf)tf.textContent='$'+totalFee.toFixed(2);
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
   _syncDrdToJobItems();
 }
@@ -10745,13 +10753,14 @@ function _collectDrdFromModal(){
     quantities:quantities,
     otherItems:otherItems,
     emailedDate:(document.getElementById('drd-m-emailed')||{}).value||'',
-    postal:'',
-    email:'',
-    contact:'',
-    contactInfo:''
+    postal:_drdModalPreserve.postal,
+    email:_drdModalPreserve.email,
+    contact:_drdModalPreserve.contact,
+    contactInfo:_drdModalPreserve.contactInfo
   };
 }
 function _clearDrdModal(){
+  _drdModalPreserve={postal:'',email:'',contact:'',contactInfo:''};
   var g=document.getElementById('drd-m-items-grid');if(g)g.innerHTML='';
   var o=document.getElementById('drd-m-other-rows');if(o)o.innerHTML='';
   var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value='';
@@ -10763,10 +10772,12 @@ function _clearDrdModal(){
   var dt=document.getElementById('drd-m-date');if(dt)dt.value='';
   var em=document.getElementById('drd-m-emailed');if(em)em.value='';
   var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent='0';
+  var tp=document.getElementById('drd-m-total-pay');if(tp)tp.textContent='$0.00';
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$0.00';
 }
 function _fillDrdModal(drd){
   if(!drd)return;
+  _drdModalPreserve={postal:drd.postal||'',email:drd.email||'',contact:drd.contact||'',contactInfo:drd.contactInfo||''};
   var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value=drd.donorName||'';
   var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=(drd.sources||[]).indexOf('fb')>=0;
   var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=(drd.sources||[]).indexOf('jj')>=0;
