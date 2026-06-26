@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '317';
+var APP_VERSION = '318';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2005,6 +2005,24 @@ function toggleNavSection(id){
   sec.style.display=open?'none':'block';
   if(arrow)arrow.style.transform=open?'rotate(-90deg)':'rotate(90deg)';
 }
+// "More tools" opens as a flyout panel beside the sidebar (no inline scroll).
+function toggleMoreFlyout(){
+  var fly=document.getElementById('nav-more');
+  var bd=document.getElementById('more-flyout-backdrop');
+  if(!fly)return;
+  if(fly.classList.contains('open')){ closeMoreFlyout(); return; }
+  fly.style.display='';
+  fly.classList.add('open');
+  if(bd) bd.classList.add('open');
+  var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(90deg)';
+}
+function closeMoreFlyout(){
+  var fly=document.getElementById('nav-more');
+  var bd=document.getElementById('more-flyout-backdrop');
+  if(fly) fly.classList.remove('open');
+  if(bd) bd.classList.remove('open');
+  var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
+}
 function go(name){
   var restricted=['analytics','utilization','leaderboard','advisor','bookings'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
@@ -2019,11 +2037,9 @@ function go(name){
   if(el) el.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){
     if(n.getAttribute('onclick')==="go('"+name+"')"){n.classList.add('active');
-      var parent=n.parentElement;if(parent&&parent.id&&parent.style.display==='none'){parent.style.display='block';var arrow=document.getElementById(parent.id+'-arrow');if(arrow)arrow.style.transform='rotate(90deg)';}
+      var parent=n.parentElement;if(parent&&parent.id&&parent.id!=='nav-more'&&parent.style.display==='none'){parent.style.display='block';var arrow=document.getElementById(parent.id+'-arrow');if(arrow)arrow.style.transform='rotate(90deg)';}
     }
   });
-  var _ai=document.querySelector('.nav-item.active');
-  if(_ai && _ai.closest && _ai.closest('#nav-more')){ var _nm=document.getElementById('nav-more'); if(_nm) _nm.style.display='block'; var _nma=document.getElementById('nav-more-arrow'); if(_nma) _nma.style.transform='rotate(90deg)'; }
   render(name);
   if(el) animateView(el);
   closeSidebar();
@@ -7694,6 +7710,8 @@ var _binBannerDismissed = false;
 var _binAlertLoading = false;
 var _binAlertLastFetch = 0;
 var _BIN_ALERT_COOLDOWN_MS = 30000;
+var _binAlertCollapsed = false;  // after the 5s attention pulse, the bar shrinks to a chip
+var _binAlertTimer = null;
 
 // Fetches matching jobs from Supabase and merges into jobs[]. Dashboard's
 // own data loaders skip past-dropoff-no-bin jobs, so the banner needs its
@@ -7750,11 +7768,36 @@ function _getUnassignedBinJobs(){
   });
 }
 
+function _removeBinChip(){
+  var c = document.getElementById('bin-alert-chip'); if(c) c.remove();
+  var sw = document.getElementById('global-search-wrap'); if(sw) sw.style.marginLeft = 'auto';
+}
+
+function _renderBinChip(list){
+  var header = document.querySelector('#view-dashboard .page-header');
+  var searchWrap = document.getElementById('global-search-wrap');
+  if(!header || !searchWrap){ return; }
+  var chip = document.getElementById('bin-alert-chip');
+  if(!chip){
+    chip = document.createElement('button');
+    chip.id = 'bin-alert-chip';
+    chip.type = 'button';
+    chip.onclick = _openUnassignedBinList;
+    header.insertBefore(chip, searchWrap);
+    searchWrap.style.marginLeft = '10px';
+  }
+  var n = list.length;
+  chip.innerHTML = '<span class="bin-chip-dot">⚠</span> ' + n + ' to assign';
+  chip.title = n + ' bin rental' + (n>1?'s':'') + ' need a bin assigned — click to view';
+}
+
 function _renderUnassignedBinBanner(){
   var existing = document.getElementById('bin-alert-banner');
-  if(_binBannerDismissed){ if(existing) existing.remove(); return; }
+  if(_binBannerDismissed){ if(existing) existing.remove(); _removeBinChip(); return; }
   var list = _getUnassignedBinJobs();
-  if(!list.length){ if(existing) existing.remove(); return; }
+  if(!list.length){ if(existing) existing.remove(); _removeBinChip(); return; }
+  // After the 5s pulse, the bar lives on as a small chip next to the search bar.
+  if(_binAlertCollapsed){ if(existing) existing.remove(); _renderBinChip(list); return; }
   var main = document.querySelector('.main');
   if(!main) return;
   if(!existing){
@@ -7762,6 +7805,7 @@ function _renderUnassignedBinBanner(){
     existing.id = 'bin-alert-banner';
     main.insertBefore(existing, main.firstChild);
   }
+  existing.classList.add('pulsing');
   var html;
   if(list.length === 1){
     var j = list[0];
@@ -7783,12 +7827,22 @@ function _renderUnassignedBinBanner(){
       + '<button class="bin-alert-close" onclick="_dismissBinBanner()" aria-label="Dismiss">&times;</button>';
   }
   existing.innerHTML = html;
+  // Eye-catching at the top for ~5s, then shrink into the chip by the search bar.
+  if(!_binAlertTimer){
+    _binAlertTimer = setTimeout(function(){
+      _binAlertCollapsed = true;
+      _binAlertTimer = null;
+      _renderUnassignedBinBanner();
+    }, 5000);
+  }
 }
 
 function _dismissBinBanner(){
   _binBannerDismissed = true;
+  if(_binAlertTimer){ clearTimeout(_binAlertTimer); _binAlertTimer = null; }
   var b = document.getElementById('bin-alert-banner');
   if(b) b.remove();
+  _removeBinChip();
 }
 
 function _openDetailFromBanner(jobId){
