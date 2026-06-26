@@ -51,11 +51,13 @@ body{margin:0;background:#f6f7f9;font-family:'Inter',system-ui,-apple-system,san
 .toolbar{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid #e9ecef;background:#f8f9fa;flex-wrap:wrap}
 .search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e9ecef;border-radius:7px;padding:7px 11px}
 .search input{border:none;outline:none;font-family:inherit;font-size:13px;width:100%;background:none;color:#1a1a2e}
-.sort-lbl{font-size:10px;color:#868e96;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
-.sc{background:none;border:1px solid #e9ecef;color:#868e96;padding:6px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;display:inline-flex;align-items:center;gap:4px}
-.sc:hover{border-color:#868e96;color:#1a1a2e}
-.sc.on{border-color:#22c55e;color:#15803d;background:rgba(34,197,94,.07)}
-.sc .ar{font-size:10px;opacity:.6}
+.sort-lbl{font-size:10px;color:#868e96;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-right:1px}
+.sortseg{display:inline-flex;align-items:center;gap:2px;background:#eef0f2;border-radius:999px;padding:3px}
+.sc{background:none;border:none;color:#6b7280;padding:6px 14px;border-radius:999px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;display:inline-flex;align-items:center;gap:5px;transition:background .14s,color .14s,box-shadow .14s}
+.sc:hover{color:#15803d}
+.sc.on{background:#22c55e;color:#fff;box-shadow:0 2px 8px rgba(34,197,94,.32)}
+.sc .ar{font-size:11px;opacity:.85}
+.sc:not(.on) .ar{opacity:.35}
 .rescount{font-size:12px;color:#868e96;margin-left:auto}
 
 .twrap{overflow-x:auto}
@@ -139,9 +141,11 @@ table.t{width:100%;border-collapse:collapse;min-width:560px}
         <div class="toolbar">
           <div class="search">🔎 <input type="text" id="q" placeholder="Search bin number or notes…"></div>
           <span class="sort-lbl">Sort</span>
-          <button class="sc on" data-sort="num">Bin # <span class="ar" id="ar-num">↑</span></button>
-          <button class="sc" data-sort="size">Size <span class="ar" id="ar-size">↕</span></button>
-          <button class="sc" data-sort="status">Status <span class="ar" id="ar-status">↕</span></button>
+          <div class="sortseg">
+            <button class="sc on" data-sort="num">Bin # <span class="ar" id="ar-num">↑</span></button>
+            <button class="sc" data-sort="size">Size <span class="ar" id="ar-size">↕</span></button>
+            <button class="sc" data-sort="status">Status <span class="ar" id="ar-status">↕</span></button>
+          </div>
           <span class="rescount" id="rescount"></span>
         </div>
         <div class="twrap">
