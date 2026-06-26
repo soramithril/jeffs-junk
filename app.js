@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '312';
+var APP_VERSION = '313';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -9067,49 +9067,35 @@ function renderDrdInDetail(j){
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Contact Info</label><input type="text" id="drd-d-contactinfo" class="form-input" value="'+_esc(donorContactInfo)+'" style="font-size:12px;padding:6px 8px"></div>'
     +'</div></div>';
 
-  // Items Grid
-  html+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px">'
-    +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">📦 Donated Items</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:10px" id="drd-d-items-grid">';
+  // Items Grid — mirrors the Furniture Quote Calculator exactly
+  html+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">📦 Donated Items</div>'
+    +'<div style="margin-bottom:10px"><input id="drd-d-search" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdDetailFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif"></div>'
+    +'<div id="drd-d-items-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
   DRD_ORDER.forEach(function(i){
     var item=DRD_ITEMS[i];
     var qty=qtys[i]||0;
-    html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);gap:6px">'
-      +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-      +'<div style="font-size:9px;color:var(--muted)">$'+item.val+'</div></div>'
-      +'<input type="number" id="drd-d-qty-'+i+'" min="0" value="'+(qty||'')+'" placeholder="0" style="width:44px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 4px;border-radius:4px;font-size:12px;font-weight:700;text-align:center" oninput="drdDetailRecalc()">'
+    html+='<div class="drd-d-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt</div></div>'
+      +'<input type="number" id="drd-d-qty-'+i+'" min="0" value="'+(qty||'')+'" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdDetailRecalc()">'
       +'</div>';
   });
   html+='</div>';
-  // Other items
-  html+='<div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>'
-    +'<div id="drd-d-other-rows">';
-  if(otherItems.length){
-    otherItems.forEach(function(oi,idx){
-      html+='<div style="display:flex;gap:6px;margin-bottom:4px;align-items:center">'
-        +'<input type="text" class="form-input drd-d-other-name" value="'+_esc(oi.name||'')+'" placeholder="Item" style="font-size:12px;padding:4px 8px;flex:1">'
-        +'<input type="number" class="form-input drd-d-other-qty" value="'+(oi.qty||'')+'" placeholder="Qty" min="0" style="font-size:12px;padding:4px 8px;width:55px;text-align:center" oninput="drdDetailRecalc()">'
-        +'<input type="number" class="form-input drd-d-other-val" value="'+(oi.val||'')+'" placeholder="$" min="0" step="0.01" style="font-size:12px;padding:4px 8px;width:70px;text-align:center" oninput="drdDetailRecalc()">'
-        +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>'
-        +'</div>';
-    });
-  } else {
-    html+='<div style="display:flex;gap:6px;margin-bottom:4px;align-items:center">'
-      +'<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px;flex:1">'
-      +'<input type="number" class="form-input drd-d-other-qty" placeholder="Qty" min="0" style="font-size:12px;padding:4px 8px;width:55px;text-align:center" oninput="drdDetailRecalc()">'
-      +'<input type="number" class="form-input drd-d-other-val" placeholder="$" min="0" step="0.01" style="font-size:12px;padding:4px 8px;width:70px;text-align:center" oninput="drdDetailRecalc()">'
-      +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>'
-      +'</div>';
-  }
-  html+='</div>'
-    +'<button class="btn btn-ghost btn-sm" onclick="drdDetailAddOtherRow()" style="margin-top:4px;font-size:11px">+ Add Row</button>'
+  // Custom items — mirrors the quote calculator
+  html+='<div style="margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+    +'<div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Custom items</div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="drdDetailAddOtherRow()">+ Add custom</button>'
+    +'</div>'
+    +'<div id="drd-d-other-rows"></div>'
     +'</div>';
 
-  // Totals
-  html+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">'
-    +'<div style="display:flex;gap:30px">'
-    +'<div><div style="font-size:10px;text-transform:uppercase;color:var(--muted)">Items</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#a855f7;line-height:1" id="drd-d-total-items">0</div></div>'
-    +'<div><div style="font-size:10px;text-transform:uppercase;color:var(--muted)">Value</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#a855f7;line-height:1" id="drd-d-total-value">$0.00</div></div>'
+  // Totals — mirrors the quote calculator (Items / Customer Pays / Tax Receipt Value)
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-top:2px solid #22c55e;padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">'
+    +'<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Items</div><div style="font-size:22px;font-weight:800" id="drd-d-total-items">0</div></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:#22c55e;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Tax Receipt Value</div><div style="font-size:28px;font-weight:800;color:#0d6efd;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-value">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Donation receipt total</div></div>'
     +'</div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Date DRD Emailed</label><input type="date" id="drd-d-emailed" class="form-input" value="'+_esc(emailedDate)+'" style="font-size:12px;padding:4px 8px"></div>'
     +'</div>';
@@ -9122,40 +9108,57 @@ function renderDrdInDetail(j){
 
   html+='</div>';
   wrap.innerHTML=html;
+  // Populate custom item rows (mirrors the quote calculator's behaviour)
+  if(otherItems.length){ otherItems.forEach(function(oi){ drdDetailAddOtherRow(oi.name,oi.qty,oi.fee,oi.val); }); }
+  else { drdDetailAddOtherRow(); }
   drdDetailRecalc();
 }
 
 function _esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
-function drdDetailAddOtherRow(){
+function drdDetailAddOtherRow(name,qty,fee,val){
   var wrap=document.getElementById('drd-d-other-rows');if(!wrap)return;
   var row=document.createElement('div');
-  row.style.cssText='display:flex;gap:6px;margin-bottom:4px;align-items:center';
-  row.innerHTML='<input type="text" class="form-input drd-d-other-name" placeholder="Item" style="font-size:12px;padding:4px 8px;flex:1">'
-    +'<input type="number" class="form-input drd-d-other-qty" placeholder="Qty" min="0" style="font-size:12px;padding:4px 8px;width:55px;text-align:center" oninput="drdDetailRecalc()">'
-    +'<input type="number" class="form-input drd-d-other-val" placeholder="$" min="0" step="0.01" style="font-size:12px;padding:4px 8px;width:70px;text-align:center" oninput="drdDetailRecalc()">'
-    +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>';
+  row.style.cssText='display:flex;gap:8px;margin-bottom:6px;align-items:center';
+  row.innerHTML='<input type="text" class="form-input drd-d-other-name" value="'+_esc(name||'')+'" placeholder="Item description" style="font-size:13px;padding:6px 10px;flex:1">'
+    +'<input type="number" class="form-input drd-d-other-qty" value="'+(qty||'')+'" placeholder="Qty" min="0" style="font-size:13px;padding:6px 10px;width:60px;text-align:center" oninput="drdDetailRecalc()">'
+    +'<input type="number" class="form-input drd-d-other-fee" value="'+(fee||'')+'" placeholder="$ pays" min="0" step="0.01" style="font-size:13px;padding:6px 10px;width:80px;text-align:center" oninput="drdDetailRecalc()">'
+    +'<input type="number" class="form-input drd-d-other-val" value="'+(val||'')+'" placeholder="$ receipt" min="0" step="0.01" style="font-size:13px;padding:6px 10px;width:90px;text-align:center" oninput="drdDetailRecalc()">'
+    +'<button type="button" onclick="this.parentElement.remove();drdDetailRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
 
+function drdDetailFilter(){
+  var sEl=document.getElementById('drd-d-search');
+  var q=sEl?(sEl.value||'').toLowerCase().trim():'';
+  document.querySelectorAll('#drd-d-items-grid .drd-d-item').forEach(function(el){
+    var n=el.getAttribute('data-name')||'';
+    el.style.display=(!q||n.indexOf(q)>=0)?'':'none';
+  });
+}
+
 function drdDetailRecalc(){
-  var totalItems=0,totalVal=0;
+  var totalItems=0,totalFee=0,totalVal=0;
   DRD_ITEMS.forEach(function(item,i){
     var el=document.getElementById('drd-d-qty-'+i);
     var qty=el?(parseInt(el.value)||0):0;
-    totalItems+=qty; totalVal+=qty*item.val;
+    totalItems+=qty; totalFee+=qty*item.fee; totalVal+=qty*item.val;
   });
   var otherQtys=document.querySelectorAll('.drd-d-other-qty');
+  var otherFees=document.querySelectorAll('.drd-d-other-fee');
   var otherVals=document.querySelectorAll('.drd-d-other-val');
   otherQtys.forEach(function(el,i){
     var qty=parseInt(el.value)||0;
+    var fee=parseFloat(otherFees[i]?otherFees[i].value:0)||0;
     var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
-    totalItems+=qty; totalVal+=qty*val;
+    totalItems+=qty; totalFee+=qty*fee; totalVal+=qty*val;
   });
   var ti=document.getElementById('drd-d-total-items');
+  var tf=document.getElementById('drd-d-total-pay');
   var tv=document.getElementById('drd-d-total-value');
   if(ti)ti.textContent=totalItems;
-  if(tv)tv.textContent='$'+totalVal.toFixed(2);
+  if(tf)tf.textContent=totalFee.toFixed(2);
+  if(tv)tv.textContent=totalVal.toFixed(2);
 }
 
 function _collectDrdFromDetail(){
@@ -9171,12 +9174,14 @@ function _collectDrdFromDetail(){
   var otherItems=[];
   var names=document.querySelectorAll('.drd-d-other-name');
   var qtys=document.querySelectorAll('.drd-d-other-qty');
+  var fees=document.querySelectorAll('.drd-d-other-fee');
   var vals=document.querySelectorAll('.drd-d-other-val');
   for(var i=0;i<names.length;i++){
     var n=names[i].value.trim();
     var q=parseInt(qtys[i]?qtys[i].value:0)||0;
+    var f=parseFloat(fees[i]?fees[i].value:0)||0;
     var v=parseFloat(vals[i]?vals[i].value:0)||0;
-    if(n||q) otherItems.push({name:n,qty:q,val:v});
+    if(n||q) otherItems.push({name:n,qty:q,fee:f,val:v});
   }
   return {
     sources:sources,
@@ -10651,7 +10656,8 @@ function drdModalAddOtherRow(){
   row.style.cssText='display:flex;gap:8px;margin-bottom:4px;align-items:center';
   row.innerHTML='<input type="text" class="drd-m-other-name form-input" placeholder="Item name" style="flex:1;font-size:12px;padding:5px 8px" oninput="drdModalRecalc()">'
     +'<input type="number" class="drd-m-other-qty" min="0" placeholder="Qty" style="width:55px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
-    +'<input type="number" class="drd-m-other-val" min="0" step="0.01" placeholder="$" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
+    +'<input type="number" class="drd-m-other-fee" min="0" step="0.01" placeholder="$ pays" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
+    +'<input type="number" class="drd-m-other-val" min="0" step="0.01" placeholder="$ receipt" style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:6px;font-size:12px;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
     +'<button type="button" onclick="this.parentElement.remove();drdModalRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
@@ -10668,12 +10674,14 @@ function _collectDrdFromModal(){
   var otherItems=[];
   var names=document.querySelectorAll('.drd-m-other-name');
   var qtys=document.querySelectorAll('.drd-m-other-qty');
+  var fees=document.querySelectorAll('.drd-m-other-fee');
   var vals=document.querySelectorAll('.drd-m-other-val');
   for(var i=0;i<names.length;i++){
     var n=names[i].value.trim();
     var q=parseInt(qtys[i]?qtys[i].value:0)||0;
+    var f=parseFloat(fees[i]?fees[i].value:0)||0;
     var v=parseFloat(vals[i]?vals[i].value:0)||0;
-    if(n||q) otherItems.push({name:n,qty:q,val:v});
+    if(n||q) otherItems.push({name:n,qty:q,fee:f,val:v});
   }
   return {
     sources:sources,
@@ -10721,9 +10729,11 @@ function _fillDrdModal(drd){
     drdModalAddOtherRow();
     var names=document.querySelectorAll('.drd-m-other-name');
     var qtys=document.querySelectorAll('.drd-m-other-qty');
+    var fees=document.querySelectorAll('.drd-m-other-fee');
     var vals=document.querySelectorAll('.drd-m-other-val');
     if(names.length){names[names.length-1].value=oi.name||'';}
     if(qtys.length){qtys[qtys.length-1].value=oi.qty||0;}
+    if(fees.length){fees[fees.length-1].value=oi.fee||0;}
     if(vals.length){vals[vals.length-1].value=oi.val||0;}
   });
   drdModalRecalc();
