@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bin Fleet — Upgrade Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7f9;font-family:'Inter',system-ui,-apple-system,sans-serif;color:#1a1a2e;padding:0 0 40px}
+.pv-banner{background:#1a1a2e;color:#fff;font-size:12.5px;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pv-banner b{font-weight:700}
+.pv-banner .tag{background:#22c55e;color:#06250f;font-weight:700;border-radius:5px;padding:2px 8px;font-size:11px;letter-spacing:.5px}
+.pv-banner .muted{color:#9aa0ab}
+.wrapper{max-width:1080px;margin:0 auto;padding:18px 16px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:13px;flex-wrap:wrap;gap:8px}
+.title{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:30px;letter-spacing:.5px;line-height:1}
+.sub{font-size:12.5px;color:#868e96;margin-top:3px}
+.btn-add{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid #22c55e;color:#15803d;background:#fff;cursor:pointer}
+.lock{font-size:12px;opacity:.55}
+
+.goal{background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:13px 16px;margin-bottom:12px}
+.goal-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:8px;flex-wrap:wrap;gap:4px}
+.goal-lbl{font-weight:500;display:flex;align-items:center;gap:7px}
+.goal-sub{color:#868e96}
+.bar{height:10px;border-radius:6px;background:#eef0f2;overflow:hidden}
+.bar-fill{height:100%;background:#22c55e;border-radius:6px;transition:width .3s}
+.goal-pct{font-size:11.5px;color:#868e96;margin-top:5px}
+
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.tile{background:#fff;border:1px solid #e9ecef;border-radius:11px;padding:11px 14px;cursor:pointer;border-top:3px solid #eab308;transition:box-shadow .12s,transform .12s}
+.tile:hover{box-shadow:0 3px 12px rgba(0,0,0,.07)}
+.tile.dang{border-top-color:#dc3545}
+.tile.on{box-shadow:0 0 0 2px #22c55e inset}
+.tile .tn{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:26px;line-height:1}
+.tile .tl{font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:#868e96;font-weight:700;margin-top:3px}
+
+.layout{display:grid;grid-template-columns:184px 1fr;gap:14px;align-items:start}
+.rail{background:#fff;border:1px solid #e9ecef;border-radius:12px;overflow:hidden;position:sticky;top:14px}
+.rail-h{padding:11px 14px;background:#f1f3f5;font-size:10px;text-transform:uppercase;letter-spacing:1.3px;color:#868e96;font-weight:700}
+.rail-sec{padding:6px 14px;font-size:9px;text-transform:uppercase;letter-spacing:1.3px;color:#868e96;font-weight:700;background:#f8f9fa}
+.rb{width:100%;display:flex;align-items:center;gap:7px;padding:9px 14px;border:none;background:none;color:#868e96;font-size:13px;font-weight:500;border-bottom:1px solid #f1f3f5;cursor:pointer;transition:background .12s,color .12s}
+.rb:hover{background:#f8f9fa;color:#1a1a2e}
+.rb .rl{flex:1;text-align:left}
+.rb .rc{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:16px;color:inherit}
+.rb.on{background:rgba(34,197,94,.08);color:#15803d;box-shadow:inset 2px 0 0 #22c55e}
+.rb .dotc{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.ti2{font-size:14px;width:14px;text-align:center}
+
+.panel{background:#fff;border:1px solid #e9ecef;border-radius:12px;overflow:hidden}
+.toolbar{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid #e9ecef;background:#f8f9fa;flex-wrap:wrap}
+.search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e9ecef;border-radius:7px;padding:7px 11px}
+.search input{border:none;outline:none;font-family:inherit;font-size:13px;width:100%;background:none;color:#1a1a2e}
+.sort-lbl{font-size:10px;color:#868e96;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+.sc{background:none;border:1px solid #e9ecef;color:#868e96;padding:6px 11px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.sc:hover{border-color:#868e96;color:#1a1a2e}
+.sc.on{border-color:#22c55e;color:#15803d;background:rgba(34,197,94,.07)}
+.sc .ar{font-size:10px;opacity:.6}
+.rescount{font-size:12px;color:#868e96;margin-left:auto}
+
+.twrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;min-width:560px}
+.t th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#868e96;font-weight:700;text-align:left;padding:9px 12px;border-bottom:1px solid #e9ecef;background:#f8f9fa}
+.t td{padding:9px 12px;border-bottom:1px solid #f1f3f5;font-size:13px;vertical-align:middle}
+.t tr:last-child td{border-bottom:none}
+.grp td{background:#f1f3f5;padding:10px 12px;font-size:12.5px;text-transform:uppercase;letter-spacing:1.1px;color:#1a1a2e;font-weight:700;border-top:2px solid #e9ecef;border-bottom:2px solid #e9ecef}
+.row-oos{background:rgba(220,53,69,.035)}
+
+.idot{width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0}
+.ig{background:#22c55e}.iy{background:#eab308}.ir{background:#dc3545}
+.bnum{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:18px;letter-spacing:.4px;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.cdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.bday{font-size:11px;font-weight:600;font-family:'Inter',sans-serif;margin-left:1px}
+.igt{color:#b4b2a9}.iyt{color:#a16207}.irt{color:#b02633}
+.sp{font-family:'Bebas Neue','Arial Narrow',sans-serif;font-size:15px;padding:1px 9px;border-radius:6px;letter-spacing:.5px}
+.sp4{background:rgba(34,197,94,.16);color:#15803d}.sp7{background:rgba(230,126,34,.16);color:#b45309}
+.sp14{background:rgba(249,115,22,.14);color:#c2410c}.sp20{background:rgba(220,53,69,.14);color:#b02633}
+.tc{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap}
+.tc-reg{background:rgba(107,117,133,.14);color:#6b7280}
+.tc-low{background:rgba(168,85,247,.14);color:#9b59b6}
+.stog{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:3px 10px;border-radius:13px;cursor:pointer;white-space:nowrap;border:none;font-family:inherit}
+.si{background:rgba(34,197,94,.12);color:#15803d}.so{background:rgba(220,53,69,.10);color:#b02633}
+.loc{font-size:11.5px;color:#0d6efd;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;margin:1px 3px 1px 0;white-space:nowrap}
+.c-dec{background:rgba(8,145,178,.12);color:#0e7490}
+.c-pnt{background:rgba(249,115,22,.14);color:#c2410c}
+.c-oos{background:rgba(220,53,69,.13);color:#b02633}
+.c-nfr{background:rgba(120,120,120,.15);color:#5f5e5a}
+.note{font-size:12px;color:#495057;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.addn{color:#22c55e;cursor:pointer;display:inline-flex;align-items:center;gap:2px}
+.muted{color:#b4b2a9}
+.act{display:flex;gap:6px;justify-content:flex-end}
+.ab{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;border:1px solid #e9ecef;background:#fff;color:#868e96;cursor:pointer;font-size:14px}
+.ab:hover{border-color:#868e96;color:#1a1a2e}
+.ab.pri{border-color:rgba(34,197,94,.4);color:#15803d}
+
+.forecast{background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:13px 16px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.forecast .ttl{font-size:13px;font-weight:500;display:flex;align-items:center;gap:7px}
+.legend{font-size:11.5px;color:#868e96;margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.legend b{font-weight:500;color:#495057}
+
+@media(max-width:760px){
+  .layout{grid-template-columns:1fr}
+  .rail{position:static;display:flex;flex-wrap:wrap}
+  .rail-h,.rail-sec{display:none}
+  .rb{width:auto;flex:0 0 auto;border-bottom:none;border-right:1px solid #f1f3f5}
+  .tiles{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="pv-banner">
+  <span class="tag">PREVIEW</span>
+  <b>Upgraded Bin Fleet</b>
+  <span class="muted">— sample data, not live. The real version pulls your actual bins. Click filters, tiles, sort to try it.</span>
+</div>
+
+<div class="wrapper">
+  <div class="hdr">
+    <div><div class="title">Bin Fleet</div><div class="sub" id="sub"></div></div>
+    <button class="btn-add" title="Adding bins is admins-only (already shipped)"><i class="ti">＋</i> Add bin <span class="lock">🔒</span></button>
+  </div>
+
+  <div class="goal">
+    <div class="goal-top">
+      <span class="goal-lbl">🖌️ All-green conversion</span>
+      <span class="goal-sub" id="goal-sub"></span>
+    </div>
+    <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+    <div class="goal-pct" id="goal-pct"></div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="layout">
+    <div class="rail" id="rail"></div>
+    <div>
+      <div class="panel">
+        <div class="toolbar">
+          <div class="search">🔎 <input type="text" id="q" placeholder="Search bin number or notes…"></div>
+          <span class="sort-lbl">Sort</span>
+          <button class="sc on" data-sort="num">Bin # <span class="ar" id="ar-num">↑</span></button>
+          <button class="sc" data-sort="size">Size <span class="ar" id="ar-size">↕</span></button>
+          <button class="sc" data-sort="status">Status <span class="ar" id="ar-status">↕</span></button>
+          <span class="rescount" id="rescount"></span>
+        </div>
+        <div class="twrap">
+          <table class="t">
+            <thead><tr><th>Bin</th><th>Type</th><th>Status</th><th>Flags</th><th>Notes</th><th></th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="forecast">
+        <span class="ttl">📅 14-day availability forecast</span>
+        <span class="muted" style="font-size:11.5px">(unchanged — stays below the roster)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><b>Idle dot:</b></span>
+    <span><span class="idot ig"></span>&nbsp; out within 30 days</span>
+    <span><span class="idot iy"></span>&nbsp; 30–90 days idle</span>
+    <span><span class="idot ir"></span>&nbsp; 90+ days idle</span>
+    <span style="margin-left:auto">⋯ = Book · Edit · Delete (admins only)</span>
+  </div>
+</div>
+
+<script>
+// ── Sample fleet (representative; real version uses live bin_items + history) ──
+var BINS = [
+  {num:'20-07', color:'green', size:'20 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:false, notes:'Feather Weight?', loc:'', idle:12},
+  {num:'20-02', color:'green', size:'20 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:false, notes:'', loc:'', idle:40},
+  {num:'20-01', color:'black', size:'20 yard', type:'reg', status:'out', cond:'good', decals:false, repaint:false, notes:'', loc:'Reid · Barrie', idle:0},
+  {num:'20-03', color:'green', size:'20 yard', type:'reg', status:'out', cond:'good', decals:false, repaint:false, notes:'', loc:'Hill · Innisfil', idle:0},
+  {num:'20-08', color:'black', size:'20 yard', type:'reg', status:'out', cond:'good', decals:false, repaint:true,  notes:'', loc:'Park · Bradford', idle:0},
+  {num:'14R-04', color:'green', size:'14 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:false, notes:'', loc:'', idle:22},
+  {num:'14R-08', color:'black', size:'14 yard', type:'reg', status:'in',  cond:'oos',  decals:false, repaint:false, notes:'Cracked floor', loc:'', idle:121},
+  {num:'14LW-03', color:'black', size:'14 yard', type:'low', status:'out', cond:'good', decals:false, repaint:false, notes:'', loc:'Smith · Alliston', idle:0},
+  {num:'14R-06', color:'black', size:'14 yard', type:'reg', status:'in',  cond:'nfr',  decals:false, repaint:false, notes:'Holds Hino tool box', loc:'', idle:63},
+  {num:'14R-12', color:'black', size:'14 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:true,  notes:'', loc:'', idle:35},
+  {num:'14R-20', color:'green', size:'14 yard', type:'reg', status:'out', cond:'good', decals:false, repaint:false, notes:'', loc:'Adams · Barrie', idle:0},
+  {num:'14LW-20', color:'green', size:'14 yard', type:'low', status:'in',  cond:'good', decals:true,  repaint:false, notes:'', loc:'', idle:8},
+  {num:'7-01', color:'green', size:'7 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:false, notes:'', loc:'', idle:5},
+  {num:'7-02', color:'black', size:'7 yard', type:'reg', status:'in',  cond:'good', decals:true,  repaint:true,  notes:'Sticky lid', loc:'', idle:58},
+  {num:'7-05', color:'green', size:'7 yard', type:'reg', status:'in',  cond:'good', decals:true,  repaint:false, notes:'Faded sticker', loc:'', idle:100},
+  {num:'4-01', color:'green', size:'4 yard', type:'reg', status:'out', cond:'good', decals:false, repaint:false, notes:'', loc:'Lee · Innisfil', idle:0},
+  {num:'4-02', color:'green', size:'4 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:false, notes:'', loc:'', idle:95},
+  {num:'4-04', color:'black', size:'4 yard', type:'reg', status:'in',  cond:'good', decals:false, repaint:true,  notes:'', loc:'', idle:80}
+];
+
+var SIZE_ORDER = ['4 yard','7 yard','14 yard','20 yard'];
+var state = { filter:'all', sort:'num', dir:1, q:'' };
+
+function idleBand(b){ if(b.status==='out') return 'out'; if(b.idle>=90) return 'r'; if(b.idle>=30) return 'y'; return 'g'; }
+function passFilter(b, f){
+  if(f==='all') return true;
+  if(f==='in') return b.status==='in';
+  if(f==='out') return b.status==='out';
+  if(f==='oos') return b.cond==='oos';
+  if(f==='nfr') return b.cond==='nfr';
+  if(f==='green'||f==='black') return b.color===f;
+  if(SIZE_ORDER.indexOf(f)!==-1) return b.size===f;
+  if(f==='decals') return b.decals;
+  if(f==='repaint') return b.repaint;
+  if(f==='idle90') return b.status==='in' && b.idle>=90;
+  return true;
+}
+function count(f){ var n=0; BINS.forEach(function(b){ if(passFilter(b,f)) n++; }); return n; }
+
+function buildChrome(){
+  var greens=count('green'), total=BINS.length, pct=Math.round(greens/total*100), blacks=total-greens;
+  document.getElementById('sub').textContent = total+' bins · '+count('in')+' in yard · '+count('out')+' out';
+  document.getElementById('goal-sub').innerHTML = greens+' of '+total+' green · <b style="color:#c2410c">'+blacks+' still black</b>';
+  document.getElementById('bar-fill').style.width = pct+'%';
+  document.getElementById('goal-pct').textContent = pct+'% green';
+
+  var tiles=[
+    {f:'decals', n:count('decals'), label:'Needs decals', cls:''},
+    {f:'repaint', n:count('repaint'), label:'Needs repaint', cls:''},
+    {f:'idle90', n:count('idle90'), label:'Idle 90+ days', cls:'dang'}
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(function(t){
+    return '<div class="tile '+t.cls+'" data-filter="'+t.f+'"><div class="tn">'+t.n+'</div><div class="tl">'+t.label+'</div></div>';
+  }).join('');
+
+  var rail=[
+    {h:'Filter'},
+    {f:'all', icon:'🚛', label:'All bins'},
+    {sec:'Status'},
+    {f:'in', dot:'#22c55e', label:'In yard'},
+    {f:'out', dot:'#dc3545', label:'Out'},
+    {f:'oos', icon:'⛔', label:'Out of service'},
+    {f:'nfr', icon:'🔧', label:'Not for rent'},
+    {sec:'Colour'},
+    {f:'green', dot:'#22c55e', label:'Green'},
+    {f:'black', dot:'#34373b', label:'Black'},
+    {sec:'Size'},
+    {f:'4 yard', label:'4 yd', indent:true},
+    {f:'7 yard', label:'7 yd', indent:true},
+    {f:'14 yard', label:'14 yd', indent:true},
+    {f:'20 yard', label:'20 yd', indent:true}
+  ];
+  document.getElementById('rail').innerHTML = rail.map(function(r){
+    if(r.h) return '<div class="rail-h">'+r.h+'</div>';
+    if(r.sec) return '<div class="rail-sec">'+r.sec+'</div>';
+    var ic = r.dot ? '<span class="dotc" style="background:'+r.dot+'"></span>' : (r.icon ? '<span class="ti2">'+r.icon+'</span>' : '<span class="ti2"></span>');
+    var lbl = '<span class="rl"'+(r.indent?' style="margin-left:6px"':'')+'>'+r.label+'</span>';
+    return '<button class="rb'+(r.f===state.filter?' on':'')+'" data-filter="'+r.f+'">'+ic+lbl+'<span class="rc">'+count(r.f)+'</span></button>';
+  }).join('');
+}
+
+function flagsHtml(b){
+  var out=[];
+  if(b.cond==='oos') out.push('<span class="chip c-oos">⛔ Out of service</span>');
+  if(b.cond==='nfr') out.push('<span class="chip c-nfr">🔧 Not for rent</span>');
+  if(b.repaint) out.push('<span class="chip c-pnt">🖌️ Repaint</span>');
+  if(b.decals) out.push('<span class="chip c-dec">🏷️ Decals</span>');
+  return out.length ? out.join('') : '<span class="muted" style="font-size:11px">—</span>';
+}
+function noteHtml(b){
+  if(b.notes) return '<span class="note">'+b.notes+' <span class="addn">✏</span></span>';
+  return '<span class="note muted">No notes <span class="addn">＋ note</span></span>';
+}
+function rowHtml(b){
+  var band=idleBand(b);
+  var dotCls = band==='out'?'ig':(band==='r'?'ir':(band==='y'?'iy':'ig'));
+  var dayCls = band==='r'?'irt':(band==='y'?'iyt':'igt');
+  var dayTxt = band==='out'?'out':b.idle+'d';
+  var col = b.color==='green'?'#22c55e':'#34373b';
+  var spCls = 'sp'+b.size.split(' ')[0];
+  var typeCls = b.type==='low'?'tc-low':'tc-reg';
+  var typeLbl = b.type==='low'?'Low-Wide':'Regular';
+  var statusCell = b.status==='in'
+    ? '<button class="stog si">✓ In yard</button>'
+    : '<button class="stog so">↗ Out</button>';
+  var fourth = b.status==='out' && b.loc ? '<span class="loc">📍 '+b.loc+'</span>' : flagsHtml(b);
+  // When out, show location in the Status column area and flags in flags column:
+  var flagsCol = flagsHtml(b);
+  var statusFull = statusCell + (b.status==='out' && b.loc ? ' <span class="loc">📍 '+b.loc+'</span>' : '');
+  return '<tr class="'+(b.cond==='oos'?'row-oos':'')+'">'
+    +'<td><span class="bnum"><span class="idot '+dotCls+'"></span><span class="cdot" style="background:'+col+'"></span>'+b.num+' <span class="bday '+dayCls+'">'+dayTxt+'</span></span></td>'
+    +'<td><span class="tc '+typeCls+'">'+typeLbl+'</span></td>'
+    +'<td>'+statusFull+'</td>'
+    +'<td>'+flagsCol+'</td>'
+    +'<td>'+noteHtml(b)+'</td>'
+    +'<td><div class="act"><span class="ab pri" title="History">🕘</span><span class="ab" title="Book · Edit · Delete">⋯</span></div></td>'
+    +'</tr>';
+}
+
+function renderTable(){
+  var q=state.q.toLowerCase().trim();
+  var list = BINS.filter(function(b){
+    if(!passFilter(b, state.filter)) return false;
+    if(q && b.num.toLowerCase().indexOf(q)===-1 && b.notes.toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+  document.getElementById('rescount').textContent = list.length+' bin'+(list.length===1?'':'s');
+
+  var sizes = SIZE_ORDER.slice();
+  if(state.sort==='size' && state.dir===-1) sizes.reverse();
+
+  var html='';
+  sizes.forEach(function(sz){
+    var group = list.filter(function(b){ return b.size===sz; });
+    if(!group.length) return;
+    group.sort(function(a,b){
+      if(state.sort==='status'){ var av=a.status==='in'?0:1, bv=b.status==='in'?0:1; if(av!==bv) return (av-bv)*state.dir; }
+      return a.num.localeCompare(b.num, undefined, {numeric:true}) * (state.sort==='status'?1:state.dir);
+    });
+    var inN = group.filter(function(b){return b.status==='in';}).length;
+    var spCls='sp'+sz.split(' ')[0];
+    html += '<tr class="grp"><td colspan="6"><span class="sp '+spCls+'">'+sz.replace(' yard',' yd')+'</span> &nbsp;'+group.length+' bins — <span style="color:#22c55e">'+inN+' in</span> / <span style="color:#dc3545">'+(group.length-inN)+' out</span></td></tr>';
+    html += group.map(rowHtml).join('');
+  });
+  if(!html) html = '<tr><td colspan="6" style="text-align:center;padding:34px;color:#b4b2a9">No bins match this filter.</td></tr>';
+  document.getElementById('tbody').innerHTML = html;
+}
+
+function setFilter(f){
+  state.filter=f;
+  document.querySelectorAll('.rb').forEach(function(el){ el.classList.toggle('on', el.getAttribute('data-filter')===f); });
+  document.querySelectorAll('.tile').forEach(function(el){ el.classList.toggle('on', el.getAttribute('data-filter')===f); });
+  renderTable();
+}
+function setSort(s){
+  if(state.sort===s) state.dir = -state.dir; else { state.sort=s; state.dir=1; }
+  document.querySelectorAll('.sc').forEach(function(el){
+    var on = el.getAttribute('data-sort')===state.sort;
+    el.classList.toggle('on', on);
+    var ar=el.querySelector('.ar'); if(ar) ar.textContent = on ? (state.dir===1?'↑':'↓') : '↕';
+  });
+  renderTable();
+}
+
+document.addEventListener('click', function(e){
+  var rb=e.target.closest('.rb'); if(rb){ setFilter(rb.getAttribute('data-filter')); return; }
+  var tile=e.target.closest('.tile'); if(tile){ var f=tile.getAttribute('data-filter'); setFilter(state.filter===f?'all':f); return; }
+  var sc=e.target.closest('.sc'); if(sc){ setSort(sc.getAttribute('data-sort')); return; }
+});
+document.getElementById('q').addEventListener('input', function(){ state.q=this.value; renderTable(); });
+
+buildChrome();
+renderTable();
+</script>
+</body>
+</html>
