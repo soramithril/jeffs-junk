@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '323';
+var APP_VERSION = '324';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -666,6 +666,7 @@ try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){
 var editId = null, editBinId = null;
 var calDate = new Date();
 var svcF = 'all', searchF = '', invF = 'all', jobStatusF = 'all', jobDateF = 'all', binDropF = 'all';
+var jobShowF = 'active', jobSvcF = 'all'; // 4A: All Jobs "Show" (status) + "Service" controls, mapped onto svcF
 var jobSort = 'date', jobSortDir = -1; // -1 = newest first
 var weekOffset = 0, tlOffset = 0;
 var analyticsPeriod = 'week', analyticsCompare = 'none';
@@ -1380,6 +1381,10 @@ async function loadJobsPage(page) {
     query = query.eq('completed', true);
   } else if (svcF && svcF !== 'all') {
     query = query.eq('service', svcF);
+  }
+  // 4A: the "Active" Show mode hides completed jobs server-side
+  if (jobShowF === 'active') {
+    query = query.eq('completed', false);
   }
   // Apply status filter
   if (jobStatusF && jobStatusF !== 'all') {
@@ -3688,6 +3693,84 @@ function setSvc(v,el){
   if(binsOutView)binsOutView.style.display='none';
   jobsPage=0;loadJobsPage(0);
 }
+
+// ── 4A: search-first All Jobs filters (adapter over the existing renderJobs/loadJobsPage) ──
+// jobShowF (status) + jobSvcF (service) are the new controls; both map onto the legacy
+// svcF that loadJobsPage/renderJobs already understand. setSvc stays defined but unused.
+function setJobShow(v, el){
+  jobShowF = v;
+  document.querySelectorAll('#jobs-show-seg .lb-period-btn').forEach(function(b){ b.classList.toggle('active', b === el); });
+  _applyJobFilters();
+}
+function setJobSvc(v, el){
+  jobSvcF = v;
+  var wrap = document.getElementById('atabs-svc');
+  if (wrap) wrap.querySelectorAll('.atab').forEach(function(b){ b.classList.toggle('active', b === el); });
+  if (typeof atabsSync === 'function') atabsSync('svc'); // slide the animated highlight (setSvc wrapper is bypassed now)
+  _applyJobFilters();
+}
+function _applyJobFilters(){
+  // Map the new Show + Service controls onto the legacy svcF the page already understands.
+  if      (jobShowF === 'Cancelled') svcF = 'Cancelled';
+  else if (jobShowF === 'BinsOut')   svcF = 'BinsOut';
+  else if (jobShowF === 'Recurring') svcF = 'Recurring';
+  else if (jobShowF === 'Completed') svcF = 'Completed';
+  else                               svcF = jobSvcF;   // 'active': 'all' = grouped view, or one service
+
+  // Bin-drop filter only makes sense for bin rows
+  var binGroup = document.getElementById('filter-group-bin');
+  if (binGroup) binGroup.style.display = (svcF === 'all' || svcF === 'Bin Rental') ? '' : 'none';
+
+  // Bins-out is its own special view (no server page load) — same as the old setSvc()
+  var binsOutView = document.getElementById('jobs-bins-out-view');
+  var catView     = document.getElementById('jobs-cat-view');
+  var singleView  = document.getElementById('jobs-single-view');
+  if (svcF === 'BinsOut'){
+    if (binsOutView) binsOutView.style.display = 'block';
+    if (catView)     catView.style.display = 'none';
+    if (singleView)  singleView.style.display = 'none';
+    renderJobsBinsOut();
+    renderJobChips();
+    return;
+  }
+  if (binsOutView) binsOutView.style.display = 'none';
+  jobsPage = 0;
+  loadJobsPage(0);   // calls renderJobs()
+  renderJobChips();
+}
+
+function toggleJobFilters(){
+  var panel = document.getElementById('jobs-adv-filters');
+  var btn   = document.getElementById('jobs-filters-btn');
+  if (!panel) return;
+  var open = (panel.style.display === 'none' || !panel.style.display);
+  panel.style.display = open ? 'flex' : 'none';
+  // highlights can't position while the panel is display:none — sync once it's visible
+  if (open && typeof atabsSync === 'function') requestAnimationFrame(function(){ atabsSync('svc'); atabsSync('date'); atabsSync('bin'); });
+  if (btn){
+    var n = (jobSvcF !== 'all' ? 1 : 0) + (jobDateF !== 'all' ? 1 : 0)
+          + ((svcF === 'Bin Rental' || svcF === 'all') && binDropF !== 'all' ? 1 : 0);
+    btn.innerHTML = '⚙ Filters ' + (open ? '▴' : '▾')
+      + (n ? ' <span style="display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:800">' + n + '</span>' : '');
+  }
+}
+
+function renderJobChips(){
+  var box = document.getElementById('jobs-active-chips');
+  if (!box) return;
+  var chips = [];
+  var svcLbl = {'Bin Rental':'Bin','Junk Removal':'Junk','Junk Quote':'Quote','Furniture Pickup':'Furniture','Landscaping':'Landscaping'};
+  if (jobSvcF !== 'all' && jobShowF !== 'Cancelled' && jobShowF !== 'Recurring' && jobShowF !== 'BinsOut')
+    chips.push({txt:'Service: ' + (svcLbl[jobSvcF] || jobSvcF), clr:"setJobSvc('all',document.querySelector('#atabs-svc .atab'))"});
+  if (jobDateF !== 'all')
+    chips.push({txt:({today:'Today',week:'This week',month:'This month'}[jobDateF] || jobDateF), clr:"setJobDateFilter('all',document.getElementById('jdtf-all'))"});
+  if (binDropF !== 'all' && (svcF === 'Bin Rental' || svcF === 'all'))
+    chips.push({txt:({pending:'Not dropped',dropped:'Dropped',pickedup:'Picked up'}[binDropF] || binDropF), clr:"setBinDropFilter('all',document.getElementById('jbdf-all'))"});
+  box.innerHTML = chips.length
+    ? '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Filtering by</span>'
+      + chips.map(function(c){ return '<span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:6px 10px;background:var(--surface2);color:var(--text-secondary);border:1px solid var(--border);border-radius:8px">' + c.txt + ' <span onclick="' + c.clr + '" style="cursor:pointer;font-weight:800;opacity:.55">✕</span></span>'; }).join('')
+    : '';
+}
 // Resolve the job a bin is currently at: prefer a live 'dropped' job, and if more
 // than one claims the bin, the most recently dropped. Stops the Bin Fleet location
 // from flip-flopping when a bin is mistakenly dropped on two jobs at once.
@@ -3746,8 +3829,8 @@ function renderJobsBinsOut(){
   }).join('')+'</div>';
 }
 function setJobStatus(v,el){jobStatusF=v;document.querySelectorAll('[id^="jstf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);}
-function setJobDateFilter(v,el){jobDateF=v;document.querySelectorAll('[id^="jdtf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);}
-function setBinDropFilter(v,el){binDropF=v;document.querySelectorAll('[id^="jbdf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();}
+function setJobDateFilter(v,el){jobDateF=v;document.querySelectorAll('[id^="jdtf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);renderJobChips();}
+function setBinDropFilter(v,el){binDropF=v;document.querySelectorAll('[id^="jbdf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();renderJobChips();}
 function setQ(v){searchF=v;renderJobs();}
 // Start/end (inclusive, local time) for the All Jobs date filter; null = no filtering
 function jobDateRange(){
