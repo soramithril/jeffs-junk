@@ -15,9 +15,9 @@ var PAGE_TOURS = [
     { sel:'#global-search-input', title:'Global search box', body:'Type a customer name, job number, or address here to instantly find any job or client anywhere in the system.' },
     { sel:'#dash-bin-by-size', title:'Bins available now', body:"Shows how many bins of each size are still in the yard versus out on jobs, plus a 'fleet deployed' bar so you know at a glance whether you can book another bin drop-off today." },
     { sel:'#dash-vehicle-status', title:'Vehicles & crew status', body:"Pills here show which trucks and crew members are working today and what they're assigned to, so you can see who is free to take the next job." },
-    { sel:'.djj-jumpbar', title:'Jump-to bar', body:"Quick shortcut buttons that scroll you straight to the section you need — Needs You, Today's Jobs, Bins Out, Will Call, or Booked — with a live count badge on each." },
+    { sel:'.djj-jumpbar', title:'Jump-to bar', body:"Quick shortcut buttons that scroll you straight to the section you need — Needs You, Today's Jobs, Bins Out, Waiting on call, or Booked — with a live count badge on each." },
     { sel:'#card-today-jobs', title:"Today's Jobs card", body:'The heart of the dashboard — every job scheduled for the selected day, grouped by type, with buttons to assign a bin, confirm, mark picked up, or email the customer.' },
-    { sel:'#card-will-call', title:'Waiting on Customer Call card', body:"Lists 'will call' bin rentals where the contractor calls us when the bin is ready — no set pickup date — so you can schedule the pickup once they ring in." },
+    { sel:'#card-will-call', title:'Waiting on Customer Call card', body:"Lists 'waiting on call' bin rentals where the customer calls us when the bin is ready — no set pickup date — so you can schedule the pickup once they ring in." },
     { sel:'#sec-binsout', title:'Bins Currently Out section', body:'A roster of every bin deployed in the field grouped by size, with how many days each has been out, so nothing gets left at a site and forgotten.' },
     { sel:'#sec-bookings', title:'Booked Today section', body:'Shows the new jobs that were entered into the system today and flags any confirmation emails still owed to those customers.' }
   ]},
@@ -51,16 +51,15 @@ var PAGE_TOURS = [
     { sel:'[data-tour="dispatch-fill"]', title:'Fill unassigned button', body:'Auto-assigns only the jobs that still have no driver, leaving any you set by hand untouched. The grey button beside it wipes everything and reshuffles from scratch.' },
     { sel:'[data-tour="dispatch-combo-info"]', title:'Combo explainer', body:'A COMBO is one trip that handles both a pickup and a delivery so the empty bin goes straight to the next customer instead of back to the yard — about 6–10 minutes saved.' },
     { sel:'[data-tour="dispatch-working"]', title:'Working today', body:'Click a crew member to toggle whether they are working this day; only the ones turned on get a route lane and become assignable.' },
-    { sel:'[data-tour="dispatch-unassigned"]', title:'Unassigned pool', body:'Holds every stop with no driver yet, with a count in the header. Drag a card onto a driver lane to assign it — or drag one back here to unassign it.' },
-    { sel:'[data-tour="dispatch-lanes"]', title:'Driver lanes', body:'One column per working driver showing their stops in order, with start and total time. Use Route in Maps in a lane to open that driver stops in Google Maps.' }
+    { sel:'[data-tour="dispatch-unassigned"]', title:'Unassigned pool', body:'Holds every stop with no driver yet, with a count in the header. Tap 👤 Assign on a card and pick a driver — the stop jumps to that lane (dragging a card still works too).' },
+    { sel:'[data-tour="dispatch-lanes"]', title:'Driver lanes', body:'One column per working driver, with an avatar and a load bar (green → amber → red) showing how full their day is. Stops list in order with a running clock; tap 🧭 Maps to open the lane route in Google Maps.' }
   ]},
   { view:'vehicles', label:'Vehicles', icon:'🚛', section:'Operations', summary:'The fleet command center for your trucks.', steps:[
     { sel:'#fleet-add-vehicle-btn', title:'Add Vehicle button', body:'Add a new truck or van to the fleet so you can start tracking its oil changes, maintenance and availability.' },
     { sel:'#fleet-tab-btn-vehicles', title:'Vehicles / Maintenance tabs', body:'Switch between the per-vehicle Vehicles view and the fleet-wide Maintenance schedule. You will spend most of your time on the Vehicles tab.' },
-    { sel:'#vehicle-inbox', title:'Needs-attention inbox', body:'Surfaces the most urgent fleet items (overdue oil, expiring stickers, due services) with one-click buttons to fix or snooze them.' },
-    { sel:'#vehicle-kpis', title:'Fleet KPI strip', body:'Four at-a-glance stats: percent up to date on service, oil overdue count, maintenance due count, and total days vehicles are off the road in the next 30 days.' },
-    { sel:'#vehicle-filters', title:'Filter chips', body:'Filter the list by All, Needs attention, or vehicle type. Use Needs attention to jump straight to the vehicles that have a problem.' },
-    { sel:'#vehicles-list', title:'Vehicle list', body:'Each vehicle shows its name, a red/yellow/green health dot, oil / sticker / maintenance status, and a 30-day availability strip. Click a row to open its detail drawer.' }
+    { sel:'#vehicle-inbox', title:'Needs-attention banner', body:'Surfaces trucks needing attention — oil overdue or due soon, and safety stickers expiring — each with a one-tap ✅ Mark serviced.' },
+    { sel:'#vehicle-filters', title:'Filter + view', body:'Filter chips — All, Good, Needs service, or In the shop, each with a live count — plus a Cards / List view toggle.' },
+    { sel:'#vehicles-list', title:'Vehicle cards', body:'Each truck is a card: name, a plain-language health pill (All good / Attention soon / Service due / In the shop), and its Oil change, Safety sticker and Odometer. Use 🔧 Send to shop (reason + back-by date) or ✅ Mark serviced right on the card.' }
   ]},
   { view:'crew', label:'Crew Schedule', icon:'👷', section:'Operations', summary:'A weekly grid of who is on which job.', steps:[
     { sel:'#crew-page-sub', title:'Page summary', body:'The subtitle under the title shows how many employees you have and that you are viewing a weekly schedule.' },
