@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '325';
+var APP_VERSION = '326';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -656,6 +656,7 @@ var vehicles = [];
 var vehBlocks = {};
 var crewBlocks = {}; // { crewMemberId: { 'YYYY-MM-DD': [ {id,role,notes,allDay,slotStart,slotEnd} ] } }
 var binItems = [];
+var binLastReturn = {}; // bid -> most recent past bin_pickup date (yard return) for idle-days
 var clients = [];
 var crewMembers = [];
 var referralSources = [];
@@ -672,6 +673,7 @@ var weekOffset = 0, tlOffset = 0;
 var analyticsPeriod = 'week', analyticsCompare = 'none';
 var clientSearchF = '';
 var fleetF = 'all', fleetQ = '', fleetSort = 'num', fleetSortDir = 1;
+var fleetView = (function(){ try { return localStorage.getItem('fleetView') || 'cards'; } catch(e) { return 'cards'; } })(); // 'cards' | 'table'
 var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
@@ -1022,7 +1024,9 @@ function saveBins() {
       damage: bin.damage || 'good',
       status: bin.status || 'in',
       notes: bin.notes || '',
-      show_bin: bin.show_bin || false
+      show_bin: bin.show_bin || false,
+      decals: bin.decals || false,
+      repaint: bin.repaint || false
     };
     db.from('bin_items').upsert(row, {onConflict:'bid'}).then(function(r){
       if (r.error) {
@@ -1502,10 +1506,27 @@ async function loadBinJobsThenRender() {
       if(idx >= 0) jobs[idx] = j; // update with fresh data
       else jobs.push(j);
     });
+    // Idle-days source: most recent PAST pickup (yard return) per bin. Ordered desc,
+    // first-seen per bin = the latest return. Used by binIdleDays() for in-yard bins.
+    var rRet = await db.from('jobs').select('bin_bid,bin_pickup')
+      .eq('service','Bin Rental').eq('bin_instatus','pickedup')
+      .not('bin_bid','is',null).not('bin_pickup','is',null)
+      .lte('bin_pickup', today).order('bin_pickup',{ascending:false});
+    binLastReturn = {};
+    (rRet.data||[]).forEach(function(r){ if(r.bin_bid && !binLastReturn[r.bin_bid]) binLastReturn[r.bin_bid]=r.bin_pickup; });
   } catch(e) {
     console.error('Error loading bin jobs:', e);
   }
   renderBinInventory();
+}
+// Days a bin has sat idle in the yard (since its last return, or creation if never out).
+// Returns 0 for bins that are out on a job.
+function binIdleDays(b){
+  if(!b || b.status!=='in') return 0;
+  var ref = binLastReturn[b.bid] || (b.created_at ? String(b.created_at).slice(0,10) : null);
+  if(!ref) return 0;
+  var d0 = new Date(ref+'T12:00:00'), now = new Date();
+  return Math.max(0, Math.floor((now - d0)/86400000));
 }
 
 var _saveJobLock = false;
@@ -6422,14 +6443,10 @@ function highlightRow(id){document.querySelectorAll('.bin-row').forEach(function
 function flyTo(id){var pin=null;mapPins.forEach(function(p){if(p.id===id)pin=p;});if(pin){leafMap.setView([pin.lat,pin.lng],15,{animate:true});pin.marker.openPopup();}highlightRow(id);}
 
 // ─── BIN INVENTORY ───
-function setFleetF(v,el){fleetF=v;document.querySelectorAll('.fleet-nav-btn').forEach(function(b){b.classList.remove('active');});if(el)el.classList.add('active');renderBinInventory();}
-function setFleetSort(field,el){
-  if(fleetSort===field)fleetSortDir*=-1;else{fleetSort=field;fleetSortDir=1;}
-  document.querySelectorAll('.sort-chip').forEach(function(c){c.classList.remove('on');});
-  if(el)el.classList.add('on');
-  var arr=el?el.querySelector('.sort-arr'):null;if(arr)arr.textContent=fleetSortDir===1?' ↑':' ↓';
-  renderFleetTable();
-}
+// Toggle a filter (clicking the active one returns to 'all'); re-renders summary + roster.
+function setFleetF(v){ fleetF=(fleetF===v && v!=='all')?'all':v; renderBinInventory(); }
+function setFleetSort(field){ if(fleetSort===field)fleetSortDir*=-1; else {fleetSort=field;fleetSortDir=1;} renderFleet(); }
+function setFleetView(v){ fleetView=v; try{localStorage.setItem('fleetView',v);}catch(e){} renderFleet(); }
 function sizePill(s){var cls=s==='4 yard'?'sp-4':s==='7 yard'?'sp-7':s==='14 yard'?'sp-14':'sp-20';return '<span class="sp '+cls+'">'+s+'</span>';}
 function typePill(t){var cls=t==='wide'||t==='low'?'tc-low':'tc-reg';var lbl=t==='wide'||t==='low'?'Low-Wide':'Regular';return '<span class="tc '+cls+'">'+lbl+'</span>';}
 function binsOutOnDate(dateStr){
@@ -6463,83 +6480,165 @@ function binsOutOnDate(dateStr){
   return Math.min(count, binItems.length);
 }
 function renderBinInventory(){
-  var total=binItems.length,inYard=0,outJob=0,damaged=0,oor=0,green=0,black=0,s4=0,s7=0,s14=0,s20=0;
-  binItems.forEach(function(b){
-    if(b.damage==='oor'){oor++;return;}
-    if(b.status==='in')inYard++;else outJob++;
-    if(b.damage==='damage')damaged++;
-    if(b.color==='green')green++;else if(b.color==='black')black++;
-    if(b.size==='4 yard')s4++;else if(b.size==='7 yard')s7++;else if(b.size==='14 yard')s14++;else s20++;
-  });
-  var active=total-oor;
-  var cn={'all':total,'in':inYard,'out':outJob,'damage':damaged,'oor':oor,'green':green,'black':black,'4':s4,'7':s7,'14':s14,'20':s20};
-  Object.keys(cn).forEach(function(k){var el=document.getElementById('fn-'+k);if(el)el.textContent=cn[k];});
-  var inPct=active?Math.round(inYard/active*100):0,outPct=active?Math.round(outJob/active*100):0,dmgPct=active?Math.round(damaged/active*100):0,oorPct=total?Math.round(oor/total*100):0;
-  var stats=[
-    {val:active,lbl:'Active Fleet',color:'#22c55e',pct:100},
-    {val:inYard,lbl:'In Yard',color:'#22c55e',pct:inPct},
-    {val:outJob,lbl:'Out on Job',color:'#dc3545',pct:outPct},
-    {val:oor,lbl:'Retired (not in use)',color:'#f59e0b',pct:oorPct},
-    {val:damaged,lbl:'Damaged',color:'#e76f7e',pct:dmgPct},
-    {val:green,lbl:'Green Bins',color:'#4ade80',pct:active?Math.round(green/active*100):0},
-    {val:black,lbl:'Black Bins',color:'#aaa',pct:active?Math.round(black/active*100):0},
-  ];
-  document.getElementById('fleet-stats').innerHTML=stats.map(function(s){return'<div class="fstat" style="--fcolor:'+s.color+'"><div class="fstat-val">'+s.val+'</div><div class="fstat-lbl">'+s.lbl+'</div><div class="fstat-bar"><div class="fstat-fill" style="width:'+s.pct+'%"></div></div></div>';}).join('');
-  document.getElementById('fleet-sub').textContent=active+' active · '+inYard+' in yard · '+outJob+' out'+(oor?' · '+oor+' out of rotation':'');
-  renderFleetTable();renderTimeline();
+  var total=binItems.length;
+  var inYard=binItems.filter(function(b){return b.status==='in';}).length;
+  var out=binItems.filter(function(b){return b.status==='out';}).length;
+  var greens=binItems.filter(function(b){return b.color==='green';}).length, blacks=total-greens;
+  var deployedPct=total?Math.round(out/total*100):0, greenPct=total?Math.round(greens/total*100):0;
+  var subEl=document.getElementById('fleet-sub'); if(subEl) subEl.textContent=total+' bins · '+inYard+' in yard · '+out+' out';
+  // summary: two progress bars + 3 attention tiles
+  var needDecals=fleetCount('decals'), needRepaint=fleetCount('repaint'), idle90=fleetCount('idle90');
+  var bar=function(lbl,right,pct,grad){return '<div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">'+lbl+'</span><span style="font-size:12px;color:var(--text-secondary);font-weight:600">'+right+'</span></div><div style="height:9px;border-radius:6px;background:var(--surface2);overflow:hidden"><div style="height:100%;border-radius:6px;background:'+grad+';width:'+pct+'%"></div></div></div>';};
+  var tileBase='text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 13px;cursor:pointer;font-family:inherit;';
+  var mkTile=function(f,n,lbl,danger){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+tileBase+'border-top:3px solid '+(danger?'#dc3545':'#eab308')+';'+(on?'box-shadow:0 0 0 2px #22c55e inset':'')+'"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:27px;line-height:1;color:var(--text)">'+n+'</div><div style="font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:3px;line-height:1.2">'+lbl+'</div></button>';};
+  var sumEl=document.getElementById('fleet-summary');
+  if(sumEl) sumEl.innerHTML=
+    '<div class="fleet-summary-bars">'
+      +bar('Fleet deployed', out+' of '+total+' out · '+deployedPct+'%', deployedPct, 'linear-gradient(90deg,#dc3545,#f97316)')
+      +bar('🖌️ All-green conversion', greens+' of '+total+' green · '+blacks+' still black', greenPct, '#22c55e')
+    +'</div><div class="fleet-tiles">'
+      +mkTile('decals',needDecals,'Needs decals',false)
+      +mkTile('repaint',needRepaint,'Needs repaint',false)
+      +mkTile('idle90',idle90,'Idle 90+ days',true)
+    +'</div>';
+  renderFleet();
+  renderTimeline();
 }
-function renderFleetTable(){
-  var q=fleetQ.toLowerCase();
-  var list=binItems.filter(function(b){
-    if(fleetF==='in')return b.status==='in'&&b.damage!=='oor';if(fleetF==='out')return b.status==='out';
-    if(fleetF==='damage')return b.damage==='damage';if(fleetF==='oor')return b.damage==='oor';
-    if(fleetF==='green')return b.color==='green';
-    if(fleetF==='black')return b.color==='black';if(fleetF==='4 yard')return b.size==='4 yard';
-    if(fleetF==='7 yard')return b.size==='7 yard';if(fleetF==='14 yard')return b.size==='14 yard';
-    if(fleetF==='20 yard')return b.size==='20 yard';return true;
-  });
-  if(q)list=list.filter(function(b){return (b.num||'').toLowerCase().indexOf(q)>=0||(b.notes||'').toLowerCase().indexOf(q)>=0||(b.size||'').toLowerCase().indexOf(q)>=0||(b.type||'').toLowerCase().indexOf(q)>=0||(b.color||'').toLowerCase().indexOf(q)>=0;});
-  list=[].concat(list).sort(function(a,b){var av,bv;if(fleetSort==='size'){av=sizeOrder[a.size]||0;bv=sizeOrder[b.size]||0;}else if(fleetSort==='status'){av=a.status==='out'?0:1;bv=b.status==='out'?0:1;}else{av=(a.num||'').toLowerCase();bv=(b.num||'').toLowerCase();}return av<bv?-fleetSortDir:av>bv?fleetSortDir:0;});
-  document.getElementById('fleet-count-lbl').textContent=list.length+' of '+binItems.length+' bins';
-  var tbody=document.getElementById('fleet-tbody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="9" class="fleet-empty">No bins match your filter</td></tr>';return;}
-  var grouped=(fleetF==='all'||fleetF==='green'||fleetF==='black')&&!q;
-  var html='';
-  if(grouped){
-    ['4 yard','7 yard','14 yard','20 yard'].forEach(function(sz){
-      var group=list.filter(function(b){return b.size===sz;});if(!group.length)return;
-      var inG=group.filter(function(b){return b.status==='in';}).length;
-      html+='<tr class="grp-hdr"><td colspan="9">'+sizePill(sz)+' &nbsp;'+group.length+' bins — <span style="color:#22c55e">'+inG+' in</span> / <span style="color:#dc3545">'+(group.length-inG)+' out</span></td></tr>';
-      group.forEach(function(b){html+=makeBinRow(b);});
-    });
-  } else {list.forEach(function(b){html+=makeBinRow(b);});}
-  tbody.innerHTML=html;
+// One filter predicate, shared by the chips and the attention tiles.
+function fleetPass(b,f){
+  if(f==='all')return true;
+  if(f==='in')return b.status==='in';
+  if(f==='out')return b.status==='out';
+  if(f==='oos')return b.damage==='damage'||b.damage==='oor';   // not in normal service (damaged or retired)
+  if(f==='nfr')return !!b.show_bin;                            // show/display bin — not for rent
+  if(f==='green'||f==='black')return b.color===f;
+  if(f==='4 yard'||f==='7 yard'||f==='14 yard'||f==='20 yard')return b.size===f;
+  if(f==='decals')return !!b.decals;
+  if(f==='repaint')return !!b.repaint;
+  if(f==='idle90')return b.status==='in'&&binIdleDays(b)>=90;
+  return true;
 }
-function makeBinRow(b){
-  var numCls=b.color==='green'?'gc':'bc';
-  var colorDot=b.color==='green'?'<span class="cdot cdot-g"></span>Green':'<span class="cdot cdot-b"></span>Black';
-  var togCls=b.status==='in'?'stog stog-in':'stog stog-out';
-  var togLbl=b.status==='in'?'<span class="sdot"></span>In Yard':'<span class="sdot"></span>Out';
-  var dmg=b.damage==='damage'?'<span class="dmg-flag">⚠ Dmg</span>':'<span class="dmg-ok">—</span>';
-  var oorFlag=b.damage==='oor'?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px">⛔ Retired</span>':'';
-  var showFlag=b.show_bin?'<span style="background:#f59e0b22;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap" title="Show / display bin — use for trade shows">⭐ Show</span>':'';
-  var rowCls=b.damage==='oor'?' class="row-damaged"':b.damage==='damage'?' class="row-damaged"':'';
-  // Show current job/location for bins marked 'out'
-  var locationCell='<td style="font-size:11px;max-width:150px"></td>';
-  if(b.status==='out'){
-    var curJob=binCurrentJob(b.bid);
-    if(curJob){
-      locationCell='<td style="font-size:11px;max-width:150px"><span style="color:#22c55e;cursor:pointer;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block" onclick="openDetail(\''+curJob.id+'\')" title="'+curJob.name+' · '+curJob.address+'">📍 '+curJob.name+'</span><div style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(curJob.address?curJob.address.split(',')[0]:'')+'</div></td>';
-    } else {
-      locationCell='<td style="font-size:11px"><span style="color:#e67e22">⚠ Not linked</span> <button class="ra-btn" style="font-size:10px;padding:2px 6px;color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')">🔗 Link</button></td>';
-    }
+function fleetCount(f){return binItems.filter(function(b){return fleetPass(b,f);}).length;}
+
+function renderFleet(){
+  // filter chips
+  var chipBase='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var mkChip=function(f,lbl,dot){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+chipBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+fleetCount(f)+'</span></button>';};
+  var chipsEl=document.getElementById('fleet-chips');
+  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','#22c55e'),mkChip('out','Out','#dc3545'),mkChip('oos','Out of service'),mkChip('nfr','Not for rent'),mkChip('green','Green','#22c55e'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
+  // sort chips
+  var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var mkSort=function(k,lbl){var on=fleetSort===k;return '<button onclick="setFleetSort(\''+k+'\')" style="'+sortBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(on?lbl+(fleetSortDir===1?'  ↑':'  ↓'):lbl)+'</button>';};
+  var sortsEl=document.getElementById('fleet-sorts');
+  if(sortsEl)sortsEl.innerHTML=[mkSort('num','Bin number'),mkSort('size','Size'),mkSort('status','Status')].join('');
+  // view toggle active state
+  var fc=document.getElementById('fv-cards'),ft=document.getElementById('fv-table');
+  if(fc)fc.className=fleetView==='cards'?'on':''; if(ft)ft.className=fleetView==='table'?'on':'';
+  // filter + search
+  var q=fleetQ.toLowerCase().trim();
+  var list=binItems.filter(function(b){return fleetPass(b,fleetF)&&(!q||(b.num||'').toLowerCase().indexOf(q)>=0||(b.notes||'').toLowerCase().indexOf(q)>=0);});
+  var resEl=document.getElementById('fleet-result-lbl'); if(resEl)resEl.textContent=list.length+' bin'+(list.length===1?'':'s')+' shown';
+  // group by size
+  var sizes=['4 yard','7 yard','14 yard','20 yard']; if(fleetSort==='size'&&fleetSortDir===-1)sizes=sizes.slice().reverse();
+  var pillFor={'4 yard':'background:rgba(34,197,94,.16);color:#15803d','7 yard':'background:rgba(230,126,34,.16);color:#b45309','14 yard':'background:rgba(249,115,22,.14);color:#c2410c','20 yard':'background:rgba(220,53,69,.14);color:#b02633'};
+  var groups=[];
+  sizes.forEach(function(sz){
+    var grp=list.filter(function(b){return b.size===sz;}); if(!grp.length)return;
+    grp.sort(function(a,b){ if(fleetSort==='status'){var av=a.status==='in'?0:1,bv=b.status==='in'?0:1; if(av!==bv)return av-bv;} return (a.num||'').localeCompare((b.num||''),undefined,{numeric:true})*(fleetSort==='status'?1:fleetSortDir); });
+    var inN=grp.filter(function(b){return b.status==='in';}).length;
+    var pill='<span style="font-family:\'Bebas Neue\',sans-serif;font-size:15px;padding:1px 9px;border-radius:6px;letter-spacing:.5px;'+pillFor[sz]+'">'+sz.replace(' yard',' yd')+'</span>';
+    groups.push({pill:pill,line:grp.length+' bins · '+inN+' in / '+(grp.length-inN)+' out',bins:grp});
+  });
+  var cardsEl=document.getElementById('fleet-cards'), tableEl=document.getElementById('fleet-table-view');
+  if(!groups.length){
+    var empty='<div style="background:var(--surface);border:1px dashed var(--border);border-radius:14px;padding:46px;text-align:center;color:var(--muted)">No bins match this filter.</div>';
+    if(cardsEl)cardsEl.innerHTML=empty; if(tableEl)tableEl.innerHTML=''; return;
   }
-  return '<tr'+rowCls+'><td><span class="bnum '+numCls+'" style="cursor:pointer" onclick="event.stopPropagation();openBinHistory(\''+b.bid+'\')">'+b.num+'</span>'+(showFlag?' '+showFlag:'')+'</td><td style="font-size:12px;white-space:nowrap">'+colorDot+'</td><td>'+sizePill(b.size)+'</td><td>'+typePill(b.type)+'</td>'
-    +'<td><button class="'+togCls+'" onclick="quickToggleStatus(\''+b.bid+'\')">'+togLbl+'</button></td>'
-    +locationCell
-    +'<td>'+dmg+(oorFlag?' '+oorFlag:'')+'</td><td style="font-size:11px;color:var(--muted);max-width:175px">'+(b.notes?'<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">'+b.notes+'</div>':'<div style="font-style:italic;opacity:.6;margin-bottom:3px">No notes</div>')+'<button class="ra-btn" style="font-size:10px;padding:2px 7px;color:#22c55e;border-color:rgba(34,197,94,.4)" onclick="event.stopPropagation();openBinNote(\''+b.bid+'\')">'+(b.notes?'✏ Edit note':'+ Add note')+'</button></td>'
-    +'<td><div class="ra"><button class="ra-btn" style="color:#0d6efd;border-color:rgba(13,110,253,.4)" onclick="openBinHistory(\''+b.bid+'\')">📜 History</button><button class="ra-btn" style="color:#22c55e;border-color:rgba(34,197,94,.3)" onclick="bookBin(\''+b.size+'\')">📅 Book</button>'+(canDelete?'<button class="ra-btn" onclick="editBinItem(\''+b.bid+'\')">✏ Edit</button>':'')+'<button class="ra-btn del" onclick="delBinItem(\''+b.bid+'\')">✕</button></div></td></tr>';
+  if(fleetView==='cards'){
+    if(tableEl)tableEl.innerHTML='';
+    if(cardsEl)cardsEl.innerHTML='<div style="display:flex;flex-direction:column;gap:20px">'+groups.map(function(g){
+      return '<div><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+g.pill+'<span style="font-size:12.5px;color:var(--text-secondary);font-weight:600">'+g.line+'</span></div><div class="fleet-card-grid">'+g.bins.map(makeBinCard).join('')+'</div></div>';
+    }).join('')+'</div>';
+  } else {
+    if(cardsEl)cardsEl.innerHTML='';
+    var th='font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:left;padding:10px 13px;border-bottom:1px solid var(--border);background:var(--surface2)';
+    var body=groups.map(function(g){
+      return '<tr><td colspan="6" style="background:var(--surface2);padding:9px 13px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-top:2px solid var(--border);border-bottom:1px solid var(--border)">'+g.pill+' &nbsp;'+g.line+'</td></tr>'+g.bins.map(makeBinTableRow).join('');
+    }).join('');
+    if(tableEl)tableEl.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:600px"><thead><tr><th style="'+th+'">Bin</th><th style="'+th+'">Type</th><th style="'+th+'">Status</th><th style="'+th+'">Flags</th><th style="'+th+'">Notes</th><th style="border-bottom:1px solid var(--border);background:var(--surface2)"></th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+  }
 }
+// Flag chips shared by card + table views.
+function binFlags(b){
+  var fb='display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;', out=[];
+  if(b.damage==='damage')out.push('<span style="'+fb+'background:rgba(220,53,69,.13);color:#b02633">⛔ Out of service</span>');
+  if(b.damage==='oor')out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">♻ Retired</span>');
+  if(b.show_bin)out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">🔧 Not for rent</span>');
+  if(b.repaint)out.push('<span style="'+fb+'background:rgba(249,115,22,.14);color:#c2410c">🖌️ Repaint</span>');
+  if(b.decals)out.push('<span style="'+fb+'background:rgba(8,145,178,.12);color:#0e7490">🏷️ Decals</span>');
+  return out;
+}
+// Meta line: idle band for in-yard bins, location/link for out bins.
+function binMetaHtml(b){
+  if(b.status!=='in'){
+    var cur=binCurrentJob(b.bid);
+    if(cur)return '<span style="font-weight:600;color:#0d6efd;cursor:pointer" onclick="openDetail(\''+cur.id+'\')">📍 '+escHtml((cur.name||'').split(',')[0])+'</span>';
+    return '<span style="font-weight:600;color:#e67e22">⚠ Not linked</span> <button onclick="event.stopPropagation();openLinkBinToJob(\''+b.bid+'\')" style="font-size:10px;padding:2px 6px;color:#0d6efd;background:none;border:1px solid rgba(13,110,253,.4);border-radius:5px;cursor:pointer">🔗 Link</button>';
+  }
+  var d=binIdleDays(b), band=d>=90?'#b02633':(d>=30?'#a16207':'#15803d');
+  return '<span style="font-weight:600;color:'+band+'">Idle '+d+'d</span>';
+}
+function _binColorHex(b){return b.color==='green'?'#22c55e':'#34373b';}
+function _binIsLow(b){return b.type==='low'||b.type==='wide';}
+function makeBinCard(b){
+  var isIn=b.status==='in';
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,53,69,.1);color:#b02633');
+  var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
+  var flags=binFlags(b), hasNote=!!b.notes;
+  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px;'+(b.damage==='damage'?'border-left:3px solid #dc3545':'');
+  return '<div style="'+cardStyle+'">'
+    +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">'
+      +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span>'
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
+      +'<button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out')+'</button>'
+    +'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span><span>'+binMetaHtml(b)+'</span></div>'
+    +(flags.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">'+flags.join('')+'</div>':'')
+    +'<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
+      +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
+      +'<button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:13px">🕘</button>'
+      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" title="Book · Edit · Delete" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:16px;line-height:1">⋯</button>'
+    +'</div></div>';
+}
+function makeBinTableRow(b){
+  var isIn=b.status==='in';
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,53,69,.1);color:#b02633');
+  var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
+  var flags=binFlags(b), hasNote=!!b.notes, td='padding:10px 13px;border-bottom:1px solid var(--border)';
+  return '<tr style="'+(b.damage==='damage'?'background:rgba(220,53,69,.035)':'')+'">'
+    +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
+    +'<td style="'+td+'"><span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span><div style="font-size:11px;color:var(--muted);margin-top:3px">'+binMetaHtml(b)+'</div></td>'
+    +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out')+'</button></td>'
+    +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
+    +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
+    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="min-width:32px;height:32px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px">🕘</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" title="Book · Edit · Delete" style="min-width:32px;height:32px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:15px;line-height:1">⋯</button></td>'
+  +'</tr>';
+}
+// Lightweight ⋯ context menu: Book (everyone) · Edit/Delete (admins).
+function openBinMenu(bid,ev){
+  ev.stopPropagation(); closeBinMenu();
+  var b=null; binItems.forEach(function(x){if(x.bid===bid)b=x;}); if(!b)return;
+  var m=document.createElement('div'); m.id='bin-ctx-menu';
+  m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:150px';
+  var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"}];
+  if(canDelete){items.push({lbl:'✏️ Edit',fn:"editBinItem('"+bid+"')"});items.push({lbl:'🗑️ Delete',fn:"delBinItem('"+bid+"')",danger:true});}
+  m.innerHTML=items.map(function(it){return '<button onclick="closeBinMenu();'+it.fn+'" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;'+(it.danger?'color:#dc3545':'color:var(--text)')+'" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">'+it.lbl+'</button>';}).join('');
+  document.body.appendChild(m);
+  var r=ev.target.getBoundingClientRect();
+  m.style.top=(r.bottom+4)+'px'; m.style.left=Math.max(8,Math.min(r.left,window.innerWidth-168))+'px';
+  setTimeout(function(){document.addEventListener('click',closeBinMenu,{once:true});},0);
+}
+function closeBinMenu(){var m=document.getElementById('bin-ctx-menu');if(m)m.remove();}
 var _binNoteBid=null;
 function openBinNote(bid){
   var b=binItems.find(function(x){return x.bid===bid;});
@@ -7251,6 +7350,7 @@ function openAddBin(){
   document.getElementById('bi-num').value='';document.getElementById('bi-type').value='regular';document.getElementById('bi-size').value='14 yard';
   document.getElementById('bi-color').value='green';document.getElementById('bi-dmg').value='good';document.getElementById('bi-status').value='in';document.getElementById('bi-notes').value='';
   document.getElementById('bi-show').checked=false;
+  document.getElementById('bi-repaint').checked=false;document.getElementById('bi-decals').checked=false;
   document.getElementById('err-bi-num').textContent='Bin number or name is required.';
   clearErr('bi-num');
   document.getElementById('bin-modal').classList.add('open');
@@ -7262,6 +7362,7 @@ function editBinItem(bid){
   document.getElementById('bi-num').value=b.num||'';document.getElementById('bi-type').value=b.type||'regular';document.getElementById('bi-size').value=b.size||'14 yard';
   document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage==='oor'?'good':b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-oor').value=b.damage==='oor'?'oor':'active';document.getElementById('bi-notes').value=b.notes||'';
   document.getElementById('bi-show').checked=!!b.show_bin;
+  document.getElementById('bi-repaint').checked=!!b.repaint;document.getElementById('bi-decals').checked=!!b.decals;
   document.getElementById('bin-modal').classList.add('open');
 }
 function saveBinItem(e){
@@ -7273,7 +7374,7 @@ function saveBinItem(e){
   var isDupe=binItems.some(function(b){return b.num.toLowerCase()===num.toLowerCase()&&b.bid!==editBinId;});
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
   var oorVal=document.getElementById('bi-oor').value==='oor';
-  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked};
+  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
   if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)binItems[i]=bin;else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }

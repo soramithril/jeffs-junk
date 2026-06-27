@@ -527,6 +527,18 @@ body{
   padding-left:40px !important;
 }
 
+/* ── BIN FLEET REDESIGN (v326) ── responsive layout; per-item colours are inline ── */
+.fleet-summary{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:12px}
+.fleet-summary-bars{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:15px 17px;display:grid;gap:14px}
+.fleet-tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fleet-bar{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.bf-scroll::-webkit-scrollbar{height:0}
+.bf-scroll{scrollbar-width:none}
+.fleet-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:11px}
+.fleet-view-toggle button{border:none;border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;background:none;color:var(--muted)}
+.fleet-view-toggle button.on{background:var(--surface);color:#15803d;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+@media(max-width:760px){.fleet-summary{grid-template-columns:1fr}}
+
 /* ── TABLE ── */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;box-shadow:var(--shadow-sm);}
 table{width:100%;border-collapse:collapse;}

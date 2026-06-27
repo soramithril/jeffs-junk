@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=323">
+<link rel="stylesheet" href="style.css?v=326">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -1030,43 +1030,31 @@
       <button class="btn btn-primary delete-only" data-tour="bininventory-addbin" onclick="openAddBin()">+ Add Bin</button>
     </div>
   </div>
-  <div class="fleet-stats" id="fleet-stats"></div>
-  <div class="fleet-layout">
-    <div class="fleet-nav">
-      <div class="fleet-nav-hdr">Filter by</div>
-      <button class="fleet-nav-btn active" id="fnb-all" onclick="setFleetF('all',this)"><span class="fn-icon">🚛</span><span class="fn-label">All Bins</span><span class="fn-count" id="fn-all">0</span></button>
-      <div class="fleet-nav-sep"></div>
-      <div class="fleet-nav-sec">Status</div>
-      <button class="fleet-nav-btn" id="fnb-in" onclick="setFleetF('in',this)"><span class="fn-icon">🟢</span><span class="fn-label">In Yard</span><span class="fn-count" id="fn-in">0</span></button>
-      <button class="fleet-nav-btn" id="fnb-out" onclick="setFleetF('out',this)"><span class="fn-icon">🔴</span><span class="fn-label">Out on Job</span><span class="fn-count" id="fn-out">0</span></button>
-      <button class="fleet-nav-btn" id="fnb-damage" onclick="setFleetF('damage',this)"><span class="fn-icon">⚠️</span><span class="fn-label">Damaged</span><span class="fn-count" id="fn-damage">0</span></button>
-      <div class="fleet-nav-sep"></div>
-      <div class="fleet-nav-sec">Colour</div>
-      <button class="fleet-nav-btn" id="fnb-green" onclick="setFleetF('green',this)"><span class="fn-icon" style="color:#22c55e">●</span><span class="fn-label">Green</span><span class="fn-count" id="fn-green">0</span></button>
-      <button class="fleet-nav-btn" id="fnb-black" onclick="setFleetF('black',this)"><span class="fn-icon" style="color:#888">●</span><span class="fn-label">Black</span><span class="fn-count" id="fn-black">0</span></button>
-      <div class="fleet-nav-sep"></div>
-      <div class="fleet-nav-sec">Size</div>
-      <button class="fleet-nav-btn" id="fnb-4" onclick="setFleetF('4 yard',this)"><span class="fn-icon sp sp-4">4</span><span class="fn-label">Yard</span><span class="fn-count" id="fn-4">0</span></button>
-      <button class="fleet-nav-btn" id="fnb-7" onclick="setFleetF('7 yard',this)"><span class="fn-icon sp sp-7">7</span><span class="fn-label">Yard</span><span class="fn-count" id="fn-7">0</span></button>
-      <button class="fleet-nav-btn" id="fnb-14" onclick="setFleetF('14 yard',this)"><span class="fn-icon sp sp-14">14</span><span class="fn-label">Yard</span><span class="fn-count" id="fn-14">0</span></button>
-      <button class="fleet-nav-btn" id="fnb-20" onclick="setFleetF('20 yard',this)"><span class="fn-icon sp sp-20">20</span><span class="fn-label">Yard</span><span class="fn-count" id="fn-20">0</span></button>
-    </div>
-    <div class="fleet-panel">
-      <div class="fleet-toolbar">
-        <input class="fleet-search search-icon" type="text" placeholder="Search bin number or notes…" id="fleet-search-input" oninput="fleetQ=this.value;renderFleetTable()">
-        <button class="sort-chip" id="sc-num" onclick="setFleetSort('num',this)">Bin # <span class="sort-arr">↕</span></button>
-        <button class="sort-chip" id="sc-size" onclick="setFleetSort('size',this)">Size <span class="sort-arr">↕</span></button>
-        <button class="sort-chip" id="sc-status" onclick="setFleetSort('status',this)">Status <span class="sort-arr">↕</span></button>
-        <span class="fleet-result-lbl" id="fleet-count-lbl"></span>
+  <!-- summary: two progress bars + 3 attention tiles -->
+  <div class="fleet-summary" id="fleet-summary"></div>
+
+  <!-- toolbar: filter chips + search + sort + view toggle -->
+  <div class="fleet-bar">
+    <div class="bf-scroll" id="fleet-chips" style="display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;margin-bottom:11px"></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:170px;max-width:340px;height:40px;border:1px solid var(--border);border-radius:10px;padding:0 13px;background:var(--surface)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" style="flex:none"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        <input id="fleet-search-input" type="text" oninput="fleetQ=this.value;renderFleet()" placeholder="Search bin # or notes…" style="flex:1;border:none;outline:none;font-size:13.5px;font-family:inherit;background:transparent;color:var(--text)">
       </div>
-      <div class="fleet-table-wrap">
-        <table class="fleet-table">
-          <thead><tr><th>Bin #</th><th>Colour</th><th>Size</th><th>Type</th><th>Status</th><th>Location / Job</th><th>Damage</th><th>Notes</th><th></th></tr></thead>
-          <tbody id="fleet-tbody"></tbody>
-        </table>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:600;color:var(--muted)">Sort by</span>
+        <div id="fleet-sorts" style="display:inline-flex;gap:7px"></div>
+      </div>
+      <div class="fleet-view-toggle" style="display:inline-flex;gap:3px;background:var(--surface2);border-radius:10px;padding:3px">
+        <button onclick="setFleetView('cards')" id="fv-cards">▦ Cards</button>
+        <button onclick="setFleetView('table')" id="fv-table">≡ Table</button>
       </div>
     </div>
   </div>
+
+  <div style="font-size:12.5px;color:var(--muted);margin:0 2px 12px" id="fleet-result-lbl"></div>
+  <div id="fleet-cards"></div>
+  <div id="fleet-table-view"></div>
   <div class="timeline-wrap">
     <div class="timeline-header">
       <div><div class="timeline-title">📅 Availability Forecast</div><div class="timeline-sub">Bins in yard vs. out per day</div></div>
@@ -1742,6 +1730,16 @@
             ⭐ Show / Display Bin — cleanest bins, use for trade shows
           </label>
         </div>
+        <div class="form-group full" style="display:flex;gap:18px;flex-wrap:wrap;background:rgba(120,120,135,.06);border:1px solid var(--border);border-radius:8px;padding:8px 12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#c2410c">
+            <input type="checkbox" id="bi-repaint" style="width:15px;height:15px;accent-color:#f97316">
+            🖌️ Needs repaint
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#0e7490">
+            <input type="checkbox" id="bi-decals" style="width:15px;height:15px;accent-color:#0891b2">
+            🏷️ Needs decals
+          </label>
+        </div>
         <div class="form-group"><label>Condition</label><select id="bi-dmg"><option value="good">✅ No Damage</option><option value="damage">⚠️ Has Damage</option></select></div>
         <div class="form-group"><label>Status</label><select id="bi-status"><option value="in">In Yard</option><option value="out">Out on Job</option></select></div>
         <div class="form-group"><label>Rotation</label><select id="bi-oor"><option value="active">✅ In use</option><option value="oor">⛔ Retired (not in use)</option></select></div>
@@ -2312,7 +2310,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=325"></script>
+<script src="app.js?v=326"></script>
 <script src="liquid-nav.js?v=2"></script>
 <script src="app-onboarding.js?v=292"></script>
 </body>
