@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '324';
+var APP_VERSION = '325';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1376,9 +1376,14 @@ async function loadJobsPage(page) {
   if (searchOr && dateOr) query = query.or('and(or(' + searchOr + '),or(' + dateOr + '))');
   else if (searchOr) query = query.or(searchOr);
   else if (dateOr) query = query.or(dateOr);
-  // Apply service filter
+  // Apply service / view filter. Cancelled and Recurring are NOT services —
+  // they live in their own columns (status, recurring), so query those.
   if (svcF === 'Completed') {
     query = query.eq('completed', true);
+  } else if (svcF === 'Cancelled') {
+    query = query.eq('status', 'Cancelled');
+  } else if (svcF === 'Recurring') {
+    query = query.eq('recurring', true);
   } else if (svcF && svcF !== 'all') {
     query = query.eq('service', svcF);
   }
@@ -1396,7 +1401,7 @@ async function loadJobsPage(page) {
 
   if (!r.error) {
     jobs = (r.data || []).map(dbToJob);
-    jobsTotal = r.count || jobsTotal;
+    jobsTotal = (r.count != null) ? r.count : jobsTotal; // 0 is a valid count (e.g. empty Completed view)
 
     // Fill missing phones using ilike client name match, then backfill DB
     var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
