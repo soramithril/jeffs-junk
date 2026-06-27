@@ -252,6 +252,7 @@ function dispatchShiftDate(days){
   renderDispatch();
 }
 async function dispatchAssignJob(jobId, crewId, leg){
+  _dispatchMenu = null; // close any open Assign/Move menu on assignment
   var col = leg === 'pickup' ? 'pickup_crew_id' : 'dropoff_crew_id';
   var update = {}; update[col] = crewId || null;
   var local = _dispatchJobsCache.find(function(j){return j.id===jobId;});
@@ -349,43 +350,52 @@ function dispatchOnDrop(ev, crewId){
     if(data && data.jobId) dispatchAssignJob(data.jobId, crewId, data.leg);
   } catch(e){ console.error('drop parse error:', e); }
 }
+var _dispatchMenu = null; // open Assign/Move menu key (jobId:leg) — only one at a time
+function dispatchToggleCardMenu(key){
+  _dispatchMenu = (_dispatchMenu === key) ? null : key;
+  renderDispatch();
+}
+// Tappable stop card: PICKUP/DROP pill, 🔁 combo ribbon, ~Nm, customer, and an
+// Assign/Move ▾ menu whose options call the existing dispatchAssignJob. Drag-to-assign
+// is preserved as a bonus.
 function dispatchRenderCard(j, clockStartMins){
-  var leg = j._isPickup ? 'pickup' : 'dropoff';
-  var pinTxt = j._isPickup ? 'P' : 'D';
-  var pinBg  = j._isPickup ? 'rgba(13,110,253,.18)' : 'rgba(234,179,8,.18)';
-  var pinFg  = j._isPickup ? '#0d6efd' : '#eab308';
+  var isPickup = !!j._isPickup;
+  var leg = isPickup ? 'pickup' : 'dropoff';
+  var legLabel = isPickup ? 'PICKUP' : 'DROP';
+  var legBg = isPickup ? '#0d6efd' : '#eab308';
   var comboCol = j._comboColor || '#22c55e';
-  var swapBadge = j._partnerId ? '<span style="display:inline-block;font-size:10px;font-weight:700;color:'+comboCol+';background:'+comboCol+'22;border:1px solid '+comboCol+'66;padding:1px 5px;border-radius:4px;margin-left:4px">COMBO &#8594; #'+j._partnerId+'</span>' : '';
   var working = dispatchGetWorkingIds();
-  var assigned = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
-  var optsHtml = '<option value="">— Unassigned</option>';
+  var assigned = isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
+  var key = j.id + ':' + leg;
+  var menuOpen = (_dispatchMenu === key);
+  var sub = [];
+  if(j.city) sub.push(escHtml(j.city));
+  var tm = (!isPickup && j.binDropoffTime) ? ft(j.binDropoffTime) : '';
+  if(tm) sub.push(tm);
+  var opts = '';
   working.forEach(function(id){
-    var c = crewMembers.find(function(cm){return cm.id===id;});
-    if(!c) return;
-    optsHtml += '<option value="'+id+'"'+(assigned===id?' selected':'')+'>'+c.name+'</option>';
+    var c = crewMembers.find(function(cm){return cm.id===id;}); if(!c) return;
+    var col = c.color || crewAvatarColor(c.id);
+    opts += '<button onclick="event.stopPropagation();dispatchAssignJob(\''+j.id+'\',\''+id+'\',\''+leg+'\')" style="display:flex;width:100%;align-items:center;gap:8px;min-height:42px;padding:0 13px;border:none;border-bottom:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;'+(assigned===id?'font-weight:800;':'font-weight:600;')+'cursor:pointer;font-family:inherit;text-align:left"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:'+col+'"></span>'+escHtml(c.name)+(assigned===id?' ✓':'')+'</button>';
   });
-  if(assigned && working.indexOf(assigned)<0){
-    var ac = crewMembers.find(function(cm){return cm.id===assigned;});
-    if(ac) optsHtml += '<option value="'+assigned+'" selected>'+ac.name+' (not working today)</option>';
-  }
-  var clockTxt = '';
-  if(typeof clockStartMins === 'number'){
-    var endMins = clockStartMins + j._estMinutes;
-    clockTxt = '<div style="font-size:10px;color:#22c55e;font-weight:700;margin-bottom:4px">'+dispatchFmtClock(clockStartMins)+'–'+dispatchFmtClock(endMins)+'</div>';
-  }
-  var cardBorder = j._partnerId ? 'border:1px solid '+comboCol+'66;border-left:4px solid '+comboCol : 'border:1px solid var(--border)';
+  if(assigned) opts += '<button onclick="event.stopPropagation();dispatchAssignJob(\''+j.id+'\',\'\',\''+leg+'\')" style="display:block;width:100%;min-height:40px;padding:0 13px;border:none;background:var(--surface);font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit;text-align:left">↩ Unassign</button>';
+  if(!opts) opts = '<div style="padding:12px 13px;font-size:12px;color:var(--muted)">No drivers working — toggle one above.</div>';
+  var menu = menuOpen ? '<div style="position:absolute;left:10px;right:10px;z-index:6;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 28px rgba(0,0,0,.18);overflow:hidden;margin-top:5px">'+opts+'</div>' : '';
+  var cardBorder = j._partnerId ? 'border:1px solid '+comboCol+'66;border-left:4px solid '+comboCol : 'border:1px solid var(--border);border-left:4px solid '+legBg;
   var cardBg = j._partnerId ? comboCol+'14' : 'var(--surface)';
-  var card = '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="background:'+cardBg+';'+cardBorder+';border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:6px;cursor:grab">';
-  card += clockTxt;
-  card += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
-  card += '<span title="'+(j._isPickup?'Pickup':'Delivery')+'" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:'+pinBg+';color:'+pinFg+';font-size:11px;font-weight:700">'+pinTxt+'</span>';
-  card += '<span style="font-weight:700">'+j.id+'</span>'+swapBadge;
-  card += '<span style="margin-left:auto;font-weight:600;color:var(--muted)">+'+j._estMinutes+'m</span>';
-  card += '</div>';
-  card += '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">'+(j.name||'—')+' &middot; '+(j.city||'—')+'</div>';
-  card += '<select onchange="dispatchAssignJob(\''+j.id+'\', this.value, \''+leg+'\')" onclick="event.stopPropagation()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:6px;font-size:11px">'+optsHtml+'</select>';
-  card += '</div>';
-  return card;
+  var clockTxt = (typeof clockStartMins === 'number') ? '<div style="font-size:10px;color:#16a34a;font-weight:700;margin-bottom:5px">'+dispatchFmtClock(clockStartMins)+'&ndash;'+dispatchFmtClock(clockStartMins + j._estMinutes)+'</div>' : '';
+  return '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="position:relative;background:'+cardBg+';'+cardBorder+';border-radius:11px;padding:11px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:grab">'
+    +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">'
+      +'<span style="font-size:10px;font-weight:800;color:#fff;background:'+legBg+';padding:2px 8px;border-radius:5px;letter-spacing:.3px">'+legLabel+'</span>'
+      +(j._partnerId?'<span style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:2px 7px;border-radius:5px">🔁 Combo</span>':'')
+      +'<span style="margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:600">~'+j._estMinutes+'m</span>'
+    +'</div>'
+    +clockTxt
+    +'<div style="font-size:13.5px;font-weight:700;color:var(--text)">'+escHtml(j.name||'—')+' <span style="font-size:11px;color:var(--muted);font-weight:500">#'+j.id+'</span></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px">'+(sub.length?sub.join(' &middot; '):'&mdash;')+'</div>'
+    +'<button onclick="event.stopPropagation();dispatchToggleCardMenu(\''+key+'\')" style="width:100%;min-height:40px;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">'+(assigned?'Move &#9662;':'👤 Assign &#9662;')+'</button>'
+    +menu
+  +'</div>';
 }
 // Google Maps directions URL through every stop in a lane, in dispatch order.
 // Origin is omitted so Maps starts from the driver's current location; the last
@@ -513,7 +523,7 @@ async function renderDispatch(){
   if(!unassigned.length){
     html += '<div style="font-size:13px;color:var(--muted);font-style:italic">No unassigned jobs. Drag a card here to unassign.</div>';
   } else {
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px">';
     dispatchGroupCombos(unassigned).forEach(function(j){ html += dispatchRenderCard(j); });
     html += '</div>';
   }
@@ -530,17 +540,29 @@ async function renderDispatch(){
       var startMins = dispatchParseClock(startTime) || 480;
       var ord = laneJobs.length ? dispatchOrderLaneJobs(laneJobs) : null;
       var routeUrl = ord ? dispatchMapsRouteUrl(ord.jobs) : null;
-      html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-top:3px solid '+color+';border-radius:10px;padding:10px 10px 8px;min-height:120px">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">';
-      html += '<div style="font-weight:700;font-size:14px;color:'+color+'">'+crew.name+'</div>';
-      html += '<div style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(34,197,94,.12);color:#22c55e;white-space:nowrap">'+dispatchFmtTotal(laneTotal)+'</div>';
+      var _pct = Math.min(Math.round(laneTotal/480*100),100);
+      var _barCol = _pct<60?'#22c55e':(_pct<90?'#f59e0b':'#dc3545');
+      var _noteCol = _pct>=90?'#dc3545':(_pct>=60?'#c2410c':'#15803d');
+      var _note = laneTotal ? (_pct+'% of an 8-hr day') : 'Empty &mdash; add stops';
+      var _init = (crew.name||'?').trim().charAt(0).toUpperCase();
+      html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
+      // lane header: avatar + name/count + load bar
+      html += '<div style="padding:12px 13px;border-bottom:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">';
+      html += '<div style="width:34px;height:34px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none">'+_init+'</div>';
+      html += '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px;color:var(--text)">'+escHtml(crew.name)+'</div><div style="font-size:11px;color:var(--muted)">'+laneJobs.length+' stop'+(laneJobs.length===1?'':'s')+' &middot; starts '+dispatchFmtClock(startMins)+'</div></div>';
+      html += '<span style="font-size:13px;font-weight:700;color:'+_noteCol+';white-space:nowrap">'+dispatchFmtTotal(laneTotal)+'</span>';
       html += '</div>';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px">';
-      html += '<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">Start <input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+id+'\', this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:2px 6px;border-radius:4px;font-size:11px;font-family:inherit"></div>';
-      if(routeUrl) html += '<a href="'+routeUrl+'" target="_blank" rel="noopener" title="Open this driver\'s stops in order in Google Maps" style="font-size:11px;font-weight:600;color:#0d6efd;background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.35);border-radius:6px;padding:3px 8px;white-space:nowrap;text-decoration:none">🧭 Route in Maps</a>';
+      html += '<div style="height:8px;border-radius:5px;background:var(--surface2);overflow:hidden;margin-bottom:5px"><div style="height:100%;width:'+_pct+'%;background:'+_barCol+';border-radius:5px"></div></div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-size:11px;font-weight:600;color:'+_noteCol+'">'+_note+'</span><span style="display:inline-flex;align-items:center;gap:8px">';
+      html += '<span style="font-size:10px;color:var(--muted);display:inline-flex;align-items:center;gap:5px">Start <input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+id+'\', this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit"></span>';
+      if(routeUrl) html += '<a href="'+routeUrl+'" target="_blank" rel="noopener" title="Open this driver\'s stops in order in Google Maps" style="font-size:11px;font-weight:600;color:#0d6efd;background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.35);border-radius:6px;padding:3px 8px;white-space:nowrap;text-decoration:none">🧭 Maps</a>';
+      html += '</span></div>';
       html += '</div>';
+      // lane body: stops
+      html += '<div style="padding:11px">';
       if(!laneJobs.length){
-        html += '<div style="font-size:12px;color:var(--muted);text-align:center;padding:14px;font-style:italic">No jobs assigned. Drag here.</div>';
+        html += '<div style="font-size:12.5px;color:var(--muted);text-align:center;padding:16px;font-style:italic">No stops yet &mdash; assign one above.</div>';
       } else {
         var warns = ord.warnings;
         var clock = startMins;
@@ -557,6 +579,7 @@ async function renderDispatch(){
           html += '<div style="margin-top:6px;font-size:11px;color:#d97706;background:#f59e0b18;border:1px solid #f59e0b55;border-radius:6px;padding:4px 8px;line-height:1.4">&#9888; '+warns.join('; ')+'</div>';
         }
       }
+      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
