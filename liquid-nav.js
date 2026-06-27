@@ -162,11 +162,13 @@
   function injectCSS() {
     var s = document.createElement('style');
     s.textContent =
-      '.sidebar>.nav,.sidebar>.logo{position:relative;z-index:1;}' +
       '.sidebar .nav-item{position:relative;z-index:1;}' +
       '.nav-item.active{background:transparent!important;width:100%!important;margin-right:0!important;border-radius:11px!important;}' +
       '.nav-item.active::before,.nav-item.active::after{display:none!important;}' +
-      '.liquid-nav-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:0;overflow:visible;}' +
+      /* z-index:-1 keeps the carve below all sidebar content (so the fixed
+         "More tools" flyout isn't trapped in a stacking context) yet above
+         the sidebar's own green background — .sidebar is already a context. */
+      '.liquid-nav-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:-1;overflow:visible;}' +
       /* rail notch parked on the "More tools" button */
       '#nav-more-label.liquid-more-active{background:transparent!important;border-color:transparent!important;position:relative;z-index:1;}' +
       '#nav-more-label.liquid-more-active span{color:#15803d!important;}' +
