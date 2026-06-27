@@ -518,6 +518,14 @@ body{
 .search-input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;width:220px;margin-left:auto;}
 .search-input:focus{outline:none;border-color:var(--accent);}
 .search-input::placeholder{color:var(--muted);}
+/* Clean line-style magnifier on every search field (v=323) */
+.search-icon{
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%239ca3af'%20stroke-width='2.2'%20stroke-linecap='round'%3E%3Ccircle%20cx='11'%20cy='11'%20r='7'/%3E%3Cline%20x1='21'%20y1='21'%20x2='16.5'%20y2='16.5'/%3E%3C/svg%3E") !important;
+  background-repeat:no-repeat !important;
+  background-position:13px center !important;
+  background-size:16px 16px !important;
+  padding-left:40px !important;
+}
 
 /* ── TABLE ── */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;box-shadow:var(--shadow-sm);}

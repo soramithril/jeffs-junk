@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '322';
+var APP_VERSION = '323';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2722,7 +2722,7 @@ async function refreshDashJobs(){
   // Update the section header label
   var wHdr = document.getElementById('workload-header');
   var dateLbl = isToday ? "TODAY'S JOBS" : "JOBS — " + new Date(dateS+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
-  if(wHdr) wHdr.textContent = '📍 ' + dateLbl;
+  if(wHdr) wHdr.textContent = dateLbl;
 
   // Fetch jobs for the selected date
   // Furniture uses fb_date, Junk uses junk_date, Bin Rental uses bin_dropoff/bin_pickup, others use date
@@ -3242,11 +3242,11 @@ async function renderDash(){
   var workloadHdr = document.getElementById('workload-header');
   if(workloadHdr){
     var wLabel;
-    if(!totalTodayCount){ wLabel='📍 FREE DAY'; }
-    else if(totalTodayCount===1){ wLabel='📍 TODAY — 1 JOB'; }
-    else if(totalTodayCount<=3){ wLabel='📍 LIGHT DAY — '+totalTodayCount+' JOBS'; }
-    else if(totalTodayCount<=5){ wLabel='📍 BUSY — '+totalTodayCount+' JOBS'; }
-    else { wLabel='📍 HEAVY DAY — '+totalTodayCount+' JOBS'; }
+    if(!totalTodayCount){ wLabel='FREE DAY'; }
+    else if(totalTodayCount===1){ wLabel='TODAY — 1 JOB'; }
+    else if(totalTodayCount<=3){ wLabel='LIGHT DAY — '+totalTodayCount+' JOBS'; }
+    else if(totalTodayCount<=5){ wLabel='BUSY — '+totalTodayCount+' JOBS'; }
+    else { wLabel='HEAVY DAY — '+totalTodayCount+' JOBS'; }
     workloadHdr.innerHTML = wLabel;
   }
 
@@ -9124,7 +9124,7 @@ function renderDrdInDetail(j){
 
   // Items Grid — mirrors the Furniture Quote Calculator exactly
   html+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">📦 Donated Items</div>'
-    +'<div style="margin-bottom:10px"><input id="drd-d-search" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdDetailFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif"></div>'
+    +'<div style="margin-bottom:10px"><input id="drd-d-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdDetailFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif"></div>'
     +'<div id="drd-d-items-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
   DRD_ORDER.forEach(function(i){
     var item=DRD_ITEMS[i];
