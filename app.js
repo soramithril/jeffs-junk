@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '326';
+var APP_VERSION = '327';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -6572,7 +6572,7 @@ function renderFleet(){
 function binFlags(b){
   var fb='display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;', out=[];
   if(b.damage==='damage')out.push('<span style="'+fb+'background:rgba(220,53,69,.13);color:#b02633">⛔ Out of service</span>');
-  if(b.damage==='oor')out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">♻ Retired</span>');
+  if(b.damage==='oor')out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">♻ Out of rotation</span>');
   if(b.show_bin)out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">🔧 Not for rent</span>');
   if(b.repaint)out.push('<span style="'+fb+'background:rgba(249,115,22,.14);color:#c2410c">🖌️ Repaint</span>');
   if(b.decals)out.push('<span style="'+fb+'background:rgba(8,145,178,.12);color:#0e7490">🏷️ Decals</span>');
