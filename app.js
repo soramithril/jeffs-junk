@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '327';
+var APP_VERSION = '328';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -11977,28 +11977,206 @@ function _renderVehicleRows(dashVehicles, alerts){
   el.innerHTML = '<div class="h-vehicles">'+rows+'</div>';
 }
 
+// ── VEHICLES REDESIGN (v328) — plain-language fleet health, cards/list, send-to-shop ──
+var _vehFilter = 'all';                                                 // all | good | needs | shop
+var _vehView = (function(){ try { return localStorage.getItem('vehView') || 'cards'; } catch(e){ return 'cards'; } })();
+var _vehShop = {vid:null, reason:'', note:'', backBy:''};               // inline send-to-shop draft
+var _VEH_META = {
+  good:{dot:'#22c55e',pill:'✅ All good',pc:'#15803d',pb:'rgba(34,197,94,.12)'},
+  soon:{dot:'#eab308',pill:'🟡 Attention soon',pc:'#a16207',pb:'rgba(234,179,8,.14)'},
+  due :{dot:'#dc3545',pill:'🔴 Service due',pc:'#b4232f',pb:'rgba(220,53,69,.1)'},
+  shop:{dot:'#e67e22',pill:'🔧 In the shop',pc:'#c2410c',pb:'rgba(230,126,34,.13)'}
+};
+function _vehStateColor(s){ return s==='bad'?'#b4232f':s==='warn'?'#a16207':s==='ok'?'#15803d':'#9ca3af'; }
+function _vehOilText(o){ return o.state==='muted'?'Not tracked':o.state==='bad'?'Overdue':o.state==='warn'?'Due soon':'Up to date'; }
+function _vehStickerText(s){ return s.state==='muted'?'Not set':(s.sub||'—'); }
+function _vehOdoText(vid){ var o=window._odometerCache&&window._odometerCache[vid]; return (o&&o.odometer_km!=null)?Number(o.odometer_km).toLocaleString()+' km':'—'; }
+// In the shop = an active block covering today (open-ended blocks are extended to today on load).
+function vehInShop(vid){ return !!(vehBlocks[vid] && vehBlocks[vid][todayStr()]); }
+function vehOverall(v){
+  if(vehInShop(v.vid)) return 'shop';
+  var o=_vehOilStatus(v), s=_vehStickerStatus(v), m=_vehMaintWorstStatus(v.vid);
+  if(o.state==='bad'||s.state==='bad'||m.state==='bad') return 'due';
+  if(o.state==='warn'||s.state==='warn'||m.state==='warn') return 'soon';
+  return 'good';
+}
+function vehFilterPass(ov,f){ if(f==='all')return true; if(f==='good')return ov==='good'; if(f==='needs')return ov==='due'||ov==='soon'; if(f==='shop')return ov==='shop'; return true; }
+function vehShopInfo(vid){
+  var t=todayStr(), b=vehBlocks[vid]&&vehBlocks[vid][t]; if(!b) return null;
+  var future=Object.keys(vehBlocks[vid]).filter(function(d){return d>=t;}).sort();
+  var backBy=(!b.openEnded && future.length)?future[future.length-1]:'';
+  return {reason:b.reason||'In for service', backBy:backBy, openEnded:!!b.openEnded};
+}
+function setVehFilter(f){ _vehFilter=(_vehFilter===f && f!=='all')?'all':f; renderVehicles(); }
+function setVehView(v){ _vehView=v; try{localStorage.setItem('vehView',v);}catch(e){} renderVehicles(); }
+function openVehShop(vid){ _vehShop={vid:vid,reason:'',note:'',backBy:''}; if(_vehView!=='cards'){ _vehView='cards'; try{localStorage.setItem('vehView','cards');}catch(e){} } renderVehicles(); }
+function closeVehShop(){ _vehShop={vid:null,reason:'',note:'',backBy:''}; renderVehicles(); }
+function vehShopReason(r){ _vehShop.reason=r; renderVehicles(); }
+function vehConfirmShop(vid){
+  var r=_vehShop.reason; if(!r) return;
+  if(r==='Other' && !(_vehShop.note && _vehShop.note.trim())) return;
+  var reason = r==='Other' ? _vehShop.note.trim() : r;
+  if(!vehBlocks[vid]) vehBlocks[vid]={};
+  var today=todayStr();
+  if(_vehShop.backBy){
+    var d=new Date(today+'T12:00:00'), end=new Date(_vehShop.backBy+'T12:00:00');
+    while(d<=end){ vehBlocks[vid][d.toISOString().slice(0,10)]={reason:reason,notes:'',openEnded:false,openFrom:null,cost:null}; d.setDate(d.getDate()+1); }
+  } else {
+    vehBlocks[vid][today]={reason:reason,notes:'',openEnded:true,openFrom:today,cost:null};
+  }
+  saveVehBlocks(vid);
+  var nm=(vehicles.find(function(x){return x.vid===vid;})||{}).name||'Vehicle';
+  _vehShop={vid:null,reason:'',note:'',backBy:''};
+  renderVehicles();
+  toast('🔧 '+nm+' sent to the shop');
+}
+function vehBackInService(vid){
+  if(vehBlocks[vid]){ var t=todayStr(); Object.keys(vehBlocks[vid]).forEach(function(d){ if(d>=t) delete vehBlocks[vid][d]; }); saveVehBlocks(vid); }
+  var nm=(vehicles.find(function(x){return x.vid===vid;})||{}).name||'Vehicle';
+  renderVehicles();
+  toast('✅ '+nm+' back in service');
+}
+function openVehMenu(vid,ev){
+  ev.stopPropagation(); closeVehMenu();
+  var m=document.createElement('div'); m.id='veh-ctx-menu';
+  m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:140px';
+  m.innerHTML='<button onclick="closeVehMenu();openEditVehicle(\''+vid+'\')" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;color:var(--text)" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">✏️ Edit</button>'
+    +'<button onclick="closeVehMenu();delVehicle(\''+vid+'\')" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;color:#dc3545" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete</button>';
+  document.body.appendChild(m);
+  var r=ev.target.getBoundingClientRect();
+  m.style.top=(r.bottom+4)+'px'; m.style.left=Math.max(8,Math.min(r.left,window.innerWidth-150))+'px';
+  setTimeout(function(){document.addEventListener('click',closeVehMenu,{once:true});},0);
+}
+function closeVehMenu(){ var m=document.getElementById('veh-ctx-menu'); if(m)m.remove(); }
+
 function renderVehicles(){
-  var list = document.getElementById('vehicles-list');
-  if(!list) return;
+  var listEl = document.getElementById('vehicles-list');
+  if(!listEl) return;
   var sub = document.getElementById('vehicles-sub');
-  var dashVehicles = vehicles.filter(function(v){return !v.leaderboardOnly;});
+  var dash = vehicles.filter(function(v){return !v.leaderboardOnly;});
   var inboxEl = document.getElementById('vehicle-inbox');
-  var kpisEl = document.getElementById('vehicle-kpis');
+  var kpisEl = document.getElementById('vehicle-kpis'); if(kpisEl) kpisEl.innerHTML='';
   var filtersEl = document.getElementById('vehicle-filters');
-  if(!dashVehicles.length){
-    if(inboxEl) inboxEl.innerHTML = '';
-    if(kpisEl) kpisEl.innerHTML = '';
-    if(filtersEl) filtersEl.innerHTML = '';
-    list.innerHTML = '<div class="empty-state"><div class="ei">🚛</div><h3>No vehicles yet</h3><p>Add your trucks and vans to track availability</p></div>';
-    if(sub) sub.textContent = 'No vehicles added yet';
+  if(!dash.length){
+    if(inboxEl) inboxEl.innerHTML='';
+    if(filtersEl) filtersEl.innerHTML='';
+    listEl.innerHTML='<div class="empty-state"><div class="ei">🚛</div><h3>No vehicles yet</h3><p>Add your trucks and vans to track availability</p></div>';
+    if(sub) sub.textContent='No vehicles added yet';
     return;
   }
-  if(sub) sub.textContent = dashVehicles.length+' vehicle'+(dashVehicles.length!==1?'s':'')+' · click a row for full detail';
-  var alerts = _buildVehicleAlerts();
-  _renderVehicleInbox(alerts);
-  _renderVehicleKPIs(dashVehicles, alerts);
-  _renderVehicleFilters(dashVehicles, alerts);
-  _renderVehicleRows(dashVehicles, alerts);
+  var rows = dash.map(function(v){ return {v:v, ov:vehOverall(v)}; });
+  var good = rows.filter(function(x){return x.ov==='good';}).length;
+  var needs = rows.filter(function(x){return x.ov==='due'||x.ov==='soon';}).length;
+  var shop = rows.filter(function(x){return x.ov==='shop';}).length;
+  if(sub) sub.textContent = dash.length+' truck'+(dash.length!==1?'s':'')+' · '+good+' good · '+needs+' need attention · '+shop+' in the shop';
+  if(inboxEl) inboxEl.innerHTML = _renderVehAttention(rows);
+  if(filtersEl) filtersEl.innerHTML = _renderVehToolbar(rows.length, good, needs, shop);
+  var legend = '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:0 2px 14px">'
+    +_vehLegend('#22c55e','All good')+_vehLegend('#eab308','Attention soon')+_vehLegend('#dc3545','Service due now')+_vehLegend('#e67e22','In the shop')+'</div>';
+  var filtered = rows.filter(function(x){return vehFilterPass(x.ov,_vehFilter);});
+  var body;
+  if(!filtered.length){
+    body='<div style="background:var(--surface);border:1px dashed var(--border);border-radius:14px;padding:40px;text-align:center;color:var(--muted)">No vehicles match this filter.</div>';
+  } else if(_vehView==='cards'){
+    body='<div class="veh-card-grid">'+filtered.map(function(x){return makeVehicleCard(x.v,x.ov);}).join('')+'</div>';
+  } else {
+    body='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'+filtered.map(function(x){return makeVehicleListRow(x.v,x.ov);}).join('')+'</div>';
+  }
+  listEl.innerHTML = legend + body;
+}
+function _vehLegend(c,l){ return '<span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:'+c+'"></span>'+l+'</span>'; }
+function _renderVehAttention(rows){
+  var out=[];
+  rows.forEach(function(x){
+    var v=x.v; if(x.ov==='shop') return;
+    var o=_vehOilStatus(v), s=_vehStickerStatus(v);
+    if(o.state==='bad') out.push({name:v.name,reason:'Oil change overdue',dot:'#dc3545',vid:v.vid,act:true});
+    else if(o.state==='warn') out.push({name:v.name,reason:'Oil change due soon',dot:'#eab308',vid:v.vid,act:true});
+    if(s.state==='bad') out.push({name:v.name,reason:'Safety sticker expired'+(s.sub?' ('+s.sub+')':''),dot:'#dc3545',vid:v.vid,act:false});
+    else if(s.state==='warn') out.push({name:v.name,reason:'Safety sticker expiring'+(s.sub?' ('+s.sub+')':''),dot:'#eab308',vid:v.vid,act:false});
+  });
+  if(!out.length) return '';
+  return '<div style="background:var(--surface);border:1px solid #f0d2b0;border-left:4px solid #e67e22;border-radius:14px;padding:14px 16px;margin-bottom:14px">'
+    +'<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a3412;margin-bottom:11px;display:flex;align-items:center;gap:7px">⚠️ Needs attention <span style="background:#e67e22;color:#fff;border-radius:99px;padding:1px 8px;font-size:11px">'+out.length+'</span></div>'
+    +'<div style="display:grid;gap:9px">'+out.map(function(a){
+      return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:'+a.dot+'"></span>'
+        +'<div style="flex:1;min-width:140px"><span style="font-weight:700;font-size:13px">'+escHtml(a.name||'')+'</span> <span style="color:var(--muted);font-size:12.5px">— '+a.reason+'</span></div>'
+        +(a.act?'<button onclick="markOilServicedQuick(\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark serviced</button>':'')
+      +'</div>';
+    }).join('')+'</div></div>';
+}
+function _renderVehToolbar(total,good,needs,shop){
+  var cb='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var mk=function(f,lbl,n,dot){var on=_vehFilter===f;return '<button onclick="setVehFilter(\''+f+'\')" style="'+cb+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+n+'</span></button>';};
+  return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+    +'<div class="bf-scroll" style="display:flex;gap:7px;overflow-x:auto;flex:1;min-width:0">'+mk('all','All',total)+mk('good','Good',good,'#22c55e')+mk('needs','Needs service',needs,'#dc3545')+mk('shop','In the shop',shop,'#e67e22')+'</div>'
+    +'<div class="fleet-view-toggle" style="display:inline-flex;gap:3px;background:var(--surface2);border-radius:10px;padding:3px"><button onclick="setVehView(\'cards\')" class="'+(_vehView==='cards'?'on':'')+'">▦ Cards</button><button onclick="setVehView(\'table\')" class="'+(_vehView==='table'?'on':'')+'">≡ List</button></div>'
+  +'</div>';
+}
+function _vehInfoRow(label,value,color){
+  return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span style="color:var(--muted)">'+label+'</span><span style="font-weight:700;color:'+color+'">'+escHtml(value)+'</span></div>';
+}
+function _vehShopPanel(vid){
+  var reasons=['Maintenance','Repair','Safety check','Tires','Other'];
+  var rc='font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var chips=reasons.map(function(r){var on=_vehShop.reason===r;return '<button onclick="vehShopReason(\''+r+'\')" style="'+rc+(on?'background:#fff7ed;color:#c2410c;border-color:#f0b27a':'background:var(--surface);color:var(--muted)')+'">'+r+'</button>';}).join('');
+  var note = _vehShop.reason==='Other' ? '<input value="'+String(_vehShop.note||'').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'" oninput="_vehShop.note=this.value" placeholder="Tell us what for… (required)" style="width:100%;border:1.5px solid #f0b27a;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:11px;outline:none;box-sizing:border-box">' : '';
+  var canSend = _vehShop.reason && (_vehShop.reason!=='Other' || (_vehShop.note && _vehShop.note.trim()));
+  var sendStyle='flex:1;min-height:38px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;font-family:inherit;'+(canSend?'background:#e67e22;color:#fff;cursor:pointer':'background:#f0d2b0;color:#fff;cursor:not-allowed');
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px">'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">Send to the shop</div>'
+    +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">What for?</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px">'+chips+'</div>'+note
+    +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">Back by <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></div>'
+    +'<input type="date" value="'+String(_vehShop.backBy||'')+'" oninput="_vehShop.backBy=this.value" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">'
+    +'<div style="display:flex;gap:7px">'+(canSend?'<button onclick="vehConfirmShop(\''+vid+'\')"':'<button disabled')+' style="'+sendStyle+'">🔧 Send to shop</button><button onclick="closeVehShop()" style="min-height:38px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button></div>'
+  +'</div>';
+}
+function makeVehicleCard(v,ov){
+  var m=_VEH_META[ov], o=_vehOilStatus(v), s=_vehStickerStatus(v);
+  var pillStyle='font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
+  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:15px 16px;'+(ov==='shop'?'border-left:3px solid #e67e22':(ov==='due'?'border-left:3px solid #dc3545':''));
+  var h='<div style="'+cardStyle+'">'
+    +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px">'
+      +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+m.dot+'"></span>'
+      +'<span style="font-weight:700;font-size:14.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</span>'
+      +'<span style="'+pillStyle+'">'+m.pill+'</span>'
+      +'<button onclick="openVehMenu(\''+v.vid+'\',event)" title="Edit · Delete" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px">⋯</button>'
+    +'</div>'
+    +'<div style="display:grid;gap:7px;margin-bottom:12px">'
+      +_vehInfoRow('Oil change',_vehOilText(o),_vehStateColor(o.state))
+      +_vehInfoRow('Safety sticker',_vehStickerText(s),_vehStateColor(s.state))
+      +_vehInfoRow('Odometer',_vehOdoText(v.vid),'var(--text-secondary)')
+    +'</div>';
+  if(ov==='shop'){
+    var si=vehShopInfo(v.vid)||{reason:'In for service',backBy:'',openEnded:true};
+    var shopLine=si.backBy?('Back by '+fd(si.backBy)):'No return date yet';
+    h+='<div style="background:#fff7ed;border:1px solid #f0d2b0;border-radius:9px;padding:9px 11px;margin-bottom:9px"><div style="font-size:12px;font-weight:700;color:#9a3412">🔧 '+escHtml(si.reason)+'</div><div style="font-size:11.5px;color:#b45309;margin-top:2px">'+shopLine+'</div></div>'
+      +'<button onclick="vehBackInService(\''+v.vid+'\')" style="width:100%;min-height:40px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Back in service</button>';
+  } else if(_vehShop.vid===v.vid){
+    h+=_vehShopPanel(v.vid);
+  } else {
+    var needsService=(ov==='due'||ov==='soon');
+    h+='<div style="display:flex;gap:7px;flex-wrap:wrap">'
+      +'<button onclick="openVehShop(\''+v.vid+'\')" style="flex:1;min-width:120px;min-height:40px;border:1px solid #f0b27a;background:#fff7ed;color:#c2410c;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Send to shop</button>'
+      +(needsService?'<button onclick="markOilServicedQuick(\''+v.vid+'\')" style="flex:1;min-width:120px;min-height:40px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark serviced</button>':'')
+    +'</div>';
+  }
+  h+='</div>';
+  return h;
+}
+function makeVehicleListRow(v,ov){
+  var m=_VEH_META[ov], o=_vehOilStatus(v), s=_vehStickerStatus(v);
+  var pillStyle='font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
+  var h='<div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)">'
+    +'<span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+m.dot+'"></span>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</div><div style="font-size:11.5px;color:var(--muted)">Oil '+_vehOilText(o)+' · Sticker '+_vehStickerText(s)+'</div></div>'
+    +'<span style="'+pillStyle+'">'+m.pill+'</span>';
+  if(ov==='shop') h+='<button onclick="vehBackInService(\''+v.vid+'\')" style="min-height:36px;padding:0 12px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Back in service</button>';
+  else h+='<button onclick="openVehShop(\''+v.vid+'\')" style="min-height:36px;padding:0 12px;border:1px solid #f0b27a;background:#fff7ed;color:#c2410c;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Shop</button>';
+  h+='<button onclick="openVehMenu(\''+v.vid+'\',event)" title="Edit · Delete" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px">⋯</button>';
+  h+='</div>';
+  return h;
 }
 
 // Vehicles + Maintenance live on one page as two tabs (see #view-vehicles).

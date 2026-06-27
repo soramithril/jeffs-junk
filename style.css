@@ -538,6 +538,8 @@ body{
 .fleet-view-toggle button{border:none;border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;background:none;color:var(--muted)}
 .fleet-view-toggle button.on{background:var(--surface);color:#15803d;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 @media(max-width:760px){.fleet-summary{grid-template-columns:1fr}}
+/* Vehicles redesign (v328) — responsive card grid */
+.veh-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px}
 
 /* ── TABLE ── */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;box-shadow:var(--shadow-sm);}
