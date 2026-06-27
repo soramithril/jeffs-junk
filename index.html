@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=329">
+<link rel="stylesheet" href="style.css?v=330">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -551,17 +551,28 @@
     </div>
   </div>
   <div class="filters-bar" style="flex-wrap:wrap;gap:8px;row-gap:8px;">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Sort</span>
-      <!-- Animated sort tabs -->
-      <div class="atabs-wrap" id="atabs-csort" style="position:relative;">
-        <div class="atabs-highlight" id="atabs-csort-hl"></div>
-        <div class="atabs-track">
-          <button class="atab active" id="csort-alpha"   onclick="setClientSort('alpha',this)">A–Z</button>
-          <button class="atab"        id="csort-jobs"    onclick="setClientSort('jobs',this)">Most Jobs</button>
-          <button class="atab"        id="csort-recent"  onclick="setClientSort('recent',this)">Recent</button>
-          <button class="atab"        id="csort-dormant" onclick="setClientSort('dormant',this)">😴 Dormant</button>
-          <button class="atab"        id="csort-blacklist" onclick="setClientSort('blacklist',this)">🚫 Blacklisted</button>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Sort</span>
+        <div class="atabs-wrap" id="atabs-csort" style="position:relative;">
+          <div class="atabs-highlight" id="atabs-csort-hl"></div>
+          <div class="atabs-track">
+            <button class="atab active" id="csort-alpha"  onclick="setClientSort('alpha',this)">A–Z</button>
+            <button class="atab"        id="csort-jobs"   onclick="setClientSort('jobs',this)">Most Jobs</button>
+            <button class="atab"        id="csort-recent" onclick="setClientSort('recent',this)">Recent</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Show</span>
+        <div class="atabs-wrap" id="atabs-cshow" style="position:relative;">
+          <div class="atabs-highlight" id="atabs-cshow-hl"></div>
+          <div class="atabs-track">
+            <button class="atab active" id="cshow-everyone"    onclick="setClientShow('everyone',this)">Everyone</button>
+            <button class="atab"        id="cshow-contractors" onclick="setClientShow('contractors',this)">🏗️ Contractors</button>
+            <button class="atab"        id="cshow-dormant"     onclick="setClientShow('dormant',this)">😴 Dormant</button>
+            <button class="atab"        id="cshow-blacklist"   onclick="setClientShow('blacklist',this)">🚫 Blacklisted</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1971,6 +1982,13 @@
       </div>
 
       <div class="form-group" style="margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#2563eb">
+          <input type="checkbox" id="c-contractor" style="width:15px;height:15px;accent-color:#2563eb">
+          🏗️ Contractor — repeat trade account
+        </label>
+      </div>
+
+      <div class="form-group" style="margin-bottom:10px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#dc3545">
           <input type="checkbox" id="c-blacklisted" style="width:15px;height:15px;accent-color:#dc3545">
           🚫 Blacklisted — do not contact for promotions
@@ -2310,9 +2328,9 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=329"></script>
+<script src="app.js?v=330"></script>
 <script src="liquid-nav.js?v=2"></script>
-<script src="app-onboarding.js?v=329"></script>
+<script src="app-onboarding.js?v=330"></script>
 </body>
 </html>
                                                                                                                                                          

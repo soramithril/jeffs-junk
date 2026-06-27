@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '329';
+var APP_VERSION = '330';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -682,7 +682,7 @@ var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,addres
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
-var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,internal_notes,created_at,blacklisted';
+var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,internal_notes,created_at,blacklisted,contractor';
 
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
@@ -823,6 +823,7 @@ function dbToClient(r) {
     internalNotes: r.internal_notes || '',
     createdAt: r.created_at || '',
     blacklisted: r.blacklisted || false,
+    contractor: r.contractor || false,
   };
 }
 
@@ -910,6 +911,7 @@ function clientToDb(c) {
     notes:    c.notes   || '',
     internal_notes: c.internalNotes || '',
     blacklisted: c.blacklisted || false,
+    contractor: c.contractor || false,
   };
 }
 
@@ -1234,7 +1236,7 @@ async function loadAllFromSupabase() {
     try {
       var pageSize = 1000, from = 0, keepGoing = true;
       while (keepGoing) {
-        var rcAll = await db.from('clients').select('cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,created_at,blacklisted').order('name').range(from, from + pageSize - 1);
+        var rcAll = await db.from('clients').select('cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,created_at,blacklisted,contractor').order('name').range(from, from + pageSize - 1);
         if (rcAll.data && rcAll.data.length) {
           rcAll.data.forEach(function(c){ clients.push(dbToClient(c)); });
           from += rcAll.data.length;
@@ -1672,6 +1674,7 @@ function openAddClient(){
     document.getElementById('c-referral').value='';
     document.getElementById('c-notes').value='';
     var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=false;
+    var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=false;
     var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
     document.getElementById('client-modal').classList.add('open');
   }catch(ex){alert('openAddClient error: '+ex.message);console.error(ex);}
@@ -1703,6 +1706,7 @@ function editClient(cid){
   document.getElementById('c-notes').value=cl.notes||'';
   var cin=document.getElementById('c-internal-notes');if(cin)cin.value=cl.internalNotes||'';
   var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=cl.blacklisted||false;
+  var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=cl.contractor||false;
   var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
   closeM('client-detail-modal');
   document.getElementById('client-modal').classList.add('open');
@@ -1773,7 +1777,8 @@ async function saveClient(e){
     referral:document.getElementById('c-referral').value,
     notes:document.getElementById('c-notes').value.trim(),
     internalNotes:(document.getElementById('c-internal-notes')||{value:''}).value.trim(),
-    blacklisted:document.getElementById('c-blacklisted')?document.getElementById('c-blacklisted').checked:false
+    blacklisted:document.getElementById('c-blacklisted')?document.getElementById('c-blacklisted').checked:false,
+    contractor:document.getElementById('c-contractor')?document.getElementById('c-contractor').checked:false
   };
   var dbRow=clientToDb(cl);
   var saveR=await db.from('clients').upsert(dbRow,{onConflict:'cid'});
@@ -1880,7 +1885,7 @@ function atabsSync(groupId) {
 
 // Sync all groups at once
 function atabsSyncAll() {
-  ['svc','status','date','bin','csort','analytics'].forEach(atabsSync);
+  ['svc','status','date','bin','csort','cshow','analytics'].forEach(atabsSync);
 }
 
 // Patch the existing filter setters to also sync tabs
@@ -5133,6 +5138,7 @@ var clientsPage = 0;
 var clientsPageSize = 50;
 var clientsTotal = 0;
 var clientSort = 'alpha';
+var clientShow = 'everyone'; // everyone | contractors | dormant | blacklist — filters WHO is in the list (separate from sort)
 var clientSearchTimer = null;
 var _allClientsFiltered = [];  // holds last full filtered+sorted list for export
 var clientRangeFilter = { binMin:'', binMax:'', junkMin:'', junkMax:'', furnMin:'', furnMax:'', totalMin:'', totalMax:'' };
@@ -5250,13 +5256,14 @@ function applyRangeToClients(allClients) {
 
 function exportClientList() {
   if (!_allClientsFiltered.length) { toast('No clients to export.'); return; }
-  var rows = [['Name','Phone','City','Email','Total Jobs','Bins','Junk','Furniture','Last Job']];
+  var rows = [['Name','Phone','City','Email','Contractor','Total Jobs','Bins','Junk','Furniture','Last Job']];
   _allClientsFiltered.forEach(function(c) {
     rows.push([
       c.name || '',
       c.phone || '',
       c.city  || '',
       c.email || '',
+      c.contractor ? 'Yes' : '',
       c._totalJobs || 0,
       c._bins  || 0,
       c._junk  || 0,
@@ -5283,6 +5290,15 @@ function setClientSort(v,el){
   clientSort=v;
   document.querySelectorAll('[id^="csort-"]').forEach(function(b){b.classList.remove('active');});
   if(el) el.classList.add('active');
+  clientsPage=0;
+  renderClients();
+}
+// Show = who's in the list (everyone / contractors / dormant / blacklisted) — independent of Sort.
+function setClientShow(v,el){
+  clientShow=v;
+  document.querySelectorAll('#atabs-cshow .atab').forEach(function(b){b.classList.remove('active');});
+  if(el) el.classList.add('active');
+  if(typeof atabsSync==='function') atabsSync('cshow');
   clientsPage=0;
   renderClients();
 }
@@ -5419,10 +5435,12 @@ async function loadClientsPage() {
     return (a.name||'').localeCompare(b.name||'');
   });
 
-  // ── 7b. Blacklist filter ──────────────────────────────────────────────────
-  if(clientSort==='blacklist'){
-    allClients = allClients.filter(function(c){ return c.blacklisted; });
-  }
+  // ── 7b. Show filter (who's in the list) — blacklisted hidden unless explicitly shown ──
+  var _dormCutoff = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
+  if(clientShow==='blacklist')         allClients = allClients.filter(function(c){ return c.blacklisted; });
+  else if(clientShow==='contractors')  allClients = allClients.filter(function(c){ return c.contractor && !c.blacklisted; });
+  else if(clientShow==='dormant')      allClients = allClients.filter(function(c){ return c._lastDate && c._lastDate < _dormCutoff && !c.blacklisted; });
+  else                                 allClients = allClients.filter(function(c){ return !c.blacklisted; }); // everyone
 
   // ── 8. Store filtered list for export, then paginate ──────────────────────
   _allClientsFiltered = allClients;
@@ -5448,50 +5466,51 @@ function renderClientsList(list) {
     el.innerHTML = '<div class="empty-state"><div class="ei">👥</div><h3>'+(clientSearchF?'No clients found':'No clients yet')+'</h3></div>';
     return;
   }
-  var today6mo = new Date(Date.now()-180*86400000).toISOString().split('T')[0];
-  el.innerHTML = list.map(function(row){
-    var totalJobs = row._totalJobs !== undefined ? row._totalJobs : (row.total_jobs||0);
-    var lastDate  = row._lastDate  !== undefined ? row._lastDate  : (row.last_job_date||null);
-    var bins      = row._bins      !== undefined ? row._bins      : (row.bin_count||0);
-    var junk      = row._junk      !== undefined ? row._junk      : (row.junk_count||0);
-    var furn      = row._furn      !== undefined ? row._furn      : (row.furn_count||0);
-    var cid = row.cid; var name = row.name||'';
-    var isDormant = lastDate && lastDate < today6mo;
-    var initials = name.split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().substring(0,2)||'?';
-    var loyalty = totalJobs===0?'':totalJobs===1?'🆕 New':totalJobs<=3?'🔁 Repeat':'⭐ Frequent';
-    var dormantBadge = isDormant?'<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:rgba(220,53,69,.12);color:#dc3545;font-weight:600">😴 Dormant 6mo+</span>':'';
-    var blacklistBadge = row.blacklisted?'<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:rgba(220,53,69,.18);color:#dc3545;font-weight:700;margin-left:4px">🚫 Blacklisted</span>':'';
-    return '<div class="client-card" onclick="openClientDetailSafe(event,\''+cid+'\')" style="'+(row.blacklisted?'border-left:3px solid #dc3545;opacity:.85;':'')+'">'
-      +'<div class="client-avatar">'+initials+'</div>'
-      +'<div class="client-info">'
-      +'<div class="client-name">'+name+'</div>'
-      +(row.businessName?'<div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:1px">🏢 '+row.businessName+'</div>':'')
-      +'<div class="client-meta">'+(function(){
-        var phones=(row.phones||[]).filter(function(p){return p&&p.num;});
-        if(!phones.length&&row.phone) phones=[{num:row.phone,ext:'',type:'cell'}];
-        var phonesDisplay=phones.map(function(p){
-          var icon=p.type==='home'?'🏠':p.type==='office'?'🏢':'📱';
-          return icon+' '+p.num;
-        }).join(' · ');
-        return phonesDisplay;
-      })()+
-      (row.city?' · '+row.city:'')+
-      ((row.emails&&row.emails[0])||row.email?' · '+(row.emails&&row.emails[0]?row.emails[0]:(row.email||'')):'')+
-      (row.referral?' · '+row.referral:'')+
-      '</div>'
-      +'<div class="client-stats">'
-      +(bins?'<span class="client-stat cs-bin">🚛 '+bins+' bin'+(bins!==1?'s':'')+'</span>':'')
-      +(junk?'<span class="client-stat cs-junk">🧹 '+junk+' junk</span>':'')
-      +(furn?'<span class="client-stat cs-furn">🛋️ '+furn+' furn</span>':'')
-      +(totalJobs===0?'<span class="client-stat" style="background:rgba(255,255,255,.05);color:var(--muted)">No jobs yet</span>':'<span class="client-stat cs-total" style="font-size:17px;padding:4px 12px">'+totalJobs+' jobs</span>')
-      +(loyalty?'<span style="font-size:13px;color:var(--muted);margin-left:2px">'+loyalty+'</span>':'')
-      +dormantBadge+blacklistBadge+'</div>'
-      +(lastDate?'<div style="font-size:12px;color:var(--muted);margin-top:4px">Last: '+fd(lastDate)+'</div>':'')
+  el.innerHTML = '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+}
+function makeClientCard(row){
+  var today6mo = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
+  var totalJobs = row._totalJobs || 0;
+  var lastDate  = row._lastDate || null;
+  var bins=row._bins||0, junk=row._junk||0, furn=row._furn||0;
+  var cid = row.cid, name = row.name||'';
+  var isDormant = lastDate && lastDate < today6mo;
+  var initials = (name.split(/\s+/).map(function(w){return w[0]||'';}).join('').toUpperCase().substring(0,2))||'?';
+  var phones=(row.phones||[]).filter(function(p){return p&&p.num;});
+  if(!phones.length&&row.phone) phones=[{num:row.phone}];
+  var phone = phones.length?phones[0].num:'';
+  var email = (row.emails&&row.emails[0])?row.emails[0]:(row.email||'');
+  var addr = row.address||'';
+  var chip=function(icon,n,label,col,bg){return '<span style="font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+col+';background:'+bg+'">'+icon+' '+n+' '+label+'</span>';};
+  var chips='';
+  if(bins) chips+=chip('🚛',bins,'Bin','#0e7490','rgba(8,145,178,.1)');
+  if(junk) chips+=chip('🧹',junk,'Junk','#c2410c','rgba(230,126,34,.12)');
+  if(furn) chips+=chip('🛋️',furn,'Furniture','#7c3aed','rgba(139,92,246,.1)');
+  var tag='';
+  if(row.blacklisted) tag='<span style="font-size:11px;font-weight:700;color:#b4232f;background:rgba(220,53,69,.08);border:1px solid #f1c0c0;padding:2px 8px;border-radius:6px">🚫 Blacklisted</span>';
+  else if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:#c2410c;background:rgba(230,126,34,.1);border:1px solid #f0d2b0;padding:2px 8px;border-radius:6px">😴 Dormant</span>';
+  var contractorBadge = row.contractor?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:#fff;background:#2563eb;padding:2px 8px;border-radius:6px;letter-spacing:.3px">🏗️ CONTRACTOR</span>':'';
+  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px;cursor:pointer;'+(row.contractor?'border-left:4px solid #2563eb;':(row.blacklisted?'opacity:.92;':''));
+  var line=function(icon,val,muted){return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:'+(muted?'var(--muted)':'var(--text-secondary)')+';min-width:0"><span style="flex:none;width:15px;text-align:center">'+icon+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(val)+'</span></div>';};
+  return '<div onclick="openClientDetailSafe(event,\''+cid+'\')" style="'+cardStyle+'">'
+    +'<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:11px">'
+      +'<div style="width:42px;height:42px;border-radius:50%;background:rgba(34,197,94,.12);color:#15803d;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none">'+escHtml(initials)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--text)">'+escHtml(name)+'</span>'+contractorBadge+'</div>'
+        +'<div style="font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(row.city||'')+(row.businessName?' · 🏢 '+escHtml(row.businessName):'')+'</div>'
       +'</div>'
-      +'<div class="client-actions"><button class="btn btn-ghost btn-sm" onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')">✏️</button>'
-      +'<button class="btn btn-danger btn-sm" onclick="event.preventDefault();event.stopPropagation();delClient(\''+cid+'\')">🗑️</button></div>'
-      +'</div>';
-  }).join('');
+      +'<button onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex:none">✏ Edit</button>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px">'
+      +'<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary)">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
+      +(chips?'<span style="color:var(--border)">·</span>'+chips:'')+(tag?' '+tag:'')
+    +'</div>'
+    +'<div style="display:grid;gap:6px;border-top:1px solid var(--border);padding-top:11px">'
+      +line('📞', phone||'—', false)
+      +(email?line('✉️', email, false):'')
+      +line('📍', (addr||row.city||'—'), true)
+    +'</div>'
+  +'</div>';
 }
 
 function renderClientsPagination() {
@@ -5556,6 +5575,7 @@ async function openClientDetail(cid){
   var emailsHtml=emails.map(function(e){return'<div><a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a></div>';}).join('')||'—';
   document.getElementById('cdet-body').innerHTML =
     (cl.blacklisted?'<div style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#dc3545;font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
+    +(cl.contractor?'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.3);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#2563eb;font-weight:700;display:flex;align-items:center;gap:7px">🏗️ Contractor account</div>':'')
     +'<div class="detail-section"><div class="detail-grid">'
     +(namesHtml?'<div class="detail-item" style="grid-column:1/-1"><label>Contact Names</label><span>'+namesHtml+'</span></div>':'')
     +(cl.businessName?'<div class="detail-item" style="grid-column:1/-1"><label>Business Name</label><span>'+cl.businessName+'</span></div>':'')

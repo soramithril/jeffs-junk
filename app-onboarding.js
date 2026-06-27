@@ -33,9 +33,10 @@ var PAGE_TOURS = [
   ]},
   { view:'clients', label:'Clients', icon:'👥', section:'Daily', summary:'Your searchable address book of every customer.', steps:[
     { sel:'#view-clients button.btn-primary[onclick="openAddClient()"]', title:'Add Client button', body:'Opens a form to create a brand-new client record with their name, phone, address and other details. Use this for any customer not in the system yet.' },
-    { sel:'#atabs-csort', title:'Sort tabs', body:'Reorders the list by A–Z, Most Jobs, Recent, Dormant (no jobs in 6+ months), or Blacklisted. Handy for finding repeat customers or chasing ones who have gone quiet.' },
+    { sel:'#atabs-csort', title:'Sort', body:'Reorders the list by A–Z, Most Jobs, or Recent — handy for surfacing your busiest accounts or the newest bookings.' },
+    { sel:'#atabs-cshow', title:'Show', body:'Filters who appears: Everyone, 🏗️ Contractors (repeat trade accounts), 😴 Dormant (no jobs in 6+ months), or 🚫 Blacklisted. Blacklisted clients stay hidden from Everyone.' },
     { sel:'[data-tour="clients-range-filter"]', title:'Filter by Job Count', body:'Click to expand min/max filters for bin rentals, junk removals, furniture jobs and total jobs, so you can find, say, every client who has booked 5+ bin rentals.' },
-    { sel:'#clients-list', title:'Client list', body:'The main list of client cards — each shows contact info, a job breakdown, loyalty status and last job date. Click a card for the full profile, or use the pencil/trash icons to edit or remove.' }
+    { sel:'#clients-list', title:'Client list', body:'The main list of client cards — each shows contact info and a job breakdown by type (🚛 bin · 🧹 junk · 🛋️ furniture), with a 🏗️ contractor badge for trade accounts. Click a card for the full profile, or ✏ Edit to update.' }
   ]},
   { view:'livejobs', label:'Live Jobs', icon:'⏱️', section:'Operations', summary:"A real-time control board for today's work.", steps:[
     { sel:'#lj-pulse', title:'Live pulse', body:'The green pulsing dot and timestamp tell you the board is live and when it last refreshed — it updates itself every minute.' },

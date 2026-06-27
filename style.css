@@ -541,6 +541,10 @@ body{
 @media(max-width:430px){.fleet-tiles{grid-template-columns:1fr;gap:8px}.fleet-tiles button{display:flex;align-items:baseline;gap:8px}}
 /* Vehicles redesign (v328) — responsive card grid */
 .veh-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px}
+/* Clients redesign (v330) — responsive card grid + hover lift */
+.clients-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.clients-grid > div{transition:border-color .15s,transform .15s,box-shadow .15s}
+.clients-grid > div:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
 
 /* ── TABLE ── */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;box-shadow:var(--shadow-sm);}
