@@ -23,8 +23,8 @@ var PAGE_TOURS = [
   ]},
   { view:'jobs', label:'All Jobs', icon:'📋', section:'Daily', summary:'The master list of every service order.', steps:[
     { sel:'[data-tour="jobs-email-presets"]', title:'Email Presets button', body:'Opens the editor for your saved email templates, so the canned messages you send to customers (confirmations, reminders) stay consistent.' },
-    { sel:'#atabs-svc', title:'Service filter tabs', body:'The main filter: switch between All Services or a single line of work — Bin, Junk, Quote, Pickup, or Landscaping — to narrow the whole list to just that service type.' },
-    { sel:'#atabs-view', title:'View tabs', body:'Special views that are not service types: Cancelled shows scrapped jobs you can restore, Bins Out lists every bin currently deployed, and Recurring shows repeat customers.' },
+    { sel:'#jobs-show-seg', title:'Show: status views', body:'Switch what the list shows: Active (open jobs), Completed (landscaping), Cancelled (scrapped jobs you can restore), Bins out (every bin currently deployed), or Recurring (repeat customers).' },
+    { sel:'#jobs-filters-btn', title:'Filters', body:'Open this for the advanced filters — Service (Bin, Junk, Quote, Pickup, Landscaping), Date, and Bin Drop. Anything you pick shows as a removable chip below.' },
     { sel:'#jsort-toggle', title:'Sort toggle', body:'One click flips the list between sorting By Date and Recently Added, so you can see either the schedule order or the newest bookings first.' },
     { sel:'#jobs-bin-count', title:'Service sections', body:'Each service has its own collapsible table with a live count pill showing how many jobs match your filters — Bin Rentals, Junk Removal, Quotes, Furniture and Landscaping. Click any row to open the full job.' }
   ]},
@@ -76,10 +76,10 @@ var PAGE_TOURS = [
   ]},
   { view:'bininventory', label:'Bin Fleet', icon:'🗑️', section:'Bins', summary:'The master list of every rental bin you own.', steps:[
     { sel:'[data-tour="bininventory-addbin"]', title:'Add Bin button', body:'Opens a form to register a brand-new bin into the fleet — set its number, size, colour and type. Use this whenever Jeff buys or builds another bin.' },
-    { sel:'#fleet-stats', title:'Fleet stat cards', body:'Big number cards summarizing the fleet — Active, In Yard, Out on Job, Retired, Damaged, and Green vs Black — each with a fill bar. A fast visual health check.' },
-    { sel:'.fleet-nav', title:'Filter-by sidebar', body:'The left rail filters the bin list by status, colour, or size. Click any filter to narrow the table; the number on each shows how many match.' },
-    { sel:'#sc-num', title:'Sort chips', body:'Reorder the list by Bin number, Size, or Status — click once to sort, again to flip direction. Use Status to group all the out-on-job bins together.' },
-    { sel:'#fleet-tbody', title:'Bin list table', body:'One row per bin: number, colour, size, type, in-yard/out toggle, current job, damage flag and notes. Click the In Yard/Out button to flip a bin status.' },
+    { sel:'#fleet-summary', title:'Fleet summary', body:'Two progress bars — Fleet deployed (how many bins are out) and All-green conversion — plus three clickable tiles flagging bins that need decals, need repaint, or have sat idle 90+ days. A fast health check.' },
+    { sel:'#fleet-chips', title:'Filter chips', body:'Filter the roster by status (In yard, Out, Out of service, Not for rent), colour (Green/Black) or size — each chip shows a live count. Click the active chip again to clear it.' },
+    { sel:'#fleet-sorts', title:'Sort', body:'Reorder by Bin number, Size, or Status — click once to sort, again to flip direction.' },
+    { sel:'#fleet-cards', title:'Bin roster', body:'Each bin is a card grouped by size: colour dot, number, an In yard/Out toggle, idle days or current location, condition flags and a notes line. Use the Cards/Table toggle to switch views; 🕘 opens history and ⋯ has Book / Edit / Delete.' },
     { sel:'#timeline-table', title:'Availability Forecast', body:'A 14-day grid showing how many bins of each size are free to rent each day, green (lots free) to red (fully booked). Check before promising a bin on a date.' }
   ]},
   { view:'binmap', label:'Bin Map', icon:'🗺️', section:'Bins', summary:'A live map of every bin out on a rental.', steps:[

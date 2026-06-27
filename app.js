@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '328';
+var APP_VERSION = '329';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -3786,7 +3786,7 @@ function renderJobChips(){
   if (!box) return;
   var chips = [];
   var svcLbl = {'Bin Rental':'Bin','Junk Removal':'Junk','Junk Quote':'Quote','Furniture Pickup':'Furniture','Landscaping':'Landscaping'};
-  if (jobSvcF !== 'all' && jobShowF !== 'Cancelled' && jobShowF !== 'Recurring' && jobShowF !== 'BinsOut')
+  if (jobSvcF !== 'all' && jobShowF !== 'Cancelled' && jobShowF !== 'Recurring' && jobShowF !== 'BinsOut' && jobShowF !== 'Completed')
     chips.push({txt:'Service: ' + (svcLbl[jobSvcF] || jobSvcF), clr:"setJobSvc('all',document.querySelector('#atabs-svc .atab'))"});
   if (jobDateF !== 'all')
     chips.push({txt:({today:'Today',week:'This week',month:'This month'}[jobDateF] || jobDateF), clr:"setJobDateFilter('all',document.getElementById('jdtf-all'))"});
@@ -6544,7 +6544,7 @@ function renderFleet(){
   var groups=[];
   sizes.forEach(function(sz){
     var grp=list.filter(function(b){return b.size===sz;}); if(!grp.length)return;
-    grp.sort(function(a,b){ if(fleetSort==='status'){var av=a.status==='in'?0:1,bv=b.status==='in'?0:1; if(av!==bv)return av-bv;} return (a.num||'').localeCompare((b.num||''),undefined,{numeric:true})*(fleetSort==='status'?1:fleetSortDir); });
+    grp.sort(function(a,b){ if(fleetSort==='status'){var av=a.status==='in'?0:1,bv=b.status==='in'?0:1; if(av!==bv)return (av-bv)*fleetSortDir;} return (a.num||'').localeCompare((b.num||''),undefined,{numeric:true})*(fleetSort==='status'?1:fleetSortDir); });
     var inN=grp.filter(function(b){return b.status==='in';}).length;
     var pill='<span style="font-family:\'Bebas Neue\',sans-serif;font-size:15px;padding:1px 9px;border-radius:6px;letter-spacing:.5px;'+pillFor[sz]+'">'+sz.replace(' yard',' yd')+'</span>';
     groups.push({pill:pill,line:grp.length+' bins · '+inN+' in / '+(grp.length-inN)+' out',bins:grp});
@@ -6668,6 +6668,7 @@ function quickToggleStatus(bid){
     return;
   }
   b.status=b.status==='in'?'out':'in';
+  if(b.status==='in') binLastReturn[b.bid]=todayStr(); // reset idle clock when manually returned to the yard
   saveBins();
   renderBinInventory();
   refreshDashBinStats();
@@ -7375,7 +7376,7 @@ function saveBinItem(e){
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
   var oorVal=document.getElementById('bi-oor').value==='oor';
   var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
-  if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)binItems[i]=bin;else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
+  if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }
 function delBinItem(bid){
@@ -12018,6 +12019,7 @@ function vehConfirmShop(vid){
   var reason = r==='Other' ? _vehShop.note.trim() : r;
   if(!vehBlocks[vid]) vehBlocks[vid]={};
   var today=todayStr();
+  if(_vehShop.backBy && _vehShop.backBy < today){ toast('⚠ Back-by date can\'t be before today.','error'); return; }
   if(_vehShop.backBy){
     var d=new Date(today+'T12:00:00'), end=new Date(_vehShop.backBy+'T12:00:00');
     while(d<=end){ vehBlocks[vid][d.toISOString().slice(0,10)]={reason:reason,notes:'',openEnded:false,openFrom:null,cost:null}; d.setDate(d.getDate()+1); }
@@ -12128,7 +12130,7 @@ function _vehShopPanel(vid){
     +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">What for?</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px">'+chips+'</div>'+note
     +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">Back by <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></div>'
-    +'<input type="date" value="'+String(_vehShop.backBy||'')+'" oninput="_vehShop.backBy=this.value" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">'
+    +'<input type="date" value="'+String(_vehShop.backBy||'')+'" min="'+todayStr()+'" oninput="_vehShop.backBy=this.value" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">'
     +'<div style="display:flex;gap:7px">'+(canSend?'<button onclick="vehConfirmShop(\''+vid+'\')"':'<button disabled')+' style="'+sendStyle+'">🔧 Send to shop</button><button onclick="closeVehShop()" style="min-height:38px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button></div>'
   +'</div>';
 }
