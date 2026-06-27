@@ -430,6 +430,17 @@ async function renderDispatch(){
       if(g.lat != null && g.lng != null){ j._lat = g.lat; j._lng = g.lng; }
     }
   });
+  // Any driver who already has a stop assigned for this date is, by definition, working
+  // today — auto-toggle them on (and persist) so the toggle row, lanes, and the assign
+  // menu all show them without the user having to click them on manually.
+  (function(){
+    var changed = false;
+    todayJobs.forEach(function(j){
+      var c = j._isPickup ? j.pickupCrewId : j.dropoffCrewId;
+      if(c && workingIds.indexOf(c) < 0){ workingIds.push(c); changed = true; }
+    });
+    if(changed) dispatchSetWorkingIds(workingIds);
+  })();
   var swapPartner = dispatchFindSwaps(todayJobs);
   todayJobs.forEach(function(j){
     var partnerId = swapPartner[j.id];
