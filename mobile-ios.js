@@ -57,15 +57,12 @@
     });
     return c;
   }
-  // Map a quote to a status pill, bound to the app's REAL fields.
-  // j.status only ever holds '' or 'Cancelled' (Cancelled is filtered out
-  // upstream), so it carries no New/Sent/Accepted signal. The real signals are
-  // the booleans confirmed / emailSent / emailConfirmed, plus whether price is set.
+  // Map a quote to a status pill. Adjust these rules to your real status values.
   function quoteStatus(j) {
-    if (j.confirmed)                       return { l: 'Accepted', c: '#15803d', b: '#dff5e6' }; // customer confirmed/booked
-    if (j.emailSent || j.emailConfirmed)   return { l: 'Sent',     c: '#15803d', b: '#dff5e6' }; // quote email went out
-    if (j.price === '' || j.price == null) return { l: 'New',      c: '#1a56db', b: '#e8f0fe' }; // not quoted yet
-    return { l: 'Pending', c: '#c2410c', b: '#fef3e0' };                                          // priced, not yet sent
+    if (j.emailSent || /sent/i.test(j.status || ''))             return { l: 'Sent',     c: '#15803d', b: '#dff5e6' };
+    if (/accept|won|booked|convert/i.test(j.status || ''))        return { l: 'Accepted', c: '#15803d', b: '#dff5e6' };
+    if (j.price === '' || j.price == null)                        return { l: 'New',      c: '#1a56db', b: '#e8f0fe' };
+    return { l: 'Pending', c: '#c2410c', b: '#fef3e0' };
   }
 
   /* ── markup helpers (inline-styled to match the iOS design) ──────────────*/
@@ -132,6 +129,10 @@
   /* ── init: gate to mobile, repoint Schedule tab, hook renders ────────────*/
   function init() {
     if (!isMobile()) return;
+
+    // 0 · DE-OVERLAP: flag the body so mobile-ios.css hides the app's own
+    //     dashboard content and shows ONLY the iOS panel (no combining).
+    document.body.classList.add('jj-ios');
 
     // 1 · Schedule tab → employee schedule (was the jobs Calendar)
     var sched = document.querySelector('.mtab[data-mtab="calendar"]');
