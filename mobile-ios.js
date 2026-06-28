@@ -41,41 +41,68 @@
     return isNaN(n) ? null : '$' + n.toLocaleString();
   }
 
-  /* ── live data → today's quotes & bin counts ─────────────────────────────*/
-  function todaysQuotes() {
+  /* ── Home day selection (defaults to today; can look ahead) ──────────────*/
+  var _homeDay = null;                       // selected Home date, YYYY-MM-DD
+  function homeDay() { return _homeDay || todayStr(); }
+
+  /* ── live data → quotes & bin counts for a given day ─────────────────────*/
+  function quotesForDay(day) {
     if (typeof jobs === 'undefined') return [];
-    var today = todayStr();
     return jobs.filter(function (j) {
-      return j.service === 'Junk Quote' && j.status !== 'Cancelled' && jobSchedDate(j) === today;
+      return j.service === 'Junk Quote' && j.status !== 'Cancelled' && jobSchedDate(j) === day;
     });
   }
-  function binCounts() {
+  function binCountsForDay(day) {
     var c = { drops: 0, picks: 0 };
     if (typeof jobs === 'undefined') return c;
-    var today = todayStr();
     jobs.forEach(function (j) {
       if (j.service !== 'Bin Rental' || j.status === 'Cancelled') return;
-      if (j.binDropoff === today) c.drops++;
-      if (j.binPickup === today) c.picks++;
+      if (j.binDropoff === day) c.drops++;
+      if (j.binPickup === day) c.picks++;
     });
     return c;
   }
-  // Live "bins out" by size — mirrors the desktop refreshDashBinStats() math:
-  // active fleet = binItems where damage !== 'oor'; a bin is OUT when a non-
-  // cancelled Bin Rental job is currently 'dropped'. free = total − out.
-  function binFleet() {
+  // Live "bins out" by size for a given day — mirrors the desktop
+  // refreshDashBinStats() math. active fleet = binItems where damage !== 'oor'.
+  // For TODAY: a bin is OUT when a non-cancelled Bin Rental job is 'dropped'.
+  // For OTHER days: forecast from each job's dropoff→pickup window (same rules
+  // as the desktop's non-today branch).
+  function binFleet(day) {
     if (typeof binItems === 'undefined' || typeof jobs === 'undefined') return null;
+    var today = todayStr();
     var sizes = ['4 yard', '7 yard', '14 yard', '20 yard'];
     var active = binItems.filter(function (b) { return b.damage !== 'oor'; });
-    var dropped = jobs.filter(function (j) {
-      return j.service === 'Bin Rental' && j.binInstatus === 'dropped' && j.status !== 'Cancelled';
-    });
+    var sizeTotal = {};
+    sizes.forEach(function (s) { sizeTotal[s] = active.filter(function (b) { return b.size === s; }).length; });
+    var sizeOut = { '4 yard': 0, '7 yard': 0, '14 yard': 0, '20 yard': 0 };
+
+    if (day === today) {
+      jobs.forEach(function (j) {
+        if (j.service !== 'Bin Rental' || j.binInstatus !== 'dropped' || j.status === 'Cancelled') return;
+        if (sizeOut.hasOwnProperty(j.binSize)) sizeOut[j.binSize]++;
+      });
+    } else {
+      jobs.forEach(function (j) {
+        if (j.service !== 'Bin Rental' || j.status === 'Cancelled' || j.binInstatus === 'pickedup') return;
+        var drop = j.binDropoff || j.date, pick = j.binPickup, on = false;
+        if (j.binInstatus === 'dropped' && day >= today) {
+          on = (!pick || pick < today) ? true : day < pick;     // out now; back on pickup day
+        } else if (!drop) {
+          return;
+        } else if (pick) {
+          on = day >= drop && day < pick;
+        } else {
+          var dd = new Date(drop + 'T12:00:00'), mp = new Date(dd); mp.setDate(mp.getDate() + 30);
+          on = day >= drop && day <= dkey(mp);                  // no pickup set → assume 30-day window
+        }
+        if (on && sizeOut.hasOwnProperty(j.binSize)) sizeOut[j.binSize]++;
+      });
+    }
     var rows = sizes.map(function (s) {
-      var total = active.filter(function (b) { return b.size === s; }).length;
-      var out = Math.min(dropped.filter(function (j) { return j.binSize === s; }).length, total);
-      return { size: s, out: out, free: Math.max(0, total - out) };
+      var out = Math.min(sizeOut[s], sizeTotal[s]);
+      return { size: s, out: out, free: Math.max(0, sizeTotal[s] - out) };
     });
-    return { rows: rows, totalOut: dropped.length };
+    return { rows: rows, totalOut: rows.reduce(function (a, r) { return a + r.out; }, 0) };
   }
   // Map a quote to a status pill, bound to the app's REAL fields.
   // j.status only ever holds '' or 'Cancelled' (Cancelled is filtered out
@@ -100,16 +127,32 @@
       '<div style="font:700 10px -apple-system;color:' + st.c + ';background:' + st.b + ';border-radius:6px;padding:2px 7px;margin-top:3px">' + st.l + '</div></div>' +
       '</div>';
   }
-  function statTile(label, n, stroke, bg, up) {
+  function statTile(label, n, stroke, bg, up, suffix) {
     var icon = up
       ? '<path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>'
       : '<path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/>';
+    var tail = suffix ? ' <span style="font-family:-apple-system;font-size:12px;font-weight:600;color:rgba(38,50,42,.45)">' + suffix + '</span>' : '';
     return '<div style="flex:1;border-radius:16px;padding:13px 15px;background:rgba(255,255,255,.72);box-shadow:0 8px 20px rgba(18,80,50,.07),inset 0 1px 0 rgba(255,255,255,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)">' +
       '<div style="display:flex;align-items:center;gap:7px"><span style="width:22px;height:22px;border-radius:7px;background:' + bg + ';display:flex;align-items:center;justify-content:center">' +
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg></span>' +
       '<span style="font:600 11px -apple-system;color:rgba(38,50,42,.55);text-transform:uppercase;letter-spacing:.4px">' + label + '</span></div>' +
-      '<div style="font-family:\'Bebas Neue\',Impact,sans-serif;font-size:34px;line-height:.9;color:#14241b;margin-top:7px">' + n +
-      ' <span style="font-family:-apple-system;font-size:12px;font-weight:600;color:rgba(38,50,42,.45)">today</span></div></div>';
+      '<div style="font-family:\'Bebas Neue\',Impact,sans-serif;font-size:34px;line-height:.9;color:#14241b;margin-top:7px">' + n + tail + '</div></div>';
+  }
+  // Home date selector: ‹ stepper · tappable date (opens native picker) · › stepper · Today reset.
+  function homeDateBar(day, today) {
+    var d = new Date(day + 'T12:00:00');
+    var label = (day === today) ? 'Today' : DOW_LONG[d.getDay()].slice(0, 3) + ', ' + MON[d.getMonth()] + ' ' + d.getDate();
+    var btn = 'flex:none;width:40px;height:40px;border-radius:13px;border:.5px solid rgba(20,60,40,.08);background:rgba(255,255,255,.7);color:#16a34a;font:600 20px -apple-system;cursor:pointer;box-shadow:0 4px 12px rgba(18,80,50,.05);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)';
+    return '<div style="display:flex;align-items:center;gap:8px;margin:2px 0 12px">' +
+      '<button class="jjm-tap" onclick="JJM.homeStep(-1)" style="' + btn + '">‹</button>' +
+      '<div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:13px;border:.5px solid rgba(20,60,40,.08);background:rgba(255,255,255,.7);box-shadow:0 4px 12px rgba(18,80,50,.05);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer" onclick="var i=document.getElementById(\'jjm-home-date\');if(i&&i.showPicker)i.showPicker()">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+        '<span style="font:700 14px -apple-system;color:#14241b">' + label + '</span>' +
+        '<input type="date" id="jjm-home-date" value="' + day + '" onchange="JJM.homeGo(this.value)" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer">' +
+      '</div>' +
+      '<button class="jjm-tap" onclick="JJM.homeStep(1)" style="' + btn + '">›</button>' +
+      (day !== today ? '<button class="jjm-tap" onclick="JJM.homeGo(\'' + today + '\')" style="flex:none;height:40px;padding:0 14px;border-radius:13px;border:none;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font:700 12px -apple-system;cursor:pointer;box-shadow:0 6px 14px rgba(22,163,74,.3)">Today</button>' : '') +
+      '</div>';
   }
   // Big "Quote a customer" CTA → opens the existing mobile create sheet.
   function quoteCustomerCTA() {
@@ -144,8 +187,12 @@
       host.id = 'jj-m-home';
       view.insertBefore(host, view.firstChild);
     }
-    var qs = todaysQuotes(), bc = binCounts(), bf = binFleet();
+    var day = homeDay(), today = todayStr();
+    var qs = quotesForDay(day), bc = binCountsForDay(day), bf = binFleet(day);
     var newQuote = qs.find(function (j) { return quoteStatus(j).l === 'New'; });
+    var emptyMsg = day === today ? 'No quotes scheduled today' : 'No quotes scheduled this day';
+    var qHdr = day === today ? "Today's quotes" : 'Quotes';
+    var tileWhen = day === today ? 'today' : '';
 
     var banner = newQuote
       ? '<div onclick="openDetail(\'' + newQuote.id + '\')" style="cursor:pointer;display:flex;align-items:center;gap:11px;margin:0 0 12px;background:rgba(255,255,255,.78);border:.5px solid rgba(255,255,255,.7);border-radius:16px;padding:11px 13px;box-shadow:0 8px 22px rgba(18,80,50,.1),inset 0 1px 0 rgba(255,255,255,.9);-webkit-backdrop-filter:blur(16px) saturate(1.6);backdrop-filter:blur(16px) saturate(1.6)">' +
@@ -157,19 +204,34 @@
 
     var rows = qs.length
       ? qs.map(function (j, i) { return quoteRow(j, i === 0); }).join('')
-      : '<div style="padding:18px 16px;text-align:center;font:400 13px -apple-system;color:rgba(38,50,42,.5)">No quotes scheduled today</div>';
+      : '<div style="padding:18px 16px;text-align:center;font:400 13px -apple-system;color:rgba(38,50,42,.5)">' + emptyMsg + '</div>';
 
     host.innerHTML =
+      homeDateBar(day, today) +
       banner +
       quoteCustomerCTA() +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px 8px"><span style="font:600 13px -apple-system;color:rgba(38,50,42,.55);text-transform:uppercase;letter-spacing:.3px">Today\'s quotes · ' + qs.length + '</span><span onclick="mOpenCreate()" style="font:600 12.5px -apple-system;color:#16a34a;cursor:pointer">+ New</span></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 4px 8px"><span style="font:600 13px -apple-system;color:rgba(38,50,42,.55);text-transform:uppercase;letter-spacing:.3px">' + qHdr + ' · ' + qs.length + '</span><span onclick="mOpenCreate()" style="font:600 12.5px -apple-system;color:#16a34a;cursor:pointer">+ New</span></div>' +
       '<div style="border-radius:16px;overflow:hidden;background:rgba(255,255,255,.72);box-shadow:0 10px 26px rgba(18,80,50,.08),inset 0 1px 0 rgba(255,255,255,.9);-webkit-backdrop-filter:blur(16px) saturate(1.7);backdrop-filter:blur(16px) saturate(1.7)">' + rows + '</div>' +
       '<div style="display:flex;gap:10px;margin-top:14px">' +
-        statTile('Drops', bc.drops, '#0891b2', 'rgba(8,145,178,.12)', false) +
-        statTile('Pickups', bc.picks, '#16a34a', 'rgba(22,163,74,.12)', true) +
+        statTile('Drops', bc.drops, '#0891b2', 'rgba(8,145,178,.12)', false, tileWhen) +
+        statTile('Pickups', bc.picks, '#16a34a', 'rgba(22,163,74,.12)', true, tileWhen) +
       '</div>' +
       (bf ? binFleetCard(bf) : '');
     host.style.cssText = 'margin-bottom:8px';
+  }
+
+  // Switch the Home panel to a day. Renders immediately from in-memory data,
+  // then drives the app's OWN date-scoped loaders (the hidden #dash-bin-date +
+  // refreshDashJobs/refreshDashBinStats) so future days pull complete data into
+  // `jobs`, and re-renders when they resolve. One loader path, shared with desktop.
+  function loadHomeDay(day) {
+    _homeDay = day;
+    renderHome();
+    var dp = $('dash-bin-date'); if (dp) dp.value = day;
+    var tasks = [];
+    try { if (typeof refreshDashJobs === 'function') tasks.push(Promise.resolve(refreshDashJobs())); } catch (e) {}
+    try { if (typeof refreshDashBinStats === 'function') tasks.push(Promise.resolve(refreshDashBinStats())); } catch (e) {}
+    if (tasks.length) Promise.all(tasks).then(function () { renderHome(); }, function () { renderHome(); });
   }
 
   /* ── iOS crew scheduler (Schedule tab → #view-crew) ──────────────────────*/
@@ -292,6 +354,10 @@
   function afterWrite(p) { if (p && typeof p.then === 'function') p.then(function () { renderCrewPanel(); }); else setTimeout(renderCrewPanel, 60); }
 
   window.JJM = {
+    // Home date selector
+    homeStep: function (n) { var d = new Date(homeDay() + 'T12:00:00'); d.setDate(d.getDate() + n); loadHomeDay(dkey(d)); },
+    homeGo: function (day) { if (day) loadHomeDay(day); },
+    // Crew scheduler
     pickDay: function (k) { _schedDay = k; renderCrewPanel(); },
     openEmp: function (id) {
       var crew = crewList(), idx = -1;
