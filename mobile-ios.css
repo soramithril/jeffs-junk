@@ -285,4 +285,13 @@
     overflow: visible !important;
     text-overflow: clip !important;
   }
+
+
+  /* ── 12 · Bare-bones mobile chrome ───────────────────────────────────────
+     Mobile is the on-the-job view, so keep the shell minimal. Drop the
+     header "🔒 View only" lock button — it's redundant: creating jobs/quotes/
+     photos is always allowed, and editing existing data still triggers the
+     mGuard() "Enable editing?" prompt with #medit-banner as the re-lock.
+     Header is now just ☰ + logo. (All 5 bottom tabs stay, per choice.) */
+  #mlock-btn { display: none !important; }
 }
