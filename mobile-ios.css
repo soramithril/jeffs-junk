@@ -218,4 +218,14 @@
     backdrop-filter: blur(20px) saturate(1.4);
     border-radius: 22px 22px 0 0 !important;
   }
+
+
+  /* ── 10 · Mobile Home = curated panel only ───────────────────────────────
+     The JS prepends #jj-m-home (today's quotes + bin counts + new-quote
+     banner) to #view-dashboard. Hide every OTHER dashboard section on phones
+     so the Home matches the locked preview — no fleet card, vehicles/crew,
+     jump chips, Today's Jobs, Needs You, Will Call, Bins Out, or Booked.
+     Those pages stay reachable from the nav; desktop is untouched (the whole
+     file is gated to ≤900px). */
+  #view-dashboard > *:not(#jj-m-home) { display: none !important; }
 }
