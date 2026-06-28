@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '333';
+var APP_VERSION = '334';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2079,6 +2079,7 @@ function go(name){
   render(name);
   if(el) animateView(el);
   closeSidebar();
+  if(typeof mSyncTab==='function') mSyncTab(name);
 }
 function render(name){
   if(name==='dashboard'){ renderDash(); initDashPricingDropdown(); }
@@ -6679,6 +6680,7 @@ function saveBinNote(){
   toast('Note saved for bin '+b.num+'.');
 }
 function quickToggleStatus(bid){
+  if(!mGuard())return;
   var b=binItems.find(function(bi){return bi.bid===bid;});
   if(!b)return;
   // Refuse if bin is currently on a live dropped job — fixes drift in reverse direction
@@ -7366,6 +7368,7 @@ async function toggleAssignCrew(jobId,crewId,leg){
 }
 
 function openAddBin(){
+  if(!mGuard())return;
   if(!canDelete){ toast('⚠ You don\'t have permission to add bins.','error'); return; }
   editBinId=null;document.getElementById('bin-modal-ttl').textContent='Add Bin';document.getElementById('bin-save-btn').textContent='Add Bin';
   document.getElementById('bi-num').value='';document.getElementById('bi-type').value='regular';document.getElementById('bi-size').value='14 yard';
@@ -7377,6 +7380,7 @@ function openAddBin(){
   document.getElementById('bin-modal').classList.add('open');
 }
 function editBinItem(bid){
+  if(!mGuard())return;
   if(!canDelete){ toast('⚠ You don\'t have permission to edit bins.','error'); return; }
   var b=null;binItems.forEach(function(bi){if(bi.bid===bid)b=bi;});if(!b)return;
   editBinId=bid;document.getElementById('bin-modal-ttl').textContent='Edit Bin';document.getElementById('bin-save-btn').textContent='Save Changes';
@@ -7400,6 +7404,7 @@ function saveBinItem(e){
   editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
 }
 function delBinItem(bid){
+  if(!mGuard())return;
   if(!canDelete){ toast('⚠ You don\'t have permission to delete bins.','error'); return; }
   var assigned=jobs.find(function(j){return j.binBid===bid;});
   if(assigned){toast('⚠ Bin is assigned to job '+assigned.id+' — unassign it first.','error');return;}
@@ -8439,6 +8444,7 @@ function realName(j){
   return j.name || '';
 }
 function openEdit(id){
+  if(!mGuard())return;
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});if(!j)return;
   editId=id;closeM('detail-modal');renderClientSelectOptions();
   setTimeout(function(){
@@ -8954,6 +8960,7 @@ async function saveJob(e){
   } finally { _saveJobLock = false; }
 }
 async function delJob(id){
+  if(!mGuard())return;
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this job?'))return;
   var j=jobs.find(function(x){return x.id===id;});
@@ -8982,6 +8989,7 @@ async function delJob(id){
   toast('Deleted.');
 }
 function cancelJob(id){
+  if(!mGuard())return;
   if(!confirm('Mark this job as Cancelled?'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
@@ -9824,6 +9832,7 @@ function writeBinHistory(j){
   }).then(function(r){if(r.error)console.error('bin_history write failed:',r.error.message);});
 }
 function markDropped(id){
+  if(!mGuard())return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   var _other=binDroppedElsewhere(j.binBid, id);
@@ -9837,6 +9846,7 @@ function markDropped(id){
   toast('Bin marked as dropped off!');openDetail(id);refresh();
 }
 function markNotDropped(id){
+  if(!mGuard())return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.binInstatus='';
@@ -9845,6 +9855,7 @@ function markNotDropped(id){
   toast('Bin marked as not dropped yet.');openDetail(id);refresh();
 }
 function markBinPickedUp2(id){
+  if(!mGuard())return;
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   j.binInstatus='pickedup';
   if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
@@ -9852,6 +9863,7 @@ function markBinPickedUp2(id){
   patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
 }
 function revertPickedUp(id){
+  if(!mGuard())return;
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j){console.error('revertPickedUp: job not found in local array',id);toast('⚠ Job not found — try reopening');return;}
   var _otherR=binDroppedElsewhere(j.binBid, id);
@@ -14076,4 +14088,73 @@ function _crewBookoffSubmit(crewId){
     (document.getElementById('bo-role')||{}).value||'',
     (document.getElementById('bo-note')||{}).value||'');
   if(p && p.then) closeCrewBookoff();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOBILE SHELL (v=334) — bottom tab bar, create sheet, view-mostly editing lock.
+// One codebase: everything here only activates on phones (≤900px). Desktop is
+// untouched. Adding new things (landscaping job, quotes, photos) is always
+// allowed; changing/deleting existing data is gated behind mGuard().
+// ═══════════════════════════════════════════════════════════════════════════
+function isMobileView(){ return window.matchMedia('(max-width:900px)').matches; }
+
+// Highlight the bottom tab matching the active view (called at the end of go()).
+function mSyncTab(name){
+  var tabs=document.querySelectorAll('.mtab[data-mtab]');
+  for(var i=0;i<tabs.length;i++){
+    tabs[i].classList.toggle('active', tabs[i].getAttribute('data-mtab')===name);
+  }
+}
+
+// ─── Create action sheet (the ➕ tab) ───
+function mOpenCreate(){ var s=document.getElementById('mcreate-sheet'); if(s) s.classList.add('open'); }
+function mCloseCreate(){ var s=document.getElementById('mcreate-sheet'); if(s) s.classList.remove('open'); }
+function mCreateLandscaping(){ mCloseCreate(); newJob(); setFormSvc('Landscaping'); }
+function mCreateJunkQuote(){ mCloseCreate(); newJob(); setFormSvc('Junk Quote'); }
+function mCreateFurnitureQuote(){ mCloseCreate(); go('drdcalc'); }
+
+// ─── View-mostly editing lock ───
+var editingEnabled = false;
+var _editIdleTimer = null;
+function mToggleEditing(){ editingEnabled ? mDisableEditing() : mPromptEnableEditing(); }
+function mPromptEnableEditing(){
+  if(confirm("Enable editing?\n\nChanges save straight to the live system and are easy to mistap on a phone.")){
+    mEnableEditing();
+  }
+}
+function mEnableEditing(){
+  editingEnabled = true;
+  document.body.classList.add('medit-on');
+  var b=document.getElementById('mlock-btn'); if(b){ b.textContent='✏️ Editing'; b.classList.add('on'); }
+  var banner=document.getElementById('medit-banner'); if(banner) banner.classList.add('show');
+  mResetIdle();
+}
+function mDisableEditing(){
+  if(!editingEnabled) return;
+  editingEnabled = false;
+  document.body.classList.remove('medit-on');
+  var b=document.getElementById('mlock-btn'); if(b){ b.textContent='🔒 View only'; b.classList.remove('on'); }
+  var banner=document.getElementById('medit-banner'); if(banner) banner.classList.remove('show');
+  if(_editIdleTimer){ clearTimeout(_editIdleTimer); _editIdleTimer=null; }
+}
+function mResetIdle(){
+  if(!editingEnabled) return;
+  if(_editIdleTimer) clearTimeout(_editIdleTimer);
+  _editIdleTimer = setTimeout(mDisableEditing, 120000); // auto-relock after 2 min idle
+}
+// Auto-relock when the app is backgrounded.
+document.addEventListener('visibilitychange', function(){ if(document.hidden) mDisableEditing(); });
+// Any interaction while unlocked restarts the idle countdown.
+['touchstart','click','keydown'].forEach(function(ev){
+  document.addEventListener(ev, function(){ if(editingEnabled) mResetIdle(); }, true);
+});
+
+// Mutation guard. On a phone with editing locked, blocks the action and offers to
+// unlock; on desktop (or once unlocked) it's a no-op that returns true.
+function mGuard(){
+  if(isMobileView() && !editingEnabled){
+    mPromptEnableEditing();
+    return false;
+  }
+  return true;
 }

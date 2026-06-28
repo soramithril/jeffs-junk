@@ -2193,3 +2193,71 @@ body.signed-in .help-fab{display:flex;}
 .tour-prog{flex:1;height:5px;border-radius:99px;background:var(--surface2);overflow:hidden;margin:0 4px;}
 .tour-prog-fill{height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .25s;}
 .tour-nav{display:flex;gap:8px;}
+
+/* ═══ MOBILE SHELL (v=334) — bottom tab bar, create sheet, editing lock ═══ */
+/* Hidden on desktop; only the ≤900px block below turns these on. */
+.mobile-tabbar{display:none;}
+.msheet-overlay{display:none;}
+.medit-banner{display:none;}
+
+@media(max-width:900px){
+  /* Bottom tab bar */
+  .mobile-tabbar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:130;
+    background:var(--surface);border-top:1px solid var(--border);
+    box-shadow:0 -2px 12px rgba(0,0,0,.06);
+    padding-bottom:env(safe-area-inset-bottom,0);
+  }
+  .mtab{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;
+    background:none;border:none;cursor:pointer;padding:8px 4px 7px;
+    color:var(--muted);font-family:'Inter',sans-serif;font-size:10px;font-weight:600;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mtab svg{stroke:currentColor;}
+  .mtab span{line-height:1;}
+  .mtab.active{color:var(--accent);}
+  .mtab-create{color:var(--accent);overflow:visible;}
+  .mtab-plus{
+    display:flex;align-items:center;justify-content:center;
+    width:44px;height:44px;margin-top:-16px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent-hover));color:#fff;
+    box-shadow:0 4px 14px rgba(34,197,94,.45);
+  }
+  .mtab-plus svg{stroke:#fff;}
+
+  /* Clear the fixed tab bar at the bottom of every page */
+  .main{padding-bottom:88px !important;}
+
+  /* Create bottom sheet */
+  .msheet-overlay{
+    position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);
+    display:none;align-items:flex-end;
+  }
+  .msheet-overlay.open{display:flex;}
+  .msheet{
+    width:100%;background:var(--surface);border-radius:18px 18px 0 0;
+    padding:10px 16px calc(20px + env(safe-area-inset-bottom,0));
+    display:flex;flex-direction:column;gap:8px;
+    transform:translateY(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+  }
+  .msheet-overlay.open .msheet{transform:translateY(0);}
+  .msheet-grip{width:40px;height:4px;border-radius:99px;background:var(--border-strong);margin:2px auto 8px;}
+  .msheet-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:0 2px 2px;}
+  .btn.msheet-item{justify-content:flex-start;width:100%;font-size:15px;padding:14px 16px;gap:10px;}
+  .btn.msheet-cancel{justify-content:center;width:100%;margin-top:4px;color:var(--muted);}
+
+  /* Lock toggle pill in the mobile header */
+  #mlock-btn{font-size:12px;padding:6px 12px;white-space:nowrap;}
+  #mlock-btn.on{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.5);color:#b45309;}
+
+  /* Editing-enabled banner (slides in under the mobile header) */
+  .medit-banner{
+    display:block;position:fixed;left:0;right:0;top:-44px;z-index:205;
+    background:#fef3c7;color:#92400e;text-align:center;font-size:12px;font-weight:700;
+    padding:7px 12px;border-bottom:1px solid #fde68a;cursor:pointer;
+    transition:top .2s;
+  }
+  .medit-banner.show{top:56px;}
+  body.medit-on .main{padding-top:102px !important;}
+}
