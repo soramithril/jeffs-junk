@@ -228,4 +228,61 @@
      Those pages stay reachable from the nav; desktop is untouched (the whole
      file is gated to ≤900px). */
   #view-dashboard > *:not(#jj-m-home) { display: none !important; }
+
+
+  /* ── 11 · Mobile audit fixes (2026-06-28) ────────────────────────────────
+     Targeted fixes for elements that landed in the wrong place on phones —
+     mostly things colliding with the floating tab pill / fixed header, plus
+     three pages that never got a mobile layout. All gated ≤900px. */
+
+  /* 11a · Hide desktop-only floating buttons — they crowd the tab pill's
+          bottom-right corner. (#help-fab = the "?" help launcher;
+          #back-to-top = the scroll-to-top FAB.) */
+  #help-fab,
+  #back-to-top { display: none !important; }
+
+  /* 11b · Keep toasts clear of the floating tab pill. The main toast becomes
+          a full-width banner above the pill; the centered upload/preview
+          toasts lift above the raised "+" button (keep their transform). */
+  .toast {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0)) !important;
+  }
+  #photo-upload-toast,
+  .pv-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0)) !important; }
+
+  /* 11c · Bin drop/pickup banner stacks below the 56px fixed header instead
+          of painting over the logo / lock toggle. */
+  .bin-notify-overlay { top: 56px !important; }
+
+  /* 11d · Analytics "Busiest Days" compare charts stack full-width instead of
+          splitting the narrow card in half (JS sets the inline grid, so this
+          needs !important). */
+  #busiest-grid { grid-template-columns: 1fr !important; }
+
+  /* 11e · Pricing "Quote a Customer" rows stack so the competitor-price column
+          isn't crushed — this is the page used for phone quoting. */
+  .pv-price-row {
+    grid-template-columns: 1fr auto !important;
+    gap: 6px 10px !important;
+    padding: 12px 14px !important;
+  }
+  .pv-competitors {
+    grid-column: 1 / -1 !important;
+    justify-content: flex-start !important;
+    margin-top: 4px !important;
+  }
+
+  /* 11f · Full-month Calendar → single-column agenda. The 7-col grid renders
+          ~50px cells at phone width with unreadable, clipped event text. */
+  #view-calendar .calendar-grid { grid-template-columns: 1fr !important; }
+  #view-calendar .cal-day-header { display: none !important; }
+  #view-calendar .cal-day.empty { display: none !important; }
+  #view-calendar .cal-day { min-height: 0 !important; height: auto !important; }
+  #view-calendar .cal-dot {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
 }
