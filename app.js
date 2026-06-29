@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '335';
+var APP_VERSION = '336';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1860,12 +1860,19 @@ function extractCity(addr,city){
 
 // ─── MOBILE SIDEBAR ───
 function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('mob-open');
-  document.getElementById('sidebar-overlay').classList.toggle('mob-open');
+  var sb=document.getElementById('sidebar');
+  if(sb.classList.contains('mob-open')){ closeSidebar(); return; }
+  sb.classList.add('mob-open');
+  document.getElementById('sidebar-overlay').classList.add('mob-open');
 }
 function closeSidebar(){
   document.getElementById('sidebar').classList.remove('mob-open');
   document.getElementById('sidebar-overlay').classList.remove('mob-open');
+  // Also dismiss the "More tools" flyout + its backdrop. The flyout is
+  // position:fixed INSIDE the transformed sidebar, so if it lingers open while
+  // the sidebar slides away it leaves a visible strip and a live full-screen
+  // backdrop ("doesn't collapse fully"). Close them together.
+  if(typeof closeMoreFlyout==='function') closeMoreFlyout();
 }
 
 // ── ANIMATED PILL TABS ──
