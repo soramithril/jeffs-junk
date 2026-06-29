@@ -2305,6 +2305,10 @@ body.signed-in .help-fab{display:flex;}
   /* Dashboard date toolbar (inline min-width:300px) collapses to fit. */
   #dash-datebar { min-width: 0 !important; }
 
+  /* Global search box must scroll BEHIND the fixed 56px header, not paint over
+     it on scroll (its desktop z-index:1001 exceeds the mobile header's z:200). */
+  #global-search-wrap { z-index: auto !important; }
+
   /* Full-month Calendar -> single-column agenda (7-col grid is unreadable). */
   #view-calendar .calendar-grid { grid-template-columns: 1fr !important; }
   #view-calendar .cal-day-header { display: none !important; }
