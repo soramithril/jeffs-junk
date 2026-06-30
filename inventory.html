@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Back Shop Inventory — Jeff's Junk</title>
+<link rel="stylesheet" href="app-jwg-scheduler.css?v=350">
+<link rel="stylesheet" href="app-jwg-theme.css?v=350">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Arial,sans-serif;background:#f8f9fa;color:#16223a;-webkit-text-size-adjust:100%}
+  /* Kiosk: this page has no dashboard <main>, so cancel the scheduler's break-out margin */
+  #view-jwgscheduler{margin:0!important;max-width:none!important;padding-bottom:24px!important}
+  /* ── login ── */
+  #kiosk-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#eafaf0,#f8f9fa);z-index:50;padding:20px}
+  .kl-card{background:#fff;border-radius:18px;box-shadow:0 12px 44px rgba(16,24,40,.14);padding:36px 30px;width:100%;max-width:360px;text-align:center}
+  .kl-logo{font-size:22px;font-weight:900;color:#16a34a;letter-spacing:.5px;margin-bottom:6px}
+  .kl-card h1{font-size:17px;font-weight:700;margin:0 0 4px;color:#16223a}
+  .kl-card .sub{font-size:13px;color:#9aa3af;margin-bottom:22px}
+  .kl-card input{width:100%;padding:13px 14px;border:1px solid #d7dbe0;border-radius:10px;font-size:15px;margin-bottom:11px;outline:none}
+  .kl-card input:focus{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+  .kl-card button{width:100%;padding:13px;border:none;border-radius:10px;background:#22c55e;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+  .kl-card button:hover{background:#16a34a}
+  .kl-card button:disabled{opacity:.6;cursor:default}
+  .kl-err{color:#dc2626;font-size:12.5px;min-height:17px;margin-top:10px;font-weight:600}
+  /* ── kiosk chrome ── */
+  #kiosk-app{display:none;min-height:100vh}
+  #kiosk-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;background:#fff;border-bottom:1px solid #e9ecef;position:sticky;top:0;z-index:20}
+  #kiosk-top .brand{font-weight:900;color:#16a34a;letter-spacing:.4px;font-size:15px}
+  #kiosk-signout{background:transparent;border:1px solid #d7dbe0;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;color:#5b6472;cursor:pointer}
+  #kiosk-signout:hover{border-color:#dc2626;color:#dc2626}
+</style>
+</head>
+<body>
+  <div id="kiosk-login">
+    <form class="kl-card" id="kl-form" autocomplete="on">
+      <div class="kl-logo">JEFF'S JUNK</div>
+      <h1>Back Shop Inventory</h1>
+      <div class="sub">Sign in to continue</div>
+      <input type="text" id="kl-user" placeholder="Username" autocomplete="username" autocapitalize="none" autocorrect="off" autofocus>
+      <input type="password" id="kl-pass" placeholder="Password" autocomplete="current-password">
+      <button type="submit" id="kl-btn">Sign in</button>
+      <div class="kl-err" id="kl-err"></div>
+    </form>
+  </div>
+
+  <div id="kiosk-app">
+    <div id="kiosk-top">
+      <span class="brand">JEFF'S JUNK · Back Shop</span>
+      <button id="kiosk-signout" type="button">Sign out</button>
+    </div>
+    <div id="view-jwgscheduler" class="view active" data-tabgroup="ops">
+      <div id="app"><div class="card"></div></div>
+      <div id="jwg-toast"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Same project + anon key as the dashboard. The scheduler bundle reads these globals.
+    window.SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
+    window.SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+    window.db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+  </script>
+  <script src="app-jwg-scheduler.js?v=350"></script>
+  <script>
+    (function(){
+      var loginEl = document.getElementById('kiosk-login');
+      var appEl   = document.getElementById('kiosk-app');
+      var form    = document.getElementById('kl-form');
+      var userInp = document.getElementById('kl-user');
+      var passInp = document.getElementById('kl-pass');
+      var errEl   = document.getElementById('kl-err');
+      var btn     = document.getElementById('kl-btn');
+
+      function showApp(){
+        loginEl.style.display = 'none';
+        appEl.style.display = 'block';
+        window.renderJwgInventoryKiosk();
+      }
+      function showLogin(){
+        appEl.style.display = 'none';
+        loginEl.style.display = 'flex';
+        passInp.value = '';
+        setTimeout(function(){ userInp.focus(); }, 50);
+      }
+
+      // Stay signed in across reloads (kiosk friendly).
+      (async function restore(){
+        try {
+          var s = await window.db.auth.getSession();
+          if (s && s.data && s.data.session) { showApp(); return; }
+        } catch(e) {}
+        showLogin();
+      })();
+
+      form.addEventListener('submit', async function(e){
+        e.preventDefault();
+        errEl.textContent = '';
+        var u = userInp.value.trim();
+        var p = passInp.value;
+        if (!u || !p) { errEl.textContent = 'Enter your username and password.'; return; }
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        try {
+          var email = u;
+          if (u.indexOf('@') === -1) {
+            var em = await window.db.rpc('get_email_by_username', { lookup_username: u });
+            if (!em || !em.data) { errEl.textContent = 'Username not found.'; btn.disabled=false; btn.textContent='Sign in'; return; }
+            email = em.data;
+          }
+          var r = await window.db.auth.signInWithPassword({ email: email, password: p });
+          if (r.error) { errEl.textContent = 'Wrong password — try again.'; btn.disabled=false; btn.textContent='Sign in'; return; }
+          btn.disabled = false; btn.textContent = 'Sign in';
+          showApp();
+        } catch(ex) {
+          errEl.textContent = 'Network error — check the connection.';
+          btn.disabled = false; btn.textContent = 'Sign in';
+        }
+      });
+
+      document.getElementById('kiosk-signout').addEventListener('click', async function(){
+        try { await window.db.auth.signOut(); } catch(e) {}
+        var card = document.querySelector('#app .card');
+        if (card) card.innerHTML = '';
+        showLogin();
+      });
+    })();
+  </script>
+</body>
+</html>
