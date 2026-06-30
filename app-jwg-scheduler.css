@@ -1529,7 +1529,9 @@
 #view-jwgscheduler .cl-co-badge.jwg {background:#dbeafe;color:#1e40af}
 
 /* ===== embed overrides: scheduler chrome inside the dashboard panel ===== */
-#view-jwgscheduler{position:relative;min-height:60vh;}
+/* Typography unified to the dashboard's Inter; colors kept as the scheduler's
+   own (readable) green system. Precise color/button matching is a later pass. */
+#view-jwgscheduler{position:relative;min-height:60vh;font-family:'Inter',system-ui,-apple-system,sans-serif;}
 #view-jwgscheduler #header{position:static;left:auto;right:auto;width:auto;}
 #view-jwgscheduler #app{padding-top:0;}
 #view-jwgscheduler #split-overlay{display:none;}
