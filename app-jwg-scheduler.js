@@ -922,9 +922,9 @@ function refreshGrid(){
 
 function render(){
   const app=document.getElementById("app");
-  const labelMap={schedule:"Schedule",insights:"Insights",services:"Summer & Winter",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
+  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
   // tell the host which tab-group is active so the header shows the right sub-tabs
-  const _tg={services:"svc",summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
+  const _tg={summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
   const _v=document.getElementById("view-jwgscheduler");if(_v)_v.setAttribute("data-tabgroup",_tg);
   // Sync desktop nav
   document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b.textContent.trim()===labelMap[S.tab]);});
@@ -939,7 +939,6 @@ function render(){
   else if(S.tab==="analytics"){app.innerHTML=buildAnalytics();requestAnimationFrame(()=>animateCounters());}
   else if(S.tab==="insights"){app.innerHTML=buildInsights();requestAnimationFrame(()=>animateCounters());}
   else if(S.tab==="tasks"){app.innerHTML=buildTasksPage();initTasksPage();}
-  else if(S.tab==="services"){app.innerHTML=buildServices();initSummerPage();initWinterPage();}
   else if(S.tab==="summer"){app.innerHTML=buildSummerPage();initSummerPage();}
   else if(S.tab==="winter"){app.innerHTML=buildWinterPage();initWinterPage();}
   else if(S.tab==="inventory"){app.innerHTML=buildInventoryPage();initInventoryPage();}
@@ -1001,9 +1000,6 @@ function buildSched(){
 
 // ── INSIGHTS (Analytics + History merged into one page) ──
 function buildInsights(){return buildAnalytics()+buildHistory();}
-
-// ── SERVICES (Summer + Winter on one page) ──
-function buildServices(){return buildSummerPage()+buildWinterPage();}
 
 // ── GRID ──
 function buildGrid(){

@@ -136,7 +136,7 @@
     <button class="nav-item nav-item-daily" onclick="go('clients')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-txt"><span>Clients</span><span class="nav-hint">Customer list &amp; history</span></span></button>
     <button class="nav-item nav-item-daily" onclick="go('landscaping')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg></span><span class="nav-txt"><span>Landscaping</span><span class="nav-hint">Possible · scheduled · done</span></span></button>
     <div class="nav-label">Jeff White Group</div>
-    <button class="nav-item nav-item-daily" onclick="goJwg('services')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19" y2="19"/></svg></span><span class="nav-txt"><span>Summer &amp; Winter</span><span class="nav-hint">Services</span></span></button>
+    <button class="nav-item nav-item-daily" onclick="goJwg('summer')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19" y2="19"/></svg></span><span class="nav-txt"><span>Summer &amp; Winter</span><span class="nav-hint">Services</span></span></button>
     <div id="nav-more-label" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);cursor:pointer;user-select:none;margin:10px 0 4px" onclick="toggleMoreFlyout()"><span style="font-size:13px;font-weight:600;color:#fff;display:inline-flex;align-items:center;gap:9px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>More tools</span><span id="nav-more-arrow" style="font-size:10px;color:rgba(255,255,255,.8);transition:transform .2s;display:inline-block;transform:rotate(-90deg)">&#9654;</span></div>
     <div id="nav-more" class="more-flyout" onclick="if(event.target.closest('.nav-item'))closeMoreFlyout()">
     <div class="more-flyout-head">More tools <button type="button" class="more-flyout-close" onclick="closeMoreFlyout()" aria-label="Close">&times;</button></div>
@@ -1434,7 +1434,8 @@
         <button class="tab-btn" onclick="JWG.switchTab('team')">Team</button>
       </div></div>
       <div class="nav-group jwg-tabgroup" data-group="svc"><div class="nav-group-btns">
-        <button class="tab-btn" onclick="JWG.switchTab('services')">Summer &amp; Winter</button>
+        <button class="tab-btn" onclick="JWG.switchTab('summer')">Summer</button>
+        <button class="tab-btn" onclick="JWG.switchTab('winter')">Winter</button>
       </div></div>
       <div class="nav-group jwg-tabgroup" data-group="ops"><div class="nav-group-btns">
         <button class="tab-btn" onclick="JWG.switchTab('inventory')">Inventory</button>
@@ -2411,7 +2412,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="app.js?v=346"></script>
-<script src="app-jwg-scheduler.js?v=348"></script>
+<script src="app-jwg-scheduler.js?v=349"></script>
 <script src="liquid-nav.js?v=2"></script>
 <script src="app-onboarding.js?v=332"></script>
 </body>
