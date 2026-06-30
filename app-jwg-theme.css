@@ -137,3 +137,39 @@
 
 /* save bar */
 #view-jwgscheduler .save-bar{padding:10px 18px!important;border-top:1px solid var(--jjbd)!important;background:var(--jjcard)!important}
+
+/* ===== mobile (phones) ===== */
+@media(max-width:600px){
+  /* don't break out past the viewport — this is what made the whole app scroll sideways on a phone */
+  #view-jwgscheduler{margin:0!important;padding-bottom:16px!important}
+  #view-jwgscheduler #header{padding:12px 14px!important}
+
+  /* page toolbars stack and go full-width */
+  #view-jwgscheduler .si-header{flex-direction:column;align-items:stretch;gap:10px}
+  #view-jwgscheduler .si-actions{display:flex;flex-wrap:wrap;gap:8px}
+  #view-jwgscheduler .si-actions .si-action-btn{flex:1;min-width:120px}
+  #view-jwgscheduler .si-filter-bar{flex-direction:column;align-items:stretch;gap:8px}
+  #view-jwgscheduler .si-filter-bar .si-filter-input,
+  #view-jwgscheduler .si-filter-bar .si-filter-select{width:100%!important;max-width:none!important}
+
+  /* boards / card grids -> single column */
+  #view-jwgscheduler .sum-cal-grid{grid-template-columns:1fr!important}
+  #view-jwgscheduler .inv-grid{grid-template-columns:1fr!important;padding:12px!important}
+  #view-jwgscheduler .stat-grid-3{grid-template-columns:1fr!important}
+  #view-jwgscheduler .cl-summary{flex-wrap:wrap;gap:14px!important}
+
+  /* wide service tables -> stacked cards (cells carry data-label) */
+  #view-jwgscheduler .sum-table thead,
+  #view-jwgscheduler .win-table thead{display:none}
+  #view-jwgscheduler .sum-table tr.sum-row,
+  #view-jwgscheduler .win-table tr.win-row{display:block;border:1px solid var(--jjbd);border-radius:10px;margin:0 0 10px;padding:8px 12px;background:var(--jjcard)}
+  #view-jwgscheduler .sum-table tr.sum-row td,
+  #view-jwgscheduler .win-table tr.win-row td{display:flex;justify-content:space-between;align-items:center;gap:10px;border:none!important;padding:6px 0!important;text-align:right}
+  #view-jwgscheduler .sum-table tr.sum-row td::before,
+  #view-jwgscheduler .win-table tr.win-row td::before{content:attr(data-label);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--jjmut);text-align:left;flex-shrink:0}
+  /* the client cell becomes the card title */
+  #view-jwgscheduler .sum-table td.sum-td-client,
+  #view-jwgscheduler .win-table td.win-td-client{font-size:15px;font-weight:800;color:var(--jjtx);padding:2px 0 8px!important;border-bottom:1px solid var(--jjbd)!important;margin-bottom:4px;justify-content:flex-start;text-align:left}
+  #view-jwgscheduler .sum-table td.card-actions,
+  #view-jwgscheduler .win-table td.card-actions{justify-content:flex-end;gap:8px;padding-top:8px!important}
+}
