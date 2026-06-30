@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '337';
+var APP_VERSION = '338';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2067,7 +2067,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','jwgscheduler'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2111,6 +2111,7 @@ function render(name){
   else if(name==='crew') renderCrew();
   else if(name==='maintenance'){ switchFleetTab('maintenance'); }
   else if(name==='documents') renderDocuments();
+  else if(name==='jwgscheduler') renderJwgScheduler();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
   if(typeof _loadUnassignedBinAlertJobs === 'function') _loadUnassignedBinAlertJobs();
@@ -10353,12 +10354,18 @@ function applyDeleteVisibility() {
 function applySettingsVisibility(){
   var nav=document.getElementById('nav-settings');
   var navLabel=document.getElementById('nav-settings-label');
+  var jwg=document.getElementById('nav-jwg');
+  var jwgLabel=document.getElementById('nav-jwg-label');
   if(canAccessAnalytics()){
     if(navLabel)navLabel.style.display='';
     if(nav)nav.style.display='grid';
+    if(jwgLabel)jwgLabel.style.display='';
+    if(jwg)jwg.style.display='grid';
   } else {
     if(nav)nav.style.display='none';
     if(navLabel)navLabel.style.display='none';
+    if(jwg)jwg.style.display='none';
+    if(jwgLabel)jwgLabel.style.display='none';
   }
 }
 
