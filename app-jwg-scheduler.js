@@ -80,9 +80,9 @@ function hex2rgb(h){try{return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),1
 function darken(h){try{const[r,g,b]=hex2rgb(h);return`rgb(${Math.round(r*.55)},${Math.round(g*.55)},${Math.round(b*.55)})`;}catch{return h;}}
 
 const AVC=[
-  ["#dcfce7","#15803d"],["#dbeafe","#1d4ed8"],["#ede9fe","#7c3aed"],
-  ["#fee2e2","#dc2626"],["#fef9c3","#a16207"],["#e0f2fe","#0369a1"],
-  ["#ffedd5","#c2410c"],["#e8f5ee","#1a7a3c"]
+  ["#15803d","#fff"],["#1d4ed8","#fff"],["#7c3aed","#fff"],
+  ["#dc2626","#fff"],["#a16207","#fff"],["#0369a1","#fff"],
+  ["#c2410c","#fff"],["#0f766e","#fff"]
 ];
 const ac=n=>{const s=n||"?";const h=([...s]).reduce((a,c)=>a+c.charCodeAt(0),0);return AVC[h%AVC.length];};
 function empInitials(name){const p=(name||"?").trim().split(/\s+/);if(p.length>=2)return(p[0][0]+p[1][0]).toUpperCase();if(name.length>=2)return(name[0]+name[1]).toUpperCase();return name[0].toUpperCase();}
@@ -922,9 +922,9 @@ function refreshGrid(){
 
 function render(){
   const app=document.getElementById("app");
-  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
+  const labelMap={schedule:"Schedule",insights:"Insights",services:"Summer & Winter",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
   // tell the host which tab-group is active so the header shows the right sub-tabs
-  const _tg={summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
+  const _tg={services:"svc",summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
   const _v=document.getElementById("view-jwgscheduler");if(_v)_v.setAttribute("data-tabgroup",_tg);
   // Sync desktop nav
   document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b.textContent.trim()===labelMap[S.tab]);});
@@ -939,6 +939,7 @@ function render(){
   else if(S.tab==="analytics"){app.innerHTML=buildAnalytics();requestAnimationFrame(()=>animateCounters());}
   else if(S.tab==="insights"){app.innerHTML=buildInsights();requestAnimationFrame(()=>animateCounters());}
   else if(S.tab==="tasks"){app.innerHTML=buildTasksPage();initTasksPage();}
+  else if(S.tab==="services"){app.innerHTML=buildServices();initSummerPage();initWinterPage();}
   else if(S.tab==="summer"){app.innerHTML=buildSummerPage();initSummerPage();}
   else if(S.tab==="winter"){app.innerHTML=buildWinterPage();initWinterPage();}
   else if(S.tab==="inventory"){app.innerHTML=buildInventoryPage();initInventoryPage();}
@@ -1000,6 +1001,9 @@ function buildSched(){
 
 // ── INSIGHTS (Analytics + History merged into one page) ──
 function buildInsights(){return buildAnalytics()+buildHistory();}
+
+// ── SERVICES (Summer + Winter on one page) ──
+function buildServices(){return buildSummerPage()+buildWinterPage();}
 
 // ── GRID ──
 function buildGrid(){
@@ -1962,7 +1966,7 @@ async function loadSummerData(){
 }
 
 function buildSummerPage(){
-  return`<div class="card"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
+  return`<div class="card" id="sum-page"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
 }
 
 async function initSummerPage(){
@@ -1971,7 +1975,7 @@ async function initSummerPage(){
 }
 
 function renderSummerPage(){
-  const root=document.querySelector(".card");
+  const root=document.getElementById("sum-page");
   if(!root)return;
   const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday",""];
   let h=`<div class="si-header">
@@ -2386,7 +2390,7 @@ async function loadWinterData(){
 }
 
 function buildWinterPage(){
-  return`<div class="card"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
+  return`<div class="card" id="win-page"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
 }
 
 async function initWinterPage(){
@@ -2395,7 +2399,7 @@ async function initWinterPage(){
 }
 
 function renderWinterPage(){
-  const root=document.querySelector(".card");
+  const root=document.getElementById("win-page");
   if(!root)return;
   let h=`<div class="si-header">
     <div><div class="si-title">Winter Services (De-icing & Snow Removal)</div></div>
