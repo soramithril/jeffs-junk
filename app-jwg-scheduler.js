@@ -120,6 +120,11 @@ function countH(s){
   });
   return Math.round(tot*10)/10;
 }
+function dayHours(day){
+  if(!day||day.status==="off"||day.status==="sick")return 0;
+  let t=0;(day.shifts||[]).forEach(sh=>{if(sh.start&&sh.end){const[a,b]=sh.start.split(":").map(Number),[c,e]=sh.end.split(":").map(Number);t+=(c+e/60)-(a+b/60);}});
+  return t;
+}
 
 // Default: weekdays only
 let S={tab:"schedule",weekOffset:0,employees:[],allSchedules:[],schedule:{},activeDays:[...WEEKDAYS],saving:false,aPeriod:"4w",hFilter:"all",hOpen:{},mobileDayIdx:0,sortAlpha:false};
@@ -930,8 +935,7 @@ function updBadge(empId){
   const el=document.getElementById(`hbadge_${empId}`);
   if(!el)return;
   const h=countH(S.schedule[empId]||{});
-  const maxH=Math.max(...Object.values(S.schedule).map(s=>countH(s)),1);
-  const pct=h/maxH;
+  const pct=h/40;
   el.textContent=`${h}h`;
   el.className="emp-hrs "+(pct>0.6?"hrs-high":pct>0.3?"hrs-mid":"hrs-low");
 }
@@ -1044,10 +1048,6 @@ function buildGrid(){
   const todayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
   const isCurrentWeek=S.weekOffset===0;
 
-  let ticksHtml="";
-  for(let hr=WH.start;hr<=WH.end;hr+=2){
-    ticksHtml+=`<div class="time-tick">${fmtHour(hr,0)}</div>`;
-  }
 
   let h=`<table class="sched-grid"><thead><tr><th class="name-col"><div style="display:flex;align-items:center;justify-content:space-between;gap:4px">EMPLOYEE<button onclick="event.stopPropagation();JWG.toggleAlphaSort()" title="${S.sortAlpha?"Sorted A–Z (click for custom order)":"Sort A–Z"}" style="background:${S.sortAlpha?"var(--accent)":"rgba(0,0,0,0.06)"};color:${S.sortAlpha?"white":"var(--fg-muted)"};border:none;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.3px;white-space:nowrap">A–Z</button></div></th>`;
   S.activeDays.forEach(d=>{
@@ -1060,7 +1060,6 @@ function buildGrid(){
         <div class="th-date${isToday?" is-today":""}">${dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}</div>
         ${isToday?`<div class="today-dot"></div>`:""}
       </div>
-      <div class="time-ruler">${ticksHtml}</div>
     </th>`;
   });
   h+=`</tr></thead><tbody>`;
@@ -1070,17 +1069,16 @@ function buildGrid(){
     const sc=S.schedule[emp.id]||defSched();
     const hrs=countH(sc);
     const[abg,afg]=ac(emp.name);
-    // Workload ring: max ~40h/week
-    const maxH=Math.max(...Object.values(S.schedule).map(s=>countH(s)),1);
-    const pct=Math.min(hrs/Math.max(maxH,1),1);
+    // Workload ring: filled relative to a ~40h target
+    const pct=Math.min(hrs/40,1);
     const r=16,circ=2*Math.PI*r,dash=(pct*circ).toFixed(2),gap=(circ-pct*circ).toFixed(2);
     const ringColor=pct>0.7?"#1a7a3c":pct>0.35?"#f59e0b":"transparent";
     const hrsCls=pct>0.6?"hrs-high":pct>0.3?"hrs-mid":"hrs-low";
     const tipText=hrs>0?`${hrs}h scheduled this week`:"No hours this week";
-    h+=`<tr class="emp-row" draggable="true" data-empid="${emp.id}" data-empidx="${empIdx}">
+    h+=`<tr class="emp-row" draggable="${S.sortAlpha?"false":"true"}" data-empid="${emp.id}" data-empidx="${empIdx}">
       <td class="name-col">
         <div class="emp-cell-inner">
-          <span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>
+          ${S.sortAlpha?"":`<span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>`}
           <div class="avatar" data-tip="${tipText}" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
           <div><div class="emp-name">${esc(emp.name)}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
         </div>
@@ -1125,7 +1123,13 @@ function buildGrid(){
     });
     h+=`</tr>`;
   });
-  h+=`</tbody></table>`;
+  let footCells="";
+  S.activeDays.forEach(d=>{
+    let cnt=0,hsum=0;
+    sortedEmps.forEach(emp=>{const dd=(S.schedule[emp.id]||{})[d];if(dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length){cnt++;hsum+=dayHours(dd);}});
+    footCells+=`<td style="text-align:center;font-size:11px;font-weight:700;color:var(--fg-muted);padding:10px 4px"><span style="color:var(--accent)">${cnt} on</span> · ${Math.round(hsum*10)/10}h</td>`;
+  });
+  h+=`</tbody><tfoot><tr class="sched-foot"><td class="name-col" style="font-weight:700;color:var(--fg-muted);font-size:12px;padding:10px 12px">Daily total</td>${footCells}</tr></tfoot></table>`;
   return h;
 }
 
@@ -1586,6 +1590,7 @@ function applyStoredOrder(){
 
 // ── DRAG — Schedule Grid rows ──
 function initGridDrag(){
+  if(S.sortAlpha)return;
   const rows=document.querySelectorAll(".emp-row[data-empid]");
   let dragId=null;
   rows.forEach(row=>{
@@ -1938,10 +1943,10 @@ function renderSummerPage(){
   if(!root)return;
   const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday",""];
   let h=`<div class="si-header">
-    <div><div class="si-title">Summer Services (Landscaping)</div></div>
+    <div><div class="si-title">Landscaping locations</div></div>
     <div class="si-actions">
-      <button class="si-action-btn" onclick="JWG.openAddSummerLocation()">+ Add Location</button>
-      <button class="si-action-btn secondary" onclick="JWG.openManageSummerServiceTypes()">⚙ Service Types</button>
+      <button class="si-action-btn" onclick="JWG.openAddSummerLocation()">Add location</button>
+      <button class="si-action-btn secondary" onclick="JWG.openManageSummerServiceTypes()">Edit service list</button>
       <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
     </div>
   </div>
@@ -1989,6 +1994,7 @@ function renderSummerPage(){
   if(!filtered.length){
     h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track landscaping clients and service schedules</div></div></div>`;
   }else{
+    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${SUM.locations.length} location${SUM.locations.length!==1?"s":""}</div>`;
     h+=`<table class="sum-table">
       <thead><tr>
         <th class="sum-th">Day</th>
@@ -2366,10 +2372,10 @@ function renderWinterPage(){
   const root=document.getElementById("win-page");
   if(!root)return;
   let h=`<div class="si-header">
-    <div><div class="si-title">Winter Services (De-icing & Snow Removal)</div></div>
+    <div><div class="si-title">Snow &amp; salt locations</div></div>
     <div class="si-actions">
-      <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">+ Add Location</button>
-      <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">⚙ Service Types</button>
+      <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">Add location</button>
+      <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">Edit service list</button>
       <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
     </div>
   </div>
@@ -2411,6 +2417,7 @@ function renderWinterPage(){
   if(!filtered.length){
     h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">❄️</div><div class="si-empty-text">No winter service locations</div><div class="si-empty-sub">Manage snow removal routes and salt bins</div></div></div>`;
   }else{
+    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${WIN.locations.length} location${WIN.locations.length!==1?"s":""}</div>`;
     h+=`<table class="win-table">
       <thead><tr>
         <th class="win-th">Client</th>
@@ -2753,7 +2760,7 @@ function renderInventoryPage(){
   let h=`<div class="si-header">
     <div><div class="si-title">Back Shop Inventory</div></div>
     <div class="si-actions">
-      <button class="si-action-btn" onclick="JWG.openAddInventoryItem()">+ Add Item</button>
+      <button class="si-action-btn" onclick="JWG.openAddInventoryItem()">Add item</button>
       <button class="si-action-btn secondary" onclick="JWG.openManageCategories()">⚙ Manage Categories</button>
       <button class="si-action-btn secondary" onclick="JWG.printInventoryShoppingList()">🖨 Print list</button>
     </div>
@@ -2766,11 +2773,11 @@ function renderInventoryPage(){
     </select>
     <select class="si-filter-select" onchange="JWG.INV.statusFilter=this.value;JWG.filterInventory()">
       <option value="all">All Status</option>
-      <option value="in_stock">In Stock</option>
-      <option value="low">Low Stock</option>
-      <option value="out_of_stock">Out of Stock</option>
+      <option value="in_stock">In stock</option>
+      <option value="low">Low</option>
+      <option value="out_of_stock">Out</option>
       <option value="ordered">Ordered</option>
-      <option value="needs_reorder">Needs Reorder</option>
+      <option value="needs_reorder">Low or out</option>
     </select>
   </div>
   <div style="padding:0 0 14px 0;overflow-x:auto;">`;
@@ -2791,6 +2798,7 @@ function renderInventoryPage(){
   if(!filtered.length){
     h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">📦</div><div class="si-empty-text">No items found</div><div class="si-empty-sub">Track tools, parts, and supplies</div></div></div>`;
   }else{
+    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${INV.items.length} item${INV.items.length!==1?"s":""}</div>`;
     h+=`<div class="inv-grid">`;
     filtered.forEach(item=>{
       const cat=INV.categories.find(c=>c.id===item.category_id);
@@ -3262,7 +3270,7 @@ function renderClothingBoard(){
       <select class="si-filter-select" onchange="JWG.clSetFilter(this.value)">${types.map(t=>`<option value="${esc(t)}"${CL.filter===t?" selected":""}>${t==="all"?"All items":t}</option>`).join("")}</select>
       <select class="si-filter-select" onchange="JWG.clSetCompany(this.value)"><option value="all"${CL.company==="all"?" selected":""}>Both companies</option>${CLOTHING_COMPANIES.map(c=>`<option value="${esc(c)}"${CL.company===c?" selected":""}>${c}</option>`).join("")}</select>
     </div>
-    ${empList.length?`<div class="cl-table-wrap"><table class="cl-table">
+    ${empList.length?`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 8px">Showing ${items.length} of ${CL.items.length} item${CL.items.length!==1?"s":""}</div><div class="cl-table-wrap"><table class="cl-table">
       <thead><tr>
         <th>Item</th>
         <th>Size</th>
