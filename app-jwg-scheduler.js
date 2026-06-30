@@ -1619,9 +1619,10 @@ function buildHistory(){
 // Part of JWG Staff Scheduler
 
 function buildTeam(){
-  let h=`<div class="card"><div class="twrap"><div class="stitle" style="margin-bottom:5px">Team</div><div class="ssub" style="margin-bottom:22px">Manage your employees · drag ⠿ to reorder</div>
-  <div class="addbox"><div class="sect-label" style="margin-bottom:11px">Add Employee</div>
-  <div style="display:flex;gap:9px"><input class="addinput" id="nEmp" placeholder="Full name…" onkeydown="if(event.key==='Enter')JWG.addEmp()"><button class="addbtn" onclick="JWG.addEmp()">Add</button></div></div>`;
+  let h=`<div class="card"><div class="twrap"><div class="stitle" style="margin-bottom:5px">Team</div><div class="ssub" style="margin-bottom:22px">Manage your employees · search by name or drag ⠿ to reorder</div>
+  <div class="addbox"><div class="sect-label" style="margin-bottom:11px">Add person</div>
+  <div style="display:flex;gap:9px"><input class="addinput" id="nEmp" placeholder="Full name…" onkeydown="if(event.key==='Enter')JWG.addEmp()"><button class="addbtn" onclick="JWG.addEmp()">Add person</button></div></div>
+  ${S.employees.length>1?`<input class="addinput" id="teamSearch" placeholder="Search by name…" style="margin-bottom:14px" oninput="JWG.teamSearch(this.value)">`:""}`;
   if(!S.employees.length)h+=`<div class="empty" style="height:100px">No employees yet.</div>`;
   else{
     h+=`<div id="team-list">`;
@@ -1639,12 +1640,18 @@ function buildTeam(){
     });
     h+=`</div>`;
   }
-  h+=`<div class="sbbox ${USE_SUPABASE?"conn":"local"}" style="margin-top:26px">`;
-  if(USE_SUPABASE)h+=`<div style="font-weight:600;font-size:13px;color:var(--accent);margin-bottom:5px">✓ Connected to Supabase</div><div style="font-size:12px;color:var(--fg-muted)">Schedules are syncing to the cloud.</div>`;
-  else h+=`<div style="font-weight:600;font-size:13px;color:#a16207;margin-bottom:5px">⚡ Local Storage Mode</div><div style="font-size:12px;color:var(--fg-muted)">Data saves in your browser.</div>`;
-  h+=`</div></div></div>`;return h;
+  if(!USE_SUPABASE)h+=`<div class="sbbox local" style="margin-top:26px"><div style="font-weight:600;font-size:13px;color:#a16207;margin-bottom:5px">⚡ Local Storage Mode</div><div style="font-size:12px;color:var(--fg-muted)">Data saves in your browser.</div></div>`;
+  h+=`</div></div>`;return h;
 }
 
+function teamSearch(q){
+  q=(q||"").toLowerCase().trim();
+  document.querySelectorAll("#team-list .tcard").forEach(card=>{
+    const id=card.getAttribute("data-empid");
+    const emp=S.employees.find(e=>e.id===id);
+    card.style.display=(!q||(emp&&emp.name.toLowerCase().includes(q)))?"":"none";
+  });
+}
 async function addEmp(){const inp=document.getElementById("nEmp"),name=(inp?.value||"").trim();if(!name){toast("Enter a name","error");return;}if(S.employees.find(e=>e.name.toLowerCase()===name.toLowerCase())){toast("Already exists","error");return;}try{const emp=await saveEmp(name);S.employees.push(emp);S.schedule[emp.id]=defSched();if(inp)inp.value="";toast(`${name} added`);render();}catch(e){toast(e.message,"error");}}
 async function removeEmp(id){const emp=S.employees.find(e=>e.id===id);const name=emp?emp.name:"this person";if(!(await jwgConfirm({title:"Remove staff member",target:name,message:"This permanently removes them and all their logged hours.",consequence:"This can't be undone.",confirmLabel:"Remove"})))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
 
@@ -3184,7 +3191,7 @@ const CLOTHING_TYPES=["T-Shirt","Long Sleeve","Crewneck Sweater","Hoodie","Coat"
 const CLOTHING_SIZES=["XS","S","M","L","XL","2XL","3XL","One Size"];
 const CLOTHING_COMPANIES=["Jeffs Junk","Jeff White Group"];
 const BADGE_CLASS={"T-Shirt":"cl-badge-tshirt","Long Sleeve":"cl-badge-longsleeve","Crewneck Sweater":"cl-badge-crewneck","Hoodie":"cl-badge-hoodie","Coat":"cl-badge-coat","Toque":"cl-badge-toque","Cap":"cl-badge-cap","Windbreaker":"cl-badge-windbreaker"};
-let CL={items:[],filter:"all",sort:"employee",sortDir:"asc",period:"all",company:"all"};
+let CL={items:[],filter:"all",period:"all",company:"all",search:""};
 
 async function loadClothingItems(){
   const rows=await sbF("GET","jwg_employee_clothing?select=*,jwg_employees(name)&order=date_given.desc")||[];
@@ -3213,12 +3220,7 @@ async function initClothingPage(){
 function clSetFilter(f){CL.filter=f;renderClothingBoard();}
 function clSetPeriod(p){CL.period=p;renderClothingBoard();}
 function clSetCompany(c){CL.company=c;renderClothingBoard();}
-
-function clSort(col){
-  if(CL.sort===col){CL.sortDir=CL.sortDir==="asc"?"desc":"asc";}
-  else{CL.sort=col;CL.sortDir="asc";}
-  renderClothingBoard();
-}
+function clSetSearch(v){CL.search=v;renderClothingBoard();const el=document.getElementById("cl-search");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
 
 function clGetPeriodRange(period){
   const now=new Date();
@@ -3251,19 +3253,8 @@ function renderClothingBoard(){
   // Filter by item type
   if(CL.filter!=="all")items=items.filter(i=>i.item_type===CL.filter);
 
-  // Sort
-  items.sort((a,b)=>{
-    let va,vb;
-    if(CL.sort==="employee"){va=(a.employees?.name||"").toLowerCase();vb=(b.employees?.name||"").toLowerCase();}
-    else if(CL.sort==="item_type"){va=a.item_type;vb=b.item_type;}
-    else if(CL.sort==="size"){va=CLOTHING_SIZES.indexOf(a.size);vb=CLOTHING_SIZES.indexOf(b.size);}
-    else if(CL.sort==="price"){va=+a.price||0;vb=+b.price||0;}
-    else if(CL.sort==="purchase_price"){va=+a.purchase_price||0;vb=+b.purchase_price||0;}
-    else{va=a.date_given||"";vb=b.date_given||"";}
-    if(va<vb)return CL.sortDir==="asc"?-1:1;
-    if(va>vb)return CL.sortDir==="asc"?1:-1;
-    return 0;
-  });
+  // Filter by employee name search
+  if(CL.search){const q=CL.search.toLowerCase();items=items.filter(i=>(i.employees?.name||"").toLowerCase().includes(q));}
 
   // Summary stats
   const totalItems=items.length;
@@ -3277,20 +3268,11 @@ function renderClothingBoard(){
   const jjCost=jjItems.reduce((s,i)=>s+(+i.purchase_price||0),0);
   const jwgCost=jwgItems.reduce((s,i)=>s+(+i.purchase_price||0),0);
 
-  // Filter buttons
   const types=["all",...CLOTHING_TYPES];
-  const filterBtns=types.map(t=>`<button class="cl-filter-btn${CL.filter===t?" active":""}" data-type="${esc(t)}" onclick="JWG.clSetFilter('${esc(t)}')">${t==="all"?"All":t}</button>`).join("");
-
-  // Period buttons
   const periods=[
     {v:"all",l:"All Time"},{v:"q1",l:"Q1"},{v:"q2",l:"Q2"},{v:"q3",l:"Q3"},{v:"q4",l:"Q4"},
     {v:"h1",l:"H1"},{v:"h2",l:"H2"},{v:"year",l:"This Year"},{v:"last-year",l:"Last Year"}
   ];
-  const periodBtns=periods.map(p=>`<button class="cl-filter-btn${CL.period===p.v?" active":""}" onclick="JWG.clSetPeriod('${p.v}')">${p.l}</button>`).join("");
-
-  // Company filter buttons
-  const companyBtns=`<button class="cl-filter-btn${CL.company==="all"?" active":""}" onclick="JWG.clSetCompany('all')">Both</button>`+
-    CLOTHING_COMPANIES.map(c=>`<button class="cl-filter-btn${CL.company===c?" active":""}" onclick="JWG.clSetCompany('${esc(c)}')">${c}</button>`).join("");
 
   // Group items by employee
   const grouped={};
@@ -3336,7 +3318,7 @@ function renderClothingBoard(){
     cards+=`<tr class="cl-emp-header ${grpClass}">
       <td colspan="8">
         <span class="cl-emp-name">${esc(emp.name)}</span>
-        <span class="cl-emp-count">${emp.items.length} item${emp.items.length!==1?"s":""} · Employee: $${empTotal.toFixed(2)} · Cost: $${empPurchase.toFixed(2)}${coParts.length?" · "+coParts.join(" · "):""}</span>
+        <span class="cl-emp-count">${emp.items.length} item${emp.items.length!==1?"s":""} · Staff: $${empTotal.toFixed(2)} · Our cost: $${empPurchase.toFixed(2)}${coParts.length?" · "+coParts.join(" · "):""}</span>
       </td>
     </tr>${itemRows}`;
   });
@@ -3346,38 +3328,35 @@ function renderClothingBoard(){
   root.innerHTML=`
     <div class="cl-header">
       <div class="cl-title">Employee Clothing <span>Track what's been given out</span></div>
-      <button class="cl-add-btn" onclick="JWG.clOpenAdd()">+ Add Item</button>
+      <button class="cl-add-btn" onclick="JWG.clOpenAdd()">Give item</button>
     </div>
     <div class="cl-summary">
       <div class="cl-stat"><div class="cl-stat-val">${totalItems}</div><div class="cl-stat-lbl">Items (${periodLabel})</div></div>
-      <div class="cl-stat"><div class="cl-stat-val">$${totalEmployeePrice.toFixed(2)}</div><div class="cl-stat-lbl">Employee Value</div></div>
-      <div class="cl-stat"><div class="cl-stat-val" style="color:#dc2626">$${totalPurchaseCost.toFixed(2)}</div><div class="cl-stat-lbl">Purchase Cost</div></div>
+      <div class="cl-stat"><div class="cl-stat-val">$${totalEmployeePrice.toFixed(2)}</div><div class="cl-stat-lbl">Staff value</div></div>
+      <div class="cl-stat"><div class="cl-stat-val" style="color:#dc2626">$${totalPurchaseCost.toFixed(2)}</div><div class="cl-stat-lbl">Our cost</div></div>
       <div class="cl-stat"><div class="cl-stat-val">${uniqueEmps}</div><div class="cl-stat-lbl">Employees</div></div>
+      <div class="cl-stat"><div class="cl-stat-val" style="font-size:16px">$${jjCost.toFixed(2)} <span style="font-size:11px;color:var(--fg-muted)">(${jjItems.length})</span></div><div class="cl-stat-lbl">Jeff's Junk cost</div></div>
+      <div class="cl-stat"><div class="cl-stat-val" style="font-size:16px">$${jwgCost.toFixed(2)} <span style="font-size:11px;color:var(--fg-muted)">(${jwgItems.length})</span></div><div class="cl-stat-lbl">Jeff White Group cost</div></div>
     </div>
-    <div class="cl-summary" style="margin-top:0;padding-top:0;border:none;gap:24px">
-      <div class="cl-stat"><div class="cl-stat-val" style="font-size:16px">$${jjCost.toFixed(2)}<span style="font-size:11px;color:var(--fg-muted);margin-left:4px">(${jjItems.length})</span></div><div class="cl-stat-lbl">Jeffs Junk Cost</div></div>
-      <div class="cl-stat"><div class="cl-stat-val" style="font-size:16px">$${jwgCost.toFixed(2)}<span style="font-size:11px;color:var(--fg-muted);margin-left:4px">(${jwgItems.length})</span></div><div class="cl-stat-lbl">Jeff White Group Cost</div></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px">
+      <input id="cl-search" class="si-filter-input" placeholder="Search by name…" value="${esc(CL.search||"")}" oninput="JWG.clSetSearch(this.value)" style="max-width:240px">
+      <select class="si-filter-select" onchange="JWG.clSetPeriod(this.value)">${periods.map(p=>`<option value="${p.v}"${CL.period===p.v?" selected":""}>${p.l}</option>`).join("")}</select>
+      <select class="si-filter-select" onchange="JWG.clSetFilter(this.value)">${types.map(t=>`<option value="${esc(t)}"${CL.filter===t?" selected":""}>${t==="all"?"All items":t}</option>`).join("")}</select>
+      <select class="si-filter-select" onchange="JWG.clSetCompany(this.value)"><option value="all"${CL.company==="all"?" selected":""}>Both companies</option>${CLOTHING_COMPANIES.map(c=>`<option value="${esc(c)}"${CL.company===c?" selected":""}>${c}</option>`).join("")}</select>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px">
-      <span style="font-size:11px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.5px">Period:</span>${periodBtns}
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px">
-      <span style="font-size:11px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.5px">Company:</span>${companyBtns}
-    </div>
-    <div class="cl-filters">${filterBtns}</div>
     ${empList.length?`<div class="cl-table-wrap"><table class="cl-table">
       <thead><tr>
         <th>Item</th>
         <th>Size</th>
-        <th>Emp. Price</th>
-        <th>Purchase Cost</th>
+        <th>Staff pays</th>
+        <th>Our cost</th>
         <th>Company</th>
         <th>Date Given</th>
         <th>Notes</th>
         <th>Actions</th>
       </tr></thead>
       <tbody>${cards}</tbody>
-    </table></div>`:`<div class="cl-empty"><div class="cl-empty-icon">👕</div>No clothing records yet${CL.filter!=="all"?" for this type":""}. Click "+ Add Item" to get started.</div>`}`;
+    </table></div>`:`<div class="cl-empty"><div class="cl-empty-icon">👕</div>${CL.search||CL.filter!=="all"||CL.company!=="all"||CL.period!=="all"?"No matching clothing records.":`No clothing records yet. Click "Give item" to get started.`}</div>`}`;
 }
 
 function clOpenAdd(){clOpenForm(null);}
@@ -3436,7 +3415,7 @@ function clOpenForm(id){
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
       <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-      <button class="modal-done" onclick="JWG.clSaveForm('${id||""}')">${item?"Save Changes":"Add Item"}</button>
+      <button class="modal-done" onclick="JWG.clSaveForm('${id||""}')">${item?"Save changes":"Give item"}</button>
     </div>`;
   openModal(h,"480px");
 }
@@ -3722,5 +3701,5 @@ function renderJwgScheduler(){
 
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
-window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,teamSearch:teamSearch,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
