@@ -3094,7 +3094,10 @@ const BADGE_CLASS={"T-Shirt":"cl-badge-tshirt","Long Sleeve":"cl-badge-longsleev
 let CL={items:[],filter:"all",sort:"employee",sortDir:"asc",period:"all",company:"all"};
 
 async function loadClothingItems(){
-  return sbF("GET","jwg_employee_clothing?select=*,jwg_employees(name)&order=date_given.desc");
+  const rows=await sbF("GET","jwg_employee_clothing?select=*,jwg_employees(name)&order=date_given.desc")||[];
+  // merged build embeds under the jwg_-prefixed key; normalise so the UI key (employees) works in both
+  rows.forEach(r=>{var je=r["jwg_employees"];if(!r.employees&&je)r.employees=je;});
+  return rows;
 }
 async function saveClothingItem(data){return sbF("POST","jwg_employee_clothing",data);}
 async function updateClothingItem(id,data){return sbF("PATCH","jwg_employee_clothing?id=eq."+id,data);}
