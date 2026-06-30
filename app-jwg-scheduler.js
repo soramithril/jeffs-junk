@@ -3316,6 +3316,10 @@ function clOpenForm(id){
         <select class="cl-select" id="cl_size"><option value="">—</option>${sizeOpts}</select>
       </div>
     </div>
+    ${item?"":`<div class="cl-form-row">
+      <div class="cl-form-label">Quantity <span style="opacity:.5;font-weight:400;text-transform:none">add several of the same item at once</span></div>
+      <input class="cl-input" type="number" min="1" max="50" step="1" id="cl_qty" value="1">
+    </div>`}
     <div class="cl-form-grid">
       <div class="cl-form-row">
         <div class="cl-form-label">Employee Price ($) <span style="opacity:.5;font-weight:400;text-transform:none">what they "pay"</span></div>
@@ -3359,6 +3363,7 @@ async function clSaveForm(id){
     notes:document.getElementById("cl_notes")?.value.trim()||"",
   };
   try{
+    const qty=id?1:Math.max(1,Math.min(50,parseInt(document.getElementById("cl_qty")?.value,10)||1));
     if(id){
       await updateClothingItem(id,data);
       const idx=CL.items.findIndex(x=>x.id===id);
@@ -3367,12 +3372,12 @@ async function clSaveForm(id){
         CL.items[idx]={...CL.items[idx],...data,employees:{name:empObj?.name||"Unknown"}};
       }
     }else{
-      const[created]=await saveClothingItem(data);
+      const body=qty>1?Array.from({length:qty},()=>({...data})):data;
+      const created=await saveClothingItem(body);
       const empObj=S.employees.find(e=>e.id===data.employee_id);
-      created.employees={name:empObj?.name||"Unknown"};
-      CL.items.unshift(created);
+      (Array.isArray(created)?created:[created]).forEach(c=>{c.employees={name:empObj?.name||"Unknown"};CL.items.unshift(c);});
     }
-    closeModal();renderClothingBoard();toast(id?"Item updated":"Item added");
+    closeModal();renderClothingBoard();toast(id?"Item updated":(qty>1?qty+" items added":"Item added"));
   }catch(e){toast(e.message,"error");}
 }
 
