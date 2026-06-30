@@ -3630,6 +3630,7 @@ async function bootInventoryKiosk(){
     await loadInventoryData();
     S.tab="inventory";
     renderInventoryPage();
+    if(!_realtimeChannel)initRealtime();  // live-sync: kiosk auto-updates when stock changes elsewhere
   }catch(e){toast("Couldn't load inventory: "+(e.message||e),"error");console.error(e);}
 }
 
