@@ -148,7 +148,7 @@ function lsG(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null
 function lsS(k,v){localStorage.setItem(k,JSON.stringify(v))}
 async function loadEmps(){if(USE_SUPABASE)return sbF("GET","jwg_employees?select=*&order=name");return lsG("ss_emps")||[];}
 async function saveEmp(name){if(USE_SUPABASE){const r=await sbF("POST","jwg_employees",{name});return r[0];}const l=lsG("ss_emps")||[],e={id:Date.now().toString(),name};lsS("ss_emps",[...l,e]);return e;}
-async function delEmp(id){if(USE_SUPABASE)return sbF("DELETE",`jwg_employees?id=eq.${id}`);lsS("ss_emps",(lsG("ss_emps")||[]).filter(e=>e.id!==id));}
+async function delEmp(id){if(USE_SUPABASE)return sbF("DELETE",`employees?id=eq.${id}`);lsS("ss_emps",(lsG("ss_emps")||[]).filter(e=>e.id!==id));}
 async function loadScheds(){if(USE_SUPABASE){const since=new Date();since.setFullYear(since.getFullYear()-1);return sbF("GET","jwg_schedules?select=*&week_start=gte."+localDateStr(since));}return lsG("ss_scheds")||[];}
 async function upsertSched(eid,ws,data){const w=localDateStr(ws);if(USE_SUPABASE)return sbF("POST","jwg_schedules?on_conflict=employee_id,week_start",{employee_id:eid,week_start:w,schedule_data:data,updated_at:new Date().toISOString()});const l=lsG("ss_scheds")||[],i=l.findIndex(s=>s.employee_id===eid&&s.week_start===w);const e={id:`${eid}_${w}`,employee_id:eid,week_start:w,schedule_data:data};if(i>=0)l[i]=e;else l.push(e);lsS("ss_scheds",l);}
 
@@ -248,7 +248,7 @@ function updateFAB(){
   const stt=document.getElementById("scroll-top");
   if(!fab)return;
   const isMobile=window.innerWidth<=600;
-  if(isMobile&&S.tab==="schedule"&&S.jwg_employees.length>0){
+  if(isMobile&&S.tab==="schedule"&&S.employees.length>0){
     fab.classList.add("fab-show");
   } else {
     fab.classList.remove("fab-show");
@@ -404,7 +404,7 @@ let _editShiftIdx=null;
 let _editEmpId=null;
 let _editDay=null;
 function openShiftModal(empId,day){
-  const emp=S.jwg_employees.find(e=>e.id===empId);
+  const emp=S.employees.find(e=>e.id===empId);
   if(!S.schedule[empId])S.schedule[empId]=defSched();
   const dayData=S.schedule[empId][day]||{status:"off",shifts:[]};
   _selTasks=[];
@@ -514,14 +514,14 @@ function startEditShift(empId,day,idx){
   _editShiftIdx=idx;
   _editEmpId=empId;
   _editDay=day;
-  const emp=S.jwg_employees.find(e=>e.id===empId);
+  const emp=S.employees.find(e=>e.id===empId);
   const dayData=S.schedule[empId][day];
   renderShiftModal(empId,day,emp,dayData);
 }
 function cancelEditShift(){
   _editShiftIdx=null;
   if(_editEmpId&&_editDay){
-    const emp=S.jwg_employees.find(e=>e.id===_editEmpId);
+    const emp=S.employees.find(e=>e.id===_editEmpId);
     const dayData=S.schedule[_editEmpId]?.[_editDay];
     if(emp&&dayData)renderShiftModal(_editEmpId,_editDay,emp,dayData);
   }
@@ -538,7 +538,7 @@ function saveEditShift(empId,day,idx){
   S.schedule[empId][day].shifts[idx].start=s;
   S.schedule[empId][day].shifts[idx].end=e;
   _editShiftIdx=null;
-  const emp=S.jwg_employees.find(e=>e.id===empId);
+  const emp=S.employees.find(e=>e.id===empId);
   renderShiftModal(empId,day,emp,S.schedule[empId][day]);
   refreshGrid();updBadge(empId);
   autoSave(empId);
@@ -583,7 +583,7 @@ function removeShiftEntry(empId,day,idx){
   const dayData=S.schedule[empId][day];
   dayData.shifts.splice(idx,1);
   if(dayData.shifts.length===0)dayData.status="off";
-  const emp=S.jwg_employees.find(e=>e.id===empId);
+  const emp=S.employees.find(e=>e.id===empId);
   renderShiftModal(empId,day,emp,dayData);
   refreshGrid();updBadge(empId);autoSave(empId);
 }
@@ -603,7 +603,7 @@ function markDaySick(empId,day){
 function clearDayStatus(empId,day){
   if(!S.schedule[empId])S.schedule[empId]=defSched();
   S.schedule[empId][day]={status:"off",shifts:[]};
-  const emp=S.jwg_employees.find(e=>e.id===empId);
+  const emp=S.employees.find(e=>e.id===empId);
   renderShiftModal(empId,day,emp,S.schedule[empId][day]);
   refreshGrid();updBadge(empId);autoSave(empId);
 }
@@ -665,12 +665,12 @@ function renderMultiAssign(){
   dayHtml+='</div>';
 
   // Employee list
-  const allOn=S.jwg_employees.length>0&&S.jwg_employees.every(e=>_ma.empIds.includes(e.id));
+  const allOn=S.employees.length>0&&S.employees.every(e=>_ma.empIds.includes(e.id));
   let empHtml=`<button class="ma-everyone-btn${allOn?" all-on":""}" onclick="JWG.maToggleEveryone()">
     ${allOn?"✓ Everyone selected":"👥 Select Everyone"}
   </button>
   <div class="ma-emp-list">`;
-  S.jwg_employees.forEach(e=>{
+  S.employees.forEach(e=>{
     const checked=_ma.empIds.includes(e.id);
     const[abg,afg]=ac(e.name);
     empHtml+=`<div class="ma-emp-row${checked?" checked":""}" onclick="JWG.maToggleEmp('${e.id}')">
@@ -704,7 +704,7 @@ function renderMultiAssign(){
 
   <div class="modal-divider"></div>
   <div class="sect-label">Employees <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?`(${selCount} selected)`:""}</span></div>
-  ${S.jwg_employees.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet — add them in the Team tab.</div>'}
+  ${S.employees.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet — add them in the Team tab.</div>'}
 
   <div class="modal-divider"></div>
   <div style="display:flex;justify-content:space-between;align-items:center">
@@ -753,8 +753,8 @@ function maToggleEmp(id){
   renderMultiAssign();
 }
 function maToggleEveryone(){
-  const allOn=S.jwg_employees.every(e=>_ma.empIds.includes(e.id));
-  _ma.empIds=allOn?[]:S.jwg_employees.map(e=>e.id);
+  const allOn=S.employees.every(e=>_ma.empIds.includes(e.id));
+  _ma.empIds=allOn?[]:S.employees.map(e=>e.id);
   renderMultiAssign();
 }
 
@@ -825,11 +825,11 @@ function renderMultiClear(){
   dayHtml+=`<button class="ma-day-btn${allDaysOn?" on":""}" onclick="JWG.mcToggleAllDays()" style="font-style:italic">All</button>`;
   dayHtml+=`</div>`;
 
-  const allEmpOn=S.jwg_employees.length>0&&S.jwg_employees.every(e=>_mc.empIds.includes(e.id));
+  const allEmpOn=S.employees.length>0&&S.employees.every(e=>_mc.empIds.includes(e.id));
   let empHtml=`<button class="ma-everyone-btn${allEmpOn?" all-on":""}" onclick="JWG.mcToggleEveryone()">
     ${allEmpOn?"✓ Everyone selected":"👥 Select Everyone"}
   </button><div class="ma-emp-list">`;
-  S.jwg_employees.forEach(e=>{
+  S.employees.forEach(e=>{
     const checked=_mc.empIds.includes(e.id);
     const[abg,afg]=ac(e.name);
     empHtml+=`<div class="ma-emp-row${checked?" checked":""}" onclick="JWG.mcToggleEmp('${e.id}')">
@@ -854,7 +854,7 @@ function renderMultiClear(){
   ${dayHtml}
   <div class="modal-divider"></div>
   <div class="sect-label">Employees <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?"("+selCount+" selected)":""}</span></div>
-  ${S.jwg_employees.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet.</div>'}
+  ${S.employees.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet.</div>'}
   <div class="modal-divider"></div>
   <div style="display:flex;justify-content:space-between;align-items:center">
     <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
@@ -869,7 +869,7 @@ function mcPickTask(id){_mc.task=id;renderMultiClear();}
 function mcToggleDay(d){const i=_mc.days.indexOf(d);if(i>=0)_mc.days.splice(i,1);else _mc.days.push(d);renderMultiClear();}
 function mcToggleAllDays(){const allOn=S.activeDays.every(d=>_mc.days.includes(d));_mc.days=allOn?[]:[...S.activeDays];renderMultiClear();}
 function mcToggleEmp(id){const i=_mc.empIds.indexOf(id);if(i>=0)_mc.empIds.splice(i,1);else _mc.empIds.push(id);renderMultiClear();}
-function mcToggleEveryone(){const allOn=S.jwg_employees.every(e=>_mc.empIds.includes(e.id));_mc.empIds=allOn?[]:S.jwg_employees.map(e=>e.id);renderMultiClear();}
+function mcToggleEveryone(){const allOn=S.employees.every(e=>_mc.empIds.includes(e.id));_mc.empIds=allOn?[]:S.employees.map(e=>e.id);renderMultiClear();}
 
 function applyMultiClear(){
   if(!_mc.days.length||!_mc.empIds.length)return;
@@ -930,7 +930,7 @@ function render(){
     const el=document.getElementById("mnav-"+t);
     if(el)el.classList.toggle("active",S.tab===t);
   });
-  document.getElementById("empCount").textContent=`${S.jwg_employees.length} employee${S.jwg_employees.length!==1?"s":""}`;
+  document.getElementById("empCount").textContent=`${S.employees.length} employee${S.employees.length!==1?"s":""}`;
   if(S.tab==="schedule")app.innerHTML=buildSched();
   else if(S.tab==="history")app.innerHTML=buildHistory();
   else if(S.tab==="analytics"){app.innerHTML=buildAnalytics();requestAnimationFrame(()=>animateCounters());}
@@ -974,7 +974,7 @@ function buildSched(){
     </div>
     <button class="ctrl-btn ctrl-more-btn" onclick="this.closest('.ctrl-bar').classList.toggle('ctrl-expanded')"><span class="ctrl-more-btn-label">☰ More</span></button>
   </div>`;
-  if(!S.jwg_employees.length){
+  if(!S.employees.length){
     h+=`<div class="empty" style="padding:52px 24px;display:flex;flex-direction:column;align-items:center;gap:16px">
       <div style="width:72px;height:72px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:32px;">👥</div>
       <div style="text-align:center">
@@ -1113,7 +1113,7 @@ function buildMobileDayView(){
 
   // Employee cards for selected day
   h+=`<div class="mday-cards">`;
-  if(!S.jwg_employees.length){
+  if(!S.employees.length){
     h+=`<div class="empty" style="padding:32px 16px;text-align:center;color:var(--fg-muted);font-size:13px;">No employees yet — go to Team tab to add staff</div>`;
   } else {
     const sortedMobileEmps=S.sortAlpha?[...S.employees].sort((a,b)=>a.name.localeCompare(b.name)):S.employees;
@@ -1162,7 +1162,7 @@ function toggleDay(d){
   render();
 }
 function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
-function loadWeekSched(){const w=wkey(S.weekOffset);S.jwg_employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
+function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
 
 // ── AUTO-SAVE (debounced) ──
 let _autoSaveTimer=null;
@@ -1172,14 +1172,14 @@ function autoSave(empId){
   const ws=getWS(S.weekOffset);
   const w=localDateStr(ws);
   // Set cooldown so realtime doesn't overwrite our local edits with stale echo
-  const cooldownIds=empId?[empId]:S.jwg_employees.map(e=>e.id);
+  const cooldownIds=empId?[empId]:S.employees.map(e=>e.id);
   cooldownIds.forEach(id=>{
     _schedSaveCooldown[id]=true;
     clearTimeout(_schedSaveCooldown["_t_"+id]);
     _schedSaveCooldown["_t_"+id]=setTimeout(()=>{delete _schedSaveCooldown[id];delete _schedSaveCooldown["_t_"+id];},3000);
   });
   // Snapshot the changed employee(s) RIGHT NOW
-  const toSave=empId?S.jwg_employees.filter(e=>e.id===empId):S.employees;
+  const toSave=empId?S.employees.filter(e=>e.id===empId):S.employees;
   const newEntries=toSave.map(e=>({emp:e,data:JSON.parse(JSON.stringify(S.schedule[e.id]||defSched()))}));
   if(_pendingSave&&_pendingSave.w===w){
     // Merge: update existing entries for same week, add any new ones
@@ -1240,7 +1240,7 @@ function getPeriodWeeks(period){
 function getWeekStats(weekKey){
   const tally=Object.fromEntries(tasks.map(t=>[t.id,0]));
   let totalH=0,daysOff=0,daysSick=0,daysWorked=0;
-  S.jwg_employees.forEach(emp=>{
+  S.employees.forEach(emp=>{
     const s=S.allSchedules.find(sc=>sc.employee_id===emp.id&&sc.week_start===weekKey);
     if(!s)return;
     const sched=migrateSched(s.schedule_data);
@@ -1288,10 +1288,10 @@ function buildAnalytics(){
   PERIODS.forEach(p=>{h+=`<button class="period-btn${period===p.id?" on":""}" onclick="JWG.S.aPeriod='${p.id}';JWG.render()">${p.label}</button>`;});
   h+=`</div>`;
 
-  if(!S.jwg_employees.length){h+=`<div class="empty">No data yet.</div></div></div>`;return h;}
+  if(!S.employees.length){h+=`<div class="empty">No data yet.</div></div></div>`;return h;}
 
   // Aggregate stats across period
-  const empData=S.jwg_employees.map(emp=>{
+  const empData=S.employees.map(emp=>{
     const ss=S.allSchedules.filter(s=>s.employee_id===emp.id&&allWks.includes(s.week_start));
     const totalH=ss.reduce((n,s)=>n+countH(migrateSched(s.schedule_data)),0);
     const tally=Object.fromEntries(tasks.map(t=>[t.id,0]));
@@ -1383,7 +1383,7 @@ function buildAnalytics(){
         activeTasks.forEach(t=>{h+=`<span style="background:${t.bg};color:${t.text};border:1px solid ${t.dot}30;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600">${esc(t.label)}: ${st.tally[t.id]}d</span>`;});
         if(!activeTasks.length&&!st.daysSick&&!st.daysOff)h+=`<span style="font-size:11px;color:var(--fg-subtle);font-style:italic">No tasks scheduled</span>`;
         h+=`</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
-        S.jwg_employees.forEach(emp=>{
+        S.employees.forEach(emp=>{
           const s=S.allSchedules.find(sc=>sc.employee_id===emp.id&&sc.week_start===wk.key);
           if(!s)return;
           const sched=migrateSched(s.schedule_data);
@@ -1465,7 +1465,7 @@ function buildHistory(){
   <div class="h-filter-bar">
     <span class="h-filter-label">Employee</span>
     <button class="h-emp-chip${empFilter==="all"?" on":""}" onclick="JWG.S.hFilter='all';JWG.render()">All</button>`;
-  S.jwg_employees.forEach(e=>{h+=`<button class="h-emp-chip${empFilter===e.id?" on":""}" onclick="JWG.S.hFilter='${e.id}';JWG.render()">${esc(e.name.split(" ")[0])}</button>`;});
+  S.employees.forEach(e=>{h+=`<button class="h-emp-chip${empFilter===e.id?" on":""}" onclick="JWG.S.hFilter='${e.id}';JWG.render()">${esc(e.name.split(" ")[0])}</button>`;});
   h+=`</div>`;
 
   if(!activeKeys.length){h+=`<div class="empty">No history for this period.</div></div></div>`;return h;}
@@ -1479,7 +1479,7 @@ function buildHistory(){
     const wkLabel=isCurrent?"This Week":wkOff===1?"Last Week":wkOff===2?"2 Weeks Ago":wkOff===3?"3 Weeks Ago":`${ws.toLocaleDateString("en-US",{month:"short",day:"numeric"})}`;
 
     // Employees to show
-    const empsToShow=empFilter==="all"?S.employees:S.jwg_employees.filter(e=>e.id===empFilter);
+    const empsToShow=empFilter==="all"?S.employees:S.employees.filter(e=>e.id===empFilter);
     const rows=empsToShow.filter(e=>S.allSchedules.some(s=>s.employee_id===e.id&&s.week_start===wk));
     if(!rows.length)return;
 
@@ -1577,10 +1577,10 @@ function buildTeam(){
   let h=`<div class="card"><div class="twrap"><div class="stitle" style="margin-bottom:5px">Team</div><div class="ssub" style="margin-bottom:22px">Manage your employees · drag ⠿ to reorder</div>
   <div class="addbox"><div class="sect-label" style="margin-bottom:11px">Add Employee</div>
   <div style="display:flex;gap:9px"><input class="addinput" id="nEmp" placeholder="Full name…" onkeydown="if(event.key==='Enter')JWG.addEmp()"><button class="addbtn" onclick="JWG.addEmp()">Add</button></div></div>`;
-  if(!S.jwg_employees.length)h+=`<div class="empty" style="height:100px">No employees yet.</div>`;
+  if(!S.employees.length)h+=`<div class="empty" style="height:100px">No employees yet.</div>`;
   else{
     h+=`<div id="team-list">`;
-    S.jwg_employees.forEach((emp,i)=>{
+    S.employees.forEach((emp,i)=>{
       const tot=S.allSchedules.filter(s=>s.employee_id===emp.id).reduce((n,s)=>n+countH(s.schedule_data),0);
       const[abg,afg]=ac(emp.name);
       h+=`<div class="tcard" draggable="true" data-empid="${emp.id}" data-empidx="${i}">
@@ -1600,17 +1600,17 @@ function buildTeam(){
   h+=`</div></div></div>`;return h;
 }
 
-async function addEmp(){const inp=document.getElementById("nEmp"),name=(inp?.value||"").trim();if(!name){toast("Enter a name","error");return;}if(S.jwg_employees.find(e=>e.name.toLowerCase()===name.toLowerCase())){toast("Already exists","error");return;}try{const emp=await saveEmp(name);S.jwg_employees.push(emp);S.schedule[emp.id]=defSched();if(inp)inp.value="";toast(`${name} added`);render();}catch(e){toast(e.message,"error");}}
-async function removeEmp(id,name){if(!confirm(`Remove ${name}?`))return;try{await delEmp(id);S.employees=S.jwg_employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
+async function addEmp(){const inp=document.getElementById("nEmp"),name=(inp?.value||"").trim();if(!name){toast("Enter a name","error");return;}if(S.employees.find(e=>e.name.toLowerCase()===name.toLowerCase())){toast("Already exists","error");return;}try{const emp=await saveEmp(name);S.employees.push(emp);S.schedule[emp.id]=defSched();if(inp)inp.value="";toast(`${name} added`);render();}catch(e){toast(e.message,"error");}}
+async function removeEmp(id,name){if(!confirm(`Remove ${name}?`))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
 
 // ── DRAG & DROP — shared helpers ──
-function saveEmpOrder(){const ids=S.jwg_employees.map(e=>e.id);localStorage.setItem("ss_emp_order",JSON.stringify(ids));saveSetting("emp_order",ids);}
+function saveEmpOrder(){const ids=S.employees.map(e=>e.id);localStorage.setItem("ss_emp_order",JSON.stringify(ids));saveSetting("emp_order",ids);}
 function applyStoredOrder(){
   const stored=localStorage.getItem("ss_emp_order");
   if(!stored)return;
   try{
     const ids=JSON.parse(stored);
-    S.jwg_employees.sort((a,b)=>{const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);if(ai<0)return 1;if(bi<0)return-1;return ai-bi;});
+    S.employees.sort((a,b)=>{const ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);if(ai<0)return 1;if(bi<0)return-1;return ai-bi;});
   }catch(e){}
 }
 
@@ -1645,12 +1645,12 @@ function initGridDrag(){
       const rect=row.getBoundingClientRect();
       const mid=rect.top+rect.height/2;
       const insertBefore=e.clientY<mid;
-      const fromIdx=S.jwg_employees.findIndex(em=>em.id===dragId);
-      let toIdx=S.jwg_employees.findIndex(em=>em.id===row.dataset.empid);
+      const fromIdx=S.employees.findIndex(em=>em.id===dragId);
+      let toIdx=S.employees.findIndex(em=>em.id===row.dataset.empid);
       if(fromIdx<0||toIdx<0)return;
-      const [moved]=S.jwg_employees.splice(fromIdx,1);
-      toIdx=S.jwg_employees.findIndex(em=>em.id===row.dataset.empid);
-      S.jwg_employees.splice(insertBefore?toIdx:toIdx+1,0,moved);
+      const [moved]=S.employees.splice(fromIdx,1);
+      toIdx=S.employees.findIndex(em=>em.id===row.dataset.empid);
+      S.employees.splice(insertBefore?toIdx:toIdx+1,0,moved);
       saveEmpOrder();
       render();
     });
@@ -1686,12 +1686,12 @@ function initTeamDrag(){
       if(!dragId||dragId===card.dataset.empid)return;
       const rect=card.getBoundingClientRect();
       const insertBefore=e.clientY<rect.top+rect.height/2;
-      const fromIdx=S.jwg_employees.findIndex(em=>em.id===dragId);
-      let toIdx=S.jwg_employees.findIndex(em=>em.id===card.dataset.empid);
+      const fromIdx=S.employees.findIndex(em=>em.id===dragId);
+      let toIdx=S.employees.findIndex(em=>em.id===card.dataset.empid);
       if(fromIdx<0||toIdx<0)return;
-      const[moved]=S.jwg_employees.splice(fromIdx,1);
-      toIdx=S.jwg_employees.findIndex(em=>em.id===card.dataset.empid);
-      S.jwg_employees.splice(insertBefore?toIdx:toIdx+1,0,moved);
+      const[moved]=S.employees.splice(fromIdx,1);
+      toIdx=S.employees.findIndex(em=>em.id===card.dataset.empid);
+      S.employees.splice(insertBefore?toIdx:toIdx+1,0,moved);
       saveEmpOrder();
       render();
     });
@@ -1851,7 +1851,7 @@ function wtOpenForm(id){
     return`<button type="button" id="wt_prio_${v}" class="wt-prio-opt opt-${v}${_wtSelPrio===v?" sel-"+v:""}" onclick="JWG.wtPickPrio('${v}')">${labels[v]}</button>`;
   }).join("");
 
-  const personBtns=S.jwg_employees.map(e=>`<button type="button" class="wt-person-opt${_wtSelPeople.includes(e.name)?" sel":""}" data-name="${esc(e.name)}" onclick="JWG.wtTogglePerson('${esc(e.name)}')">${esc(e.name)}</button>`).join("");
+  const personBtns=S.employees.map(e=>`<button type="button" class="wt-person-opt${_wtSelPeople.includes(e.name)?" sel":""}" data-name="${esc(e.name)}" onclick="JWG.wtTogglePerson('${esc(e.name)}')">${esc(e.name)}</button>`).join("");
 
   const h=`
     <div class="modal-title">${t?"Edit Task":"New Workshop Task"}</div>
@@ -2281,7 +2281,7 @@ async function updateSummerLocation(locId){
   const notes=(document.getElementById("sum-notes")?.value||"").trim();
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   try{
-    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,service_day:day,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,service_day:day,updated_at:new Date().toISOString()});
     // Save service toggles
     const checkboxes=document.querySelectorAll('.sum-svc-toggle');
     const existing=SUM.locationServices.filter(ls=>ls.location_id===locId);
@@ -2295,9 +2295,9 @@ async function updateSummerLocation(locId){
       if(cb.checked&&!wasActive){
         await sbF("POST","jwg_location_services",{location_id:locId,service_type_id:typeId,frequency:freq,notes:svcNotes,is_active:true});
       }else if(cb.checked&&wasActive){
-        await sbF("PATCH",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{frequency:freq,notes:svcNotes,updated_at:new Date().toISOString()});
+        await sbF("PATCH",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{frequency:freq,notes:svcNotes,updated_at:new Date().toISOString()});
       }else if(!cb.checked&&wasActive){
-        await sbF("DELETE",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
+        await sbF("DELETE",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
       }
     }
     toast("Location updated");
@@ -2309,7 +2309,7 @@ async function updateSummerLocation(locId){
 
 async function deleteSummerLocation(locId){
   try{
-    await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
+    await sbF("DELETE",`service_locations?id=eq.${locId}`);
     toast("Location deleted");
     await loadSummerData();
     renderSummerPage();
@@ -2349,7 +2349,7 @@ async function addSummerServiceType(){
 
 async function deleteSummerServiceType(typeId){
   try{
-    await sbF("PATCH",`jwg_service_types?id=eq.${typeId}`,{is_active:false});
+    await sbF("PATCH",`service_types?id=eq.${typeId}`,{is_active:false});
     toast("Service type removed");
     await loadSummerData();
     openManageSummerServiceTypes();
@@ -2486,7 +2486,7 @@ async function adjustWinterSalt(locId,delta){
   if(!salt)return;
   const newCount=Math.max(0,salt.current_bags+delta);
   try{
-    await sbF("PATCH",`jwg_salt_bins?id=eq.${salt.id}`,{current_bags:newCount,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`salt_bins?id=eq.${salt.id}`,{current_bags:newCount,updated_at:new Date().toISOString()});
     salt.current_bags=newCount;
     renderWinterPage();
   }catch(e){toast("Failed to update salt count","error");console.error(e);}
@@ -2644,7 +2644,7 @@ async function updateWinterLocation(locId){
   const notes=(document.getElementById("win-notes")?.value||"").trim();
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   try{
-    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,updated_at:new Date().toISOString()});
     // Save service toggles
     const checkboxes=document.querySelectorAll('.win-svc-toggle');
     const existing=WIN.locationServices.filter(ls=>ls.location_id===locId);
@@ -2656,9 +2656,9 @@ async function updateWinterLocation(locId){
       if(cb.checked&&!wasActive){
         await sbF("POST","jwg_location_services",{location_id:locId,service_type_id:typeId,notes:svcNotes,is_active:true});
       }else if(cb.checked&&wasActive){
-        await sbF("PATCH",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{notes:svcNotes,updated_at:new Date().toISOString()});
+        await sbF("PATCH",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{notes:svcNotes,updated_at:new Date().toISOString()});
       }else if(!cb.checked&&wasActive){
-        await sbF("DELETE",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
+        await sbF("DELETE",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
       }
     }
     // Update salt bin threshold
@@ -2666,7 +2666,7 @@ async function updateWinterLocation(locId){
     if(minEl){
       const newMin=parseInt(minEl.value)||5;
       const salt=WIN.saltBins.find(s=>s.location_id===locId);
-      if(salt)await sbF("PATCH",`jwg_salt_bins?id=eq.${salt.id}`,{min_threshold:newMin,updated_at:new Date().toISOString()});
+      if(salt)await sbF("PATCH",`salt_bins?id=eq.${salt.id}`,{min_threshold:newMin,updated_at:new Date().toISOString()});
     }
     toast("Location updated");
     closeModal();
@@ -2677,7 +2677,7 @@ async function updateWinterLocation(locId){
 
 async function deleteWinterLocation(locId){
   try{
-    await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
+    await sbF("DELETE",`service_locations?id=eq.${locId}`);
     toast("Location deleted");
     await loadWinterData();
     renderWinterPage();
@@ -2717,7 +2717,7 @@ async function addWinterServiceType(){
 
 async function deleteWinterServiceType(typeId){
   try{
-    await sbF("PATCH",`jwg_service_types?id=eq.${typeId}`,{is_active:false});
+    await sbF("PATCH",`service_types?id=eq.${typeId}`,{is_active:false});
     toast("Service type removed");
     await loadWinterData();
     openManageWinterServiceTypes();
@@ -2850,7 +2850,7 @@ async function adjustInventory(itemId,delta){
   else if(newCount<=item.min_threshold)newStatus="low";
   else if(newStatus==="low"||newStatus==="out_of_stock")newStatus="in_stock";
   try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:newCount,status:newStatus});
+    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{current_stock:newCount,status:newStatus});
     item.current_stock=newCount;
     item.status=newStatus;
     renderInventoryPage();
@@ -2859,7 +2859,7 @@ async function adjustInventory(itemId,delta){
 
 async function markOrdered(itemId){
   try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{status:"ordered"});
+    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{status:"ordered"});
     const item=INV.items.find(i=>i.id===itemId);
     if(item)item.status="ordered";
     renderInventoryPage();
@@ -2868,7 +2868,7 @@ async function markOrdered(itemId){
 
 async function restockItem(itemId){
   try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{status:"in_stock"});
+    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{status:"in_stock"});
     const item=INV.items.find(i=>i.id===itemId);
     if(item)item.status="in_stock";
     renderInventoryPage();
@@ -3021,7 +3021,7 @@ async function updateInventoryItem(itemId){
   if(!name||!catId){toast("Please fill in required fields","error");return;}
   try{
     const status=stock===0?"out_of_stock":stock<=min?"low":"in_stock";
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{item_name:name,product_number:prodNum,category_id:catId,current_stock:stock,min_threshold:min,unit,image_url:img||null,notes,status,price,purchase_link:link});
+    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{item_name:name,product_number:prodNum,category_id:catId,current_stock:stock,min_threshold:min,unit,image_url:img||null,notes,status,price,purchase_link:link});
     toast("Item updated");
     closeModal();
     await loadInventoryData();
@@ -3031,7 +3031,7 @@ async function updateInventoryItem(itemId){
 
 async function deleteInventoryItem(itemId){
   try{
-    await sbF("DELETE",`jwg_inventory_items?id=eq.${itemId}`);
+    await sbF("DELETE",`inventory_items?id=eq.${itemId}`);
     toast("Item deleted");
     await loadInventoryData();
     renderInventoryPage();
@@ -3071,7 +3071,7 @@ async function addCategory(){
 
 async function deleteCategory(catId){
   try{
-    await sbF("PATCH",`jwg_inventory_categories?id=eq.${catId}`,{is_active:false});
+    await sbF("PATCH",`inventory_categories?id=eq.${catId}`,{is_active:false});
     toast("Category removed");
     await loadInventoryData();
     openManageCategories();
@@ -3158,7 +3158,7 @@ function renderClothingBoard(){
   // Sort
   items.sort((a,b)=>{
     let va,vb;
-    if(CL.sort==="employee"){va=(a.jwg_employees?.name||"").toLowerCase();vb=(b.jwg_employees?.name||"").toLowerCase();}
+    if(CL.sort==="employee"){va=(a.employees?.name||"").toLowerCase();vb=(b.employees?.name||"").toLowerCase();}
     else if(CL.sort==="item_type"){va=a.item_type;vb=b.item_type;}
     else if(CL.sort==="size"){va=CLOTHING_SIZES.indexOf(a.size);vb=CLOTHING_SIZES.indexOf(b.size);}
     else if(CL.sort==="price"){va=+a.price||0;vb=+b.price||0;}
@@ -3200,7 +3200,7 @@ function renderClothingBoard(){
   const grouped={};
   items.forEach(i=>{
     const eid=i.employee_id;
-    if(!grouped[eid])grouped[eid]={name:i.jwg_employees?.name||"Unknown",items:[]};
+    if(!grouped[eid])grouped[eid]={name:i.employees?.name||"Unknown",items:[]};
     grouped[eid].items.push(i);
   });
   const empList=Object.entries(grouped).sort((a,b)=>a[1].name.localeCompare(b[1].name));
@@ -3289,7 +3289,7 @@ function clOpenEdit(id){clOpenForm(id);}
 
 function clOpenForm(id){
   const item=id?CL.items.find(x=>x.id===id):null;
-  const empOpts=S.jwg_employees.map(e=>`<option value="${e.id}"${item&&item.employee_id===e.id?" selected":""}>${esc(e.name)}</option>`).join("");
+  const empOpts=S.employees.map(e=>`<option value="${e.id}"${item&&item.employee_id===e.id?" selected":""}>${esc(e.name)}</option>`).join("");
   const typeOpts=CLOTHING_TYPES.map(t=>`<option value="${t}"${item&&item.item_type===t?" selected":""}>${t}</option>`).join("");
   const sizeOpts=CLOTHING_SIZES.map(s=>`<option value="${s}"${item&&item.size===s?" selected":""}>${s}</option>`).join("");
   const companyOpts=CLOTHING_COMPANIES.map(c=>`<option value="${c}"${item&&item.company===c?" selected":""}>${c}</option>`).join("");
@@ -3363,12 +3363,12 @@ async function clSaveForm(id){
       await updateClothingItem(id,data);
       const idx=CL.items.findIndex(x=>x.id===id);
       if(idx>=0){
-        const empObj=S.jwg_employees.find(e=>e.id===data.employee_id);
+        const empObj=S.employees.find(e=>e.id===data.employee_id);
         CL.items[idx]={...CL.items[idx],...data,employees:{name:empObj?.name||"Unknown"}};
       }
     }else{
       const[created]=await saveClothingItem(data);
-      const empObj=S.jwg_employees.find(e=>e.id===data.employee_id);
+      const empObj=S.employees.find(e=>e.id===data.employee_id);
       created.employees={name:empObj?.name||"Unknown"};
       CL.items.unshift(created);
     }
@@ -3440,7 +3440,7 @@ function initRealtime(){
       // Update current view if it's for the week we're looking at
       const currentWeek=wkey(S.weekOffset);
       if(row.week_start===currentWeek){
-        const emp=S.jwg_employees.find(e=>e.id===row.employee_id);
+        const emp=S.employees.find(e=>e.id===row.employee_id);
         if(emp){
           // Skip overwrite if modal is open (user mid-edit) or employee was recently saved locally
           if(isModalOpen()||_schedSaveCooldown[row.employee_id]){
@@ -3460,22 +3460,22 @@ function initRealtime(){
     // ── Employees ──
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"jwg_employees"},payload=>{
       const row=payload.new;
-      if(!row||S.jwg_employees.some(e=>e.id===row.id))return;
-      S.jwg_employees.push(row);
+      if(!row||S.employees.some(e=>e.id===row.id))return;
+      S.employees.push(row);
       S.schedule[row.id]=defSched();
       if(!isModalOpen())render();
     })
     .on("postgres_changes",{event:"DELETE",schema:"public",table:"jwg_employees"},payload=>{
       const old=payload.old;
       if(!old)return;
-      S.employees=S.jwg_employees.filter(e=>e.id!==old.id);
+      S.employees=S.employees.filter(e=>e.id!==old.id);
       delete S.schedule[old.id];
       if(!isModalOpen())render();
     })
     .on("postgres_changes",{event:"UPDATE",schema:"public",table:"jwg_employees"},payload=>{
       const row=payload.new;
       if(!row)return;
-      const idx=S.jwg_employees.findIndex(e=>e.id===row.id);
+      const idx=S.employees.findIndex(e=>e.id===row.id);
       if(idx>=0)S.employees[idx]={...S.employees[idx],...row};
       if(!isModalOpen())render();
     })
@@ -3598,7 +3598,7 @@ async function bootApp(){
     const[emps,scheds]=await Promise.all([loadEmps(),loadScheds()]);
     S.employees=emps||[];S.allSchedules=scheds||[];applyStoredOrder();
     const w=wkey(S.weekOffset);
-    S.jwg_employees.forEach(e=>{const f=(scheds||[]).find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});
+    S.employees.forEach(e=>{const f=(scheds||[]).find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});
   }catch(e){toast("Load failed: "+e.message,"error");}
   // Auto-select today in mobile day view for current week
   const todayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];

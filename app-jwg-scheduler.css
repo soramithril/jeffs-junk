@@ -1,4 +1,4 @@
-/* app-jwg-scheduler.css -- generated; scoped under #view-jwgscheduler. rebuild via build_jwg_css.py */
+/* app-jwg-scheduler.css -- generated; rebuild via tools/build_jwg_css.py */
 #view-jwgscheduler {
   --bg-base:      #ffffff;
   --bg-deep:      #f5f5f5;
@@ -1050,12 +1050,6 @@
 #view-jwgscheduler .wt-person-grid {display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;}
 #view-jwgscheduler .wt-person-opt {border:1.5px solid var(--border);background:var(--bg-elevated);color:var(--fg-muted);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all var(--dur-fast) var(--ease-out);}
 #view-jwgscheduler .wt-person-opt.sel {background:var(--dark);color:var(--accent);border-color:var(--dark);font-weight:700;}
-@media(max-width:767px) {
-#view-jwgscheduler .wt-wrap {padding:12px 10px;}
-#view-jwgscheduler .wt-board {grid-template-columns:1fr;gap:14px;}
-#view-jwgscheduler .wt-form-grid {grid-template-columns:1fr;}
-#view-jwgscheduler .wt-priority-picker {gap:5px;}
-}
 #view-jwgscheduler #header {
   height:54px;padding:0 12px;
   display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
@@ -1197,31 +1191,6 @@
 #view-jwgscheduler .wt-add-btn:active {opacity:.85;transform:none;}
 #view-jwgscheduler .wt-filter-btn {min-height:44px;padding:0 14px;display:inline-flex;align-items:center;}
 #view-jwgscheduler .wt-filter-btn:active {background:var(--dark);color:var(--accent);border-color:var(--dark);}
-@media(hover:none) {
-#view-jwgscheduler .card:hover {box-shadow:var(--shadow-card);transform:none;}
-#view-jwgscheduler .shift-bar:hover {filter:none;transform:none;}
-#view-jwgscheduler .stat-tile:hover {transform:none;}
-#view-jwgscheduler .nav-btn:hover {background:var(--bg-elevated);color:var(--fg-muted);}
-#view-jwgscheduler .tab-btn:hover:not(.active) {background:transparent;color:rgba(255,255,255,0.55);}
-#view-jwgscheduler .day-toggle:hover:not(.on) {background:var(--bg-elevated);color:var(--fg-muted);}
-#view-jwgscheduler .ctrl-btn:hover {background:var(--bg-elevated);color:var(--fg-muted);}
-#view-jwgscheduler .period-btn:hover:not(.on) {background:var(--bg-deep);color:var(--fg-muted);}
-#view-jwgscheduler .rbtn:hover:not(.on) {background:var(--bg-elevated);color:var(--fg-muted);}
-#view-jwgscheduler .acard:hover, #view-jwgscheduler .hcard:hover, #view-jwgscheduler .mday-emp-card:hover, #view-jwgscheduler .tcard:hover {border-color:var(--border);}
-#view-jwgscheduler .modal-add-btn:hover, #view-jwgscheduler .modal-done:hover, #view-jwgscheduler .save-btn:hover {transform:none;}
-#view-jwgscheduler .wt-card:hover {box-shadow:var(--shadow-card);transform:none;border-color:var(--border);}
-#view-jwgscheduler .login-btn:hover {transform:none;}
-#view-jwgscheduler .wk-hdr:hover {background:var(--bg-deep);}
-#view-jwgscheduler #fab:hover {transform:none;}
-#view-jwgscheduler #scroll-top:hover {transform:none;}
-}
-@media(max-width:379px) {
-#view-jwgscheduler .task-grid {grid-template-columns:1fr;}
-#view-jwgscheduler .shift-form {grid-template-columns:1fr;}
-#view-jwgscheduler .wt-priority-picker {flex-direction:column;}
-#view-jwgscheduler .modal-footer-status {grid-template-columns:1fr;}
-}
-@media(min-width:768px) {
 #view-jwgscheduler #header {height:68px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;grid-template-columns:unset;}
 #view-jwgscheduler #header nav {display:flex;}
 #view-jwgscheduler .logo-words {display:flex;}
@@ -1377,55 +1346,6 @@
 #view-jwgscheduler .salt-indicator {font-size:8px;padding:1px 3px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 #view-jwgscheduler .status-badge {font-size:8px;padding:1px 4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 }
-}
-@media(max-width:767px) {
-#view-jwgscheduler #mobile-nav {padding-top:6px !important;padding-bottom:max(10px,env(safe-area-inset-bottom)) !important;background:rgba(5,115,52,0.97) !important;backdrop-filter:blur(26px) saturate(180%) !important;-webkit-backdrop-filter:blur(26px) saturate(180%) !important;border-top:1px solid rgba(5,115,52,0.1) !important;box-shadow:0 -6px 24px rgba(0,0,0,0.15) !important;}
-#view-jwgscheduler .mnav-btn {min-height:52px !important;gap:3px !important;font-size:9px !important;padding:4px 2px !important;}
-#view-jwgscheduler .mnav-icon {width:22px !important;height:22px !important;}
-#view-jwgscheduler .mnav-btn.active::after {width:20px !important;height:3px !important;margin-top:2px !important;}
-#view-jwgscheduler #app {padding-bottom:calc(72px + env(safe-area-inset-bottom) + 12px) !important;}
-#view-jwgscheduler #toast {bottom:calc(82px + env(safe-area-inset-bottom)) !important;}
-#view-jwgscheduler #fab, #view-jwgscheduler #scroll-top {bottom:calc(82px + env(safe-area-inset-bottom)) !important;}
-#view-jwgscheduler #header {background:var(--dark) !important;box-shadow:0 1px 0 rgba(5,115,52,0.08),0 4px 20px rgba(0,0,0,0.1) !important;}
-#view-jwgscheduler .si-header {display:flex !important;flex-direction:column;align-items:stretch;padding:14px 12px 12px !important;gap:10px;}
-#view-jwgscheduler .si-title {font-size:18px !important;}
-#view-jwgscheduler .si-actions {display:flex;flex-wrap:wrap;gap:6px;}
-#view-jwgscheduler .si-action-btn {flex:1;min-width:0;min-height:42px;padding:0 12px !important;font-size:12px !important;display:inline-flex !important;align-items:center;justify-content:center;border-radius:var(--radius) !important;}
-#view-jwgscheduler .si-filter-bar {display:flex;flex-direction:column;gap:8px;padding:10px 12px !important;border-bottom:1px solid rgba(0,0,0,0.08);background:var(--bg-deep);}
-#view-jwgscheduler .si-filter-input, #view-jwgscheduler .si-filter-select {width:100%;background:var(--bg-elevated);border:1.5px solid rgba(0,0,0,0.08);border-radius:var(--radius);padding:11px 13px;font-size:16px;color:var(--fg);}
-#view-jwgscheduler .sum-table, #view-jwgscheduler .win-table, #view-jwgscheduler .inv-table {display:block;width:100%;border-collapse:separate;border-spacing:0;padding:12px 10px 6px;}
-#view-jwgscheduler .sum-table thead, #view-jwgscheduler .win-table thead, #view-jwgscheduler .inv-table thead {display:none;}
-#view-jwgscheduler .sum-table tbody, #view-jwgscheduler .win-table tbody, #view-jwgscheduler .inv-table tbody {display:block;width:100%;}
-#view-jwgscheduler .sum-row, #view-jwgscheduler .win-row, #view-jwgscheduler .inv-row {display:block;background:var(--bg-elevated) !important;border:1.5px solid rgba(0,0,0,0.07);border-radius:var(--radius);padding:14px 14px 12px;margin-bottom:10px;box-shadow:var(--shadow-card) !important;position:relative;overflow:hidden;}
-#view-jwgscheduler .sum-row::before, #view-jwgscheduler .win-row::before, #view-jwgscheduler .inv-row::before {content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--dark);border-radius:var(--radius) 0 0 var(--radius);}
-#view-jwgscheduler .sum-td, #view-jwgscheduler .win-td, #view-jwgscheduler .inv-td {display:block;padding:4px 0 4px 10px;border:none !important;font-size:13px;line-height:1.4;}
-#view-jwgscheduler .sum-td:empty, #view-jwgscheduler .win-td:empty, #view-jwgscheduler .inv-td:empty {display:none;}
-#view-jwgscheduler .sum-td[data-label]::before, #view-jwgscheduler .win-td[data-label]::before, #view-jwgscheduler .inv-td[data-label]::before {content:attr(data-label);display:inline-block;min-width:72px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-muted);margin-right:10px;vertical-align:middle;}
-#view-jwgscheduler .sum-td-client, #view-jwgscheduler .win-td-client, #view-jwgscheduler .inv-td-name {display:block !important;font-size:16px !important;font-weight:800 !important;color:var(--fg) !important;padding:0 0 8px 10px !important;margin-bottom:6px;letter-spacing:-0.02em;border-bottom:1px dashed rgba(0,0,0,0.08);white-space:normal !important;}
-#view-jwgscheduler .sum-td-client::before, #view-jwgscheduler .win-td-client::before, #view-jwgscheduler .inv-td-name::before {display:none !important;}
-#view-jwgscheduler .sum-td-notes, #view-jwgscheduler .win-td-notes, #view-jwgscheduler .inv-td-notes {max-width:none !important;padding-top:2px;}
-#view-jwgscheduler .sum-row .loc-services, #view-jwgscheduler .win-row .loc-services {margin-top:4px;padding-left:0;}
-#view-jwgscheduler .sum-row .card-actions, #view-jwgscheduler .win-row .card-actions, #view-jwgscheduler .inv-row .card-actions {display:flex !important;flex-direction:row !important;gap:8px;padding:10px 0 0 10px !important;margin-top:10px;border-top:1px dashed rgba(0,0,0,0.08);}
-#view-jwgscheduler .sum-row .card-actions button, #view-jwgscheduler .win-row .card-actions button, #view-jwgscheduler .inv-row .card-actions button {flex:1;min-height:40px;padding:0 10px;font-size:12px;font-weight:700;border-radius:var(--radius);white-space:nowrap;}
-#view-jwgscheduler .sum-row .card-actions::before, #view-jwgscheduler .win-row .card-actions::before, #view-jwgscheduler .inv-row .card-actions::before {display:none !important;}
-#view-jwgscheduler .sum-row .sum-day-badge {font-size:13px;padding:6px 14px;min-width:54px;}
-#view-jwgscheduler .inv-row {padding-left:78px !important;min-height:80px;}
-#view-jwgscheduler .inv-row .inv-thumb {position:absolute;left:14px;top:14px;width:56px !important;height:56px !important;border-radius:var(--radius);}
-#view-jwgscheduler .inv-row .inv-td:first-child {display:none;}
-#view-jwgscheduler .sum-cal-wrap {margin:18px 8px 8px !important;padding-top:16px;}
-#view-jwgscheduler .sum-cal-header {padding:0 4px;margin-bottom:12px;}
-#view-jwgscheduler .sum-cal-title {font-size:15px !important;}
-#view-jwgscheduler .sum-cal-sub {font-size:11px;}
-#view-jwgscheduler .sum-cal-grid {display:flex !important;flex-direction:column;gap:10px;grid-template-columns:unset !important;}
-#view-jwgscheduler .sum-cal-col {min-height:0;border-radius:var(--radius);}
-#view-jwgscheduler .sum-cal-day-header {padding:11px 14px;font-size:13px;}
-#view-jwgscheduler .sum-cal-day-body {padding:8px 10px 10px;}
-#view-jwgscheduler .collapse-toggle {min-height:44px;font-size:13px;border-radius:var(--radius);}
-#view-jwgscheduler .si-modal-actions {flex-direction:column;gap:8px;}
-#view-jwgscheduler .si-modal-actions button {width:100%;min-height:44px;font-size:14px;font-weight:700;}
-#view-jwgscheduler .si-form-input, #view-jwgscheduler .si-form-select, #view-jwgscheduler .si-form-textarea {font-size:16px !important;padding:11px 13px !important;border-radius:var(--radius) !important;}
-#view-jwgscheduler .si-filter-bar select, #view-jwgscheduler .si-filter-bar input {min-height:44px;}
-}
 @media(min-width:768px) and (max-width:1024px) {
 #view-jwgscheduler .sum-th, #view-jwgscheduler .win-th, #view-jwgscheduler .inv-th, #view-jwgscheduler .sum-td, #view-jwgscheduler .win-td, #view-jwgscheduler .inv-td {padding:9px 10px !important;font-size:12px !important;}
 #view-jwgscheduler .sum-td-client, #view-jwgscheduler .win-td-client, #view-jwgscheduler .inv-td-name {font-size:13px !important;}
@@ -1517,21 +1437,15 @@
 }
 #view-jwgscheduler .cl-input:focus, #view-jwgscheduler .cl-select:focus {border-color:var(--accent);}
 #view-jwgscheduler .cl-form-grid {display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-@media(max-width:600px) {
-#view-jwgscheduler .cl-wrap {padding:16px 14px;}
-#view-jwgscheduler .cl-form-grid {grid-template-columns:1fr;}
-#view-jwgscheduler .cl-summary {flex-direction:column;}
-#view-jwgscheduler .cl-table th, #view-jwgscheduler .cl-table td {padding:8px 10px;font-size:12px;}
-#view-jwgscheduler .cl-title {font-size:17px;}
-}
 #view-jwgscheduler .cl-co-badge {display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.3px;text-transform:uppercase}
 #view-jwgscheduler .cl-co-badge.jj {background:#fef3c7;color:#92400e}
 #view-jwgscheduler .cl-co-badge.jwg {background:#dbeafe;color:#1e40af}
 
-/* ===== embed overrides: scheduler chrome inside the dashboard panel ===== */
-/* Typography unified to the dashboard's Inter; colors kept as the scheduler's
-   own (readable) green system. Precise color/button matching is a later pass. */
+/* ===== embed overrides + alignment ===== */
+/* Font unified to the dashboard's Inter; scheduler keeps its own green system.
+   Mobile mirrors desktop: bespoke mobile-nav hidden, wide content scrolls. */
 #view-jwgscheduler{position:relative;min-height:60vh;font-family:'Inter',system-ui,-apple-system,sans-serif;}
-#view-jwgscheduler #header{position:static;left:auto;right:auto;width:auto;}
-#view-jwgscheduler #app{padding-top:0;}
+#view-jwgscheduler #header{position:static;left:auto;right:auto;width:auto;flex-wrap:wrap;height:auto;}
+#view-jwgscheduler #app{padding-top:0;overflow-x:auto;}
 #view-jwgscheduler #split-overlay{display:none;}
+#view-jwgscheduler #mobile-nav{display:none !important;}
