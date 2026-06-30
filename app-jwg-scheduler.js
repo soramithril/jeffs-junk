@@ -148,7 +148,7 @@ function lsG(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null
 function lsS(k,v){localStorage.setItem(k,JSON.stringify(v))}
 async function loadEmps(){if(USE_SUPABASE)return sbF("GET","jwg_employees?select=*&order=name");return lsG("ss_emps")||[];}
 async function saveEmp(name){if(USE_SUPABASE){const r=await sbF("POST","jwg_employees",{name});return r[0];}const l=lsG("ss_emps")||[],e={id:Date.now().toString(),name};lsS("ss_emps",[...l,e]);return e;}
-async function delEmp(id){if(USE_SUPABASE)return sbF("DELETE",`employees?id=eq.${id}`);lsS("ss_emps",(lsG("ss_emps")||[]).filter(e=>e.id!==id));}
+async function delEmp(id){if(USE_SUPABASE)return sbF("DELETE",`jwg_employees?id=eq.${id}`);lsS("ss_emps",(lsG("ss_emps")||[]).filter(e=>e.id!==id));}
 async function loadScheds(){if(USE_SUPABASE){const since=new Date();since.setFullYear(since.getFullYear()-1);return sbF("GET","jwg_schedules?select=*&week_start=gte."+localDateStr(since));}return lsG("ss_scheds")||[];}
 async function upsertSched(eid,ws,data){const w=localDateStr(ws);if(USE_SUPABASE)return sbF("POST","jwg_schedules?on_conflict=employee_id,week_start",{employee_id:eid,week_start:w,schedule_data:data,updated_at:new Date().toISOString()});const l=lsG("ss_scheds")||[],i=l.findIndex(s=>s.employee_id===eid&&s.week_start===w);const e={id:`${eid}_${w}`,employee_id:eid,week_start:w,schedule_data:data};if(i>=0)l[i]=e;else l.push(e);lsS("ss_scheds",l);}
 
@@ -1596,7 +1596,7 @@ function buildTeam(){
           <div class="avatar" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
           <div style="min-width:0"><div style="font-weight:600;font-size:14px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(emp.name)}</div><div style="font-size:12px;color:var(--fg-muted)">${tot}h total scheduled</div></div>
         </div>
-        <button class="rmbtn" onclick="JWG.removeEmp('${emp.id}','${esc(emp.name)}')">Remove</button>
+        <button class="rmbtn" onclick="JWG.removeEmp('${emp.id}')">Remove</button>
       </div>`;
     });
     h+=`</div>`;
@@ -1608,7 +1608,7 @@ function buildTeam(){
 }
 
 async function addEmp(){const inp=document.getElementById("nEmp"),name=(inp?.value||"").trim();if(!name){toast("Enter a name","error");return;}if(S.employees.find(e=>e.name.toLowerCase()===name.toLowerCase())){toast("Already exists","error");return;}try{const emp=await saveEmp(name);S.employees.push(emp);S.schedule[emp.id]=defSched();if(inp)inp.value="";toast(`${name} added`);render();}catch(e){toast(e.message,"error");}}
-async function removeEmp(id,name){if(!confirm(`Remove ${name}?`))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
+async function removeEmp(id){const emp=S.employees.find(e=>e.id===id);const name=emp?emp.name:"this person";if(!confirm(`Delete ${name}? This permanently removes them and all their logged hours. This can't be undone.`))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
 
 // ── DRAG & DROP — shared helpers ──
 function saveEmpOrder(){const ids=S.employees.map(e=>e.id);localStorage.setItem("ss_emp_order",JSON.stringify(ids));saveSetting("emp_order",ids);}
@@ -2071,7 +2071,7 @@ function renderSummerPage(){
     </div>
     <div class="sum-cal-grid">`;
   DAYS_WEEK.forEach(day=>{
-    const dayLocs=SUM.locations.filter(l=>l.service_day===day);
+    const dayLocs=filtered.filter(l=>l.service_day===day);
     const dayClass=`sum-cal-col sum-day-${day.toLowerCase()}`;
     h+=`<div class="${dayClass}">
       <div class="sum-cal-day-header">${day}<span class="sum-cal-count">${dayLocs.length}</span></div>
@@ -2288,7 +2288,7 @@ async function updateSummerLocation(locId){
   const notes=(document.getElementById("sum-notes")?.value||"").trim();
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   try{
-    await sbF("PATCH",`service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,service_day:day,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,service_day:day,updated_at:new Date().toISOString()});
     // Save service toggles
     const checkboxes=document.querySelectorAll('.sum-svc-toggle');
     const existing=SUM.locationServices.filter(ls=>ls.location_id===locId);
@@ -2302,9 +2302,9 @@ async function updateSummerLocation(locId){
       if(cb.checked&&!wasActive){
         await sbF("POST","jwg_location_services",{location_id:locId,service_type_id:typeId,frequency:freq,notes:svcNotes,is_active:true});
       }else if(cb.checked&&wasActive){
-        await sbF("PATCH",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{frequency:freq,notes:svcNotes,updated_at:new Date().toISOString()});
+        await sbF("PATCH",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{frequency:freq,notes:svcNotes,updated_at:new Date().toISOString()});
       }else if(!cb.checked&&wasActive){
-        await sbF("DELETE",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
+        await sbF("DELETE",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
       }
     }
     toast("Location updated");
@@ -2316,7 +2316,7 @@ async function updateSummerLocation(locId){
 
 async function deleteSummerLocation(locId){
   try{
-    await sbF("DELETE",`service_locations?id=eq.${locId}`);
+    await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
     toast("Location deleted");
     await loadSummerData();
     renderSummerPage();
@@ -2356,7 +2356,7 @@ async function addSummerServiceType(){
 
 async function deleteSummerServiceType(typeId){
   try{
-    await sbF("PATCH",`service_types?id=eq.${typeId}`,{is_active:false});
+    await sbF("PATCH",`jwg_service_types?id=eq.${typeId}`,{is_active:false});
     toast("Service type removed");
     await loadSummerData();
     openManageSummerServiceTypes();
@@ -2369,6 +2369,7 @@ async function deleteSummerServiceType(typeId){
 // Part of JWG Staff Scheduler
 
 let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],filter:"",sortBy:"name",serviceFilter:""};
+const DEFAULT_SALT_THRESHOLD=5;
 
 async function loadWinterData(){
   try{
@@ -2493,7 +2494,7 @@ async function adjustWinterSalt(locId,delta){
   if(!salt)return;
   const newCount=Math.max(0,salt.current_bags+delta);
   try{
-    await sbF("PATCH",`salt_bins?id=eq.${salt.id}`,{current_bags:newCount,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`jwg_salt_bins?id=eq.${salt.id}`,{current_bags:newCount,updated_at:new Date().toISOString()});
     salt.current_bags=newCount;
     renderWinterPage();
   }catch(e){toast("Failed to update salt count","error");console.error(e);}
@@ -2560,7 +2561,7 @@ async function saveWinterLocation(){
   try{
     const result=await sbF("POST","jwg_service_locations",{client_name:name,address:addr,city,notes,has_winter_service:true,has_summer_service:false,is_archived:false});
     const locId=result[0].id;
-    await sbF("POST","jwg_salt_bins",{location_id:locId,current_bags:0,min_threshold:10});
+    await sbF("POST","jwg_salt_bins",{location_id:locId,current_bags:0,min_threshold:DEFAULT_SALT_THRESHOLD});
     // Save service toggles
     const checkboxes=document.querySelectorAll('.win-svc-toggle-add');
     for(const cb of checkboxes){
@@ -2623,7 +2624,7 @@ function editWinterLocation(locId){
       <div style="background:var(--bg-deep);border-radius:8px;padding:12px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <label style="font-size:13px;font-weight:600;">Min Threshold:</label>
-          <input type="number" class="si-form-input" id="win-salt-min" value="${salt?.min_threshold||10}" min="0" style="width:70px;padding:5px 8px;font-size:12px;">
+          <input type="number" class="si-form-input" id="win-salt-min" value="${salt?.min_threshold||DEFAULT_SALT_THRESHOLD}" min="0" style="width:70px;padding:5px 8px;font-size:12px;">
         </div>
         <div style="font-size:11px;color:var(--fg-muted);">Current bags: ${salt?.current_bags||0} (use +/- buttons on the card to adjust)</div>
       </div>
@@ -2651,7 +2652,7 @@ async function updateWinterLocation(locId){
   const notes=(document.getElementById("win-notes")?.value||"").trim();
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   try{
-    await sbF("PATCH",`service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,updated_at:new Date().toISOString()});
+    await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,updated_at:new Date().toISOString()});
     // Save service toggles
     const checkboxes=document.querySelectorAll('.win-svc-toggle');
     const existing=WIN.locationServices.filter(ls=>ls.location_id===locId);
@@ -2663,17 +2664,17 @@ async function updateWinterLocation(locId){
       if(cb.checked&&!wasActive){
         await sbF("POST","jwg_location_services",{location_id:locId,service_type_id:typeId,notes:svcNotes,is_active:true});
       }else if(cb.checked&&wasActive){
-        await sbF("PATCH",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{notes:svcNotes,updated_at:new Date().toISOString()});
+        await sbF("PATCH",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`,{notes:svcNotes,updated_at:new Date().toISOString()});
       }else if(!cb.checked&&wasActive){
-        await sbF("DELETE",`location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
+        await sbF("DELETE",`jwg_location_services?location_id=eq.${locId}&service_type_id=eq.${typeId}`);
       }
     }
     // Update salt bin threshold
     const minEl=document.getElementById("win-salt-min");
     if(minEl){
-      const newMin=parseInt(minEl.value)||5;
+      const newMin=parseInt(minEl.value)||DEFAULT_SALT_THRESHOLD;
       const salt=WIN.saltBins.find(s=>s.location_id===locId);
-      if(salt)await sbF("PATCH",`salt_bins?id=eq.${salt.id}`,{min_threshold:newMin,updated_at:new Date().toISOString()});
+      if(salt)await sbF("PATCH",`jwg_salt_bins?id=eq.${salt.id}`,{min_threshold:newMin,updated_at:new Date().toISOString()});
     }
     toast("Location updated");
     closeModal();
@@ -2684,7 +2685,7 @@ async function updateWinterLocation(locId){
 
 async function deleteWinterLocation(locId){
   try{
-    await sbF("DELETE",`service_locations?id=eq.${locId}`);
+    await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
     toast("Location deleted");
     await loadWinterData();
     renderWinterPage();
@@ -2724,7 +2725,7 @@ async function addWinterServiceType(){
 
 async function deleteWinterServiceType(typeId){
   try{
-    await sbF("PATCH",`service_types?id=eq.${typeId}`,{is_active:false});
+    await sbF("PATCH",`jwg_service_types?id=eq.${typeId}`,{is_active:false});
     toast("Service type removed");
     await loadWinterData();
     openManageWinterServiceTypes();
@@ -2758,6 +2759,13 @@ async function initInventoryPage(){
   renderInventoryPage();
 }
 
+const INV_STATUS_LABEL={in_stock:"In stock",low:"Low",out_of_stock:"Out",ordered:"Ordered"};
+function invStatusFor(item){
+  if(item.status==="ordered"&&item.current_stock<=item.min_threshold)return "ordered";
+  if(item.current_stock===0)return "out_of_stock";
+  if(item.current_stock<=item.min_threshold)return "low";
+  return "in_stock";
+}
 function renderInventoryPage(){
   const root=document.querySelector(".card");
   if(!root)return;
@@ -2802,7 +2810,8 @@ function renderInventoryPage(){
     h+=`<div class="inv-grid">`;
     filtered.forEach(item=>{
       const cat=INV.categories.find(c=>c.id===item.category_id);
-      const statusClass=`status-badge ${item.status}`;
+      const st=invStatusFor(item);
+      const statusClass=`status-badge ${st}`;
       const priceStr=item.price?`$${Number(item.price).toFixed(2)}`:"";
       h+=`<div class="inv-card-v2">
         <div class="inv-card-img">${item.image_url?`<img src="${esc(item.image_url)}" alt="${esc(item.item_name)}">`:`<span class="inv-card-img-ph">📦</span>`}</div>
@@ -2818,7 +2827,7 @@ function renderInventoryPage(){
               <span class="inv-card-stock-unit">${esc(item.unit)}</span>
               <span style="color:var(--fg-muted);font-size:11px;">min ${item.min_threshold}</span>
             </div>
-            <span class="${statusClass}">${item.status.replace(/_/g," ").toUpperCase()}</span>
+            <span class="${statusClass}">${INV_STATUS_LABEL[st]||st}</span>
           </div>
           ${priceStr||item.purchase_link?`<div class="inv-card-price-row">
             ${priceStr?`<span class="inv-card-price">${priceStr}</span>`:""}
@@ -2852,12 +2861,9 @@ async function adjustInventory(itemId,delta){
   const item=INV.items.find(i=>i.id===itemId);
   if(!item)return;
   const newCount=Math.max(0,item.current_stock+delta);
-  let newStatus=item.status;
-  if(newCount===0)newStatus="out_of_stock";
-  else if(newCount<=item.min_threshold)newStatus="low";
-  else if(newStatus==="low"||newStatus==="out_of_stock")newStatus="in_stock";
+  const newStatus=newCount===0?"out_of_stock":newCount<=item.min_threshold?"low":"in_stock";
   try{
-    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{current_stock:newCount,status:newStatus});
+    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:newCount,status:newStatus});
     item.current_stock=newCount;
     item.status=newStatus;
     renderInventoryPage();
@@ -2866,7 +2872,7 @@ async function adjustInventory(itemId,delta){
 
 async function markOrdered(itemId){
   try{
-    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{status:"ordered"});
+    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{status:"ordered"});
     const item=INV.items.find(i=>i.id===itemId);
     if(item)item.status="ordered";
     renderInventoryPage();
@@ -2874,12 +2880,18 @@ async function markOrdered(itemId){
 }
 
 async function restockItem(itemId){
+  const item=INV.items.find(i=>i.id===itemId);
+  if(!item)return;
+  const ans=prompt(`Set the on-hand count for "${item.item_name}"${item.unit?" ("+item.unit+")":""}:`,item.current_stock);
+  if(ans===null)return;
+  const n=Math.max(0,parseInt(ans,10)||0);
+  const st=n===0?"out_of_stock":n<=item.min_threshold?"low":"in_stock";
   try{
-    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{status:"in_stock"});
-    const item=INV.items.find(i=>i.id===itemId);
-    if(item)item.status="in_stock";
+    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:n,status:st});
+    item.current_stock=n;item.status=st;
     renderInventoryPage();
-  }catch(e){toast("Failed to mark as restocked","error");console.error(e);}
+    toast("Stock updated");
+  }catch(e){toast("Failed to update stock","error");console.error(e);}
 }
 
 function openAddInventoryItem(){
@@ -3028,7 +3040,7 @@ async function updateInventoryItem(itemId){
   if(!name||!catId){toast("Please fill in required fields","error");return;}
   try{
     const status=stock===0?"out_of_stock":stock<=min?"low":"in_stock";
-    await sbF("PATCH",`inventory_items?id=eq.${itemId}`,{item_name:name,product_number:prodNum,category_id:catId,current_stock:stock,min_threshold:min,unit,image_url:img||null,notes,status,price,purchase_link:link});
+    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{item_name:name,product_number:prodNum,category_id:catId,current_stock:stock,min_threshold:min,unit,image_url:img||null,notes,status,price,purchase_link:link});
     toast("Item updated");
     closeModal();
     await loadInventoryData();
@@ -3038,7 +3050,7 @@ async function updateInventoryItem(itemId){
 
 async function deleteInventoryItem(itemId){
   try{
-    await sbF("DELETE",`inventory_items?id=eq.${itemId}`);
+    await sbF("DELETE",`jwg_inventory_items?id=eq.${itemId}`);
     toast("Item deleted");
     await loadInventoryData();
     renderInventoryPage();
@@ -3078,7 +3090,7 @@ async function addCategory(){
 
 async function deleteCategory(catId){
   try{
-    await sbF("PATCH",`inventory_categories?id=eq.${catId}`,{is_active:false});
+    await sbF("PATCH",`jwg_inventory_categories?id=eq.${catId}`,{is_active:false});
     toast("Category removed");
     await loadInventoryData();
     openManageCategories();
