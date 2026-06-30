@@ -443,19 +443,7 @@ function renderShiftModal(empId,day,emp,dayData){
   const shifts=dayData.shifts||[];
   const status=dayData.status||"off";
 
-  // Status banners for sick / dayoff
-  let statusBanner="";
-  if(status==="sick"){
-    statusBanner=`<div style="background:rgba(249,115,22,0.08);border:1.5px solid rgba(249,115,22,0.3);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-weight:700;font-size:13px;color:#c2410c">🤒 Called In Sick</span>
-      <button onclick="JWG.clearDayStatus('${empId}','${day}')" style="background:rgba(239,68,68,0.1);color:#dc2626;border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;">Remove</button>
-    </div>`;
-  } else if(status==="dayoff"){
-    statusBanner=`<div style="background:rgba(0,0,0,0.05);border:1.5px solid rgba(0,0,0,0.14);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-weight:700;font-size:13px;color:rgba(0,0,0,0.45)">📅 Day Off</span>
-      <button onclick="JWG.clearDayStatus('${empId}','${day}')" style="background:rgba(239,68,68,0.1);color:#dc2626;border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:5px 11px;font-size:11px;font-weight:600;cursor:pointer;">Remove</button>
-    </div>`;
-  }
+  const working=status!=="dayoff"&&status!=="sick";
 
   // Build existing shifts list — with edit support
   let shiftListHtml="";
@@ -498,40 +486,45 @@ function renderShiftModal(empId,day,emp,dayData){
     });
   }
 
+  const segBase="flex:1;border:none;border-radius:7px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;";
   let h=`<div class="modal-title">${esc(emp?.name||"")} — ${day}</div>
-  <div class="modal-sub">Manage tasks for this day, or mark as Day Off / Sick.</div>
-  ${statusBanner}
-  ${shiftListHtml}
+  <div class="modal-sub">Set whether they're working, off, or sick.</div>
+  <div style="display:flex;gap:6px;background:var(--bg-deep);border-radius:10px;padding:4px;margin-bottom:14px">
+    <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--accent);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
+    <button onclick="JWG.markDayOff('${empId}','${day}')" style="${segBase}${status==="dayoff"?"background:rgba(0,0,0,0.55);color:#fff":"background:transparent;color:var(--fg-muted)"}">Day off</button>
+    <button onclick="JWG.markDaySick('${empId}','${day}')" style="${segBase}${status==="sick"?"background:#ea580c;color:#fff":"background:transparent;color:var(--fg-muted)"}">Off sick</button>
+  </div>`;
+  if(!working){
+    h+=`<div style="text-align:center;color:var(--fg-muted);font-size:13px;padding:20px 0 6px">${status==="sick"?"Marked off sick for this day.":"Marked as a day off."}</div>`;
+  } else {
+    h+=`${shiftListHtml}
   <div class="modal-divider"></div>
-  <div class="sect-label">Add Task</div>
+  <div class="sect-label">Add a shift</div>
   <div class="shift-form">
     <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
     <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
   </div>
   <div class="sect-label">Role / Task</div>
   <div class="task-grid">`;
-  tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
-    h+=`<button class="task-opt" id="topt_${t.id}"
-      style="background:${t.bg};color:${t.text};border-color:transparent"
-      onclick="JWG.pickTask('${t.id}')">
-      <span style="width:7px;height:7px;border-radius:50%;background:${t.dot};flex-shrink:0;display:inline-block"></span>
-      ${esc(t.label)}
-    </button>`;
-  });
-  h+=`</div>
+    tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
+      h+=`<button class="task-opt" id="topt_${t.id}"
+        style="background:${t.bg};color:${t.text};border-color:transparent"
+        onclick="JWG.pickTask('${t.id}')">
+        <span style="width:7px;height:7px;border-radius:50%;background:${t.dot};flex-shrink:0;display:inline-block"></span>
+        ${esc(t.label)}
+      </button>`;
+    });
+    h+=`</div>
   <div class="modal-divider"></div>
   <div class="day-note-wrap">
     <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
     <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
-  </div>
-  <div class="modal-divider"></div>
-  <div class="modal-footer-status">
-    <button class="mfs-btn mfs-dayoff" onclick="JWG.markDayOff('${empId}','${day}')">📅 Day Off</button>
-    <button class="mfs-btn mfs-sick" onclick="JWG.markDaySick('${empId}','${day}')">🤒 Called In Sick</button>
-  </div>
+  </div>`;
+  }
+  h+=`<div class="modal-divider"></div>
   <div class="modal-footer-main">
-    <button class="modal-cancel" onclick="JWG.closeSaveShift('${empId}','${day}')">Cancel</button>
-    <button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">+ Add Task &amp; Save</button>
+    <button class="modal-cancel" onclick="JWG.closeSaveShift('${empId}','${day}')">Close</button>
+    ${working?`<button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">Add shift</button>`:""}
   </div>`;
   openModal(h,"460px");
 }
@@ -634,6 +627,10 @@ function clearDayStatus(empId,day){
   refreshGrid();updBadge(empId);autoSave(empId);
 }
 
+function setDayWorking(empId,day){
+  const dd=S.schedule[empId]&&S.schedule[empId][day];
+  if(dd&&(dd.status==="dayoff"||dd.status==="sick"))clearDayStatus(empId,day);
+}
 function closeSaveShift(empId,day){
   closeModal();refreshGrid();updBadge(empId);
 }
@@ -999,8 +996,9 @@ function buildSched(){
 
   h+=`<div class="ctrl-sep"></div>
     <div class="ctrl-actions">
+      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.copyLastWeek()">📋 Copy last week</button>
       <button class="ctrl-btn" onclick="JWG.openTaskMgr()">⚙ Tasks</button>
-      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openMultiAssign()">👥 Assign</button>
+      <button class="ctrl-btn" onclick="JWG.openMultiAssign()">👥 Assign</button>
       <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()">🗑 Clear</button>
       <button class="ctrl-btn" onclick="JWG.openWHSettings()" title="Change visible work hours">⏰ ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
     </div>
@@ -1198,6 +1196,18 @@ function toggleDay(d){
 }
 function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
 function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
+
+async function copyLastWeek(){
+  const prevKey=wkey(S.weekOffset-1);
+  const prevRows=S.allSchedules.filter(s=>s.week_start===prevKey);
+  if(!prevRows.length){toast("Last week has no schedule to copy","info");return;}
+  const hasData=S.employees.some(e=>{const d=S.schedule[e.id];return d&&DAYS.some(day=>d[day]&&((d[day].shifts&&d[day].shifts.length)||d[day].status==="dayoff"||d[day].status==="sick"));});
+  if(hasData&&!(await jwgConfirm({title:"Copy last week",message:"This week already has shifts. Replace them with a copy of last week?",confirmLabel:"Replace"})))return;
+  S.employees.forEach(e=>{const f=prevRows.find(s=>s.employee_id===e.id);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});
+  autoSave(null);
+  refreshGrid();
+  toast("Copied last week's schedule");
+}
 
 // ── AUTO-SAVE (debounced) ──
 let _autoSaveTimer=null;
@@ -3688,5 +3698,5 @@ function renderJwgScheduler(){
 
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
-window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
