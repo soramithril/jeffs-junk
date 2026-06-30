@@ -189,6 +189,32 @@ function openModal(html,width){
   if(width)m.style.width=width;
   m.innerHTML=html;ov.appendChild(m);(document.getElementById("view-jwgscheduler")||document.body).appendChild(ov);
 }
+// Shared confirm dialog (branded, named target + consequence). Returns Promise<boolean>.
+function jwgConfirm(opts){
+  opts=opts||{};
+  const title=opts.title||"Are you sure?";
+  const message=opts.message||"";
+  const target=opts.target||"";
+  const consequence=opts.consequence||"";
+  const confirmLabel=opts.confirmLabel||"Delete";
+  return new Promise(resolve=>{
+    const ov=document.createElement("div");ov.className="moverlay open";ov.id="jwg-confirm";ov.style.zIndex="3000";
+    const m=document.createElement("div");m.className="modal";m.style.maxWidth="400px";
+    m.innerHTML=`<div style="font-size:17px;font-weight:700;color:var(--fg);margin-bottom:10px">${esc(title)}</div>`
+      +(target?`<div style="font-size:15px;font-weight:600;color:var(--fg);background:var(--bg-deep);border-radius:8px;padding:9px 12px;margin-bottom:10px">${esc(target)}</div>`:"")
+      +(message?`<div style="font-size:13px;color:var(--fg-muted);margin-bottom:8px">${esc(message)}</div>`:"")
+      +(consequence?`<div style="font-size:13px;color:#c2410c;font-weight:600;margin-bottom:6px">${esc(consequence)}</div>`:"")
+      +`<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px"><button class="modal-cancel" id="jc-cancel">Cancel</button><button class="modal-done" id="jc-ok" style="background:#dc2626">${esc(confirmLabel)}</button></div>`;
+    ov.appendChild(m);(document.getElementById("view-jwgscheduler")||document.body).appendChild(ov);
+    function done(val){document.removeEventListener("keydown",onKey,true);ov.remove();resolve(val);}
+    function onKey(e){if(e.key==="Escape"){e.stopImmediatePropagation();done(false);}}
+    document.addEventListener("keydown",onKey,true);
+    ov.onmousedown=e=>{if(e.target===ov)done(false);};
+    m.querySelector("#jc-cancel").onclick=()=>done(false);
+    m.querySelector("#jc-ok").onclick=()=>done(true);
+    setTimeout(()=>{const b=m.querySelector("#jc-cancel");if(b)b.focus();},30);
+  });
+}
 
 /* ===== ui.js ===== */
 // ── UI.JS ──────────────────────────────────────────
@@ -871,8 +897,11 @@ function mcToggleAllDays(){const allOn=S.activeDays.every(d=>_mc.days.includes(d
 function mcToggleEmp(id){const i=_mc.empIds.indexOf(id);if(i>=0)_mc.empIds.splice(i,1);else _mc.empIds.push(id);renderMultiClear();}
 function mcToggleEveryone(){const allOn=S.employees.every(e=>_mc.empIds.includes(e.id));_mc.empIds=allOn?[]:S.employees.map(e=>e.id);renderMultiClear();}
 
-function applyMultiClear(){
+async function applyMultiClear(){
   if(!_mc.days.length||!_mc.empIds.length)return;
+  const taskLabel=_mc.task==="__all__"?"all tasks":(TM()[_mc.task]?.label||_mc.task);
+  const empN=_mc.empIds.length,dayN=_mc.days.length;
+  if(!(await jwgConfirm({title:"Clear shifts",message:`Clear ${taskLabel} for ${empN} ${empN!==1?"people":"person"} across ${dayN} ${dayN!==1?"days":"day"}.`,consequence:"This can't be undone.",confirmLabel:"Clear"})))return;
   let cleared=0;
   _mc.empIds.forEach(empId=>{
     if(!S.schedule[empId])return;
@@ -896,7 +925,6 @@ function applyMultiClear(){
   autoSave(null);
   closeModal();
   refreshGrid();
-  const taskLabel=_mc.task==="__all__"?"all tasks":(TM()[_mc.task]?.label||_mc.task);
   toast(`Cleared ${taskLabel} for ${_mc.empIds.length} employee${_mc.empIds.length!==1?"s":""} across ${_mc.days.length} day${_mc.days.length!==1?"s":""}`);
   _mc={task:"__all__",days:[],empIds:[]};
 }
@@ -1608,7 +1636,7 @@ function buildTeam(){
 }
 
 async function addEmp(){const inp=document.getElementById("nEmp"),name=(inp?.value||"").trim();if(!name){toast("Enter a name","error");return;}if(S.employees.find(e=>e.name.toLowerCase()===name.toLowerCase())){toast("Already exists","error");return;}try{const emp=await saveEmp(name);S.employees.push(emp);S.schedule[emp.id]=defSched();if(inp)inp.value="";toast(`${name} added`);render();}catch(e){toast(e.message,"error");}}
-async function removeEmp(id){const emp=S.employees.find(e=>e.id===id);const name=emp?emp.name:"this person";if(!confirm(`Delete ${name}? This permanently removes them and all their logged hours. This can't be undone.`))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
+async function removeEmp(id){const emp=S.employees.find(e=>e.id===id);const name=emp?emp.name:"this person";if(!(await jwgConfirm({title:"Remove staff member",target:name,message:"This permanently removes them and all their logged hours.",consequence:"This can't be undone.",confirmLabel:"Remove"})))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
 
 // ── DRAG & DROP — shared helpers ──
 function saveEmpOrder(){const ids=S.employees.map(e=>e.id);localStorage.setItem("ss_emp_order",JSON.stringify(ids));saveSetting("emp_order",ids);}
@@ -1933,7 +1961,7 @@ async function wtReopen(id){
 }
 
 async function wtDelete(id){
-  if(!confirm("Delete this task? This can't be undone."))return;
+  if(!(await jwgConfirm({title:"Delete task",consequence:"This can't be undone.",confirmLabel:"Delete"})))return;
   try{
     await deleteWorkshopTask(id);
     WT.tasks=WT.tasks.filter(t=>t.id!==id);
@@ -2055,7 +2083,7 @@ function renderSummerPage(){
         <td class="sum-td sum-td-notes" data-label="Notes">${esc(loc.notes||"")}</td>
         <td class="sum-td card-actions">
           <button class="loc-action-btn" onclick="JWG.editSummerLocation('${loc.id}')">Edit</button>
-          <button class="loc-action-btn delete" onclick="if(confirm('Delete this location?'))JWG.deleteSummerLocation('${loc.id}')">Delete</button>
+          <button class="loc-action-btn delete" onclick="JWG.deleteSummerLocation('${loc.id}')">Delete</button>
         </td>
       </tr>`;
     });
@@ -2315,6 +2343,8 @@ async function updateSummerLocation(locId){
 }
 
 async function deleteSummerLocation(locId){
+  const loc=SUM.locations.find(l=>l.id===locId);
+  if(!(await jwgConfirm({title:"Delete location",target:loc?loc.client_name:"",message:"This also removes its services.",consequence:"This can't be undone.",confirmLabel:"Delete"})))return;
   try{
     await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
     toast("Location deleted");
@@ -2355,6 +2385,8 @@ async function addSummerServiceType(){
 }
 
 async function deleteSummerServiceType(typeId){
+  const t=SUM.serviceTypes.find(x=>x.id===typeId);
+  if(!(await jwgConfirm({title:"Remove service type",target:t?t.name:"",confirmLabel:"Remove"})))return;
   try{
     await sbF("PATCH",`jwg_service_types?id=eq.${typeId}`,{is_active:false});
     toast("Service type removed");
@@ -2476,7 +2508,7 @@ function renderWinterPage(){
         <td class="win-td win-td-notes" data-label="Notes">${esc(loc.notes||"")}</td>
         <td class="win-td card-actions">
           <button class="loc-action-btn" onclick="JWG.editWinterLocation('${loc.id}')">Edit</button>
-          <button class="loc-action-btn delete" onclick="if(confirm('Delete this location?'))JWG.deleteWinterLocation('${loc.id}')">Delete</button>
+          <button class="loc-action-btn delete" onclick="JWG.deleteWinterLocation('${loc.id}')">Delete</button>
         </td>
       </tr>`;
     });
@@ -2684,6 +2716,8 @@ async function updateWinterLocation(locId){
 }
 
 async function deleteWinterLocation(locId){
+  const loc=WIN.locations.find(l=>l.id===locId);
+  if(!(await jwgConfirm({title:"Delete location",target:loc?loc.client_name:"",message:"This also removes its salt bin and services.",consequence:"This can't be undone.",confirmLabel:"Delete"})))return;
   try{
     await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
     toast("Location deleted");
@@ -2724,6 +2758,8 @@ async function addWinterServiceType(){
 }
 
 async function deleteWinterServiceType(typeId){
+  const t=WIN.serviceTypes.find(x=>x.id===typeId);
+  if(!(await jwgConfirm({title:"Remove service type",target:t?t.name:"",confirmLabel:"Remove"})))return;
   try{
     await sbF("PATCH",`jwg_service_types?id=eq.${typeId}`,{is_active:false});
     toast("Service type removed");
@@ -2842,7 +2878,7 @@ function renderInventoryPage(){
             </div>
             <div class="inv-card-edit">
               <button class="loc-action-btn" onclick="JWG.editInventoryItem('${item.id}')">Edit</button>
-              <button class="loc-action-btn delete" onclick="if(confirm('Delete this item?'))JWG.deleteInventoryItem('${item.id}')">Delete</button>
+              <button class="loc-action-btn delete" onclick="JWG.deleteInventoryItem('${item.id}')">Delete</button>
             </div>
           </div>
         </div>
@@ -3049,6 +3085,8 @@ async function updateInventoryItem(itemId){
 }
 
 async function deleteInventoryItem(itemId){
+  const it=INV.items.find(i=>i.id===itemId);
+  if(!(await jwgConfirm({title:"Delete item",target:it?it.item_name:"",consequence:"This permanently removes the item.",confirmLabel:"Delete"})))return;
   try{
     await sbF("DELETE",`jwg_inventory_items?id=eq.${itemId}`);
     toast("Item deleted");
@@ -3089,6 +3127,8 @@ async function addCategory(){
 }
 
 async function deleteCategory(catId){
+  const c=INV.categories.find(x=>x.id===catId);
+  if(!(await jwgConfirm({title:"Remove category",target:c?c.name:"",confirmLabel:"Remove"})))return;
   try{
     await sbF("PATCH",`jwg_inventory_categories?id=eq.${catId}`,{is_active:false});
     toast("Category removed");
@@ -3404,7 +3444,9 @@ async function clSaveForm(id){
 }
 
 async function clDelete(id){
-  if(!confirm("Remove this clothing record?"))return;
+  const rec=CL.items.find(x=>x.id===id);
+  const tgt=[rec&&rec.employees?.name,rec&&rec.item_type].filter(Boolean).join(" — ");
+  if(!(await jwgConfirm({title:"Remove clothing record",target:tgt,confirmLabel:"Remove"})))return;
   try{
     await deleteClothingItem(id);
     CL.items=CL.items.filter(x=>x.id!==id);
