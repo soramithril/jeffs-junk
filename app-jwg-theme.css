@@ -1,0 +1,132 @@
+/* app-jwg-theme.css — visual overhaul for the JWG Scheduler, matching the
+   Jeff's Junk dashboard. Hand-authored; loads AFTER app-jwg-scheduler.css.
+   Everything scoped under #view-jwgscheduler. */
+
+#view-jwgscheduler{
+  --jjg:#22c55e; --jjg-d:#16a34a; --jjg-l:#f0fdf4;
+  --jjbg:#f8f9fa; --jjcard:#ffffff; --jjc2:#f1f3f5;
+  --jjbd:#e9ecef; --jjbd2:#d7dbe0;
+  --jjtx:#16223a; --jjtx2:#5b6472; --jjmut:#9aa3af;
+  --jjr:10px; --jjr-lg:14px;
+  --jjsh:0 1px 2px rgba(16,24,40,.05); --jjsh-md:0 4px 14px rgba(16,24,40,.08);
+  background:var(--jjbg);
+  padding:24px 28px 60px;
+}
+
+/* ===== header / chrome ===== */
+#view-jwgscheduler #header{
+  background:var(--jjcard)!important;
+  border:1px solid var(--jjbd);border-radius:var(--jjr-lg);
+  box-shadow:var(--jjsh);padding:14px 18px!important;margin-bottom:16px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+}
+#view-jwgscheduler #header .logo-text,
+#view-jwgscheduler #header .logo-words *{color:var(--jjtx)!important}
+#view-jwgscheduler #header .logo-sub{color:var(--jjmut)!important}
+#view-jwgscheduler #header nav{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+#view-jwgscheduler .nav-group{display:flex;align-items:center;gap:6px;background:none!important;border:none!important;padding:0!important}
+#view-jwgscheduler .nav-group-label{display:none!important}
+#view-jwgscheduler .tab-btn{
+  background:transparent!important;border:none!important;color:var(--jjtx2)!important;
+  font-weight:600!important;font-size:13px!important;padding:8px 15px!important;
+  border-radius:999px!important;cursor:pointer;letter-spacing:0!important;text-transform:none!important;
+  box-shadow:none!important;transition:.15s;
+}
+#view-jwgscheduler .tab-btn:hover{background:var(--jjc2)!important;color:var(--jjtx)!important}
+#view-jwgscheduler .tab-btn.active{background:var(--jjg)!important;color:#fff!important;box-shadow:0 2px 8px rgba(34,197,94,.32)!important}
+#view-jwgscheduler .emp-badge{
+  background:var(--jjc2)!important;border:1px solid var(--jjbd)!important;color:var(--jjtx2)!important;
+  border-radius:999px!important;padding:6px 13px!important;font-weight:600!important;font-size:12.5px!important;
+}
+
+/* ===== main card ===== */
+#view-jwgscheduler .card{
+  background:var(--jjcard)!important;border:1px solid var(--jjbd)!important;
+  border-radius:var(--jjr-lg)!important;box-shadow:var(--jjsh-md)!important;overflow:hidden;
+}
+
+/* ===== week navigator ===== */
+#view-jwgscheduler .week-nav{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px!important;border-bottom:1px solid var(--jjbd)!important;background:var(--jjcard)!important;
+}
+#view-jwgscheduler .week-label{text-align:center}
+#view-jwgscheduler .week-label strong{font-size:15px!important;color:var(--jjtx)!important;font-weight:800!important}
+#view-jwgscheduler .week-label span{display:block;font-size:11.5px!important;color:var(--jjmut)!important}
+#view-jwgscheduler .nav-btn{
+  background:var(--jjcard)!important;border:1px solid var(--jjbd2)!important;color:var(--jjtx2)!important;
+  border-radius:var(--jjr)!important;padding:8px 13px!important;font-weight:600!important;font-size:13px!important;cursor:pointer;
+}
+#view-jwgscheduler .nav-btn:hover{border-color:var(--jjg)!important;color:var(--jjg-d)!important}
+
+/* ===== control bar (day toggles + actions) ===== */
+#view-jwgscheduler .ctrl-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:12px 18px!important;border-bottom:1px solid var(--jjbd)!important;background:var(--jjcard)!important;
+}
+#view-jwgscheduler .ctrl-label{font-size:11px!important;font-weight:700!important;letter-spacing:.4px;text-transform:uppercase;color:var(--jjmut)!important}
+#view-jwgscheduler .day-toggle{
+  background:var(--jjc2)!important;border:1px solid var(--jjbd)!important;color:var(--jjtx2)!important;
+  border-radius:999px!important;padding:6px 12px!important;font-weight:600!important;font-size:12px!important;cursor:pointer;
+}
+#view-jwgscheduler .day-toggle.on{background:var(--jjg)!important;border-color:var(--jjg)!important;color:#fff!important}
+#view-jwgscheduler .ctrl-sep{width:1px;height:22px;background:var(--jjbd);margin:0 4px}
+#view-jwgscheduler .ctrl-btn{
+  background:var(--jjcard)!important;border:1px solid var(--jjbd2)!important;color:var(--jjtx2)!important;
+  border-radius:var(--jjr)!important;padding:7px 12px!important;font-weight:600!important;font-size:12.5px!important;cursor:pointer;
+}
+#view-jwgscheduler .ctrl-btn:hover{border-color:var(--jjg)!important;color:var(--jjg-d)!important}
+#view-jwgscheduler .ctrl-btn-accent{background:var(--jjg)!important;border-color:var(--jjg)!important;color:#fff!important}
+#view-jwgscheduler .ctrl-btn-accent:hover{background:var(--jjg-d)!important;color:#fff!important}
+#view-jwgscheduler .ctrl-btn-danger{color:#dc2626!important}
+#view-jwgscheduler .ctrl-btn-danger:hover{border-color:#dc2626!important;color:#dc2626!important}
+
+/* ===== schedule grid ===== */
+#view-jwgscheduler .time-ruler{display:none!important}            /* drop the hour ticks */
+#view-jwgscheduler .sched-grid{border-collapse:separate!important;border-spacing:0!important;width:100%}
+#view-jwgscheduler .sched-grid thead th{
+  background:var(--jjcard)!important;border-bottom:1px solid var(--jjbd)!important;
+  padding:12px 12px!important;color:var(--jjtx2)!important;
+}
+#view-jwgscheduler .name-col{width:210px;border-right:1px solid var(--jjbd)!important}
+#view-jwgscheduler .th-day,#view-jwgscheduler .th-day-wrap{text-transform:none!important}
+#view-jwgscheduler .th-day{font-size:11px!important;font-weight:700!important;letter-spacing:.3px;color:var(--jjtx2)!important;text-transform:uppercase!important}
+#view-jwgscheduler .th-date{font-size:13px!important;font-weight:800!important;color:var(--jjtx)!important}
+#view-jwgscheduler .day-col.is-today,
+#view-jwgscheduler .day-cell.is-today{background:var(--jjg-l)!important}
+#view-jwgscheduler .day-col.is-today .th-date,
+#view-jwgscheduler .day-col.is-today .th-day{color:var(--jjg-d)!important}
+#view-jwgscheduler .today-dot{background:var(--jjg)!important}
+
+/* employee column */
+#view-jwgscheduler .emp-row{border-bottom:1px solid var(--jjbd)!important}
+#view-jwgscheduler .day-cell,#view-jwgscheduler .name-col{border-bottom:1px solid var(--jjbd)!important}
+#view-jwgscheduler .emp-name{font-weight:700!important;font-size:14px!important;color:var(--jjtx)!important}
+#view-jwgscheduler .emp-hrs{font-size:11.5px!important;color:var(--jjmut)!important;font-weight:600!important;background:none!important;padding:0!important}
+#view-jwgscheduler .avatar{border-radius:50%!important;font-weight:700!important;box-shadow:none!important}
+#view-jwgscheduler .drag-handle{color:var(--jjmut)!important}
+
+/* day cells */
+#view-jwgscheduler .day-cell{
+  padding:8px!important;min-height:74px;vertical-align:top!important;
+  border-right:1px solid var(--jjbd)!important;transition:background .12s;
+}
+#view-jwgscheduler .day-cell:hover{background:var(--jjc2)!important}
+#view-jwgscheduler .day-cell.is-today:hover{background:#e7f9ee!important}
+
+/* shift chips — keep the task colors (inline), restyle the shape */
+#view-jwgscheduler .shift-stack{display:flex;flex-direction:column;gap:5px}
+#view-jwgscheduler .shift-bar{
+  display:block!important;border-radius:8px!important;padding:6px 9px!important;
+  border:none!important;box-shadow:none!important;cursor:pointer;line-height:1.25;
+}
+#view-jwgscheduler .shift-label{display:block;font-weight:700!important;font-size:12px!important}
+#view-jwgscheduler .shift-times{display:block;font-size:10.5px!important;font-weight:600!important;opacity:.82;margin-top:1px}
+
+/* status labels */
+#view-jwgscheduler .status-label{border-radius:8px!important;padding:6px 9px!important;font-weight:700!important;font-size:12px!important;border:none!important}
+#view-jwgscheduler .sick-label{background:#fff7ed!important;color:#c2410c!important}
+#view-jwgscheduler .day-off-label{background:var(--jjc2)!important;color:var(--jjtx2)!important}
+
+/* save bar */
+#view-jwgscheduler .save-bar{padding:10px 18px!important;border-top:1px solid var(--jjbd)!important;background:var(--jjcard)!important}
