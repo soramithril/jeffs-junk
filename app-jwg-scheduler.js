@@ -922,7 +922,10 @@ function refreshGrid(){
 
 function render(){
   const app=document.getElementById("app");
-  const labelMap={schedule:"Schedule",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
+  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
+  // tell the host which tab-group is active so the header shows the right sub-tabs
+  const _tg={summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
+  const _v=document.getElementById("view-jwgscheduler");if(_v)_v.setAttribute("data-tabgroup",_tg);
   // Sync desktop nav
   document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b.textContent.trim()===labelMap[S.tab]);});
   // Sync mobile nav
@@ -934,6 +937,7 @@ function render(){
   if(S.tab==="schedule")app.innerHTML=buildSched();
   else if(S.tab==="history")app.innerHTML=buildHistory();
   else if(S.tab==="analytics"){app.innerHTML=buildAnalytics();requestAnimationFrame(()=>animateCounters());}
+  else if(S.tab==="insights"){app.innerHTML=buildInsights();requestAnimationFrame(()=>animateCounters());}
   else if(S.tab==="tasks"){app.innerHTML=buildTasksPage();initTasksPage();}
   else if(S.tab==="summer"){app.innerHTML=buildSummerPage();initSummerPage();}
   else if(S.tab==="winter"){app.innerHTML=buildWinterPage();initWinterPage();}
@@ -993,6 +997,9 @@ function buildSched(){
   setTimeout(initGridDrag,0);
   return result;
 }
+
+// ── INSIGHTS (Analytics + History merged into one page) ──
+function buildInsights(){return buildAnalytics()+buildHistory();}
 
 // ── GRID ──
 function buildGrid(){
@@ -3460,7 +3467,7 @@ function initRealtime(){
             S.schedule[row.employee_id]=migrateSched(JSON.parse(JSON.stringify(row.schedule_data)));
           }
           if(S.tab==="schedule")refreshGrid();
-          else if(S.tab==="history"||S.tab==="analytics")render();
+          else if(S.tab==="history"||S.tab==="analytics"||S.tab==="insights")render();
         }
       }
     })

@@ -28,6 +28,11 @@
 #view-jwgscheduler #header nav{display:flex;gap:6px;flex-wrap:wrap;flex:1}
 #view-jwgscheduler .nav-group{display:flex;align-items:center;gap:6px;background:none!important;border:none!important;padding:0!important}
 #view-jwgscheduler .nav-group-label{display:none!important}
+/* contextual in-page tab groups — show only the active group's sub-tabs */
+#view-jwgscheduler .jwg-tabgroup{display:none!important}
+#view-jwgscheduler[data-tabgroup="sched"] .jwg-tabgroup[data-group="sched"],
+#view-jwgscheduler[data-tabgroup="svc"] .jwg-tabgroup[data-group="svc"],
+#view-jwgscheduler[data-tabgroup="ops"] .jwg-tabgroup[data-group="ops"]{display:flex!important}
 #view-jwgscheduler .tab-btn{
   background:transparent!important;border:none!important;color:var(--jjtx2)!important;
   font-weight:600!important;font-size:13px!important;padding:8px 15px!important;
