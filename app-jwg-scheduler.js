@@ -2410,7 +2410,7 @@ async function deleteSummerServiceType(typeId){
 // ── WINTER.JS ──────────────────────────────────────────
 // Part of JWG Staff Scheduler
 
-let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],filter:"",sortBy:"name",serviceFilter:""};
+let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],filter:"",sortBy:"name",serviceFilter:"",lowOnly:false};
 const DEFAULT_SALT_THRESHOLD=5;
 
 async function loadWinterData(){
@@ -2451,15 +2451,16 @@ function renderWinterPage(){
   <div class="si-filter-bar">
     <input type="text" class="si-filter-input" placeholder="Search location…" id="win-search" oninput="JWG.WIN.filter=this.value;JWG.filterAndSortWinter()">
     <select class="si-filter-select" id="win-sort" onchange="JWG.WIN.sortBy=this.value;JWG.filterAndSortWinter()">
-      <option value="name">Sort: A–Z</option>
-      <option value="city">Sort: by City</option>
-      <option value="salt-low">Needs Restock</option>
+      <option value="name"${WIN.sortBy==="name"?" selected":""}>Sort: A–Z</option>
+      <option value="city"${WIN.sortBy==="city"?" selected":""}>Sort: by City</option>
     </select>
     <select class="si-filter-select" id="win-svc" onchange="JWG.WIN.serviceFilter=this.value;JWG.filterAndSortWinter()">
       <option value="">All Services</option>
-      ${WIN.serviceTypes.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}
+      ${WIN.serviceTypes.map(t=>`<option value="${t.id}"${WIN.serviceFilter===t.id?" selected":""}>${esc(t.name)}</option>`).join("")}
     </select>
+    <button onclick="JWG.WIN.lowOnly=!JWG.WIN.lowOnly;JWG.filterAndSortWinter()" style="border:1.5px solid ${WIN.lowOnly?"#f97316":"var(--border)"};background:${WIN.lowOnly?"#f97316":"transparent"};color:${WIN.lowOnly?"#fff":"var(--fg-muted)"};border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Low on salt</button>
   </div>
+  ${(function(){const wb=WIN.locations.filter(l=>WIN.saltBins.some(s=>s.location_id===l.id));const lc=wb.filter(l=>{const s=WIN.saltBins.find(x=>x.location_id===l.id);return s&&s.current_bags<=s.min_threshold;}).length;return wb.length?`<div style="padding:12px 2px 0;font-size:13px;font-weight:700;color:${lc?"#c2410c":"var(--fg-muted)"}">${lc} of ${wb.length} low on salt</div>`:"";})()}
   <div style="padding:0 0 14px 0;overflow-x:auto;">`;
 
   let filtered=WIN.locations.filter(loc=>{
@@ -2468,7 +2469,7 @@ function renderWinterPage(){
       const hasService=WIN.locationServices.some(ls=>ls.location_id===loc.id&&ls.service_type_id===WIN.serviceFilter);
       if(!hasService)return false;
     }
-    if(WIN.sortBy==="salt-low"){
+    if(WIN.lowOnly){
       const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
       if(!salt||salt.current_bags>salt.min_threshold)return false;
     }
@@ -2476,7 +2477,7 @@ function renderWinterPage(){
   });
 
   if(WIN.sortBy==="city")filtered.sort((a,b)=>a.city.localeCompare(b.city));
-  else if(WIN.sortBy==="salt-low")filtered.sort((a,b)=>{
+  if(WIN.lowOnly)filtered.sort((a,b)=>{
     const sa=WIN.saltBins.find(s=>s.location_id===a.id);
     const sb=WIN.saltBins.find(s=>s.location_id===b.id);
     return(sa?.current_bags||0)-(sb?.current_bags||0);
@@ -2508,11 +2509,13 @@ function renderWinterPage(){
           const ci=WIN.serviceTypes.findIndex(t=>t.id===s.service_type_id)%8;
           return`<span class="service-badge svc-color-${ci}">${type?esc(type.name):"?"}</span>`;
         }).join("")}</div></td>
-        <td class="win-td" data-label="Salt">${salt?`<div class="salt-inline">
+        <td class="win-td" data-label="Salt">${salt?`<div class="salt-inline" style="flex-wrap:wrap;gap:4px">
+          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',-5)">−5</button>
           <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',-1)">−</button>
-          <span class="salt-count">${salt.current_bags}</span>
-          <span class="salt-threshold">/ ${salt.min_threshold}</span>
+          <input type="number" min="0" value="${salt.current_bags}" onchange="JWG.setWinterSalt('${loc.id}',this.value)" style="width:54px;text-align:center;font-size:17px;font-weight:800;color:${isLow?"#c2410c":"var(--fg)"};border:1.5px solid ${isLow?"#f97316":"var(--border)"};border-radius:7px;padding:4px 2px;background:var(--card)">
           <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',1)">+</button>
+          <button class="stock-btn" onclick="JWG.adjustWinterSalt('${loc.id}',5)">+5</button>
+          <span class="salt-threshold">/ ${salt.min_threshold} min</span>
           ${isLow?`<span class="salt-indicator">LOW</span>`:""}
         </div>`:`<span style="color:var(--fg-muted)">—</span>`}</td>
         <td class="win-td win-td-notes" data-label="Notes">${esc(loc.notes||"")}</td>
@@ -2534,7 +2537,14 @@ function filterAndSortWinter(){renderWinterPage();}
 async function adjustWinterSalt(locId,delta){
   const salt=WIN.saltBins.find(s=>s.location_id===locId);
   if(!salt)return;
-  const newCount=Math.max(0,salt.current_bags+delta);
+  await writeSalt(salt,Math.max(0,salt.current_bags+delta));
+}
+async function setWinterSalt(locId,val){
+  const salt=WIN.saltBins.find(s=>s.location_id===locId);
+  if(!salt)return;
+  await writeSalt(salt,Math.max(0,parseInt(val,10)||0));
+}
+async function writeSalt(salt,newCount){
   try{
     await sbF("PATCH",`jwg_salt_bins?id=eq.${salt.id}`,{current_bags:newCount,updated_at:new Date().toISOString()});
     salt.current_bags=newCount;
@@ -2820,11 +2830,11 @@ function renderInventoryPage(){
     <div class="si-actions">
       <button class="si-action-btn" onclick="JWG.openAddInventoryItem()">+ Add Item</button>
       <button class="si-action-btn secondary" onclick="JWG.openManageCategories()">⚙ Manage Categories</button>
-      <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
+      <button class="si-action-btn secondary" onclick="JWG.printInventoryShoppingList()">🖨 Print list</button>
     </div>
   </div>
   <div class="si-filter-bar">
-    <input type="text" class="si-filter-input" placeholder="Search item…" id="inv-search" oninput="JWG.INV.search=this.value;JWG.filterInventory()">
+    <input type="text" class="si-filter-input" placeholder="Search item or part #…" id="inv-search" oninput="JWG.INV.search=this.value;JWG.filterInventory()">
     <select class="si-filter-select" onchange="JWG.INV.filter=this.value;JWG.filterInventory()">
       <option value="all">All Categories</option>
       ${INV.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}
@@ -2841,7 +2851,7 @@ function renderInventoryPage(){
   <div style="padding:0 0 14px 0;overflow-x:auto;">`;
 
   let filtered=INV.items.filter(item=>{
-    if(INV.search&&!item.item_name.toLowerCase().includes(INV.search.toLowerCase()))return false;
+    if(INV.search){const q=INV.search.toLowerCase();if(!item.item_name.toLowerCase().includes(q)&&!(item.product_number||"").toLowerCase().includes(q))return false;}
     if(INV.filter!=="all"&&item.category_id!==INV.filter)return false;
     if(INV.statusFilter!=="all"){
       if(INV.statusFilter==="needs_reorder"){if(item.current_stock>item.min_threshold)return false;}
@@ -2849,6 +2859,9 @@ function renderInventoryPage(){
     }
     return true;
   });
+
+  const _rank=i=>i.current_stock===0?0:i.current_stock<=i.min_threshold?1:2;
+  filtered.sort((a,b)=>_rank(a)-_rank(b)||a.item_name.localeCompare(b.item_name));
 
   if(!filtered.length){
     h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">📦</div><div class="si-empty-text">No items found</div><div class="si-empty-sub">Track tools, parts, and supplies</div></div></div>`;
@@ -2869,7 +2882,7 @@ function renderInventoryPage(){
           </div>
           <div class="inv-card-meta">
             <div class="inv-card-stock">
-              <span class="inv-card-stock-num">${item.current_stock}</span>
+              <span class="inv-card-stock-num" onclick="JWG.setInventoryCount('${item.id}')" title="Set exact count" style="cursor:pointer">${item.current_stock}</span>
               <span class="inv-card-stock-unit">${esc(item.unit)}</span>
               <span style="color:var(--fg-muted);font-size:11px;">min ${item.min_threshold}</span>
             </div>
@@ -2884,6 +2897,7 @@ function renderInventoryPage(){
             <div class="inv-card-adjust">
               <button class="stock-btn" onclick="JWG.adjustInventory('${item.id}',-1)">−</button>
               <button class="stock-btn" onclick="JWG.adjustInventory('${item.id}',1)">+</button>
+              <button class="stock-btn" onclick="JWG.setInventoryCount('${item.id}')">Set count</button>
               ${item.status==="ordered"?`<button class="stock-btn" onclick="JWG.restockItem('${item.id}')">Restocked</button>`:`<button class="stock-btn" onclick="JWG.markOrdered('${item.id}')">Mark Ordered</button>`}
             </div>
             <div class="inv-card-edit">
@@ -2925,7 +2939,7 @@ async function markOrdered(itemId){
   }catch(e){toast("Failed to mark as ordered","error");console.error(e);}
 }
 
-async function restockItem(itemId){
+async function setInventoryCount(itemId){
   const item=INV.items.find(i=>i.id===itemId);
   if(!item)return;
   const ans=prompt(`Set the on-hand count for "${item.item_name}"${item.unit?" ("+item.unit+")":""}:`,item.current_stock);
@@ -2938,6 +2952,16 @@ async function restockItem(itemId){
     renderInventoryPage();
     toast("Stock updated");
   }catch(e){toast("Failed to update stock","error");console.error(e);}
+}
+async function restockItem(itemId){return setInventoryCount(itemId);}
+function printInventoryShoppingList(){
+  const low=INV.items.filter(i=>i.current_stock<=i.min_threshold).sort((a,b)=>(a.current_stock===0?0:1)-(b.current_stock===0?0:1)||a.item_name.localeCompare(b.item_name));
+  const rows=low.map(i=>`<tr><td>${esc(i.item_name)}</td><td>${esc(i.product_number||"")}</td><td style="text-align:center">${i.current_stock}</td><td style="text-align:center">${i.min_threshold}</td><td>${esc(i.unit||"")}</td></tr>`).join("");
+  const w=window.open("","_blank");
+  if(!w){toast("Allow pop-ups to print the list","error");return;}
+  w.document.write(`<!doctype html><html><head><title>Back Shop Shopping List</title><style>body{font-family:system-ui,Arial,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}.sub{color:#666;font-size:13px;margin-bottom:18px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ddd;padding:8px 10px;font-size:13px;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666}.empty{color:#666;font-size:14px;padding:20px 0}</style></head><body><h1>Back Shop — Shopping List</h1><div class="sub">Items at or below their minimum.</div>${low.length?`<table><thead><tr><th>Item</th><th>Part #</th><th>On hand</th><th>Min</th><th>Unit</th></tr></thead><tbody>${rows}</tbody></table>`:`<div class="empty">Nothing is low right now.</div>`}</body></html>`);
+  w.document.close();w.focus();
+  setTimeout(function(){try{w.print();}catch(e){}},250);
 }
 
 function openAddInventoryItem(){
@@ -3698,5 +3722,5 @@ function renderJwgScheduler(){
 
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
-window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
