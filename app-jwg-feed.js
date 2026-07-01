@@ -55,26 +55,46 @@
     return _crewLoading;
   }
 
-  // Turn raw job rows into { empNameLower: { DayName: [{label,time}] } } for one week.
+  // Turn raw job rows into { empNameLower: { DayName: [{label,time,count,detail}] } } for one week.
+  // Bins collapse into ONE "Bins ×N" chip per person/day (drop-off + pick-up counted together);
+  // other services stay as individual chips carrying their own time.
   function buildOcc(rows,s,e){
-    var occ={};
-    function add(crewId,dateStr,label,time){
+    var occ={};      // key -> day -> entries[]
+    var bins={};     // key -> day -> {drop:n, pick:n}
+    function ensure(key,day){(occ[key]||(occ[key]={}));return occ[key][day]||(occ[key][day]=[]);}
+    function addNonBin(crewId,dateStr,label,time){
+      var nm=_crewName[crewId];
+      if(!nm||!inRange(dateStr,s,e))return;
+      var day=dayNameOf(dateStr);if(!day)return;
+      ensure(nm.toLowerCase(),day).push({label:label,time:fmtTime(time),count:1,detail:""});
+    }
+    function addBin(crewId,dateStr,leg){
       var nm=_crewName[crewId];
       if(!nm||!inRange(dateStr,s,e))return;
       var day=dayNameOf(dateStr);if(!day)return;
       var key=nm.toLowerCase();
-      (occ[key]||(occ[key]={}));
-      (occ[key][day]||(occ[key][day]=[])).push({label:label,time:fmtTime(time)});
+      bins[key]||(bins[key]={});
+      var a=bins[key][day]||(bins[key][day]={drop:0,pick:0});
+      if(leg==="drop")a.drop++;else a.pick++;
     }
     rows.forEach(function(j){
       if(j.status&&/cancel/i.test(j.status))return;              // skip cancelled jobs
       if(j.service==="Bin Rental"){
         // Bins have two legs on their own dates/people; the job's own date is the order date.
-        add(j.dropoff_crew_id,j.bin_dropoff,svcLabel(j.service,"drop"),j.bin_dropoff_time);
-        add(j.pickup_crew_id,j.bin_pickup,svcLabel(j.service,"pick"),j.bin_pickup_time);
+        addBin(j.dropoff_crew_id,j.bin_dropoff,"drop");
+        addBin(j.pickup_crew_id,j.bin_pickup,"pick");
       }else{
-        (j.assigned_crew_ids||[]).forEach(function(cid){add(cid,j.date,svcLabel(j.service),j.time);});
+        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time);});
       }
+    });
+    // fold each person/day's bins into a single chip with a count + a breakdown tooltip
+    Object.keys(bins).forEach(function(key){
+      Object.keys(bins[key]).forEach(function(day){
+        var a=bins[key][day],n=a.drop+a.pick,parts=[];
+        if(a.drop)parts.push(a.drop+" drop-off"+(a.drop>1?"s":""));
+        if(a.pick)parts.push(a.pick+" pick-up"+(a.pick>1?"s":""));
+        ensure(key,day).push({label:"Bins",time:"",count:n,detail:parts.join(" · ")});
+      });
     });
     return occ;
   }
@@ -104,7 +124,9 @@
     entries.forEach(function(en){
       var line=document.createElement("div");
       line.className="jjc-line";
-      line.innerHTML='<span class="jjc-ic">🚚</span><span class="jjc-lbl">'+esc(en.label)+"</span>"+(en.time?'<span class="jjc-tm">'+esc(en.time)+"</span>":"");
+      var cnt=en.count>1?'<span class="jjc-ct">×'+en.count+"</span>":"";
+      line.innerHTML='<span class="jjc-ic">🚚</span><span class="jjc-lbl">'+esc(en.label)+"</span>"+cnt+(en.time?'<span class="jjc-tm">'+esc(en.time)+"</span>":"");
+      if(en.detail)line.title=en.detail;
       wrap.appendChild(line);
     });
     return wrap;
@@ -166,6 +188,7 @@
         "border:1px dashed rgba(37,99,235,.55);color:#1d4ed8;cursor:pointer}"+
         "#view-jwgscheduler .jjc-ic{font-size:10px;flex:none;filter:grayscale(.1)}"+
         "#view-jwgscheduler .jjc-lbl{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"+
+        "#view-jwgscheduler .jjc-ct{font-weight:800;font-size:9.5px;background:rgba(37,99,235,.16);border-radius:20px;padding:1px 5px;flex:none}"+
         "#view-jwgscheduler .jjc-tm{margin-left:auto;font-weight:600;opacity:.8;flex:none}";
       document.head.appendChild(st);
     }
