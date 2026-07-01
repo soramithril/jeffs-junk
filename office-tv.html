@@ -6,9 +6,10 @@
 <title>Jeff's Junk — Office Board</title>
 <style>
   :root{
-    --bg:#0a0f1a; --bg2:#0e1626; --panel:#111c2f; --card:#16233a; --card2:#1b2a44;
-    --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
-    --text:#eaf1fb; --muted:#93a3bd; --dim:#63748f;
+    /* Jeff White Group brand-green dark theme (kept dark for a 24/7 TV) */
+    --bg:#08150d; --bg2:#0c2013; --panel:#0e2416; --card:#12301c; --card2:#173b24;
+    --line:rgba(190,255,214,.10); --line2:rgba(190,255,214,.18);
+    --text:#eaf6ee; --muted:#8fb3a0; --dim:#5f7f6c;
     --green:#22c55e; --green-d:#15803d; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6;
     /* overscan-safe outer margin so TVs that overscan don't clip the edges */
     --pad: 2.4vw;
@@ -16,7 +17,7 @@
   *{box-sizing:border-box; -webkit-font-smoothing:antialiased}
   html,body{
     margin:0; padding:0; height:100%; width:100%;
-    background:radial-gradient(120% 120% at 50% -10%, #12203a 0%, var(--bg) 60%);
+    background:radial-gradient(125% 125% at 50% -12%, #0f4a2a 0%, var(--bg) 62%);
     color:var(--text);
     font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     overflow:hidden; cursor:none; user-select:none;
@@ -25,7 +26,7 @@
   #gate{
     position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:18px; text-align:center; padding:6vw; z-index:100;
-    background:radial-gradient(120% 120% at 50% -10%, #12203a 0%, var(--bg) 60%);
+    background:radial-gradient(125% 125% at 50% -12%, #0f4a2a 0%, var(--bg) 62%);
   }
   #gate .logo{font-size:clamp(22px,3vw,40px); font-weight:900; letter-spacing:1px; color:var(--green)}
   #gate .msg{font-size:clamp(15px,1.8vw,24px); color:var(--muted); max-width:22em; line-height:1.5}
