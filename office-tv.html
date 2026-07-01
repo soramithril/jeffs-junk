@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jeff's Junk — Office Board</title>
+<style>
+  :root{
+    --bg:#0a0f1a; --bg2:#0e1626; --panel:#111c2f; --card:#16233a; --card2:#1b2a44;
+    --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
+    --text:#eaf1fb; --muted:#93a3bd; --dim:#63748f;
+    --green:#22c55e; --green-d:#15803d; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6;
+    /* overscan-safe outer margin so TVs that overscan don't clip the edges */
+    --pad: 2.4vw;
+  }
+  *{box-sizing:border-box; -webkit-font-smoothing:antialiased}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:radial-gradient(120% 120% at 50% -10%, #12203a 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    overflow:hidden; cursor:none; user-select:none;
+  }
+  /* ── Access gate / status ── */
+  #gate{
+    position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; text-align:center; padding:6vw; z-index:100;
+    background:radial-gradient(120% 120% at 50% -10%, #12203a 0%, var(--bg) 60%);
+  }
+  #gate .logo{font-size:clamp(22px,3vw,40px); font-weight:900; letter-spacing:1px; color:var(--green)}
+  #gate .msg{font-size:clamp(15px,1.8vw,24px); color:var(--muted); max-width:22em; line-height:1.5}
+  #gate .spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--line2);border-top-color:var(--green);animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ── shell ── */
+  #shell{position:fixed; inset:0; display:none; flex-direction:column; padding:var(--pad)}
+  #topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding-bottom:1.4vh; border-bottom:1px solid var(--line); flex:0 0 auto;
+  }
+  #brand{display:flex; align-items:baseline; gap:.6em; font-weight:900; letter-spacing:.5px}
+  #brand .jj{color:var(--green); font-size:clamp(20px,2.3vw,36px)}
+  #brand .sub{color:var(--muted); font-weight:700; font-size:clamp(12px,1.3vw,20px); letter-spacing:2px; text-transform:uppercase}
+  #clock{text-align:right; line-height:1.05}
+  #clock .t{font-size:clamp(22px,2.6vw,42px); font-weight:800; font-variant-numeric:tabular-nums}
+  #clock .d{font-size:clamp(11px,1.2vw,18px); color:var(--muted); font-weight:600; letter-spacing:.5px}
+
+  #stage{position:relative; flex:1 1 auto; margin-top:1.6vh; min-height:0}
+  .panel{
+    position:absolute; inset:0; display:flex; flex-direction:column; min-height:0;
+    opacity:0; visibility:hidden; transform:translateY(10px);
+    transition:opacity .5s ease, transform .5s ease, visibility .5s;
+  }
+  .panel.on{opacity:1; visibility:visible; transform:none}
+  .p-head{display:flex; align-items:baseline; gap:.7em; flex:0 0 auto; margin-bottom:1.4vh}
+  .p-head h2{margin:0; font-size:clamp(22px,3vw,46px); font-weight:900; letter-spacing:.4px}
+  .p-head .accent{width:.34em;height:1em;background:var(--green);border-radius:3px;display:inline-block;transform:translateY(.12em)}
+  .p-head .meta{margin-left:auto; color:var(--muted); font-size:clamp(13px,1.5vw,24px); font-weight:700}
+  .p-body{flex:1 1 auto; min-height:0; overflow:hidden}
+
+  /* ── empty state ── */
+  .empty{height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.4em; color:var(--muted)}
+  .empty .big{font-size:clamp(28px,4vw,64px); font-weight:900; color:var(--text)}
+  .empty .small{font-size:clamp(14px,1.6vw,26px)}
+
+  /* ── jobs ── */
+  #jobsList{height:100%; display:grid; grid-auto-rows:min-content; gap:1.1vh; align-content:start}
+  #jobsList.two{grid-template-columns:1fr 1fr; gap:1.1vh 1.4vw}
+  .job{
+    display:flex; align-items:center; gap:1.1vw; background:var(--card); border:1px solid var(--line);
+    border-left:6px solid var(--jc,var(--green)); border-radius:14px; padding:1.1vh 1.2vw; overflow:hidden;
+  }
+  .job .time{flex:0 0 auto; min-width:4.6em; font-weight:800; font-variant-numeric:tabular-nums; font-size:clamp(16px,1.8vw,30px)}
+  .job .svc{flex:0 0 auto; font-size:clamp(11px,1.1vw,17px); font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+    color:var(--jc,var(--green)); background:color-mix(in srgb, var(--jc,var(--green)) 16%, transparent);
+    border:1px solid color-mix(in srgb, var(--jc,var(--green)) 34%, transparent); padding:.28em .7em; border-radius:999px; white-space:nowrap}
+  .job .who{flex:1 1 auto; min-width:0}
+  .job .who .nm{font-size:clamp(16px,1.9vw,32px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .job .who .loc{font-size:clamp(12px,1.3vw,21px); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .job .crew{flex:0 0 auto; display:flex; gap:.4em; flex-wrap:nowrap; justify-content:flex-end; overflow:hidden}
+  .chip{font-size:clamp(11px,1.15vw,18px); font-weight:700; background:var(--card2); border:1px solid var(--line2);
+    color:var(--text); padding:.22em .6em; border-radius:8px; white-space:nowrap}
+
+  /* ── KPIs ── */
+  #kpiGrid{height:100%; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:1.6vh 1.4vw}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:.1em; padding:1vh}
+  .kpi .num{font-size:clamp(44px,8vw,150px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums; color:var(--kc,var(--text))}
+  .kpi .lbl{font-size:clamp(13px,1.6vw,28px); font-weight:700; color:var(--muted); letter-spacing:.5px; text-align:center}
+
+  /* ── schedule grid ── */
+  #schedWrap{height:100%; display:flex; flex-direction:column}
+  .sched-row{display:grid; gap:.5vw; align-items:stretch; flex:1 1 0; min-height:0}
+  .sched-row.head{flex:0 0 auto}
+  .sched-row .rname{display:flex; align-items:center; font-weight:800; font-size:clamp(13px,1.4vw,24px); padding-left:.3em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .sched-row.head .rname{color:var(--muted)}
+  .sched-row .col{display:flex; align-items:center; justify-content:center; font-weight:800;
+    font-size:clamp(11px,1.2vw,20px); color:var(--muted); border-bottom:2px solid var(--line)}
+  .sched-row.head .col{padding-bottom:.4vh}
+  .sched-row.head .col.today{color:var(--green)}
+  .cell{display:flex; align-items:center; justify-content:center; border-radius:9px; border:1px solid var(--line);
+    background:var(--bg2); font-size:clamp(10px,1.05vw,17px); font-weight:800; text-align:center; padding:.15em .2em;
+    overflow:hidden; line-height:1.05}
+  .cell.today{outline:2px solid color-mix(in srgb,var(--green) 55%, transparent); outline-offset:-2px}
+  .cell.off{color:var(--dim); background:transparent; border-style:dashed}
+  .zebra{background:rgba(255,255,255,.02)}
+
+  /* ── inventory ── */
+  #invWrap{height:100%; display:flex; flex-direction:column; gap:1.2vh}
+  .inv-cat{font-size:clamp(14px,1.5vw,26px); font-weight:800; color:var(--muted); letter-spacing:.6px; text-transform:uppercase; margin-bottom:.4vh}
+  .inv-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,22em),1fr)); gap:1vh 1.2vw}
+  .inv{display:flex; align-items:center; gap:1vw; background:var(--card); border:1px solid var(--line);
+    border-left:6px solid var(--ic,var(--green)); border-radius:14px; padding:1vh 1.1vw}
+  .inv .inm{flex:1 1 auto; min-width:0; font-size:clamp(15px,1.6vw,27px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .inv .stk{flex:0 0 auto; font-size:clamp(18px,2vw,34px); font-weight:900; font-variant-numeric:tabular-nums; color:var(--ic,var(--green))}
+  .inv .st{flex:0 0 auto; font-size:clamp(10px,1vw,16px); font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--ic,var(--green)); border:1px solid color-mix(in srgb,var(--ic,var(--green)) 40%, transparent);
+    padding:.2em .55em; border-radius:999px}
+
+  /* ── dots + status ── */
+  #dots{flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:.8em; padding-top:1.2vh}
+  #dots .dot{width:.7em;height:.7em;border-radius:50%;background:var(--line2); transition:background .3s, transform .3s}
+  #dots .dot.on{background:var(--green); transform:scale(1.3)}
+  #netdot{position:fixed; bottom:calc(var(--pad) + .1em); right:var(--pad); width:.6em;height:.6em;border-radius:50%;
+    background:var(--green); opacity:.55; transition:background .3s}
+  #netdot.bad{background:var(--amber); opacity:1}
+</style>
+</head>
+<body>
+  <div id="gate">
+    <div class="logo">JEFF'S JUNK</div>
+    <div class="spin" id="gateSpin"></div>
+    <div class="msg" id="gateMsg">Connecting the office board…</div>
+  </div>
+
+  <div id="shell">
+    <div id="topbar">
+      <div id="brand"><span class="jj">JEFF'S JUNK</span><span class="sub">Office Board</span></div>
+      <div id="clock"><div class="t" id="clockT">–</div><div class="d" id="clockD">–</div></div>
+    </div>
+    <div id="stage">
+      <!-- Panel 1: Today's Jobs -->
+      <section class="panel" data-panel="jobs">
+        <div class="p-head"><span class="accent"></span><h2>Today's Jobs</h2><span class="meta" id="jobsMeta"></span></div>
+        <div class="p-body"><div id="jobsList"></div></div>
+      </section>
+      <!-- Panel 2: Crew Schedule -->
+      <section class="panel" data-panel="schedule">
+        <div class="p-head"><span class="accent"></span><h2>Crew Schedule</h2><span class="meta" id="schedMeta"></span></div>
+        <div class="p-body"><div id="schedWrap"></div></div>
+      </section>
+      <!-- Panel 3: Operations at a glance -->
+      <section class="panel" data-panel="kpis">
+        <div class="p-head"><span class="accent"></span><h2>Operations</h2><span class="meta" id="kpiMeta"></span></div>
+        <div class="p-body"><div id="kpiGrid"></div></div>
+      </section>
+      <!-- Panel 4: Back Shop Inventory -->
+      <section class="panel" data-panel="inventory">
+        <div class="p-head"><span class="accent"></span><h2>Back Shop Inventory</h2><span class="meta" id="invMeta"></span></div>
+        <div class="p-body"><div id="invWrap"></div></div>
+      </section>
+    </div>
+    <div id="dots"></div>
+  </div>
+  <div id="netdot"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  (function(){
+    "use strict";
+
+    // ── config ──────────────────────────────────────────────────────────────
+    var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
+    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+    var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
+    var ROTATE_MS  = 20000;   // time each panel is shown
+    var REFRESH_MS = 60000;   // how often data is refetched
+    var PANELS = ['jobs','schedule','kpis','inventory'];
+    var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+    // Dedicated session store so this page can NEVER pick up a staff member's
+    // dashboard session in the same browser — it only ever runs as the display user.
+    var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth:{ storageKey:'jj-office-tv-auth', persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
+    });
+
+    // ── date helpers (all local time) ────────────────────────────────────────
+    function pad2(n){ return String(n).padStart(2,'0'); }
+    function ymd(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+    function todayStr(){ return ymd(new Date()); }
+    function mondayStr(){
+      var d = new Date(); var g = d.getDay();            // 0=Sun..6=Sat
+      d.setDate(d.getDate() + (g===0 ? -6 : 1-g));       // back to Monday
+      return ymd(d);
+    }
+    function todayWeekday(){ return WEEKDAYS[(new Date().getDay()+6)%7]; }
+    function fmt12(t){                                    // "7:00" -> "7a", "19:00" -> "7p"
+      if(!t) return '';
+      var p = String(t).split(':'); var h = parseInt(p[0],10); if(isNaN(h)) return t;
+      var ap = h>=12 ? 'p':'a'; var hh = h%12; if(hh===0) hh=12;
+      var m = p[1] && p[1]!=='00' ? ':'+p[1] : '';
+      return hh+m+ap;
+    }
+
+    // ── DOM helpers ──────────────────────────────────────────────────────────
+    function el(id){ return document.getElementById(id); }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+    function parseLocal(s){ var p=String(s).split('-'); return new Date(+p[0], (+p[1])-1, +p[2]); } // avoid UTC shift
+    // pick black/white text for a given chip colour so labels stay readable on the dark board
+    function readableText(hex){
+      var h=String(hex||'').replace('#',''); if(h.length===3) h=h.split('').map(function(c){return c+c;}).join('');
+      var n=parseInt(h,16); if(isNaN(n)) return '#fff';
+      var r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+      return (0.299*r+0.587*g+0.114*b)/255 > 0.6 ? '#0a0f1a' : '#ffffff';
+    }
+
+    // ── state ────────────────────────────────────────────────────────────────
+    var DATA = { jobs:[], crew:{}, emps:[], sched:{}, tasks:{}, inv:[], cats:{}, kpi:{} };
+    var panelIdx = 0, rotTimer = null;
+
+    // ── service colours for the jobs board ───────────────────────────────────
+    var SVC_COLOR = {
+      'Junk Removal':'#eab308', 'Junk Quote':'#3b82f6', 'Bin Rental':'#22c55e',
+      'Furniture Pickup':'#ef4444', 'Furniture Delivery':'#a855f7', 'Landscaping':'#10b981'
+    };
+    function svcColor(s){ return SVC_COLOR[s] || '#7c8aa3'; }
+    function jobTime(j){
+      var s=j.service;
+      if(s==='Furniture Pickup'||s==='Furniture Delivery') return j.fb_time || j.time || '';
+      if(s==='Junk Removal'||s==='Junk Quote'||s==='Landscaping') return j.junk_time || j.time || '';
+      return j.time || j.junk_time || j.fb_time || '';
+    }
+    function timeMins(t){ if(!t) return 99999; var p=String(t).split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); }
+
+    // ── data load ────────────────────────────────────────────────────────────
+    async function loadAll(){
+      var today = todayStr(), monday = mondayStr();
+      var wkEnd = ymd(new Date(new Date(monday).getTime()+7*864e5));
+      var tomorrow = ymd(new Date(new Date(today).getTime()+864e5));
+
+      var res = await Promise.all([
+        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id')
+          .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today),
+        db.from('crew_members').select('id,name'),
+        db.from('jwg_employees').select('id,name'),
+        db.from('jwg_schedules').select('employee_id,schedule_data').eq('week_start', monday),
+        db.from('jwg_app_settings').select('key,value').in('key',['tasks','emp_order']),
+        db.from('jwg_inventory_items').select('item_name,current_stock,min_threshold,status,unit,category_id'),
+        db.from('jwg_inventory_categories').select('id,name,sort_order,is_active'),
+        // KPI helpers
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped'),
+        db.from('jobs').select('status').gte('date',monday).lt('date',wkEnd),
+        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',today).lt('completed_at',tomorrow)
+      ]);
+      for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
+
+      // jobs today (exclude cancelled client-side so null status is kept)
+      DATA.jobs = (res[0].data||[]).filter(function(j){ return j.status!=='Cancelled'; })
+        .sort(function(a,b){ return timeMins(jobTime(a))-timeMins(jobTime(b)); });
+
+      // crew id -> name
+      DATA.crew = {}; (res[1].data||[]).forEach(function(c){ DATA.crew[c.id]=c.name; });
+
+      // employees + ordering
+      var empName = {}; (res[2].data||[]).forEach(function(e){ empName[e.id]=e.name; });
+      var settings = {}; (res[4].data||[]).forEach(function(s){ settings[s.key]=s.value; });
+      var order = settings.emp_order || [];
+      var ordered = [];
+      order.forEach(function(id){ if(empName[id]) ordered.push({id:id,name:empName[id]}); });
+      Object.keys(empName).forEach(function(id){ if(order.indexOf(id)===-1) ordered.push({id:id,name:empName[id]}); });
+      DATA.emps = ordered;
+
+      // schedules by employee_id
+      DATA.sched = {}; (res[3].data||[]).forEach(function(r){ DATA.sched[r.employee_id]=r.schedule_data||{}; });
+
+      // task id -> {label,bg,text,dot}
+      DATA.tasks = {}; (settings.tasks||[]).forEach(function(t){ DATA.tasks[t.id]=t; });
+
+      // inventory + categories
+      DATA.cats = {}; (res[6].data||[]).forEach(function(c){ DATA.cats[c.id]=c; });
+      DATA.inv = (res[5].data||[]).slice().sort(function(a,b){
+        var ca=DATA.cats[a.category_id], cb=DATA.cats[b.category_id];
+        var sa=ca?ca.sort_order:999, sb=cb?cb.sort_order:999;
+        if(sa!==sb) return sa-sb;
+        return String(a.item_name).localeCompare(String(b.item_name));
+      });
+
+      // KPIs
+      var weekRows = res[8].data||[];
+      DATA.kpi = {
+        jobsToday: DATA.jobs.length,
+        landToday: DATA.jobs.filter(function(j){ return j.service==='Landscaping'; }).length,
+        binsOut: res[7].count||0,
+        weekJobs: weekRows.filter(function(r){ return r.status!=='Cancelled'; }).length,
+        completedToday: (res[9].data||[]).length,
+        lowStock: DATA.inv.filter(function(it){ return (it.current_stock||0) <= (it.min_threshold||0); }).length,
+        workingToday: workingTodayCount()
+      };
+    }
+
+    function workingTodayCount(){
+      var wd = todayWeekday(), n=0;
+      DATA.emps.forEach(function(e){
+        var day = (DATA.sched[e.id]||{})[wd];
+        if(day && day.status==='work') n++;
+      });
+      return n;
+    }
+
+    // ── renderers ────────────────────────────────────────────────────────────
+    function crewNames(j){
+      var ids = [].concat(j.assigned_crew_ids||[], j.dropoff_crew_id||[], j.pickup_crew_id||[]);
+      var seen={}, out=[];
+      ids.forEach(function(id){ if(id && DATA.crew[id] && !seen[id]){ seen[id]=1; out.push(DATA.crew[id]); } });
+      return out;
+    }
+
+    function renderJobs(){
+      var d = new Date();
+      el('jobsMeta').textContent = d.toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
+      var list = el('jobsList');
+      if(!DATA.jobs.length){
+        list.className='';
+        list.innerHTML = '<div class="empty"><div class="big">No jobs scheduled today</div><div class="small">Enjoy the day off 🎉</div></div>';
+        return;
+      }
+      list.className = DATA.jobs.length>7 ? 'two' : '';
+      list.innerHTML = DATA.jobs.map(function(j){
+        var c = svcColor(j.service);
+        var who = j.business_name || j.name || 'Customer';
+        var loc = [j.address, j.city].filter(Boolean).join(', ');
+        var t = jobTime(j);
+        var names = crewNames(j);
+        var crew = names.slice(0,2).map(function(n){ return '<span class="chip">'+esc(n)+'</span>'; }).join('');
+        if(names.length>2) crew += '<span class="chip">+'+(names.length-2)+'</span>';
+        return '<div class="job" style="--jc:'+c+'">'
+          + '<div class="time">'+esc(t?fmt12(t):'—')+'</div>'
+          + '<div class="svc">'+esc(j.service||'Job')+'</div>'
+          + '<div class="who"><div class="nm">'+esc(who)+'</div>'+(loc?'<div class="loc">'+esc(loc)+'</div>':'')+'</div>'
+          + '<div class="crew">'+crew+'</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    function renderSchedule(){
+      var monday = parseLocal(mondayStr());
+      el('schedMeta').textContent = 'Week of '+monday.toLocaleDateString(undefined,{month:'long', day:'numeric'});
+      var wrap = el('schedWrap');
+      var days = WEEKDAYS.slice(0,6);            // Mon–Sat
+      var todayWd = todayWeekday();
+      var gridCols = 'minmax(6em,1.4fr) repeat('+days.length+',1fr)';
+
+      var head = '<div class="sched-row head" style="grid-template-columns:'+gridCols+'">'
+        + '<div class="rname"></div>'
+        + days.map(function(dn){
+            var cls = dn===todayWd?'col today':'col';
+            return '<div class="'+cls+'">'+dn.slice(0,3)+'</div>';
+          }).join('') + '</div>';
+
+      var rows = DATA.emps.map(function(e,ri){
+        var sd = DATA.sched[e.id]||{};
+        var cells = days.map(function(dn){
+          var day = sd[dn]; var todayCls = dn===todayWd?' today':'';
+          if(!day || day.status==='off' || day.status==='dayoff')
+            return '<div class="cell off'+todayCls+'">·</div>';
+          if(day.status==='sick')
+            return '<div class="cell'+todayCls+'" style="background:#3a220f;color:#f59e0b">Sick</div>';
+          // working — use the first shift's first task for colour + label.
+          // Fill the chip with the task colour and pick a readable text colour,
+          // so even very dark task colours (e.g. "Office Closed") stay legible.
+          var label='Work', col='#22c55e';
+          var sh = (day.shifts||[])[0];
+          if(sh && sh.tasks && sh.tasks.length){
+            var tk = DATA.tasks[sh.tasks[0]];
+            if(tk){ label=tk.label||label; col=tk.dot||col; }
+          }
+          return '<div class="cell'+todayCls+'" style="background:'+col+';color:'+readableText(col)+';border-color:transparent">'+esc(label)+'</div>';
+        }).join('');
+        return '<div class="sched-row'+(ri%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+'">'
+          + '<div class="rname">'+esc(e.name)+'</div>'+cells+'</div>';
+      }).join('');
+
+      wrap.innerHTML = head + rows;
+    }
+
+    function renderKpis(){
+      var k = DATA.kpi;
+      el('kpiMeta').textContent = new Date().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+      var tiles = [
+        {n:k.jobsToday,     l:'Jobs Today',        c:'#22c55e'},
+        {n:k.workingToday,  l:'Crew Scheduled Today', c:'#3b82f6'},
+        {n:k.binsOut,       l:'Bins Out',          c:'#eab308'},
+        {n:k.weekJobs,      l:'Jobs This Week',    c:'#a855f7'},
+        {n:k.completedToday,l:'Completed Today',   c:'#10b981'},
+        {n:k.lowStock,      l:'Low-Stock Items',   c: k.lowStock>0?'#ef4444':'#22c55e'}
+      ];
+      el('kpiGrid').innerHTML = tiles.map(function(t){
+        return '<div class="kpi"><div class="num" style="--kc:'+t.c+'">'+t.n+'</div><div class="lbl">'+t.l+'</div></div>';
+      }).join('');
+    }
+
+    function invStatus(it){
+      var s=it.current_stock||0, m=it.min_threshold||0;
+      if(s<=0) return {t:'Out', c:'#ef4444'};
+      if(s<=m) return {t:'Low', c:'#f59e0b'};
+      return {t:'OK', c:'#22c55e'};
+    }
+    function renderInventory(){
+      var wrap = el('invWrap');
+      el('invMeta').textContent = DATA.kpi.lowStock+' need restock';
+      if(!DATA.inv.length){ wrap.innerHTML='<div class="empty"><div class="big">Inventory is empty</div></div>'; return; }
+      // group by category (already sorted by category sort order)
+      var groups=[], gmap={};
+      DATA.inv.forEach(function(it){
+        var cat = (DATA.cats[it.category_id]||{}).name || 'Uncategorised';
+        if(!gmap[cat]){ gmap[cat]={name:cat,items:[]}; groups.push(gmap[cat]); }
+        gmap[cat].items.push(it);
+      });
+      wrap.innerHTML = groups.map(function(g){
+        var items = g.items.map(function(it){
+          var st = invStatus(it);
+          return '<div class="inv" style="--ic:'+st.c+'">'
+            + '<div class="inm">'+esc(it.item_name)+'</div>'
+            + '<div class="stk">'+ (it.current_stock||0) +'</div>'
+            + '<div class="st">'+st.t+'</div></div>';
+        }).join('');
+        return '<div><div class="inv-cat">'+esc(g.name)+'</div><div class="inv-grid">'+items+'</div></div>';
+      }).join('');
+    }
+
+    function renderCurrent(){
+      var name = PANELS[panelIdx];
+      if(name==='jobs') renderJobs();
+      else if(name==='schedule') renderSchedule();
+      else if(name==='kpis') renderKpis();
+      else if(name==='inventory') renderInventory();
+    }
+
+    // ── rotation ─────────────────────────────────────────────────────────────
+    function buildDots(){
+      el('dots').innerHTML = PANELS.map(function(_,i){ return '<div class="dot'+(i===0?' on':'')+'"></div>'; }).join('');
+    }
+    function showPanel(i){
+      panelIdx = (i+PANELS.length)%PANELS.length;
+      var name = PANELS[panelIdx];
+      renderCurrent();
+      var panels = document.querySelectorAll('.panel');
+      panels.forEach(function(p){ p.classList.toggle('on', p.getAttribute('data-panel')===name); });
+      var dots = el('dots').children;
+      for(var d=0; d<dots.length; d++) dots[d].classList.toggle('on', d===panelIdx);
+    }
+    function nextPanel(){ showPanel(panelIdx+1); }
+    function startRotation(){
+      buildDots(); showPanel(0);
+      clearInterval(rotTimer);
+      rotTimer = setInterval(nextPanel, ROTATE_MS);
+      // Verification hook only — inert unless the URL carries ?debug. Lets a
+      // reviewer pin a panel (window.__tv.show(i)) without the 20s rotation.
+      if(/[?&]debug\b/.test(location.search)){
+        window.__tv = { show:function(i){ clearInterval(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent };
+      }
+    }
+
+    // ── clock ────────────────────────────────────────────────────────────────
+    function tickClock(){
+      var d = new Date();
+      el('clockT').textContent = d.toLocaleTimeString(undefined,{hour:'numeric', minute:'2-digit'});
+      el('clockD').textContent = d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'}).toUpperCase();
+    }
+
+    // ── net status ───────────────────────────────────────────────────────────
+    function net(ok){ el('netdot').classList.toggle('bad', !ok); }
+
+    // ── auth: one path — must be the display account ─────────────────────────
+    function parseCreds(){
+      var h = (location.hash||'').replace(/^#/,'');
+      if(!h) return null;
+      var q = new URLSearchParams(h);
+      var email = q.get('e') || q.get('u');
+      var pass = q.get('p');
+      return (email && pass) ? {email:email, pass:pass} : null;
+    }
+    function stripHash(){ history.replaceState(null,'', location.pathname + location.search); }
+    function fail(msg){ el('gateSpin').style.display='none'; el('gateMsg').innerHTML = esc(msg); }
+
+    async function authenticate(){
+      var sess = (await db.auth.getSession()).data.session;
+      if(!sess){
+        var creds = parseCreds();
+        if(!creds){ fail('This screen needs the office display link. Ask an admin to set it up.'); return null; }
+        var r = await db.auth.signInWithPassword({ email:creds.email, password:creds.pass });
+        stripHash();
+        if(r.error){ fail('Could not sign in. Check the display link.'); return null; }
+        sess = r.data.session;
+      }
+      if(!sess || (sess.user && sess.user.email !== DISPLAY_EMAIL)){
+        try{ await db.auth.signOut(); }catch(e){}
+        fail('This screen is for the office display only.');
+        return null;
+      }
+      return sess;
+    }
+
+    // ── boot ─────────────────────────────────────────────────────────────────
+    async function boot(){
+      var sess = await authenticate();
+      if(!sess) return;
+      try{
+        await loadAll(); net(true);
+      }catch(e){
+        console.error(e); fail('Trouble loading the board — retrying…');
+        setTimeout(boot, 8000); return;
+      }
+      el('gate').style.display='none';
+      el('shell').style.display='flex';
+      tickClock(); setInterval(tickClock, 1000);
+      startRotation();
+      // periodic refresh; keep showing last-good data on a blip
+      setInterval(async function(){
+        try{ await loadAll(); net(true); renderCurrent(); }
+        catch(e){ console.error('refresh failed', e); net(false); }
+      }, REFRESH_MS);
+    }
+
+    boot();
+  })();
+  </script>
+</body>
+</html>
