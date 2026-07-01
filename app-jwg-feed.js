@@ -44,6 +44,22 @@
     var ap=h<12?"a":"p",h12=h%12;if(h12===0)h12=12;
     return h12+(m?":"+pad(m):"")+ap;
   }
+  function parseHHMM(t){if(!t)return null;var p=String(t).split(":");if(p.length<2)return null;var h=+p[0],m=+p[1];if(isNaN(h)||isNaN(m))return null;return h*60+m;}
+  function fmtMins(mins){mins=Math.round(mins);var h=Math.floor(mins/60)%24,m=((mins%60)+60)%60,ap=h<12?"a":"p",h12=h%12;if(h12===0)h12=12;return h12+(m?":"+pad(m):"")+ap;}
+  // Reuse Dispatch's own drive-time + service-duration math (globals in app-dispatch.js) to
+  // estimate how long a bin leg takes. Combos aren't detected here, so it can slightly
+  // over-estimate — it's a ballpark window, editable on the scheduler.
+  function estMinutesFor(leg,city){
+    if(typeof dispatchEstimateMinutes!=="function")return 0;
+    return dispatchEstimateMinutes({city:city},leg==="pick"?"standalone-pickup":"standalone-delivery")||0;
+  }
+  var _cityLoaded=false,_cityLoading=null;
+  function ensureCityTimes(){
+    if(_cityLoaded||typeof dispatchLoadCityTimes!=="function")return Promise.resolve();
+    if(_cityLoading)return _cityLoading;
+    _cityLoading=Promise.resolve(dispatchLoadCityTimes()).then(function(){_cityLoaded=true;}).catch(function(){_cityLoaded=true;});
+    return _cityLoading;
+  }
 
   function ensureCrew(){
     if(_crewLoaded)return Promise.resolve();
@@ -68,32 +84,38 @@
       var day=dayNameOf(dateStr);if(!day)return;
       ensure(nm.toLowerCase(),day).push({label:label,time:fmtTime(time),count:1,detail:""});
     }
-    function addBin(crewId,dateStr,leg){
+    function addBin(crewId,dateStr,leg,legTime,city){
       var nm=_crewName[crewId];
       if(!nm||!inRange(dateStr,s,e))return;
       var day=dayNameOf(dateStr);if(!day)return;
       var key=nm.toLowerCase();
       bins[key]||(bins[key]={});
-      var a=bins[key][day]||(bins[key][day]={drop:0,pick:0});
+      var a=bins[key][day]||(bins[key][day]={drop:0,pick:0,est:0,anchor:null});
       if(leg==="drop")a.drop++;else a.pick++;
+      a.est+=estMinutesFor(leg,city);
+      var tm=parseHHMM(legTime);                                  // real time set on the dashboard, if any
+      if(tm!=null&&(a.anchor==null||tm<a.anchor))a.anchor=tm;
     }
     rows.forEach(function(j){
       if(j.status&&/cancel/i.test(j.status))return;              // skip cancelled jobs
       if(j.service==="Bin Rental"){
         // Bins have two legs on their own dates/people; the job's own date is the order date.
-        addBin(j.dropoff_crew_id,j.bin_dropoff,"drop");
-        addBin(j.pickup_crew_id,j.bin_pickup,"pick");
+        addBin(j.dropoff_crew_id,j.bin_dropoff,"drop",j.bin_dropoff_time,j.city);
+        addBin(j.pickup_crew_id,j.bin_pickup,"pick",j.bin_pickup_time,j.city);
       }else{
         (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time);});
       }
     });
-    // fold each person/day's bins into a single chip with a count + a breakdown tooltip
+    // Fold each person/day's bins into a single chip: count + estimated window.
+    // Window start = earliest real time set that day, else 8:00am; end = start + summed estimate.
     Object.keys(bins).forEach(function(key){
       Object.keys(bins[key]).forEach(function(day){
         var a=bins[key][day],n=a.drop+a.pick,parts=[];
         if(a.drop)parts.push(a.drop+" drop-off"+(a.drop>1?"s":""));
         if(a.pick)parts.push(a.pick+" pick-up"+(a.pick>1?"s":""));
-        ensure(key,day).push({label:"Bins",time:"",count:n,detail:parts.join(" · ")});
+        var start=(a.anchor!=null)?a.anchor:480;
+        var time=(a.est>0)?fmtMins(start)+"–"+fmtMins(start+a.est):(a.anchor!=null?fmtMins(start):"");
+        ensure(key,day).push({label:"Bins",time:time,count:n,detail:parts.join(" · ")});
       });
     });
     return occ;
@@ -104,8 +126,8 @@
     if(_loading[weekKey])return;
     _loading[weekKey]=true;
     var s=localDateStr(ws),e=localDateStr(addDays(ws,6));
-    var cols="service,date,time,est_duration_min,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,status";
-    ensureCrew().then(function(){
+    var cols="service,date,time,est_duration_min,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,status,city";
+    ensureCrew().then(ensureCityTimes).then(function(){
       return db.from("jobs").select(cols)
         .or("and(date.gte."+s+",date.lte."+e+"),and(bin_dropoff.gte."+s+",bin_dropoff.lte."+e+"),and(bin_pickup.gte."+s+",bin_pickup.lte."+e+")");
     }).then(function(res){
