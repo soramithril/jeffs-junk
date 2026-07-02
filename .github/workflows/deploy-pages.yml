@@ -1,0 +1,45 @@
+# Publishes the site to GitHub Pages with a PATIENT deploy step.
+#
+# Why this exists (2026-07-02): GitHub's automatic "pages build and deployment"
+# aborts if a deployment sits in their queue for more than 10 minutes. During
+# Pages backend congestion every attempt times out ("deployment_queued" forever)
+# and the site can never update. This workflow does the same publish but waits
+# up to 60 minutes for the queue, which rides out the congestion.
+#
+# Requires repo Settings → Pages → Source = "GitHub Actions".
+name: deploy-pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Queue runs behind each other; never cancel a run that's already waiting in
+# the Pages queue (cancelling would send us to the back of the line).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: 3600000   # wait up to 60 min for the Pages queue (default is 10)
+          error_count: 60    # tolerate transient status errors while waiting
