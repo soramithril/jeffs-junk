@@ -1246,6 +1246,30 @@ input[type=date],input[type=time]{position:relative;}
   .lj-row-right{width:100%;justify-content:flex-start;flex-wrap:wrap;}
 }
 
+/* ─── Staff Check-In (admin-only) ─── */
+.sc-question{font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.sc-subnote{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.sc-row{display:flex;align-items:center;gap:10px;padding:6px 4px;border-top:1px solid var(--border);}
+.sc-name{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-faces{display:flex;gap:4px;flex-shrink:0;}
+.sc-face{font-size:18px;line-height:1;background:none;border:2px solid transparent;border-radius:10px;padding:4px 6px;cursor:pointer;filter:grayscale(1);opacity:.55;transition:all var(--transition);}
+.sc-face:hover{filter:none;opacity:1;transform:scale(1.15);}
+.sc-face.sel{filter:none;opacity:1;border-color:var(--accent);background:rgba(22,163,74,.08);}
+.sc-note-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:13px;opacity:.55;flex-shrink:0;}
+.sc-note-btn.has-note{opacity:1;border-color:#f59e0b;background:#fffbeb;}
+.sc-note-wrap{padding:0 4px 8px;}
+.sc-note-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;}
+.sc-heat-title{font-size:13px;font-weight:700;color:var(--text);margin:18px 0 4px;}
+.sc-heat-legend{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted);margin-bottom:8px;}
+.sc-leg{display:inline-flex;align-items:center;gap:3px;}
+.sc-leg-note{margin-left:auto;}
+.sc-heat-row{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.sc-heat-name{flex:0 0 110px;font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-heat-cells{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;}
+.sc-cell{width:10px;height:10px;border-radius:2px;flex-shrink:0;display:inline-block;}
+.sc-cell.dflt{opacity:.45;}
+.sc-foot{font-size:11px;color:var(--muted);margin-top:14px;text-align:right;}
+
 /* ═══ DRIBBBLE IMPROVEMENTS (v=18) ═══ */
 
 /* ── #1 Trend Badges ── */
