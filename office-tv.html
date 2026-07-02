@@ -6,47 +6,80 @@
 <title>Jeff's Junk — Office Board</title>
 <style>
   :root{
-    /* Jeff White Group brand-green dark theme (kept dark for a 24/7 TV) */
-    --bg:#08150d; --bg2:#0c2013; --panel:#0e2416; --card:#12301c; --card2:#173b24;
-    --line:rgba(190,255,214,.10); --line2:rgba(190,255,214,.18);
-    --text:#eaf6ee; --muted:#8fb3a0; --dim:#5f7f6c;
+    /* Jeff White Group brand green + Apple-glass surfaces (24/7 dark TV board) */
+    --bg:#071310;
+    --text:#eefaf2; --muted:#9fc4af; --dim:#628270;
     --green:#22c55e; --green-d:#15803d; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6;
+    /* glass tokens */
+    --glass:rgba(14,40,26,.42);            /* frosted panel body */
+    --glass-soft:rgba(255,255,255,.05);
+    --gline:rgba(190,255,214,.16);         /* hairline edge */
+    --gtop:rgba(255,255,255,.30);          /* specular top edge */
+    --gshadow:0 14px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.14);
     /* overscan-safe outer margin so TVs that overscan don't clip the edges */
     --pad: 2.4vw;
   }
   *{box-sizing:border-box; -webkit-font-smoothing:antialiased}
   html,body{
     margin:0; padding:0; height:100%; width:100%;
-    background:radial-gradient(125% 125% at 50% -12%, #0f4a2a 0%, var(--bg) 62%);
+    /* deep-green aurora the glass panels can catch light from (static — easy on TV players) */
+    background:
+      radial-gradient(90vw 70vh at 12% -10%, rgba(34,197,94,.22), transparent 60%),
+      radial-gradient(80vw 60vh at 108% 16%, rgba(16,185,129,.15), transparent 56%),
+      radial-gradient(75vw 75vh at 50% 118%, rgba(59,130,246,.10), transparent 62%),
+      linear-gradient(180deg,#0b2114 0%, var(--bg) 68%);
     color:var(--text);
     font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     overflow:hidden; cursor:none; user-select:none;
   }
+  /* one shared frosted-glass recipe */
+  .glass, #topbar, .job, .kpi, .inv, #dots, #gate .gcard{
+    background:linear-gradient(160deg, rgba(255,255,255,.085), rgba(255,255,255,.028) 45%, rgba(255,255,255,.012));
+    background-color:var(--glass);
+    border:1px solid var(--gline); border-top-color:var(--gtop);
+    box-shadow:var(--gshadow);
+    backdrop-filter:blur(18px) saturate(150%);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+  }
+  /* players that can't blur still get a believable glass (denser tint carries the look) */
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .glass, #topbar, .job, .kpi, .inv, #dots, #gate .gcard{ background-color:rgba(14,40,26,.78); }
+  }
+
   /* ── Access gate / status ── */
   #gate{
     position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:18px; text-align:center; padding:6vw; z-index:100;
-    background:radial-gradient(125% 125% at 50% -12%, #0f4a2a 0%, var(--bg) 62%);
+    padding:6vw; z-index:100;
   }
-  #gate .logo{font-size:clamp(22px,3vw,40px); font-weight:900; letter-spacing:1px; color:var(--green)}
+  #gate .gcard{display:flex; flex-direction:column; align-items:center; gap:18px; text-align:center;
+    border-radius:26px; padding:5vh 4vw}
+  #gate .logo{font-size:clamp(22px,3vw,40px); font-weight:900; letter-spacing:1px; color:var(--green);
+    text-shadow:0 0 26px rgba(34,197,94,.45)}
   #gate .msg{font-size:clamp(15px,1.8vw,24px); color:var(--muted); max-width:22em; line-height:1.5}
-  #gate .spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--line2);border-top-color:var(--green);animation:sp 1s linear infinite}
+  #gate .spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--gline);border-top-color:var(--green);animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 
   /* ── shell ── */
-  #shell{position:fixed; inset:0; display:none; flex-direction:column; padding:var(--pad)}
+  #shell{position:fixed; inset:0; display:none; flex-direction:column; padding:var(--pad); gap:1.5vh}
   #topbar{
     display:flex; align-items:center; justify-content:space-between; gap:16px;
-    padding-bottom:1.4vh; border-bottom:1px solid var(--line); flex:0 0 auto;
+    border-radius:20px; padding:1.2vh 1.4vw; flex:0 0 auto;
   }
   #brand{display:flex; align-items:baseline; gap:.6em; font-weight:900; letter-spacing:.5px}
-  #brand .jj{color:var(--green); font-size:clamp(20px,2.3vw,36px)}
+  #brand .jj{color:var(--green); font-size:clamp(20px,2.3vw,36px); text-shadow:0 0 22px rgba(34,197,94,.4)}
   #brand .sub{color:var(--muted); font-weight:700; font-size:clamp(12px,1.3vw,20px); letter-spacing:2px; text-transform:uppercase}
+  #tright{display:flex; align-items:center; gap:1.6vw}
+  /* weather (hidden until it loads) */
+  #wx{display:none; align-items:center; gap:.55em; padding-right:1.6vw; border-right:1px solid var(--gline)}
+  #wx.on{display:flex}
+  #wx .i{font-size:clamp(22px,2.4vw,40px); line-height:1}
+  #wx .t{font-size:clamp(22px,2.6vw,42px); font-weight:800; font-variant-numeric:tabular-nums}
+  #wx .hl{font-size:clamp(11px,1.2vw,18px); color:var(--muted); font-weight:700; line-height:1.25; white-space:nowrap}
   #clock{text-align:right; line-height:1.05}
   #clock .t{font-size:clamp(22px,2.6vw,42px); font-weight:800; font-variant-numeric:tabular-nums}
   #clock .d{font-size:clamp(11px,1.2vw,18px); color:var(--muted); font-weight:600; letter-spacing:.5px}
 
-  #stage{position:relative; flex:1 1 auto; margin-top:1.6vh; min-height:0}
+  #stage{position:relative; flex:1 1 auto; min-height:0}
   .panel{
     position:absolute; inset:0; display:flex; flex-direction:column; min-height:0;
     opacity:0; visibility:hidden; transform:translateY(10px);
@@ -55,7 +88,7 @@
   .panel.on{opacity:1; visibility:visible; transform:none}
   .p-head{display:flex; align-items:baseline; gap:.7em; flex:0 0 auto; margin-bottom:1.4vh}
   .p-head h2{margin:0; font-size:clamp(22px,3vw,46px); font-weight:900; letter-spacing:.4px}
-  .p-head .accent{width:.34em;height:1em;background:var(--green);border-radius:3px;display:inline-block;transform:translateY(.12em)}
+  .p-head .accent{width:.34em;height:1em;background:linear-gradient(180deg,#4ade80,var(--green-d));border-radius:4px;display:inline-block;transform:translateY(.12em);box-shadow:0 0 16px rgba(34,197,94,.55)}
   .p-head .meta{margin-left:auto; color:var(--muted); font-size:clamp(13px,1.5vw,24px); font-weight:700}
   .p-body{flex:1 1 auto; min-height:0; overflow:hidden}
 
@@ -68,25 +101,26 @@
   #jobsList{height:100%; display:grid; grid-auto-rows:min-content; gap:1.1vh; align-content:start}
   #jobsList.two{grid-template-columns:1fr 1fr; gap:1.1vh 1.4vw}
   .job{
-    display:flex; align-items:center; gap:1.1vw; background:var(--card); border:1px solid var(--line);
-    border-left:6px solid var(--jc,var(--green)); border-radius:14px; padding:1.1vh 1.2vw; overflow:hidden;
+    display:flex; align-items:center; gap:1.1vw;
+    border-left:6px solid var(--jc,var(--green)); border-radius:16px; padding:1.1vh 1.2vw; overflow:hidden;
   }
   .job .time{flex:0 0 auto; min-width:4.6em; font-weight:800; font-variant-numeric:tabular-nums; font-size:clamp(16px,1.8vw,30px)}
   .job .svc{flex:0 0 auto; font-size:clamp(11px,1.1vw,17px); font-weight:800; text-transform:uppercase; letter-spacing:.6px;
-    color:var(--jc,var(--green)); background:color-mix(in srgb, var(--jc,var(--green)) 16%, transparent);
-    border:1px solid color-mix(in srgb, var(--jc,var(--green)) 34%, transparent); padding:.28em .7em; border-radius:999px; white-space:nowrap}
+    color:var(--jc,var(--green)); background:color-mix(in srgb, var(--jc,var(--green)) 18%, transparent);
+    border:1px solid color-mix(in srgb, var(--jc,var(--green)) 42%, transparent); padding:.28em .7em; border-radius:999px; white-space:nowrap}
   .job .who{flex:1 1 auto; min-width:0}
   .job .who .nm{font-size:clamp(16px,1.9vw,32px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .job .who .loc{font-size:clamp(12px,1.3vw,21px); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .job .crew{flex:0 0 auto; display:flex; gap:.4em; flex-wrap:nowrap; justify-content:flex-end; overflow:hidden}
-  .chip{font-size:clamp(11px,1.15vw,18px); font-weight:700; background:var(--card2); border:1px solid var(--line2);
-    color:var(--text); padding:.22em .6em; border-radius:8px; white-space:nowrap}
+  .chip{font-size:clamp(11px,1.15vw,18px); font-weight:700; background:rgba(255,255,255,.08); border:1px solid var(--gline);
+    color:var(--text); padding:.22em .6em; border-radius:9px; white-space:nowrap}
 
   /* ── KPIs ── */
   #kpiGrid{height:100%; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:1.6vh 1.4vw}
-  .kpi{background:var(--card); border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column;
+  .kpi{border-radius:24px; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:.1em; padding:1vh}
-  .kpi .num{font-size:clamp(44px,8vw,150px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums; color:var(--kc,var(--text))}
+  .kpi .num{font-size:clamp(44px,8vw,150px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums; color:var(--kc,var(--text));
+    text-shadow:0 0 34px color-mix(in srgb, var(--kc,var(--green)) 45%, transparent)}
   .kpi .lbl{font-size:clamp(13px,1.6vw,28px); font-weight:700; color:var(--muted); letter-spacing:.5px; text-align:center}
 
   /* ── schedule grid ── */
@@ -97,22 +131,26 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .sched-row.head .rname{color:var(--muted)}
   .sched-row .col{display:flex; align-items:center; justify-content:center; font-weight:800;
-    font-size:clamp(11px,1.2vw,20px); color:var(--muted); border-bottom:2px solid var(--line)}
+    font-size:clamp(11px,1.2vw,20px); color:var(--muted); border-bottom:2px solid var(--gline)}
   .sched-row.head .col{padding-bottom:.4vh}
-  .sched-row.head .col.today{color:var(--green)}
-  .cell{display:flex; align-items:center; justify-content:center; border-radius:9px; border:1px solid var(--line);
-    background:var(--bg2); font-size:clamp(10px,1.05vw,17px); font-weight:800; text-align:center; padding:.15em .2em;
-    overflow:hidden; line-height:1.05}
-  .cell.today{outline:2px solid color-mix(in srgb,var(--green) 55%, transparent); outline-offset:-2px}
-  .cell.off{color:var(--dim); background:transparent; border-style:dashed}
+  .sched-row.head .col.today{color:var(--green); text-shadow:0 0 14px rgba(34,197,94,.5)}
+  .cell{display:flex; align-items:center; justify-content:center; border-radius:10px; border:1px solid var(--gline);
+    background-color:rgba(255,255,255,.045); font-size:clamp(10px,1.05vw,17px); font-weight:800; text-align:center; padding:.15em .2em;
+    overflow:hidden; line-height:1.05;
+    /* glossy top edge that rides on ANY fill colour (task cells set background-color inline) */
+    background-image:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 55%)}
+  .cell.today{outline:2px solid color-mix(in srgb,var(--green) 60%, transparent); outline-offset:-2px}
+  .cell.off{color:var(--dim); background-color:transparent; background-image:none; border-style:dashed; border-color:rgba(190,255,214,.10)}
+  /* junk-side booking on an empty scheduler day (read-only ghost, same rules as the dashboard) */
+  .cell.jx{color:#9ecbff; background-color:rgba(59,130,246,.13); background-image:none; border:1.5px dashed rgba(96,165,250,.55)}
   .zebra{background:rgba(255,255,255,.02)}
 
   /* ── inventory ── */
   #invWrap{height:100%; display:flex; flex-direction:column; gap:1.2vh}
   .inv-cat{font-size:clamp(14px,1.5vw,26px); font-weight:800; color:var(--muted); letter-spacing:.6px; text-transform:uppercase; margin-bottom:.4vh}
   .inv-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,22em),1fr)); gap:1vh 1.2vw}
-  .inv{display:flex; align-items:center; gap:1vw; background:var(--card); border:1px solid var(--line);
-    border-left:6px solid var(--ic,var(--green)); border-radius:14px; padding:1vh 1.1vw}
+  .inv{display:flex; align-items:center; gap:1vw;
+    border-left:6px solid var(--ic,var(--green)); border-radius:16px; padding:1vh 1.1vw}
   .inv .inm{flex:1 1 auto; min-width:0; font-size:clamp(15px,1.6vw,27px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .inv .stk{flex:0 0 auto; font-size:clamp(18px,2vw,34px); font-weight:900; font-variant-numeric:tabular-nums; color:var(--ic,var(--green))}
   .inv .st{flex:0 0 auto; font-size:clamp(10px,1vw,16px); font-weight:800; text-transform:uppercase; letter-spacing:.5px;
@@ -120,9 +158,10 @@
     padding:.2em .55em; border-radius:999px}
 
   /* ── dots + status ── */
-  #dots{flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:.8em; padding-top:1.2vh}
-  #dots .dot{width:.7em;height:.7em;border-radius:50%;background:var(--line2); transition:background .3s, transform .3s}
-  #dots .dot.on{background:var(--green); transform:scale(1.3)}
+  #dots{flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:.8em;
+    align-self:center; border-radius:999px; padding:.9vh 1.8em}
+  #dots .dot{width:.7em;height:.7em;border-radius:50%;background:rgba(255,255,255,.18); transition:background .3s, transform .3s}
+  #dots .dot.on{background:var(--green); transform:scale(1.3); box-shadow:0 0 12px rgba(34,197,94,.8)}
   #netdot{position:fixed; bottom:calc(var(--pad) + .1em); right:var(--pad); width:.6em;height:.6em;border-radius:50%;
     background:var(--green); opacity:.55; transition:background .3s}
   #netdot.bad{background:var(--amber); opacity:1}
@@ -130,15 +169,20 @@
 </head>
 <body>
   <div id="gate">
-    <div class="logo">JEFF'S JUNK</div>
-    <div class="spin" id="gateSpin"></div>
-    <div class="msg" id="gateMsg">Connecting the office board…</div>
+    <div class="gcard">
+      <div class="logo">JEFF'S JUNK</div>
+      <div class="spin" id="gateSpin"></div>
+      <div class="msg" id="gateMsg">Connecting the office board…</div>
+    </div>
   </div>
 
   <div id="shell">
     <div id="topbar">
       <div id="brand"><span class="jj">JEFF'S JUNK</span><span class="sub">Office Board</span></div>
-      <div id="clock"><div class="t" id="clockT">–</div><div class="d" id="clockD">–</div></div>
+      <div id="tright">
+        <div id="wx"><span class="i" id="wxI"></span><span class="t" id="wxT"></span><span class="hl" id="wxHL"></span></div>
+        <div id="clock"><div class="t" id="clockT">–</div><div class="d" id="clockD">–</div></div>
+      </div>
     </div>
     <div id="stage">
       <!-- Panel 1: Today's Jobs -->
@@ -217,12 +261,13 @@
     }
 
     // ── state ────────────────────────────────────────────────────────────────
-    var DATA = { jobs:[], crew:{}, emps:[], sched:{}, tasks:{}, inv:[], cats:{}, kpi:{} };
+    var DATA = { jobs:[], crew:{}, emps:[], sched:{}, tasks:{}, inv:[], cats:{}, kpi:{}, junk:{} };
     var panelIdx = 0, rotTimer = null;
 
     // ── service colours for the jobs board ───────────────────────────────────
     var SVC_COLOR = {
       'Junk Removal':'#eab308', 'Junk Quote':'#3b82f6', 'Bin Rental':'#22c55e',
+      'Bin Drop-off':'#22c55e', 'Bin Pick-up':'#0ea5e9',
       'Furniture Pickup':'#ef4444', 'Furniture Delivery':'#a855f7', 'Landscaping':'#10b981'
     };
     function svcColor(s){ return SVC_COLOR[s] || '#7c8aa3'; }
@@ -233,16 +278,69 @@
       return j.time || j.junk_time || j.fb_time || '';
     }
     function timeMins(t){ if(!t) return 99999; var p=String(t).split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); }
+    // the day a job actually happens on (junk/landscaping reschedule via junk_date, furniture via fb_date)
+    function effDay(j){
+      var s=j.service;
+      if(s==='Furniture Pickup'||s==='Furniture Delivery') return j.fb_date || j.date;
+      if(s==='Junk Removal'||s==='Junk Quote'||s==='Landscaping') return j.junk_date || j.date;
+      return j.date;
+    }
+    // today's board entries — bins split into their drop-off / pick-up legs on the LEG day
+    function buildTodayEntries(rows, today){
+      var out=[];
+      rows.forEach(function(j){
+        if(j.status==='Cancelled') return;
+        function mk(label, time, crewIds){
+          out.push({ service:label, time:time||'', name:j.name, business_name:j.business_name,
+                     address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean) });
+        }
+        if(j.service==='Bin Rental'){
+          if(j.bin_dropoff===today) mk('Bin Drop-off', j.bin_dropoff_time, [j.dropoff_crew_id]);
+          if(j.bin_pickup===today)  mk('Bin Pick-up',  j.bin_pickup_time,  [j.pickup_crew_id]);
+        } else if(effDay(j)===today){
+          mk(j.service, jobTime(j), [].concat(j.assigned_crew_ids||[]));
+        }
+      });
+      return out.sort(function(a,b){ return timeMins(a.time)-timeMins(b.time); });
+    }
+    // junk-side work per person per weekday (for schedule ghosts) — same one-way rules as the dashboard
+    function buildJunkWeek(rows, monday, satEnd){
+      var occ = {};
+      function dayName(ds){ return WEEKDAYS[(parseLocal(ds).getDay()+6)%7]; }
+      function add(cid, ds, label){
+        var nm = cid && DATA.crew[cid];
+        if(!nm || !ds || ds<monday || ds>satEnd) return;
+        var k = nm.toLowerCase(), dn = dayName(ds);
+        occ[k]=occ[k]||{}; occ[k][dn]=occ[k][dn]||{};
+        occ[k][dn][label]=(occ[k][dn][label]||0)+1;
+      }
+      rows.forEach(function(j){
+        if(j.status==='Cancelled') return;
+        if(j.service==='Bin Rental'){
+          add(j.dropoff_crew_id, j.bin_dropoff, 'Bins');
+          add(j.pickup_crew_id,  j.bin_pickup,  'Bins');
+        } else {
+          var lbl = j.service==='Junk Removal' ? 'Junk'
+                  : j.service==='Junk Quote' ? 'Quote'
+                  : j.service==='Landscaping' ? 'Landscaping'
+                  : String(j.service||'').indexOf('Furniture')===0 ? 'Furniture' : 'Junk';
+          var ds = effDay(j);
+          (j.assigned_crew_ids||[]).forEach(function(cid){ add(cid, ds, lbl); });
+        }
+      });
+      return occ;
+    }
 
     // ── data load ────────────────────────────────────────────────────────────
     async function loadAll(){
       var today = todayStr(), monday = mondayStr();
       var wkEnd = ymd(new Date(new Date(monday).getTime()+7*864e5));
       var tomorrow = ymd(new Date(new Date(today).getTime()+864e5));
+      var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
 
       var res = await Promise.all([
-        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id')
-          .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today),
+        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time')
+          .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today+',bin_dropoff.eq.'+today+',bin_pickup.eq.'+today),
         db.from('crew_members').select('id,name'),
         db.from('jwg_employees').select('id,name'),
         db.from('jwg_schedules').select('employee_id,schedule_data').eq('week_start', monday),
@@ -252,16 +350,21 @@
         // KPI helpers
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped'),
         db.from('jobs').select('status').gte('date',monday).lt('date',wkEnd),
-        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',today).lt('completed_at',tomorrow)
+        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',today).lt('completed_at',tomorrow),
+        // junk-side work across the schedule week (for the crew-schedule ghosts)
+        db.from('jobs').select('service,status,date,junk_date,fb_date,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_pickup')
+          .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')')
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
 
-      // jobs today (exclude cancelled client-side so null status is kept)
-      DATA.jobs = (res[0].data||[]).filter(function(j){ return j.status!=='Cancelled'; })
-        .sort(function(a,b){ return timeMins(jobTime(a))-timeMins(jobTime(b)); });
+      // jobs today — bins appear on their drop-off/pick-up day, junk on its real (junk_date) day
+      DATA.jobs = buildTodayEntries(res[0].data||[], today);
 
       // crew id -> name
       DATA.crew = {}; (res[1].data||[]).forEach(function(c){ DATA.crew[c.id]=c.name; });
+
+      // junk work per person/day for the schedule ghosts (needs DATA.crew, so build it here)
+      DATA.junk = buildJunkWeek(res[10].data||[], monday, satEnd);
 
       // employees + ordering
       var empName = {}; (res[2].data||[]).forEach(function(e){ empName[e.id]=e.name; });
@@ -310,10 +413,9 @@
     }
 
     // ── renderers ────────────────────────────────────────────────────────────
-    function crewNames(j){
-      var ids = [].concat(j.assigned_crew_ids||[], j.dropoff_crew_id||[], j.pickup_crew_id||[]);
+    function crewNames(e){
       var seen={}, out=[];
-      ids.forEach(function(id){ if(id && DATA.crew[id] && !seen[id]){ seen[id]=1; out.push(DATA.crew[id]); } });
+      (e.crewIds||[]).forEach(function(id){ if(id && DATA.crew[id] && !seen[id]){ seen[id]=1; out.push(DATA.crew[id]); } });
       return out;
     }
 
@@ -331,7 +433,7 @@
         var c = svcColor(j.service);
         var who = j.business_name || j.name || 'Customer';
         var loc = [j.address, j.city].filter(Boolean).join(', ');
-        var t = jobTime(j);
+        var t = j.time;
         var names = crewNames(j);
         var crew = names.slice(0,2).map(function(n){ return '<span class="chip">'+esc(n)+'</span>'; }).join('');
         if(names.length>2) crew += '<span class="chip">+'+(names.length-2)+'</span>';
@@ -361,12 +463,19 @@
 
       var rows = DATA.emps.map(function(e,ri){
         var sd = DATA.sched[e.id]||{};
+        var jocc = DATA.junk[String(e.name||'').toLowerCase()]||{};
         var cells = days.map(function(dn){
           var day = sd[dn]; var todayCls = dn===todayWd?' today':'';
-          if(!day || day.status==='off' || day.status==='dayoff')
+          if(!day || day.status==='off' || day.status==='dayoff'){
+            // untouched day + junk-side booking → read-only ghost (a set "Day off" stays a day off)
+            if((!day || day.status==='off') && jocc[dn]){
+              var parts = Object.keys(jocc[dn]).map(function(l){ var n=jocc[dn][l]; return l+(n>1?' ×'+n:''); });
+              return '<div class="cell jx'+todayCls+'">🚚 '+esc(parts.join(' · '))+'</div>';
+            }
             return '<div class="cell off'+todayCls+'">·</div>';
+          }
           if(day.status==='sick')
-            return '<div class="cell'+todayCls+'" style="background:#3a220f;color:#f59e0b">Sick</div>';
+            return '<div class="cell'+todayCls+'" style="background-color:#3a220f;color:#f59e0b">Sick</div>';
           // working — use the first shift's first task for colour + label.
           // Fill the chip with the task colour and pick a readable text colour,
           // so even very dark task colours (e.g. "Office Closed") stay legible.
@@ -376,7 +485,7 @@
             var tk = DATA.tasks[sh.tasks[0]];
             if(tk){ label=tk.label||label; col=tk.dot||col; }
           }
-          return '<div class="cell'+todayCls+'" style="background:'+col+';color:'+readableText(col)+';border-color:transparent">'+esc(label)+'</div>';
+          return '<div class="cell'+todayCls+'" style="background-color:'+col+';color:'+readableText(col)+';border-color:transparent">'+esc(label)+'</div>';
         }).join('');
         return '<div class="sched-row'+(ri%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+'">'
           + '<div class="rname">'+esc(e.name)+'</div>'+cells+'</div>';
@@ -470,6 +579,24 @@
       el('clockD').textContent = d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'}).toUpperCase();
     }
 
+    // ── weather (Open-Meteo, free, no key; Barrie-area yard coords) ──────────
+    var WMO = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌦️',56:'🌦️',57:'🌦️',
+               61:'🌧️',63:'🌧️',65:'🌧️',66:'🌧️',67:'🌧️',71:'🌨️',73:'🌨️',75:'🌨️',77:'🌨️',
+               80:'🌦️',81:'🌦️',82:'🌦️',85:'🌨️',86:'🌨️',95:'⛈️',96:'⛈️',99:'⛈️'};
+    async function loadWeather(){
+      try{
+        var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.3683&longitude=-79.6831'
+          +'&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto');
+        var w = await r.json();
+        var cur = w.current||{}, d = w.daily||{};
+        if(cur.temperature_2m==null) return;
+        el('wxI').textContent = WMO[cur.weather_code]||'🌡️';
+        el('wxT').textContent = Math.round(cur.temperature_2m)+'°';
+        el('wxHL').textContent = 'H '+Math.round((d.temperature_2m_max||[])[0])+'° · L '+Math.round((d.temperature_2m_min||[])[0])+'°';
+        el('wx').classList.add('on');
+      }catch(e){ console.warn('weather failed', e); }   // board just shows no weather on a blip
+    }
+
     // ── net status ───────────────────────────────────────────────────────────
     function net(ok){ el('netdot').classList.toggle('bad', !ok); }
 
@@ -516,6 +643,7 @@
       el('gate').style.display='none';
       el('shell').style.display='flex';
       tickClock(); setInterval(tickClock, 1000);
+      loadWeather(); setInterval(loadWeather, 30*60*1000);
       startRotation();
       // periodic refresh; keep showing last-good data on a blip
       setInterval(async function(){
