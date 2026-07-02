@@ -4141,10 +4141,11 @@ function sortJobList(arr){
 }
 // ─── LIVE MAP ───
 // Visual-only Geotab layer for the Live Jobs page. Polls the geotab-proxy
-// edge function every 5s for the six whitelisted trucks, draws today's
-// BIN_AUTO_ zones from MyGeotab, runs client-side point-in-polygon, and
-// emits enter/exit signals that ljStatus reads. Never writes to Supabase
-// or to MyGeotab — pure visual layer over the existing list.
+// edge function every 30s — and ONLY while the Live Jobs view is on screen —
+// for the six whitelisted trucks, draws today's BIN_AUTO_ zones from MyGeotab,
+// runs client-side point-in-polygon, and emits enter/exit signals that
+// ljLegStatus reads. Never writes to Supabase or to MyGeotab — pure visual
+// layer over the existing list.
 var LiveMap = (function(){
   var map = null;
   var zoneLayers = new Map();      // jobId -> L.Polygon
@@ -4153,12 +4154,19 @@ var LiveMap = (function(){
   var liveStatus = new Map();      // jobId -> 'onsite' | 'done'
   var pickupTs = new Map();        // jobId -> ISO timestamp the truck left
   var presence = new Map();        // deviceId -> { jobId, since } when inside a zone
+  var lastDevices = [];            // latest device-status payload (for En Route inference)
   var autoFocus = true;
   var overtimeMin = 90;
   var pollHandle = null;
   var zoneReloadHandle = null;
   var bannerHideHandle = null;
   var started = false;
+
+  function viewVisible(){
+    if(document.hidden) return false;
+    var v = document.getElementById('view-livejobs');
+    return !!(v && v.classList.contains('active'));
+  }
 
   function pointInPolygon(lat, lng, poly){
     var inside = false;
@@ -4267,6 +4275,7 @@ var LiveMap = (function(){
       var d = await r.json();
       if(!d.ok) throw new Error(d.error || 'device-status failed');
       var now = Date.now();
+      lastDevices = d.devices || [];
       var listEl = (d.devices||[]).length;
       setStatusText('Live · '+listEl+' trucks · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
 
@@ -4329,73 +4338,73 @@ var LiveMap = (function(){
   }
 
   function start(){
-    if(started){ if(map) setTimeout(function(){ map.invalidateSize(); }, 50); return; }
+    if(started){
+      if(map){ setTimeout(function(){ map.invalidateSize(); }, 50); pollDevices(); }
+      return;
+    }
     if(!ensureMap()){ setTimeout(start, 300); return; }
     started = true;
     setTimeout(function(){ if(map) map.invalidateSize(); }, 100);
     loadZones().then(pollDevices);
-    pollHandle = setInterval(pollDevices, 5000);
-    zoneReloadHandle = setInterval(loadZones, 60000);
+    // Free-plan guard: poll only while Live Jobs is the active view AND the tab
+    // is visible. 30s trucks / 5min zones — the ungated 5s loop could burn the
+    // whole 500K/month edge-function allowance from one forgotten tab.
+    pollHandle = setInterval(function(){ if(viewVisible()) pollDevices(); }, 30000);
+    zoneReloadHandle = setInterval(function(){ if(viewVisible()) loadZones(); }, 300000);
   }
 
   function getLiveStatus(jobId){ return liveStatus.get(jobId); }
   function getPickupTimestamp(jobId){ return pickupTs.get(jobId); }
   function focusJob(jobId){ focusZone(jobId); }
+  function getOnSiteMinutes(jobId){
+    var mins = null;
+    presence.forEach(function(p){
+      if(p.jobId === jobId){
+        var m = Math.floor((Date.now() - p.since) / 60000);
+        if(mins == null || m > mins) mins = m;
+      }
+    });
+    return mins;
+  }
+  function getOvertimeMin(){ return overtimeMin; }
+  function getDeviceStates(){ return lastDevices; }
 
   return {
     start: start,
     getLiveStatus: getLiveStatus,
     getPickupTimestamp: getPickupTimestamp,
-    focusJob: focusJob
+    focusJob: focusJob,
+    getOnSiteMinutes: getOnSiteMinutes,
+    getOvertimeMin: getOvertimeMin,
+    getDeviceStates: getDeviceStates
   };
 })();
 
 // ─── LIVE JOBS ───
 
 /**
- * Determine Live Jobs status for a job.
- * The Geotab live signal (LiveMap) takes priority — if a truck is inside this
- * job's BIN_AUTO_ zone right now, the row is 'onsite'; after the truck leaves,
- * 'done' with a pickup timestamp. Otherwise falls back to user-driven state:
- * pickup day + manual 'pickedup' (or a geofence_notifications pickup) → done.
+ * Live Jobs is a daily operations board for BIN work only — every bin
+ * drop-off and pick-up scheduled today, grouped by assigned driver, one row
+ * per leg. Statuses per leg: Not Started → En Route (driver's truck moving,
+ * next job up) → On Site (truck inside the job's zone) → Complete; Issue when
+ * a truck has been on site past the over-time threshold. The Geotab live
+ * signal wins for the leg being worked; otherwise DB state decides (geofence
+ * notifications + manual pickup). Login's inventory auto-drop sets
+ * bin_instatus='dropped' without any truck moving, so a drop leg only counts
+ * as Complete on a real zone visit or once the bin is picked up.
  * Never writes anything — Live Jobs is fully isolated.
  */
-function ljStatus(j,today,geoPickedUp){
-  var live = LiveMap.getLiveStatus(j.id);
-  if(live === 'onsite') return 'onsite';
-  if(live === 'done')   return 'done';
-  var geoDone = geoPickedUp && geoPickedUp.has(j.id);
-  if(j.service==='Bin Rental'){
-    var isDropDay=j.binDropoff===today;
-    var isPickDay=j.binPickup===today;
-    if(isPickDay && (j.binInstatus==='pickedup' || geoDone)) return 'done';
-    if(isPickDay) return 'pending';
-    // Drop day: Live Jobs is visual only. binInstatus='dropped' is set by the
-    // page-load auto-drop block for inventory accuracy and does NOT mean the
-    // truck has actually arrived. Treat drop day as pending until either the
-    // user marks it picked up OR a Geotab signal arrives (Task 3).
-    if(isDropDay && j.binInstatus==='pickedup') return 'done';
-    return 'pending';
-  }
-  // Non-bin jobs
-  if(j.binInstatus==='pickedup' || geoDone) return 'done';
-  if(j.binInstatus==='dropped') return 'onsite';
-  return 'pending';
-}
 
 async function renderLiveJobs(){
   // Kick off the Geotab visual layer. Idempotent — safe to call on every render.
   try { LiveMap.start(); } catch(e){ console.warn('LiveMap.start:', e); }
   var today=todayStr();
-  // Refresh today's jobs from the DB so this page (and its 60s auto-refresh)
-  // shows new bookings and edits, not just what other pages cached in memory
+  // Refresh today's BIN jobs from the DB so this page (and its 60s auto-refresh)
+  // shows new bookings and edits. Bins only — this board ignores other job types.
   try {
     var rT = await Promise.all([
-      db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').eq('date',today),
       db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',today),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',today),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').neq('status','Cancelled').eq('fb_date',today),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').eq('junk_date',today)
+      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',today)
     ]);
     var seenT = {};
     rT.forEach(function(res){ (res.data||[]).forEach(function(row){
@@ -4406,128 +4415,183 @@ async function renderLiveJobs(){
     });});
   } catch(e){ console.warn('live jobs refresh:', e); }
   var todayJobs=jobs.filter(function(j){
-    if(j.status==='Cancelled') return false;
-    // Bin rentals: only show if dropoff or pickup is today (date is just booking date)
-    if(j.service==='Bin Rental') return j.binDropoff===today || j.binPickup===today;
-    // All other services: use the service-specific scheduled date
-    return jobSchedDate(j)===today;
+    return j.service==='Bin Rental' && j.status!=='Cancelled'
+      && (j.binDropoff===today || j.binPickup===today);
   });
 
-  // Fetch today's pickup geofence notifications — visual cross-off only, no DB writes
-  var geoPickedUp = new Set();
+  // Today's geofence notifications — visual cross-off only, no DB writes
+  var geoNotifs={dropped:new Set(),pickedup:new Set()};
   try {
-    var rNotif = await db.from('geofence_notifications').select('job_id')
-      .eq('status','pickedup')
+    var rNotif = await db.from('geofence_notifications').select('job_id,status')
       .gte('created_at', today+'T00:00:00')
       .lt('created_at', today+'T23:59:59.999');
-    if(rNotif.data) rNotif.data.forEach(function(x){ geoPickedUp.add(x.job_id); });
+    (rNotif.data||[]).forEach(function(x){ if(geoNotifs[x.status]) geoNotifs[x.status].add(x.job_id); });
   } catch(e) { console.warn('geofence notif load error:', e); }
 
-  // Compute status for each job
-  todayJobs.forEach(function(j){ j._ljStatus=ljStatus(j,today,geoPickedUp); });
+  // One row per bin LEG. On a swap day the drop leg owns the live Geotab
+  // signal until it completes, then the pickup leg does.
+  var legs=[];
+  todayJobs.forEach(function(j){
+    var dropToday=j.binDropoff===today, pickToday=j.binPickup===today;
+    var geoPicked=geoNotifs.pickedup.has(j.id);
+    var dropDone=j.binInstatus==='pickedup'||geoPicked||geoNotifs.dropped.has(j.id);
+    if(dropToday) legs.push({j:j,leg:'dropoff',time:j.binDropoffTime||'',crewId:j.dropoffCrewId,swap:dropToday&&pickToday,liveOwner:!dropDone||!pickToday});
+    if(pickToday) legs.push({j:j,leg:'pickup',time:j.binPickupTime||'',crewId:j.pickupCrewId,swap:dropToday&&pickToday,liveOwner:!dropToday||dropDone});
+  });
 
-  // Bucket each job into one of seven categories
-  function bucketOf(j){
-    if(j.service==='Bin Rental'){
-      if(j.binDropoff===today && j.binPickup===today) return 'binSwap';
-      if(j.binPickup===today) return 'binPick';
-      return 'binDrop';
+  // Base status per leg (the En Route upgrade happens after grouping below)
+  legs.forEach(function(l){
+    var j=l.j, geoPicked=geoNotifs.pickedup.has(j.id);
+    var complete=(l.leg==='pickup')
+      ?(j.binInstatus==='pickedup'||geoPicked)
+      :(j.binInstatus==='pickedup'||geoPicked||geoNotifs.dropped.has(j.id));
+    var live=LiveMap.getLiveStatus(j.id);
+    if(!complete && l.liveOwner && live==='done') complete=true;
+    if(complete){ l.status='complete'; return; }
+    if(l.liveOwner && live==='onsite'){
+      var mins=LiveMap.getOnSiteMinutes(j.id);
+      l.status=(mins!=null && mins>=LiveMap.getOvertimeMin())?'issue':'onsite';
+      return;
     }
-    if(j.service==='Junk Removal') return 'junk';
-    if(j.service==='Landscaping') return 'landscaping';
-    if(j.service==='Furniture Pickup') return 'furnPick';
-    if(j.service==='Furniture Delivery') return 'furnDel';
-    return 'other';
-  }
-  todayJobs.forEach(function(j){ j._ljBucket=bucketOf(j); });
+    l.status='notstarted';
+  });
+
+  // Drivers whose truck is moving right now (device name → vehicle → crew)
+  var drivingCrew=new Set();
+  (LiveMap.getDeviceStates()||[]).forEach(function(dev){
+    if(!dev.isDriving) return;
+    var veh=vehicles.find(function(v){return v.name===dev.name;});
+    if(!veh) return;
+    (vehicleAssignments[veh.vid]||[]).forEach(function(a){ if(!a.endedAt) drivingCrew.add(a.crewMemberId); });
+  });
+
+  // Group legs by driver; time order inside each group (no time = last)
+  var groups=new Map();
+  legs.forEach(function(l){
+    var key=l.crewId||'';
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(l);
+  });
+  function timeVal(t){ if(!t) return 24*60+1; var p=String(t).split(':'); return (+p[0])*60+(+p[1]||0); }
+  groups.forEach(function(list){
+    list.sort(function(a,b){
+      var ta=timeVal(a.time), tb=timeVal(b.time);
+      if(ta!==tb) return ta-tb;
+      if(a.leg!==b.leg) return a.leg==='dropoff'?-1:1;
+      return (a.j.name||'').localeCompare(b.j.name||'');
+    });
+    // A moving driver's next job up is En Route
+    for(var i=0;i<list.length;i++){
+      var l=list[i];
+      if(l.status==='complete') continue;
+      if(l.status==='notstarted' && l.crewId && drivingCrew.has(l.crewId)) l.status='enroute';
+      break;
+    }
+  });
 
   // Stats
-  var pending=0, onSite=0, completed=0;
-  todayJobs.forEach(function(j){
-    if(j._ljStatus==='done') completed++;
-    else if(j._ljStatus==='onsite') onSite++;
-    else pending++;
+  var counts={total:legs.length,complete:0,issue:0,drop:0,pick:0};
+  legs.forEach(function(l){
+    if(l.status==='complete')counts.complete++;
+    if(l.status==='issue')counts.issue++;
+    if(l.leg==='dropoff')counts.drop++; else counts.pick++;
   });
   var statsEl=document.getElementById('lj-stats');
   statsEl.innerHTML=
-    '<div class="lj-stat"><span class="lj-stat-num">'+todayJobs.length+'</span><span class="lj-stat-lbl">Total</span></div>'+
-    '<div class="lj-stat lj-stat-pending"><span class="lj-stat-num">'+pending+'</span><span class="lj-stat-lbl">Pending</span></div>'+
-    '<div class="lj-stat lj-stat-onsite"><span class="lj-stat-num">'+onSite+'</span><span class="lj-stat-lbl">On Site</span></div>'+
-    '<div class="lj-stat lj-stat-done"><span class="lj-stat-num">'+completed+'</span><span class="lj-stat-lbl">Completed</span></div>';
+    '<div class="lj-stat"><span class="lj-stat-num">'+counts.drop+'</span><span class="lj-stat-lbl">Drop-offs</span></div>'+
+    '<div class="lj-stat"><span class="lj-stat-num">'+counts.pick+'</span><span class="lj-stat-lbl">Pick-ups</span></div>'+
+    '<div class="lj-stat lj-stat-done"><span class="lj-stat-num">'+counts.complete+'</span><span class="lj-stat-lbl">Done</span></div>'+
+    '<div class="lj-stat lj-stat-pending"><span class="lj-stat-num">'+(counts.total-counts.complete)+'</span><span class="lj-stat-lbl">To go</span></div>'+
+    (counts.issue?'<div class="lj-stat lj-stat-issue"><span class="lj-stat-num">'+counts.issue+'</span><span class="lj-stat-lbl">Issues</span></div>':'');
 
   // Update timestamp
   var tsEl=document.getElementById('lj-last-update');
   if(tsEl) tsEl.textContent='Updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
 
-  // Rows
   var listEl=document.getElementById('lj-list');
-  if(!todayJobs.length){
-    listEl.innerHTML='<div class="lj-empty">No jobs scheduled for today.</div>';
+  if(!legs.length){
+    listEl.innerHTML='<div class="lj-empty">No bin drop-offs or pick-ups scheduled for today.</div>';
     return;
   }
 
-  // Sort inside each bucket: on_site → pending → done, then by name
-  var statusOrder={'onsite':0,'pending':1,'done':2};
-  function sortRows(list){
-    return list.sort(function(a,b){
-      var oa=statusOrder[a._ljStatus]||1, ob=statusOrder[b._ljStatus]||1;
-      if(oa!==ob) return oa-ob;
-      return (a.name||'').localeCompare(b.name||'');
-    });
-  }
+  var ST={
+    notstarted:{cls:'lj-notstarted',label:'Not Started'},
+    enroute:{cls:'lj-enroute',label:'En Route'},
+    onsite:{cls:'lj-onsite',label:'On Site'},
+    complete:{cls:'lj-done',label:'Complete'},
+    issue:{cls:'lj-issue',label:'Issue'}
+  };
 
-  function buildRow(j){
-    var st=j._ljStatus;
-    var statusCls=st==='done'?'lj-done':st==='onsite'?'lj-onsite':'lj-pending';
-    var statusLabel=st==='done'?'Completed':st==='onsite'?'On Site':'Pending';
-    var vehicleHtml='';
-    if(st==='done'){
-      var liveTs = LiveMap.getPickupTimestamp(j.id);
-      if(liveTs){
-        var t = new Date(liveTs);
-        vehicleHtml = '<span class="lj-vehicle">· Done @ '+t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>';
-      } else if(j.completedByVehicle){
-        vehicleHtml='<span class="lj-vehicle">· '+j.completedByVehicle+'</span>';
-      }
+  function buildLegRow(l){
+    var j=l.j, st=ST[l.status]||ST.notstarted;
+    var legChip=(l.leg==='dropoff')
+      ?'<span class="lj-leg-chip lj-leg-drop">🚛 Drop-off'+(l.swap?' · swap':'')+'</span>'
+      :'<span class="lj-leg-chip lj-leg-pick">🚚 Pick-up'+(l.swap?' · swap':'')+'</span>';
+    var meta=[];
+    if(j.binSize) meta.push(j.binSize);
+    if(j.binBid) meta.push('Bin '+j.binBid);
+    if(l.time) meta.push(ft(l.time));
+    var extra='';
+    if(l.status==='complete'){
+      var liveTs=LiveMap.getPickupTimestamp(j.id);
+      if(liveTs) extra='<span class="lj-vehicle">· Done @ '+new Date(liveTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>';
+      else if(j.completedByVehicle) extra='<span class="lj-vehicle">· '+escHtml(j.completedByVehicle)+'</span>';
+    } else if(l.status==='issue'){
+      var onM=LiveMap.getOnSiteMinutes(j.id);
+      if(onM!=null) extra='<span class="lj-vehicle">· on site '+onM+' min</span>';
     }
-    return '<div class="lj-row '+statusCls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
+    var upd=j.updatedAt?new Date(j.updatedAt):null;
+    var updStr=upd?('Upd '+(upd.toDateString()===new Date().toDateString()
+      ?upd.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
+      :upd.toLocaleDateString('en-US',{month:'short',day:'numeric'}))):'';
+    return '<div class="lj-row '+st.cls+'" onclick="LiveMap.focusJob(\''+j.id+'\'); openDetail(\''+j.id+'\')">'
       +'<div class="lj-row-left">'
         +'<div class="lj-status-dot"></div>'
-        +jobCrewAvatarsHTML(j)
+        +legChip
+        +jobCrewAvatarsHTML(j, l.leg)
         +'<div class="lj-info">'
-          +'<span class="lj-client">'+j.name+'</span>'
-          +(j.service==='Landscaping'&&j.jobName?'<span style="font-size:12px;font-weight:700;color:#65a30d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🌿 '+escHtml(j.jobName)+'</span>':'')
-          +(j.service==='Landscaping'&&j.crewSize?'<span style="font-size:11px;font-weight:700;color:#65a30d;white-space:nowrap">👷 '+j.crewSize+'</span>':'')
-          +'<span class="lj-addr">'+(j.address||'')+(j.city?' · '+j.city:'')+'</span>'
-          +vehicleHtml
+          +'<span class="lj-client">'+escHtml(j.name)+'</span>'
+          +(meta.length?'<span class="lj-meta">'+escHtml(meta.join(' · '))+'</span>':'')
+          +'<span class="lj-addr">'+escHtml(j.address||'')+(j.city?' · '+escHtml(j.city):'')+'</span>'
+          +(j.notes?'<span class="lj-notes" title="'+escHtml(j.notes)+'">📝 '+escHtml(j.notes.length>60?j.notes.slice(0,60)+'…':j.notes)+'</span>':'')
+          +extra
         +'</div>'
       +'</div>'
       +'<div class="lj-row-right">'
-        +'<span class="lj-status-badge '+statusCls+'">'+statusLabel+'</span>'
+        +(updStr?'<span class="lj-upd">'+updStr+'</span>':'')
+        +'<span class="lj-status-badge '+st.cls+'">'+st.label+'</span>'
       +'</div>'
     +'</div>';
   }
 
-  function buildSection(key,icon,title){
-    var list=sortRows(todayJobs.filter(function(j){return j._ljBucket===key;}));
-    if(!list.length) return '';
-    return '<div class="lj-section lj-sect-'+key+'">'
-      +'<div class="lj-section-header"><span class="lj-section-icon">'+icon+'</span><span class="lj-section-title">'+title+'</span><span class="lj-section-count">'+list.length+'</span></div>'
-      +'<div class="lj-section-body">'+list.map(buildRow).join('')+'</div>'
+  // Driver sections: Unassigned first (needs attention), then drivers A–Z
+  var keys=Array.from(groups.keys());
+  keys.sort(function(a,b){
+    if(a===''&&b!=='') return -1;
+    if(b===''&&a!=='') return 1;
+    var na=(crewMembers.find(function(c){return c.id===a;})||{}).name||'';
+    var nb=(crewMembers.find(function(c){return c.id===b;})||{}).name||'';
+    return na.localeCompare(nb);
+  });
+  var html='';
+  keys.forEach(function(key){
+    var list=groups.get(key);
+    var done=list.filter(function(l){return l.status==='complete';}).length;
+    var crew=key?crewMembers.find(function(c){return c.id===key;}):null;
+    var head=crew
+      ?'<span class="job-avatar" style="background:'+crewAvatarColor(key)+'">'+crewAvatarInitials(crew.name)+'</span><span class="lj-section-title">'+escHtml(crew.name)+'</span>'
+      :'<span class="lj-section-icon">⚠️</span><span class="lj-section-title">Unassigned</span>';
+    html+='<div class="lj-section lj-sect-driver'+(key?'':' lj-sect-unassigned')+'">'
+      +'<div class="lj-section-header">'+head
+        +'<span class="lj-section-count">'+done+' / '+list.length+' done</span>'
+      +'</div>'
+      +'<div class="lj-section-body">'+list.map(buildLegRow).join('')+'</div>'
     +'</div>';
-  }
-
-  listEl.innerHTML=''
-    +buildSection('binDrop','🚛','Bin Drop-offs')
-    +buildSection('binSwap','🔄','Bin Swaps')
-    +buildSection('binPick','🚚','Bin Pick-ups')
-    +buildSection('junk','🗑️','Junk Removals')
-    +buildSection('landscaping','🌿','Landscaping')
-    +buildSection('furnPick','🛋️','Furniture Pickups')
-    +buildSection('other','📌','Other');
+  });
+  listEl.innerHTML=html;
 
   var sub=document.getElementById('livejobs-sub');
-  if(sub) sub.textContent="Today's jobs — auto-refreshes every minute · Updated "+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if(sub) sub.textContent="Today's bin work by driver — auto-refreshes every minute · Updated "+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
 }
 
 // Auto-refresh Live Jobs every 60s while the page is open and the tab is visible

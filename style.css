@@ -1194,6 +1194,15 @@ input[type=date],input[type=time]{position:relative;}
 .lj-status-badge.lj-pending{background:#e8f0fe;color:var(--blue);}
 .lj-status-badge.lj-onsite{background:#fff3e0;color:var(--orange);}
 .lj-status-badge.lj-done{background:#e8f5e9;color:var(--green);}
+.lj-status-badge.lj-notstarted{background:#f1f5f9;color:#64748b;}
+.lj-status-badge.lj-enroute{background:#e8f0fe;color:var(--blue);}
+.lj-status-badge.lj-issue{background:#fee2e2;color:#dc2626;}
+.lj-notstarted .lj-status-dot{background:#94a3b8;}
+.lj-enroute .lj-status-dot{background:var(--blue);animation:ljPulse 1.5s ease-in-out infinite;}
+.lj-issue .lj-status-dot{background:#dc2626;animation:ljPulse 1s ease-in-out infinite;}
+.lj-enroute{border-left:3px solid var(--blue);}
+.lj-issue{border-left:3px solid #dc2626;background:#fff5f5;}
+.lj-stat-issue .lj-stat-num{color:#dc2626;}
 
 .lj-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
 
@@ -1211,40 +1220,22 @@ input[type=date],input[type=time]{position:relative;}
 .lj-section .lj-row{margin-bottom:6px;border-width:1px;border-left-width:4px;}
 .lj-section .lj-row:last-child{margin-bottom:0;}
 
-/* Bin Drop-offs — bright green */
-.lj-sect-binDrop{border-color:#16a34a;background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%);}
-.lj-sect-binDrop .lj-section-header{background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);}
-.lj-sect-binDrop .lj-row{border-left-color:#16a34a;}
+/* Driver lanes — one green section per driver; red for Unassigned */
+.lj-sect-driver{border-color:#16a34a;background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%);}
+.lj-sect-driver .lj-section-header{background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);}
+.lj-sect-driver .lj-row{border-left-color:#16a34a;}
+.lj-sect-driver .lj-section-header .job-avatar{width:26px;height:26px;font-size:11px;border:2px solid rgba(255,255,255,.7);}
+.lj-sect-unassigned{border-color:#dc2626;background:linear-gradient(135deg,#fee2e2 0%,#fecaca 100%);}
+.lj-sect-unassigned .lj-section-header{background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);}
+.lj-sect-unassigned .lj-row{border-left-color:#dc2626;}
 
-/* Bin Swaps — teal (drop + pick same day) */
-.lj-sect-binSwap{border-color:#0d9488;background:linear-gradient(135deg,#ccfbf1 0%,#99f6e4 100%);}
-.lj-sect-binSwap .lj-section-header{background:linear-gradient(135deg,#0d9488 0%,#0f766e 100%);}
-.lj-sect-binSwap .lj-row{border-left-color:#0d9488;}
-
-/* Bin Pick-ups — bright red */
-.lj-sect-binPick{border-color:#dc2626;background:linear-gradient(135deg,#fee2e2 0%,#fecaca 100%);}
-.lj-sect-binPick .lj-section-header{background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);}
-.lj-sect-binPick .lj-row{border-left-color:#dc2626;}
-
-/* Junk Removals — bright yellow */
-.lj-sect-junk{border-color:#eab308;background:linear-gradient(135deg,#fef9c3 0%,#fef08a 100%);}
-.lj-sect-junk .lj-section-header{background:linear-gradient(135deg,#eab308 0%,#ca8a04 100%);}
-.lj-sect-junk .lj-row{border-left-color:#eab308;}
-
-/* Furniture Pickups — bright purple */
-.lj-sect-furnPick{border-color:#8b5cf6;background:linear-gradient(135deg,#ede9fe 0%,#ddd6fe 100%);}
-.lj-sect-furnPick .lj-section-header{background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 100%);}
-.lj-sect-furnPick .lj-row{border-left-color:#8b5cf6;}
-
-/* Furniture Deliveries — bright orange */
-.lj-sect-furnDel{border-color:#f97316;background:linear-gradient(135deg,#ffedd5 0%,#fed7aa 100%);}
-.lj-sect-furnDel .lj-section-header{background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);}
-.lj-sect-furnDel .lj-row{border-left-color:#f97316;}
-
-/* Other — neutral slate */
-.lj-sect-other{border-color:#64748b;background:linear-gradient(135deg,#f1f5f9 0%,#e2e8f0 100%);}
-.lj-sect-other .lj-section-header{background:linear-gradient(135deg,#64748b 0%,#475569 100%);}
-.lj-sect-other .lj-row{border-left-color:#64748b;}
+/* Bin-leg chips + row meta */
+.lj-leg-chip{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0;letter-spacing:.3px;}
+.lj-leg-drop{background:#e0f2fe;color:#0369a1;}
+.lj-leg-pick{background:#fce7f3;color:#be185d;}
+.lj-meta{font-size:11px;font-weight:700;color:var(--text-secondary);white-space:nowrap;}
+.lj-notes{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+.lj-upd{font-size:10px;color:var(--muted);white-space:nowrap;}
 
 @media(max-width:768px){
   .lj-stats{gap:6px;}
