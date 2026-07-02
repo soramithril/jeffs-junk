@@ -1449,3 +1449,26 @@
 #view-jwgscheduler #app{padding-top:0;overflow-x:auto;}
 #view-jwgscheduler #split-overlay{display:none;}
 #view-jwgscheduler #mobile-nav{display:none !important;}
+
+/* ── Compact multi-job days ─────────────────────────────────────────
+   When one person's day holds 2+ jobs (real shifts and/or junk chips),
+   the cards flow two-up side-by-side instead of stacking full-width,
+   so a busy week stays one scan tall. Single-job days are untouched.
+   The .cell-compact class is kept current by app-jwg-feed.js after
+   every board render. An odd last card spans the full row. */
+#view-jwgscheduler td.day-cell.cell-compact .shift-stack {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;
+}
+#view-jwgscheduler td.day-cell.cell-compact .shift-bar-flow {
+  min-height:22px;padding:2px 6px;
+}
+#view-jwgscheduler td.day-cell.cell-compact .shift-label {
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;
+}
+#view-jwgscheduler td.day-cell.cell-compact .shift-times {white-space:nowrap;}
+#view-jwgscheduler td.day-cell.cell-compact .shift-stack > .shift-bar-flow:last-child:nth-child(odd) {
+  grid-column:1 / -1;
+}
+@media(max-width:640px) {
+  #view-jwgscheduler td.day-cell.cell-compact .shift-stack {grid-template-columns:1fr;}
+}

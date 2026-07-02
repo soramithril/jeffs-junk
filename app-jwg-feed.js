@@ -173,20 +173,14 @@
 
   // Render as the scheduler's own shift bars so size/typography match exactly; junk-blue
   // palette + 🚚 keep it recognizable. Clicking bubbles to the cell's openShiftModal.
-  function chipEl(entries,belowReal){
-    var stack=document.createElement("div");
-    stack.className="shift-stack jwg-junk-stack";
-    if(belowReal)stack.style.marginTop="5px";        // same gap the real stack uses between bars
-    entries.forEach(function(en){
-      var bar=document.createElement("div");
-      bar.className="shift-bar shift-bar-flow jwg-junk-chip";
-      bar.setAttribute("style","background:#dbeafe;color:#1d4ed8;border:1.5px solid #60a5fa66");
-      bar.title="From Jeff's Junk — tap to put it on the schedule"+(en.detail?" ("+en.detail+")":"");
-      var lbl="🚚 "+esc(en.label)+(en.count>1?" ×"+en.count:"");
-      bar.innerHTML='<span class="shift-label">'+lbl+"</span>"+(en.time?'<span class="shift-times">'+esc(en.time)+"</span>":"");
-      stack.appendChild(bar);
-    });
-    return stack;
+  function barEl(en){
+    var bar=document.createElement("div");
+    bar.className="shift-bar shift-bar-flow jwg-junk-chip";
+    bar.setAttribute("style","background:#dbeafe;color:#1d4ed8;border:1.5px solid #60a5fa66");
+    bar.title="From Jeff's Junk — tap to put it on the schedule"+(en.detail?" ("+en.detail+")":"");
+    var lbl="🚚 "+esc(en.label)+(en.count>1?" ×"+en.count:"");
+    bar.innerHTML='<span class="shift-label">'+lbl+"</span>"+(en.time?'<span class="shift-times">'+esc(en.time)+"</span>":"");
+    return bar;
   }
 
   function paint(){
@@ -205,22 +199,36 @@
 
     if(_observer)_observer.disconnect();              // don't let our own edits re-trigger us
     try{
-      grid.querySelectorAll(".jwg-junk-stack").forEach(function(n){n.remove();});
+      grid.querySelectorAll(".jwg-junk-stack,.jwg-junk-chip").forEach(function(n){n.remove();});
       grid.querySelectorAll("tbody tr.emp-row").forEach(function(row){
-        var emp=empById[row.getAttribute("data-empid")];if(!emp)return;
-        var byDay=occ[(emp.name||"").toLowerCase()];if(!byDay)return;
+        var emp=empById[row.getAttribute("data-empid")];
+        var byDay=emp?occ[(emp.name||"").toLowerCase()]:null;
         var cells=row.querySelectorAll("td.day-cell");
         for(var i=0;i<cells.length;i++){
-          var day=activeDays[i];if(!day)continue;
-          var entries=byDay[day];if(!entries||!entries.length)continue;
-          var cell=cells[i];
-          if(cell.querySelector(".status-label"))continue;               // day off / sick → scheduler wins outright
-          // Per-entry hiding: a real shift only covers ghosts of the SAME kind (e.g. a real
-          // Bins shift hides the Bins ghost but leaves an uncovered Junk Removal ghost showing).
-          var realLabels=[].map.call(cell.querySelectorAll(".shift-bar:not(.jwg-junk-chip) .shift-label"),function(n){return (n.textContent||"").toLowerCase();});
-          var visible=entries.filter(function(en){return !coveredBy(realLabels,en.taskKey);});
-          if(!visible.length)continue;
-          cell.appendChild(chipEl(visible,realLabels.length>0));
+          var cell=cells[i],day=activeDays[i];
+          // day off / sick → scheduler wins outright
+          if(day&&byDay&&!cell.querySelector(".status-label")){
+            var entries=byDay[day];
+            if(entries&&entries.length){
+              // Per-entry hiding: a real shift only covers ghosts of the SAME kind (e.g. a real
+              // Bins shift hides the Bins ghost but leaves an uncovered Junk Removal ghost showing).
+              var realLabels=[].map.call(cell.querySelectorAll(".shift-bar:not(.jwg-junk-chip) .shift-label"),function(n){return (n.textContent||"").toLowerCase();});
+              var visible=entries.filter(function(en){return !coveredBy(realLabels,en.taskKey);});
+              if(visible.length){
+                // Chips join the cell's existing stack so real shifts and junk jobs share
+                // one layout flow (the compact grid needs a single container to count).
+                var host=cell.querySelector(".shift-stack");
+                if(!host){
+                  host=document.createElement("div");
+                  host.className="shift-stack jwg-junk-stack";
+                  cell.appendChild(host);
+                }
+                visible.forEach(function(en){host.appendChild(barEl(en));});
+              }
+            }
+          }
+          // 2+ jobs in one day → compact side-by-side cards (see app-jwg-scheduler.css)
+          cell.classList.toggle("cell-compact",cell.querySelectorAll(".shift-bar").length>=2);
         }
       });
     }catch(err){console.warn("[jwg-feed] paint failed",err);}
