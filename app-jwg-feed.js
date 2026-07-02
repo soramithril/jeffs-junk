@@ -45,6 +45,20 @@
     if(s.indexOf("landscap")>=0)return "landscaping";
     return "junk";                                   // Junk Removal, Junk Quote, anything else
   }
+  // The day/time a job actually happens on — junk/landscaping reschedule via junk_date,
+  // furniture via fb_date; the job's own `date` is just the booking date then.
+  function effDate(j){
+    var s=j.service;
+    if(s==="Furniture Pickup"||s==="Furniture Delivery")return j.fb_date||j.date;
+    if(s==="Junk Removal"||s==="Junk Quote"||s==="Landscaping")return j.junk_date||j.date;
+    return j.date;
+  }
+  function effTime(j){
+    var s=j.service;
+    if(s==="Furniture Pickup"||s==="Furniture Delivery")return j.fb_time||j.time;
+    if(s==="Junk Removal"||s==="Junk Quote"||s==="Landscaping")return j.junk_time||j.time;
+    return j.time;
+  }
   // Which real-shift labels "cover" a ghost of this kind (per-entry hiding).
   var FAMILY={bins:["bin"],junk:["junk"],furniture:["furniture"],landscaping:["landscap"]};
   function coveredBy(labels,taskKey){
@@ -119,7 +133,7 @@
         addBin(j.dropoff_crew_id,j.bin_dropoff,"drop",j.bin_dropoff_time,j.city);
         addBin(j.pickup_crew_id,j.bin_pickup,"pick",j.bin_pickup_time,j.city);
       }else{
-        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time,j.est_duration_min,taskKeyFor(j.service));});
+        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,effDate(j),svcLabel(j.service),effTime(j),j.est_duration_min,taskKeyFor(j.service));});
       }
     });
     // Fold each person/day's bins into a single chip: count + estimated window.
@@ -144,10 +158,10 @@
     if(_loading[weekKey])return;
     _loading[weekKey]=true;
     var s=localDateStr(ws),e=localDateStr(addDays(ws,6));
-    var cols="service,date,time,est_duration_min,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,status,city";
+    var cols="service,date,time,junk_date,junk_time,fb_date,fb_time,est_duration_min,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,status,city";
     ensureCrew().then(ensureCityTimes).then(function(){
       return db.from("jobs").select(cols)
-        .or("and(date.gte."+s+",date.lte."+e+"),and(bin_dropoff.gte."+s+",bin_dropoff.lte."+e+"),and(bin_pickup.gte."+s+",bin_pickup.lte."+e+")");
+        .or("and(date.gte."+s+",date.lte."+e+"),and(junk_date.gte."+s+",junk_date.lte."+e+"),and(fb_date.gte."+s+",fb_date.lte."+e+"),and(bin_dropoff.gte."+s+",bin_dropoff.lte."+e+"),and(bin_pickup.gte."+s+",bin_pickup.lte."+e+")");
     }).then(function(res){
       _weekCache[weekKey]=buildOcc((res&&res.data)||[],s,e);
     }).catch(function(err){
