@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '359';
+var APP_VERSION = '358';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2316,8 +2316,8 @@ async function refreshDashBinStats(){
     var lbl=s.replace(/\s*yard/i,' YD').toUpperCase();
     var numColor=isFull?'#dc3545':'#16a34a';
     var odPill=od>0?'<span style="font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
-    var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
-    var bgImg=imgKey?'<div style="position:absolute;inset:0;background-image:url(assets/'+imgKey+'.png);background-repeat:no-repeat;background-position:center 2px;background-size:auto 96px;z-index:0;pointer-events:none'+(isFull?';opacity:.3;filter:grayscale(.4)':';opacity:.95')+'"></div>':'';
+    var imgKey=({'4 yard':'4-yard-bin','14 yard':'14-yard-bin','20 yard':'20-yard-bin'})[s];
+    var bgImg=imgKey?'<div style="position:absolute;inset:0;background-image:url(https://jeffsjunk.ca/wp-content/uploads/'+imgKey+'.png);background-repeat:no-repeat;background-position:center 2px;background-size:auto 96px;z-index:0;pointer-events:none'+(isFull?';opacity:.3;filter:grayscale(.4)':';opacity:.95')+'"></div>':'';
     return '<div style="position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
       +bgImg
       +'<div style="position:relative;z-index:1">'
