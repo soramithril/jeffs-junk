@@ -37,15 +37,11 @@
     if(service==="Bin Rental")return leg==="drop"?"Bins · drop-off":"Bins · pick-up";
     return service||"Junk";
   }
-  function fmtTime(t){
-    if(!t)return "";
-    var p=String(t).split(":");if(p.length<2)return "";
-    var h=+p[0],m=+p[1];if(isNaN(h))return "";
-    var ap=h<12?"a":"p",h12=h%12;if(h12===0)h12=12;
-    return h12+(m?":"+pad(m):"")+ap;
-  }
   function parseHHMM(t){if(!t)return null;var p=String(t).split(":");if(p.length<2)return null;var h=+p[0],m=+p[1];if(isNaN(h)||isNaN(m))return null;return h*60+m;}
-  function fmtMins(mins){mins=Math.round(mins);var h=Math.floor(mins/60)%24,m=((mins%60)+60)%60,ap=h<12?"a":"p",h12=h%12;if(h12===0)h12=12;return h12+(m?":"+pad(m):"")+ap;}
+  // Match the scheduler's own fmtHour: uppercase AM/PM, minutes only when off the hour ("7AM", "11:30AM").
+  function fmtMins(mins){mins=Math.round(mins);var h=Math.floor(mins/60)%24,m=((mins%60)+60)%60,ap=h<12?"AM":"PM",hh=(h===0)?12:(h>12?h-12:h);return m===0?(hh+ap):(hh+":"+pad(m)+ap);}
+  function floor30(m){return Math.floor(m/30)*30;}   // snap window to 30-min blocks like the scheduler
+  function ceil30(m){return Math.ceil(m/30)*30;}
   // Reuse Dispatch's own drive-time + service-duration math (globals in app-dispatch.js) to
   // estimate how long a bin leg takes. Combos aren't detected here, so it can slightly
   // over-estimate — it's a ballpark window, editable on the scheduler.
@@ -78,11 +74,13 @@
     var occ={};      // key -> day -> entries[]
     var bins={};     // key -> day -> {drop:n, pick:n}
     function ensure(key,day){(occ[key]||(occ[key]={}));return occ[key][day]||(occ[key][day]=[]);}
-    function addNonBin(crewId,dateStr,label,time){
+    function addNonBin(crewId,dateStr,label,time,durMin){
       var nm=_crewName[crewId];
       if(!nm||!inRange(dateStr,s,e))return;
       var day=dayNameOf(dateStr);if(!day)return;
-      ensure(nm.toLowerCase(),day).push({label:label,time:fmtTime(time),count:1,detail:""});
+      var sm=parseHHMM(time),timeStr="";
+      if(sm!=null)timeStr=(durMin>0)?fmtMins(sm)+"–"+fmtMins(ceil30(sm+durMin)):fmtMins(sm);
+      ensure(nm.toLowerCase(),day).push({label:label,time:timeStr,count:1,detail:""});
     }
     function addBin(crewId,dateStr,leg,legTime,city){
       var nm=_crewName[crewId];
@@ -103,7 +101,7 @@
         addBin(j.dropoff_crew_id,j.bin_dropoff,"drop",j.bin_dropoff_time,j.city);
         addBin(j.pickup_crew_id,j.bin_pickup,"pick",j.bin_pickup_time,j.city);
       }else{
-        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time);});
+        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time,j.est_duration_min);});
       }
     });
     // Fold each person/day's bins into a single chip: count + estimated window.
@@ -113,8 +111,9 @@
         var a=bins[key][day],n=a.drop+a.pick,parts=[];
         if(a.drop)parts.push(a.drop+" drop-off"+(a.drop>1?"s":""));
         if(a.pick)parts.push(a.pick+" pick-up"+(a.pick>1?"s":""));
-        var start=(a.anchor!=null)?a.anchor:480;
-        var time=(a.est>0)?fmtMins(start)+"–"+fmtMins(start+a.est):(a.anchor!=null?fmtMins(start):"");
+        var rs=(a.anchor!=null)?a.anchor:480,time="";                 // start: real time set, else 8:00am
+        if(a.est>0)time=fmtMins(floor30(rs))+"–"+fmtMins(ceil30(rs+a.est));   // snap to 30-min blocks
+        else if(a.anchor!=null)time=fmtMins(floor30(rs));
         ensure(key,day).push({label:"Bins",time:time,count:n,detail:parts.join(" · ")});
       });
     });
@@ -139,19 +138,21 @@
     });
   }
 
+  // Render as the scheduler's own shift bars so size/typography match exactly; junk-blue
+  // palette + 🚚 keep it recognizable. Clicking bubbles to the cell's openShiftModal.
   function chipEl(entries){
-    var wrap=document.createElement("div");
-    wrap.className="jwg-junk-chip";
-    wrap.title="From Jeff's Junk — tap to put it on the schedule";
+    var stack=document.createElement("div");
+    stack.className="shift-stack jwg-junk-stack";
     entries.forEach(function(en){
-      var line=document.createElement("div");
-      line.className="jjc-line";
-      var cnt=en.count>1?'<span class="jjc-ct">×'+en.count+"</span>":"";
-      line.innerHTML='<span class="jjc-ic">🚚</span><span class="jjc-lbl">'+esc(en.label)+"</span>"+cnt+(en.time?'<span class="jjc-tm">'+esc(en.time)+"</span>":"");
-      if(en.detail)line.title=en.detail;
-      wrap.appendChild(line);
+      var bar=document.createElement("div");
+      bar.className="shift-bar shift-bar-flow jwg-junk-chip";
+      bar.setAttribute("style","background:#dbeafe;color:#1d4ed8;border:1.5px solid #60a5fa66");
+      bar.title="From Jeff's Junk — tap to put it on the schedule"+(en.detail?" ("+en.detail+")":"");
+      var lbl="🚚 "+esc(en.label)+(en.count>1?" ×"+en.count:"");
+      bar.innerHTML='<span class="shift-label">'+lbl+"</span>"+(en.time?'<span class="shift-times">'+esc(en.time)+"</span>":"");
+      stack.appendChild(bar);
     });
-    return wrap;
+    return stack;
   }
 
   function paint(){
@@ -170,7 +171,7 @@
 
     if(_observer)_observer.disconnect();              // don't let our own edits re-trigger us
     try{
-      grid.querySelectorAll(".jwg-junk-chip").forEach(function(n){n.remove();});
+      grid.querySelectorAll(".jwg-junk-stack").forEach(function(n){n.remove();});
       grid.querySelectorAll("tbody tr.emp-row").forEach(function(row){
         var emp=empById[row.getAttribute("data-empid")];if(!emp)return;
         var byDay=occ[(emp.name||"").toLowerCase()];if(!byDay)return;
@@ -201,19 +202,6 @@
     if(!app){setTimeout(init,500);return;}
     _observer=new MutationObserver(schedulePaint);
     _observer.observe(app,{childList:true,subtree:true});
-    // style once
-    if(!document.getElementById("jwg-feed-style")){
-      var st=document.createElement("style");st.id="jwg-feed-style";
-      st.textContent="#view-jwgscheduler .jwg-junk-chip{display:flex;flex-direction:column;gap:3px;margin-top:2px}"+
-        "#view-jwgscheduler .jjc-line{display:flex;align-items:center;gap:4px;font-size:10.5px;line-height:1.2;padding:3px 6px;border-radius:6px;"+
-        "background:repeating-linear-gradient(135deg,rgba(37,99,235,.07),rgba(37,99,235,.07) 6px,rgba(37,99,235,.13) 6px,rgba(37,99,235,.13) 12px);"+
-        "border:1px dashed rgba(37,99,235,.55);color:#1d4ed8;cursor:pointer}"+
-        "#view-jwgscheduler .jjc-ic{font-size:10px;flex:none;filter:grayscale(.1)}"+
-        "#view-jwgscheduler .jjc-lbl{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"+
-        "#view-jwgscheduler .jjc-ct{font-weight:800;font-size:9.5px;background:rgba(37,99,235,.16);border-radius:20px;padding:1px 5px;flex:none}"+
-        "#view-jwgscheduler .jjc-tm{margin-left:auto;font-weight:600;opacity:.8;flex:none}";
-      document.head.appendChild(st);
-    }
     schedulePaint();
   }
 
