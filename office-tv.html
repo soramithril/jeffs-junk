@@ -192,6 +192,26 @@
     color:var(--ic,var(--green)); border:1px solid color-mix(in srgb,var(--ic,var(--green)) 40%, transparent);
     padding:.2em .55em; border-radius:999px}
 
+  /* ── bin work board ── */
+  #binsWrap{height:100%; display:flex; flex-direction:column; gap:1.2vh; overflow:hidden}
+  .bb-group{border-radius:16px; border:1px solid var(--gline); padding:.8vh 1vw; background:rgba(255,255,255,.03)}
+  .bb-group.warn{border-color:rgba(239,68,68,.55); background:rgba(239,68,68,.08)}
+  .bb-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.4vh; border-bottom:1px solid var(--gline); padding-bottom:.4vh}
+  .bb-name{font-size:clamp(15px,1.7vw,28px); font-weight:900; letter-spacing:.4px}
+  .bb-group.warn .bb-name{color:#fca5a5}
+  .bb-count{font-size:clamp(12px,1.3vw,22px); font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums}
+  .bb-row{display:flex; align-items:center; gap:.9vw; padding:.5vh .2vw}
+  .bb-row + .bb-row{border-top:1px solid rgba(255,255,255,.05)}
+  .bb-kind{flex:0 0 auto; font-size:clamp(10px,1.05vw,16px); font-weight:800; text-transform:uppercase; letter-spacing:.5px; padding:.24em .65em; border-radius:999px; white-space:nowrap}
+  .k-drop{color:#7dd3fc; background:rgba(14,165,233,.16); border:1px solid rgba(14,165,233,.45)}
+  .k-pick{color:#f9a8d4; background:rgba(236,72,153,.16); border:1px solid rgba(236,72,153,.45)}
+  .bb-who{flex:0 1 auto; min-width:0; font-size:clamp(14px,1.5vw,25px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bb-extra{flex:0 0 auto; font-size:clamp(11px,1.15vw,18px); font-weight:700; color:var(--muted); white-space:nowrap}
+  .bb-loc{flex:1 1 auto; min-width:0; font-size:clamp(11px,1.2vw,19px); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bb-state{flex:0 0 auto; font-size:clamp(11px,1.1vw,17px); font-weight:800; text-transform:uppercase; letter-spacing:.4px; padding:.22em .6em; border-radius:999px; color:#fbbf24; border:1px solid rgba(251,191,36,.45); background:rgba(251,191,36,.12)}
+  .bb-row.done .bb-state{color:var(--green); border-color:color-mix(in srgb,var(--green) 45%, transparent); background:color-mix(in srgb,var(--green) 14%, transparent)}
+  .bb-row.done .bb-who,.bb-row.done .bb-loc,.bb-row.done .bb-extra{text-decoration:line-through; opacity:.55}
+
   /* ── dots + status ── */
   #dots{flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:.8em;
     align-self:center; border-radius:999px; padding:.9vh 1.8em}
@@ -251,6 +271,11 @@
         <div class="p-head"><span class="accent"></span><h2>Back Shop Inventory</h2><span class="meta" id="invMeta"></span></div>
         <div class="p-body"><div id="invWrap"></div></div>
       </section>
+      <!-- Panel 5: Bin Work Today — bins only, grouped by driver -->
+      <section class="panel" data-panel="bins">
+        <div class="p-head"><span class="accent"></span><h2>Bin Work Today</h2><span class="meta" id="binsMeta"></span></div>
+        <div class="p-body"><div id="binsWrap"></div></div>
+      </section>
     </div>
     <div id="dots"></div>
   </div>
@@ -267,7 +292,7 @@
     var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
     var ROTATE_MS  = 20000;   // time each panel is shown
     var REFRESH_MS = 60000;   // how often data is refetched
-    var PANELS = ['jobs','schedule','kpis','inventory'];
+    var PANELS = ['jobs','bins','schedule','kpis','inventory'];
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
     // Dedicated session store so this page can NEVER pick up a staff member's
@@ -349,6 +374,41 @@
       });
       return out.sort(function(a,b){ return timeMins(a.time)-timeMins(b.time); });
     }
+    // Today's bin legs grouped by driver. Done/not-done comes from DB state
+    // only (manual pickup + geofence notifications) — the TV never calls
+    // Geotab. A drop leg counts as done on a real zone visit or once the bin
+    // is picked up; login's inventory auto-drop alone doesn't count.
+    function buildBinBoard(rows, today, notifRows){
+      var geo = {dropped:{}, pickedup:{}};
+      (notifRows||[]).forEach(function(n){ if(geo[n.status]) geo[n.status][n.job_id]=1; });
+      var groups = {}, keys = [];
+      function push(crewId, leg){
+        var key = crewId || '';
+        if(!groups[key]){ groups[key] = {crewId:key, legs:[]}; keys.push(key); }
+        groups[key].legs.push(leg);
+      }
+      rows.forEach(function(j){
+        if(j.status==='Cancelled' || j.service!=='Bin Rental') return;
+        var picked = j.bin_instatus==='pickedup' || geo.pickedup[j.job_id];
+        if(j.bin_dropoff===today)
+          push(j.dropoff_crew_id, {kind:'drop', time:j.bin_dropoff_time||'', j:j, done: !!(picked || geo.dropped[j.job_id])});
+        if(j.bin_pickup===today)
+          push(j.pickup_crew_id, {kind:'pick', time:j.bin_pickup_time||'', j:j, done: !!picked});
+      });
+      var list = keys.map(function(k){ return groups[k]; });
+      list.forEach(function(g){
+        g.name = g.crewId ? (DATA.crew[g.crewId]||'Unknown') : 'Unassigned';
+        g.legs.sort(function(a,b){ return timeMins(a.time)-timeMins(b.time); });
+        g.done = g.legs.filter(function(l){ return l.done; }).length;
+      });
+      list.sort(function(a,b){
+        if(!a.crewId && b.crewId) return -1;
+        if(!b.crewId && a.crewId) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      return list;
+    }
+
     // junk-side work per person per weekday (for schedule ghosts) — same one-way rules as the dashboard
     function buildJunkWeek(rows, monday, satEnd){
       var occ = {};
@@ -385,7 +445,7 @@
       var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
 
       var res = await Promise.all([
-        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time')
+        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid')
           .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today+',bin_dropoff.eq.'+today+',bin_pickup.eq.'+today),
         db.from('crew_members').select('id,name'),
         db.from('jwg_employees').select('id,name'),
@@ -399,7 +459,9 @@
         db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',today).lt('completed_at',tomorrow),
         // junk-side work across the schedule week (for the crew-schedule ghosts)
         db.from('jobs').select('service,status,date,junk_date,fb_date,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_pickup')
-          .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')')
+          .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')'),
+        // today's geofence enter/leave notifications — done/not-done for the bin board
+        db.from('geofence_notifications').select('job_id,status').gte('created_at', today+'T00:00:00')
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
 
@@ -411,6 +473,9 @@
 
       // junk work per person/day for the schedule ghosts (needs DATA.crew, so build it here)
       DATA.junk = buildJunkWeek(res[10].data||[], monday, satEnd);
+
+      // bin board — today's bin legs grouped by driver (needs DATA.crew)
+      DATA.binBoard = buildBinBoard(res[0].data||[], today, res[11].data||[]);
 
       // employees + ordering
       var empName = {}; (res[2].data||[]).forEach(function(e){ empName[e.id]=e.name; });
@@ -585,9 +650,43 @@
       }).join('');
     }
 
+    function renderBins(){
+      var board = DATA.binBoard||[];
+      var total=0, done=0;
+      board.forEach(function(g){ total+=g.legs.length; done+=g.done; });
+      el('binsMeta').textContent = total
+        ? done+' of '+total+' done · updated '+new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
+        : new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
+      var wrap = el('binsWrap');
+      if(!total){
+        wrap.innerHTML = '<div class="empty"><div class="big">No bin drop-offs or pick-ups today</div></div>';
+        return;
+      }
+      wrap.innerHTML = board.map(function(g){
+        var rows = g.legs.map(function(l){
+          var j = l.j;
+          var who = j.business_name || j.name || 'Customer';
+          var loc = [j.address, j.city].filter(Boolean).join(', ');
+          var extras = [j.bin_size, j.bin_bid?('Bin '+j.bin_bid):'', l.time?fmt12(l.time):''].filter(Boolean).join(' · ');
+          return '<div class="bb-row'+(l.done?' done':'')+'">'
+            + '<span class="bb-kind '+(l.kind==='drop'?'k-drop':'k-pick')+'">'+(l.kind==='drop'?'🚛 Drop-off':'🚚 Pick-up')+'</span>'
+            + '<span class="bb-who">'+esc(who)+'</span>'
+            + (extras?'<span class="bb-extra">'+esc(extras)+'</span>':'')
+            + (loc?'<span class="bb-loc">'+esc(loc)+'</span>':'')
+            + '<span class="bb-state">'+(l.done?'✓ Done':'To do')+'</span>'
+            + '</div>';
+        }).join('');
+        return '<div class="bb-group'+(g.crewId?'':' warn')+'">'
+          + '<div class="bb-head"><span class="bb-name">'+(g.crewId?esc(g.name):'⚠️ Unassigned — needs a driver')+'</span>'
+          + '<span class="bb-count">'+g.done+' / '+g.legs.length+' done</span></div>'
+          + rows + '</div>';
+      }).join('');
+    }
+
     function renderCurrent(){
       var name = PANELS[panelIdx];
       if(name==='jobs') renderJobs();
+      else if(name==='bins') renderBins();
       else if(name==='schedule') renderSchedule();
       else if(name==='kpis') renderKpis();
       else if(name==='inventory') renderInventory();
