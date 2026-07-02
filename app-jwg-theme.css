@@ -210,3 +210,31 @@
 #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal-add-btn{min-height:50px;padding:14px 26px;font-size:15px;flex:1}
 #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal-cancel{min-height:50px;padding:14px 22px;font-size:14px}
 #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal-done{min-height:50px;font-size:15px}
+
+/* ═══ Shift editor page (2026-07-02) — fits the screen, no page scroll ═══
+   Header: avatar + name + date with the status switch beside it.
+   Body: two columns — left "On the schedule" + notes, right "Add a shift".
+   Columns scroll internally only if they overflow; the footer stays pinned. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head){padding:26px max(20px,calc((100% - 1060px)/2)) 0 !important}
+#view-jwgscheduler .sm-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+#view-jwgscheduler .sm-id{display:flex;align-items:center;gap:14px;min-width:0}
+#view-jwgscheduler .sm-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex:none}
+#view-jwgscheduler .sm-name{font-size:25px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--fg)}
+#view-jwgscheduler .sm-daylbl{font-size:13.5px;color:var(--fg-muted);font-weight:600;margin-top:3px}
+#view-jwgscheduler .sm-status{display:flex;gap:6px;background:var(--bg-deep);border-radius:12px;padding:5px;flex:0 0 auto;width:min(400px,100%)}
+#view-jwgscheduler .sm-offnote{flex:1 1 auto;display:flex;align-items:center;justify-content:center;color:var(--fg-muted);font-size:15px;font-weight:600}
+#view-jwgscheduler .sm-cols{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1.15fr;gap:0 28px}
+#view-jwgscheduler .sm-col{min-height:0;overflow-y:auto;padding:2px 2px 12px}
+#view-jwgscheduler .sm-left{border-right:1px solid var(--border);padding-right:26px}
+#view-jwgscheduler .sm-emptyday{background:var(--bg-deep);border:1.5px dashed var(--border);border-radius:12px;padding:22px 16px;text-align:center;color:var(--fg-muted);font-size:13.5px;margin-bottom:14px}
+#view-jwgscheduler .sm-cols .sect-label{margin-top:0;margin-bottom:8px}
+#view-jwgscheduler .sm-cols .shift-form{margin-bottom:16px}
+#view-jwgscheduler .sm-cols .day-note-wrap{margin-top:14px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .task-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+@media (max-width:760px){
+  #view-jwgscheduler .sm-cols{grid-template-columns:1fr;overflow-y:auto;display:flex;flex-direction:column}
+  #view-jwgscheduler .sm-col{overflow:visible;min-height:auto}
+  #view-jwgscheduler .sm-left{border-right:none;padding-right:2px;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px}
+  #view-jwgscheduler .sm-name{font-size:21px}
+  #view-jwgscheduler .sm-status{width:100%}
+}

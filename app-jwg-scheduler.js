@@ -453,7 +453,6 @@ function renderShiftModal(empId,day,emp,dayData){
   // Build existing shifts list — with edit support
   let shiftListHtml="";
   if(shifts.length>0){
-    shiftListHtml=`<div class="sect-label" style="margin-top:4px;margin-bottom:6px">Scheduled Tasks</div>`;
     shifts.forEach((sh,i)=>{
       const taskIds=getShiftTasks(sh);
       const firstT=tm[taskIds[0]];
@@ -491,26 +490,42 @@ function renderShiftModal(empId,day,emp,dayData){
     });
   }
 
-  const segBase="flex:1;border:none;border-radius:7px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;";
-  let h=`<div class="modal-title">${esc(emp?.name||"")} — ${day}</div>
-  <div class="modal-sub">Set whether they're working, off, or sick.</div>
-  <div style="display:flex;gap:6px;background:var(--bg-deep);border-radius:10px;padding:4px;margin-bottom:14px">
-    <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--accent);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
-    <button onclick="JWG.markDayOff('${empId}','${day}')" style="${segBase}${status==="dayoff"?"background:rgba(0,0,0,0.55);color:#fff":"background:transparent;color:var(--fg-muted)"}">Day off</button>
-    <button onclick="JWG.markDaySick('${empId}','${day}')" style="${segBase}${status==="sick"?"background:#ea580c;color:#fff":"background:transparent;color:var(--fg-muted)"}">Off sick</button>
+  const segBase="flex:1;border:none;border-radius:9px;padding:11px 0;font-size:13px;font-weight:700;cursor:pointer;";
+  // Header: avatar + name + the actual date, with the status switch alongside
+  const _ws=getWS(S.weekOffset),_dt=new Date(_ws);_dt.setDate(_dt.getDate()+DAYS.indexOf(day));
+  const _dayDate=_dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  const[_abg,_afg]=ac(emp?.name||"");
+  let h=`<div class="sm-head">
+    <div class="sm-id">
+      <div class="sm-avatar" style="background:${_abg};color:${_afg}">${empInitials(emp?.name||"")}</div>
+      <div><div class="sm-name">${esc(emp?.name||"")}</div><div class="sm-daylbl">${day} · ${_dayDate}</div></div>
+    </div>
+    <div class="sm-status">
+      <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--accent);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
+      <button onclick="JWG.markDayOff('${empId}','${day}')" style="${segBase}${status==="dayoff"?"background:rgba(0,0,0,0.55);color:#fff":"background:transparent;color:var(--fg-muted)"}">Day off</button>
+      <button onclick="JWG.markDaySick('${empId}','${day}')" style="${segBase}${status==="sick"?"background:#ea580c;color:#fff":"background:transparent;color:var(--fg-muted)"}">Off sick</button>
+    </div>
   </div>`;
   if(!working){
-    h+=`<div style="text-align:center;color:var(--fg-muted);font-size:13px;padding:20px 0 6px">${status==="sick"?"Marked off sick for this day.":"Marked as a day off."}</div>`;
+    h+=`<div class="sm-offnote">${status==="sick"?"🤒 Marked off sick for this day.":"📅 Marked as a day off."}</div>`;
   } else {
-    h+=`${shiftListHtml}
-  <div class="modal-divider"></div>
-  <div class="sect-label">Add a shift</div>
-  <div class="shift-form">
-    <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
-    <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
-  </div>
-  <div class="sect-label">Role / Task</div>
-  <div class="task-grid">`;
+    h+=`<div class="sm-cols">
+    <div class="sm-col sm-left">
+      <div class="sect-label">On the schedule</div>
+      ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing scheduled yet — build a shift on the right.</div>`}
+      <div class="day-note-wrap">
+        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
+      </div>
+    </div>
+    <div class="sm-col sm-right">
+      <div class="sect-label">Add a shift</div>
+      <div class="shift-form">
+        <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
+        <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
+      </div>
+      <div class="sect-label">Role / Task</div>
+      <div class="task-grid">`;
     tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
       h+=`<button class="task-opt" id="topt_${t.id}"
         style="background:${t.bg};color:${t.text};border-color:transparent"
@@ -520,18 +535,14 @@ function renderShiftModal(empId,day,emp,dayData){
       </button>`;
     });
     h+=`</div>
-  <div class="modal-divider"></div>
-  <div class="day-note-wrap">
-    <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
-    <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
+    </div>
   </div>`;
   }
-  h+=`<div class="modal-divider"></div>
-  <div class="modal-footer-main">
+  h+=`<div class="modal-footer-main">
     <button class="modal-cancel" onclick="JWG.closeSaveShift('${empId}','${day}')">Close</button>
     ${working?`<button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">Add shift</button>`:""}
   </div>`;
-  openModal(h,"460px");
+  openModal(h);
 }
 
 function startEditShift(empId,day,idx){

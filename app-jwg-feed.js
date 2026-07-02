@@ -284,7 +284,7 @@
     // sit right above the "Add a shift" section
     var anchor=null;
     [].forEach.call(modal.querySelectorAll(".sect-label"),function(el){if(!anchor&&/add a shift/i.test(el.textContent||""))anchor=el;});
-    if(anchor)modal.insertBefore(strip,anchor);
+    if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(strip,anchor);   // label sits inside a column now
     else modal.appendChild(strip);
   }
   function applyGhost(i){
