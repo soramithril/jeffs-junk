@@ -37,6 +37,20 @@
     if(service==="Bin Rental")return leg==="drop"?"Bins · drop-off":"Bins · pick-up";
     return service||"Junk";
   }
+  // Map a junk service onto the scheduler's task ids (DEFAULT_TASKS: bins/junk/furniture/…).
+  function taskKeyFor(service){
+    var s=String(service||"").toLowerCase();
+    if(s.indexOf("bin")>=0)return "bins";
+    if(s.indexOf("furniture")>=0)return "furniture";
+    if(s.indexOf("landscap")>=0)return "landscaping";
+    return "junk";                                   // Junk Removal, Junk Quote, anything else
+  }
+  // Which real-shift labels "cover" a ghost of this kind (per-entry hiding).
+  var FAMILY={bins:["bin"],junk:["junk"],furniture:["furniture"],landscaping:["landscap"]};
+  function coveredBy(labels,taskKey){
+    var keys=FAMILY[taskKey]||[];
+    return labels.some(function(l){return keys.some(function(k){return l.indexOf(k)>=0;});});
+  }
   function parseHHMM(t){if(!t)return null;var p=String(t).split(":");if(p.length<2)return null;var h=+p[0],m=+p[1];if(isNaN(h)||isNaN(m))return null;return h*60+m;}
   // Match the scheduler's own fmtHour: uppercase AM/PM, minutes only when off the hour ("7AM", "11:30AM").
   function fmtMins(mins){mins=Math.round(mins);var h=Math.floor(mins/60)%24,m=((mins%60)+60)%60,ap=h<12?"AM":"PM",hh=(h===0)?12:(h>12?h-12:h);return m===0?(hh+ap):(hh+":"+pad(m)+ap);}
@@ -74,13 +88,17 @@
     var occ={};      // key -> day -> entries[]
     var bins={};     // key -> day -> {drop:n, pick:n}
     function ensure(key,day){(occ[key]||(occ[key]={}));return occ[key][day]||(occ[key][day]=[]);}
-    function addNonBin(crewId,dateStr,label,time,durMin){
+    function addNonBin(crewId,dateStr,label,time,durMin,taskKey){
       var nm=_crewName[crewId];
       if(!nm||!inRange(dateStr,s,e))return;
       var day=dayNameOf(dateStr);if(!day)return;
-      var sm=parseHHMM(time),timeStr="";
-      if(sm!=null)timeStr=(durMin>0)?fmtMins(sm)+"–"+fmtMins(ceil30(sm+durMin)):fmtMins(sm);
-      ensure(nm.toLowerCase(),day).push({label:label,time:timeStr,count:1,detail:""});
+      var sm=parseHHMM(time),timeStr="",s0=null,e0=null;
+      if(sm!=null){
+        s0=floor30(sm);
+        if(durMin>0)e0=ceil30(sm+durMin);
+        timeStr=(e0!=null)?fmtMins(s0)+"–"+fmtMins(e0):fmtMins(s0);
+      }
+      ensure(nm.toLowerCase(),day).push({label:label,time:timeStr,count:1,detail:"",taskKey:taskKey,startMin:s0,endMin:e0});
     }
     function addBin(crewId,dateStr,leg,legTime,city){
       var nm=_crewName[crewId];
@@ -101,7 +119,7 @@
         addBin(j.dropoff_crew_id,j.bin_dropoff,"drop",j.bin_dropoff_time,j.city);
         addBin(j.pickup_crew_id,j.bin_pickup,"pick",j.bin_pickup_time,j.city);
       }else{
-        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time,j.est_duration_min);});
+        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,j.date,svcLabel(j.service),j.time,j.est_duration_min,taskKeyFor(j.service));});
       }
     });
     // Fold each person/day's bins into a single chip: count + estimated window.
@@ -111,10 +129,11 @@
         var a=bins[key][day],n=a.drop+a.pick,parts=[];
         if(a.drop)parts.push(a.drop+" drop-off"+(a.drop>1?"s":""));
         if(a.pick)parts.push(a.pick+" pick-up"+(a.pick>1?"s":""));
-        var rs=(a.anchor!=null)?a.anchor:480,time="";                 // start: real time set, else 8:00am
-        if(a.est>0)time=fmtMins(floor30(rs))+"–"+fmtMins(ceil30(rs+a.est));   // snap to 30-min blocks
-        else if(a.anchor!=null)time=fmtMins(floor30(rs));
-        ensure(key,day).push({label:"Bins",time:time,count:n,detail:parts.join(" · ")});
+        var rs=(a.anchor!=null)?a.anchor:480;                          // start: real time set, else 8:00am
+        var s0=floor30(rs),e0=(a.est>0)?ceil30(rs+a.est):null,time=""; // snap to 30-min blocks
+        if(e0!=null)time=fmtMins(s0)+"–"+fmtMins(e0);
+        else if(a.anchor!=null)time=fmtMins(s0);
+        ensure(key,day).push({label:"Bins",time:time,count:n,detail:parts.join(" · "),taskKey:"bins",startMin:s0,endMin:e0});
       });
     });
     return occ;
@@ -140,9 +159,10 @@
 
   // Render as the scheduler's own shift bars so size/typography match exactly; junk-blue
   // palette + 🚚 keep it recognizable. Clicking bubbles to the cell's openShiftModal.
-  function chipEl(entries){
+  function chipEl(entries,belowReal){
     var stack=document.createElement("div");
     stack.className="shift-stack jwg-junk-stack";
+    if(belowReal)stack.style.marginTop="5px";        // same gap the real stack uses between bars
     entries.forEach(function(en){
       var bar=document.createElement("div");
       bar.className="shift-bar shift-bar-flow jwg-junk-chip";
@@ -180,12 +200,110 @@
           var day=activeDays[i];if(!day)continue;
           var entries=byDay[day];if(!entries||!entries.length)continue;
           var cell=cells[i];
-          if(cell.querySelector(".shift-bar, .status-label"))continue;   // scheduler already booked → leave it
-          cell.appendChild(chipEl(entries));
+          if(cell.querySelector(".status-label"))continue;               // day off / sick → scheduler wins outright
+          // Per-entry hiding: a real shift only covers ghosts of the SAME kind (e.g. a real
+          // Bins shift hides the Bins ghost but leaves an uncovered Junk Removal ghost showing).
+          var realLabels=[].map.call(cell.querySelectorAll(".shift-bar:not(.jwg-junk-chip) .shift-label"),function(n){return (n.textContent||"").toLowerCase();});
+          var visible=entries.filter(function(en){return !coveredBy(realLabels,en.taskKey);});
+          if(!visible.length)continue;
+          cell.appendChild(chipEl(visible,realLabels.length>0));
         }
       });
     }catch(err){console.warn("[jwg-feed] paint failed",err);}
     finally{reobserve();}
+  }
+
+  // ── SHIFT-MODAL PRE-FILL ──
+  // Wrap the scheduler's exposed openShiftModal: after the modal renders, if the junk feed
+  // has uncovered entries for that person+day, show a "From Jeff's Junk" strip and (when
+  // there's exactly one) pre-select the matching task + fill the time dropdowns — so it
+  // reads as already inputted. Committing still goes through the scheduler's own
+  // "Add shift" → its data only; the junk side is never written.
+  var _pendingModal=null,_appliedTaskId=null;
+  function hookShiftModal(){
+    if(!window.JWG||typeof JWG.openShiftModal!=="function"||JWG.openShiftModal._jwgFeedWrapped)return;
+    var orig=JWG.openShiftModal;
+    var wrapped=function(empId,day){
+      orig(empId,day);
+      try{prefillModal(empId,day);}catch(e){console.warn("[jwg-feed] prefill failed",e);}
+    };
+    wrapped._jwgFeedWrapped=true;
+    JWG.openShiftModal=wrapped;
+  }
+  function prefillModal(empId,day){
+    _pendingModal=null;_appliedTaskId=null;
+    var S=window.JWG&&JWG.S;if(!S)return;
+    var occ=_weekCache[localDateStr(getWS(S.weekOffset||0))];if(!occ)return;
+    var emp=(S.employees||[]).find(function(e){return e.id===empId;});if(!emp)return;
+    var byDay=occ[(emp.name||"").toLowerCase()];
+    var entries=(byDay&&byDay[day])||[];if(!entries.length)return;
+    var dd=(S.schedule[empId]||{})[day]||{};
+    if(dd.status==="dayoff"||dd.status==="sick")return;
+    var modal=document.querySelector("#moverlay .modal");if(!modal)return;
+    // task id → label map straight from the modal's own picker (works with custom task lists)
+    var tmap={};
+    [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){tmap[(b.id||"").replace(/^topt_/,"")]=(b.textContent||"").trim().toLowerCase();});
+    var labels=[];
+    (dd.shifts||[]).forEach(function(sh){
+      (sh.tasks||(sh.task?[sh.task]:[])).forEach(function(tid){labels.push(tmap[tid]||String(tid).toLowerCase());});
+    });
+    var visible=entries.filter(function(en){return !coveredBy(labels,en.taskKey);});
+    if(!visible.length)return;
+    _pendingModal={entries:visible};
+    injectStrip(modal,visible);
+    if(visible.length===1)applyGhost(0);
+  }
+  function injectStrip(modal,entries){
+    var old=modal.querySelector("#jwg-feed-strip");if(old)old.remove();
+    var strip=document.createElement("div");
+    strip.id="jwg-feed-strip";
+    strip.setAttribute("style","background:#eff6ff;border:1.5px solid rgba(96,165,250,.45);border-radius:10px;padding:10px 12px;margin:0 0 14px");
+    var h='<div style="font-size:11px;font-weight:800;color:#1d4ed8;letter-spacing:.4px;margin-bottom:7px">🚚 FROM JEFF\'S JUNK</div>';
+    entries.forEach(function(en,i){
+      h+='<button class="jwg-strip-row" onclick="JWGFeed._apply('+i+')" style="display:flex;width:100%;align-items:center;gap:8px;background:#fff;border:1.5px solid rgba(96,165,250,.5);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-family:inherit;text-align:left">'
+        +'<span style="font-weight:700;font-size:13px;color:#1d4ed8">'+esc(en.label)+(en.count>1?" ×"+en.count:"")+"</span>"
+        +(en.time?'<span style="font-size:12px;font-weight:600;color:#1d4ed8;opacity:.75;margin-left:auto">'+esc(en.time)+"</span>":"")
+        +"</button>";
+    });
+    h+='<div style="font-size:11px;color:#1d4ed8;opacity:.7;line-height:1.4">Tap one to fill it in below, then hit “Add shift” to keep it. Nothing changes on the junk side.</div>';
+    strip.innerHTML=h;
+    // sit right above the "Add a shift" section
+    var anchor=null;
+    [].forEach.call(modal.querySelectorAll(".sect-label"),function(el){if(!anchor&&/add a shift/i.test(el.textContent||""))anchor=el;});
+    if(anchor)modal.insertBefore(strip,anchor);
+    else modal.appendChild(strip);
+  }
+  function applyGhost(i){
+    var pm=_pendingModal;if(!pm)return;
+    var en=pm.entries[i];if(!en)return;
+    var modal=document.querySelector("#moverlay .modal");if(!modal)return;
+    // time dropdowns run on the same 30-min values our rounding produces (e.g. "8:00","11:30")
+    function setSel(id,mins){
+      if(mins==null)return;
+      var el=modal.querySelector("#"+id);if(!el)return;
+      var v=Math.floor(mins/60)+":"+pad(mins%60);
+      if([].some.call(el.options,function(o){return o.value===v;}))el.value=v;
+    }
+    setSel("sm_start",en.startMin);
+    setSel("sm_end",en.endMin);
+    // highlight the matching task in the picker (direct id, else label keyword)
+    var btn=modal.querySelector("#topt_"+en.taskKey);
+    if(!btn){
+      var keys=FAMILY[en.taskKey]||[];
+      [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){
+        if(!btn&&keys.some(function(k){return (b.textContent||"").toLowerCase().indexOf(k)>=0;}))btn=b;
+      });
+    }
+    var newId=btn?btn.id.replace(/^topt_/,""):null;
+    if(_appliedTaskId&&_appliedTaskId!==newId){
+      var prev=modal.querySelector("#topt_"+_appliedTaskId);
+      if(prev&&prev.classList.contains("sel"))JWG.pickTask(_appliedTaskId);   // unpick the old one
+    }
+    if(newId&&!btn.classList.contains("sel"))JWG.pickTask(newId);
+    _appliedTaskId=newId;
+    [].forEach.call(modal.querySelectorAll(".jwg-strip-row"),function(r,idx){
+      r.style.outline=(idx===i)?"2px solid #2563eb":"none";
+    });
   }
 
   function schedulePaint(){
@@ -202,9 +320,10 @@
     if(!app){setTimeout(init,500);return;}
     _observer=new MutationObserver(schedulePaint);
     _observer.observe(app,{childList:true,subtree:true});
+    hookShiftModal();
     schedulePaint();
   }
 
-  window.JWGFeed={init:init,refresh:schedulePaint};
+  window.JWGFeed={init:init,refresh:schedulePaint,_apply:applyGhost};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
