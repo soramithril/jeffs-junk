@@ -65,9 +65,13 @@ All modals use the `.modal-overlay` / `.modal-overlay.open` pattern. To open a m
 
 Also: don't put `style="display:none"` inline on the modal element in HTML. It overrides the class-based display and breaks the same way.
 
-## Things that are deliberately off
+## MyGeotab is visual-only
 
-- The `geofence-events` Supabase edge function (real auto-pickup source) was disabled 2026-04-14. Don't re-enable without asking.
+- MyGeotab never writes to job data. The `geofence-events` edge function (pg_cron, every
+  15 min on weekdays) only INSERTs `geofence_notifications` rows when a truck enters or
+  leaves a bin zone; the Live Jobs page renders those as visual cues. It was made fully
+  visual-only 2026-07-02 per Jake (before that, zone-enter auto-set `bin_instatus`).
+  Don't give it write access to `jobs` without asking.
 
 ## Database
 
