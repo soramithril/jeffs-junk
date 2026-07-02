@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=337">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=350">
-<link rel="stylesheet" href="app-jwg-theme.css?v=350">
+<link rel="stylesheet" href="app-jwg-theme.css?v=356">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -134,7 +134,7 @@
     <button class="nav-item nav-item-daily" onclick="go('jobs')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span><span class="nav-txt"><span>All Jobs</span><span class="nav-hint">Find &amp; edit any job</span></span></button>
     <button class="nav-item nav-item-daily" onclick="goJwg('schedule')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h2v2H8z" fill="currentColor" stroke="none"/></svg></span><span class="nav-txt"><span>Schedule</span><span class="nav-hint">Jeff White Group</span></span></button>
     <button class="nav-item nav-item-daily" onclick="go('clients')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="nav-txt"><span>Clients</span><span class="nav-hint">Customer list &amp; history</span></span></button>
-    <button class="nav-item nav-item-daily" onclick="go('landscaping')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg></span><span class="nav-txt"><span>Landscaping</span><span class="nav-hint">Possible · scheduled · done</span></span></button>
+    <button class="nav-item nav-item-daily" onclick="go('landscaping')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg></span><span class="nav-txt"><span>Extra Jobs</span><span class="nav-hint">Possible · scheduled · done</span></span></button>
     <div class="nav-label">Jeff White Group</div>
     <button class="nav-item nav-item-daily" onclick="goJwg('summer')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="5" y1="5" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19" y2="19"/></svg></span><span class="nav-txt"><span>Summer &amp; Winter</span><span class="nav-hint">Services</span></span></button>
     <div id="nav-more-label" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);cursor:pointer;user-select:none;margin:10px 0 4px" onclick="toggleMoreFlyout()"><span style="font-size:13px;font-weight:600;color:#fff;display:inline-flex;align-items:center;gap:9px"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>More tools</span><span id="nav-more-arrow" style="font-size:10px;color:rgba(255,255,255,.8);transition:transform .2s;display:inline-block;transform:rotate(-90deg)">&#9654;</span></div>
@@ -284,7 +284,7 @@
         <div id="dash-today-count" style="font-size:12px;color:var(--muted);padding:11px 20px 0;"></div>
         <div id="dash-today-jobs" style="padding:4px 0"></div>
       </div>
-      <div id="card-possible-jobs" class="chart-card" style="display:none;padding:0;overflow:hidden;cursor:pointer;border:1px solid rgba(101,163,13,.4)" onclick="go('landscaping')" title="Open the Landscaping page">
+      <div id="card-possible-jobs" class="chart-card" style="display:none;padding:0;overflow:hidden;cursor:pointer;border:1px solid rgba(101,163,13,.4)" onclick="go('landscaping')" title="Open the Extra Jobs page">
         <div style="display:flex;align-items:center;gap:12px;padding:14px 18px">
           <span style="font-size:20px;line-height:1;flex-shrink:0">🌿</span>
           <div style="min-width:0;flex:1">
@@ -403,7 +403,7 @@
 <!-- ═══════════════ ALL JOBS ═══════════════ -->
 <div id="view-landscaping" class="view">
   <div class="page-header">
-    <div><div class="page-title">🌿 Landscaping</div><div class="page-sub">Possible, scheduled &amp; completed landscaping jobs — all in one place</div></div>
+    <div><div class="page-title">🌿 Extra Jobs</div><div class="page-sub">Possible, scheduled &amp; completed extra jobs — all in one place</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="newJob()">+ New Job</button></div>
   </div>
   <div style="margin-bottom:26px">
@@ -2411,7 +2411,7 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=355"></script>
+<script src="app.js?v=356"></script>
 <script src="app-jwg-scheduler.js?v=350"></script>
 <script src="app-jwg-feed.js?v=355"></script>
 <script src="liquid-nav.js?v=2"></script>
