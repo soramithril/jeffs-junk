@@ -26,7 +26,7 @@
 
   // view state (persisted so the page opens how you left it)
   var st = {
-    view:  localStorage.getItem('sc_view') || 'grid',
+    view:  localStorage.getItem('sc_view') || 'cards',
     weeksN: (function(){ var w = localStorage.getItem('sc_weeks');
       if(w === 'all') return 'all'; var n = parseInt(w,10);
       return (!isNaN(n) && n >= 1 && n <= 104) ? n : 12; })(),
