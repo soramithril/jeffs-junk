@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=363">
+<link rel="stylesheet" href="style.css?v=364">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=361">
 <link rel="stylesheet" href="app-jwg-theme.css?v=358">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -906,44 +906,35 @@
 <!-- ═══════════════ COMPETITION PRICING ═══════════════ -->
 <div id="view-pricing" class="view">
   <div class="page-header">
-    <div><div class="page-title page-title-sm">Pricing</div><div class="page-sub">Set your prices, quote a customer, and see how you compare</div></div>
+    <div><div class="page-title page-title-sm">Pricing</div><div class="page-sub">Click any bin price to build the phone quote →</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      
       <button class="btn btn-ghost" onclick="go('ourprices')">Edit Our Prices</button>
       <button class="btn btn-primary" onclick="openAddCompetitor()">+ Add Competitor</button>
     </div>
   </div>
 
-  <!-- View mode toggle -->
-  <div class="filters-bar" style="margin-bottom:14px;align-items:center">
-    <span style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-right:6px">View:</span>
-    <button class="filter-chip active" id="pview-console" onclick="setPricingView('console',this)">📞 Quote a Customer</button>
-    <button class="filter-chip" id="pview-grid" onclick="setPricingView('grid',this)">📊 Compare Prices</button>
-    <button class="filter-chip" id="pview-cards" onclick="setPricingView('cards',this)" style="display:none">📱 Mobile</button>
-    <button class="filter-chip" id="pview-classic" onclick="setPricingView('classic',this)">📋 Competitor Prices</button>
-  </div>
-  <div style="font-size:12px;color:var(--muted);margin:-4px 0 14px">Use <strong>Quote a Customer</strong> on the phone · <strong>Compare Prices</strong> to see how you stack up · <strong>Competitor Prices</strong> for each competitor's exact rates.</div>
-
-  <!-- Category tabs (only used by Classic view) -->
-  <div class="filters-bar" id="pcat-tabs" style="margin-bottom:20px;display:none">
-    <button class="filter-chip active" id="pcat-bin" onclick="setPricingCat('bin',this)">Bin Rental</button>
-    <button class="filter-chip" id="pcat-junk" onclick="setPricingCat('junk',this)">Junk Removal</button>
+  <!-- All areas at once (left) + quote breakdown & phone script (right) -->
+  <div class="pv-layout">
+    <div id="pv-areas"></div>
+    <div id="pv-rail-host"></div>
   </div>
 
-  <!-- New views -->
-  <div id="pricing-console-view"></div>
-  <div id="pricing-grid-view" style="display:none"></div>
-  <div id="pricing-cards-view" style="display:none"></div>
-
-  <!-- Classic view (existing) -->
-  <div id="pricing-classic-view" style="display:none">
-    <div id="pricing-bin-view">
-      <div class="section-lbl" style="margin-bottom:16px">BIN RENTAL — COMPETITOR COMPARISON</div>
-      <div id="pricing-bin-grid"></div>
-    </div>
-    <div id="pricing-junk-view" style="display:none">
-      <div class="section-lbl" style="margin-bottom:16px">JUNK REMOVAL — COMPETITOR COMPARISON</div>
-      <div id="pricing-junk-grid"></div>
+  <!-- Competitor comparison (full tables, on demand) -->
+  <div style="margin-top:28px">
+    <button class="btn btn-ghost" id="pv-compare-btn" onclick="pvToggleCompare()">📊 Show competitor comparison</button>
+    <div id="pricing-classic-view" style="display:none">
+      <div class="filters-bar" id="pcat-tabs" style="margin:16px 0">
+        <button class="filter-chip active" id="pcat-bin" onclick="setPricingCat('bin',this)">Bin Rental</button>
+        <button class="filter-chip" id="pcat-junk" onclick="setPricingCat('junk',this)">Junk Removal</button>
+      </div>
+      <div id="pricing-bin-view">
+        <div class="section-lbl" style="margin-bottom:16px">BIN RENTAL — COMPETITOR COMPARISON</div>
+        <div id="pricing-bin-grid"></div>
+      </div>
+      <div id="pricing-junk-view" style="display:none">
+        <div class="section-lbl" style="margin-bottom:16px">JUNK REMOVAL — COMPETITOR COMPARISON</div>
+        <div id="pricing-junk-grid"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1009,7 +1000,8 @@
     </div>
     <div class="form-grid" style="margin-bottom:4px">
       <div class="form-group"><label>Fuel Surcharge</label><div style="position:relative"><input id="comp-b-fuel" type="number" min="0" max="100" step="0.1" placeholder="0" style="padding-right:28px"><span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">%</span></div></div>
-      <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><span style="font-size:12px;color:var(--muted)">Leave blank if they don't charge one</span></div>
+      <div class="form-group"><label>Dump Fee ($/tonne)</label><div style="position:relative"><span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">$</span><input id="comp-b-tonne" type="number" min="0" placeholder="0" style="padding-left:24px"></div></div>
+      <div class="form-group full" style="margin-top:-6px"><span style="font-size:12px;color:var(--muted)">Leave blank if they don't charge these</span></div>
     </div>
 
     <div class="divider"></div>
@@ -2419,18 +2411,18 @@
 <script src="app-documents.js?v=292"></script>
 <script src="app-drdcalc.js?v=171"></script>
 <script src="app-dispatch.js?v=333"></script>
-<script src="app-leaderboard.js?v=210"></script>
-<script src="app-analytics.js?v=201"></script>
-<script src="app-utilization.js?v=196"></script>
+<script src="app-leaderboard.js?v=364"></script>
+<script src="app-analytics.js?v=364"></script>
+<script src="app-utilization.js?v=364"></script>
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=363"></script>
+<script src="app.js?v=364"></script>
 <script src="app-jwg-scheduler.js?v=358"></script>
 <script src="app-jwg-feed.js?v=361"></script>
 <script src="app-ratings.js?v=365"></script>
 <script src="liquid-nav.js?v=2"></script>
-<script src="app-onboarding.js?v=332"></script>
+<script src="app-onboarding.js?v=364"></script>
 </body>
 </html>
                                                                                                                                                          

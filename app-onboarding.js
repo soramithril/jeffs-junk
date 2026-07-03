@@ -86,8 +86,8 @@ var PAGE_TOURS = [
     { sel:'#map-container', title:'Bin Map', body:'A live map of every bin currently out on a rental — each pin is a bin at a customer site. Click a pin (or a row in the side list) to see who has it, the size, and when it is due for pickup. Only bins out on active rentals show here, not your whole fleet.' }
   ]},
   { view:'pricing', label:'Pricing', icon:'💲', section:'Quotes & Pricing', summary:'Set your prices and quote customers.', steps:[
-    { sel:'#view-pricing .page-header button.btn-ghost', title:'Set your prices', body:'Open Edit Our Prices to set your own rates — bin and junk prices, fuel surcharge and dump fees per area. Everything on this page is calculated from these.' },
-    { sel:'#pview-console', title:'Quote a customer', body:'Build a customer quote: pick the area and bin size to get the all-in price (bin + dump + fuel + tax), shown next to competitor prices, with a script you can read out on the phone.' }
+    { sel:'#view-pricing .page-header button.btn-ghost', title:'Set your prices', body:'Open Edit Our Prices to set your own rates — bin and junk prices and the dump fee per area. Everything on this page is calculated from these.' },
+    { sel:'#pv-rail-host', title:'Quote a customer', body:'Click any bin price on the left to build the quote: the all-in price (bin + $135/tonne dump fee + HST), competitor prices for that size, and a script you can read out on the phone.' }
   ]},
   { view:'analytics', label:'Analytics', icon:'📈', section:'Admin', restricted:true, summary:'Business insights across all your jobs.', steps:[
     { sel:'#report-month', title:'Monthly Reports', body:'Pick a month and generate a polished business report with month-over-month and year-over-year comparisons, or email it straight out.' },

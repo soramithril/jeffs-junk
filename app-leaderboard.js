@@ -504,7 +504,8 @@ function renderLbStatCards(rows,range,isCrewMode){
 }
 
 function lbStatCard(label,value,color,icon){
-  return '<div class="stat-card" style="flex:1;min-width:140px;"><div class="stat-icon">'+icon+'</div><div class="stat-value" style="color:'+color+'">'+value+'</div><div class="stat-label">'+label+'</div></div>';
+  // --kc drives both the number color and its glow (see .stat-value in style.css)
+  return '<div class="stat-card" style="flex:1;min-width:140px;"><div class="stat-icon">'+icon+'</div><div class="stat-value" style="--kc:'+color+'">'+value+'</div><div class="stat-label">'+label+'</div></div>';
 }
 
 // ── Trend Chart ──

@@ -68,7 +68,7 @@
   @keyframes pdSpin{to{transform:rotate(360deg)}}
 
   /* one shared frosted-glass recipe */
-  .glass, #topbar, .job, .kpi, .inv, #dots, #gate .gcard{
+  .glass, #topbar, .job, .kpi, #dots, #gate .gcard{
     background:linear-gradient(160deg, rgba(255,255,255,.085), rgba(255,255,255,.028) 45%, rgba(255,255,255,.012));
     background-color:var(--glass);
     border:1px solid var(--gline); border-top-color:var(--gtop);
@@ -78,7 +78,7 @@
   }
   /* players that can't blur still get a believable glass (denser tint carries the look) */
   @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-    .glass, #topbar, .job, .kpi, .inv, #dots, #gate .gcard{ background-color:rgba(14,40,26,.78); }
+    .glass, #topbar, .job, .kpi, #dots, #gate .gcard{ background-color:rgba(14,40,26,.78); }
   }
 
   /* ── Access gate / status ── */
@@ -163,18 +163,6 @@
   .cell.jx{color:#9ecbff; background-color:rgba(59,130,246,.13); background-image:none; border:1.5px dashed rgba(96,165,250,.55)}
   .zebra{background:rgba(255,255,255,.02)}
 
-  /* ── inventory ── */
-  #invWrap{height:100%; display:flex; flex-direction:column; gap:1.2vh}
-  .inv-cat{font-size:clamp(14px,1.5vw,26px); font-weight:800; color:var(--muted); letter-spacing:.6px; text-transform:uppercase; margin-bottom:.4vh}
-  .inv-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,22em),1fr)); gap:1vh 1.2vw}
-  .inv{display:flex; align-items:center; gap:1vw;
-    border-left:6px solid var(--ic,var(--green)); border-radius:16px; padding:1vh 1.1vw}
-  .inv .inm{flex:1 1 auto; min-width:0; font-size:clamp(15px,1.6vw,27px); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .inv .stk{flex:0 0 auto; font-size:clamp(18px,2vw,34px); font-weight:900; font-variant-numeric:tabular-nums; color:var(--ic,var(--green))}
-  .inv .st{flex:0 0 auto; font-size:clamp(10px,1vw,16px); font-weight:800; text-transform:uppercase; letter-spacing:.5px;
-    color:var(--ic,var(--green)); border:1px solid color-mix(in srgb,var(--ic,var(--green)) 40%, transparent);
-    padding:.2em .55em; border-radius:999px}
-
   /* ── bin work board ── */
   /* TVs can't scroll: groups flow into two columns on busy days, and
      renderBins() shrinks the whole board to fit 1080p if it's still tall. */
@@ -188,15 +176,18 @@
   .bb-count{font-size:clamp(12px,1.3vw,22px); font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums}
   .bb-row{display:flex; align-items:center; gap:.9vw; padding:.5vh .2vw}
   .bb-row + .bb-row{border-top:1px solid rgba(255,255,255,.05)}
+  /* Field priority: bin size, city, drop/pick, customer, street last */
+  .bb-size{flex:0 0 auto; min-width:3.1em; font-size:clamp(16px,1.9vw,32px); font-weight:900; color:#fde047; font-variant-numeric:tabular-nums; letter-spacing:.3px; text-align:left}
+  .bb-city{flex:0 0 auto; max-width:9em; font-size:clamp(14px,1.6vw,27px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bb-kind{flex:0 0 auto; font-size:clamp(10px,1.05vw,16px); font-weight:800; text-transform:uppercase; letter-spacing:.5px; padding:.24em .65em; border-radius:999px; white-space:nowrap}
   .k-drop{color:#7dd3fc; background:rgba(14,165,233,.16); border:1px solid rgba(14,165,233,.45)}
   .k-pick{color:#f9a8d4; background:rgba(236,72,153,.16); border:1px solid rgba(236,72,153,.45)}
-  .bb-who{flex:0 1 auto; min-width:0; font-size:clamp(14px,1.5vw,25px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bb-who{flex:0 1 auto; min-width:0; font-size:clamp(12px,1.3vw,21px); font-weight:700; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bb-extra{flex:0 0 auto; font-size:clamp(11px,1.15vw,18px); font-weight:700; color:var(--muted); white-space:nowrap}
-  .bb-loc{flex:1 1 auto; min-width:0; font-size:clamp(11px,1.2vw,19px); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bb-loc{flex:1 1 auto; min-width:0; font-size:clamp(10px,1.05vw,16px); color:var(--dim,var(--muted)); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right}
   .bb-state{flex:0 0 auto; font-size:clamp(11px,1.1vw,17px); font-weight:800; text-transform:uppercase; letter-spacing:.4px; padding:.22em .6em; border-radius:999px; color:#fbbf24; border:1px solid rgba(251,191,36,.45); background:rgba(251,191,36,.12)}
   .bb-row.done .bb-state{color:var(--green); border-color:color-mix(in srgb,var(--green) 45%, transparent); background:color-mix(in srgb,var(--green) 14%, transparent)}
-  .bb-row.done .bb-who,.bb-row.done .bb-loc,.bb-row.done .bb-extra{text-decoration:line-through; opacity:.55}
+  .bb-row.done .bb-size,.bb-row.done .bb-city,.bb-row.done .bb-who,.bb-row.done .bb-loc,.bb-row.done .bb-extra{text-decoration:line-through; opacity:.55}
 
   /* ── dots + status ── */
   #dots{flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:.8em;
@@ -247,12 +238,7 @@
         <div class="p-head"><span class="accent"></span><h2>Operations</h2><span class="meta" id="kpiMeta"></span></div>
         <div class="p-body"><div id="kpiGrid"></div></div>
       </section>
-      <!-- Panel 4: Back Shop Inventory -->
-      <section class="panel" data-panel="inventory">
-        <div class="p-head"><span class="accent"></span><h2>Back Shop Inventory</h2><span class="meta" id="invMeta"></span></div>
-        <div class="p-body"><div id="invWrap"></div></div>
-      </section>
-      <!-- Panel 5: Bin Work Today — bins only, grouped by driver -->
+      <!-- Panel 4: Bin Work Today — bins only, grouped by driver -->
       <section class="panel" data-panel="bins">
         <div class="p-head"><span class="accent"></span><h2>Bin Work Today</h2><span class="meta" id="binsMeta"></span></div>
         <div class="p-body"><div id="binsWrap"></div></div>
@@ -273,7 +259,7 @@
     var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
     var ROTATE_MS  = 20000;   // time each panel is shown
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
-    var PANELS = ['bins','schedule','kpis','inventory'];
+    var PANELS = ['bins','schedule','kpis'];
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
     // Dedicated session store so this page can NEVER pick up a staff member's
@@ -417,13 +403,19 @@
       var wkEnd = ymd(new Date(new Date(monday).getTime()+7*864e5));
       var tomorrow = ymd(new Date(new Date(today).getTime()+864e5));
       var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
-      // month windows for the booked-vs-last-year + new-clients tiles (count-only
-      // queries). Last year is cut at the SAME day-of-month so mid-month numbers
-      // compare fairly (first N days vs first N days).
+      // Local-midnight bounds for timestamptz columns — a bare 'YYYY-MM-DD' string is
+      // read as UTC midnight (8 PM ET the day before), which puts evening events on
+      // the wrong day.
+      var dayStartIso = parseLocal(today).toISOString();
+      var dayEndIso   = new Date(parseLocal(today).getTime()+864e5).toISOString();
+      // month windows for the month-vs-last-year + new-clients tiles (count-only
+      // queries). BOTH sides are cut at the same day-of-month (first N days vs
+      // first N days) so mid-month numbers compare fairly — jobs.date is the
+      // SCHEDULED day, so an uncut current month would include pre-booked future
+      // jobs and inflate the comparison.
       var y = +today.slice(0,4), mo = +today.slice(5,7);
       function monthStartStr(yy,mm){ return yy+'-'+String(mm).padStart(2,'0')+'-01'; }
       var moStart = monthStartStr(y, mo);
-      var moNext  = (mo===12) ? monthStartStr(y+1,1) : monthStartStr(y,mo+1);
       var lyStart = monthStartStr(y-1, mo);
       var d0 = parseLocal(today);
       var lyCut = ymd(new Date(d0.getFullYear()-1, d0.getMonth(), d0.getDate()+1));
@@ -440,19 +432,19 @@
         // KPI helpers
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped'),
         db.from('jobs').select('status').gte('date',monday).lt('date',wkEnd),
-        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',today).lt('completed_at',tomorrow),
+        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',dayStartIso).lt('completed_at',dayEndIso),
         // junk-side work across the schedule week (for the crew-schedule ghosts)
         db.from('jobs').select('service,status,date,junk_date,fb_date,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_pickup')
           .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')'),
         // today's geofence enter/leave notifications — done/not-done for the bin board
-        db.from('geofence_notifications').select('job_id,status').gte('created_at', today+'T00:00:00'),
-        // month tiles — count-only (no row data): booked this month, same month
-        // last year, and new clients this month. Jobs count by their booking
-        // `date` (matches Analytics; history goes back years) — created_at only
-        // starts at the 2026 import so it can't see last year.
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',moStart).lt('date',moNext),
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lyStart).lt('date',lyCut),
-        db.from('clients').select('*',{count:'exact',head:true}).gte('created_at',moStart).lt('created_at',moNext)
+        db.from('geofence_notifications').select('job_id,status').gte('created_at', dayStartIso),
+        // month tiles — count-only (no row data): jobs this month so far, the same
+        // days last year, and new clients this month. Jobs count by their scheduled
+        // `date` (history goes back years — created_at only starts at the 2026
+        // import), cut at today on BOTH sides, excluding cancelled jobs and quotes.
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled').neq('service','Junk Quote'),
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled').neq('service','Junk Quote'),
+        db.from('clients').select('*',{count:'exact',head:true}).gte('created_at',moStart).lt('created_at',ymd(new Date(y, mo, 1)))
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
 
@@ -570,14 +562,15 @@
       var k = DATA.kpi;
       var now = new Date();
       el('kpiMeta').textContent = now.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
-      // booked this month vs the same month last year (counts only — no money)
+      // jobs this month so far vs the same days last year (counts only — no money;
+      // both windows are month-start → today's day-of-month, no cancelled, no quotes)
       var moName = now.toLocaleDateString(undefined,{month:'short'});
       var lyLabel = moName+' '+(now.getFullYear()-1);
       var delta = k.bookedMonth - k.bookedLastYear;
       var sub, subC;
       if(k.bookedLastYear > 0){
         var pct = Math.round(100*delta/k.bookedLastYear);
-        sub = (delta>=0?'▲ ':'▼ ')+Math.abs(pct)+'% vs '+lyLabel+' so far ('+k.bookedLastYear+')';
+        sub = (delta>=0?'▲ ':'▼ ')+Math.abs(pct)+'% vs '+lyLabel+' same days ('+k.bookedLastYear+')';
         subC = delta>=0 ? '#22c55e' : '#ef4444';
       } else {
         sub = 'no '+lyLabel+' data yet';
@@ -586,7 +579,7 @@
       var tiles = [
         {n:k.jobsToday,     l:'Jobs Today',        c:'#22c55e'},
         {n:k.weekJobs,      l:'Jobs This Week',    c:'#a855f7'},
-        {n:k.bookedMonth,   l:'Booked in '+moName, c:'#38bdf8', sub:sub, subC:subC},
+        {n:k.bookedMonth,   l:'Jobs in '+moName+' so far', c:'#38bdf8', sub:sub, subC:subC},
         {n:k.newClients,    l:'New Clients in '+moName, c:'#f472b6'},
         {n:k.workingToday,  l:'Crew Scheduled Today', c:'#3b82f6'},
         {n:k.binsOut,       l:'Bins Out',          c:'#eab308'},
@@ -597,35 +590,6 @@
         return '<div class="kpi"><div class="num" style="--kc:'+t.c+'">'+t.n+'</div><div class="lbl">'+t.l+'</div>'
           + (t.sub ? '<div class="sub" style="color:'+t.subC+'">'+t.sub+'</div>' : '')
           + '</div>';
-      }).join('');
-    }
-
-    function invStatus(it){
-      var s=it.current_stock||0, m=it.min_threshold||0;
-      if(s<=0) return {t:'Out', c:'#ef4444'};
-      if(s<=m) return {t:'Low', c:'#f59e0b'};
-      return {t:'OK', c:'#22c55e'};
-    }
-    function renderInventory(){
-      var wrap = el('invWrap');
-      el('invMeta').textContent = DATA.kpi.lowStock+' need restock';
-      if(!DATA.inv.length){ wrap.innerHTML='<div class="empty"><div class="big">Inventory is empty</div></div>'; return; }
-      // group by category (already sorted by category sort order)
-      var groups=[], gmap={};
-      DATA.inv.forEach(function(it){
-        var cat = (DATA.cats[it.category_id]||{}).name || 'Uncategorised';
-        if(!gmap[cat]){ gmap[cat]={name:cat,items:[]}; groups.push(gmap[cat]); }
-        gmap[cat].items.push(it);
-      });
-      wrap.innerHTML = groups.map(function(g){
-        var items = g.items.map(function(it){
-          var st = invStatus(it);
-          return '<div class="inv" style="--ic:'+st.c+'">'
-            + '<div class="inm">'+esc(it.item_name)+'</div>'
-            + '<div class="stk">'+ (it.current_stock||0) +'</div>'
-            + '<div class="st">'+st.t+'</div></div>';
-        }).join('');
-        return '<div><div class="inv-cat">'+esc(g.name)+'</div><div class="inv-grid">'+items+'</div></div>';
       }).join('');
     }
 
@@ -648,13 +612,16 @@
         var rows = g.legs.map(function(l){
           var j = l.j;
           var who = j.business_name || j.name || 'Customer';
-          var loc = [j.address, j.city].filter(Boolean).join(', ');
-          var extras = [j.bin_size, j.bin_bid?('Bin '+j.bin_bid):'', l.time?fmt12(l.time):''].filter(Boolean).join(' · ');
+          // Field priority: bin size, city, drop/pick, customer, street address last
+          var sizeTxt = (j.bin_size||'').replace(/\s*yard/i,' YD');
+          var extras = [j.bin_bid?('Bin '+j.bin_bid):'', l.time?fmt12(l.time):''].filter(Boolean).join(' · ');
           return '<div class="bb-row'+(l.done?' done':'')+'">'
+            + '<span class="bb-size">'+esc(sizeTxt||'—')+'</span>'
+            + '<span class="bb-city">'+esc(j.city||'')+'</span>'
             + '<span class="bb-kind '+(l.kind==='drop'?'k-drop':'k-pick')+'">'+(l.kind==='drop'?'🚛 Drop-off':'🚚 Pick-up')+'</span>'
             + '<span class="bb-who">'+esc(who)+'</span>'
             + (extras?'<span class="bb-extra">'+esc(extras)+'</span>':'')
-            + (loc?'<span class="bb-loc">'+esc(loc)+'</span>':'')
+            + (j.address?'<span class="bb-loc">'+esc(j.address)+'</span>':'')
             + '<span class="bb-state">'+(l.done?'✓ Done':'To do')+'</span>'
             + '</div>';
         }).join('');
@@ -679,7 +646,6 @@
       if(name==='bins') renderBins();
       else if(name==='schedule') renderSchedule();
       else if(name==='kpis') renderKpis();
-      else if(name==='inventory') renderInventory();
     }
 
     // ── rotation ─────────────────────────────────────────────────────────────

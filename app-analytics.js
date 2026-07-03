@@ -215,8 +215,9 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   var bFD=bJobs.filter(function(j){return j.service==='Furniture Delivery';}).length;
 
   function mbox(idA,val,prev,color,label){
+    // --kc drives both the number color and its glow (see .metric-val in style.css)
     return'<div class="metric-box"><div style="display:flex;align-items:baseline;flex-wrap:wrap">'
-      +'<div class="metric-val" id="'+idA+'" style="color:'+color+'">0</div>'+(hasB?delta(val,prev):'')+'</div>'
+      +'<div class="metric-val" id="'+idA+'" style="--kc:'+color+'">0</div>'+(hasB?delta(val,prev):'')+'</div>'
       +'<div class="metric-lbl">'+label+'</div>'+(hasB?'<div style="font-size:10px;color:var(--muted);margin-top:2px">B: '+prev+'</div>':'')+'</div>';
   }
   document.getElementById('analytics-metrics').innerHTML=
