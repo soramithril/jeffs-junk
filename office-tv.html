@@ -133,12 +133,13 @@
   .empty .small{font-size:clamp(14px,1.6vw,26px)}
 
   /* ── KPIs ── */
-  #kpiGrid{height:100%; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:1.6vh 1.4vw}
+  #kpiGrid{height:100%; display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(2,1fr); gap:1.6vh 1.4vw}
   .kpi{border-radius:24px; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:.1em; padding:1vh}
   .kpi .num{font-size:clamp(44px,8vw,150px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums; color:var(--kc,var(--text));
     text-shadow:0 0 34px color-mix(in srgb, var(--kc,var(--green)) 45%, transparent)}
   .kpi .lbl{font-size:clamp(13px,1.6vw,28px); font-weight:700; color:var(--muted); letter-spacing:.5px; text-align:center}
+  .kpi .sub{font-size:clamp(11px,1.15vw,20px); font-weight:800; letter-spacing:.3px; text-align:center; margin-top:.2em}
 
   /* ── schedule grid ── */
   #schedWrap{height:100%; display:flex; flex-direction:column}
@@ -416,6 +417,16 @@
       var wkEnd = ymd(new Date(new Date(monday).getTime()+7*864e5));
       var tomorrow = ymd(new Date(new Date(today).getTime()+864e5));
       var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
+      // month windows for the booked-vs-last-year + new-clients tiles (count-only
+      // queries). Last year is cut at the SAME day-of-month so mid-month numbers
+      // compare fairly (first N days vs first N days).
+      var y = +today.slice(0,4), mo = +today.slice(5,7);
+      function monthStartStr(yy,mm){ return yy+'-'+String(mm).padStart(2,'0')+'-01'; }
+      var moStart = monthStartStr(y, mo);
+      var moNext  = (mo===12) ? monthStartStr(y+1,1) : monthStartStr(y,mo+1);
+      var lyStart = monthStartStr(y-1, mo);
+      var d0 = parseLocal(today);
+      var lyCut = ymd(new Date(d0.getFullYear()-1, d0.getMonth(), d0.getDate()+1));
 
       var res = await Promise.all([
         db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid')
@@ -434,7 +445,12 @@
         db.from('jobs').select('service,status,date,junk_date,fb_date,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_pickup')
           .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')'),
         // today's geofence enter/leave notifications — done/not-done for the bin board
-        db.from('geofence_notifications').select('job_id,status').gte('created_at', today+'T00:00:00')
+        db.from('geofence_notifications').select('job_id,status').gte('created_at', today+'T00:00:00'),
+        // month tiles — count-only (no row data): booked this month, same month
+        // last year, and new clients this month
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('created_at',moStart).lt('created_at',moNext),
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('created_at',lyStart).lt('created_at',lyCut),
+        db.from('clients').select('*',{count:'exact',head:true}).gte('created_at',moStart).lt('created_at',moNext)
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
 
@@ -483,7 +499,10 @@
         weekJobs: weekRows.filter(function(r){ return r.status!=='Cancelled'; }).length,
         completedToday: (res[9].data||[]).length,
         lowStock: DATA.inv.filter(function(it){ return (it.current_stock||0) <= (it.min_threshold||0); }).length,
-        workingToday: workingTodayCount()
+        workingToday: workingTodayCount(),
+        bookedMonth: res[12].count||0,
+        bookedLastYear: res[13].count||0,
+        newClients: res[14].count||0
       };
     }
 
@@ -547,17 +566,35 @@
 
     function renderKpis(){
       var k = DATA.kpi;
-      el('kpiMeta').textContent = new Date().toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+      var now = new Date();
+      el('kpiMeta').textContent = now.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+      // booked this month vs the same month last year (counts only — no money)
+      var moName = now.toLocaleDateString(undefined,{month:'short'});
+      var lyLabel = moName+' '+(now.getFullYear()-1);
+      var delta = k.bookedMonth - k.bookedLastYear;
+      var sub, subC;
+      if(k.bookedLastYear > 0){
+        var pct = Math.round(100*delta/k.bookedLastYear);
+        sub = (delta>=0?'▲ ':'▼ ')+Math.abs(pct)+'% vs '+lyLabel+' so far ('+k.bookedLastYear+')';
+        subC = delta>=0 ? '#22c55e' : '#ef4444';
+      } else {
+        sub = 'no '+lyLabel+' data yet';
+        subC = 'var(--muted)';
+      }
       var tiles = [
         {n:k.jobsToday,     l:'Jobs Today',        c:'#22c55e'},
+        {n:k.weekJobs,      l:'Jobs This Week',    c:'#a855f7'},
+        {n:k.bookedMonth,   l:'Booked in '+moName, c:'#38bdf8', sub:sub, subC:subC},
+        {n:k.newClients,    l:'New Clients in '+moName, c:'#f472b6'},
         {n:k.workingToday,  l:'Crew Scheduled Today', c:'#3b82f6'},
         {n:k.binsOut,       l:'Bins Out',          c:'#eab308'},
-        {n:k.weekJobs,      l:'Jobs This Week',    c:'#a855f7'},
         {n:k.completedToday,l:'Completed Today',   c:'#10b981'},
         {n:k.lowStock,      l:'Low-Stock Items',   c: k.lowStock>0?'#ef4444':'#22c55e'}
       ];
       el('kpiGrid').innerHTML = tiles.map(function(t){
-        return '<div class="kpi"><div class="num" style="--kc:'+t.c+'">'+t.n+'</div><div class="lbl">'+t.l+'</div></div>';
+        return '<div class="kpi"><div class="num" style="--kc:'+t.c+'">'+t.n+'</div><div class="lbl">'+t.l+'</div>'
+          + (t.sub ? '<div class="sub" style="color:'+t.subC+'">'+t.sub+'</div>' : '')
+          + '</div>';
       }).join('');
     }
 
