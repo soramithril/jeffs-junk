@@ -790,8 +790,19 @@
       tickClock(); setInterval(tickClock, 1000);
       loadWeather(); setInterval(loadWeather, 30*60*1000);
       startRotation();
+      // Shop is closed Saturday 3 PM through Monday 6 AM — skip data refreshes
+      // in that window so the TV pulls nothing from Supabase all weekend.
+      // (Boot still loads once so a weekend restart isn't a blank board.)
+      function inWeekendQuiet(){
+        var n = new Date(), d = n.getDay(), h = n.getHours();
+        if(d === 6 && h >= 15) return true;  // Saturday from 3 PM
+        if(d === 0) return true;             // all of Sunday
+        if(d === 1 && h < 6) return true;    // Monday before 6 AM
+        return false;
+      }
       // periodic refresh; keep showing last-good data on a blip
       setInterval(async function(){
+        if(inWeekendQuiet()) return;
         try{ await loadAll(); net(true); renderCurrent(); }
         catch(e){ console.error('refresh failed', e); net(false); }
       }, REFRESH_MS);
