@@ -447,9 +447,11 @@
         // today's geofence enter/leave notifications — done/not-done for the bin board
         db.from('geofence_notifications').select('job_id,status').gte('created_at', today+'T00:00:00'),
         // month tiles — count-only (no row data): booked this month, same month
-        // last year, and new clients this month
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('created_at',moStart).lt('created_at',moNext),
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('created_at',lyStart).lt('created_at',lyCut),
+        // last year, and new clients this month. Jobs count by their booking
+        // `date` (matches Analytics; history goes back years) — created_at only
+        // starts at the 2026 import so it can't see last year.
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',moStart).lt('date',moNext),
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lyStart).lt('date',lyCut),
         db.from('clients').select('*',{count:'exact',head:true}).gte('created_at',moStart).lt('created_at',moNext)
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
