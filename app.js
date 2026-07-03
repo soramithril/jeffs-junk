@@ -4997,6 +4997,10 @@ function getClientLastJobDate(cid,name){var cjobs=jobs.filter(function(j){return
 // ─── CLIENTS ───
 var _clientSearchTimer=null;
 var _selectedClientObj=null;
+// True when client autofill wrote f-addr — switching clients may replace an auto-filled
+// address, but never one the user typed. Typing in f-addr hands ownership back to the user.
+var _addrAutoFilled=false;
+document.addEventListener('input', function(e){ if(e.target && e.target.id==='f-addr') _addrAutoFilled=false; });
 
 function clientSearchDebounce(q){
   clearTimeout(_clientSearchTimer);
@@ -5134,6 +5138,7 @@ function showClientNotesPopup(cl){
 
 function clearClientSelection(){
   _selectedClientObj=null;
+  _addrAutoFilled=false;
   document.getElementById('f-client-select').value='';
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');
@@ -5172,9 +5177,10 @@ function fillClientFromSelect(cid){
 
   var picker=document.getElementById('f-addr-picker');
   var sel=document.getElementById('f-addr-select');
-  // Never clobber an address the user already typed — the silent swap here is how jobs
-  // ended up saved (and printed) with the client's old home address instead of the site.
-  var typedAddr=document.getElementById('f-addr').value.trim();
+  // Never clobber an address the user TYPED — the silent swap here is how jobs ended up
+  // saved (and printed) with the client's old home address instead of the site. An address
+  // this code auto-filled for a previously picked client is fair game to replace.
+  var typedAddr=_addrAutoFilled ? '' : document.getElementById('f-addr').value.trim();
 
   if(addrs.length>1 && picker && sel){
     var opts=addrs.map(function(a,i){
@@ -5194,6 +5200,7 @@ function fillClientFromSelect(cid){
       var cy=(addrs[0]&&addrs[0].city)||cl.city||'Barrie';
       document.getElementById('f-addr').value=st;
       document.getElementById('f-city').value=cy;
+      _addrAutoFilled=true;
     }
   }
 }
@@ -5206,11 +5213,13 @@ function pickClientAddress(val){
   if(val==='new'){
     document.getElementById('f-addr').value='';
     document.getElementById('f-city').value='Barrie';
+    _addrAutoFilled=true;
     return;
   }
   var a=addrs[parseInt(val)]||{};
   document.getElementById('f-addr').value=a.street||'';
   document.getElementById('f-city').value=a.city||cl.city||'Barrie';
+  _addrAutoFilled=true;
 }
 function getClientJobStats(cid, name){
   // match by cid or by name if no cid
@@ -8360,6 +8369,7 @@ async function openEdit(id){
   // Reset leftover client-picker state from a previous form session — a stale
   // _selectedClientObj could inject another client's address via the picker.
   _selectedClientObj=null;
+  _addrAutoFilled=false; // the job's own address is about to populate f-addr — protect it
   var stalePicker=document.getElementById('f-addr-picker');
   if(stalePicker)stalePicker.style.display='none';
   setTimeout(function(){
@@ -13525,15 +13535,20 @@ function _pvCompAllIn(c, key){
 }
 
 // Make sure the selection points at a real area + a size that area actually sells.
+// If the area has no priced sizes at all, _pvSel.size is set to null so the rail
+// shows an empty state instead of quoting $0.
 function _pvEnsureSelection(areas){
   if(!areas.length) return null;
+  function hasPrices(x){ return PV_MAIN_SIZES.concat(PV_OTHER_SIZES).some(function(s){return parseFloat(x.bins[s])>0;}); }
   var a = areas.find(function(x){return x.id===_pvSel.area;});
   if(!a){
-    a = areas.find(function(x){return /^barrie/i.test(x.name) && parseFloat(x.bins['14 yard'])>0;}) || areas[0];
+    a = areas.find(function(x){return /^barrie/i.test(x.name) && parseFloat(x.bins['14 yard'])>0;})
+      || areas.find(hasPrices)
+      || areas[0];
     _pvSel.area = a.id;
   }
   if(!(parseFloat(a.bins[_pvSel.size])>0)){
-    _pvSel.size = PV_MAIN_SIZES.concat(PV_OTHER_SIZES).filter(function(s){return parseFloat(a.bins[s])>0;})[0] || '14 yard';
+    _pvSel.size = PV_MAIN_SIZES.concat(PV_OTHER_SIZES).filter(function(s){return parseFloat(a.bins[s])>0;})[0] || null;
   }
   return a;
 }
@@ -13583,7 +13598,13 @@ function renderPricingRail(){
   if(!areas.length){ host.innerHTML=''; return; }
   var a = _pvEnsureSelection(areas);
   var sz = _pvSel.size;
-  var base = parseFloat(a.bins[sz])||0;
+  var base = sz ? (parseFloat(a.bins[sz])||0) : 0;
+  if(!(base>0)){
+    host.innerHTML = '<div class="pv-rail"><div class="pv-rail-h">Quote Builder</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.5">No bin prices set for '+_pvEsc(a.name)
+      +' yet — open <b>Edit Our Prices</b> to add them, or click a price in another area.</div></div>';
+    return;
+  }
   var hasDump = (sz==='14 yard'||sz==='20 yard') && a.tonne>0;
   var dump = hasDump?a.tonne:0;
   var hst = (base+dump)*0.13;

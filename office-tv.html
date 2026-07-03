@@ -400,8 +400,10 @@
     // ── data load ────────────────────────────────────────────────────────────
     async function loadAll(){
       var today = todayStr(), monday = mondayStr();
-      var wkEnd = ymd(new Date(new Date(monday).getTime()+7*864e5));
-      var tomorrow = ymd(new Date(new Date(today).getTime()+864e5));
+      // parseLocal, not new Date(str) — bare 'YYYY-MM-DD' parses as UTC midnight, which
+      // in Toronto lands on the PREVIOUS local day and made tomorrow === today.
+      var wkEnd = ymd(new Date(parseLocal(monday).getTime()+7*864e5));
+      var tomorrow = ymd(new Date(parseLocal(today).getTime()+864e5));
       var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
       // Local-midnight bounds for timestamptz columns — a bare 'YYYY-MM-DD' string is
       // read as UTC midnight (8 PM ET the day before), which puts evening events on
