@@ -132,24 +132,6 @@
   .empty .big{font-size:clamp(28px,4vw,64px); font-weight:900; color:var(--text)}
   .empty .small{font-size:clamp(14px,1.6vw,26px)}
 
-  /* ── jobs ── */
-  #jobsList{height:100%; display:grid; grid-auto-rows:min-content; gap:1.1vh; align-content:start}
-  #jobsList.two{grid-template-columns:1fr 1fr; gap:1.1vh 1.4vw}
-  .job{
-    display:flex; align-items:center; gap:1.1vw;
-    border-left:6px solid var(--jc,var(--green)); border-radius:16px; padding:1.1vh 1.2vw; overflow:hidden;
-  }
-  .job .time{flex:0 0 auto; min-width:4.6em; font-weight:800; font-variant-numeric:tabular-nums; font-size:clamp(16px,1.8vw,30px)}
-  .job .svc{flex:0 0 auto; font-size:clamp(11px,1.1vw,17px); font-weight:800; text-transform:uppercase; letter-spacing:.6px;
-    color:var(--jc,var(--green)); background:color-mix(in srgb, var(--jc,var(--green)) 18%, transparent);
-    border:1px solid color-mix(in srgb, var(--jc,var(--green)) 42%, transparent); padding:.28em .7em; border-radius:999px; white-space:nowrap}
-  .job .who{flex:1 1 auto; min-width:0}
-  .job .who .nm{font-size:clamp(16px,1.9vw,32px); font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .job .who .loc{font-size:clamp(12px,1.3vw,21px); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .job .crew{flex:0 0 auto; display:flex; gap:.4em; flex-wrap:nowrap; justify-content:flex-end; overflow:hidden}
-  .chip{font-size:clamp(11px,1.15vw,18px); font-weight:700; background:rgba(255,255,255,.08); border:1px solid var(--gline);
-    color:var(--text); padding:.22em .6em; border-radius:9px; white-space:nowrap}
-
   /* ── KPIs ── */
   #kpiGrid{height:100%; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr); gap:1.6vh 1.4vw}
   .kpi{border-radius:24px; display:flex; flex-direction:column;
@@ -193,8 +175,11 @@
     padding:.2em .55em; border-radius:999px}
 
   /* ── bin work board ── */
-  #binsWrap{height:100%; display:flex; flex-direction:column; gap:1.2vh; overflow:hidden}
-  .bb-group{border-radius:16px; border:1px solid var(--gline); padding:.8vh 1vw; background:rgba(255,255,255,.03)}
+  /* TVs can't scroll: groups flow into two columns on busy days, and
+     renderBins() shrinks the whole board to fit 1080p if it's still tall. */
+  #binsWrap{width:100%}
+  #binsWrap.two-col{column-count:2; column-gap:1.2vw}
+  .bb-group{border-radius:16px; border:1px solid var(--gline); padding:.8vh 1vw; background:rgba(255,255,255,.03); break-inside:avoid; margin-bottom:1.2vh}
   .bb-group.warn{border-color:rgba(239,68,68,.55); background:rgba(239,68,68,.08)}
   .bb-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.4vh; border-bottom:1px solid var(--gline); padding-bottom:.4vh}
   .bb-name{font-size:clamp(15px,1.7vw,28px); font-weight:900; letter-spacing:.4px}
@@ -251,12 +236,7 @@
       </div>
     </div>
     <div id="stage">
-      <!-- Panel 1: Today's Jobs -->
-      <section class="panel" data-panel="jobs">
-        <div class="p-head"><span class="accent"></span><h2>Today's Jobs</h2><span class="meta" id="jobsMeta"></span></div>
-        <div class="p-body"><div id="jobsList"></div></div>
-      </section>
-      <!-- Panel 2: Crew Schedule -->
+      <!-- Panel: Crew Schedule -->
       <section class="panel" data-panel="schedule">
         <div class="p-head"><span class="accent"></span><h2>Crew Schedule</h2><span class="meta" id="schedMeta"></span></div>
         <div class="p-body"><div id="schedWrap"></div></div>
@@ -292,7 +272,7 @@
     var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
     var ROTATE_MS  = 20000;   // time each panel is shown
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
-    var PANELS = ['jobs','bins','schedule','kpis','inventory'];
+    var PANELS = ['bins','schedule','kpis','inventory'];
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
     // Dedicated session store so this page can NEVER pick up a staff member's
@@ -335,13 +315,6 @@
     var DATA = { jobs:[], crew:{}, emps:[], sched:{}, tasks:{}, inv:[], cats:{}, kpi:{}, junk:{} };
     var panelIdx = 0, rotTimer = null;
 
-    // ── service colours for the jobs board ───────────────────────────────────
-    var SVC_COLOR = {
-      'Junk Removal':'#eab308', 'Junk Quote':'#3b82f6', 'Bin Rental':'#22c55e',
-      'Bin Drop-off':'#22c55e', 'Bin Pick-up':'#0ea5e9',
-      'Furniture Pickup':'#ef4444', 'Furniture Delivery':'#a855f7', 'Landscaping':'#10b981'
-    };
-    function svcColor(s){ return SVC_COLOR[s] || '#7c8aa3'; }
     function jobTime(j){
       var s=j.service;
       if(s==='Furniture Pickup'||s==='Furniture Delivery') return j.fb_time || j.time || '';
@@ -524,39 +497,6 @@
     }
 
     // ── renderers ────────────────────────────────────────────────────────────
-    function crewNames(e){
-      var seen={}, out=[];
-      (e.crewIds||[]).forEach(function(id){ if(id && DATA.crew[id] && !seen[id]){ seen[id]=1; out.push(DATA.crew[id]); } });
-      return out;
-    }
-
-    function renderJobs(){
-      var d = new Date();
-      el('jobsMeta').textContent = d.toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
-      var list = el('jobsList');
-      if(!DATA.jobs.length){
-        list.className='';
-        list.innerHTML = '<div class="empty"><div class="big">No jobs scheduled today</div><div class="small">Enjoy the day off 🎉</div></div>';
-        return;
-      }
-      list.className = DATA.jobs.length>7 ? 'two' : '';
-      list.innerHTML = DATA.jobs.map(function(j){
-        var c = svcColor(j.service);
-        var who = j.business_name || j.name || 'Customer';
-        var loc = [j.address, j.city].filter(Boolean).join(', ');
-        var t = j.time;
-        var names = crewNames(j);
-        var crew = names.slice(0,2).map(function(n){ return '<span class="chip">'+esc(n)+'</span>'; }).join('');
-        if(names.length>2) crew += '<span class="chip">+'+(names.length-2)+'</span>';
-        return '<div class="job" style="--jc:'+c+'">'
-          + '<div class="time">'+esc(t?fmt12(t):'—')+'</div>'
-          + '<div class="svc">'+esc(j.service||'Job')+'</div>'
-          + '<div class="who"><div class="nm">'+esc(who)+'</div>'+(loc?'<div class="loc">'+esc(loc)+'</div>':'')+'</div>'
-          + '<div class="crew">'+crew+'</div>'
-          + '</div>';
-      }).join('');
-    }
-
     function renderSchedule(){
       var monday = parseLocal(mondayStr());
       el('schedMeta').textContent = 'Week of '+monday.toLocaleDateString(undefined,{month:'long', day:'numeric'});
@@ -658,10 +598,13 @@
         ? done+' of '+total+' done · updated '+new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
         : new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
       var wrap = el('binsWrap');
+      wrap.style.transform=''; wrap.style.width='';
       if(!total){
+        wrap.classList.remove('two-col');
         wrap.innerHTML = '<div class="empty"><div class="big">No bin drop-offs or pick-ups today</div></div>';
         return;
       }
+      wrap.classList.toggle('two-col', total > 8);
       wrap.innerHTML = board.map(function(g){
         var rows = g.legs.map(function(l){
           var j = l.j;
@@ -681,12 +624,20 @@
           + '<span class="bb-count">'+g.done+' / '+g.legs.length+' done</span></div>'
           + rows + '</div>';
       }).join('');
+      // Fit-to-screen: the TV can't scroll, so if the board is still taller
+      // than the panel after the two-column flow, shrink it just enough.
+      var box = wrap.parentElement;
+      if(box && wrap.scrollHeight > box.clientHeight){
+        var s = Math.max(0.5, box.clientHeight / wrap.scrollHeight);
+        wrap.style.transformOrigin = 'top left';
+        wrap.style.transform = 'scale('+s+')';
+        wrap.style.width = (100/s)+'%';
+      }
     }
 
     function renderCurrent(){
       var name = PANELS[panelIdx];
-      if(name==='jobs') renderJobs();
-      else if(name==='bins') renderBins();
+      if(name==='bins') renderBins();
       else if(name==='schedule') renderSchedule();
       else if(name==='kpis') renderKpis();
       else if(name==='inventory') renderInventory();
