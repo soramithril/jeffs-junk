@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=361">
+<link rel="stylesheet" href="style.css?v=362">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=361">
 <link rel="stylesheet" href="app-jwg-theme.css?v=358">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -17,7 +17,17 @@
 <body>
 
 <!-- ─── LOGIN SCREEN ─── -->
-<div id="login-screen" class="jj-screen-bg" style="display:flex;position:fixed;inset:0;z-index:99999;flex-direction:column;align-items:center;justify-content:center;">
+<div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:99999;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">
+  <!-- Pastel Drift ambient scene — same background as the office TV board -->
+  <div class="login-scene" aria-hidden="true">
+    <div class="lsc-dotgrid"></div>
+    <div class="lsc-moon"></div>
+    <div class="lsc-ring"></div>
+    <div class="lsc-spr lsc-truck"><div class="lsc-inner"><img src="assets/tv-truck.png" alt=""></div></div>
+    <div class="lsc-spr lsc-bin20"><div class="lsc-inner"><img src="assets/tv-bin-20.png" alt=""></div></div>
+    <div class="lsc-spr lsc-bin14"><div class="lsc-inner"><img src="assets/tv-bin-14.png" alt=""></div></div>
+    <div class="lsc-haze"></div>
+  </div>
   <div class="login-card" style="width:100%;max-width:400px;padding:24px;">
     <!-- Logo -->
     <div style="text-align:center;margin-bottom:36px;">

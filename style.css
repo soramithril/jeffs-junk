@@ -1083,16 +1083,43 @@ input[type=date],input[type=time]{position:relative;}
 .addr-ac-loading { padding: 10px 14px; color: #94a3b8; font-size: 13px; }
 
 /* ─── LOGIN SCREEN ─── */
-@keyframes bgShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 @keyframes loadProgress{from{width:0%}to{width:var(--prog,0%)}}
 @keyframes logoFadeIn{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-.jj-screen-bg{
-  background:linear-gradient(135deg,#ffffff,#f8f9fa,#e6f4ed,#c8e6d5,#7cc9a0,#e6f4ed,#f8f9fa,#ffffff);
-  background-size:400% 400%;
-  animation:bgShift 8s ease infinite;
-}
-#login-screen .login-card{animation:fadeInUp .45s ease both;}
+
+/* Pastel Drift ambient scene — the office TV's background, with a light haze
+   instead of the TV's dark scrim so the light login card reads well. */
+.login-scene{position:absolute;inset:0;z-index:0;overflow:hidden;
+  background:linear-gradient(158deg,#eef2e8 0%,#e2e8da 52%,#d6ddcb 100%);}
+.login-scene .lsc-dotgrid{position:absolute;inset:0;opacity:.55;
+  background-image:radial-gradient(rgba(96,114,94,.13) 1px,transparent 1.4px);
+  background-size:3.2vw 3.2vw;}
+.login-scene .lsc-moon{position:absolute;right:9vw;top:10vh;width:20vw;height:20vw;border-radius:50%;
+  background:radial-gradient(circle at 42% 38%,#f8f5ec,#e7e6d6);opacity:.9;
+  animation:pdHaze 9s ease-in-out infinite;}
+.login-scene .lsc-ring{position:absolute;left:-12vw;bottom:-20vh;width:44vw;height:44vw;border-radius:50%;
+  border:.3vw solid rgba(110,130,108,.28);animation:pdSpin 100s linear infinite;}
+.login-scene .lsc-spr{position:absolute;}
+.login-scene .lsc-spr img{width:100%;height:auto;display:block;}
+.login-scene .lsc-truck{left:6vw;top:34vh;width:32vw;animation:pdBob 9s ease-in-out infinite;}
+.login-scene .lsc-truck .lsc-inner{animation:pdSway 11s ease-in-out infinite;
+  filter:saturate(.9) drop-shadow(0 2vh 2.4vh rgba(60,74,58,.16));}
+.login-scene .lsc-bin20{right:5vw;bottom:12vh;width:27vw;animation:pdGlide 12s ease-in-out infinite;}
+.login-scene .lsc-bin20 .lsc-inner{animation:pdSway 9s ease-in-out infinite;
+  filter:saturate(.9) drop-shadow(0 1.8vh 2vh rgba(60,74,58,.16));}
+.login-scene .lsc-bin14{right:16vw;top:16vh;width:17vw;opacity:.9;animation:pdGlideB 14s ease-in-out infinite;}
+.login-scene .lsc-bin14 .lsc-inner{animation:pdSway 12s ease-in-out infinite;
+  filter:saturate(.88) drop-shadow(0 1.4vh 1.6vh rgba(60,74,58,.12));}
+.login-scene .lsc-haze{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.30) 0%,rgba(255,255,255,.16) 100%);}
+@keyframes pdBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6vh)}}
+@keyframes pdSway{0%,100%{transform:rotate(-2.2deg)}50%{transform:rotate(2.2deg)}}
+@keyframes pdGlide{0%,100%{transform:translate(0,0)}50%{transform:translate(2.6vw,-1.7vh)}}
+@keyframes pdGlideB{0%,100%{transform:translate(0,0)}50%{transform:translate(-2.2vw,1.5vh)}}
+@keyframes pdHaze{0%,100%{opacity:.7}50%{opacity:.96}}
+@keyframes pdSpin{to{transform:rotate(360deg)}}
+
+#login-screen .login-card{animation:fadeInUp .45s ease both;position:relative;z-index:1;}
 #login-card-inner input{
   width:100%;background:#fff;border:1.5px solid #dee2e6;color:#111;
   padding:13px 16px;border-radius:10px;font-family:'Inter',sans-serif;font-size:15px;
