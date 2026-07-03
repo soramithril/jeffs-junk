@@ -9,6 +9,10 @@
 (function(){
   'use strict';
 
+  // Admins do the rating, they don't get rated — leave them off the roster
+  // (per Jake 2026-07-03). Exact full-name match against jwg_employees names.
+  var ADMIN_NAMES = ['jake','josh','barb','jeff','sam','samantha'];
+
   var LABELS = {1:'Very bad', 2:'Not great', 3:'Okay', 4:'Good', 5:'Great'};
   var FG_SEL = {1:'#fff', 2:'#7c4a03', 3:'#495057', 4:'#1a3a2a', 5:'#fff'};
   var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -27,7 +31,8 @@
       if(w === 'all') return 'all'; var n = parseInt(w,10);
       return (!isNaN(n) && n >= 1 && n <= 104) ? n : 12; })(),
     pal:   PALETTES[localStorage.getItem('sc_pal')] ? localStorage.getItem('sc_pal') : 'classic',
-    open:  null            // employee id whose rating popover is open (grid view)
+    open:  null,           // employee id whose rating popover is open (grid view)
+    manage: false          // manage mode: show Hide/Show controls
   };
 
   // data cache
@@ -35,6 +40,7 @@
   var _minDate = null;     // oldest saved rating_date ('' = none yet)
   var _ratings = {};       // 'empId|YYYY-MM-DD' -> {rating, note}
   var _loadedFrom = null;  // earliest date currently covered by _ratings
+  var _hidden = {};        // employee id -> true (not tracked; shared via jwg_app_settings 'checkin_hidden')
 
   function ymdLocal(d){
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -58,10 +64,16 @@
       try {
         var rEmp = await db.from('jwg_employees').select('id,name').order('name');
         if(rEmp.error) throw rEmp.error;
-        _emps = rEmp.data || [];
+        _emps = (rEmp.data || []).filter(function(e){
+          return ADMIN_NAMES.indexOf(String(e.name).trim().toLowerCase()) === -1;
+        });
         var rMin = await db.from('employee_ratings').select('rating_date').order('rating_date',{ascending:true}).limit(1);
         if(rMin.error) throw rMin.error;
         _minDate = (rMin.data && rMin.data[0]) ? rMin.data[0].rating_date : '';
+        var rHid = await db.from('jwg_app_settings').select('value').eq('key','checkin_hidden');
+        if(rHid.error) throw rHid.error;
+        _hidden = {};
+        (((rHid.data && rHid.data[0]) || {}).value || []).forEach(function(id){ _hidden[id] = true; });
       } catch(e){
         _emps = null;
         el.innerHTML = '<div style="padding:60px;text-align:center;color:#dc2626;font-size:13px">Couldn\'t load: '+escHtml((e && e.message) || String(e))+'</div>';
@@ -131,7 +143,10 @@
       return MONTHS[d.getMonth()] + ' ' + d.getDate() + ' — ' + v + '/5 ' + LABELS[v] + (note ? ' · ' + note : '');
     }
 
-    var emps = _emps.map(function(e){
+    var roster = _emps.filter(function(e){ return !_hidden[e.id]; });
+    var hiddenList = _emps.filter(function(e){ return _hidden[e.id]; });
+
+    var emps = roster.map(function(e){
       var cells = [], sum = 0;
       for(var i2 = 0; i2 < DAYS; i2++){
         var rec = _ratings[e.id + '|' + dates[i2]];
@@ -213,7 +228,11 @@
              + PALETTES[key].c.map(function(c){ return '<span style="width:11px;height:11px;border-radius:3px;background:'+c+';border:1px solid rgba(0,0,0,.06)"></span>'; }).join('')
              + '</button>';
          }).join('')
-      +  '</div></div>';
+      +  '</div>'
+      +  '<button onclick="StaffRatings.toggleManage()" style="margin-left:auto;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:700;padding:7px 13px;border-radius:99px;border:1px solid '+(st.manage?'#1a1a2e':'#e9ecef')+';background:'+(st.manage?'#1a1a2e':'#fff')+';color:'+(st.manage?'#fff':'#868e96')+'">'
+      +  (st.manage ? 'Done' : 'Manage crew' + (hiddenList.length ? ' · '+hiddenList.length+' hidden' : ''))
+      +  '</button>'
+      +  '</div>';
 
     if(st.view === 'grid'){
       h += '<div style="background:#fff;border:1px solid #e9ecef;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
@@ -246,6 +265,7 @@
         }
         h += '</div>'
           +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=3.15?PC[4]:(emp.avg<=2.85?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
+          +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>';
       });
       h += '</div>'
@@ -261,6 +281,7 @@
           +  '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.25);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>'
           +  '<span style="font-size:13.5px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
           +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[4]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
+          +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>'
           +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
           +  '<div style="display:grid;grid-template-rows:repeat(7,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
@@ -274,6 +295,28 @@
           +  '<span style="margin-left:auto;font-size:11px;color:#868e96">'+escHtml(emp.streak)+'</span>'
           +  '</div></div>';
       });
+      h += '</div>';
+    }
+
+    // hidden crew — only surfaced in manage mode, with a Show button to bring
+    // someone back. Hidden people are skipped everywhere else (rows, stats).
+    if(st.manage){
+      h += '<div style="margin-top:14px;background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:16px 22px">'
+        +  '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase;margin-bottom:10px">Hidden — not tracked</div>';
+      if(hiddenList.length){
+        h += '<div style="display:flex;flex-wrap:wrap;gap:8px">'
+          +  hiddenList.map(function(e){
+               var ini = e.name.split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase();
+               return '<span style="display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 6px;border-radius:99px;background:#f8f9fa;border:1px solid #e9ecef">'
+                 + '<span style="width:24px;height:24px;border-radius:50%;background:#f1f3f5;border:1.5px solid #e9ecef;display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:11px;color:#adb5bd">'+escHtml(ini)+'</span>'
+                 + '<span style="font-size:12.5px;font-weight:600;color:#868e96">'+escHtml(e.name)+'</span>'
+                 + '<button onclick="StaffRatings.show(\''+e.id+'\')" style="cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #1a1a2e;background:#1a1a2e;color:#fff">Show</button>'
+                 + '</span>';
+             }).join('')
+          +  '</div>';
+      } else {
+        h += '<div style="font-size:12px;color:#adb5bd">No one is hidden. Use the Hide buttons above to stop tracking someone.</div>';
+      }
       h += '</div>';
     }
 
@@ -296,6 +339,23 @@
     if(!isNaN(n) && n >= 1) setWeeks(Math.min(104, n));
   }
   function togglePop(empId){ st.open = (st.open === empId) ? null : empId; paint(); }
+  function toggleManage(){ st.manage = !st.manage; st.open = null; paint(); }
+
+  async function setHidden(empId, hide){
+    var was = !!_hidden[empId];
+    if(hide) _hidden[empId] = true; else delete _hidden[empId];
+    paint();
+    try {
+      var r = await db.from('jwg_app_settings').upsert(
+        {key: 'checkin_hidden', value: Object.keys(_hidden), updated_at: new Date().toISOString()},
+        {onConflict: 'key'});
+      if(r.error) throw r.error;
+    } catch(e){
+      if(was) _hidden[empId] = true; else delete _hidden[empId];
+      toast('Save failed: ' + ((e && e.message) || e), 'error');
+      paint();
+    }
+  }
 
   async function rate(empId, v){
     var today = todayStr();
@@ -327,6 +387,9 @@
   window.renderStaffCheckin = renderStaffCheckin;
   window.StaffRatings = {
     rate: rate, setView: setView, setPal: setPal, setWeeks: setWeeks,
-    weeksKey: weeksKey, weeksBlur: weeksBlur, togglePop: togglePop
+    weeksKey: weeksKey, weeksBlur: weeksBlur, togglePop: togglePop,
+    toggleManage: toggleManage,
+    hide: function(id){ setHidden(id, true); },
+    show: function(id){ setHidden(id, false); }
   };
 })();
