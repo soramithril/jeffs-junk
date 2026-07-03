@@ -1,167 +1,332 @@
-// ── ADMIN-ONLY DAILY STAFF CHECK-IN + HEAT MAP ──────────────────────────
-// Rate each employee's day 1-5. No saved row = 3 ("normal day"), so quiet
-// days cost nothing. Picking 3 with no note DELETES the row — the table
-// only ever holds deviations and notes. Server-side security is the
-// employee_ratings RLS policy (user_profiles.role = 'admin'); the button
-// gating here is just UI. Reads/writes go through the shared db client.
+// ── ADMIN-ONLY STAFF CHECK-IN PAGE (heat map redesign) ──────────────────
+// Full-page daily 1-5 ratings board, implemented from the Claude Design
+// handoff "Staff Check-In Page.dc.html". Two views (Team grid / Crew cards),
+// history window 4w-104w or All, four palettes. No saved row = 3 ("normal
+// day"); picking a plain 3 with no note DELETES the row, so the table only
+// holds deviations/notes. Only TODAY is ratable. Server-side security is the
+// employee_ratings RLS policy (user_profiles.role='admin'); the nav gating
+// here is just UI.
 (function(){
   'use strict';
 
-  var FACES = {1:'😞', 2:'😕', 3:'🙂', 4:'😀', 5:'🤩'};
   var LABELS = {1:'Very bad', 2:'Not great', 3:'Okay', 4:'Good', 5:'Great'};
-  var HEAT_DAYS = 84; // 12 weeks of history in the heat map
+  var FG_SEL = {1:'#fff', 2:'#7c4a03', 3:'#495057', 4:'#1a3a2a', 5:'#fff'};
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var PALETTES = {
+    classic: { name:'Classic', c:['#d6453d','#f0a13c','#e9ede9','#a7dcb9','#1e9e53'] },
+    ocean:   { name:'Ocean',   c:['#d97706','#f4c163','#e7ebec','#93c9e3','#1d6fa8'] },
+    earth:   { name:'Earth',   c:['#c2410c','#f4a261','#edeae5','#8fc7c0','#0f766e'] },
+    plum:    { name:'Plum',    c:['#b91c1c','#e59866','#ecebee','#b7a6de','#6d28d9'] }
+  };
+  var WEEK_PRESETS = [4, 8, 12, 24, 'all'];
 
-  var _emps = [];            // [{id,name}]
-  var _today = {};           // employee_id -> {rating, note}
-  var _noteOpen = {};        // employee_id -> bool
+  // view state (persisted so the page opens how you left it)
+  var st = {
+    view:  localStorage.getItem('sc_view') || 'grid',
+    weeksN: (function(){ var w = localStorage.getItem('sc_weeks');
+      if(w === 'all') return 'all'; var n = parseInt(w,10);
+      return (!isNaN(n) && n >= 1 && n <= 104) ? n : 12; })(),
+    pal:   PALETTES[localStorage.getItem('sc_pal')] ? localStorage.getItem('sc_pal') : 'classic',
+    open:  null            // employee id whose rating popover is open (grid view)
+  };
 
-  function isAdmin(){ return typeof canAccessAnalytics === 'function' && canAccessAnalytics(); }
-  function heatColor(r){
-    return {1:'#dc2626', 2:'#f59e0b', 3:'#e2e8e4', 4:'#86efac', 5:'#16a34a'}[r] || '#e2e8e4';
-  }
+  // data cache
+  var _emps = null;        // [{id,name}] alphabetical
+  var _minDate = null;     // oldest saved rating_date ('' = none yet)
+  var _ratings = {};       // 'empId|YYYY-MM-DD' -> {rating, note}
+  var _loadedFrom = null;  // earliest date currently covered by _ratings
+
   function ymdLocal(d){
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-
-  async function openStaffCheckin(){
-    if(!isAdmin()){ toast('Admins only', 'error'); return; }
-    var m = document.getElementById('staff-checkin-modal');
-    m.classList.add('open');
-    document.getElementById('sc-body').innerHTML =
-      '<div style="text-align:center;padding:30px;color:var(--muted)">Loading…</div>';
-    try {
-      var today = todayStr();
-      var rEmp = await db.from('jwg_employees').select('id,name').order('name');
-      if(rEmp.error) throw rEmp.error;
-      _emps = rEmp.data || [];
-      var rT = await db.from('employee_ratings').select('employee_id,rating,note').eq('rating_date', today);
-      if(rT.error) throw rT.error;
-      _today = {};
-      (rT.data||[]).forEach(function(x){ _today[x.employee_id] = {rating:x.rating, note:x.note||''}; });
-      _noteOpen = {};
-      renderCheckin();
-      loadHeatmap(); // fills the lower half when it arrives
-    } catch(e){
-      var msg = String((e && e.message) || e);
-      document.getElementById('sc-body').innerHTML =
-        '<div style="text-align:center;padding:26px;color:#dc2626;font-size:13px">'
-        + ((e && e.code === '42P01')
-            ? 'The staff-ratings table hasn\'t been set up in the database yet.'
-            : 'Couldn\'t load ratings: ' + escHtml(msg))
-        + '</div>';
-    }
+  function isAdmin(){ return typeof canAccessAnalytics === 'function' && canAccessAnalytics(); }
+  function host(){ return document.getElementById('sc-page'); }
+  function persist(){
+    localStorage.setItem('sc_view', st.view);
+    localStorage.setItem('sc_weeks', String(st.weeksN));
+    localStorage.setItem('sc_pal', st.pal);
   }
 
-  function renderCheckin(){
-    var today = todayStr();
-    var h = '<div class="sc-question">Daily Staff Check-In — want to update anyone\'s rating for today?</div>'
-      + '<div class="sc-subnote">Everyone starts at 🙂 3 (normal day). Only changes are saved.</div>';
-    _emps.forEach(function(e){
-      var cur = _today[e.id] ? _today[e.id].rating : 3;
-      var note = _today[e.id] ? (_today[e.id].note||'') : '';
-      var btns = '';
-      for(var v=1; v<=5; v++){
-        btns += '<button class="sc-face'+(cur===v?' sel':'')+'" title="'+v+' — '+LABELS[v]+'"'
-              + ' onclick="StaffRatings.setRating(\''+e.id+'\','+v+')">'+FACES[v]+'</button>';
+  async function renderStaffCheckin(){
+    var el = host(); if(!el) return;
+    if(!isAdmin()){
+      el.innerHTML = '<div style="padding:60px;text-align:center;color:var(--muted);font-size:14px">Admins only.</div>';
+      return;
+    }
+    if(!_emps){
+      el.innerHTML = '<div style="padding:60px;text-align:center;color:var(--muted);font-size:14px">Loading…</div>';
+      try {
+        var rEmp = await db.from('jwg_employees').select('id,name').order('name');
+        if(rEmp.error) throw rEmp.error;
+        _emps = rEmp.data || [];
+        var rMin = await db.from('employee_ratings').select('rating_date').order('rating_date',{ascending:true}).limit(1);
+        if(rMin.error) throw rMin.error;
+        _minDate = (rMin.data && rMin.data[0]) ? rMin.data[0].rating_date : '';
+      } catch(e){
+        _emps = null;
+        el.innerHTML = '<div style="padding:60px;text-align:center;color:#dc2626;font-size:13px">Couldn\'t load: '+escHtml((e && e.message) || String(e))+'</div>';
+        return;
       }
-      h += '<div class="sc-row" id="sc-row-'+e.id+'">'
-        + '<span class="sc-name">'+escHtml(e.name)+'</span>'
-        + '<span class="sc-faces">'+btns+'</span>'
-        + '<button class="sc-note-btn'+(note?' has-note':'')+'" title="'+(note?escHtml(note):'Add a note')+'"'
-        + ' onclick="StaffRatings.toggleNote(\''+e.id+'\')">📝</button>'
-        + '</div>'
-        + '<div class="sc-note-wrap" id="sc-note-'+e.id+'" style="display:'+(_noteOpen[e.id]?'block':'none')+'">'
-        + '<input class="sc-note-input" id="sc-note-input-'+e.id+'" placeholder="Optional note (admins only see this)"'
-        + ' value="'+escHtml(note).replace(/"/g,'&quot;')+'" onchange="StaffRatings.saveNote(\''+e.id+'\')">'
-        + '</div>';
-    });
-    h += '<div class="sc-heat-title">Last 12 weeks</div>'
-      + '<div class="sc-heat-legend">'
-      + [1,2,3,4,5].map(function(v){ return '<span class="sc-leg"><span class="sc-cell" style="background:'+heatColor(v)+'"></span>'+v+'</span>'; }).join('')
-      + '<span class="sc-leg-note">blank day = 3</span></div>'
-      + '<div id="sc-heat"><div style="color:var(--muted);font-size:12px;padding:8px 0">Loading history…</div></div>'
-      + '<div class="sc-foot">Today: '+today+' · visible to admins only</div>';
-    document.getElementById('sc-body').innerHTML = h;
+    }
+    await ensureWindow();
+    paint();
   }
 
-  async function setRating(empId, val){
+  function windowDays(){
     var today = todayStr();
-    var note = (_today[empId] && _today[empId].note) || '';
-    try {
-      if(val === 3 && !note){
-        // Back to the default → remove the row entirely (keeps the table tiny)
-        var rD = await db.from('employee_ratings').delete()
-          .eq('employee_id', empId).eq('rating_date', today);
-        if(rD.error) throw rD.error;
-        delete _today[empId];
-      } else {
-        var rU = await db.from('employee_ratings').upsert(
-          {employee_id: empId, rating_date: today, rating: val, note: note || null, updated_at: new Date().toISOString()},
-          {onConflict: 'employee_id,rating_date'});
-        if(rU.error) throw rU.error;
-        _today[empId] = {rating: val, note: note};
-      }
-      renderCheckin();
-      loadHeatmap();
-    } catch(e){
-      toast('Save failed: ' + ((e && e.message) || e), 'error');
-    }
+    var weeks;
+    if(st.weeksN === 'all'){
+      if(_minDate){
+        var span = (parseLocalDate(today) - parseLocalDate(_minDate)) / 86400000 + 1;
+        weeks = Math.max(1, Math.min(104, Math.ceil(span / 7)));
+      } else weeks = 12;
+    } else weeks = st.weeksN;
+    return weeks * 7;
   }
+  function parseLocalDate(s){ var p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
 
-  function toggleNote(empId){
-    _noteOpen[empId] = !_noteOpen[empId];
-    var el = document.getElementById('sc-note-' + empId);
-    if(el) el.style.display = _noteOpen[empId] ? 'block' : 'none';
-    if(_noteOpen[empId]){
-      var inp = document.getElementById('sc-note-input-' + empId);
-      if(inp) inp.focus();
-    }
-  }
-
-  async function saveNote(empId){
-    var inp = document.getElementById('sc-note-input-' + empId);
-    if(!inp) return;
-    var note = inp.value.trim();
-    var rating = (_today[empId] && _today[empId].rating) || 3;
-    _today[empId] = {rating: rating, note: note};
-    await setRating(empId, rating);   // reuses the delete-on-plain-3 rule
-  }
-
-  async function loadHeatmap(){
-    var el = document.getElementById('sc-heat');
-    if(!el) return;
-    var start = new Date(); start.setDate(start.getDate() - (HEAT_DAYS - 1));
-    var startStr = ymdLocal(start);
+  async function ensureWindow(){
+    var today = todayStr();
+    var startD = new Date(parseLocalDate(today)); startD.setDate(startD.getDate() - (windowDays() - 1));
+    var start = ymdLocal(startD);
+    if(_loadedFrom && _loadedFrom <= start) return;
     try {
       var r = await db.from('employee_ratings')
         .select('employee_id,rating_date,rating,note')
-        .gte('rating_date', startStr);
+        .gte('rating_date', start);
       if(r.error) throw r.error;
-      var byEmp = {};
-      (r.data||[]).forEach(function(x){
-        (byEmp[x.employee_id] = byEmp[x.employee_id] || {})[x.rating_date] = x;
+      (r.data || []).forEach(function(x){
+        _ratings[x.employee_id + '|' + x.rating_date] = { rating: x.rating, note: x.note || '' };
       });
-      var days = [];
-      for(var i=0; i<HEAT_DAYS; i++){
-        var d = new Date(start); d.setDate(start.getDate() + i);
-        days.push(ymdLocal(d));
-      }
-      var h = '';
-      _emps.forEach(function(e){
-        var cells = days.map(function(ds){
-          var rec = (byEmp[e.id]||{})[ds];
-          var v = rec ? rec.rating : 3;
-          var tip = ds + ' — ' + v + '/5' + (rec && rec.note ? ' · ' + rec.note : '');
-          return '<span class="sc-cell'+(rec?'':' dflt')+'" style="background:'+heatColor(v)+'" title="'+escHtml(tip)+'"></span>';
-        }).join('');
-        h += '<div class="sc-heat-row"><span class="sc-heat-name">'+escHtml(e.name)+'</span><span class="sc-heat-cells">'+cells+'</span></div>';
-      });
-      el.innerHTML = h || '<div style="color:var(--muted);font-size:12px">No employees.</div>';
+      _loadedFrom = start;
     } catch(e){
-      el.innerHTML = '<div style="color:#dc2626;font-size:12px">History failed to load: '+escHtml((e && e.message) || String(e))+'</div>';
+      toast('Ratings load failed: ' + ((e && e.message) || e), 'error');
     }
   }
 
-  window.StaffRatings = { open: openStaffCheckin, setRating: setRating, toggleNote: toggleNote, saveNote: saveNote };
-  window.openStaffCheckin = openStaffCheckin;
+  // ── page build (all computed exactly like the design prototype) ──
+  function paint(){
+    var el = host(); if(!el || !_emps) return;
+    var today = todayStr();
+    var DAYS = windowDays();
+    var PC = PALETTES[st.pal].c;
+    var COLORS = {1:PC[0], 2:PC[1], 3:PC[2], 4:PC[3], 5:PC[4]};
+    var startD = new Date(parseLocalDate(today)); startD.setDate(startD.getDate() - (DAYS - 1));
+
+    var pitch = Math.max(6, Math.min(12, Math.floor(1010 / DAYS)));
+    var cellW = pitch - 2;
+    var weeksShown = Math.ceil(DAYS / 7);
+    var miniCell = weeksShown <= 12 ? 9 : (weeksShown <= 16 ? 7 : 5);
+
+    var dates = [], monthLabels = [];
+    for(var i = 0; i < DAYS; i++){
+      var d = new Date(startD); d.setDate(startD.getDate() + i);
+      dates.push(ymdLocal(d));
+      if(i === 0 || d.getDate() === 1) monthLabels.push({ n: MONTHS[d.getMonth()], x: i * pitch });
+    }
+    if(monthLabels.length > 1 && monthLabels[1].x - monthLabels[0].x < 34) monthLabels.shift();
+
+    function tipFor(ds, v, note){
+      var d = parseLocalDate(ds);
+      return MONTHS[d.getMonth()] + ' ' + d.getDate() + ' — ' + v + '/5 ' + LABELS[v] + (note ? ' · ' + note : '');
+    }
+
+    var emps = _emps.map(function(e){
+      var cells = [], sum = 0;
+      for(var i2 = 0; i2 < DAYS; i2++){
+        var rec = _ratings[e.id + '|' + dates[i2]];
+        var v = rec ? rec.rating : 3;
+        cells.push({ v: v, set: !!rec, note: rec ? rec.note : '' });
+        sum += v;
+      }
+      var avg = sum / DAYS;
+      var HALF = Math.min(14, Math.floor(DAYS / 2));
+      var recent = 0, prior = 0;
+      for(var k = 0; k < HALF; k++){ recent += cells[DAYS-1-k].v; prior += cells[DAYS-1-HALF-k].v; }
+      var diff = HALF ? (recent - prior) / HALF : 0;
+      var trend = diff > 0.06 ? '↑' : (diff < -0.06 ? '↓' : '→');
+      var streakN = 0;
+      for(var s = DAYS-1; s >= 0 && cells[s].v >= 3; s--) streakN++;
+      var streak = streakN >= DAYS ? 'no rough days' : streakN + 'd since a rough day';
+      return {
+        id: e.id, name: e.name,
+        initials: e.name.split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase(),
+        cells: cells, avg: avg, trend: trend,
+        streak: streak, todayV: cells[DAYS-1].v, todaySet: cells[DAYS-1].set
+      };
+    });
+
+    var teamToday = emps.length ? (emps.reduce(function(a,e){ return a + e.todayV; }, 0) / emps.length).toFixed(1) : '—';
+    var greats = emps.filter(function(e){ return e.todayV >= 4; }).length;
+    var roughs = emps.filter(function(e){ return e.todayV <= 2; }).length;
+    var changed = emps.filter(function(e){ return e.todaySet; }).length;
+
+    function chipsHtml(emp, flexy){
+      return [1,2,3,4,5].map(function(v){
+        var sel = v === emp.todayV;
+        return '<button onclick="StaffRatings.rate(\''+emp.id+'\','+v+')" title="'+v+' — '+LABELS[v]+'" '
+          + 'style="'+(flexy?'flex:1;':'width:32px;')+'height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;'
+          + 'font-family:\'Inter\',sans-serif;font-size:'+(flexy?'12':'13')+'px;font-weight:800;cursor:pointer;'
+          + 'background:'+(sel?COLORS[v]:'#f8f9fa')+';color:'+(sel?FG_SEL[v]:'#868e96')+';border:1.5px solid '+(sel?COLORS[v]:'#e9ecef')+'">'+v+'</button>';
+      }).join('');
+    }
+
+    var todayLong = parseLocalDate(today).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+
+    var h = '<div style="max-width:1340px;margin:0 auto;padding:34px 28px 60px">';
+
+    // header
+    h += '<div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">'
+      +  '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;letter-spacing:1.5px;line-height:1;color:#1a1a2e">STAFF CHECK-IN</div>'
+      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · blank day = normal (3), only changes are saved</div></div>'
+      +  '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
+      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[4]+'">'+teamToday+'</span></span>'
+      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[4]+'"></span>'+greats+' great · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'
+      +  '</div></div>';
+
+    // controls bar
+    var isCustom = WEEK_PRESETS.indexOf(st.weeksN) === -1;
+    h += '<div style="display:flex;align-items:center;gap:10px;margin:20px 0 18px;background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:8px 12px;flex-wrap:wrap">'
+      +  '<div style="display:flex;gap:3px;background:#f1f3f5;border-radius:10px;padding:3px">'
+      +  [['grid','Team grid'],['cards','Crew cards']].map(function(p){
+           var sel = st.view === p[0];
+           return '<button onclick="StaffRatings.setView(\''+p[0]+'\')" style="border:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:8px;background:'+(sel?'#fff':'transparent')+';color:'+(sel?'#1a1a2e':'#868e96')+';box-shadow:'+(sel?'0 1px 4px rgba(0,0,0,.10)':'none')+'">'+p[1]+'</button>';
+         }).join('')
+      +  '</div>'
+      +  '<div style="width:1px;height:24px;background:#e9ecef"></div>'
+      +  '<span style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">History</span>'
+      +  '<div style="display:flex;gap:4px">'
+      +  WEEK_PRESETS.map(function(n){
+           var sel = st.weeksN === n;
+           return '<button onclick="StaffRatings.setWeeks(\''+n+'\')" style="cursor:pointer;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:700;padding:7px 11px;border-radius:99px;border:1px solid '+(sel?'#1a1a2e':'#e9ecef')+';background:'+(sel?'#1a1a2e':'#fff')+';color:'+(sel?'#fff':'#868e96')+'">'+(n==='all'?'All':n+'w')+'</button>';
+         }).join('')
+      +  '<input type="number" min="1" max="104" placeholder="#" title="Type any number of weeks, press Enter" '
+      +  'value="'+(isCustom?st.weeksN:'')+'" onkeydown="StaffRatings.weeksKey(event)" onblur="StaffRatings.weeksBlur(event)" '
+      +  'style="width:58px;padding:6px 4px 6px 10px;border-radius:99px;border:1px solid '+(isCustom?'#1a1a2e':'#e9ecef')+';background:#fff;color:#495057;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:700;outline:none">'
+      +  '</div>'
+      +  '<div style="width:1px;height:24px;background:#e9ecef"></div>'
+      +  '<span style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">Palette</span>'
+      +  '<div style="display:flex;gap:6px">'
+      +  Object.keys(PALETTES).map(function(key){
+           var sel = st.pal === key;
+           return '<button onclick="StaffRatings.setPal(\''+key+'\')" title="'+PALETTES[key].name+'" style="cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:6px 8px;border-radius:99px;border:1.5px solid '+(sel?'#1a1a2e':'#e9ecef')+';background:'+(sel?'#f8f9fa':'#fff')+'">'
+             + PALETTES[key].c.map(function(c){ return '<span style="width:11px;height:11px;border-radius:3px;background:'+c+';border:1px solid rgba(0,0,0,.06)"></span>'; }).join('')
+             + '</button>';
+         }).join('')
+      +  '</div></div>';
+
+    if(st.view === 'grid'){
+      h += '<div style="background:#fff;border:1px solid #e9ecef;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
+        +  '<div style="padding:18px 30px 4px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+        +  [1,2,3,4,5].map(function(v){
+             return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#868e96"><span style="width:11px;height:11px;border-radius:3px;background:'+COLORS[v]+';border:1px solid rgba(0,0,0,.06)"></span>'+v+' '+LABELS[v]+'</span>';
+           }).join('')
+        +  '<span style="margin-left:auto;font-size:11.5px;color:#adb5bd">hover a square for the note · click today\'s square to rate</span>'
+        +  '</div>'
+        +  '<div style="padding:10px 30px 4px;display:flex"><div style="width:164px;flex:none"></div><div style="position:relative;height:15px;flex:1">'
+        +  monthLabels.map(function(m){ return '<span style="position:absolute;top:0;left:'+m.x+'px;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">'+m.n+'</span>'; }).join('')
+        +  '</div></div>'
+        +  '<div style="padding:0 30px 14px">';
+      emps.forEach(function(emp){
+        h += '<div style="display:flex;align-items:center;gap:14px;padding:5px 0;position:relative">'
+          +  '<div style="width:150px;flex:none;display:flex;align-items:center;gap:9px">'
+          +  '<span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.25);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:12px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>'
+          +  '<span style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
+          +  '</div>'
+          +  '<div style="display:flex;gap:2px;position:relative">';
+        emp.cells.forEach(function(cl, i3){
+          var isToday = i3 === DAYS-1;
+          h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" '
+            +  (isToday ? 'onclick="StaffRatings.togglePop(\''+emp.id+'\')" ' : '')
+            +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px '+PC[4]:'none')+';cursor:'+(isToday?'pointer':'default')+'"></span>';
+        });
+        if(st.open === emp.id){
+          h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
+            +  chipsHtml(emp, false) + '</div>';
+        }
+        h += '</div>'
+          +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=3.15?PC[4]:(emp.avg<=2.85?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
+          +  '</div>';
+      });
+      h += '</div>'
+        +  '<div style="padding:14px 30px;border-top:1px solid #e9ecef;display:flex;align-items:center">'
+        +  '<span style="font-size:12px;color:#868e96">Today\'s column is outlined.</span>'
+        +  '<span style="margin-left:auto;font-size:12px;font-weight:600;color:'+PC[4]+'">'+changed+' ratings changed today</span>'
+        +  '</div></div>';
+    } else {
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(242px,1fr));gap:14px">';
+      emps.forEach(function(emp){
+        h += '<div class="sc-crew-card" style="background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">'
+          +  '<div style="display:flex;align-items:center;gap:9px">'
+          +  '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.25);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>'
+          +  '<span style="font-size:13.5px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
+          +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[4]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
+          +  '</div>'
+          +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
+          +  '<div style="display:grid;grid-template-rows:repeat(7,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
+        emp.cells.forEach(function(cl, i3){
+          h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" style="width:'+miniCell+'px;height:'+miniCell+'px;border-radius:2.5px;background:'+COLORS[cl.v]+'"></span>';
+        });
+        h += '</div>'
+          +  '<div style="display:flex;align-items:baseline;gap:8px;border-top:1px solid #f1f3f5;padding-top:10px">'
+          +  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;line-height:1;color:'+(emp.avg>=3.15?PC[4]:(emp.avg<=2.85?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</span>'
+          +  '<span style="font-size:10.5px;font-weight:600;color:#adb5bd;text-transform:uppercase;letter-spacing:.4px">avg</span>'
+          +  '<span style="margin-left:auto;font-size:11px;color:#868e96">'+escHtml(emp.streak)+'</span>'
+          +  '</div></div>';
+      });
+      h += '</div>';
+    }
+
+    h += '</div>';
+    el.innerHTML = h;
+  }
+
+  // ── handlers ──
+  function setView(v){ st.view = v; st.open = null; persist(); paint(); }
+  function setPal(p){ if(PALETTES[p]){ st.pal = p; persist(); paint(); } }
+  function setWeeks(n){
+    st.weeksN = (n === 'all') ? 'all' : parseInt(n,10);
+    st.open = null; persist();
+    ensureWindow().then(paint); paint();
+  }
+  function weeksKey(e){ if(e.key === 'Enter'){ applyCustom(e.target); e.target.blur(); } }
+  function weeksBlur(e){ if(e.target.value !== '') applyCustom(e.target); }
+  function applyCustom(inp){
+    var n = parseInt(inp.value, 10);
+    if(!isNaN(n) && n >= 1) setWeeks(Math.min(104, n));
+  }
+  function togglePop(empId){ st.open = (st.open === empId) ? null : empId; paint(); }
+
+  async function rate(empId, v){
+    var today = todayStr();
+    var key = empId + '|' + today;
+    var prev = _ratings[key];
+    var note = prev ? (prev.note || '') : '';
+    st.open = null;
+    try {
+      if(v === 3 && !note){
+        var rD = await db.from('employee_ratings').delete()
+          .eq('employee_id', empId).eq('rating_date', today);
+        if(rD.error) throw rD.error;
+        delete _ratings[key];
+      } else {
+        var rU = await db.from('employee_ratings').upsert(
+          {employee_id: empId, rating_date: today, rating: v, note: note || null, updated_at: new Date().toISOString()},
+          {onConflict: 'employee_id,rating_date'});
+        if(rU.error) throw rU.error;
+        _ratings[key] = { rating: v, note: note };
+        if(!_minDate || today < _minDate) _minDate = today;
+      }
+      paint();
+    } catch(e){
+      toast('Save failed: ' + ((e && e.message) || e), 'error');
+      paint();
+    }
+  }
+
+  window.renderStaffCheckin = renderStaffCheckin;
+  window.StaffRatings = {
+    rate: rate, setView: setView, setPal: setPal, setWeeks: setWeeks,
+    weeksKey: weeksKey, weeksBlur: weeksBlur, togglePop: togglePop
+  };
 })();

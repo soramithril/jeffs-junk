@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '361';
+var APP_VERSION = '363';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2067,7 +2067,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2111,6 +2111,7 @@ function render(name){
   else if(name==='binmap') renderMap();
   else if(name==='advisor') renderAdvisor();
   else if(name==='bookings') renderBookings();
+  else if(name==='staffcheckin') renderStaffCheckin();
   else if(name==='bininventory') renderBinInventory();
   else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){ switchFleetTab(_fleetTab||'vehicles'); }
