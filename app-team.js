@@ -14,6 +14,25 @@
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function canRemove(){ return typeof canDelete !== 'undefined' && canDelete; }
 
+  // Avatar helpers — initials in the person's real driver colour (same colour
+  // Dispatch uses). Falls back to the app's per-id palette when none is set.
+  function initials(name){
+    var parts = String(name||'').trim().split(/\s+/).filter(Boolean);
+    if(!parts.length) return '?';
+    if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0]+parts[1][0]).toUpperCase();
+  }
+  function avatarColor(p){
+    if(p.color) return p.color;
+    return (typeof crewAvatarColor==='function') ? crewAvatarColor(p.id) : '#6b7280';
+  }
+  function ink(hex){                              // readable initials colour for the avatar
+    var h=String(hex||'').replace('#',''); if(h.length===3) h=h.split('').map(function(c){return c+c;}).join('');
+    var n=parseInt(h,16); if(isNaN(n)) return '#fff';
+    var r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+    return (0.299*r+0.587*g+0.114*b)/255 > 0.62 ? '#1a1a2e' : '#ffffff';
+  }
+
   async function load(){
     var r = await db.from('crew_members').select('*').order('name');
     if(r.error) throw r.error;
@@ -50,12 +69,16 @@
 
   function row(p){
     var rm = canRemove();
+    var av = avatarColor(p);
     var cells = ''
-      + '<td style="padding:9px 12px">'
-        + '<input type="color" value="'+(p.color||'#22c55e')+'" title="Colour" onchange="TeamMgr.color(\''+p.id+'\',this.value)" style="width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0;vertical-align:middle">'
-        + '<span style="font-size:14px;font-weight:700;margin-left:9px;vertical-align:middle'+(p.active?'':';color:#adb5bd;text-decoration:line-through')+'">'+esc(p.name)+'</span>'
-        + '<button onclick="TeamMgr.rename(\''+p.id+'\')" title="Rename" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;margin-left:6px;vertical-align:middle">✎</button>'
-      + '</td>'
+      + '<td style="padding:11px 14px"><div style="display:flex;align-items:center;gap:12px">'
+        + '<label class="team-av'+(p.active?'':' team-av-off')+'" title="Click to set '+esc(p.name)+'’s driver colour" style="--av:'+esc(av)+';box-shadow:0 3px 9px '+esc(av)+'59,inset 0 1px 0 rgba(255,255,255,.4)">'
+          + '<span style="color:'+ink(av)+'">'+esc(initials(p.name))+'</span>'
+          + '<input type="color" value="'+esc(av)+'" onchange="TeamMgr.color(\''+p.id+'\',this.value)">'
+        + '</label>'
+        + '<span style="font-size:14.5px;font-weight:700;letter-spacing:-.2px'+(p.active?'':';color:#adb5bd;text-decoration:line-through')+'">'+esc(p.name)+'</span>'
+        + '<button onclick="TeamMgr.rename(\''+p.id+'\')" title="Rename" style="background:none;border:none;color:#c3c9cf;cursor:pointer;font-size:13px">✎</button>'
+      + '</div></td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'on_junk',p.on_junk,'Junk / Bins','#16a34a')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'on_jwg',p.on_jwg,'Jeff White Group','#0d6efd')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'summer',p.summer,'Summer','#f59e0b')+'</td>'
