@@ -13555,7 +13555,9 @@ function _pvCompAllIn(c, key){
 // shows an empty state instead of quoting $0.
 function _pvEnsureSelection(areas){
   if(!areas.length) return null;
-  function hasPrices(x){ return PV_MAIN_SIZES.concat(PV_OTHER_SIZES).some(function(s){return parseFloat(x.bins[s])>0;}); }
+  // Only sizes the sheet actually renders — never fall back to a monthly size
+  // (those aren't cells), or the row highlights with no clickable selected cell.
+  function hasPrices(x){ return PV_TABLE_SIZES.some(function(s){return parseFloat(x.bins[s])>0;}); }
   var a = areas.find(function(x){return x.id===_pvSel.area;});
   if(!a){
     a = areas.find(function(x){return /^barrie/i.test(x.name) && parseFloat(x.bins['14 yard'])>0;})
@@ -13564,7 +13566,7 @@ function _pvEnsureSelection(areas){
     _pvSel.area = a.id;
   }
   if(!(parseFloat(a.bins[_pvSel.size])>0)){
-    _pvSel.size = PV_MAIN_SIZES.concat(PV_OTHER_SIZES).filter(function(s){return parseFloat(a.bins[s])>0;})[0] || null;
+    _pvSel.size = PV_TABLE_SIZES.filter(function(s){return parseFloat(a.bins[s])>0;})[0] || null;
   }
   return a;
 }
@@ -13606,7 +13608,10 @@ function renderPricingAreas(){
     if(!list.length) return '';
     var h = '<tr class="pv-sec"><td colspan="'+(PV_TABLE_SIZES.length+1)+'"><span>'+label+'</span></td></tr>';
     list.forEach(function(a){
-      var aq = String(a.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      // JS-escape for the string literal, then HTML-escape for the double-quoted
+      // attribute — area names are free text, so a " in the name would otherwise
+      // break the onclick and kill every price click in that row.
+      var aq = _pvEsc(String(a.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
       h += '<tr class="pv-row'+(a.id===_pvSel.area?' pv-active':'')+'">'
         + '<td class="pv-loc"><div class="pv-loc-name">'+_pvEsc(a.name)+'</div>'
         + (a.towns?'<div class="pv-loc-towns" title="'+_pvEsc(a.towns)+'">'+_pvEsc(a.towns)+'</div>':'')
@@ -13620,15 +13625,22 @@ function renderPricingAreas(){
   html += sectionRows(sevenDay, '7-Day Rentals');
   html += '</tbody></table></div>';
 
-  // One dump-fee note for the whole sheet — every cell price already includes it.
+  // Sheet-wide note. Only claim the dump fee is baked in if EVERY area that has a
+  // 14/20 yd price actually has a tonne rate — pvCalcAllIn only adds the fee when
+  // tonne>0, so a tonne-less area's price would otherwise be mislabelled.
+  var priced = areas.filter(function(a){ return parseFloat(a.bins['14 yard'])>0 || parseFloat(a.bins['20 yard'])>0; });
+  var allTonned = priced.length && priced.every(function(a){ return a.tonne>0; });
   var tonnes = {};
-  areas.forEach(function(a){ if(a.tonne>0) tonnes[a.tonne] = 1; });
+  priced.forEach(function(a){ if(a.tonne>0) tonnes[a.tonne] = 1; });
   var tk = Object.keys(tonnes);
-  html += '<div class="pv-table-note">Prices are all-in: HST included'
-       + (tk.length===1
-          ? ', and 14 & 20 yd include the dump fee (first tonne) — overage $'+tk[0]+'/tonne.'
-          : '; 14 & 20 yd include the dump fee (first tonne).')
-       + '</div>';
+  var note = 'Prices are all-in: HST included';
+  if(allTonned){
+    note += ', and 14 & 20 yd include the dump fee (first tonne)'
+         + (tk.length===1 ? ' — overage $'+tk[0]+'/tonne.' : '.');
+  } else {
+    note += '. Where a dump fee is set, 14 & 20 yd include the first tonne.';
+  }
+  html += '<div class="pv-table-note">'+note+'</div>';
   host.innerHTML = html;
 }
 
