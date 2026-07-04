@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '367';
+var APP_VERSION = '368';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -120,6 +120,39 @@ function updateJumpCounts(){
   }
   init();
 })();
+
+// ─── DASHBOARD JUMP-BAR (segmented control + scroll-spy) ───
+var DJJ_SECTIONS = ['card-today-jobs','dash-needs-you','card-will-call','sec-binsout','sec-bookings'];
+
+function jumpTo(id, btn){
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+  if(btn) djjSetActive(btn.getAttribute('data-target'));
+}
+
+function djjSetActive(id){
+  document.querySelectorAll('.djj-seg').forEach(function(b){
+    b.classList.toggle('is-active', b.getAttribute('data-target') === id);
+  });
+}
+
+function djjScrollSpy(){
+  var bar = document.querySelector('.djj-jumpbar');
+  if(!bar) return;
+  var threshold = bar.getBoundingClientRect().bottom + 12; // just under the sticky bar
+  var current = DJJ_SECTIONS[0];
+  DJJ_SECTIONS.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el && el.getBoundingClientRect().top <= threshold) current = id;
+  });
+  djjSetActive(current);
+}
+
+// capture=true so it fires whether the page or an inner container scrolls
+window.addEventListener('scroll', djjScrollSpy, true);
+window.addEventListener('resize', djjScrollSpy);
+document.addEventListener('DOMContentLoaded', djjScrollSpy);
 
 // ═══════════════════════════════════════
 //  GHOST BUTTON HOVER-INVERSION DECORATOR

@@ -1,12 +1,13 @@
 // ── ADMIN-ONLY STAFF CHECK-IN PAGE (heat map redesign) ──────────────────
-// Full-page daily 1-3 ratings board (1 bad · 2 okay · 3 good/normal), from
+// Full-page daily 1-3 ratings board (1 bad · 2 average/normal · 3 good), from
 // the Claude Design handoff "Staff Check-In Page.dc.html". Two views (Team
 // grid / Crew cards), history window 4w-104w, Year to Date, or All, four
-// palettes. No saved row = 3 ("normal day"); picking a plain 3 with no note
-// DELETES the row, so the table only holds deviations/notes. Rows saved on
-// the old 1-5 scale display clamped to 3. Only TODAY is ratable. Server-side
-// security is the employee_ratings RLS policy (user_profiles.role='admin');
-// the nav gating here is just UI.
+// palettes. WEEKDAYS ONLY — Sat/Sun are excluded everywhere (the crew isn't
+// seen on weekends). No saved row = 2 ("average, normal day"); picking a plain
+// 2 with no note DELETES the row, so the table only holds deviations (1s/3s)
+// and notes. Rows saved on the old 1-5 scale display clamped to 3. Only TODAY
+// is ratable. Server-side security is the employee_ratings RLS policy
+// (user_profiles.role='admin'); the nav gating here is just UI.
 (function(){
   'use strict';
 
@@ -14,7 +15,7 @@
   // (per Jake 2026-07-03). Exact full-name match against jwg_employees names.
   var ADMIN_NAMES = ['jake','josh','barb','jeff','sam','samantha'];
 
-  var LABELS = {1:'Bad day', 2:'Okay', 3:'Good (normal)'};
+  var LABELS = {1:'Bad day', 2:'Average (normal)', 3:'Good'};
   var FG_SEL = {1:'#fff', 2:'#7c4a03', 3:'#fff'};
   var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   // 3 swatches per palette: bad / okay / good. The good color is a real fill —
@@ -132,17 +133,23 @@
     var COLORS = {1:PC[0], 2:PC[1], 3:PC[2]};
     var startD = new Date(parseLocalDate(today)); startD.setDate(startD.getDate() - (DAYS - 1));
 
-    var pitch = Math.max(6, Math.min(12, Math.floor(1010 / DAYS)));
-    var cellW = pitch - 2;
-    var weeksShown = Math.ceil(DAYS / 7);
-    var miniCell = weeksShown <= 12 ? 9 : (weeksShown <= 16 ? 7 : 5);
-
-    var dates = [], monthLabels = [];
+    // Weekdays only — the crew isn't seen on Sat/Sun, so weekends are dropped
+    // from every column, average and streak. N is the real column count after.
+    var dates = [], monthMarks = [], lastMonth = -1;
     for(var i = 0; i < DAYS; i++){
       var d = new Date(startD); d.setDate(startD.getDate() + i);
+      var dow = d.getDay();
+      if(dow === 0 || dow === 6) continue;
+      if(d.getMonth() !== lastMonth){ monthMarks.push({ n: MONTHS[d.getMonth()], idx: dates.length }); lastMonth = d.getMonth(); }
       dates.push(ymdLocal(d));
-      if(i === 0 || d.getDate() === 1) monthLabels.push({ n: MONTHS[d.getMonth()], x: i * pitch });
     }
+    var N = dates.length || 1;
+
+    var pitch = Math.max(6, Math.min(12, Math.floor(1010 / N)));
+    var cellW = pitch - 2;
+    var weeksShown = Math.ceil(N / 5);   // 5 weekdays per week now
+    var miniCell = weeksShown <= 12 ? 9 : (weeksShown <= 16 ? 7 : 5);
+    var monthLabels = monthMarks.map(function(m){ return { n:m.n, x:m.idx*pitch }; });
     if(monthLabels.length > 1 && monthLabels[1].x - monthLabels[0].x < 34) monthLabels.shift();
 
     function tipFor(ds, v, note){
@@ -155,27 +162,27 @@
 
     var emps = roster.map(function(e){
       var cells = [], sum = 0;
-      for(var i2 = 0; i2 < DAYS; i2++){
+      for(var i2 = 0; i2 < N; i2++){
         var rec = _ratings[e.id + '|' + dates[i2]];
-        // Legacy rows from the old 1-5 scale: 4s and 5s count as 3 (good).
-        var v = rec ? Math.min(3, rec.rating) : 3;
+        // No entry = 2 (average / normal day). Legacy 1-5 rows: 4s and 5s = 3.
+        var v = rec ? Math.min(3, rec.rating) : 2;
         cells.push({ v: v, set: !!rec, note: rec ? rec.note : '' });
         sum += v;
       }
-      var avg = sum / DAYS;
-      var HALF = Math.min(14, Math.floor(DAYS / 2));
+      var avg = sum / N;
+      var HALF = Math.min(14, Math.floor(N / 2));
       var recent = 0, prior = 0;
-      for(var k = 0; k < HALF; k++){ recent += cells[DAYS-1-k].v; prior += cells[DAYS-1-HALF-k].v; }
+      for(var k = 0; k < HALF; k++){ recent += cells[N-1-k].v; prior += cells[N-1-HALF-k].v; }
       var diff = HALF ? (recent - prior) / HALF : 0;
       var trend = diff > 0.06 ? '↑' : (diff < -0.06 ? '↓' : '→');
       var streakN = 0;
-      for(var s = DAYS-1; s >= 0 && cells[s].v >= 3; s--) streakN++;
-      var streak = streakN >= DAYS ? 'no rough days' : streakN + 'd since a rough day';
+      for(var s = N-1; s >= 0 && cells[s].v >= 2; s--) streakN++;   // a rough day is a 1
+      var streak = streakN >= N ? 'no rough days' : streakN + 'd since a rough day';
       return {
         id: e.id, name: e.name,
         initials: e.name.split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase(),
         cells: cells, avg: avg, trend: trend,
-        streak: streak, todayV: cells[DAYS-1].v, todaySet: cells[DAYS-1].set
+        streak: streak, todayV: cells[N-1].v, todaySet: cells[N-1].set
       };
     });
 
@@ -202,7 +209,7 @@
     // header
     h += '<div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">'
       +  '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;letter-spacing:1.5px;line-height:1;color:#1a1a2e">STAFF CHECK-IN</div>'
-      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · no entry = 3 (good, normal day) — only 1s, 2s and notes are saved</div></div>'
+      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · weekdays only · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved</div></div>'
       +  '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[2]+'">'+teamToday+'</span></span>'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[2]+'"></span>'+goods+' good · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[1]+'"></span>'+okays+' okay · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'
@@ -263,7 +270,7 @@
           +  '</div>'
           +  '<div style="display:flex;gap:2px;position:relative">';
         emp.cells.forEach(function(cl, i3){
-          var isToday = i3 === DAYS-1;
+          var isToday = i3 === N-1;
           h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" '
             +  (isToday ? 'onclick="StaffRatings.togglePop(\''+emp.id+'\')" ' : '')
             +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px #1a1a2e':'none')+';cursor:'+(isToday?'pointer':'default')+'"></span>';
@@ -273,7 +280,7 @@
             +  chipsHtml(emp, false) + '</div>';
         }
         h += '</div>'
-          +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=2.95?PC[2]:(emp.avg<=2.75?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
+          +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=2.34?PC[2]:(emp.avg<=1.66?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>';
       });
@@ -293,13 +300,13 @@
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>'
           +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
-          +  '<div style="display:grid;grid-template-rows:repeat(7,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
+          +  '<div style="display:grid;grid-template-rows:repeat(5,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
         emp.cells.forEach(function(cl, i3){
           h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" style="width:'+miniCell+'px;height:'+miniCell+'px;border-radius:2.5px;background:'+COLORS[cl.v]+'"></span>';
         });
         h += '</div>'
           +  '<div style="display:flex;align-items:baseline;gap:8px;border-top:1px solid #f1f3f5;padding-top:10px">'
-          +  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;line-height:1;color:'+(emp.avg>=2.95?PC[2]:(emp.avg<=2.75?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</span>'
+          +  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;line-height:1;color:'+(emp.avg>=2.34?PC[2]:(emp.avg<=1.66?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</span>'
           +  '<span style="font-size:10.5px;font-weight:600;color:#adb5bd;text-transform:uppercase;letter-spacing:.4px">avg</span>'
           +  '<span style="margin-left:auto;font-size:11px;color:#868e96">'+escHtml(emp.streak)+'</span>'
           +  '</div></div>';
@@ -373,7 +380,9 @@
     var note = prev ? (prev.note || '') : '';
     st.open = null;
     try {
-      if(v === 3 && !note){
+      // 2 is the default (average/normal) — a plain 2 with no note is stored as
+      // "no row", so the table only ever holds deviations (1s and 3s) and notes.
+      if(v === 2 && !note){
         var rD = await db.from('employee_ratings').delete()
           .eq('employee_id', empId).eq('rating_date', today);
         if(rD.error) throw rD.error;

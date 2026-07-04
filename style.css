@@ -2083,12 +2083,43 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
-/* Sticky jump-to bar (dashboard) */
-.djj-jumpbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 16px;padding:8px 11px;background:rgba(248,249,250,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:13px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
-.djj-jump{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;color:#3c4a40;white-space:nowrap;font-family:inherit;transition:background .14s,border-color .14s,color .14s,transform .12s cubic-bezier(.22,1,.36,1),box-shadow .14s}
-.djj-jump:hover{background:#fff;border-color:#16a34a;color:#16a34a;transform:translateY(-1px);box-shadow:0 5px 12px rgba(22,163,74,.14)}
-.djj-jump:active{transform:translateY(0) scale(.97)}
-.djj-jump-badge{min-width:16px;height:16px;padding:0 5px;border-radius:99px;background:#f0fdf4;color:#16a34a;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+/* Sticky jump-to bar (dashboard) — segmented control */
+.djj-jumpbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:3px;
+  margin:0 0 16px;padding:4px;
+  background:rgba(233,236,239,.92);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border-strong);border-radius:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
+.djj-seg{
+  flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 10px;border:none;border-radius:9px;background:transparent;
+  color:#5c6670;font-family:inherit;font-size:12px;font-weight:600;
+  white-space:nowrap;cursor:pointer;
+  transition:background .15s,color .15s,box-shadow .15s;
+}
+.djj-seg svg{width:14px;height:14px;flex-shrink:0;}
+.djj-seg:hover{color:var(--text);}
+.djj-seg.is-active{
+  background:#fff;color:#15803d;font-weight:800;
+  box-shadow:0 1px 4px rgba(0,0,0,.10);
+}
+.djj-seg-badge{
+  min-width:16px;height:16px;padding:0 5px;border-radius:99px;
+  border:1px solid currentColor;
+  font-size:9.5px;font-weight:800;
+  display:inline-flex;align-items:center;justify-content:center;
+  opacity:.75;
+}
+/* phones: let the bar scroll sideways instead of squashing */
+@media (max-width:760px){
+  .djj-jumpbar{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .djj-seg{flex:0 0 auto;}
+}
+/* land jump-to targets clear of the sticky bar (~48px + breathing room) */
+#card-today-jobs,#dash-needs-you,#card-will-call{scroll-margin-top:64px;}
 
 /* Sidebar: daily items get a one-line hint; secondary nav collapses under "More tools" */
 .nav-item-daily{align-items:center}
