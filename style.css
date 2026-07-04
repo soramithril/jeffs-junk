@@ -1373,24 +1373,30 @@ input[type=date],input[type=time]{position:relative;}
 .pv-layout{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start}
 @media(max-width:1024px){.pv-layout{grid-template-columns:1fr}}
 
-/* Left: every area on screen at once */
-.pv-areas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
-.pv-area-card{background:linear-gradient(160deg,rgba(255,255,255,.94),rgba(255,255,255,.78));backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid var(--border);border-top-color:rgba(255,255,255,.95);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.65);transition:border-color .12s,box-shadow .12s}
-.pv-area-card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(34,197,94,.18),var(--shadow-sm)}
-.pv-area-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
-.pv-area-title{font-size:15px;font-weight:800;letter-spacing:-.2px}
-.pv-area-dump{font-size:11px;font-weight:700;color:#0d6efd;background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.25);border-radius:12px;padding:2px 8px;white-space:nowrap}
-.pv-area-towns{font-size:11px;color:var(--muted);font-style:italic;line-height:1.4;margin-bottom:10px}
-.pv-tiles{display:grid;gap:8px}
-.pv-tiles-main{grid-template-columns:1fr 1fr;margin-bottom:8px}
-.pv-tiles-other{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
-.pv-tile{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;cursor:pointer;transition:all .1s}
-.pv-tile:hover{border-color:var(--accent);background:var(--surface);transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.07)}
-.pv-tile.pv-selected{background:rgba(34,197,94,.08);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.pv-tile-sz{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:4px}
-.pv-tile-allin{font-family:'Bebas Neue',Impact,sans-serif;font-size:26px;color:var(--accent);line-height:1;letter-spacing:.5px}
-.pv-tile.pv-main .pv-tile-allin{font-size:34px}
-.pv-tile-base{font-size:10px;color:var(--muted);margin-top:4px;font-weight:600}
+/* Left: spreadsheet-style price sheet — locations down, bin types across.
+   Sticky header row + sticky location column; opaque backgrounds everywhere
+   so sticky cells cover the content scrolling underneath them. */
+.pv-table-wrap{overflow:auto;max-height:calc(100vh - 205px);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
+.pv-table{border-collapse:separate;border-spacing:0;width:100%;min-width:720px}
+.pv-table th,.pv-table td{border-bottom:1px solid var(--border)}
+.pv-table thead th{position:sticky;top:0;z-index:3;background:var(--surface2);padding:10px 12px;text-align:center;white-space:nowrap}
+.pv-table th.pv-loc{z-index:4;text-align:left}
+.pv-th-sz{font-size:14px;font-weight:800;letter-spacing:-.2px}
+.pv-th-type{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:2px}
+.pv-table .pv-loc{position:sticky;left:0;z-index:2;background:var(--surface2);text-align:left;padding:10px 14px;min-width:170px;max-width:230px}
+.pv-loc-name{font-size:13.5px;font-weight:800;letter-spacing:-.2px}
+.pv-loc-towns{font-size:10.5px;color:var(--muted);font-style:italic;line-height:1.35;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pv-sec td{background:#e7efe9;padding:7px 14px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:800}
+.pv-sec span{position:sticky;left:14px;display:inline-block}
+.pv-cell{padding:9px 12px;text-align:center;cursor:pointer;background:var(--surface);transition:background .1s}
+.pv-cell.pv-empty{cursor:default;color:var(--muted);font-weight:600}
+.pv-row:hover td{background:#eff6f1}
+.pv-cell:hover:not(.pv-empty){background:#e2f2e7}
+.pv-row td.pv-cell.pv-selected{background:#d7efdf;box-shadow:inset 0 0 0 2px var(--accent)}
+.pv-row.pv-active .pv-loc{box-shadow:inset 3px 0 0 var(--accent)}
+.pv-c-allin{font-family:'Bebas Neue',Impact,sans-serif;font-size:22px;color:var(--accent);line-height:1;letter-spacing:.5px}
+.pv-c-base{font-size:10px;color:var(--muted);margin-top:3px;font-weight:600}
+.pv-table-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4}
 
 /* Competitor chips (quote rail) */
 .pv-comp-chip{padding:3px 9px;border-radius:8px;background:var(--surface2);font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border)}
