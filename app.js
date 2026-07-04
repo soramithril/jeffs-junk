@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '368';
+var APP_VERSION = '369';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1238,7 +1238,10 @@ async function loadAllFromSupabase() {
     // Load crew members + today's vehicle assignments
     showLoading('Loading crew...', 80);
     try {
-      var rCrew = await db.from('crew_members').select('*').eq('active', true).order('name');
+      // Junk/Bins side only — the crew_members master now also holds JWG-only
+      // office staff (on_junk=false), who must NOT appear in dispatch, pickers,
+      // the crew schedule or the leaderboard. The Team page manages the full list.
+      var rCrew = await db.from('crew_members').select('*').eq('active', true).eq('on_junk', true).order('name');
       crewMembers = (rCrew.data || []).map(function(r){ return {id:r.id, name:r.name, color:r.color||null}; });
       var todayISO = todayStr();
       var rAssign = await db.from('vehicle_assignments').select('*').eq('assignment_date', todayISO);
@@ -2155,6 +2158,7 @@ function render(name){
   else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){ switchFleetTab(_fleetTab||'vehicles'); }
   else if(name==='crew') renderCrew();
+  else if(name==='team') renderTeamPage();
   else if(name==='maintenance'){ switchFleetTab('maintenance'); }
   else if(name==='documents') renderDocuments();
   else if(name==='jwgscheduler') renderJwgScheduler();
@@ -13897,7 +13901,7 @@ async function renderCrew(){
   var host=document.getElementById('crew-page-list'); if(!host) return;
   var sub=document.getElementById('crew-page-sub');
   if(sub) sub.textContent=crewMembers.length+' employee'+(crewMembers.length!==1?'s':'')+' · weekly schedule';
-  if(!crewMembers.length){ host.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No employees yet. <button class="btn btn-primary btn-sm" onclick="openCrewManager()">+ Add crew members</button></div>'; return; }
+  if(!crewMembers.length){ host.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No crew yet. <button class="btn btn-primary btn-sm" onclick="go(\'team\')">+ Manage Team</button></div>'; return; }
 
   var ws=getWeekStart(_crewWeekOffset), we=new Date(ws); we.setDate(we.getDate()+6);
   var wsS=ymdLocal(ws), weS=ymdLocal(we), todayS=todayStr();

@@ -425,7 +425,7 @@
       var res = await Promise.all([
         db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid')
           .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today+',bin_dropoff.eq.'+today+',bin_pickup.eq.'+today),
-        db.from('crew_members').select('id,name'),
+        db.from('crew_members').select('id,name').eq('on_junk', true),
         db.from('jwg_employees').select('id,name'),
         db.from('jwg_schedules').select('employee_id,schedule_data').eq('week_start', monday),
         db.from('jwg_app_settings').select('key,value').in('key',['tasks','emp_order']),

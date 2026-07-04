@@ -174,7 +174,7 @@
     <button class="nav-item" onclick="go('advisor')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span>AI Advisor</span></button>
     <button class="nav-item" onclick="go('ourprices')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Bin &amp; Junk Prices</span></button>
     <button class="nav-item" onclick="openFurniturePrices()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18v3M20 18v3"/><path d="M3 10V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/><path d="M3 18v-2a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2H3z"/><path d="M7 10V8M17 10V8"/></svg></span><span>Furniture Prices</span></button>
-    <button class="nav-item" onclick="openCrewManager()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Crew Members</span></button>
+    <button class="nav-item" onclick="go('team')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Team</span></button>
     <button class="nav-item" onclick="openUserManager()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><circle cx="18" cy="8" r="3" fill="currentColor" opacity=".3"/></svg></span><span>User Management</span></button>
     <button class="nav-item" onclick="go('staffcheckin')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span><span>Staff Check-In</span></button>
     <button class="nav-item" onclick="openEditPresets()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span><span>Email Templates</span></button>
@@ -379,6 +379,7 @@
 
 <!-- ═══════════════ STAFF CHECK-IN (admin-only heat map page) ═══════════════ -->
 <div id="view-staffcheckin" class="view"><div id="sc-page"></div></div>
+<div id="view-team" class="view"><div id="team-page"></div></div>
 
 <!-- ═══════════════ BOOKINGS ═══════════════ -->
 <div id="view-bookings" class="view">
@@ -1380,7 +1381,7 @@
   <div class="page-header">
     <div><div class="page-title page-title-sm">👷 Crew Schedule</div><div class="page-sub" id="crew-page-sub">Manage employee availability</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-ghost" onclick="openCrewManager()">Manage Crew Members</button>
+      <button class="btn btn-ghost" onclick="go('team')">Manage Team</button>
     </div>
   </div>
   <div data-tour="crew-howto" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Each row is an employee, each column a day. Colored chips are the jobs they're assigned to — pulled from the jobs board, so assigning someone on a job or in Dispatch shows up here. Click <strong>+ off</strong> in any day to book time off (whole day or a time window).</div>
@@ -2433,10 +2434,11 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="app.js?v=368"></script>
+<script src="app.js?v=369"></script>
 <script src="app-jwg-scheduler.js?v=358"></script>
-<script src="app-jwg-feed.js?v=361"></script>
+<script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=368"></script>
+<script src="app-team.js?v=369"></script>
 <script src="liquid-nav.js?v=2"></script>
 <script src="app-onboarding.js?v=364"></script>
 </body>

@@ -88,7 +88,7 @@
   function ensureCrew(){
     if(_crewLoaded)return Promise.resolve();
     if(_crewLoading)return _crewLoading;
-    _crewLoading=db.from("crew_members").select("id,name").then(function(res){
+    _crewLoading=db.from("crew_members").select("id,name").eq("on_junk", true).then(function(res){
       (res.data||[]).forEach(function(c){_crewName[c.id]=c.name;});
       _crewLoaded=true;
     }).catch(function(e){console.warn("[jwg-feed] crew load failed",e);_crewLoaded=true;});
