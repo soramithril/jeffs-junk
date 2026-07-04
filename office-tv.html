@@ -715,22 +715,42 @@
     function stripHash(){ history.replaceState(null,'', location.pathname + location.search); }
     function fail(msg){ el('gateSpin').style.display='none'; el('gateMsg').innerHTML = esc(msg); }
 
+    // Stash the display credentials in memory. They arrive in the URL hash and the
+    // hash is then stripped; keeping a copy lets this 24/7 board sign itself back
+    // in whenever its token lapses — without waiting for a Yodeck page reload.
+    var _tvCreds = null;
+
     async function authenticate(){
+      if(!_tvCreds) _tvCreds = parseCreds();
       var sess = (await db.auth.getSession()).data.session;
       if(!sess){
-        var creds = parseCreds();
-        if(!creds){ fail('This screen needs the office display link. Ask an admin to set it up.'); return null; }
-        var r = await db.auth.signInWithPassword({ email:creds.email, password:creds.pass });
+        if(!_tvCreds){ fail('This screen needs the office display link. Ask an admin to set it up.'); return null; }
+        var r = await db.auth.signInWithPassword({ email:_tvCreds.email, password:_tvCreds.pass });
         stripHash();
         if(r.error){ fail('Could not sign in. Check the display link.'); return null; }
         sess = r.data.session;
-      }
+      } else { stripHash(); }
       if(!sess || (sess.user && sess.user.email !== DISPLAY_EMAIL)){
         try{ await db.auth.signOut(); }catch(e){}
         fail('This screen is for the office display only.');
         return null;
       }
       return sess;
+    }
+
+    // Every board read now needs a logged-in session (RLS lockdown, July 2). Before
+    // a refresh, make sure the session is present and not about to expire; if it's
+    // gone or stale, sign back in with the stashed display credentials. Without this
+    // the 15-min refresh silently reads as logged-out and the board goes empty/stale.
+    async function ensureFreshSession(){
+      var sess = (await db.auth.getSession()).data.session;
+      var leftMs = (sess && sess.expires_at) ? (sess.expires_at*1000 - Date.now()) : -1;
+      if(!sess || leftMs < 120000){        // missing, expired, or expiring within 2 min
+        if(!_tvCreds) _tvCreds = parseCreds();
+        if(!_tvCreds) throw new Error('session lapsed and no display credentials to re-auth');
+        var r = await db.auth.signInWithPassword({ email:_tvCreds.email, password:_tvCreds.pass });
+        if(r.error) throw r.error;
+      }
     }
 
     // ── boot ─────────────────────────────────────────────────────────────────
@@ -761,8 +781,20 @@
       // periodic refresh; keep showing last-good data on a blip
       setInterval(async function(){
         if(inWeekendQuiet()) return;
-        try{ await loadAll(); net(true); renderCurrent(); }
-        catch(e){ console.error('refresh failed', e); net(false); }
+        try{
+          await ensureFreshSession();
+          await loadAll(); net(true); renderCurrent();
+        }catch(e){
+          console.error('refresh failed', e); net(false);
+          // one recovery attempt: force a fresh sign-in, then retry the load
+          try{
+            if(!_tvCreds) _tvCreds = parseCreds();
+            if(_tvCreds){
+              var r = await db.auth.signInWithPassword({ email:_tvCreds.email, password:_tvCreds.pass });
+              if(!r.error){ await loadAll(); net(true); renderCurrent(); }
+            }
+          }catch(e2){ console.error('re-auth retry failed', e2); }
+        }
       }, REFRESH_MS);
     }
 
