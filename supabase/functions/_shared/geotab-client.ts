@@ -240,6 +240,26 @@ export async function deleteZone(zoneId: string): Promise<void> {
 }
 
 /**
+ * Delete many zones in MultiCall batches — one API request per 150 zones, so
+ * bulk cleanups fit inside Geotab's 10-calls-per-minute quota. A failed chunk
+ * is logged and skipped so the rest still go through. Returns zones submitted.
+ */
+export async function removeZonesBulk(zoneIds: string[]): Promise<number> {
+  let removed = 0;
+  for (let i = 0; i < zoneIds.length; i += 150) {
+    const chunk = zoneIds.slice(i, i + 150);
+    const calls = chunk.map((id) => ({ method: "Remove", params: { typeName: "Zone", entity: { id } } }));
+    try {
+      await call("ExecuteMultiCall", { calls });
+      removed += chunk.length;
+    } catch (err) {
+      console.error(`Bulk zone remove failed for chunk at ${i}: ${(err as Error).message}`);
+    }
+  }
+  return removed;
+}
+
+/**
  * Get all BIN_AUTO_ zones that belong to the Bin Rentals group.
  * Returns zones matching BOTH conditions (prefix + group).
  *

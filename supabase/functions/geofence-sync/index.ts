@@ -19,6 +19,7 @@ import {
   deleteZone,
   getOrCreateBinRentalsGroup,
   getAutoZones,
+  removeZonesBulk,
   ZONE_PREFIX,
 } from "../_shared/geotab-client.ts";
 import { pickDuplicates, pickExpired } from "../_shared/sweep-logic.ts";
@@ -194,24 +195,40 @@ async function handleMorningSync(groupId: string): Promise<string> {
   const { data: existingFences } = await supabase.from("geofences").select("job_id, zone_id");
   const existingByJobId = new Map((existingFences || []).map((f) => [f.job_id, f.zone_id]));
 
-  // 3. Create geofences for today's jobs that don't have one yet
+  // 3. Create geofences for today's jobs that don't have one yet.
+  //    One bad address must not abort the whole sync — that's how hundreds of
+  //    stale zones piled up: the loop died and cleanup below never ran.
   const todayJobIds = new Set<string>();
   for (const job of todayJobs || []) {
     todayJobIds.add(job.job_id);
 
     if (!existingByJobId.has(job.job_id)) {
-      await createGeofenceForJob(job as Job, groupId);
-      results.push(`Created: ${ZONE_PREFIX}${job.job_id}`);
+      try {
+        await createGeofenceForJob(job as Job, groupId);
+        results.push(`Created: ${ZONE_PREFIX}${job.job_id}`);
+      } catch (err) {
+        results.push(`FAILED create ${ZONE_PREFIX}${job.job_id}: ${(err as Error).message}`);
+      }
     }
   }
 
-  // 4. Delete geofences that are no longer needed (job not active today)
+  // 4. Delete geofences that are no longer needed (job not active today) —
+  //    batched so bulk backlogs fit Geotab's API quota.
+  const staleIds: string[] = [];
+  const staleJobIds: string[] = [];
   for (const [jobId, zoneId] of existingByJobId) {
     if (!todayJobIds.has(jobId)) {
-      await deleteZone(zoneId);
-      await supabase.from("geofences").delete().eq("job_id", jobId);
-      results.push(`Cleaned up: ${ZONE_PREFIX}${jobId}`);
+      staleIds.push(zoneId);
+      staleJobIds.push(jobId);
     }
+  }
+  if (staleIds.length) {
+    const removed = await removeZonesBulk(staleIds);
+    for (let i = 0; i < staleJobIds.length; i += 200) {
+      const { error: delErr } = await supabase.from("geofences").delete().in("job_id", staleJobIds.slice(i, i + 200));
+      if (delErr) results.push(`FAILED geofences row cleanup: ${delErr.message}`);
+    }
+    results.push(`Cleaned up ${removed}/${staleIds.length} stale zones`);
   }
 
   // 5. Safety check: verify Geotab zones match our records
@@ -221,11 +238,10 @@ async function handleMorningSync(groupId: string): Promise<string> {
     ((await supabase.from("geofences").select("zone_id")).data || []).map((f) => f.zone_id),
   );
 
-  for (const zone of geotabZones) {
-    if (!trackedZoneIds.has(zone.id)) {
-      await deleteZone(zone.id);
-      results.push(`Orphan removed: ${zone.name}`);
-    }
+  const orphanIds = geotabZones.filter((z) => !trackedZoneIds.has(z.id)).map((z) => z.id);
+  if (orphanIds.length) {
+    const removed = await removeZonesBulk(orphanIds);
+    results.push(`Orphans removed: ${removed}/${orphanIds.length}`);
   }
 
   return `Morning sync complete. ${results.length} actions: ${results.join(", ") || "none"}`;
@@ -236,24 +252,25 @@ async function handleMorningSync(groupId: string): Promise<string> {
  * Morning sync will recreate tomorrow's as needed.
  */
 async function handleNightlyCleanup(groupId: string): Promise<string> {
-  const results: string[] = [];
+  const { data: allFences } = await supabase.from("geofences").select("job_id, zone_id");
+  const fences = allFences || [];
 
-  const { data: allFences } = await supabase.from("geofences").select("job_id, zone_id, zone_name");
-
-  for (const fence of allFences || []) {
-    await deleteZone(fence.zone_id);
-    await supabase.from("geofences").delete().eq("job_id", fence.job_id);
-    results.push(`Deleted: ${fence.zone_name}`);
+  // Batched removes — hundreds of zones would blow Geotab's 10-calls/min
+  // quota (and the function's time limit) if deleted one by one.
+  const removed = await removeZonesBulk(fences.map((f) => f.zone_id));
+  for (let i = 0; i < fences.length; i += 200) {
+    const { error: delErr } = await supabase
+      .from("geofences")
+      .delete()
+      .in("job_id", fences.slice(i, i + 200).map((f) => f.job_id));
+    if (delErr) console.warn(`geofences row cleanup partial failure: ${delErr.message}`);
   }
 
   // Safety: clean up any orphaned BIN_AUTO_ zones in Geotab
   const geotabZones = await getAutoZones(groupId);
-  for (const zone of geotabZones) {
-    await deleteZone(zone.id);
-    results.push(`Orphan removed: ${zone.name}`);
-  }
+  const orphansRemoved = await removeZonesBulk(geotabZones.map((z) => z.id));
 
-  return `Nightly cleanup complete. ${results.length} zones removed: ${results.join(", ") || "none"}`;
+  return `Nightly cleanup complete. ${removed}/${fences.length} tracked + ${orphansRemoved} orphaned zones removed.`;
 }
 
 /**

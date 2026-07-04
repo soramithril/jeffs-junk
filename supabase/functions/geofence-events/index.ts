@@ -1,17 +1,37 @@
 /**
- * Supabase Edge Function: geofence-events
+ * Supabase Edge Function: geofence-events (v16)
  *
- * Polls Geotab GetFeed for ExceptionEvents on BIN_AUTO_ zones.
- * When a vehicle enters or exits a zone, updates the job's bin_instatus
- * in Supabase. The dashboard picks this up via Realtime subscriptions.
+ * Crosses bin jobs off the Live Jobs board by watching truck GPS trails.
  *
- * Called every 2 minutes by pg_cron.
+ * Each poll (pg_cron, every 15 min on weekdays) it:
+ *   1. loads today's active bin jobs that have a BIN_AUTO_ zone — the zone
+ *      centres come from OUR geofences table, not Geotab,
+ *   2. fetches today's GPS breadcrumbs (LogRecord) for ALL devices in ONE
+ *      Geotab call — easy on the 10-calls/minute quota,
+ *   3. walks each trail against each zone circle and inserts
+ *      geofence_notifications rows on enter ('dropped') and leave ('pickedup').
+ *
+ * Why not ExceptionEvents (the pre-v16 approach): we only ever create ZONES in
+ * Geotab, never per-zone Rules, so the rule->zone lookup matched 0% of events
+ * and no notification was ever inserted.
+ *
+ * VISUAL-ONLY (per Jake, 2026-07-02): this function NEVER writes to the jobs
+ * table. bin_instatus stays entirely user-controlled.
+ *
+ * State machine per job per day (geofence_visits table):
+ *   no visit -> 'dropped' (truck dwelling in zone) -> 'pickedup' (truck left).
+ * Because every poll re-reads the FULL day of breadcrumbs, a missed poll or a
+ * mid-day deploy self-heals on the next run.
+ *
+ * POST {"dryRun": true} computes and reports what it WOULD do — no writes.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEOTAB_AUTH_URL = "https://my.geotab.com/apiv1";
-const ZONE_PREFIX = "BIN_AUTO_";
+const ZONE_RADIUS_M = 30;        // zone circles are 25 m; +5 m for GPS jitter
+const DWELL_MS = 150000;         // must stay >=2.5 min inside — filters passing traffic
+const EXIT_CONFIRM_MS = 120000;  // outside >=2 min after last inside point = truly left
 
 interface GeotabCredentials {
   database: string;
@@ -67,223 +87,250 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-interface ExceptionEvent {
-  id: string;
-  rule: { id: string; name?: string };
-  device: { id: string; name?: string };
-  activeFrom: string;
-  activeTo: string;
-  state: string;
+interface LogRecord {
+  device: { id: string };
+  latitude: number;
+  longitude: number;
+  dateTime: string;
 }
 
-interface ZoneInfo {
-  id: string;
-  name: string;
+interface ZoneJob {
+  jobId: string;
+  lat: number;
+  lng: number;
+  name: string | null;
+  binBid: string | null;
+  address: string | null;
+  city: string | null;
 }
 
-/**
- * Poll Geotab for new ExceptionEvents (zone stops).
- */
-async function pollExceptionEvents(fromVersion: string): Promise<{ events: ExceptionEvent[]; toVersion: string }> {
-  const result = await geotabCall("GetFeed", {
-    typeName: "ExceptionEvent",
-    fromVersion,
-    resultsLimit: 1000,
-  }) as { data: ExceptionEvent[]; toVersion: string };
-
-  return { events: result.data || [], toVersion: result.toVersion };
+interface VisitState {
+  job_id: string;
+  device_id: string | null;
+  inside: boolean;
+  entered_at: string | null;
+  exited_at: string | null;
 }
 
-/**
- * Look up a Geotab Rule to find the zone it's associated with.
- */
-async function getRuleZone(ruleId: string): Promise<string | null> {
-  const rules = await geotabCall("Get", {
-    typeName: "Rule",
-    search: { id: ruleId },
-  }) as { id: string; name: string; baseType: string; condition: { zone?: { id: string }; children?: { zone?: { id: string } }[] } }[];
-
-  if (!rules || rules.length === 0) return null;
-
-  const rule = rules[0];
-  if (rule.condition?.zone?.id) return rule.condition.zone.id;
-  if (rule.condition?.children) {
-    for (const child of rule.condition.children) {
-      if (child.zone?.id) return child.zone.id;
-    }
-  }
-  return null;
+interface Action {
+  jobId: string;
+  status: "dropped" | "pickedup";
+  at: string;
+  deviceId: string;
 }
 
-/**
- * Look up a zone by ID to check if it's a BIN_AUTO_ zone.
- */
-async function getZone(zoneId: string): Promise<ZoneInfo | null> {
-  const zones = await geotabCall("Get", {
-    typeName: "Zone",
-    search: { id: zoneId },
-  }) as ZoneInfo[];
-
-  if (!zones || zones.length === 0) return null;
-  return zones[0];
+/** Today's date in Eastern Time (Ontario) as YYYY-MM-DD. */
+function todayISO(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 }
 
-function extractJobId(zoneName: string): string {
-  return zoneName.slice(ZONE_PREFIX.length);
+/** Start of the Eastern-Time day as a UTC Date (DST-safe via offset probe). */
+function easternDayStart(dayISO: string): Date {
+  const probe = new Date(`${dayISO}T12:00:00Z`);
+  const eastern = new Date(probe.toLocaleString("en-US", { timeZone: "America/Toronto" }));
+  const offsetMs = probe.getTime() - eastern.getTime() + probe.getTimezoneOffset() * 60000;
+  return new Date(new Date(`${dayISO}T00:00:00Z`).getTime() + offsetMs);
 }
 
-/**
- * Determine bin_instatus based on whether the vehicle is still in the zone.
- * - Event active (activeTo far future) = vehicle in zone = "dropped"
- * - Event ended (activeTo in past) = vehicle left zone = "pickedup"
- */
-function determineStatus(event: ExceptionEvent): "dropped" | "pickedup" {
-  const activeTo = new Date(event.activeTo);
-  const maxDate = new Date("2050-01-01");
-
-  if (activeTo < maxDate && activeTo <= new Date()) {
-    return "pickedup";
-  }
-  return "dropped";
+function sameEasternDay(iso: string | null, dayISO: string): boolean {
+  if (!iso) return false;
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Toronto" }) === dayISO;
 }
 
-/**
- * Look up a Geotab device name by ID (for vehicle attribution).
- */
-async function getDeviceName(deviceId: string): Promise<string> {
-  const devices = await geotabCall("Get", {
-    typeName: "Device",
-    search: { id: deviceId },
-  }) as { id: string; name: string }[];
-
-  if (!devices || devices.length === 0) return deviceId;
-  return devices[0].name || deviceId;
+/** Metres between two lat/lng points (equirectangular — fine at 30 m scale). */
+function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const x = dLng * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
+  return R * Math.sqrt(dLat * dLat + x * x);
 }
 
-async function processEvents(): Promise<string> {
-  const { data: stateRow } = await supabase
-    .from("geofence_poll_state")
-    .select("value")
-    .eq("key", "feed_version")
-    .single();
+/** Load today's active bin jobs that have a zone (lat/lng from geofences). */
+async function loadActiveZones(today: string): Promise<ZoneJob[]> {
+  const { data: jobs, error: jobsErr } = await supabase
+    .from("jobs")
+    .select("job_id, name, bin_bid, address, city, status")
+    .eq("service", "Bin Rental")
+    .or(`bin_dropoff.eq.${today},bin_pickup.eq.${today}`);
+  if (jobsErr) throw new Error(`jobs query failed: ${jobsErr.message}`);
 
-  const fromVersion = stateRow?.value || "0000000000000000";
+  const active = (jobs || []).filter((j) => j.status !== "Cancelled");
+  if (!active.length) return [];
 
-  const { events, toVersion } = await pollExceptionEvents(fromVersion);
+  const ids = active.map((j) => j.job_id);
+  const { data: fences, error: fenceErr } = await supabase
+    .from("geofences")
+    .select("job_id, lat, lng")
+    .in("job_id", ids);
+  if (fenceErr) throw new Error(`geofences query failed: ${fenceErr.message}`);
 
-  await supabase
-    .from("geofence_poll_state")
-    .update({ value: toVersion })
-    .eq("key", "feed_version");
-
-  if (events.length === 0) {
-    return `No new events. Version: ${toVersion}`;
-  }
-
-  const updates: string[] = [];
-  const zoneCache = new Map<string, ZoneInfo | null>();
-  const ruleZoneCache = new Map<string, string | null>();
-  const deviceNameCache = new Map<string, string>();
-
-  for (const event of events) {
-    let zoneId = ruleZoneCache.get(event.rule.id);
-    if (zoneId === undefined) {
-      zoneId = await getRuleZone(event.rule.id);
-      ruleZoneCache.set(event.rule.id, zoneId);
-    }
-    if (!zoneId) continue;
-
-    let zone = zoneCache.get(zoneId);
-    if (zone === undefined) {
-      zone = await getZone(zoneId);
-      zoneCache.set(zoneId, zone);
-    }
-    if (!zone || !zone.name.startsWith(ZONE_PREFIX)) continue;
-
-    const jobId = extractJobId(zone.name);
-    const newStatus = determineStatus(event);
-
-    // Auto-pickup is visual-only — log notification, never mutate the job.
-    // The Live Jobs page reads geofence_notifications to cross jobs off;
-    // bin_instatus stays user-controlled.
-    if (newStatus === "pickedup") {
-      const { data: pickedupJob } = await supabase
-        .from("jobs")
-        .select("name, bin_bid, address, city")
-        .eq("job_id", jobId)
-        .single();
-      await supabase.from("geofence_notifications").insert({
-        job_id: jobId,
-        status: "pickedup",
-        customer_name: pickedupJob?.name || null,
-        bin_bid: pickedupJob?.bin_bid || null,
-        address: pickedupJob?.address || null,
-        city: pickedupJob?.city || null,
-      });
-      updates.push(`${jobId} -> pickedup (visual only)`);
-      continue;
-    }
-
-    // Fetch current job to check if status actually changed
-    const { data: currentJob } = await supabase
-      .from("jobs")
-      .select("bin_instatus, completed_by_vehicle, customer_name, bin_bid, address, city, name")
-      .eq("job_id", jobId)
-      .single();
-
-    if (currentJob?.bin_instatus === newStatus) continue;
-
-    // Build update payload
-    const updatePayload: Record<string, unknown> = { bin_instatus: newStatus };
-
-    // Attribute the vehicle on any status change — first one wins
-    if (!currentJob?.completed_by_vehicle) {
-      let deviceName = deviceNameCache.get(event.device.id);
-      if (deviceName === undefined) {
-        deviceName = await getDeviceName(event.device.id);
-        deviceNameCache.set(event.device.id, deviceName);
-      }
-      updatePayload.completed_by_vehicle = deviceName;
-    }
-
-    const { error } = await supabase
-      .from("jobs")
-      .update(updatePayload)
-      .eq("job_id", jobId);
-
-    if (error) {
-      console.error(`Failed to update job ${jobId}: ${error.message}`);
-      continue;
-    }
-
-    // Log notification for dashboard history
-    await supabase.from("geofence_notifications").insert({
-      job_id: jobId,
-      status: newStatus,
-      customer_name: currentJob?.customer_name || null,
-      bin_bid: currentJob?.bin_bid || null,
-      address: currentJob?.address || null,
-      city: currentJob?.city || null,
+  const byId = new Map((fences || []).map((f) => [f.job_id, f]));
+  return active
+    .filter((j) => byId.has(j.job_id))
+    .map((j) => {
+      const f = byId.get(j.job_id)!;
+      return {
+        jobId: j.job_id,
+        lat: f.lat,
+        lng: f.lng,
+        name: j.name,
+        binBid: j.bin_bid,
+        address: j.address,
+        city: j.city,
+      };
     });
-
-    updates.push(`${jobId} -> ${newStatus}`);
-    console.log(`Updated job ${jobId} bin_instatus to ${newStatus}`);
-  }
-
-  return `Processed ${events.length} events, ${updates.length} job updates: ${updates.join(", ") || "none matched BIN_AUTO_ zones"}`;
 }
 
-// --- Main handler ---
+/** One Geotab call: every device's GPS points for today (Eastern day). */
+async function loadTodaysTrails(today: string): Promise<Map<string, LogRecord[]>> {
+  const records = (await geotabCall("Get", {
+    typeName: "LogRecord",
+    search: {
+      fromDate: easternDayStart(today).toISOString(),
+      toDate: new Date().toISOString(),
+    },
+    resultsLimit: 30000,
+  })) as LogRecord[];
+
+  const trails = new Map<string, LogRecord[]>();
+  for (const r of records || []) {
+    if (!r.device?.id || typeof r.latitude !== "number") continue;
+    if (!trails.has(r.device.id)) trails.set(r.device.id, []);
+    trails.get(r.device.id)!.push(r);
+  }
+  for (const t of trails.values()) {
+    t.sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+  }
+  return trails;
+}
+
+/**
+ * Walk trails against zones and decide enter/leave actions.
+ * Pure computation — no writes.
+ */
+function computeActions(
+  zones: ZoneJob[],
+  trails: Map<string, LogRecord[]>,
+  states: Map<string, VisitState>,
+  today: string,
+): Action[] {
+  const actions: Action[] = [];
+  const now = Date.now();
+
+  for (const z of zones) {
+    const state = states.get(z.jobId);
+    const inside = (p: LogRecord) => distanceM(p.latitude, p.longitude, z.lat, z.lng) <= ZONE_RADIUS_M;
+
+    // Already visited AND left today — done for the day.
+    if (state && sameEasternDay(state.exited_at, today)) continue;
+
+    // Truck previously seen inside today — watch its trail for the exit.
+    if (state && state.inside && state.device_id && sameEasternDay(state.entered_at, today)) {
+      const trail = (trails.get(state.device_id) || []).filter(
+        (p) => new Date(p.dateTime).getTime() > new Date(state.entered_at!).getTime(),
+      );
+      if (!trail.length) continue;
+      const last = trail[trail.length - 1];
+      const insidePts = trail.filter(inside);
+      const lastInsideT = insidePts.length
+        ? new Date(insidePts[insidePts.length - 1].dateTime).getTime()
+        : new Date(state.entered_at!).getTime();
+      if (!inside(last) && new Date(last.dateTime).getTime() - lastInsideT >= EXIT_CONFIRM_MS) {
+        actions.push({ jobId: z.jobId, status: "pickedup", at: last.dateTime, deviceId: state.device_id });
+      }
+      continue;
+    }
+
+    // No visit recorded today — scan every trail for a dwelling visit.
+    for (const [deviceId, trail] of trails) {
+      const firstInIdx = trail.findIndex(inside);
+      if (firstInIdx === -1) continue;
+      const firstIn = trail[firstInIdx];
+      const after = trail.slice(firstInIdx + 1);
+      const firstOut = after.find((p) => !inside(p));
+      const lastPoint = trail[trail.length - 1];
+      const dwellEnd = firstOut
+        ? new Date(firstOut.dateTime).getTime()
+        : Math.max(new Date(lastPoint.dateTime).getTime(), now);
+      const dwell = dwellEnd - new Date(firstIn.dateTime).getTime();
+      if (dwell < DWELL_MS) continue; // drive-by, not a visit
+
+      actions.push({ jobId: z.jobId, status: "dropped", at: firstIn.dateTime, deviceId });
+
+      // Same-batch exit (e.g. a morning visit processed later in the day)
+      const insidePts = trail.slice(firstInIdx).filter(inside);
+      const lastInsideT = new Date(insidePts[insidePts.length - 1].dateTime).getTime();
+      if (!inside(lastPoint) && new Date(lastPoint.dateTime).getTime() - lastInsideT >= EXIT_CONFIRM_MS) {
+        actions.push({ jobId: z.jobId, status: "pickedup", at: lastPoint.dateTime, deviceId });
+      }
+      break; // one visiting truck per job is enough
+    }
+  }
+  return actions;
+}
+
+async function applyActions(actions: Action[], zones: ZoneJob[]): Promise<void> {
+  const zoneById = new Map(zones.map((z) => [z.jobId, z]));
+  for (const a of actions) {
+    const z = zoneById.get(a.jobId);
+    // Visual-only: log a notification, NEVER mutate the job.
+    const { error: insErr } = await supabase.from("geofence_notifications").insert({
+      job_id: a.jobId,
+      status: a.status,
+      customer_name: z?.name || null,
+      bin_bid: z?.binBid || null,
+      address: z?.address || null,
+      city: z?.city || null,
+    });
+    if (insErr) throw new Error(`notification insert failed for ${a.jobId}: ${insErr.message}`);
+
+    const stateRow =
+      a.status === "dropped"
+        ? { job_id: a.jobId, device_id: a.deviceId, inside: true, entered_at: a.at, exited_at: null, updated_at: new Date().toISOString() }
+        : { job_id: a.jobId, device_id: a.deviceId, inside: false, exited_at: a.at, updated_at: new Date().toISOString() };
+    const { error: stErr } = await supabase.from("geofence_visits").upsert(stateRow, { onConflict: "job_id" });
+    if (stErr) throw new Error(`visit state upsert failed for ${a.jobId}: ${stErr.message}`);
+  }
+}
+
+async function run(dryRun: boolean): Promise<string> {
+  const today = todayISO();
+
+  const zones = await loadActiveZones(today);
+  if (!zones.length) return `No active bin jobs with zones today (${today}).`;
+
+  const { data: stateRows } = await supabase
+    .from("geofence_visits")
+    .select("job_id, device_id, inside, entered_at, exited_at")
+    .in("job_id", zones.map((z) => z.jobId));
+  const states = new Map<string, VisitState>(
+    ((stateRows || []) as VisitState[]).map((s) => [s.job_id, s]),
+  );
+
+  await authenticate();
+  const trails = await loadTodaysTrails(today);
+
+  const actions = computeActions(zones, trails, dryRun ? new Map() : states, today);
+
+  if (!dryRun) await applyActions(actions, zones);
+
+  const detail = actions.map((a) => `${a.jobId} -> ${a.status} @ ${a.at}`).join(", ") || "none";
+  return `${dryRun ? "DRY RUN — " : ""}${zones.length} zones, ${trails.size} devices, ${actions.length} actions: ${detail}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
-
   try {
-    await authenticate();
-    const message = await processEvents();
+    let dryRun = false;
+    try {
+      const body = await req.json();
+      dryRun = body?.dryRun === true;
+    } catch (_) { /* empty body = live run */ }
 
+    const message = await run(dryRun);
     return new Response(JSON.stringify({ ok: true, message }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
