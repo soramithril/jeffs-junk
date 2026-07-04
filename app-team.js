@@ -8,7 +8,16 @@
 (function(){
   'use strict';
 
-  var _team = null;   // every crew_members row (master), incl. inactive
+  var _team = null;       // every crew_members row (master), incl. inactive
+  var _openColour = null; // id of the person whose colour palette is open
+
+  // Curated colour palette — everyone gets a distinct one; taken colours are
+  // locked out in the picker so no two active people can share.
+  var TEAM_PALETTE = [
+    '#2563eb','#0891b2','#0d9488','#16a34a','#65a30d','#ca8a04','#ea580c','#dc2626',
+    '#e11d48','#db2777','#c026d3','#9333ea','#7c3aed','#4f46e5','#1d4ed8','#0369a1',
+    '#b45309','#be123c','#a21caf','#15803d','#059669','#0284c7','#7e22ce','#9f1239'
+  ];
 
   function host(){ return document.getElementById('team-page'); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -71,13 +80,13 @@
     var rm = canRemove();
     var av = avatarColor(p);
     var cells = ''
-      + '<td style="padding:11px 14px"><div style="display:flex;align-items:center;gap:12px">'
-        + '<label class="team-av'+(p.active?'':' team-av-off')+'" title="Click to set '+esc(p.name)+'’s driver colour" style="--av:'+esc(av)+';box-shadow:0 3px 9px '+esc(av)+'59,inset 0 1px 0 rgba(255,255,255,.4)">'
+      + '<td style="padding:11px 14px"><div style="display:flex;align-items:center;gap:12px;position:relative">'
+        + '<button type="button" class="team-av'+(p.active?'':' team-av-off')+'" onclick="TeamMgr.openColour(\''+p.id+'\')" title="Set '+esc(p.name)+'’s driver colour" style="--av:'+esc(av)+';box-shadow:0 3px 9px '+esc(av)+'59,inset 0 1px 0 rgba(255,255,255,.4)">'
           + '<span style="color:'+ink(av)+'">'+esc(initials(p.name))+'</span>'
-          + '<input type="color" value="'+esc(av)+'" onchange="TeamMgr.color(\''+p.id+'\',this.value)">'
-        + '</label>'
+        + '</button>'
         + '<span style="font-size:14.5px;font-weight:700;letter-spacing:-.2px'+(p.active?'':';color:#adb5bd;text-decoration:line-through')+'">'+esc(p.name)+'</span>'
         + '<button onclick="TeamMgr.rename(\''+p.id+'\')" title="Rename" style="background:none;border:none;color:#c3c9cf;cursor:pointer;font-size:13px">✎</button>'
+        + (_openColour===p.id ? colourPopover(p) : '')
       + '</div></td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'on_junk',p.on_junk,'Junk / Bins','#16a34a')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'on_jwg',p.on_jwg,'Jeff White Group','#0d6efd')+'</td>'
@@ -88,6 +97,26 @@
         + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove (soft — keeps history)" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>' : '')
       + '</td>';
     return '<tr style="border-bottom:1px solid var(--border)'+(p.active?'':';background:rgba(0,0,0,.02)')+'">'+cells+'</tr>';
+  }
+
+  // Palette popover: swatches, with colours already used by another active
+  // person locked out so no two people can share a colour.
+  function colourPopover(p){
+    var cur = String(p.color||'').toLowerCase();
+    var swatches = TEAM_PALETTE.map(function(hex){
+      var isCur = hex.toLowerCase()===cur;
+      var takenBy = _team.find(function(x){ return x.id!==p.id && x.active && x.color && String(x.color).toLowerCase()===hex.toLowerCase(); });
+      if(takenBy && !isCur){
+        return '<span class="team-sw team-sw-taken" title="Used by '+esc(takenBy.name)+'" style="background:'+hex+'"></span>';
+      }
+      return '<button type="button" class="team-sw'+(isCur?' team-sw-cur':'')+'" title="'+hex+'" style="background:'+hex+'" onclick="TeamMgr.pick(\''+p.id+'\',\''+hex+'\')"></button>';
+    }).join('');
+    return '<div class="team-pop-bd" onclick="TeamMgr.closeColour()"></div>'
+      + '<div class="team-pop" onclick="event.stopPropagation()">'
+        + '<div class="team-pop-t">'+esc(p.name)+'’s colour</div>'
+        + '<div class="team-pop-grid">'+swatches+'</div>'
+        + '<label class="team-pop-custom">Custom <input type="color" value="'+esc(p.color||avatarColor(p))+'" onchange="TeamMgr.pick(\''+p.id+'\',this.value)"></label>'
+      + '</div>';
   }
 
   function paint(){
@@ -189,6 +218,22 @@
     catch(e){ p.color = old; toast('Colour update failed: '+((e&&e.message)||e), 'error'); }
   }
 
+  function openColour(id){ _openColour = (_openColour===id) ? null : id; paint(); }
+  function closeColour(){ if(_openColour){ _openColour = null; paint(); } }
+  async function pick(id, hex){
+    var p = find(id); if(!p) return;
+    var clash = _team.find(function(x){ return x.id!==id && x.active && x.color && String(x.color).toLowerCase()===String(hex).toLowerCase(); });
+    if(clash){ if(typeof toast==='function') toast(hex+' is already '+clash.name+'’s colour — pick another.', 'error'); return; }
+    _openColour = null;
+    await color(id, hex);   // persists + syncs the junk-side list
+    paint();
+  }
+  function firstFreeColour(){
+    var used = {}; _team.forEach(function(x){ if(x.color) used[String(x.color).toLowerCase()] = 1; });
+    for(var i=0;i<TEAM_PALETTE.length;i++){ if(!used[TEAM_PALETTE[i].toLowerCase()]) return TEAM_PALETTE[i]; }
+    return TEAM_PALETTE[0];
+  }
+
   async function add(){
     var inp = document.getElementById('team-new-name'); if(!inp) return;
     var name = inp.value.trim(); if(!name) return;
@@ -203,7 +248,7 @@
         jwgId = ins.data && ins.data[0] ? ins.data[0].id : null;
       }
       var r = await db.from('crew_members').insert({
-        name:name, active:true, on_junk:onJunk, on_jwg:onJwg, summer:true, winter:true, jwg_id:jwgId
+        name:name, active:true, on_junk:onJunk, on_jwg:onJwg, summer:true, winter:true, jwg_id:jwgId, color:firstFreeColour()
       }).select();
       if(r.error) throw r.error;
       if(r.data && r.data[0]) _team.push(r.data[0]);
@@ -221,5 +266,6 @@
   }
 
   window.renderTeamPage = renderTeamPage;
-  window.TeamMgr = { toggle:toggle, rename:rename, color:color, add:add, remove:remove };
+  window.TeamMgr = { toggle:toggle, rename:rename, color:color, add:add, remove:remove,
+    openColour:openColour, closeColour:closeColour, pick:pick };
 })();

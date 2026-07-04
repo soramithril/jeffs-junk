@@ -2132,6 +2132,18 @@ input[type=date],input[type=time]{position:relative;}
 .team-av:hover::after{opacity:1;}
 .team-av-off{filter:grayscale(.6);opacity:.55;}
 
+/* Team page: colour palette picker popover */
+.team-pop-bd{position:fixed;inset:0;z-index:60;}
+.team-pop{position:absolute;top:48px;left:0;z-index:61;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 42px rgba(0,0,0,.18);padding:12px;width:238px;}
+.team-pop-t{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
+.team-pop-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;}
+.team-sw{width:22px;height:22px;border-radius:7px;border:none;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);transition:transform .1s;}
+.team-sw:hover{transform:scale(1.16);}
+.team-sw-cur{box-shadow:0 0 0 2px #fff,0 0 0 4px #1a1a2e;}
+.team-sw-taken{opacity:.25;cursor:not-allowed;}
+.team-pop-custom{display:flex;align-items:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:#495057;}
+.team-pop-custom input{width:30px;height:24px;border:none;background:none;cursor:pointer;padding:0;}
+
 /* Sidebar: daily items get a one-line hint; secondary nav collapses under "More tools" */
 .nav-item-daily{align-items:center}
 .nav-item-daily .nav-txt{display:flex;flex-direction:column;min-width:0;line-height:1.25}
