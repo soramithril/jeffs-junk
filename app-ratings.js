@@ -1,11 +1,12 @@
 // ── ADMIN-ONLY STAFF CHECK-IN PAGE (heat map redesign) ──────────────────
-// Full-page daily 1-5 ratings board, implemented from the Claude Design
-// handoff "Staff Check-In Page.dc.html". Two views (Team grid / Crew cards),
-// history window 4w-104w or All, four palettes. No saved row = 3 ("normal
-// day"); picking a plain 3 with no note DELETES the row, so the table only
-// holds deviations/notes. Only TODAY is ratable. Server-side security is the
-// employee_ratings RLS policy (user_profiles.role='admin'); the nav gating
-// here is just UI.
+// Full-page daily 1-3 ratings board (1 bad · 2 okay · 3 good/normal), from
+// the Claude Design handoff "Staff Check-In Page.dc.html". Two views (Team
+// grid / Crew cards), history window 4w-104w, Year to Date, or All, four
+// palettes. No saved row = 3 ("normal day"); picking a plain 3 with no note
+// DELETES the row, so the table only holds deviations/notes. Rows saved on
+// the old 1-5 scale display clamped to 3. Only TODAY is ratable. Server-side
+// security is the employee_ratings RLS policy (user_profiles.role='admin');
+// the nav gating here is just UI.
 (function(){
   'use strict';
 
@@ -13,22 +14,24 @@
   // (per Jake 2026-07-03). Exact full-name match against jwg_employees names.
   var ADMIN_NAMES = ['jake','josh','barb','jeff','sam','samantha'];
 
-  var LABELS = {1:'Very bad', 2:'Not great', 3:'Okay', 4:'Good', 5:'Great'};
-  var FG_SEL = {1:'#fff', 2:'#7c4a03', 3:'#495057', 4:'#1a3a2a', 5:'#fff'};
+  var LABELS = {1:'Bad day', 2:'Okay', 3:'Good (normal)'};
+  var FG_SEL = {1:'#fff', 2:'#7c4a03', 3:'#fff'};
   var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // 3 swatches per palette: bad / okay / good. The good color is a real fill —
+  // a 3 (default or hand-picked) must never look blank in the heat map.
   var PALETTES = {
-    classic: { name:'Classic', c:['#d6453d','#f0a13c','#e9ede9','#a7dcb9','#1e9e53'] },
-    ocean:   { name:'Ocean',   c:['#d97706','#f4c163','#e7ebec','#93c9e3','#1d6fa8'] },
-    earth:   { name:'Earth',   c:['#c2410c','#f4a261','#edeae5','#8fc7c0','#0f766e'] },
-    plum:    { name:'Plum',    c:['#b91c1c','#e59866','#ecebee','#b7a6de','#6d28d9'] }
+    classic: { name:'Classic', c:['#d6453d','#f0a13c','#2fa863'] },
+    ocean:   { name:'Ocean',   c:['#d97706','#f4c163','#3987bf'] },
+    earth:   { name:'Earth',   c:['#c2410c','#f4a261','#2a968c'] },
+    plum:    { name:'Plum',    c:['#b91c1c','#e59866','#8a63d2'] }
   };
-  var WEEK_PRESETS = [4, 8, 12, 24, 'all'];
+  var WEEK_PRESETS = [4, 8, 12, 24, 'ytd', 'all'];
 
   // view state (persisted so the page opens how you left it)
   var st = {
     view:  localStorage.getItem('sc_view') || 'cards',
     weeksN: (function(){ var w = localStorage.getItem('sc_weeks');
-      if(w === 'all') return 'all'; var n = parseInt(w,10);
+      if(w === 'all' || w === 'ytd') return w; var n = parseInt(w,10);
       return (!isNaN(n) && n >= 1 && n <= 104) ? n : 12; })(),
     pal:   PALETTES[localStorage.getItem('sc_pal')] ? localStorage.getItem('sc_pal') : 'classic',
     open:  null,           // employee id whose rating popover is open (grid view)
@@ -86,6 +89,10 @@
 
   function windowDays(){
     var today = todayStr();
+    if(st.weeksN === 'ytd'){
+      var jan1 = new Date(parseLocalDate(today).getFullYear(), 0, 1);
+      return Math.round((parseLocalDate(today) - jan1) / 86400000) + 1;
+    }
     var weeks;
     if(st.weeksN === 'all'){
       if(_minDate){
@@ -122,7 +129,7 @@
     var today = todayStr();
     var DAYS = windowDays();
     var PC = PALETTES[st.pal].c;
-    var COLORS = {1:PC[0], 2:PC[1], 3:PC[2], 4:PC[3], 5:PC[4]};
+    var COLORS = {1:PC[0], 2:PC[1], 3:PC[2]};
     var startD = new Date(parseLocalDate(today)); startD.setDate(startD.getDate() - (DAYS - 1));
 
     var pitch = Math.max(6, Math.min(12, Math.floor(1010 / DAYS)));
@@ -140,7 +147,7 @@
 
     function tipFor(ds, v, note){
       var d = parseLocalDate(ds);
-      return MONTHS[d.getMonth()] + ' ' + d.getDate() + ' — ' + v + '/5 ' + LABELS[v] + (note ? ' · ' + note : '');
+      return MONTHS[d.getMonth()] + ' ' + d.getDate() + ' — ' + v + '/3 ' + LABELS[v] + (note ? ' · ' + note : '');
     }
 
     var roster = _emps.filter(function(e){ return !_hidden[e.id]; });
@@ -150,7 +157,8 @@
       var cells = [], sum = 0;
       for(var i2 = 0; i2 < DAYS; i2++){
         var rec = _ratings[e.id + '|' + dates[i2]];
-        var v = rec ? rec.rating : 3;
+        // Legacy rows from the old 1-5 scale: 4s and 5s count as 3 (good).
+        var v = rec ? Math.min(3, rec.rating) : 3;
         cells.push({ v: v, set: !!rec, note: rec ? rec.note : '' });
         sum += v;
       }
@@ -172,12 +180,13 @@
     });
 
     var teamToday = emps.length ? (emps.reduce(function(a,e){ return a + e.todayV; }, 0) / emps.length).toFixed(1) : '—';
-    var greats = emps.filter(function(e){ return e.todayV >= 4; }).length;
-    var roughs = emps.filter(function(e){ return e.todayV <= 2; }).length;
+    var goods = emps.filter(function(e){ return e.todayV === 3; }).length;
+    var okays = emps.filter(function(e){ return e.todayV === 2; }).length;
+    var roughs = emps.filter(function(e){ return e.todayV === 1; }).length;
     var changed = emps.filter(function(e){ return e.todaySet; }).length;
 
     function chipsHtml(emp, flexy){
-      return [1,2,3,4,5].map(function(v){
+      return [1,2,3].map(function(v){
         var sel = v === emp.todayV;
         return '<button onclick="StaffRatings.rate(\''+emp.id+'\','+v+')" title="'+v+' — '+LABELS[v]+'" '
           + 'style="'+(flexy?'flex:1;':'width:32px;')+'height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;'
@@ -193,10 +202,10 @@
     // header
     h += '<div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">'
       +  '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;letter-spacing:1.5px;line-height:1;color:#1a1a2e">STAFF CHECK-IN</div>'
-      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · blank day = normal (3), only changes are saved</div></div>'
+      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · no entry = 3 (good, normal day) — only 1s, 2s and notes are saved</div></div>'
       +  '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
-      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[4]+'">'+teamToday+'</span></span>'
-      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[4]+'"></span>'+greats+' great · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'
+      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[2]+'">'+teamToday+'</span></span>'
+      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[2]+'"></span>'+goods+' good · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[1]+'"></span>'+okays+' okay · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'
       +  '</div></div>';
 
     // controls bar
@@ -213,7 +222,7 @@
       +  '<div style="display:flex;gap:4px">'
       +  WEEK_PRESETS.map(function(n){
            var sel = st.weeksN === n;
-           return '<button onclick="StaffRatings.setWeeks(\''+n+'\')" style="cursor:pointer;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:700;padding:7px 11px;border-radius:99px;border:1px solid '+(sel?'#1a1a2e':'#e9ecef')+';background:'+(sel?'#1a1a2e':'#fff')+';color:'+(sel?'#fff':'#868e96')+'">'+(n==='all'?'All':n+'w')+'</button>';
+           return '<button onclick="StaffRatings.setWeeks(\''+n+'\')" style="cursor:pointer;font-family:\'Inter\',sans-serif;font-size:12px;font-weight:700;padding:7px 11px;border-radius:99px;border:1px solid '+(sel?'#1a1a2e':'#e9ecef')+';background:'+(sel?'#1a1a2e':'#fff')+';color:'+(sel?'#fff':'#868e96')+'">'+(n==='all'?'All':(n==='ytd'?'Year to Date':n+'w'))+'</button>';
          }).join('')
       +  '<input type="number" min="1" max="104" placeholder="#" title="Type any number of weeks, press Enter" '
       +  'value="'+(isCustom?st.weeksN:'')+'" onkeydown="StaffRatings.weeksKey(event)" onblur="StaffRatings.weeksBlur(event)" '
@@ -237,7 +246,7 @@
     if(st.view === 'grid'){
       h += '<div style="background:#fff;border:1px solid #e9ecef;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
         +  '<div style="padding:18px 30px 4px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
-        +  [1,2,3,4,5].map(function(v){
+        +  [1,2,3].map(function(v){
              return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#868e96"><span style="width:11px;height:11px;border-radius:3px;background:'+COLORS[v]+';border:1px solid rgba(0,0,0,.06)"></span>'+v+' '+LABELS[v]+'</span>';
            }).join('')
         +  '<span style="margin-left:auto;font-size:11.5px;color:#adb5bd">hover a square for the note · click today\'s square to rate</span>'
@@ -257,21 +266,21 @@
           var isToday = i3 === DAYS-1;
           h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" '
             +  (isToday ? 'onclick="StaffRatings.togglePop(\''+emp.id+'\')" ' : '')
-            +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px '+PC[4]:'none')+';cursor:'+(isToday?'pointer':'default')+'"></span>';
+            +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px #1a1a2e':'none')+';cursor:'+(isToday?'pointer':'default')+'"></span>';
         });
         if(st.open === emp.id){
           h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
             +  chipsHtml(emp, false) + '</div>';
         }
         h += '</div>'
-          +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=3.15?PC[4]:(emp.avg<=2.85?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
+          +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=2.95?PC[2]:(emp.avg<=2.75?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>';
       });
       h += '</div>'
         +  '<div style="padding:14px 30px;border-top:1px solid #e9ecef;display:flex;align-items:center">'
         +  '<span style="font-size:12px;color:#868e96">Today\'s column is outlined.</span>'
-        +  '<span style="margin-left:auto;font-size:12px;font-weight:600;color:'+PC[4]+'">'+changed+' ratings changed today</span>'
+        +  '<span style="margin-left:auto;font-size:12px;font-weight:600;color:'+PC[2]+'">'+changed+' ratings changed today</span>'
         +  '</div></div>';
     } else {
       h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(242px,1fr));gap:14px">';
@@ -280,7 +289,7 @@
           +  '<div style="display:flex;align-items:center;gap:9px">'
           +  '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.25);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>'
           +  '<span style="font-size:13.5px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
-          +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[4]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
+          +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[2]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>'
           +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
@@ -290,7 +299,7 @@
         });
         h += '</div>'
           +  '<div style="display:flex;align-items:baseline;gap:8px;border-top:1px solid #f1f3f5;padding-top:10px">'
-          +  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;line-height:1;color:'+(emp.avg>=3.15?PC[4]:(emp.avg<=2.85?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</span>'
+          +  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;line-height:1;color:'+(emp.avg>=2.95?PC[2]:(emp.avg<=2.75?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</span>'
           +  '<span style="font-size:10.5px;font-weight:600;color:#adb5bd;text-transform:uppercase;letter-spacing:.4px">avg</span>'
           +  '<span style="margin-left:auto;font-size:11px;color:#868e96">'+escHtml(emp.streak)+'</span>'
           +  '</div></div>';
@@ -328,7 +337,7 @@
   function setView(v){ st.view = v; st.open = null; persist(); paint(); }
   function setPal(p){ if(PALETTES[p]){ st.pal = p; persist(); paint(); } }
   function setWeeks(n){
-    st.weeksN = (n === 'all') ? 'all' : parseInt(n,10);
+    st.weeksN = (n === 'all' || n === 'ytd') ? n : parseInt(n,10);
     st.open = null; persist();
     ensureWindow().then(paint); paint();
   }
