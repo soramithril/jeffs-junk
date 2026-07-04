@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '366';
+var APP_VERSION = '367';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -13478,7 +13478,7 @@ function initReportSection() {
 // 7-day ordered cheapest to priciest. Clicking any price builds the quote
 // (breakdown + read-aloud script) in the sticky right rail. No fuel surcharge —
 // we stopped charging it July 2026.
-var _pvSel = {area:null, size:'14 yard'};
+var _pvSel = {area:null, town:null, size:'14 yard'};
 var PV_MAIN_SIZES  = ['14 yard','20 yard'];   // household garbage bins — the main event
 var PV_OTHER_SIZES = ['4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'];
 // Sheet columns, in phone-quoting order. Monthly prices stay out of the sheet
@@ -13491,7 +13491,6 @@ var PV_TABLE_HEADS = {
 };
 
 function _pvEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function _pvShortName(n){ return String(n||'').split('/')[0].split('&')[0].trim(); }
 function _pvSizeLabel(sz){ return sz.replace(' yard','yd').replace('monthly ','Mo '); }
 function _pvSpoken(sz){
   // '14 yard' → '14-yard' · '4 yard dirt' → '4-yard dirt' · 'monthly 14 yard' → '14-yard monthly'
@@ -13516,6 +13515,25 @@ function pvAllAreas(){
       bins:ap.bins||{}, junk:ap.junk||{}, comps:areaComps };
   });
 }
+// The sheet shows ONE ROW PER CITY. Each zone (our_prices area) lists its towns;
+// every town becomes its own row sharing that zone's prices/competitors. A zone
+// with no towns falls back to a single row named after the zone. Prices are still
+// set once per zone in Edit Our Prices — the split is display only.
+function _pvTownList(a){
+  var t = String(a.towns||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  return t.length ? t : [a.name];
+}
+function pvAllRows(){
+  var rows = [];
+  pvAllAreas().forEach(function(a){
+    var is3 = _pvIs3Day(a);
+    _pvTownList(a).forEach(function(town){
+      rows.push({ area:a.id, town:town, zone:a.name, is3day:is3,
+        tonne:a.tonne, bins:a.bins, comps:a.comps });
+    });
+  });
+  return rows;
+}
 function pvShowToast(msg){
   var t=document.getElementById('pv-toast'); if(!t){ t=document.createElement('div'); t.id='pv-toast'; t.className='pv-toast'; document.body.appendChild(t); }
   t.textContent=msg; t.classList.add('show');
@@ -13526,8 +13544,8 @@ function pvCopyPrice(p){
   pvShowToast('Copied $'+p);
 }
 
-function pvPick(areaId, sz){
-  _pvSel = {area:areaId, size:sz};
+function pvPick(areaId, town, sz){
+  _pvSel = {area:areaId, town:town, size:sz};
   renderPricingAreas();
   renderPricingRail();
 }
@@ -13550,51 +13568,56 @@ function _pvCompAllIn(c, key){
   return v*1.13;
 }
 
-// Make sure the selection points at a real area + a size that area actually sells.
-// If the area has no priced sizes at all, _pvSel.size is set to null so the rail
-// shows an empty state instead of quoting $0.
-function _pvEnsureSelection(areas){
-  if(!areas.length) return null;
+// Make sure the selection points at a real city row + a size that row actually
+// sells. If the row has no priced sizes at all, _pvSel.size is set to null so the
+// rail shows an empty state instead of quoting $0.
+function _pvEnsureSelection(rows){
+  if(!rows.length) return null;
   // Only sizes the sheet actually renders — never fall back to a monthly size
   // (those aren't cells), or the row highlights with no clickable selected cell.
-  function hasPrices(x){ return PV_TABLE_SIZES.some(function(s){return parseFloat(x.bins[s])>0;}); }
-  var a = areas.find(function(x){return x.id===_pvSel.area;});
-  if(!a){
-    a = areas.find(function(x){return /^barrie/i.test(x.name) && parseFloat(x.bins['14 yard'])>0;})
-      || areas.find(hasPrices)
-      || areas[0];
-    _pvSel.area = a.id;
+  function hasPrices(r){ return PV_TABLE_SIZES.some(function(s){return parseFloat(r.bins[s])>0;}); }
+  var r = rows.find(function(x){return x.area===_pvSel.area && x.town===_pvSel.town;});
+  if(!r){
+    r = rows.find(function(x){return /^barrie/i.test(x.town) && !x.is3day && parseFloat(x.bins['14 yard'])>0;})
+      || rows.find(hasPrices)
+      || rows[0];
+    _pvSel.area = r.area; _pvSel.town = r.town;
   }
-  if(!(parseFloat(a.bins[_pvSel.size])>0)){
-    _pvSel.size = PV_TABLE_SIZES.filter(function(s){return parseFloat(a.bins[s])>0;})[0] || null;
+  if(!(parseFloat(r.bins[_pvSel.size])>0)){
+    _pvSel.size = PV_TABLE_SIZES.filter(function(s){return parseFloat(r.bins[s])>0;})[0] || null;
   }
-  return a;
+  return r;
 }
 
 // A "3-day" row is any area whose name says so (e.g. "Barrie 3-Day"); everything
 // else is the standard 7-day rental. Rows sort cheapest-first by 14-yard price.
 function _pvIs3Day(a){ return /3[\s-]?day/i.test(a.name); }
-function _pv14(a){ var p = parseFloat(a.bins['14 yard']); return p>0 ? p : Infinity; }
 
-function _pvCell(a, sz, aq){
-  var base = parseFloat(a.bins[sz]);
+function _pvCell(r, sz, aq, tq){
+  var base = parseFloat(r.bins[sz]);
   if(!(base>0)) return '<td class="pv-cell pv-empty">—</td>';
-  var allIn = pvCalcAllIn(base, sz, a.tonne);
-  var sel = (a.id===_pvSel.area && sz===_pvSel.size);
-  return '<td class="pv-cell'+(sel?' pv-selected':'')+'" onclick="pvPick(\''+aq+'\',\''+sz+'\')">'
+  var allIn = pvCalcAllIn(base, sz, r.tonne);
+  var sel = (r.area===_pvSel.area && r.town===_pvSel.town && sz===_pvSel.size);
+  return '<td class="pv-cell'+(sel?' pv-selected':'')+'" onclick="pvPick(\''+aq+'\',\''+tq+'\',\''+sz+'\')">'
     + '<div class="pv-c-allin">'+pvFmtR(allIn)+'</div>'
     + '<div class="pv-c-base">$'+base+' before tax</div>'
     + '</td>';
 }
 
+// JS-escape for the string literal, then HTML-escape for the double-quoted
+// onclick attribute — town/zone names are free text, so a quote in a name would
+// otherwise break the onclick and kill every price click in that row.
+function _pvArg(s){ return _pvEsc(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
+
 function renderPricingAreas(){
   var host = document.getElementById('pv-areas'); if(!host) return;
-  var areas = pvAllAreas();
-  if(!areas.length){ host.innerHTML='<div class="chart-card" style="text-align:center;padding:40px;color:var(--muted)">No pricing areas yet — click "Edit Our Prices" to add one.</div>'; return; }
-  _pvEnsureSelection(areas);
-  function by14(x,y){ return _pv14(x)-_pv14(y) || String(x.name).localeCompare(String(y.name)); }
-  var threeDay = areas.filter(_pvIs3Day).sort(by14);
-  var sevenDay = areas.filter(function(a){ return !_pvIs3Day(a); }).sort(by14);
+  var rows = pvAllRows();
+  if(!rows.length){ host.innerHTML='<div class="chart-card" style="text-align:center;padding:40px;color:var(--muted)">No pricing areas yet — click "Edit Our Prices" to add one.</div>'; return; }
+  _pvEnsureSelection(rows);
+  function p14(r){ var p=parseFloat(r.bins['14 yard']); return p>0?p:Infinity; }
+  function byPrice(x,y){ return p14(x)-p14(y) || String(x.town).localeCompare(String(y.town)); }
+  var threeDay = rows.filter(function(r){ return r.is3day; }).sort(byPrice);
+  var sevenDay = rows.filter(function(r){ return !r.is3day; }).sort(byPrice);
 
   var html = '<div class="pv-table-wrap"><table class="pv-table"><thead><tr>'
     + '<th class="pv-loc">Location</th>'
@@ -13607,16 +13630,15 @@ function renderPricingAreas(){
   function sectionRows(list, label){
     if(!list.length) return '';
     var h = '<tr class="pv-sec"><td colspan="'+(PV_TABLE_SIZES.length+1)+'"><span>'+label+'</span></td></tr>';
-    list.forEach(function(a){
-      // JS-escape for the string literal, then HTML-escape for the double-quoted
-      // attribute — area names are free text, so a " in the name would otherwise
-      // break the onclick and kill every price click in that row.
-      var aq = _pvEsc(String(a.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
-      h += '<tr class="pv-row'+(a.id===_pvSel.area?' pv-active':'')+'">'
-        + '<td class="pv-loc"><div class="pv-loc-name">'+_pvEsc(a.name)+'</div>'
-        + (a.towns?'<div class="pv-loc-towns" title="'+_pvEsc(a.towns)+'">'+_pvEsc(a.towns)+'</div>':'')
+    list.forEach(function(r){
+      var aq = _pvArg(r.area), tq = _pvArg(r.town);
+      var active = (r.area===_pvSel.area && r.town===_pvSel.town);
+      var showZone = r.zone && r.zone!==r.town;   // grouped-zone context, e.g. "Barrie & Area"
+      h += '<tr class="pv-row'+(active?' pv-active':'')+'">'
+        + '<td class="pv-loc"><div class="pv-loc-name">'+_pvEsc(r.town)+'</div>'
+        + (showZone?'<div class="pv-loc-towns" title="'+_pvEsc(r.zone)+'">'+_pvEsc(r.zone)+'</div>':'')
         + '</td>';
-      PV_TABLE_SIZES.forEach(function(sz){ h += _pvCell(a, sz, aq); });
+      PV_TABLE_SIZES.forEach(function(sz){ h += _pvCell(r, sz, aq, tq); });
       h += '</tr>';
     });
     return h;
@@ -13625,13 +13647,13 @@ function renderPricingAreas(){
   html += sectionRows(sevenDay, '7-Day Rentals');
   html += '</tbody></table></div>';
 
-  // Sheet-wide note. Only claim the dump fee is baked in if EVERY area that has a
+  // Sheet-wide note. Only claim the dump fee is baked in if EVERY row that has a
   // 14/20 yd price actually has a tonne rate — pvCalcAllIn only adds the fee when
-  // tonne>0, so a tonne-less area's price would otherwise be mislabelled.
-  var priced = areas.filter(function(a){ return parseFloat(a.bins['14 yard'])>0 || parseFloat(a.bins['20 yard'])>0; });
-  var allTonned = priced.length && priced.every(function(a){ return a.tonne>0; });
+  // tonne>0, so a tonne-less zone's price would otherwise be mislabelled.
+  var priced = rows.filter(function(r){ return parseFloat(r.bins['14 yard'])>0 || parseFloat(r.bins['20 yard'])>0; });
+  var allTonned = priced.length && priced.every(function(r){ return r.tonne>0; });
   var tonnes = {};
-  priced.forEach(function(a){ if(a.tonne>0) tonnes[a.tonne] = 1; });
+  priced.forEach(function(r){ if(r.tonne>0) tonnes[r.tonne] = 1; });
   var tk = Object.keys(tonnes);
   var note = 'Prices are all-in: HST included';
   if(allTonned){
@@ -13646,31 +13668,31 @@ function renderPricingAreas(){
 
 function renderPricingRail(){
   var host = document.getElementById('pv-rail-host'); if(!host) return;
-  var areas = pvAllAreas();
-  if(!areas.length){ host.innerHTML=''; return; }
-  var a = _pvEnsureSelection(areas);
+  var rows = pvAllRows();
+  if(!rows.length){ host.innerHTML=''; return; }
+  var r = _pvEnsureSelection(rows);
   var sz = _pvSel.size;
-  var base = sz ? (parseFloat(a.bins[sz])||0) : 0;
+  var base = sz ? (parseFloat(r.bins[sz])||0) : 0;
   if(!(base>0)){
     host.innerHTML = '<div class="pv-rail"><div class="pv-rail-h">Quote Builder</div>'
-      +'<div style="font-size:13px;color:var(--muted);line-height:1.5">No bin prices set for '+_pvEsc(a.name)
-      +' yet — open <b>Edit Our Prices</b> to add them, or click a price in another area.</div></div>';
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.5">No bin prices set for '+_pvEsc(r.town)
+      +' yet — open <b>Edit Our Prices</b> to add them, or click a price in another city.</div></div>';
     return;
   }
-  var hasDump = (sz==='14 yard'||sz==='20 yard') && a.tonne>0;
-  var dump = hasDump?a.tonne:0;
+  var hasDump = (sz==='14 yard'||sz==='20 yard') && r.tonne>0;
+  var dump = hasDump?r.tonne:0;
   var hst = (base+dump)*0.13;
   var total = base+dump+hst;
-  var firstTown = ((a.towns||a.name).split(',')[0]||'').trim();
+  var town = r.town;
   var spoken = _pvSpoken(sz);
   var script = hasDump
-    ? '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(firstTown)
-      +'. That includes the bin rental, dump fee up to one tonne, and tax. Anything over one tonne is prorated at $'+a.tonne+' per tonne."'
-    : '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(firstTown)
+    ? '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(town)
+      +'. That includes the bin rental, dump fee up to one tonne, and tax. Anything over one tonne is prorated at $'+r.tonne+' per tonne."'
+    : '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(town)
       +'. That includes the bin rental and tax."';
   var html = '<div class="pv-rail">';
   html += '<div class="pv-rail-h">Quote Builder</div>';
-  html += '<div class="pv-rail-bin">'+_pvSizeLabel(sz)+' bin · '+_pvEsc(_pvShortName(a.name))+'</div>';
+  html += '<div class="pv-rail-bin">'+_pvSizeLabel(sz)+' bin · '+_pvEsc(r.town)+'</div>';
   html += '<div class="pv-rail-line"><span class="lbl">Bin price</span><span class="val">$'+base.toFixed(2)+'</span></div>';
   if(hasDump) html += '<div class="pv-rail-line"><span class="lbl">+ Dump fee (1 tonne included)</span><span class="val">$'+dump.toFixed(2)+'</span></div>';
   html += '<div class="pv-rail-line"><span class="lbl">+ HST (13%)</span><span class="val">$'+hst.toFixed(2)+'</span></div>';
@@ -13678,7 +13700,7 @@ function renderPricingRail(){
   // Competitor prices for this size — the context for our own pricing decisions
   var compKey = _pvCompKey(sz), chips = '';
   if(compKey){
-    a.comps.forEach(function(c){
+    r.comps.forEach(function(c){
       var v = parseFloat(c.bins&&c.bins[compKey]); if(!v) return;
       var cls = v>base?'pv-comp-expensive':v<base?'pv-comp-cheap':'pv-comp-mid';
       var allInC = _pvCompAllIn(c, compKey);
@@ -13696,7 +13718,7 @@ function renderPricingRail(){
        + '<button class="btn btn-primary" onclick="pvCopyPrice('+total.toFixed(2)+')">📋 Copy price</button>'
        + '</div>';
   html += '<div class="pv-script"><span class="lbl">Read to customer</span>'+script+'</div>';
-  if(hasDump) html += '<div class="pv-rail-note">Overage is prorated: $'+a.tonne+'/tonne for weight over the first tonne.</div>';
+  if(hasDump) html += '<div class="pv-rail-note">Overage is prorated: $'+r.tonne+'/tonne for weight over the first tonne.</div>';
   html += '</div>';
   host.innerHTML = html;
 }

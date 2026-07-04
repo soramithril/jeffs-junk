@@ -1374,9 +1374,13 @@ input[type=date],input[type=time]{position:relative;}
 @media(max-width:1024px){.pv-layout{grid-template-columns:1fr}}
 
 /* Left: spreadsheet-style price sheet — locations down, bin types across.
-   Sticky header row + sticky location column; opaque backgrounds everywhere
-   so sticky cells cover the content scrolling underneath them. */
-.pv-table-wrap{overflow:auto;max-height:calc(100vh - 205px);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
+   Full page: the sheet flows down the whole page (no inner scroll box); the
+   header row and location column stick to the page scroll. Opaque backgrounds
+   everywhere so sticky cells cover content scrolling underneath. Below the
+   layout breakpoint the sheet gets its own horizontal scroll so the page body
+   never scrolls sideways. */
+.pv-table-wrap{overflow:visible;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
+@media(max-width:1024px){.pv-table-wrap{overflow-x:auto}}
 .pv-table{border-collapse:separate;border-spacing:0;width:100%;min-width:720px}
 .pv-table th,.pv-table td{border-bottom:1px solid var(--border)}
 .pv-table thead th{position:sticky;top:0;z-index:3;background:var(--surface2);padding:10px 12px;text-align:center;white-space:nowrap}
