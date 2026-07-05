@@ -165,6 +165,22 @@
   .cell.sick{background:#f6e6cf; color:var(--gold-ink); font:700 22px/1 'Baloo 2'}
   .cell.jx{background:#e7eef3; color:#4f7688; font:600 16px/1.15 'Hanken Grotesk'; padding:0 8px}
 
+  /* ── entrance animations: each screen "comes alive" as it rotates in ──
+     (Operations/kpis intentionally NOT animated — it's getting its own overhaul).
+     Items are rebuilt every rotation (renderCurrent) so this replays each time;
+     `--i` (set per item in the renderers) staggers them. GPU-cheap for the TV. */
+  @keyframes tvIn{ from{opacity:0; transform:translateY(16px)} to{opacity:1; transform:none} }
+  .panel[data-panel="bins"] .bb-group,
+  .panel[data-panel="schedule"] .day,
+  .panel[data-panel="schedule"] .rname,
+  .panel[data-panel="schedule"] .cell,
+  .panel[data-panel="rates"] .rt-row{ animation:tvIn .55s both; animation-delay:calc(var(--i,0) * 55ms) }
+  .panel[data-panel="bins"] .bb-row{ animation:tvIn .5s both; animation-delay:calc(var(--i,0) * 45ms + 120ms) }
+  /* crew grid is a fixed 7-column grid (name + Mon–Sat) — stagger columns L→R */
+  #schedWrap > :nth-child(7n+2){--i:1} #schedWrap > :nth-child(7n+3){--i:2}
+  #schedWrap > :nth-child(7n+4){--i:3} #schedWrap > :nth-child(7n+5){--i:4}
+  #schedWrap > :nth-child(7n+6){--i:5} #schedWrap > :nth-child(7n+7){--i:6}
+
   /* ── Screen 3 · Operations ── */
   #kpiGrid{height:100%; display:grid; grid-template-columns:1.25fr 1fr 1fr 1fr; grid-template-rows:1fr 1fr; gap:22px}
   .ops-hero{grid-column:1; grid-row:1 / 3; background:var(--spruce); border-radius:28px; padding:44px 46px;
@@ -588,7 +604,7 @@
         wrap.innerHTML = '<div class="bins-empty">No bin drop-offs or pick-ups today</div>';
         return;
       }
-      wrap.innerHTML = board.map(function(g){
+      wrap.innerHTML = board.map(function(g, gi){
         var color = g.crewId ? (DATA.crewColor[g.crewId]||'#3a9d5a') : '#d9532b';
         var last = g.legs.length-1;
         var rows = g.legs.map(function(l,idx){
@@ -599,14 +615,14 @@
           if(l.done){ stateCls='s-done'; stateTxt='✓ Done'; }
           else if(!g.crewId){ stateCls='s-assign'; stateTxt='Assign!'; }
           else { stateCls='s-todo'; stateTxt='To do'; }
-          return '<div class="bb-row'+(l.done?' done':'')+(idx===last?' last':'')+'">'
+          return '<div class="bb-row'+(l.done?' done':'')+(idx===last?' last':'')+'" style="--i:'+idx+'">'
             + '<span class="bb-size'+(g.crewId?'':' warn')+'">'+esc(sizeTxt)+'</span>'
             + '<span class="bb-dest"><span class="bb-city">'+esc(j.city||'')+'</span><span class="bb-who">'+esc(sub)+'</span></span>'
             + '<span class="bb-kind '+(l.kind==='drop'?'k-drop':'k-pick')+'">'+(l.kind==='drop'?'Drop':'Pick')+'</span>'
             + '<span class="bb-state '+stateCls+'">'+stateTxt+'</span>'
             + '</div>';
         }).join('');
-        return '<div class="bb-group'+(g.crewId?'':' warn')+'">'
+        return '<div class="bb-group'+(g.crewId?'':' warn')+'" style="--i:'+gi+'">'
           + '<div class="bb-strip" style="background:'+color+'">'
           + '<span class="bb-name">'+(g.crewId?esc(g.name):'⚠ Needs a driver')+'</span>'
           + '<span class="bb-count" style="color:'+color+'">'+g.done+' / '+g.legs.length+(g.crewId?' done':'')+'</span></div>'
@@ -726,7 +742,7 @@
           return '<div class="rt-cell">'+((v==null||v==='') ? '<span class="rt-dash">—</span>' : '$'+v)+'</div>';
         }).join('');
         var tonne = (b._tonne==null||b._tonne==='') ? '—' : '$'+b._tonne;
-        return '<div class="rt-row'+(i%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+'">'
+        return '<div class="rt-row'+(i%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+';--i:'+(i+1)+'">'
           + '<div class="rt-area"><span class="rt-name">'+esc(a.area||'')+'</span>'
             + (a.towns ? '<span class="rt-towns">'+esc(a.towns)+'</span>' : '') + '</div>'
           + cells + '<div class="rt-cell rt-tonne">'+tonne+'</div></div>';
