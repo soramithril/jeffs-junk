@@ -20,9 +20,13 @@
   *{box-sizing:border-box}
   html,body{
     margin:0; height:100%; width:100%; overflow:hidden;
-    background:var(--cream);
-    background-image:radial-gradient(rgba(23,64,42,.09) 2px, transparent 2.4px);
-    background-size:30px 30px;
+    background-color:var(--cream);
+    background-image:
+      radial-gradient(1150px 700px at 88% -8%, rgba(232,179,74,.22), transparent 60%),
+      linear-gradient(0deg, rgba(232,179,74,.06), rgba(232,179,74,.06)),
+      radial-gradient(rgba(23,64,42,.09) 2px, transparent 2.4px);
+    background-size:100% 100%, 100% 100%, 30px 30px;
+    background-repeat:no-repeat, no-repeat, repeat;
     color:var(--ink);
     font-family:'Baloo 2', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing:antialiased; user-select:none; cursor:none;
@@ -62,11 +66,23 @@
   #viewport{position:fixed; inset:0; display:none; align-items:center; justify-content:center; overflow:hidden; z-index:1}
   #board{
     position:relative; flex:0 0 auto; width:1920px; height:1080px; overflow:hidden;
-    background:var(--cream);
-    background-image:radial-gradient(rgba(23,64,42,.09) 2px, transparent 2.4px); background-size:30px 30px;
+    background-color:var(--cream);
+    background-image:
+      radial-gradient(1150px 700px at 88% -8%, rgba(232,179,74,.22), transparent 60%),
+      linear-gradient(0deg, rgba(232,179,74,.06), rgba(232,179,74,.06)),
+      radial-gradient(rgba(23,64,42,.09) 2px, transparent 2.4px);
+    background-size:100% 100%, 100% 100%, 30px 30px;
+    background-repeat:no-repeat, no-repeat, repeat;
     display:flex; flex-direction:column; padding:44px 50px; gap:24px;
     transform:scale(var(--s,1)); transform-origin:center center;
   }
+  /* ambient brand truck — rolls in the header's open space, just left of the
+     weather/clock, so it's clearly visible top-right and never covers content. */
+  #tvtruck{position:absolute; top:56px; right:430px; width:168px; z-index:3; opacity:.96;
+    pointer-events:none; animation:truckRoll 5s ease-in-out infinite;
+    filter:drop-shadow(0 6px 9px rgba(11,38,24,.32))}
+  #topbar{position:relative; z-index:2}
+  #stage{z-index:1}
 
   /* ── shared header chrome ── */
   #topbar{display:flex; align-items:center; justify-content:space-between; gap:16px;
@@ -137,10 +153,12 @@
   .rname .pdot{width:15px; height:15px; border-radius:50%; flex:0 0 auto}
   .rname .pn{font:700 29px/1 'Baloo 2'; color:var(--soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .cell{display:flex; align-items:center; justify-content:center; border-radius:14px; overflow:hidden; text-align:center}
-  .cell.work{flex-direction:column; gap:3px; background:var(--card); box-shadow:0 5px 0 rgba(23,64,42,.1)}
-  .cell.work .wl{font:700 25px/1.05 'Baloo 2'; color:var(--spruce); padding:0 8px; max-width:100%;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .cell.work{flex-direction:column; gap:2px; background:var(--card); box-shadow:0 5px 0 rgba(23,64,42,.1); padding:0 6px}
+  .cell.work .wt{font:700 24px/1.05 'Baloo 2'; color:var(--spruce)}
+  .cell.work .wl{font:600 15px/1.1 'Hanken Grotesk'; color:var(--muted); max-width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .cell.work.today{background:#fff7e6; box-shadow:inset 0 0 0 2.5px var(--gold)}
+  .cell.work.today .wt{color:var(--spruce)}
   .cell.work.today .wl{color:var(--gold-ink)}
   .cell.off{background:rgba(38,49,31,.05); color:#b3b0a0; font:700 22px/1 'Baloo 2'}
   .cell.off.today{box-shadow:inset 0 0 0 2.5px rgba(232,179,74,.5)}
@@ -148,8 +166,8 @@
   .cell.jx{background:#e7eef3; color:#4f7688; font:600 16px/1.15 'Hanken Grotesk'; padding:0 8px}
 
   /* ── Screen 3 · Operations ── */
-  #kpiGrid{height:100%; display:grid; grid-template-columns:1.15fr 1fr 1fr; grid-template-rows:1fr 1fr; gap:24px}
-  .ops-hero{grid-row:span 2; background:var(--spruce); border-radius:28px; padding:44px 46px;
+  #kpiGrid{height:100%; display:grid; grid-template-columns:1.15fr 1fr 1fr; grid-template-rows:1fr 1fr auto; gap:24px}
+  .ops-hero{grid-column:1; grid-row:1 / 3; background:var(--spruce); border-radius:28px; padding:44px 46px;
     display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 9px 0 rgba(11,38,24,.3);
     position:relative; overflow:hidden}
   .ops-hero .ohl{font:700 27px/1 'Hanken Grotesk'; letter-spacing:.16em; text-transform:uppercase; color:#8fb69c}
@@ -172,6 +190,14 @@
   .ops-tile.gold .otc{color:#7a5a10}
   .ops-tile.gold .otn-wrap{display:flex; align-items:baseline; gap:16px}
   .ops-tile.gold .delta{font:800 44px/1 'Baloo 2'}
+  /* full-width "bins to beat last year" strip along the bottom of Operations */
+  .ops-beat{grid-column:1 / 4; grid-row:3; background:var(--spruce); border-radius:24px;
+    box-shadow:0 8px 0 rgba(11,38,24,.3); display:flex; align-items:center; gap:30px; padding:22px 42px}
+  .ops-beat .obn{font:800 78px/.85 'Baloo 2'; color:var(--soft); font-variant-numeric:tabular-nums}
+  .ops-beat .obmid{display:flex; flex-direction:column; gap:4px}
+  .ops-beat .obl{font:700 22px/1 'Hanken Grotesk'; letter-spacing:.1em; text-transform:uppercase; color:#8fb69c}
+  .ops-beat .obmsg{font:800 40px/1 'Baloo 2'; color:var(--gold)}
+  .ops-beat .obsub{margin-left:auto; font:600 24px/1.3 'Hanken Grotesk'; color:#9fc9ad; text-align:right; white-space:nowrap}
 
   /* ── Screen 4 · Bin Rental Rates ── */
   #ratesWrap{height:100%; display:grid; grid-template-columns:1fr 1fr; gap:22px}
@@ -218,6 +244,8 @@
           <div id="clock"><div class="t" id="clockT">–</div><div class="d" id="clockD">–</div></div>
         </div>
       </div>
+
+      <img id="tvtruck" src="assets/tv-truck.png" alt="" aria-hidden="true">
 
       <div id="stage">
         <!-- Screen 1 · Bin Work Today -->
@@ -432,7 +460,9 @@
         db.from('jwg_inventory_items').select('item_name,current_stock,min_threshold,status,unit,category_id'),
         db.from('jwg_inventory_categories').select('id,name,sort_order,is_active'),
         // KPI helpers
-        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped'),
+        // Bins out now — matches the DASHBOARD's fleet count exactly (Bin Rental,
+        // dropped, NOT cancelled). Without the cancelled exclusion the TV over-counts.
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled'),
         db.from('jobs').select('status').gte('date',monday).lt('date',wkEnd),
         db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',dayStartIso).lt('completed_at',dayEndIso),
         // junk-side work across the schedule week (for the crew-schedule ghosts)
@@ -445,7 +475,13 @@
         // sides, excluding cancelled jobs and quotes.
         db.from('jobs').select('*',{count:'exact',head:true}).gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled').neq('service','Junk Quote'),
         db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled').neq('service','Junk Quote'),
-        // Rates screen — the two everyday bin prices for the Barrie & Area zone
+        // Bin rentals this month-to-date vs the same first-N-days last year — drives
+        // the "bins to beat last year" strip on Operations. Same date-window rules as
+        // the all-jobs month tile, but filtered to Bin Rental.
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
+        // Rates screen — the two everyday bin prices for the Barrie & Area zone.
+        // MUST stay LAST (read as res[res.length-1], non-fatal). Add new queries ABOVE this.
         db.from('our_prices').select('bins').eq('area',RATES_AREA).limit(1)
       ]);
       // Every query except the last (rates) is critical — fail fast so the board
@@ -510,7 +546,9 @@
         lowStock: DATA.inv.filter(function(it){ return (it.current_stock||0) <= (it.min_threshold||0); }).length,
         workingToday: workingTodayCount(),
         bookedMonth: res[12].count||0,
-        bookedLastYear: res[13].count||0
+        bookedLastYear: res[13].count||0,
+        binsMonth: res[14].count||0,
+        binsLastYear: res[15].count||0
       };
     }
 
@@ -603,11 +641,18 @@
             return;
           }
           if(day.status==='sick'){ cells.push('<div class="cell sick'+t+'">Sick</div>'); return; }
-          // working — first shift's first task drives the label (real schedule data)
-          var label='Work';
+          // working — show the shift time range (real start/end) over the task label,
+          // matching the design's two-line cell.
+          var label='Work', tstr='';
           var sh = (day.shifts||[])[0];
-          if(sh && sh.tasks && sh.tasks.length){ var tk = DATA.tasks[sh.tasks[0]]; if(tk && tk.label) label=tk.label; }
-          cells.push('<div class="cell work'+t+'"><span class="wl">'+esc(label)+'</span></div>');
+          if(sh){
+            if(sh.start && sh.end) tstr = fmt12(sh.start)+'–'+fmt12(sh.end);
+            if(sh.tasks && sh.tasks.length){ var tk = DATA.tasks[sh.tasks[0]]; if(tk && tk.label) label=tk.label; }
+          }
+          var inner = tstr
+            ? '<span class="wt">'+esc(tstr)+'</span><span class="wl">'+esc(label)+'</span>'
+            : '<span class="wt">'+esc(label)+'</span>';
+          cells.push('<div class="cell work'+t+'">'+inner+'</div>');
         });
       });
       wrap.innerHTML = cells.join('');
@@ -628,6 +673,14 @@
         cap = 'vs '+k.bookedLastYear+' last '+moName;
       } else { cap = 'no last-'+moName+' data'; }
 
+      // Bins-specific "beat last year" — this month's bin rentals vs the same days last year
+      var bm = k.binsMonth||0, bly = k.binsLastYear||0, bgap = bly - bm;
+      var beatMsg, beatSub;
+      if(bly <= 0){ beatMsg = '—'; beatSub = 'no last-'+moName+' bins to compare'; }
+      else if(bgap > 0){ beatMsg = bgap+' more to beat last '+moName; beatSub = 'last '+moName+': '+bly+' bins'; }
+      else if(bgap === 0){ beatMsg = 'tied — 1 to pull ahead'; beatSub = 'last '+moName+': '+bly+' bins'; }
+      else { beatMsg = 'ahead by '+(-bgap)+' 🎉'; beatSub = 'last '+moName+': '+bly+' bins'; }
+
       function tile(l,n,c,capt){
         return '<div class="ops-tile"><div class="otl">'+l+'</div>'
           + '<div class="otn" style="color:'+c+'">'+n+'</div>'
@@ -647,7 +700,10 @@
         + tile('Crew Today', k.workingToday, '#2f8f8a', 'scheduled')
         + '<div class="ops-tile gold"><div class="otl">Jobs in '+moName+'</div>'
           + '<div class="otn-wrap"><span class="otn">'+k.bookedMonth+'</span>'+deltaHtml+'</div>'
-          + '<div class="otc">'+cap+'</div></div>';
+          + '<div class="otc">'+cap+'</div></div>'
+        + '<div class="ops-beat"><div class="obn">'+bm+'</div>'
+          + '<div class="obmid"><div class="obl">Bin rentals in '+moName+'</div><div class="obmsg">'+beatMsg+'</div></div>'
+          + '<div class="obsub">'+beatSub+'</div></div>';
     }
 
     // Screen 4 · Bin Rental Rates — the two everyday bins, live from our_prices
