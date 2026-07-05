@@ -286,7 +286,7 @@
         <!-- Screen 4 · Bin Rental Rates -->
         <section class="panel" data-panel="rates">
           <div class="p-head"><span class="bar"></span><h2>Bin Rental Rates</h2>
-            <span class="tag">By zone</span><span class="spacer"></span>
+            <span class="tag">By city</span><span class="spacer"></span>
             <span class="status">Per drop · before tax · + $/tonne dump</span></div>
           <div class="p-body"><div id="ratesWrap"></div></div>
         </section>
@@ -728,8 +728,12 @@
     // Everyday sizes only (Jake 2026-07-05: dropped the dirt/concrete split + monthly).
     // 4 & 7yd are stored dirt/concrete-only, so show the dirt (base) rate for them.
     var RATE_COLS = [['4 yard dirt','4yd'],['7 yard dirt','7yd'],['14 yard','14yd'],['20 yard','20yd']];
+    // our_prices is now ~40 per-city rows — too many to glance on a wall, so the board
+    // FEATURES these cities, in this order (Jake can edit the list any time).
+    var TV_RATE_CITIES = ['Barrie','Orillia','Innisfil','Wasaga Beach','Stayner','Alliston','Angus','Collingwood','Midland','Bradford','Huntsville','Bracebridge','Gravenhurst','Muskoka area'];
     function renderRates(){
-      var areas = DATA.rates || [];
+      var byArea = {}; (DATA.rates||[]).forEach(function(a){ if(a && a.area) byArea[a.area]=a; });
+      var areas = TV_RATE_CITIES.map(function(c){ return byArea[c]; }).filter(Boolean);
       var gridCols = 'minmax(0,1.7fr) repeat('+RATE_COLS.length+',1fr) .8fr';
       var head = '<div class="rt-row rt-head" style="grid-template-columns:'+gridCols+'">'
         + '<div class="rt-area">Zone</div>'
@@ -744,7 +748,7 @@
         var tonne = (b._tonne==null||b._tonne==='') ? '—' : '$'+b._tonne;
         return '<div class="rt-row'+(i%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+';--i:'+(i+1)+'">'
           + '<div class="rt-area"><span class="rt-name">'+esc(a.area||'')+'</span>'
-            + (a.towns ? '<span class="rt-towns">'+esc(a.towns)+'</span>' : '') + '</div>'
+            + (a.towns && a.towns!==a.area ? '<span class="rt-towns">'+esc(a.towns)+'</span>' : '') + '</div>'
           + cells + '<div class="rt-cell rt-tonne">'+tonne+'</div></div>';
       }).join('');
       el('ratesWrap').innerHTML = areas.length
