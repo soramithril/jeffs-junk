@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '376';
+var APP_VERSION = '377';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2246,14 +2246,14 @@ function dashCountChip(rgbCsv, color, icon, count, label, onclick){
 function dashCountChipsHTML(c){
   var jump = "document.getElementById('card-today-jobs').scrollIntoView({behavior:'smooth',block:'start'})";
   var chips=[];
-  if(c.dropoffs)     chips.push(dashCountChip('8,145,178','#0891b2',iconTile('binDrop',{size:16}),c.dropoffs,'drop'+(c.dropoffs!==1?'s':'')));
-  if(c.pickups)      chips.push(dashCountChip('236,72,153','#ec4899',iconTile('binPickup',{size:16}),c.pickups,'pickup'+(c.pickups!==1?'s':'')));
-  if(c.junkRemovals) chips.push(dashCountChip('234,179,8','#a16207',iconTile('junk',{size:16,color:'yellow'}),c.junkRemovals,'junk'));
-  if(c.junkQuotes)   chips.push(dashCountChip('13,110,253','#0d6efd',iconTile('junkQuote',{size:16}),c.junkQuotes,'quote'+(c.junkQuotes!==1?'s':'')));
-  if(c.landscaping)  chips.push(dashCountChip('101,163,13','#65a30d',iconTile('landscaping',{size:16}),c.landscaping,'landscaping'));
-  if(c.furniture)    chips.push(dashCountChip('139,92,246','#8b5cf6',iconTile('furniture',{size:16}),c.furniture,'furniture'));
-  if(c.calls)        chips.push(dashCountChip('230,126,34','#e67e22',iconTile('call',{size:16}),c.calls,'to call',jump));
-  if(c.emails)       chips.push(dashCountChip('20,184,166','#0d9488',iconTile('email',{size:16}),c.emails,'to email',jump));
+  if(c.dropoffs)     chips.push(dashCountChip('8,145,178','#0891b2',iconTile('binDrop',{size:22}),c.dropoffs,'drop'+(c.dropoffs!==1?'s':'')));
+  if(c.pickups)      chips.push(dashCountChip('236,72,153','#ec4899',iconTile('binPickup',{size:22}),c.pickups,'pickup'+(c.pickups!==1?'s':'')));
+  if(c.junkRemovals) chips.push(dashCountChip('234,179,8','#a16207',iconTile('junk',{size:22,color:'yellow'}),c.junkRemovals,'junk'));
+  if(c.junkQuotes)   chips.push(dashCountChip('13,110,253','#0d6efd',iconTile('junkQuote',{size:22}),c.junkQuotes,'quote'+(c.junkQuotes!==1?'s':'')));
+  if(c.landscaping)  chips.push(dashCountChip('101,163,13','#65a30d',iconTile('landscaping',{size:22}),c.landscaping,'landscaping'));
+  if(c.furniture)    chips.push(dashCountChip('139,92,246','#8b5cf6',iconTile('furniture',{size:22}),c.furniture,'furniture'));
+  if(c.calls)        chips.push(dashCountChip('230,126,34','#e67e22',iconTile('call',{size:22}),c.calls,'to call',jump));
+  if(c.emails)       chips.push(dashCountChip('20,184,166','#0d9488',iconTile('email',{size:22}),c.emails,'to email',jump));
   return chips.length
     ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+chips.join('')+'</div>'
     : '<span style="color:var(--muted)">Nothing booked</span>';
@@ -2978,12 +2978,12 @@ async function refreshDashJobs(){
       }).join('')+'</div>';
   }
 
-  var html = makeCat('Bin Deliveries','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:20}))
-    +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:20}))
-    +makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:20,color:'yellow'}))
-    +makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:20}))
-    +makeCat('Landscaping','#65a30d',landscaping,false,iconTile('landscaping',{size:20}))
-    +makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:20}));
+  var html = makeCat('Bin Deliveries','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}))
+    +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}))
+    +makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
+    +makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24}))
+    +makeCat('Landscaping','#65a30d',landscaping,false,iconTile('landscaping',{size:24}))
+    +makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}));
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -3461,12 +3461,12 @@ async function renderDash(){
         +'</div>';
       }).join('')+'</div>';
   }
-  var todayHtml = makeTodayCat('Bin Deliveries','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:20}))
-    +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:20}))
-    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:20,color:'yellow'}))
-    +makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:20}))
-    +makeTodayCat('Landscaping','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:20}))
-    +makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:20}));
+  var todayHtml = makeTodayCat('Bin Deliveries','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}))
+    +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}))
+    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
+    +makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24}))
+    +makeTodayCat('Landscaping','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24}))
+    +makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24}));
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
@@ -4105,7 +4105,7 @@ function makeJobRowNoSvc(j){
     +confirmedHtml(j.id,j.confirmed,j.service,j.status,j.binInstatus)
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
-    +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
+    +(isCancelled?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">'+iconTile('cancelled',{size:13})+'Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 // Landscaping list row — its own renderer so Bin/Junk/Quote tables stay untouched.
@@ -4122,7 +4122,7 @@ function makeLandscapingRow(j){
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#16a34a;border-color:rgba(34,197,94,.4)" title="Mark completed">✅</button>'
-    +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
+    +(isCancelled?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">'+iconTile('cancelled',{size:13})+'Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
@@ -4138,7 +4138,7 @@ function makeJobRowWithSvc(j){
     +confirmedHtml(j.id,j.confirmed,j.service,j.status,j.binInstatus)
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
-    +(isCancelled?'<span style="font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">🚫 Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
+    +(isCancelled?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">'+iconTile('cancelled',{size:13})+'Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
@@ -5023,8 +5023,8 @@ async function openCalDayPreview(ds){
         var priceBadge='';
         var cfmBadge=(ev.type==='pickup'||ev.type==='dropoff'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')
           ?(j.confirmed
-            ?'<span style="font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.08);border-radius:4px;padding:1px 6px;margin-left:4px">✅ Confirmed</span>'
-            :'<span style="font-size:10px;color:#e67e22;font-weight:600;background:rgba(230,126,34,.08);border-radius:4px;padding:1px 6px;margin-left:4px">📞 Unconfirmed</span>')
+            ?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.08);border-radius:4px;padding:1px 6px;margin-left:4px">'+iconTile('confirmed',{size:13})+'Confirmed</span>'
+            :'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#e67e22;font-weight:600;background:rgba(230,126,34,.08);border-radius:4px;padding:1px 6px;margin-left:4px">'+iconTile('call',{size:13})+'Unconfirmed</span>')
           :'';
         var extraInfo='';
         if(ev.type==='dropoff') extraInfo='<span style="font-size:11px;color:var(--muted);margin-left:6px">Drop-off'+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</span>';
@@ -5662,7 +5662,7 @@ function makeClientCard(row){
   if(junk) chips+=chip(iconTile('junk',{size:15,color:'yellow'}),junk,'Junk','#c2410c','rgba(230,126,34,.12)');
   if(furn) chips+=chip(iconTile('furniture',{size:15}),furn,'Furniture','#7c3aed','rgba(139,92,246,.1)');
   var tag='';
-  if(row.blacklisted) tag='<span style="font-size:11px;font-weight:700;color:#b4232f;background:rgba(220,53,69,.08);border:1px solid #f1c0c0;padding:2px 8px;border-radius:6px">🚫 Blacklisted</span>';
+  if(row.blacklisted) tag='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#b4232f;background:rgba(220,53,69,.08);border:1px solid #f1c0c0;padding:2px 8px;border-radius:6px">'+iconTile('cancelled',{size:14})+'Blacklisted</span>';
   else if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:#c2410c;background:rgba(230,126,34,.1);border:1px solid #f0d2b0;padding:2px 8px;border-radius:6px">😴 Dormant</span>';
   var contractorBadge = row.contractor?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:#fff;background:#2563eb;padding:2px 8px;border-radius:6px;letter-spacing:.3px">🏗️ CONTRACTOR</span>':'';
   var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px;cursor:pointer;'+(row.contractor?'border-left:4px solid #2563eb;':(row.blacklisted?'opacity:.92;':''));
@@ -9084,7 +9084,7 @@ async function openDetail(id, returnCid){
   var bin='';
   if(j.service==='Bin Rental'){
     var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' side')):'';
-    var bsStatus=j.binInstatus==='dropped'?'<span style="color:#22c55e;font-weight:700">✅ Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="color:#22c55e;font-weight:700">✅ Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
+    var bsStatus=j.binInstatus==='dropped'?'<span style="display:inline-flex;align-items:center;gap:5px;color:#22c55e;font-weight:700">'+iconTile('confirmed',{size:15})+'Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="display:inline-flex;align-items:center;gap:5px;color:#22c55e;font-weight:700">'+iconTile('confirmed',{size:15})+'Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
     bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid">'
