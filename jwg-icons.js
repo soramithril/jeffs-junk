@@ -25,6 +25,8 @@
     junk:        '<path d="M2.5 8.5h19"/><path d="M4.6 8.5 6 18.5h12l1.4-10"/><path d="M8 8.5 8.6 18.5M12 8.5 12 18.5M16 8.5 15.4 18.5"/>',
     furniture:   '<path d="M4 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M2.5 15a2 2 0 0 1 4 0v1h11v-1a2 2 0 0 1 4 0v4.2H2.5z"/><path d="M5.2 20.2v1.6M18.8 20.2v1.6"/>',
     landscaping: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
+    /* Garbage run = a tied garbage bag (distinct from the "del" trash can) */
+    garbage:     '<path d="M6.6 8.6h10.8l-1.15 10.8a2.2 2.2 0 0 1-2.19 2H9.94a2.2 2.2 0 0 1-2.19-2L6.6 8.6z"/><path d="M8.8 8.6c-.4-2.4 1-3.7 3.2-3.7s3.6 1.3 3.2 3.7"/><path d="M9.4 6.2 8.1 4.2M14.6 6.2 15.9 4.2"/><path d="M10.4 12.2v5M13.6 12.2v5"/>',
 
     /* Scheduler statuses */
     off:         '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
@@ -79,7 +81,7 @@
 
   /* Default colour key per icon (used on white surfaces / emboss tiles). */
   var ICON_COLOR = {
-    bins:'green', junk:'blue', furniture:'violet', landscaping:'olive',
+    bins:'green', junk:'blue', furniture:'violet', landscaping:'olive', garbage:'red',
     off:'slate', sick:'orange', shop:'amber',
     binDrop:'cyan', binPickup:'pink', junkQuote:'indigo', call:'amber',
     dashboard:'green', allJobs:'green', schedule:'green', clients:'green', vehicles:'green',
@@ -91,7 +93,7 @@
 
   /* What each icon replaces today + where it's used (for find/replace + docs). */
   var REPLACES = {
-    bins:'🚛 (bin rental)', junk:'🗑️ (junk removal)', furniture:'🛋️', landscaping:'🌿',
+    bins:'🚛 (bin rental)', junk:'🗑️ (junk removal)', furniture:'🛋️', landscaping:'🌿', garbage:'red dot (garbage run)',
     off:'📅 day off', sick:'🤒', shop:'amber dot',
     binDrop:'🚛 drop-off', binPickup:'🚚 pickup', junkQuote:'📋 quote', call:'📞 / ✉️',
     dashboard:'grid (feather)', allJobs:'clipboard (feather)', schedule:'calendar (feather)',
