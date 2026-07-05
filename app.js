@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '375';
+var APP_VERSION = '376';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10049,6 +10049,36 @@ function setFormSvc(value){
   });
   toggleBin();
 }
+// Paint emboss tiles into the static new-job service picker (tile on top, label
+// below). Runs once on load; pickSvc/_setSvcBtnState only toggle styling, so the
+// painted content persists. The button label already equals its data-svc value.
+function paintSvcPickerIcons(){
+  if(!window.JWGIcons) return;
+  document.querySelectorAll('#f-svc-picker .svc-pick-btn[data-svc]').forEach(function(b){
+    if(b.querySelector('.jwg-emboss')) return;               // already painted
+    var svc=b.getAttribute('data-svc'), tile=svcTile(svc,22);
+    if(!tile) return;
+    b.innerHTML=tile+'<span>'+svc+'</span>';
+    b.style.flexDirection='column'; b.style.gap='5px'; b.style.alignItems='center';
+  });
+}
+// Jobs page service filter tabs. Small tile + label; the "All Services" tab has
+// no service so it stays text. atabsSync re-measures geometry, so the sliding
+// highlight stays aligned after widths change.
+function paintSvcTabIcons(){
+  if(!window.JWGIcons) return;
+  document.querySelectorAll('#atabs-svc .atab[data-val]').forEach(function(b){
+    if(b.querySelector('.jwg-emboss')) return;
+    var val=b.getAttribute('data-val'), tile=svcTile(val,14);
+    if(!tile) return;                                        // "all" -> stays text
+    var label=b.textContent.replace(/^[^A-Za-z]+/,'').trim();
+    b.innerHTML=tile+'<span>'+label+'</span>';
+    b.style.display='inline-flex'; b.style.alignItems='center'; b.style.gap='5px';
+  });
+  if(typeof atabsSync==='function'){ try{atabsSync('svc');}catch(e){} }
+}
+function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',paintServiceIcons); else paintServiceIcons();
 
 // Form-level Will Call toggle (used inside the New/Edit Job modal — distinct from
 // the detail-view toggleWillCall(id,e) which patches an existing job by id).
