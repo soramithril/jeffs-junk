@@ -172,6 +172,8 @@
   .bb-group.warn{border-color:rgba(239,68,68,.55); background:rgba(239,68,68,.08)}
   .bb-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:.4vh; border-bottom:1px solid var(--gline); padding-bottom:.4vh}
   .bb-name{font-size:clamp(15px,1.7vw,28px); font-weight:900; letter-spacing:.4px}
+  .tv-av{flex:none; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:.5px; line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .bb-head-l{display:flex; align-items:center; gap:.7vw}
   .bb-group.warn .bb-name{color:#fca5a5}
   .bb-count{font-size:clamp(12px,1.3vw,22px); font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums}
   .bb-row{display:flex; align-items:center; gap:.9vw; padding:.5vh .2vw}
@@ -296,6 +298,20 @@
       var n=parseInt(h,16); if(isNaN(n)) return '#fff';
       var r=(n>>16)&255, g=(n>>8)&255, b=n&255;
       return (0.299*r+0.587*g+0.114*b)/255 > 0.6 ? '#0a0f1a' : '#ffffff';
+    }
+    // Premium person avatar — colour-tinted circle + initials, matching the rest
+    // of the app. Colour is the person's master colour (falls back to slate grey).
+    function tvInitials(name){
+      var p=String(name||'').trim().split(/\s+/).filter(Boolean);
+      if(!p.length) return '?';
+      if(p.length>=2) return (p[0][0]+p[1][0]).toUpperCase();
+      return p[0].slice(0,2).toUpperCase();
+    }
+    function tvAvatar(name, color, size){
+      var s=size||34, col=color||'#6b7280';
+      return '<span class="tv-av" style="width:'+s+'px;height:'+s+'px;font-size:'+Math.round(s*0.42)+'px;color:'+readableText(col)
+        +';background:linear-gradient(150deg,rgba(255,255,255,.30),rgba(0,0,0,.16)),'+col
+        +';box-shadow:0 2px 7px '+col+'66,inset 0 1px 0 rgba(255,255,255,.35)">'+tvInitials(name)+'</span>';
     }
 
     // ── state ────────────────────────────────────────────────────────────────
@@ -425,7 +441,7 @@
       var res = await Promise.all([
         db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid')
           .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today+',bin_dropoff.eq.'+today+',bin_pickup.eq.'+today),
-        db.from('crew_members').select('id,name').eq('on_junk', true),
+        db.from('crew_members').select('id,name,color,jwg_id').eq('on_junk', true),
         db.from('jwg_employees').select('id,name'),
         db.from('jwg_schedules').select('employee_id,schedule_data').eq('week_start', monday),
         db.from('jwg_app_settings').select('key,value').in('key',['tasks','emp_order']),
@@ -453,8 +469,13 @@
       // jobs today — bins appear on their drop-off/pick-up day, junk on its real (junk_date) day
       DATA.jobs = buildTodayEntries(res[0].data||[], today);
 
-      // crew id -> name
-      DATA.crew = {}; (res[1].data||[]).forEach(function(c){ DATA.crew[c.id]=c.name; });
+      // crew id -> name, plus master-colour maps (by crew id AND by jwg_id) so
+      // both boards can tint each person with their app-wide colour.
+      DATA.crew = {}; DATA.crewColor = {}; DATA.jwgColor = {};
+      (res[1].data||[]).forEach(function(c){
+        DATA.crew[c.id]=c.name;
+        if(c.color){ DATA.crewColor[c.id]=c.color; if(c.jwg_id) DATA.jwgColor[c.jwg_id]=c.color; }
+      });
 
       // junk work per person/day for the schedule ghosts (needs DATA.crew, so build it here)
       DATA.junk = buildJunkWeek(res[10].data||[], monday, satEnd);
@@ -554,7 +575,7 @@
           return '<div class="cell'+todayCls+'" style="background-color:'+col+';color:'+readableText(col)+';border-color:transparent">'+esc(label)+'</div>';
         }).join('');
         return '<div class="sched-row'+(ri%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+'">'
-          + '<div class="rname">'+esc(e.name)+'</div>'+cells+'</div>';
+          + '<div class="rname">'+tvAvatar(e.name, DATA.jwgColor[e.id], 28)+'<span style="margin-left:.5vw">'+esc(e.name)+'</span></div>'+cells+'</div>';
       }).join('');
 
       wrap.innerHTML = head + rows;
@@ -628,7 +649,9 @@
             + '</div>';
         }).join('');
         return '<div class="bb-group'+(g.crewId?'':' warn')+'">'
-          + '<div class="bb-head"><span class="bb-name">'+(g.crewId?esc(g.name):'⚠️ Unassigned — needs a driver')+'</span>'
+          + '<div class="bb-head"><div class="bb-head-l">'
+          + (g.crewId?tvAvatar(g.name, DATA.crewColor[g.crewId], 34):'')
+          + '<span class="bb-name">'+(g.crewId?esc(g.name):'⚠️ Unassigned — needs a driver')+'</span></div>'
           + '<span class="bb-count">'+g.done+' / '+g.legs.length+' done</span></div>'
           + rows + '</div>';
       }).join('');

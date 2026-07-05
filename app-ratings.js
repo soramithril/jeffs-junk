@@ -265,7 +265,7 @@
       emps.forEach(function(emp){
         h += '<div style="display:flex;align-items:center;gap:14px;padding:5px 0;position:relative">'
           +  '<div style="width:150px;flex:none;display:flex;align-items:center;gap:9px">'
-          +  '<span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.25);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:12px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>'
+          +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 26) : '<span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:12px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
           +  '<span style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
           +  '</div>'
           +  '<div style="display:flex;gap:2px;position:relative">';
@@ -294,7 +294,7 @@
       emps.forEach(function(emp){
         h += '<div class="sc-crew-card" style="background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">'
           +  '<div style="display:flex;align-items:center;gap:9px">'
-          +  '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);border:1.5px solid rgba(34,197,94,.25);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>'
+          +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 30) : '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
           +  '<span style="font-size:13.5px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
           +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[2]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
@@ -324,7 +324,7 @@
           +  hiddenList.map(function(e){
                var ini = e.name.split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase();
                return '<span style="display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 6px;border-radius:99px;background:#f8f9fa;border:1px solid #e9ecef">'
-                 + '<span style="width:24px;height:24px;border-radius:50%;background:#f1f3f5;border:1.5px solid #e9ecef;display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:11px;color:#adb5bd">'+escHtml(ini)+'</span>'
+                 + (typeof teamAvatar==='function' ? teamAvatar(e.name, crewAvatarColor(e.id), 24) : '<span style="width:24px;height:24px;border-radius:50%;background:#f1f3f5;display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:11px;color:#adb5bd">'+escHtml(ini)+'</span>')
                  + '<span style="font-size:12.5px;font-weight:600;color:#868e96">'+escHtml(e.name)+'</span>'
                  + '<button onclick="StaffRatings.show(\''+e.id+'\')" style="cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #1a1a2e;background:#1a1a2e;color:#fff">Show</button>'
                  + '</span>';

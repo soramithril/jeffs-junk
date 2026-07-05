@@ -84,7 +84,16 @@ const AVC=[
   ["#dc2626","#fff"],["#a16207","#fff"],["#0369a1","#fff"],
   ["#c2410c","#fff"],["#0f766e","#fff"]
 ];
-const ac=n=>{const s=n||"?";const h=([...s]).reduce((a,c)=>a+c.charCodeAt(0),0);return AVC[h%AVC.length];};
+// Person avatar colour: prefer each person's MASTER colour (crew_members, shared
+// across the whole app via teamColorByName) so the same person is the same colour
+// everywhere; fall back to the local name-hash palette if the master isn't loaded.
+const ac=n=>{
+  if(typeof teamColorByName==="function"){
+    const col=teamColorByName(n||"");
+    if(col) return [col, (typeof teamInk==="function"?teamInk(col):"#fff")];
+  }
+  const s=n||"?";const h=([...s]).reduce((a,c)=>a+c.charCodeAt(0),0);return AVC[h%AVC.length];
+};
 function empInitials(name){const p=(name||"?").trim().split(/\s+/);if(p.length>=2)return(p[0][0]+p[1][0]).toUpperCase();if(name.length>=2)return(name[0]+name[1]).toUpperCase();return name[0].toUpperCase();}
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 

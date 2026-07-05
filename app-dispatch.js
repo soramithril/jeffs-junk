@@ -555,12 +555,12 @@ async function renderDispatch(){
       var _barCol = _pct<60?'#22c55e':(_pct<90?'#f59e0b':'#dc3545');
       var _noteCol = _pct>=90?'#dc3545':(_pct>=60?'#c2410c':'#15803d');
       var _note = laneTotal ? (_pct+'% of an 8-hr day') : 'Empty &mdash; add stops';
-      var _init = (crew.name||'?').trim().charAt(0).toUpperCase();
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
       // lane header: avatar + name/count + load bar
       html += '<div style="padding:12px 13px;border-bottom:1px solid var(--border)">';
       html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">';
-      html += '<div style="width:34px;height:34px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none">'+_init+'</div>';
+      html += (typeof teamAvatar==='function') ? teamAvatar(crew.name, color, 34)
+        : '<div style="width:34px;height:34px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none">'+(crew.name||'?').trim().charAt(0).toUpperCase()+'</div>';
       html += '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px;color:var(--text)">'+escHtml(crew.name)+'</div><div style="font-size:11px;color:var(--muted)">'+laneJobs.length+' stop'+(laneJobs.length===1?'':'s')+' &middot; starts '+dispatchFmtClock(startMins)+'</div></div>';
       html += '<span style="font-size:13px;font-weight:700;color:'+_noteCol+';white-space:nowrap">'+dispatchFmtTotal(laneTotal)+'</span>';
       html += '</div>';

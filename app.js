@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '371';
+var APP_VERSION = '372';
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -1238,11 +1238,15 @@ async function loadAllFromSupabase() {
     // Load crew members + today's vehicle assignments
     showLoading('Loading crew...', 80);
     try {
-      // Junk/Bins side only — the crew_members master now also holds JWG-only
-      // office staff (on_junk=false), who must NOT appear in dispatch, pickers,
-      // the crew schedule or the leaderboard. The Team page manages the full list.
-      var rCrew = await db.from('crew_members').select('*').eq('active', true).eq('on_junk', true).order('name');
-      crewMembers = (rCrew.data || []).map(function(r){ return {id:r.id, name:r.name, color:r.color||null}; });
+      // Load the FULL team master once (both divisions) into teamRoster and build
+      // the colour maps, then derive the junk-side list from it. Dispatch, pickers,
+      // the crew schedule and the leaderboard only see Junk/Bins + active people;
+      // the colour maps still cover EVERYONE so avatars match across every screen.
+      var rCrew = await db.from('crew_members').select('*').order('name');
+      teamRoster = rCrew.data || [];
+      buildTeamMaps();
+      crewMembers = teamRoster.filter(function(r){ return r.active && r.on_junk; })
+        .map(function(r){ return {id:r.id, name:r.name, color:r.color||null}; });
       var todayISO = todayStr();
       var rAssign = await db.from('vehicle_assignments').select('*').eq('assignment_date', todayISO);
       vehicleAssignments = {};
@@ -4626,7 +4630,7 @@ async function renderLiveJobs(){
     var done=list.filter(function(l){return l.status==='complete';}).length;
     var crew=key?crewMembers.find(function(c){return c.id===key;}):null;
     var head=crew
-      ?'<span class="job-avatar" style="background:'+crewAvatarColor(key)+'">'+crewAvatarInitials(crew.name)+'</span><span class="lj-section-title">'+escHtml(crew.name)+'</span>'
+      ?teamAvatar(crew.name, crewAvatarColor(key), 26)+'<span class="lj-section-title">'+escHtml(crew.name)+'</span>'
       :'<span class="lj-section-icon">⚠️</span><span class="lj-section-title">Unassigned</span>';
     html+='<div class="lj-section lj-sect-driver'+(key?'':' lj-sect-unassigned')+'">'
       +'<div class="lj-section-header">'+head
@@ -7177,22 +7181,57 @@ async function doAssignBin(jobId,bid){
 }
 
 // ── Crew avatar rendering & picker ──────────────────────────
-// 8-color palette; each crew member gets a deterministic color from their ID
+// ── SHARED PERSON AVATAR + COLOUR SYSTEM ──────────────────────────────────
+// One colour per person, consistent everywhere. teamRoster holds ALL crew_members
+// (both divisions); the maps let any reference — a crew_members.id, a
+// jwg_employees.id (via jwg_id), or a name — resolve to that person's master
+// colour, so the same person is the same colour on every screen.
+var teamRoster = [];
+var _teamById = {}, _teamByJwg = {}, _teamByName = {};
+function buildTeamMaps(){
+  _teamById = {}; _teamByJwg = {}; _teamByName = {};
+  teamRoster.forEach(function(r){
+    _teamById[r.id] = r;
+    if(r.jwg_id) _teamByJwg[r.jwg_id] = r;
+    if(r.name) _teamByName[String(r.name).trim().toLowerCase()] = r;
+  });
+}
+// 8-color fallback palette (stable hash) for anyone without a saved colour.
 var CREW_AVATAR_PALETTE = ['#22c55e','#0d6efd','#8b5cf6','#f97316','#dc3545','#06b6d4','#eab308','#0d9488'];
 function crewAvatarColor(crewId){
   if(!crewId) return '#868e96';
-  if(typeof crewMembers !== 'undefined'){
-    var crew = crewMembers.find(function(c){return c.id===crewId;});
-    if(crew && crew.color) return crew.color;
-  }
+  var r = _teamById[crewId] || _teamByJwg[crewId];
+  if(r && r.color) return r.color;
   var hash=0;
   for(var i=0;i<crewId.length;i++){ hash=((hash<<5)-hash)+crewId.charCodeAt(i); hash|=0; }
   return CREW_AVATAR_PALETTE[Math.abs(hash)%CREW_AVATAR_PALETTE.length];
 }
+// Master colour by name — for JWG-side code that only has a name string.
+function teamColorByName(name){
+  var r = name && _teamByName[String(name).trim().toLowerCase()];
+  if(r && r.color) return r.color;
+  return crewAvatarColor(String(name||''));   // stable hash on the name itself
+}
 function crewAvatarInitials(name){
-  if(!name) return '?';
-  var first=name.trim().split(/\s+/)[0]||'';
-  return (first.slice(0,3)||'?').toUpperCase();
+  var p = String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '?';
+  if(p.length>=2) return (p[0][0]+p[1][0]).toUpperCase();
+  return p[0].slice(0,2).toUpperCase();
+}
+// Readable ink (dark/light) for initials on a tinted circle.
+function teamInk(hex){
+  var h=String(hex||'').replace('#',''); if(h.length===3) h=h.split('').map(function(c){return c+c;}).join('');
+  var n=parseInt(h,16); if(isNaN(n)) return '#fff';
+  var r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)/255 > 0.62 ? '#1a1a2e' : '#ffffff';
+}
+// The one premium avatar used everywhere: a colour-tinted circle with initials.
+function teamAvatar(name, color, size, title){
+  var s = size||30, col = color||'#6b7280';
+  return '<span class="pa"'+(title?' title="'+String(title).replace(/"/g,'&quot;')+'"':'')
+    +' style="width:'+s+'px;height:'+s+'px;--pa:'+col+';color:'+teamInk(col)
+    +';box-shadow:0 2px 6px '+col+'59,inset 0 1px 0 rgba(255,255,255,.35);font-size:'+Math.max(9,Math.round(s*0.42))+'px">'
+    + crewAvatarInitials(name) + '</span>';
 }
 // Render the avatar stack for a job. Click → openAssignCrewPicker.
 // `leg` is 'dropoff' or 'pickup' for Bin Rental rows in the deliveries/pickups
@@ -7214,7 +7253,7 @@ function jobCrewAvatarsHTML(j, leg){
     ids.forEach(function(cid){
       var c=crewMembers.find(function(cc){return cc.id===cid;});
       var nm=c?c.name:'?';
-      stack+='<span class="job-avatar" style="background:'+crewAvatarColor(cid)+'" title="'+nm+'">'+crewAvatarInitials(nm)+'</span>';
+      stack+=teamAvatar(nm, crewAvatarColor(cid), 28, nm);
     });
   }
   stack+='</span>';
@@ -7253,7 +7292,7 @@ async function openAssignCrewPicker(jobId, leg){
         : '';
       html+='<div onclick="toggleAssignCrew(\''+jobId+'\',\''+c.id+'\''+legArg2+')" '
         +'style="padding:10px;border:2px solid '+(on?crewAvatarColor(c.id):(cst.state==='off'?'rgba(220,53,69,.5)':'var(--border)'))+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,197,94,.05)':'var(--surface2)')+';display:flex;align-items:center;gap:10px;transition:all .15s">'
-        +'<span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:32px;height:32px;font-size:12px">'+crewAvatarInitials(c.name)+'</span>'
+        +teamAvatar(c.name, crewAvatarColor(c.id), 32)
         +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+c.name+'</span>'
         +warn
         +(on?'<span style="margin-left:auto;color:#22c55e;font-size:16px">✓</span>':'')
@@ -13868,8 +13907,8 @@ function renderDashCrewStatus(){
         :'<div style="padding:8px 14px;font-size:12px;cursor:pointer" onmouseover="this.style.background=\'rgba(220,53,69,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();bookCrewOffDate(\''+c.id+'\',\''+ds+'\')">🚫 Book off all day ('+fd(ds)+')</div>')
       +'<div style="padding:8px 14px;font-size:12px;cursor:pointer;border-top:1px solid var(--border)" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();go(\'crew\')">📋 Manage availability</div>'
       +'</div>';
-    return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+col+'14;border:1px solid '+col+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
-      +'<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex-shrink:0"></span>'
+    return '<div style="position:relative;display:inline-flex;align-items:center;gap:7px;padding:4px 11px 4px 5px;border-radius:20px;background:'+col+'14;border:1px solid '+col+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
+      +teamAvatar(c.name, crewAvatarColor(c.id), 22)
       +'<span style="font-weight:600;color:var(--text)">'+c.name+'</span>'
       +(st.state!=='free'?'<span style="font-size:10px;color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis">'+st.label+'</span>':'')
       +(icon?'<span style="font-size:10px">'+icon+'</span>':'')
@@ -13965,7 +14004,7 @@ async function renderCrew(){
   crewMembers.forEach(function(c){
     html+='<tr>'
       +'<td style="padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top">'
-        +'<div style="display:flex;align-items:center;gap:8px"><span class="job-avatar" style="background:'+crewAvatarColor(c.id)+';width:26px;height:26px;font-size:11px">'+crewAvatarInitials(c.name)+'</span><span style="font-weight:600;font-size:13px">'+escHtml(c.name)+'</span></div>'
+        +'<div style="display:flex;align-items:center;gap:8px">'+teamAvatar(c.name, crewAvatarColor(c.id), 26)+'<span style="font-weight:600;font-size:13px">'+escHtml(c.name)+'</span></div>'
       +'</td>';
     days.forEach(function(d){
       var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0||d.getDay()===6);
