@@ -448,7 +448,9 @@
         // Rates screen — the two everyday bin prices for the Barrie & Area zone
         db.from('our_prices').select('bins').eq('area',RATES_AREA).limit(1)
       ]);
-      for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
+      // Every query except the last (rates) is critical — fail fast so the board
+      // never renders half-loaded. Rates is checked separately below and is never fatal.
+      for(var i=0;i<res.length-1;i++){ if(res[i].error) throw new Error(res[i].error.message); }
 
       // jobs today — bins appear on their drop-off/pick-up day, junk on its real (junk_date) day
       DATA.jobs = buildTodayEntries(res[0].data||[], today);
@@ -491,8 +493,11 @@
         return String(a.item_name).localeCompare(String(b.item_name));
       });
 
-      // Rates — Barrie & Area 14yd/20yd base prices + per-tonne dump charge
-      var rp=(res[14].data||[])[0], rb=(rp&&rp.bins)||{};
+      // Rates — Barrie & Area 14yd/20yd base prices + per-tonne dump charge.
+      // Always the LAST query and non-critical: read res[res.length-1] (so it can
+      // never go off-by-one again) and tolerate an error/empty row — a rates hiccup
+      // must not blank the board; the Rates screen just shows "—".
+      var rr=res[res.length-1], rp=(rr && !rr.error && (rr.data||[])[0]) || null, rb=(rp&&rp.bins)||{};
       DATA.rates = { y14: rb['14 yard'], y20: rb['20 yard'], tonne: rb._tonne };
 
       // KPIs
@@ -776,13 +781,21 @@
     }
 
     // ── boot ─────────────────────────────────────────────────────────────────
+    var _bootFails = 0;
     async function boot(){
       var sess = await authenticate();
       if(!sess) return;
       try{
-        await loadAll(); net(true);
+        await loadAll(); net(true); _bootFails = 0;
       }catch(e){
-        console.error(e); fail('Trouble loading the board — retrying…');
+        console.error(e); net(false);
+        // Self-heal: a plain retry re-runs the SAME cached page, so a stale or broken
+        // deploy would spin forever without ever reloading. After a few misses, reload
+        // with a cache-buster so the TV fetches the latest file (GitHub Pages caches
+        // HTML for 10 min). The Supabase session is persisted, so auth recovers on
+        // reload without the URL credentials.
+        if(++_bootFails >= 3){ location.replace(location.pathname + '?r=' + Date.now()); return; }
+        fail('Trouble loading the board — retrying…');
         setTimeout(boot, 8000); return;
       }
       el('gate').style.display='none';
