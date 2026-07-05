@@ -765,7 +765,7 @@
 #view-jwgscheduler .mday-card-info {flex:1;min-width:0;}
 #view-jwgscheduler .mday-card-name {font-size:13px;font-weight:700;color:var(--fg);}
 #view-jwgscheduler .mday-card-shift {font-size:11px;color:var(--fg-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#view-jwgscheduler .mday-card-badge {font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;text-transform:uppercase;letter-spacing:.04em;}
+#view-jwgscheduler .mday-card-badge {font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px;}
 #view-jwgscheduler .mday-card-badge.off {background:var(--surface);color:var(--fg-subtle);}
 #view-jwgscheduler .mday-card-badge.sick {background:rgba(249,115,22,0.1);color:#c2410c;border:1px solid rgba(249,115,22,0.2);}
 #view-jwgscheduler .mday-card-badge.dayoff {background:rgba(0,0,0,0.06);color:var(--fg-muted);border:1px solid rgba(0,0,0,0.1);}
@@ -1472,3 +1472,9 @@
 @media(max-width:640px) {
   #view-jwgscheduler td.day-cell.cell-compact .shift-stack {grid-template-columns:1fr;}
 }
+
+/* ── Emboss icon set (2026-07-05): tile + text row in cells, room for the tile ── */
+#view-jwgscheduler .shift-bar-flow .shift-txt{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+#view-jwgscheduler .shift-bar-flow.has-ico{display:flex!important;flex-direction:row;align-items:center;gap:6px}
+#view-jwgscheduler .shift-bar-flow{min-height:32px}
+#view-jwgscheduler .status-label{gap:6px}

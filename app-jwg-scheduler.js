@@ -75,6 +75,18 @@ if(tasks&&tasks.some(t=>["open","floor","cash","kitchen","delivery","supervisor"
 }
 tasks=tasks||DEFAULT_TASKS;
 const TM=()=>Object.fromEntries(tasks.map(t=>[t.id,t]));
+// ── Icon set (handoff "Emboss"): task/status id -> emboss tile. Built-in ids
+// (bins/junk/furniture/off/sick/shop) get the 3-D tile; custom tasks & 'garbage'
+// fall back to a colour dot. JWGIcons is loaded in index.html BEFORE this file.
+function schTile(id,size){
+  if(id&&window.JWGIcons&&JWGIcons.PATHS[id]) return JWGIcons.embossTile(id,{size:size||20});
+  return "";
+}
+function schChip(t,size){                 // tile if known, else the legacy colour dot
+  var tile=schTile(t&&t.id,size); if(tile) return tile;
+  var d=Math.max(7,Math.round((size||20)*0.4));
+  return '<span style="width:'+d+'px;height:'+d+'px;border-radius:50%;background:'+((t&&t.dot)||"#ccc")+';display:inline-block;flex-shrink:0"></span>';
+}
 function saveTasks(){localStorage.setItem("ss_tasks",JSON.stringify(tasks));saveSetting("tasks",tasks);}
 function hex2rgb(h){try{return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}catch{return[94,106,210];}}
 function darken(h){try{const[r,g,b]=hex2rgb(h);return`rgb(${Math.round(r*.55)},${Math.round(g*.55)},${Math.round(b*.55)})`;}catch{return h;}}
@@ -470,7 +482,7 @@ function renderShiftModal(empId,day,emp,dayData){
         // Editing this entry inline
         shiftListHtml+=`<div style="background:${firstT?.bg||"#f5f5f5"};border:2px solid ${firstT?.dot||"#ccc"};border-radius:8px;padding:10px 12px;margin-bottom:6px;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-            <span style="width:8px;height:8px;border-radius:50%;background:${firstT?.dot||"#ccc"};display:inline-block;flex-shrink:0"></span>
+            ${schChip(firstT,22)}
             <span style="font-weight:700;font-size:12px;color:${firstT?.text||"#333"}">${esc(allLabels)}</span>
             <span style="font-size:10px;color:${firstT?.text||"#333"};opacity:.6;margin-left:auto">editing</span>
           </div>
@@ -486,7 +498,7 @@ function renderShiftModal(empId,day,emp,dayData){
       } else {
         shiftListHtml+=`<div style="background:${firstT?.bg||"#f5f5f5"};border:1.5px solid ${firstT?.dot||"#ccc"}40;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
           <div style="display:flex;align-items:center;gap:7px;min-width:0;">
-            <span style="width:8px;height:8px;border-radius:50%;background:${firstT?.dot||"#ccc"};display:inline-block;flex-shrink:0"></span>
+            ${schChip(firstT,22)}
             <span style="font-weight:700;font-size:12px;color:${firstT?.text||"#333"}">${esc(allLabels)}</span>
             <span style="font-size:11px;color:${firstT?.text||"#333"};opacity:.7;white-space:nowrap">${fmtRange(sh.start,sh.end)}</span>
           </div>
@@ -516,7 +528,7 @@ function renderShiftModal(empId,day,emp,dayData){
     </div>
   </div>`;
   if(!working){
-    h+=`<div class="sm-offnote">${status==="sick"?"🤒 Marked off sick for this day.":"📅 Marked as a day off."}</div>`;
+    h+=`<div class="sm-offnote" style="display:flex;align-items:center;gap:7px">${status==="sick"?schTile("sick",18)+"<span>Marked off sick for this day.</span>":schTile("off",18)+"<span>Marked as a day off.</span>"}</div>`;
   } else {
     h+=`<div class="sm-cols">
     <div class="sm-col sm-left">
@@ -539,7 +551,7 @@ function renderShiftModal(empId,day,emp,dayData){
       h+=`<button class="task-opt" id="topt_${t.id}"
         style="background:${t.bg};color:${t.text};border-color:transparent"
         onclick="JWG.pickTask('${t.id}')">
-        <span style="width:7px;height:7px;border-radius:50%;background:${t.dot};flex-shrink:0;display:inline-block"></span>
+        ${schChip(t,24)}
         ${esc(t.label)}
       </button>`;
     });
@@ -695,7 +707,7 @@ function renderMultiAssign(){
     taskHtml+=`<button class="task-opt${sel?" sel":""}" id="matopt_${t.id}"
       style="background:${t.bg};color:${t.text};border-color:${sel?t.dot:"transparent"}"
       onclick="JWG.maPick('${t.id}')">
-      <span style="width:7px;height:7px;border-radius:50%;background:${t.dot};flex-shrink:0;display:inline-block"></span>
+      ${schChip(t,24)}
       ${esc(t.label)}
     </button>`;
   });
@@ -858,7 +870,7 @@ function renderMultiClear(){
   tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
     const sel=_mc.task===t.id;
     taskHtml+=`<button class="task-opt${sel?" sel":""}" style="background:${t.bg};color:${t.text};border-color:${sel?t.dot:"transparent"}" onclick="JWG.mcPickTask('${t.id}')">
-      <span style="width:7px;height:7px;border-radius:50%;background:${t.dot};flex-shrink:0;display:inline-block"></span>
+      ${schChip(t,24)}
       ${esc(t.label)}
     </button>`;
   });
@@ -1113,9 +1125,9 @@ function buildGrid(){
       if(status==="off"){
         cellContent=``;
       } else if(status==="dayoff"){
-        cellContent=`<div class="status-label day-off-label">📅 Day Off</div>`;
+        cellContent=`<div class="status-label day-off-label">${schTile("off",15)}<span>Day Off</span></div>`;
       } else if(status==="sick"){
-        cellContent=`<div class="status-label sick-label">🤒 Sick</div>`;
+        cellContent=`<div class="status-label sick-label">${schTile("sick",15)}<span>Sick</span></div>`;
       } else if(shifts.length>0){
         cellContent=`<div class="shift-stack">`;
         shifts.forEach((sh,i)=>{
@@ -1123,10 +1135,10 @@ function buildGrid(){
           const firstT=tm[taskIds[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e",label:taskIds[0]||"?"};
           const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
           const timeStr=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
-          cellContent+=`<div class="shift-bar shift-bar-flow" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"
+          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"
             onclick="event.stopPropagation();JWG.openShiftModal('${emp.id}','${d}')">
-            <span class="shift-label">${esc(allLabels)}</span>
-            ${timeStr?`<span class="shift-times">${timeStr}</span>`:""}
+            ${schTile(firstT.id,20)}
+            <span class="shift-txt"><span class="shift-label">${esc(allLabels)}</span>${timeStr?`<span class="shift-times">${timeStr}</span>`:""}</span>
           </div>`;
         });
         cellContent+=`</div>`;
@@ -1193,9 +1205,9 @@ function buildMobileDayView(){
 
       let badgeCls="off",badgeTxt="Off",shiftInfo="Tap to schedule";
       if(status==="sick"){
-        badgeCls="sick";badgeTxt="🤒 Sick";shiftInfo="Sick day";
+        badgeCls="sick";badgeTxt=schTile("sick",13)+" Sick";shiftInfo="Sick day";
       } else if(status==="dayoff"){
-        badgeCls="dayoff";badgeTxt="📅 Day Off";shiftInfo="Day off";
+        badgeCls="dayoff";badgeTxt=schTile("off",13)+" Day Off";shiftInfo="Day off";
       } else if(shifts.length>0){
         const taskLabels=shifts.map(sh=>shiftTaskLabel(sh,tm));
         const firstTime=shifts[0].start&&shifts[0].end?` · ${fmtRange(shifts[0].start,shifts[0].end)}`:"";
@@ -1407,8 +1419,8 @@ function buildAnalytics(){
     <div class="ptrack"><div class="pbar" style="width:${(emp.totalH/mxH*100).toFixed(1)}%"></div></div>
     <div class="chips">`;
     tasks.filter(t=>t.id!=="off"&&t.id!=="sick"&&emp.tally[t.id]>0).forEach(t=>{h+=`<span class="chip" style="background:${t.bg};color:${t.text}">${esc(t.label)}: ${emp.tally[t.id]}d</span>`;});
-    if(emp.daysSick>0)h+=`<span class="chip" style="background:#fff7ed;color:#c2410c;border:1px solid rgba(249,115,22,0.25)">🤒 Sick: ${emp.daysSick}d</span>`;
-    if(emp.daysOff>0)h+=`<span class="chip" style="background:rgba(0,0,0,0.06);color:rgba(0,0,0,0.5);border:1px solid rgba(0,0,0,0.15)">📅 Off: ${emp.daysOff}d</span>`;
+    if(emp.daysSick>0)h+=`<span class="chip" style="background:#fff7ed;color:#c2410c;border:1px solid rgba(249,115,22,0.25);display:inline-flex;align-items:center;gap:5px">${schTile("sick",13)}Sick: ${emp.daysSick}d</span>`;
+    if(emp.daysOff>0)h+=`<span class="chip" style="background:rgba(0,0,0,0.06);color:rgba(0,0,0,0.5);border:1px solid rgba(0,0,0,0.15);display:inline-flex;align-items:center;gap:5px">${schTile("off",13)}Off: ${emp.daysOff}d</span>`;
     h+=`</div></div>`;
   });
 
@@ -1519,9 +1531,9 @@ function buildHistory(){
         const status=day.status||"off";
         const note=day.note||"";
         if(status==="sick"){
-          h+=`<div class="dc2 chip-sick" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t">🤒 Sick</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
+          h+=`<div class="dc2 chip-sick" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t" style="display:inline-flex;align-items:center;gap:4px">${schTile("sick",12)}Sick</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
         } else if(status==="dayoff"){
-          h+=`<div class="dc2" style="background:rgba(0,0,0,0.04);color:rgba(0,0,0,0.35);border-color:rgba(0,0,0,0.1)" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t">📅 Off</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
+          h+=`<div class="dc2" style="background:rgba(0,0,0,0.04);color:rgba(0,0,0,0.35);border-color:rgba(0,0,0,0.1)" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t" style="display:inline-flex;align-items:center;gap:4px">${schTile("off",12)}Off</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
         } else if(status==="work"&&day.shifts?.length>0){
           const firstTask=getShiftTasks(day.shifts[0])[0];
           const t=tm[firstTask];

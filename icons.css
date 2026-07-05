@@ -1,0 +1,109 @@
+/* ============================================================================
+   Jeff's Junk — Icon styles + INTERACTIONS  (companion to jwg-icons.js)
+   Load this once. Works for both:
+     - JS helper tiles     JWGIcons.embossTile('bins')   -> <span class="jwg-emboss" ...>
+     - CSS-class tiles      <span class="jwg-tile jwg-blue">…</span>
+   ========================================================================== */
+
+/* ---- Emboss TILE (colour tile + white glyph). WHITE surfaces only. -------- */
+.jwg-tile{
+  display:inline-grid; place-items:center; flex:none;
+  width:46px; height:46px; border-radius:13px; color:#fff;
+  background:
+    radial-gradient(115% 85% at 50% -12%, rgba(255,255,255,.42), rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, var(--m,#22c55e), var(--d,#15803d));
+  box-shadow:
+    inset 0 1.2px 0 rgba(255,255,255,.45),
+    inset 0 -1.4px 2px rgba(0,0,0,.16),
+    0 8px 16px -6px color-mix(in srgb, var(--d,#15803d) 35%, transparent),
+    0 2px 5px rgba(16,24,40,.12);
+}
+.jwg-tile > svg,
+.jwg-emboss > svg{ filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.jwg-tile.sm{ width:40px; height:40px; border-radius:12px; }
+.jwg-tile.lg{ width:60px; height:60px; border-radius:17px; }
+
+/* Concept colours — set --m (mid) / --d (deep) */
+.jwg-green {--m:#22c55e;--d:#15803d;}  /* bins, brand, confirm, booked */
+.jwg-blue  {--m:#2563eb;--d:#1d4ed8;}  /* junk removal */
+.jwg-violet{--m:#7c3aed;--d:#6d28d9;}  /* furniture */
+.jwg-olive {--m:#65a30d;--d:#3f6212;}  /* landscaping */
+.jwg-cyan  {--m:#06b6d4;--d:#0e7490;}  /* bin drop-off */
+.jwg-pink  {--m:#ec4899;--d:#be185d;}  /* bin pickup */
+.jwg-indigo{--m:#6366f1;--d:#4338ca;}  /* junk quote */
+.jwg-amber {--m:#d97706;--d:#b45309;}  /* shop / maintenance / call */
+.jwg-orange{--m:#f97316;--d:#c2410c;}  /* off sick */
+.jwg-slate {--m:#64748b;--d:#475569;}  /* day off, edit, print */
+.jwg-red   {--m:#ef4444;--d:#b91c1c;}  /* delete, cancelled */
+
+/* ========================================================================== */
+/*  INTERACTIONS — the tactile layer. Fast, springy, tuned to the 3D tiles.   */
+/*  transform + filter are used so they never fight the tile's inline shadow. */
+/* ========================================================================== */
+.jwg-emboss, .jwg-tile{
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1), filter .16s ease, box-shadow .16s ease;
+  will-change:transform;
+}
+/* HOVER — the button lifts toward you and brightens a touch. */
+.jwg-emboss:hover, .jwg-tile:hover{
+  transform:translateY(-2px) scale(1.05);
+  filter:brightness(1.05);
+}
+/* PRESS — snappy push-in. Shorter duration so the click feels immediate. */
+.jwg-emboss:active, .jwg-tile:active{
+  transform:translateY(0) scale(.92);
+  filter:brightness(.97);
+  transition-duration:.07s;
+}
+/* CSS-class tiles can also swap their shadow (no inline shadow to fight). */
+.jwg-tile:hover{
+  box-shadow:
+    inset 0 1.2px 0 rgba(255,255,255,.5),
+    0 14px 24px -8px color-mix(in srgb, var(--d,#15803d) 48%, transparent),
+    0 4px 9px rgba(16,24,40,.16);
+}
+.jwg-tile:active{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.4),
+    inset 0 2px 4px rgba(0,0,0,.22),
+    0 3px 8px -4px color-mix(in srgb, var(--d,#15803d) 30%, transparent);
+}
+/* Keyboard focus — accessible ring. */
+.jwg-emboss:focus-visible, .jwg-tile:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px #fff, 0 0 0 5px color-mix(in srgb, var(--d,#15803d) 60%, transparent);
+}
+
+/* ENTRANCE POP — add class "pop" when a tile first appears (optional, delightful). */
+@keyframes jwg-pop{
+  0%{transform:scale(.5);opacity:0}
+  60%{transform:scale(1.08)}
+  100%{transform:scale(1);opacity:1}
+}
+.jwg-emboss.pop, .jwg-tile.pop{ animation:jwg-pop .32s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* ---- NAV (the green #16a34a rail) --------------------------------------- */
+.jwg-nav-ico{
+  width:28px; height:28px; border-radius:8px; display:inline-grid; place-items:center;
+  color:#fff; background:rgba(255,255,255,.13); flex:none;
+  transition:background .15s ease, transform .12s ease;
+}
+.jwg-nav-ico.active{
+  color:#fff;
+  background:
+    radial-gradient(115% 85% at 50% -12%, rgba(255,255,255,.42), rgba(255,255,255,0) 60%),
+    linear-gradient(155deg,#22c55e,#15803d);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 3px 7px -2px rgba(21,128,61,.5);
+}
+.jwg-nav-ico.active > svg{ filter:drop-shadow(0 1px 1px rgba(0,0,0,.22)); }
+/* Hover a nav row -> chip brightens & nudges. Put :hover on the row in your app. */
+.nav-item:hover .jwg-nav-ico{ background:rgba(255,255,255,.22); transform:translateX(1px); }
+.nav-item:active .jwg-nav-ico{ transform:scale(.9); }
+
+/* ---- Respect reduced-motion --------------------------------------------- */
+@media (prefers-reduced-motion: reduce){
+  .jwg-emboss, .jwg-tile, .jwg-nav-ico{ transition:none !important; }
+  .jwg-emboss:hover, .jwg-tile:hover,
+  .jwg-emboss:active, .jwg-tile:active{ transform:none; filter:none; }
+  .jwg-emboss.pop, .jwg-tile.pop{ animation:none; }
+}
