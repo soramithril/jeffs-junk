@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '381';
+var APP_VERSION = '382';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10216,8 +10216,8 @@ function renderToday(){
     var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
     return days>=threshold;
   });
-  var statsHtml='<div class="stat-card c-green"><div class="stat-icon">📋</div><div class="stat-value">'+todayJobs.length+'</div><div class="stat-label">Scheduled Today</div></div>'
-    +'<div class="stat-card c-red"><div class="stat-icon">⚠️</div><div class="stat-value">'+overdueJobs.length+'</div><div class="stat-label">Overdue Pickups</div></div>';
+  var statsHtml='<div class="stat-card c-green"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+iconTile('allJobs',{size:38,color:'green'})+'</div><div class="stat-value">'+todayJobs.length+'</div><div class="stat-label">Scheduled Today</div></div>'
+    +'<div class="stat-card c-red"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+iconTile('binPickup',{size:38,color:'red'})+'</div><div class="stat-value">'+overdueJobs.length+'</div><div class="stat-label">Overdue Pickups</div></div>';
   document.getElementById('today-stats').innerHTML=statsHtml;
   // Today's jobs
   var el=document.getElementById('today-jobs-list');

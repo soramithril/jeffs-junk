@@ -496,16 +496,17 @@ function renderLbStatCards(rows,range,isCrewMode){
   agg.forEach(function(d){totalDriveHrs+=d.driveMin;});
   var driveDisplay=totalDriveHrs>=60?Math.round(totalDriveHrs/60)+'h':Math.round(totalDriveHrs)+'m';
 
-  el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'#22c55e':fleetAvg>=70?'#e67e22':'#dc3545','📊')
-    +lbStatCard('Total Events',totalEvents,totalEvents===0?'#22c55e':'#dc3545','⚠️')
-    +lbStatCard('Clean Records',cleanCount+'/'+agg.length,'#22c55e','✅')
-    +lbStatCard('Total Distance',Math.round(totalDist)+' km','var(--text)','🛣️')
-    +lbStatCard('Drive Time',driveDisplay,'var(--text)','⏱️');
+  el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'#22c55e':fleetAvg>=70?'#e67e22':'#dc3545','analytics',fleetAvg>=90?'green':fleetAvg>=70?'amber':'red')
+    +lbStatCard('Total Events',totalEvents,totalEvents===0?'#22c55e':'#dc3545','damage',totalEvents===0?'green':'red')
+    +lbStatCard('Clean Records',cleanCount+'/'+agg.length,'#22c55e','confirmed','green')
+    +lbStatCard('Total Distance',Math.round(totalDist)+' km','var(--text)','directions','blue')
+    +lbStatCard('Drive Time',driveDisplay,'var(--text)','liveJobs','indigo');
 }
 
-function lbStatCard(label,value,color,icon){
+function lbStatCard(label,value,color,iconKey,ck){
   // --kc drives both the number color and its glow (see .stat-value in style.css)
-  return '<div class="stat-card" style="flex:1;min-width:140px;"><div class="stat-icon">'+icon+'</div><div class="stat-value" style="--kc:'+color+'">'+value+'</div><div class="stat-label">'+label+'</div></div>';
+  var ico=(window.iconTile&&iconKey)?iconTile(iconKey,{size:38,color:ck}):'';
+  return '<div class="stat-card" style="flex:1;min-width:140px;"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+ico+'</div><div class="stat-value" style="--kc:'+color+'">'+value+'</div><div class="stat-label">'+label+'</div></div>';
 }
 
 // ── Trend Chart ──
