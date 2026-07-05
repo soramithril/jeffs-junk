@@ -795,6 +795,24 @@
     // ── net status ───────────────────────────────────────────────────────────
     function net(ok){ el('netdot').classList.toggle('bad', !ok); }
 
+    // ── self-update: reload when a NEW office-tv.html is deployed ──────────────
+    // Yodeck (and the browser) cache the page, so a new deploy can sit stale on the
+    // wall indefinitely. This polls the file's ETag straight from GitHub — a HEAD with
+    // cache:'no-store' + a unique query, so no cache can answer it. When the content
+    // changes the ETag changes → reload cache-busted (?r=). The Supabase session is
+    // persisted, so the reloaded page re-auths without the URL credentials.
+    var _tvEtag = null;
+    async function checkForUpdate(){
+      try{
+        var r = await fetch(location.pathname + '?u=' + Date.now(), { method:'HEAD', cache:'no-store' });
+        if(!r.ok) return;
+        var tag = r.headers.get('etag') || r.headers.get('last-modified');
+        if(!tag) return;
+        if(_tvEtag === null){ _tvEtag = tag; return; }   // first poll = baseline
+        if(tag !== _tvEtag){ location.replace(location.pathname + '?r=' + Date.now()); }
+      }catch(e){ /* offline blip — retry next tick */ }
+    }
+
     // ── auth: one path — must be the display account ─────────────────────────
     function parseCreds(){
       var h = (location.hash||'').replace(/^#/,'');
@@ -869,6 +887,9 @@
       tickClock(); setInterval(tickClock, 1000);
       loadWeather(); setInterval(loadWeather, 30*60*1000);
       startRotation();
+      // Auto-pick-up new deploys (bypasses Yodeck/browser cache) so the wall never
+      // sits stale — checks every 5 min and reloads itself when a new build ships.
+      checkForUpdate(); setInterval(checkForUpdate, 5*60*1000);
       // Shop is closed Saturday 3 PM through Monday 6 AM — skip data refreshes
       // in that window so the TV pulls nothing from Supabase all weekend.
       // (Boot still loads once so a weekend restart isn't a blank board.)
