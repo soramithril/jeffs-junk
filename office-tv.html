@@ -730,7 +730,7 @@
     var RATE_COLS = [['4 yard dirt','4yd'],['7 yard dirt','7yd'],['14 yard','14yd'],['20 yard','20yd']];
     // our_prices is now ~40 per-city rows — too many to glance on a wall, so the board
     // FEATURES these cities, in this order (Jake can edit the list any time).
-    var TV_RATE_CITIES = ['Barrie','Orillia','Innisfil','Wasaga Beach','Stayner','Alliston','Angus','Collingwood','Midland','Bradford','Huntsville','Bracebridge','Gravenhurst','Muskoka area'];
+    var TV_RATE_CITIES = ['Barrie','Orillia','Innisfil','Midhurst','Wasaga Beach','Stayner','Alliston','Angus','Collingwood','Midland','Bradford','Huntsville','Bracebridge','Gravenhurst','Muskoka area','Barrie 3-Day','Innisfil 3-Day','Midhurst 3-Day'];
     function renderRates(){
       var byArea = {}; (DATA.rates||[]).forEach(function(a){ if(a && a.area) byArea[a.area]=a; });
       var areas = TV_RATE_CITIES.map(function(c){ return byArea[c]; }).filter(Boolean);
