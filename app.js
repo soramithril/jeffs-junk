@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '377';
+var APP_VERSION = '378';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -31,6 +31,15 @@ var SVC_ICON_COLOR = {
 };
 function svcTile(service, size){
   return iconTile(SVC_ICON[service], { size: size||18, color: SVC_ICON_COLOR[service] });
+}
+// Flat LINE glyph for action buttons / tight toolbars (edit, delete, print,
+// directions, call…). Inherits the button's text colour via currentColor unless
+// a colour is passed, and sits centred inside flex .btn buttons. Returns '' if
+// the key is unknown so callers keep their emoji fallback.
+function lineIcon(key, size, color){
+  if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
+  return JWGIcons.svg(key, { size: size||16, stroke: color||'currentColor', width: 2,
+    extra: 'style="flex:none;vertical-align:middle"' });
 }
 
 // ── Cloudinary photo upload config ──
@@ -2466,7 +2475,7 @@ function renderNeedsYou(){
       cdChip='<span style="flex:none;font-size:11.5px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">📅 '+cdTxt+'</span>';
     }
     var action=isCall
-      ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">📞 '+j.phone+'</a>':'')
+      ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">'+lineIcon('call',13)+' '+j.phone+'</a>':'')
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
       : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>';
     return '<div style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
@@ -2959,15 +2968,15 @@ async function refreshDashJobs(){
           } else if(j.binSize){ binBadge='<span class="tjr2-bin unassigned">'+sz+' · unassigned</span>'; }
         }
         var btns='';
-        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">📦 Assign</button>';
+        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
         if(isBin && isPickup){ btns+=(j.binInstatus==='pickedup')
           ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
         if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
-          btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">📞 Confirm</button>';
+          btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">'+lineIcon('call',14)+' Confirm</button>';
         if(j.service!=='Landscaping') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
-          : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">📧 Email</button>';
+          : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">'+lineIcon('email',14)+' Email</button>';
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
@@ -3443,15 +3452,15 @@ async function renderDash(){
           } else if(j.binSize){ binBadge='<span class="tjr2-bin unassigned">'+sz+' · unassigned</span>'; }
         }
         var btns='';
-        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">📦 Assign</button>';
+        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
         if(isBin && isPickup){ btns+=(j.binInstatus==='pickedup')
           ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
         if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
-          btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">📞 Confirm</button>';
+          btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">'+lineIcon('call',14)+' Confirm</button>';
         if(j.service!=='Landscaping') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
-          : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">📧 Email</button>';
+          : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">'+lineIcon('email',14)+' Email</button>';
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
@@ -3505,7 +3514,7 @@ async function renderDash(){
                 +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Mark Confirmed</div>'
                 +'<div class="jdd-divider"></div>'
                 +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">📋 Open Details</div>'
-                +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:\'+j.phone;event.stopPropagation()">📞 '+j.phone+'</div>':'')
+                +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:\'+j.phone;event.stopPropagation()">'+lineIcon('call',13)+' '+j.phone+'</div>':'')
               +'</div>'
             +'</div>'
           +'</div>'
@@ -3570,7 +3579,7 @@ function renderPossibleJobsList(){
     var items=_notesToItems(j.items||'');
     var photos=j.photos||[];
     function info(label,val){ return val ? '<div style="min-width:0"><div class="pj-lbl">'+label+'</div><div class="pj-val">'+val+'</div></div>' : ''; }
-    var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
+    var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">'+lineIcon('directions',14)+' Directions</a>':'';
     // No email (in-house). Pricing IS shown here for in-house use — it's only kept off the printed work order.
     var infoGrid='<div class="pj-grid">'
       +info('Phone', phone?escHtml(phone):'')
@@ -3592,7 +3601,7 @@ function renderPossibleJobsList(){
           +'<div class="pj-cust">'+escHtml(custName)+(j.businessName?' <span style="font-weight:500;color:var(--muted);font-size:13px">· '+escHtml(j.businessName)+'</span>':'')+'</div>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
-          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">🖨️ Print Form</button>'
+          +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+lineIcon('print',14)+' Print Form</button>'
           +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();closeM(\'possible-jobs-modal\');openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">📅 Schedule</button>'
         +'</div>'
       +'</div>'
@@ -3631,7 +3640,7 @@ function _landscapeCardHTML(j, kind){
   var items=_notesToItems(j.items||'');
   var photos=j.photos||[];
   function info(label,val){ return val ? '<div style="min-width:0"><div class="pj-lbl">'+label+'</div><div class="pj-val">'+val+'</div></div>' : ''; }
-  var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">🧭 Directions</a>':'';
+  var dirLink=addr?' <a href="'+mapsDirUrl(addr)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:#3f6212;font-size:11px;white-space:nowrap">'+lineIcon('directions',14)+' Directions</a>':'';
   var infoGrid='<div class="pj-grid">'
     +info('Phone', phone?escHtml(phone):'')
     +info('Address', addr?(escHtml(addr)+dirLink):'')
@@ -3651,11 +3660,11 @@ function _landscapeCardHTML(j, kind){
   else statusPill='<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span>';
   var btns;
   if(kind==='completed'){
-    btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">🖨️ Print</button>'
+    btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+lineIcon('print',14)+' Print</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();reopenLandscapeJob(\''+j.id+'\')" style="white-space:nowrap;color:#16a34a;border-color:rgba(34,197,94,.4)">↩ Reopen</button>';
   } else {
-    btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">🖨️ Print</button>'
-      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+(kind==='possible'?'📅 Schedule':'✏️ Edit')+'</button>'
+    btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+lineIcon('print',14)+' Print</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+(kind==='possible'?lineIcon('schedule',14)+' Schedule':lineIcon('edit',14)+' Edit')+'</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();completeLandscapeJob(\''+j.id+'\')" style="white-space:nowrap;color:#16a34a;border-color:rgba(34,197,94,.4)">✅ Mark Completed</button>';
   }
   return '<div class="pj-card" onclick="openDetail(\''+j.id+'\')">'
@@ -3692,7 +3701,7 @@ async function renderWillCallCard(){
     var days=dropD?Math.max(0,Math.floor((Date.now()-new Date(dropD+'T12:00:00'))/86400000)):0;
     var daysPill='<span class="djj-days'+(days>=14?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
     var bizChip=j.businessName?'<span class="djj-biz">🏢 '+j.businessName+'</span>':'';
-    var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">📞 '+j.phone+'</a>':'';
+    var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+j.phone+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
     return '<div class="djj-row" style="--djj-c:#e67e22" onclick="openDetail(\''+j.id+'\')">'
       +'<span style="flex:none;width:30px;height:30px;border-radius:8px;background:#f3f0fb;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:14px">🏢</span>'
@@ -3744,7 +3753,7 @@ async function renderDashBinsOut(){
       : [addr,(j.binPickup?'pickup '+fd(j.binPickup):'')].filter(Boolean).join(' · ');
     var daysPill='<span class="djj-days'+(j._days>=14?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">📞 '+_esc(j.phone)+'</a>':'';
-    var callBtn=attn?'<button class="djj-btn danger" onclick="event.stopPropagation();'+(j.phone?('window.location.href=\''+'tel:'+_esc(j.phone)+'\''):('openDetail(\''+j.id+'\')'))+'">📞 Call customer</button>':'';
+    var callBtn=attn?'<button class="djj-btn danger" onclick="event.stopPropagation();'+(j.phone?('window.location.href=\''+'tel:'+_esc(j.phone)+'\''):('openDetail(\''+j.id+'\')'))+'">'+lineIcon('call',14)+' Call customer</button>':'';
     return '<div class="djj-row'+(attn?' attn':'')+'" onclick="openDetail(\''+j.id+'\')">'
       +'<span style="flex:none;font-family:\'Bebas Neue\',sans-serif;font-size:15px;letter-spacing:.5px;color:'+bidColor+';width:46px">'+bidTxt+'</span>'
       +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+_esc(j.name)+'</span>'+cityChip+bizChip+'</div><div class="djj-sub'+(attn?' attn':'')+'">'+subLine+'</div></div>'
@@ -4089,8 +4098,8 @@ function cycleBinDrop(id,e){
 }
 function emailHtml(id, sent){
   if(sent)
-    return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(13,110,253,.15);border:1px solid rgba(13,110,253,.4);color:#0d6efd;white-space:nowrap">📧 Sent</button>';
-  return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(13,110,253,.3);color:#0d6efd;white-space:nowrap">📧 Email</button>';
+    return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(13,110,253,.15);border:1px solid rgba(13,110,253,.4);color:#0d6efd;white-space:nowrap">'+lineIcon('email',13)+' Sent</button>';
+  return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(13,110,253,.3);color:#0d6efd;white-space:nowrap">'+lineIcon('email',14)+' Email</button>';
 }
 function jobEmail(j){var cl=j.clientId?clients.find(function(c){return c.cid===j.clientId;}):null;if(!cl)return '';return (cl.emails&&cl.emails[0])?cl.emails[0]:(cl.email||'');}
 function makeJobRowNoSvc(j){
@@ -4106,7 +4115,7 @@ function makeJobRowNoSvc(j){
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">'+iconTile('cancelled',{size:13})+'Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
-    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('edit',15)+'</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('del',15)+'</button></div></td></tr>';
 }
 // Landscaping list row — its own renderer so Bin/Junk/Quote tables stay untouched.
 // Columns: ID · Job Name · Customer · # Guys · Date · Address · Email · actions (8 cells).
@@ -4123,7 +4132,7 @@ function makeLandscapingRow(j){
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#16a34a;border-color:rgba(34,197,94,.4)" title="Mark completed">✅</button>'
     +(isCancelled?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">'+iconTile('cancelled',{size:13})+'Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
-    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('edit',15)+'</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('del',15)+'</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
   var isCancelled = j.status === 'Cancelled';
@@ -4139,7 +4148,7 @@ function makeJobRowWithSvc(j){
     +'<td class="jcell-email">'+emailHtml(j.id,j.emailSent)+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +(isCancelled?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#dc3545;padding:8px 4px">'+iconTile('cancelled',{size:13})+'Cancelled</span>':'<button class="btn btn-ghost btn-sm" data-action="cancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#dc3545;border-color:rgba(220,53,69,.3)" title="Cancel job">🚫</button>')
-    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">✏️</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">🗑️</button></div></td></tr>';
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('edit',15)+'</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('del',15)+'</button></div></td></tr>';
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 function makeCancelledRow(j){
@@ -4150,8 +4159,8 @@ function makeCancelledRow(j){
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
-    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
-    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('edit',15)+'</button>'
+    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('del',15)+'</button>'
     +'</div></td></tr>';
 }
 function makeCancelledRowWithSvc(j){
@@ -4163,8 +4172,8 @@ function makeCancelledRowWithSvc(j){
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
-    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
-    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('edit',15)+'</button>'
+    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('del',15)+'</button>'
     +'</div></td></tr>';
 }
 // Completed landscaping job row (shown in the "✅ Completed" jobs-page view) — 9 cols to match the single-view header.
@@ -4179,8 +4188,8 @@ function makeCompletedRow(j){
     +'<td></td><td></td><td></td>'
     +'<td><div style="display:flex;gap:8px">'
     +'<button class="btn btn-ghost btn-sm" data-action="reopen-complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Reopen job">↩ Reopen</button>'
-    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">✏️</button>'
-    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">🗑️</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('edit',15)+'</button>'
+    +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('del',15)+'</button>'
     +'</div></td></tr>';
 }
 function toggleCatSection(el){
@@ -5775,8 +5784,8 @@ async function openClientDetail(cid){
     +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+cl.internalNotes+'</p></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
     +'<button class="btn btn-primary" onclick="closeM(\'client-detail-modal\');newJobForClient(\''+cl.cid+'\')">+ New Job</button>'
-    +'<button class="btn btn-ghost" onclick="closeM(\'client-detail-modal\');editClient(\''+cl.cid+'\')">✏️ Edit</button>'
-    +'<button class="btn btn-danger" onclick="delClient(\''+cl.cid+'\')">🗑️ Delete</button>'
+    +'<button class="btn btn-ghost" onclick="closeM(\'client-detail-modal\');editClient(\''+cl.cid+'\')">'+lineIcon('edit',14)+' Edit</button>'
+    +'<button class="btn btn-danger" onclick="delClient(\''+cl.cid+'\')">'+lineIcon('del',14)+' Delete</button>'
     +'</div>';
   document.getElementById('client-detail-modal').classList.add('open');
 }
@@ -5800,13 +5809,13 @@ function renderClientQuoteHistory(cid){
             +'<td>'+escHtml(q.service||'—')+'</td>'
             +'<td>'+escHtml(q.subject||'—')+'</td>'
             +'<td>'+escHtml(q.to_email||'—')+'</td>'
-            +'<td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">🗑️</button></td>'
+            +'<td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">'+lineIcon('del',15)+'</button></td>'
             +'</tr>'
             +'<tr id="qbody-'+q.id+'" style="display:none"><td colspan="6" style="background:rgba(0,0,0,.15);padding:12px 16px"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;margin:0;color:var(--text)">'+escHtml(q.body||'')+'</pre></td></tr>';
         }).join('')
       + '</tbody></table></div>';
   }
-  return '<div class="detail-section"><div class="detail-section-title">📧 Quote History</div>'+rows+'</div>';
+  return '<div class="detail-section"><div class="detail-section-title">'+lineIcon('email',14)+' Quote History</div>'+rows+'</div>';
 }
 
 function toggleQuoteBody(id){
@@ -5991,8 +6000,8 @@ function renderPricingGrids(){
         +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(compTonne?'<span style="color:#0d6efd">$'+compTonne+'/T</span>':'—')+'</td>'
         +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:#e67e22">'+comp.binFuel+'%</span>':'—')+'</td>'
         +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
-        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
+        +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">'+lineIcon('edit',15)+'</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">'+lineIcon('del',15)+'</button>'
         +'</div></td></tr>';
     });
     if(!areaComps.length) binHtml += '<tr><td colspan="'+(binSizes.length+4)+'" style="padding:16px 14px;color:var(--muted);font-size:13px">No competitors added for this area yet.</td></tr>';
@@ -6022,8 +6031,8 @@ function renderPricingGrids(){
           +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
           +junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); }).join('')
           +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
-          +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">✏️</button>'
-          +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">🗑️</button>'
+          +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">'+lineIcon('edit',15)+'</button>'
+          +'<button class="btn btn-danger btn-sm" onclick="deleteCompetitor(\''+comp.id+'\')">'+lineIcon('del',15)+'</button>'
           +'</div></td></tr>';
       });
       if(!areaComps.length) junkHtml += '<tr><td colspan="'+(junkTiers.length+2)+'" style="padding:16px 14px;color:var(--muted);font-size:13px">No competitors added for this area yet.</td></tr>';
@@ -6095,7 +6104,7 @@ function renderOurPrices(){
       +'color:'+(active?'var(--accent)':'var(--text)')+';'
       +'cursor:pointer;font-size:14px;font-weight:'+(active?'700':'500')+';transition:all .15s">'
       +'<span>📍 '+area+'</span>'
-      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:12px;opacity:.6;padding:0 2px" title="Rename">✏️</span>'
+      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:12px;opacity:.6;padding:0 2px" title="Rename">'+lineIcon('edit',13)+'</span>'
       +'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:14px;opacity:.6;padding:0 2px" title="Delete">✕</span>'
       +'</div>';
   }).join('')
@@ -7838,7 +7847,7 @@ function _renderJobPhotosDetail(j){
   }).join('');
   var addBtn = '<input type="file" id="photo-input-'+j.id+'" accept="image/*" multiple style="display:none" onchange="_addPhotosToJob(\''+j.id+'\',this)">'
     + '<button type="button" class="btn btn-blue-solid btn-sm" style="margin-left:auto" onclick="document.getElementById(\'photo-input-'+j.id+'\').click()">📷 Add Photos</button>';
-  var printBtn = photos.length ? '<button type="button" class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="printJobPhotos(\''+j.id+'\')">🖨️ Print Photos</button>' : '';
+  var printBtn = photos.length ? '<button type="button" class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="printJobPhotos(\''+j.id+'\')">'+lineIcon('print',14)+' Print Photos</button>' : '';
   // Landscaping detail can carry lots of photos — render them smaller so the info isn't pushed off-screen.
   var gridCls = (j.service==='Landscaping') ? 'photo-thumb-grid photo-thumb-grid-sm' : 'photo-thumb-grid';
   return '<div class="detail-section" id="detail-photos-'+j.id+'">'
@@ -9105,7 +9114,7 @@ async function openDetail(id, returnCid){
         return '<div class="detail-item"><label>🚛 Dropped by</label><span>'+dropTxt+'</span></div>'
              + '<div class="detail-item"><label>🚚 Picked up by</label><span>'+pickTxt+'</span></div>';
       })()
-      +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.3);color:#22c55e;width:100%">📦 Assign Bin</button></div>')+'</div>';
+      +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.3);color:#22c55e;width:100%">'+lineIcon('binDrop',14)+' Assign Bin</button></div>')+'</div>';
   }
   // Show recurring badge for non-bin services
   if(j.recurring&&j.service!=='Bin Rental'){
@@ -9121,10 +9130,10 @@ async function openDetail(id, returnCid){
       +'</div>';
   }
   var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.12);color:#22c55e">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
-  var emailConfBadge=j.emailConfirmed?'<span class="badge" style="background:rgba(13,110,253,.15);color:#0d6efd">📧 Email Confirmed</span>':'';
+  var emailConfBadge=j.emailConfirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(13,110,253,.15);color:#0d6efd">'+lineIcon('email',13)+' Email Confirmed</span>':'';
   var detAddr=((j.address||'')+(j.city?', '+j.city:'')).trim();
   var detAddrCell=detAddr
-    ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">🧭 Directions</a>'
+    ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
     : '—';
   document.getElementById('det-body').innerHTML=
     (j.service==='Landscaping'&&(j.jobName||j.crewSize)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
@@ -9160,19 +9169,19 @@ async function openDetail(id, returnCid){
 
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
-    +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">✏️ Edit Job</button>'
+    +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">'+lineIcon('edit',14)+' Edit Job</button>'
     +(j.service==='Landscaping' ? '' : ((j.emailSent||j.emailConfirmed)
       ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#22c55e;background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
-      :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">📧 Email Not Sent — Send Now</button>'))
-    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🖨️ Print Form</button>':'')
-    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">🖨️ Print Form</button>':'')
-    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🖨️ Print Form</button>':'')
-    +(j.service==='Landscaping'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">🖨️ Print Form</button>':'')
+      :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
+    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Landscaping'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Landscaping'?(j.completed
         ?'<button class="btn btn-ghost" onclick="reopenLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+' · Reopen</button>'
         :'<button class="btn btn-ghost" onclick="completeLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.4);color:#16a34a">✅ Mark Completed</button>'):'')
-    +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">🖨️ Print Form</button>':'')
-    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">🖨️ Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>':'')
+    +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">'+lineIcon('print',14)+' Print Form</button><button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">'+lineIcon('print',14)+' Print DRD</button>':'')
     +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Job</button>'
     +'<button class="btn btn-ghost" onclick="openDamageReport(\''+j.id+'\')" style="justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">⚠️ Report Damage</button>'
     +'</div></div>'
@@ -9214,7 +9223,7 @@ async function openDetail(id, returnCid){
     // ── Group 4: Danger Zone ──
     +'<div class="det-danger-box"><div class="det-action-group" style="gap:10px"><div class="det-group-label">Danger Zone</div><div class="det-btn-grid">'
     +(j.status!=='Cancelled'?'<button class="btn btn-ghost" onclick="cancelJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(220,53,69,.3);color:#dc3545">🚫 Cancel Job</button>':'')
-    +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')" style="justify-content:center">🗑️ Delete</button>'
+    +'<button class="btn btn-danger" onclick="delJob(\''+j.id+'\')" style="justify-content:center">'+lineIcon('del',14)+' Delete</button>'
     +'</div></div></div>'
 
     +'</div>';
@@ -9412,7 +9421,7 @@ function renderDrdInDetail(j){
   // Action buttons
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +'<button class="btn btn-primary" onclick="saveDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center">💾 Save DRD Data</button>'
-    +'<button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🖨️ Print DRD</button>'
+    +'<button class="btn btn-ghost" onclick="printDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">'+lineIcon('print',14)+' Print DRD</button>'
     +'</div>';
 
   html+='</div>';
@@ -12069,8 +12078,8 @@ function _renderVehicleRows(dashVehicles, alerts){
       +'<div class="h-status"><div class="h-status-val '+x.maint.state+'">'+x.maint.label+'</div><div class="h-status-sub">'+(x.maint.sub||'')+'</div></div>'
       +_render30DayStrip(v.vid)
       +'<div class="h-row-actions">'
-        +'<button class="h-act-btn" onclick="event.stopPropagation();openEditVehicle(\''+v.vid+'\')" title="Edit">✏️</button>'
-        +'<button class="h-act-btn" onclick="event.stopPropagation();delVehicle(\''+v.vid+'\')" title="Delete">🗑️</button>'
+        +'<button class="h-act-btn" onclick="event.stopPropagation();openEditVehicle(\''+v.vid+'\')" title="Edit">'+lineIcon('edit',15)+'</button>'
+        +'<button class="h-act-btn" onclick="event.stopPropagation();delVehicle(\''+v.vid+'\')" title="Delete">'+lineIcon('del',15)+'</button>'
       +'</div>'
     +'</div>';
     if(expanded) rowHtml += _renderVehicleDrawer(v);
@@ -12143,8 +12152,8 @@ function openVehMenu(vid,ev){
   ev.stopPropagation(); closeVehMenu();
   var m=document.createElement('div'); m.id='veh-ctx-menu';
   m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:140px';
-  m.innerHTML='<button onclick="closeVehMenu();openEditVehicle(\''+vid+'\')" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;color:var(--text)" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">✏️ Edit</button>'
-    +'<button onclick="closeVehMenu();delVehicle(\''+vid+'\')" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;color:#dc3545" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete</button>';
+  m.innerHTML='<button onclick="closeVehMenu();openEditVehicle(\''+vid+'\')" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;color:var(--text)" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">'+lineIcon('edit',14)+' Edit</button>'
+    +'<button onclick="closeVehMenu();delVehicle(\''+vid+'\')" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;color:#dc3545" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">'+lineIcon('del',14)+' Delete</button>';
   document.body.appendChild(m);
   var r=ev.target.getBoundingClientRect();
   m.style.top=(r.bottom+4)+'px'; m.style.left=Math.max(8,Math.min(r.left,window.innerWidth-150))+'px';
