@@ -194,8 +194,10 @@
 
   /* ── Screen 4 · Bin Rental Rates — full pricing sheet (zone × size) ── */
   #ratesWrap{height:100%; display:flex}
+  .rt-wrap{flex:1; display:flex; flex-direction:column; gap:12px; min-height:0}
+  .rt-note{flex:0 0 auto; text-align:center; font:600 18px/1.2 'Hanken Grotesk'; color:var(--muted-2)}
   .rt-table{flex:1; display:flex; flex-direction:column; background:var(--card); border-radius:24px;
-    overflow:hidden; box-shadow:0 8px 0 rgba(23,64,42,.12)}
+    overflow:hidden; box-shadow:0 8px 0 rgba(23,64,42,.12); min-height:0}
   .rt-row{display:grid; align-items:center; flex:1 1 0; min-height:0}
   .rt-row.zebra{background:rgba(23,64,42,.04)}
   .rt-head{flex:0 0 auto; background:var(--spruce)}
@@ -269,7 +271,7 @@
         <section class="panel" data-panel="rates">
           <div class="p-head"><span class="bar"></span><h2>Bin Rental Rates</h2>
             <span class="tag">By zone</span><span class="spacer"></span>
-            <span class="status">Weekly + monthly · before tax · + $/tonne dump</span></div>
+            <span class="status">Per drop · before tax · + $/tonne dump</span></div>
           <div class="p-body"><div id="ratesWrap"></div></div>
         </section>
       </div>
@@ -707,9 +709,9 @@
     }
 
     // Screen 4 · Bin Rental Rates — the full our_prices sheet: every zone × every size
-    var RATE_COLS = [['14 yard','14yd'],['20 yard','20yd'],['4 yard dirt','4yd Dirt'],
-      ['4 yard concrete','4yd Conc'],['7 yard dirt','7yd Dirt'],['7 yard concrete','7yd Conc'],
-      ['monthly 14 yard','Mo 14yd'],['monthly 20 yard','Mo 20yd']];
+    // Everyday sizes only (Jake 2026-07-05: dropped the dirt/concrete split + monthly).
+    // 4 & 7yd are stored dirt/concrete-only, so show the dirt (base) rate for them.
+    var RATE_COLS = [['4 yard dirt','4yd'],['7 yard dirt','7yd'],['14 yard','14yd'],['20 yard','20yd']];
     function renderRates(){
       var areas = DATA.rates || [];
       var gridCols = 'minmax(0,1.7fr) repeat('+RATE_COLS.length+',1fr) .8fr';
@@ -730,7 +732,8 @@
           + cells + '<div class="rt-cell rt-tonne">'+tonne+'</div></div>';
       }).join('');
       el('ratesWrap').innerHTML = areas.length
-        ? '<div class="rt-table">'+head+rows+'</div>'
+        ? '<div class="rt-wrap"><div class="rt-table">'+head+rows+'</div>'
+          + '<div class="rt-note">4 &amp; 7 yd shown at the dirt rate — concrete / heavy material is higher.</div></div>'
         : '<div class="bins-empty">Pricing sheet unavailable</div>';
     }
 
