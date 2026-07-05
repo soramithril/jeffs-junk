@@ -76,11 +76,11 @@
     display:flex; flex-direction:column; padding:44px 50px; gap:24px;
     transform:scale(var(--s,1)); transform-origin:center center;
   }
-  /* ambient brand truck — rolls in the header's open space, just left of the
-     weather/clock, so it's clearly visible top-right and never covers content. */
-  #tvtruck{position:absolute; top:56px; right:430px; width:168px; z-index:3; opacity:.96;
+  /* ambient brand truck — tucked under the clock (top-right), behind the panels so
+     it peeks through the title-row band and never covers content. Gentle roll. */
+  #tvtruck{position:absolute; top:150px; right:44px; width:160px; z-index:0; opacity:.58;
     pointer-events:none; animation:truckRoll 5s ease-in-out infinite;
-    filter:drop-shadow(0 6px 9px rgba(11,38,24,.32))}
+    filter:drop-shadow(0 6px 8px rgba(60,74,58,.2))}
   #topbar{position:relative; z-index:2}
   #stage{z-index:1}
 
@@ -166,7 +166,7 @@
   .cell.jx{background:#e7eef3; color:#4f7688; font:600 16px/1.15 'Hanken Grotesk'; padding:0 8px}
 
   /* ── Screen 3 · Operations ── */
-  #kpiGrid{height:100%; display:grid; grid-template-columns:1.15fr 1fr 1fr; grid-template-rows:1fr 1fr auto; gap:24px}
+  #kpiGrid{height:100%; display:grid; grid-template-columns:1.25fr 1fr 1fr 1fr; grid-template-rows:1fr 1fr; gap:22px}
   .ops-hero{grid-column:1; grid-row:1 / 3; background:var(--spruce); border-radius:28px; padding:44px 46px;
     display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 9px 0 rgba(11,38,24,.3);
     position:relative; overflow:hidden}
@@ -184,34 +184,30 @@
   .ops-tile .otl{font:700 24px/1 'Hanken Grotesk'; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
   .ops-tile .otn{font:800 150px/.85 'Baloo 2'; font-variant-numeric:tabular-nums}
   .ops-tile .otc{font:600 22px/1.2 'Hanken Grotesk'; color:var(--muted-2)}
-  .ops-tile.gold{background:var(--gold); box-shadow:0 8px 0 rgba(23,64,42,.18)}
-  .ops-tile.gold .otl{color:#7a5a10}
-  .ops-tile.gold .otn{color:var(--spruce)}
-  .ops-tile.gold .otc{color:#7a5a10}
-  .ops-tile.gold .otn-wrap{display:flex; align-items:baseline; gap:16px}
-  .ops-tile.gold .delta{font:800 44px/1 'Baloo 2'}
-  /* full-width "bins to beat last year" strip along the bottom of Operations */
-  .ops-beat{grid-column:1 / 4; grid-row:3; background:var(--spruce); border-radius:24px;
-    box-shadow:0 8px 0 rgba(11,38,24,.3); display:flex; align-items:center; gap:30px; padding:22px 42px}
-  .ops-beat .obn{font:800 78px/.85 'Baloo 2'; color:var(--soft); font-variant-numeric:tabular-nums}
-  .ops-beat .obmid{display:flex; flex-direction:column; gap:4px}
-  .ops-beat .obl{font:700 22px/1 'Hanken Grotesk'; letter-spacing:.1em; text-transform:uppercase; color:#8fb69c}
-  .ops-beat .obmsg{font:800 40px/1 'Baloo 2'; color:var(--gold)}
-  .ops-beat .obsub{margin-left:auto; font:600 24px/1.3 'Hanken Grotesk'; color:#9fc9ad; text-align:right; white-space:nowrap}
+  /* "beat last year" tiles (bottom row): this month so far vs last year's full month */
+  .ops-yoy{background:var(--spruce); border-radius:28px; padding:26px 30px; display:flex; flex-direction:column;
+    justify-content:space-between; box-shadow:0 8px 0 rgba(11,38,24,.3); min-height:0; overflow:hidden}
+  .ops-yoy .yl{font:700 21px/1.1 'Hanken Grotesk'; letter-spacing:.08em; text-transform:uppercase; color:#8fb69c}
+  .ops-yoy .yn{font:800 96px/.82 'Baloo 2'; color:var(--soft); font-variant-numeric:tabular-nums}
+  .ops-yoy .ym{font:800 29px/1.05 'Baloo 2'; color:var(--gold)}
+  .ops-yoy .ys{font:600 20px/1.2 'Hanken Grotesk'; color:#9fc9ad; margin-top:2px}
 
-  /* ── Screen 4 · Bin Rental Rates ── */
-  #ratesWrap{height:100%; display:grid; grid-template-columns:1fr 1fr; gap:22px}
-  .rate-card{background:var(--card); border-radius:26px; box-shadow:0 8px 0 rgba(23,64,42,.12);
-    display:flex; flex-direction:column; align-items:center; padding:34px 30px 40px; position:relative; min-height:0}
-  .rate-pop{position:absolute; top:22px; right:22px; font:700 20px/1 'Hanken Grotesk'; letter-spacing:.08em;
-    text-transform:uppercase; color:#fff; background:#d9532b; border-radius:12px; padding:8px 16px}
-  .rate-img{flex:1 1 auto; min-height:0; display:flex; align-items:center; justify-content:center; width:100%}
-  .rate-img img{max-width:100%; max-height:100%; object-fit:contain}
-  .rate-size{font:700 64px/1 'Baloo 2'; color:var(--spruce); margin-top:14px}
-  .rate-use{font:600 26px/1.25 'Hanken Grotesk'; color:var(--muted); margin-top:12px; text-align:center}
-  .rate-price{font:800 84px/1 'Baloo 2'; color:var(--ink); background:var(--gold); border-radius:22px;
-    padding:14px 44px; margin-top:20px; box-shadow:0 7px 0 rgba(23,64,42,.16); font-variant-numeric:tabular-nums}
-  .rate-note{font:600 22px/1 'Hanken Grotesk'; color:var(--muted-2); margin-top:16px}
+  /* ── Screen 4 · Bin Rental Rates — full pricing sheet (zone × size) ── */
+  #ratesWrap{height:100%; display:flex}
+  .rt-table{flex:1; display:flex; flex-direction:column; background:var(--card); border-radius:24px;
+    overflow:hidden; box-shadow:0 8px 0 rgba(23,64,42,.12)}
+  .rt-row{display:grid; align-items:center; flex:1 1 0; min-height:0}
+  .rt-row.zebra{background:rgba(23,64,42,.04)}
+  .rt-head{flex:0 0 auto; background:var(--spruce)}
+  .rt-cell{text-align:center; font:800 30px/1 'Baloo 2'; color:var(--ink); font-variant-numeric:tabular-nums}
+  .rt-dash{color:#c9c3ac}
+  .rt-tonne{color:var(--gold-ink)}
+  .rt-area{display:flex; flex-direction:column; gap:2px; padding-left:26px; min-width:0}
+  .rt-name{font:700 30px/1.05 'Baloo 2'; color:var(--spruce); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .rt-towns{font:600 14px/1.15 'Hanken Grotesk'; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:96%}
+  .rt-head .rt-cell{font:700 21px/1.1 'Hanken Grotesk'; letter-spacing:.04em; text-transform:uppercase; color:var(--gold)}
+  .rt-head .rt-area{padding-top:14px; padding-bottom:14px}
+  .rt-head .rt-name{font:700 22px/1 'Hanken Grotesk'; letter-spacing:.06em; text-transform:uppercase; color:var(--soft)}
 
   /* ── net-status pip ── */
   #netdot{position:fixed; bottom:14px; right:14px; width:12px; height:12px; border-radius:50%;
@@ -272,8 +268,8 @@
         <!-- Screen 4 · Bin Rental Rates -->
         <section class="panel" data-panel="rates">
           <div class="p-head"><span class="bar"></span><h2>Bin Rental Rates</h2>
-            <span class="tag">7-day rental</span><span class="spacer"></span>
-            <span class="status">Barrie &amp; area · taxes extra</span></div>
+            <span class="tag">By zone</span><span class="spacer"></span>
+            <span class="status">Weekly + monthly · before tax · + $/tonne dump</span></div>
           <div class="p-body"><div id="ratesWrap"></div></div>
         </section>
       </div>
@@ -319,6 +315,13 @@
       var m = p[1] && p[1]!=='00' ? ':'+p[1] : '';
       return hh+m+ap;
     }
+    function fmt12ap(t){                                  // "7:00" -> "7am", "16:00" -> "4pm"
+      if(!t) return '';
+      var p = String(t).split(':'); var h = parseInt(p[0],10); if(isNaN(h)) return t;
+      var ap = h>=12 ? 'pm':'am'; var hh = h%12; if(hh===0) hh=12;
+      var m = p[1] && p[1]!=='00' ? ':'+p[1] : '';
+      return hh+m+ap;
+    }
 
     // ── DOM helpers ──────────────────────────────────────────────────────────
     function el(id){ return document.getElementById(id); }
@@ -349,6 +352,8 @@
       var out=[];
       rows.forEach(function(j){
         if(j.status==='Cancelled') return;
+        // Not real Jeff's Junk jobs: quotes aren't jobs, landscaping is the JWG side.
+        if(j.service==='Junk Quote' || j.service==='Landscaping') return;
         function mk(label, time, crewIds){
           out.push({ service:label, time:time||'', name:j.name, business_name:j.business_name,
                      address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean) });
@@ -449,6 +454,9 @@
       var lyStart = monthStartStr(y-1, mo);
       var d0 = parseLocal(today);
       var lyCut = ymd(new Date(d0.getFullYear()-1, d0.getMonth(), d0.getDate()+1));
+      // last-year FULL month end (1st of the following month, last year). The "beat
+      // last year" tiles compare this month SO FAR vs last year's WHOLE month.
+      var lyMonthEnd = (mo===12) ? monthStartStr(y, 1) : monthStartStr(y-1, mo+1);
 
       var res = await Promise.all([
         db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid')
@@ -463,26 +471,28 @@
         // Bins out now — matches the DASHBOARD's fleet count exactly (Bin Rental,
         // dropped, NOT cancelled). Without the cancelled exclusion the TV over-counts.
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled'),
-        db.from('jobs').select('status').gte('date',monday).lt('date',wkEnd),
-        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',dayStartIso).lt('completed_at',dayEndIso),
+        // jobs this week (Mon–Sun) — NOT counting quotes (a quote isn't a job) or
+        // landscaping (the JWG side, not Jeff's Junk).
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',monday).lt('date',wkEnd).neq('status','Cancelled').neq('service','Junk Quote').neq('service','Landscaping'),
+        // completed today (hero done/to-go) — same exclusions
+        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',dayStartIso).lt('completed_at',dayEndIso).neq('service','Junk Quote').neq('service','Landscaping'),
         // junk-side work across the schedule week (for the crew-schedule ghosts)
         db.from('jobs').select('service,status,date,junk_date,fb_date,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_pickup')
           .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')'),
         // today's geofence enter/leave notifications — done/not-done for the bin board
         db.from('geofence_notifications').select('job_id,status').gte('created_at', dayStartIso),
-        // month tiles — count-only (no row data): jobs this month so far and the same
-        // days last year. Jobs count by their scheduled `date`, cut at today on BOTH
-        // sides, excluding cancelled jobs and quotes.
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled').neq('service','Junk Quote'),
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled').neq('service','Junk Quote'),
-        // Bin rentals this month-to-date vs the same first-N-days last year — drives
-        // the "bins to beat last year" strip on Operations. Same date-window rules as
-        // the all-jobs month tile, but filtered to Bin Rental.
+        // ── "beat last year" per service: this month SO FAR vs last year's FULL month ──
+        // count-only, by scheduled `date`, excluding cancelled. (12/13 bins, 14/15 junk,
+        // 16/17 furniture)
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
-        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
-        // Rates screen — the two everyday bin prices for the Barrie & Area zone.
-        // MUST stay LAST (read as res[res.length-1], non-fatal). Add new queries ABOVE this.
-        db.from('our_prices').select('bins').eq('area',RATES_AREA).limit(1)
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
+        // Rates screen — the FULL pricing sheet (every zone × every size). MUST stay
+        // LAST (read as res[res.length-1], non-fatal). Add new queries ABOVE this.
+        db.from('our_prices').select('area,towns,bins').order('area')
       ]);
       // Every query except the last (rates) is critical — fail fast so the board
       // never renders half-loaded. Rates is checked separately below and is never fatal.
@@ -533,22 +543,20 @@
       // Always the LAST query and non-critical: read res[res.length-1] (so it can
       // never go off-by-one again) and tolerate an error/empty row — a rates hiccup
       // must not blank the board; the Rates screen just shows "—".
-      var rr=res[res.length-1], rp=(rr && !rr.error && (rr.data||[])[0]) || null, rb=(rp&&rp.bins)||{};
-      DATA.rates = { y14: rb['14 yard'], y20: rb['20 yard'], tonne: rb._tonne };
+      var rr = res[res.length-1];
+      DATA.rates = (rr && !rr.error && rr.data) ? rr.data : [];
 
       // KPIs
-      var weekRows = res[8].data||[];
       DATA.kpi = {
         jobsToday: DATA.jobs.length,
         binsOut: res[7].count||0,
-        weekJobs: weekRows.filter(function(r){ return r.status!=='Cancelled'; }).length,
+        weekJobs: res[8].count||0,
         completedToday: (res[9].data||[]).length,
         lowStock: DATA.inv.filter(function(it){ return (it.current_stock||0) <= (it.min_threshold||0); }).length,
         workingToday: workingTodayCount(),
-        bookedMonth: res[12].count||0,
-        bookedLastYear: res[13].count||0,
-        binsMonth: res[14].count||0,
-        binsLastYear: res[15].count||0
+        binsMonth: res[12].count||0, binsLastYear: res[13].count||0,
+        junkMonth: res[14].count||0, junkLastYear: res[15].count||0,
+        furnMonth: res[16].count||0, furnLastYear: res[17].count||0
       };
     }
 
@@ -646,7 +654,7 @@
           var label='Work', tstr='';
           var sh = (day.shifts||[])[0];
           if(sh){
-            if(sh.start && sh.end) tstr = fmt12(sh.start)+'–'+fmt12(sh.end);
+            if(sh.start && sh.end) tstr = fmt12ap(sh.start)+'–'+fmt12ap(sh.end);
             if(sh.tasks && sh.tasks.length){ var tk = DATA.tasks[sh.tasks[0]]; if(tk && tk.label) label=tk.label; }
           }
           var inner = tstr
@@ -658,7 +666,7 @@
       wrap.innerHTML = cells.join('');
     }
 
-    // Screen 3 · Operations — Jobs Today hero + four stat tiles (all real)
+    // Screen 3 · Operations — Jobs Today hero + 3 stat tiles + 3 "beat last year" tiles
     function renderKpis(){
       var k = DATA.kpi, now = new Date();
       el('kpiMeta').textContent = 'Live · updated '+now.toLocaleTimeString(undefined,{hour:'numeric', minute:'2-digit'});
@@ -666,25 +674,20 @@
       var done = Math.min(k.completedToday, k.jobsToday), toGo = Math.max(0, k.jobsToday - done);
       var pct = k.jobsToday ? Math.max(0, Math.min(100, Math.round(100*done/k.jobsToday))) : 0;
 
-      var delta = k.bookedMonth - k.bookedLastYear, deltaHtml = '', cap;
-      if(k.bookedLastYear > 0){
-        var p = Math.round(100*delta/k.bookedLastYear);
-        deltaHtml = '<span class="delta" style="color:'+(delta>=0?'#2f7d2a':'#b03a1a')+'">'+(delta>=0?'▲':'▼')+Math.abs(p)+'%</span>';
-        cap = 'vs '+k.bookedLastYear+' last '+moName;
-      } else { cap = 'no last-'+moName+' data'; }
-
-      // Bins-specific "beat last year" — this month's bin rentals vs the same days last year
-      var bm = k.binsMonth||0, bly = k.binsLastYear||0, bgap = bly - bm;
-      var beatMsg, beatSub;
-      if(bly <= 0){ beatMsg = '—'; beatSub = 'no last-'+moName+' bins to compare'; }
-      else if(bgap > 0){ beatMsg = bgap+' more to beat last '+moName; beatSub = 'last '+moName+': '+bly+' bins'; }
-      else if(bgap === 0){ beatMsg = 'tied — 1 to pull ahead'; beatSub = 'last '+moName+': '+bly+' bins'; }
-      else { beatMsg = 'ahead by '+(-bgap)+' 🎉'; beatSub = 'last '+moName+': '+bly+' bins'; }
-
       function tile(l,n,c,capt){
         return '<div class="ops-tile"><div class="otl">'+l+'</div>'
           + '<div class="otn" style="color:'+c+'">'+n+'</div>'
           + '<div class="otc">'+capt+'</div></div>';
+      }
+      // "beat last year" tile: this month so far vs last year's FULL month.
+      function yoy(label, moN, lyFull){
+        var msg, sub;
+        if(lyFull <= 0){ msg = 'no last '+moName; sub = 'first '+moName+' on record'; }
+        else if(moN > lyFull){ msg = 'beat last '+moName+' 🎉'; sub = 'last '+moName+': '+lyFull; }
+        else { msg = 'book '+(lyFull - moN + 1)+' more to beat'; sub = 'last '+moName+': '+lyFull; }
+        return '<div class="ops-yoy"><div class="yl">'+label+' · '+moName+'</div>'
+          + '<div class="yn">'+moN+'</div>'
+          + '<div class="ym">'+msg+'</div><div class="ys">'+sub+'</div></div>';
       }
 
       el('kpiGrid').innerHTML =
@@ -696,33 +699,39 @@
           + '<img class="owm" src="assets/tv-bin-20.png" alt="">'
         + '</div>'
         + tile('Bins Out Now', k.binsOut, '#c98a2b', 'currently out')
-        + tile('Jobs This Week', k.weekJobs, '#3a9d5a', 'Mon–Sat')
+        + tile('Jobs This Week', k.weekJobs, '#3a9d5a', 'Mon–Sun')
         + tile('Crew Today', k.workingToday, '#2f8f8a', 'scheduled')
-        + '<div class="ops-tile gold"><div class="otl">Jobs in '+moName+'</div>'
-          + '<div class="otn-wrap"><span class="otn">'+k.bookedMonth+'</span>'+deltaHtml+'</div>'
-          + '<div class="otc">'+cap+'</div></div>'
-        + '<div class="ops-beat"><div class="obn">'+bm+'</div>'
-          + '<div class="obmid"><div class="obl">Bin rentals in '+moName+'</div><div class="obmsg">'+beatMsg+'</div></div>'
-          + '<div class="obsub">'+beatSub+'</div></div>';
+        + yoy('Bin Rentals', k.binsMonth||0, k.binsLastYear||0)
+        + yoy('Junk Removals', k.junkMonth||0, k.junkLastYear||0)
+        + yoy('Furniture', k.furnMonth||0, k.furnLastYear||0);
     }
 
-    // Screen 4 · Bin Rental Rates — the two everyday bins, live from our_prices
+    // Screen 4 · Bin Rental Rates — the full our_prices sheet: every zone × every size
+    var RATE_COLS = [['14 yard','14yd'],['20 yard','20yd'],['4 yard dirt','4yd Dirt'],
+      ['4 yard concrete','4yd Conc'],['7 yard dirt','7yd Dirt'],['7 yard concrete','7yd Conc'],
+      ['monthly 14 yard','Mo 14yd'],['monthly 20 yard','Mo 20yd']];
     function renderRates(){
-      var r = DATA.rates||{};
-      function price(v){ return (v==null || v==='') ? '—' : '$'+v; }
-      function card(size, img, use, val, popular){
-        return '<div class="rate-card">'
-          + (popular?'<div class="rate-pop">Popular</div>':'')
-          + '<div class="rate-img"><img src="'+img+'" alt="'+esc(size)+'"></div>'
-          + '<div class="rate-size">'+size+'</div>'
-          + '<div class="rate-use">'+use+'</div>'
-          + '<div class="rate-price">'+price(val)+'</div>'
-          + '<div class="rate-note">+ $'+(r.tonne||135)+'/tonne · taxes extra</div>'
-          + '</div>';
-      }
-      el('ratesWrap').innerHTML =
-        card('14 Yard', 'assets/bin-14yd.png', 'Reno &amp; clean-outs', r.y14, false)
-        + card('20 Yard', 'assets/bin-20yd.png', 'Whole-home · construction', r.y20, true);
+      var areas = DATA.rates || [];
+      var gridCols = 'minmax(0,1.7fr) repeat('+RATE_COLS.length+',1fr) .8fr';
+      var head = '<div class="rt-row rt-head" style="grid-template-columns:'+gridCols+'">'
+        + '<div class="rt-area">Zone</div>'
+        + RATE_COLS.map(function(c){ return '<div class="rt-cell">'+c[1]+'</div>'; }).join('')
+        + '<div class="rt-cell">$/T</div></div>';
+      var rows = areas.map(function(a, i){
+        var b = a.bins || {};
+        var cells = RATE_COLS.map(function(c){
+          var v = b[c[0]];
+          return '<div class="rt-cell">'+((v==null||v==='') ? '<span class="rt-dash">—</span>' : '$'+v)+'</div>';
+        }).join('');
+        var tonne = (b._tonne==null||b._tonne==='') ? '—' : '$'+b._tonne;
+        return '<div class="rt-row'+(i%2?' zebra':'')+'" style="grid-template-columns:'+gridCols+'">'
+          + '<div class="rt-area"><span class="rt-name">'+esc(a.area||'')+'</span>'
+            + (a.towns ? '<span class="rt-towns">'+esc(a.towns)+'</span>' : '') + '</div>'
+          + cells + '<div class="rt-cell rt-tonne">'+tonne+'</div></div>';
+      }).join('');
+      el('ratesWrap').innerHTML = areas.length
+        ? '<div class="rt-table">'+head+rows+'</div>'
+        : '<div class="bins-empty">Pricing sheet unavailable</div>';
     }
 
     function renderCurrent(){
