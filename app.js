@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '378';
+var APP_VERSION = '379';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9126,10 +9126,10 @@ async function openDetail(id, returnCid){
   var etransferNote='';
   if(j.payMethod==='E-Transfer'&&j.binInstatus==='pickedup'){
     etransferNote='<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(230,126,34,.07);border:1px solid rgba(230,126,34,.3);font-size:13px">'
-      +(j.etransferRefundSent?'<span style="color:#22c55e">✅ E-Transfer refund sent to customer</span>':'<span style="color:#e67e22">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
+      +(j.etransferRefundSent?'<span style="display:inline-flex;align-items:center;gap:4px;color:#22c55e">'+iconTile('confirmed',{size:13})+'E-Transfer refund sent to customer</span>':'<span style="color:#e67e22">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
       +'</div>';
   }
-  var confirmedBadge=j.confirmed?'<span class="badge" style="background:rgba(34,197,94,.12);color:#22c55e">✅ '+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
+  var confirmedBadge=j.confirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(34,197,94,.12);color:#22c55e">'+iconTile('confirmed',{size:13})+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(13,110,253,.15);color:#0d6efd">'+lineIcon('email',13)+' Email Confirmed</span>':'';
   var detAddr=((j.address||'')+(j.city?', '+j.city:'')).trim();
   var detAddrCell=detAddr
