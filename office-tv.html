@@ -181,32 +181,76 @@
   #schedWrap > :nth-child(7n+4){--i:3} #schedWrap > :nth-child(7n+5){--i:4}
   #schedWrap > :nth-child(7n+6){--i:5} #schedWrap > :nth-child(7n+7){--i:6}
 
-  /* ── Screen 3 · Operations ── */
-  #kpiGrid{height:100%; display:grid; grid-template-columns:1.25fr 1fr 1fr 1fr; grid-template-rows:1fr 1fr; gap:22px}
-  .ops-hero{grid-column:1; grid-row:1 / 3; background:var(--spruce); border-radius:28px; padding:44px 46px;
-    display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 9px 0 rgba(11,38,24,.3);
-    position:relative; overflow:hidden}
-  .ops-hero .ohl{font:700 27px/1 'Hanken Grotesk'; letter-spacing:.16em; text-transform:uppercase; color:#8fb69c}
-  .ops-hero .ohn{font:800 250px/.85 'Baloo 2'; color:var(--soft); font-variant-numeric:tabular-nums}
-  .ops-hero .ohsub{display:flex; align-items:center; gap:12px; margin-top:14px}
-  .ops-hero .ohsub .d1{font:700 30px/1 'Baloo 2'; color:var(--gold)}
-  .ops-hero .ohsub .odot{width:8px; height:8px; border-radius:50%; background:#8fb69c}
-  .ops-hero .ohsub .d2{font:700 30px/1 'Baloo 2'; color:#8fb69c}
-  .ops-hero .obar{height:16px; border-radius:999px; background:rgba(255,255,255,.14); overflow:hidden}
-  .ops-hero .obar-fill{height:100%; background:var(--gold); border-radius:999px}
-  .ops-hero .owm{position:absolute; right:-30px; bottom:-26px; width:220px; opacity:.16}
-  .ops-tile{background:var(--card); border-radius:28px; padding:34px 38px; display:flex; flex-direction:column;
-    justify-content:space-between; box-shadow:0 8px 0 rgba(23,64,42,.12)}
-  .ops-tile .otl{font:700 24px/1 'Hanken Grotesk'; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
-  .ops-tile .otn{font:800 150px/.85 'Baloo 2'; font-variant-numeric:tabular-nums}
-  .ops-tile .otc{font:600 22px/1.2 'Hanken Grotesk'; color:var(--muted-2)}
-  /* "beat last year" tiles (bottom row): this month so far vs last year's full month */
-  .ops-yoy{background:var(--spruce); border-radius:28px; padding:26px 30px; display:flex; flex-direction:column;
-    justify-content:space-between; box-shadow:0 8px 0 rgba(11,38,24,.3); min-height:0; overflow:hidden}
-  .ops-yoy .yl{font:700 21px/1.1 'Hanken Grotesk'; letter-spacing:.08em; text-transform:uppercase; color:#8fb69c}
-  .ops-yoy .yn{font:800 96px/.82 'Baloo 2'; color:var(--soft); font-variant-numeric:tabular-nums}
-  .ops-yoy .ym{font:800 29px/1.05 'Baloo 2'; color:var(--gold)}
-  .ops-yoy .ys{font:600 20px/1.2 'Hanken Grotesk'; color:#9fc9ad; margin-top:2px}
+  /* ── Screen 3 · Operations — "Beat Last July" scoreboard ── */
+  @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  @keyframes celebrate{0%,100%{box-shadow:0 8px 0 rgba(23,64,42,.13),inset 0 0 0 3px rgba(232,179,74,.9)}
+    50%{box-shadow:0 8px 0 rgba(23,64,42,.13),inset 0 0 0 3px rgba(232,179,74,.9),0 0 40px rgba(232,179,74,.45)}}
+  @keyframes glowPulse{0%,100%{box-shadow:0 0 0 rgba(232,179,74,0)}50%{box-shadow:0 0 36px rgba(232,179,74,.6)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+  /* bins-out pill lives in the panel head (kpiMeta) */
+  #kpiMeta .binsout{display:inline-flex;align-items:center;gap:12px;background:var(--spruce);
+    border-radius:16px;padding:8px 20px;vertical-align:middle}
+  #kpiMeta .binsout b{font:800 40px/1 'Baloo 2';color:var(--gold);font-variant-numeric:tabular-nums}
+  #kpiMeta .binsout span{font:700 18px/1.1 'Hanken Grotesk';letter-spacing:.09em;text-transform:uppercase;color:#cfe0d4}
+
+  /* ── 2A standings lanes (default) ── */
+  #kpiGrid{height:100%;display:flex;flex-direction:column;gap:22px}
+  .opsl{position:relative;flex:1 1 0;min-height:0;display:flex;align-items:stretch;background:var(--card);
+    border-radius:26px;box-shadow:0 8px 0 rgba(23,64,42,.13);overflow:hidden}
+  .opsl.beat{background:#fff7e6;animation:celebrate 2.6s ease-in-out infinite}
+  .opsl .accent{width:14px;flex:0 0 auto}
+  .opsl .who{flex:0 0 320px;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:20px 30px}
+  .opsl .who .nm{font:800 42px/1 'Baloo 2';color:var(--ink)}
+  .opsl .who .beatchip{align-self:flex-start;font:800 18px/1 'Baloo 2';color:var(--spruce);background:var(--gold);
+    border-radius:11px;padding:5px 13px;box-shadow:0 4px 0 rgba(23,64,42,.16)}
+  .opsl .who .pc{font:700 20px/1 'Hanken Grotesk'}
+  .opsl .who .pc em{color:var(--muted);font-weight:600;font-style:normal}
+  .opsl .mid{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:18px;padding:18px 30px 18px 6px}
+  .opsl .mid .big{display:flex;align-items:baseline;gap:14px}
+  .opsl .mid .big .n{font:800 96px/.82 'Baloo 2';font-variant-numeric:tabular-nums}
+  .opsl .mid .big .lab{font:700 22px/1.15 'Hanken Grotesk';color:var(--muted-2)}
+  .opsl .bar{position:relative;height:28px;background:#ece3ca;border-radius:999px;margin:2px 0}
+  .opsl .bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;z-index:2;transform-origin:left;animation:growX 1s ease .1s both}
+  .opsl .bar .ghost{position:absolute;top:0;bottom:0;border:2px dashed;border-left:none;border-radius:0 999px 999px 0;z-index:1}
+  .opsl .bar .tick{position:absolute;top:-9px;bottom:-9px;width:4px;background:var(--spruce);border-radius:2px;z-index:3}
+  .opsl .bar .tl{position:absolute;bottom:-27px;transform:translateX(-50%);font:700 15px/1 'Hanken Grotesk';color:var(--spruce);white-space:nowrap}
+  .opsl .bar .pl{position:absolute;top:-26px;transform:translateX(-50%);font:800 15px/1 'Hanken Grotesk';white-space:nowrap}
+  .opsl .verd{flex:0 0 300px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:11px;padding:20px 30px 20px 0}
+  .opsl .verd .pill{font:800 28px/1 'Baloo 2';border-radius:14px;padding:10px 20px;white-space:nowrap}
+  .opsl .verd .sub{font:700 21px/1.2 'Hanken Grotesk';text-align:right;white-space:nowrap}
+  .opsl .verd .ok{color:#2f8a4e;background:#e4f3e8}
+  .opsl .verd .no{color:var(--gold-ink);background:#fbeecb}
+
+  /* ── 2B race arena (celebration takeover) ── */
+  .opsa{height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;padding:30px 56px 26px;
+    background:linear-gradient(160deg,#1e5335,#12301f 82%);border-radius:28px;box-shadow:0 9px 0 rgba(11,38,24,.3)}
+  .opsa::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 2px,transparent 2.4px);background-size:34px 34px}
+  .opsa-head{position:relative;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .opsa-head .t{font:800 36px/1 'Baloo 2';color:var(--soft);white-space:nowrap}
+  .opsa-head .lg{font:700 19px/1 'Hanken Grotesk';letter-spacing:.14em;text-transform:uppercase;color:#8fb69c;white-space:nowrap}
+  .opsa-field{position:relative;flex:1 1 auto}
+  .opsa-line{position:absolute;left:0;right:0;top:26%;border-top:3px dashed var(--gold);z-index:4}
+  .opsa-line .fin,.opsa-line .last{position:absolute;top:-16px;font:800 17px/1 'Hanken Grotesk';letter-spacing:.12em;
+    color:#12301f;background:var(--gold);border-radius:9px;padding:5px 13px;white-space:nowrap}
+  .opsa-line .fin{left:0}.opsa-line .last{right:0}
+  .opsa-cols{position:absolute;left:0;right:0;top:0;bottom:118px;display:flex;justify-content:space-around;align-items:flex-end}
+  .opsa-caps{position:absolute;left:0;right:0;bottom:0;height:104px;display:flex;justify-content:space-around}
+  .opsa-col{position:relative;flex:0 0 260px;height:100%;display:flex;justify-content:center;align-items:flex-end}
+  .opsa-fx{position:absolute;top:1%;font-size:32px;animation:bob 2.2s ease-in-out infinite}
+  .opsa-track{position:relative;width:150px;height:100%;background:rgba(255,255,255,.07);border-radius:18px}
+  .opsa-fill{position:absolute;left:0;right:0;bottom:0;border-radius:16px;transform-origin:bottom;animation:growY 1.1s ease .15s both}
+  .opsa-fill.beat{animation:growY 1.1s ease .15s both,glowPulse 2.4s ease-in-out infinite}
+  .opsa-ghost{position:absolute;left:0;right:0;border:2px dashed;border-bottom:none;border-radius:14px 14px 0 0}
+  .opsa-projlab{position:absolute;left:0;right:0;text-align:center;transform:translateY(-9px);font:800 17px/1 'Hanken Grotesk'}
+  .opsa-num{position:absolute;left:0;right:0;text-align:center;transform:translateY(-12px);font:800 62px/1 'Baloo 2';font-variant-numeric:tabular-nums}
+  .opsa-num.top{top:5%;transform:none}
+  .opsa-num .bt{font:800 22px/1 'Baloo 2';color:#12301f;letter-spacing:.04em;margin-bottom:4px}
+  .opsa-col-cap{flex:0 0 260px;text-align:center}
+  .opsa-col-cap .nm{font:800 30px/1 'Baloo 2';color:var(--soft)}
+  .opsa-col-cap .vs{font:600 18px/1.3 'Hanken Grotesk';color:#9fc9ad;margin-top:6px}
+  .opsa-col-cap .vd{font:800 19px/1.2 'Hanken Grotesk';margin-top:6px}
 
   /* ── Screen 4 · Bin Rental Rates — full pricing sheet (zone × size) ── */
   #ratesWrap{height:100%; display:flex}
@@ -339,6 +383,52 @@
       var ap = h>=12 ? 'pm':'am'; var hh = h%12; if(hh===0) hh=12;
       var m = p[1] && p[1]!=='00' ? ':'+p[1] : '';
       return hh+m+ap;
+    }
+
+    // ── Operations scoreboard: working-day pace (Mon–Sat) ─────────────────────
+    function workingDaysBetween(start, end){                 // Mon–Sat in [start,end)
+      var n=0, d=new Date(start);
+      while(d < end){ if(d.getDay()!==0) n++; d.setDate(d.getDate()+1); }
+      return n;
+    }
+    function paceProject(soFar){                              // month-so-far → projected month-end
+      var now=new Date(), y=now.getFullYear(), m=now.getMonth();
+      var elapsed=Math.max(1, workingDaysBetween(new Date(y,m,1), new Date(y,m,now.getDate()+1)));
+      var total  =Math.max(elapsed, workingDaysBetween(new Date(y,m,1), new Date(y,m+1,1)));
+      return Math.round(soFar * total / elapsed);
+    }
+    // How long the arena takes over after a FRESH beat. 0 = never (2A only).
+    var BEAT_CELEBRATE_MS = 6*60*1000;                        // 6 minutes
+    // True while a newly-crossed "beat last year" is still inside its window.
+    function beatCelebrationActive(services){
+      var now=Date.now(), monthKey=new Date().toISOString().slice(0,7), key='jj-tv-beat';
+      var st; try{ st=JSON.parse(localStorage.getItem(key)||'{}'); }catch(e){ st={}; }
+      if(st.month!==monthKey) st={month:monthKey, seen:[], until:0};
+      var beaters=services.filter(function(s){ return s.last>0 && s.cur>=s.last; })
+                          .map(function(s){ return s.name; });
+      var fresh=beaters.filter(function(n){ return st.seen.indexOf(n)===-1; });
+      if(fresh.length){ st.until=now+BEAT_CELEBRATE_MS; st.seen=beaters; }
+      try{ localStorage.setItem(key, JSON.stringify(st)); }catch(e){}
+      return now < (st.until||0);
+    }
+    // Count-up the big Operations numbers (replays each rotation since #kpiGrid rebuilds).
+    function animateOps(root){
+      var nums = [].slice.call(root.querySelectorAll('span')).filter(function(el){
+        return /^\d+$/.test((el.textContent||'').trim());   // the big service numbers + bins-out
+      });
+      nums.forEach(function(el, i){
+        var target = parseInt(el.textContent, 10), dur = 850, delay = 120 + i*55, start = null;
+        el.textContent = '0';
+        function tick(ts){
+          if(start == null) start = ts;
+          var p = (ts - start - delay) / dur;
+          if(p < 0){ requestAnimationFrame(tick); return; }
+          if(p >= 1){ el.textContent = String(target); return; }
+          el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));  // easeOutCubic
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
     }
 
     // ── DOM helpers ──────────────────────────────────────────────────────────
@@ -684,44 +774,95 @@
       wrap.innerHTML = cells.join('');
     }
 
-    // Screen 3 · Operations — Jobs Today hero + 3 stat tiles + 3 "beat last year" tiles
+    // Screen 3 · Operations — "Beat Last July" scoreboard (2A lanes / 2B arena)
     function renderKpis(){
-      var k = DATA.kpi, now = new Date();
-      el('kpiMeta').textContent = 'Live · updated '+now.toLocaleTimeString(undefined,{hour:'numeric', minute:'2-digit'});
-      var moName = now.toLocaleDateString(undefined,{month:'short'});
-      var done = Math.min(k.completedToday, k.jobsToday), toGo = Math.max(0, k.jobsToday - done);
-      var pct = k.jobsToday ? Math.max(0, Math.min(100, Math.round(100*done/k.jobsToday))) : 0;
+      var k=DATA.kpi, now=new Date();
+      var MONTH=now.toLocaleDateString(undefined,{month:'long'});
+      el('kpiMeta').innerHTML='<span class="binsout"><b>'+(k.binsOut||0)+'</b><span>Bins out<br>right now</span></span>';
 
-      function tile(l,n,c,capt){
-        return '<div class="ops-tile"><div class="otl">'+l+'</div>'
-          + '<div class="otn" style="color:'+c+'">'+n+'</div>'
-          + '<div class="otc">'+capt+'</div></div>';
-      }
-      // "beat last year" tile: this month so far vs last year's FULL month.
-      function yoy(label, moN, lyFull){
-        var msg, sub;
-        if(lyFull <= 0){ msg = 'no last '+moName; sub = 'first '+moName+' on record'; }
-        else if(moN > lyFull){ msg = 'beat last '+moName+' 🎉'; sub = 'last '+moName+': '+lyFull; }
-        else { msg = 'book '+(lyFull - moN + 1)+' more to beat'; sub = 'last '+moName+': '+lyFull; }
-        return '<div class="ops-yoy"><div class="yl">'+label+' · '+moName+'</div>'
-          + '<div class="yn">'+moN+'</div>'
-          + '<div class="ym">'+msg+'</div><div class="ys">'+sub+'</div></div>';
-      }
+      var services=[
+        {name:'Bin Rentals',      accent:'#2f8a4e', cur:k.binsMonth||0, last:k.binsLastYear||0},
+        {name:'Junk Removal',     accent:'#c98a2b', cur:k.junkMonth||0, last:k.junkLastYear||0},
+        {name:'Furniture Pickup', accent:'#b7654a', cur:k.furnMonth||0, last:k.furnLastYear||0}
+      ];
+      services.forEach(function(s){
+        s.proj  = paceProject(s.cur);
+        s.beat  = s.last>0 && s.cur>=s.last;
+        s.onPace= s.last>0 && s.proj>=s.last;
+        s.pct   = s.last>0 ? Math.round((s.cur-s.last)/s.last*100) : null;
+      });
 
-      el('kpiGrid').innerHTML =
-        '<div class="ops-hero">'
-          + '<div class="ohl">Jobs Today</div>'
-          + '<div><div class="ohn">'+k.jobsToday+'</div>'
-            + '<div class="ohsub"><span class="d1">'+done+' done</span><span class="odot"></span><span class="d2">'+toGo+' to go</span></div></div>'
-          + '<div class="obar"><div class="obar-fill" style="width:'+pct+'%"></div></div>'
-          + '<img class="owm" src="assets/tv-bin-20.png" alt="">'
-        + '</div>'
-        + tile('Bins Out Now', k.binsOut, '#c98a2b', 'currently out')
-        + tile('Jobs This Week', k.weekJobs, '#3a9d5a', 'Mon–Sun')
-        + tile('Crew Today', k.workingToday, '#2f8f8a', 'scheduled')
-        + yoy('Bin Rentals', k.binsMonth||0, k.binsLastYear||0)
-        + yoy('Junk Removals', k.junkMonth||0, k.junkLastYear||0)
-        + yoy('Furniture', k.furnMonth||0, k.furnLastYear||0);
+      el('kpiGrid').innerHTML = beatCelebrationActive(services)
+        ? renderOpsArena(services, MONTH)
+        : renderOpsLanes(services, MONTH);
+
+      animateOps(el('kpiGrid'));
+      animateOps(el('kpiMeta'));   // the bins-out number too
+    }
+
+    // 2A — standings lanes
+    function renderOpsLanes(services, MONTH){
+      return services.map(function(s){
+        var scale=Math.max(s.proj, s.last, 1)*1.14, W=function(v){ return Math.max(0,Math.min(100,v/scale*100)); };
+        var solid=W(s.cur), projW=W(s.proj), tick=W(s.last);
+        var ghostL=Math.min(solid,projW), ghostW=Math.max(0,projW-ghostL);
+        var pctTxt=s.pct==null?'':(s.pct>=0?'▲ '+s.pct+'%':'▼ '+Math.abs(s.pct)+'%');
+        var pctCol=(s.pct!=null&&s.pct>=0)?'#2f8a4e':'#c0532b';
+        var good=s.beat||s.onPace;
+        var pill=s.beat?'AHEAD ✓':(s.onPace?'ON PACE ✓':'BEHIND PACE');
+        var sub =s.beat?('ahead by '+(s.cur-s.last))
+                :s.onPace?('on track, +'+Math.max(0,s.proj-s.last))
+                :((s.last-s.proj)+' short of '+s.last);
+        return '<div class="opsl'+(s.beat?' beat':'')+'">'
+          +'<div class="accent" style="background:'+s.accent+'"></div>'
+          +'<div class="who"><div class="nm">'+esc(s.name)+'</div>'
+            +(s.beat?'<div class="beatchip">★ BEAT LAST '+MONTH.slice(0,3).toUpperCase()+'</div>':'')
+            +'<div class="pc" style="color:'+pctCol+'">'+pctTxt+' <em>so far vs last '+MONTH+'</em></div></div>'
+          +'<div class="mid"><div class="big"><span class="n" style="color:'+s.accent+'">'+s.cur+'</span>'
+            +'<span class="lab">this '+MONTH+'<br>so far</span></div>'
+            +'<div class="bar"><div class="fill" style="width:'+solid+'%;background:'+s.accent+'"></div>'
+            +(ghostW>0.5?'<div class="ghost" style="left:'+ghostL+'%;width:'+ghostW+'%;border-color:'+s.accent
+                +';background:repeating-linear-gradient(90deg,'+s.accent+'38 0 6px,transparent 6px 12px)"></div>':'')
+            +'<div class="tick" style="left:'+tick+'%"></div>'
+            +'<div class="tl" style="left:'+tick+'%">last '+MONTH+' '+s.last+'</div>'
+            +'<div class="pl" style="left:'+projW+'%;color:'+s.accent+'">proj '+s.proj+'</div></div></div>'
+          +'<div class="verd"><div class="pill '+(good?'ok':'no')+'">'+pill+'</div>'
+            +'<div class="sub" style="color:'+(good?'#2f8a4e':'#a8701a')+'">'+esc(sub)+'</div></div>'
+        +'</div>';
+      }).join('');
+    }
+
+    // 2B — race arena (celebration). Finish line = last year, at 26% down from the top.
+    function renderOpsArena(services, MONTH){
+      var LINE=0.74;
+      var cols='', caps='';
+      services.forEach(function(s){
+        var H=function(v){ return Math.max(0,Math.min(0.99, v/Math.max(s.last,1)*LINE)); };
+        var solid=H(s.cur), projTop=H(s.proj), ghostH=Math.max(0,projTop-solid);
+        var pctTxt=s.pct==null?'':(s.pct>=0?'▲ '+s.pct+'%':'▼ '+Math.abs(s.pct)+'%');
+        var pctCol=(s.pct!=null&&s.pct>=0)?'#8fe0a8':'#ff9d76';
+        var fill=s.beat?'linear-gradient(180deg,#f2c766,#e8b34a)':'linear-gradient(180deg,'+s.accent+'cc,'+s.accent+')';
+        var edge=s.beat?'#e8b34a':s.accent;
+        cols+='<div class="opsa-col">'
+          +(s.beat?'<span class="opsa-fx" style="left:16%">🎉</span><span class="opsa-fx" style="right:14%;animation-delay:.4s">🎉</span>':'')
+          +'<div class="opsa-track">'
+            +(ghostH>0.01?'<div class="opsa-ghost" style="bottom:'+(solid*100)+'%;height:'+(ghostH*100)+'%;border-color:'+edge
+                +';background:repeating-linear-gradient(0deg,'+edge+'2e 0 6px,transparent 6px 12px)"></div>':'')
+            +'<div class="opsa-projlab" style="bottom:'+(projTop*100)+'%;color:'+edge+'">proj '+s.proj+'</div>'
+            +'<div class="opsa-fill'+(s.beat?' beat':'')+'" style="height:'+(solid*100)+'%;background:'+fill+'"></div>'
+            +'<div class="opsa-num'+(s.beat?' top':'')+'" style="'+(s.beat?'':'bottom:'+(solid*100)+'%;')+'color:'+(s.beat?'#12301f':'#fdf6e6')+'">'
+              +(s.beat?'<div class="bt">★ BEAT!</div>':'')+s.cur+'</div>'
+          +'</div></div>';
+        var vd=s.beat?'AHEAD · proj '+s.proj:(s.onPace?'ON PACE ✓ proj '+s.proj:'BEHIND PACE · proj '+s.proj);
+        caps+='<div class="opsa-col-cap"><div class="nm">'+esc(s.name)+'</div>'
+          +'<div class="vs">vs '+s.last+' last '+MONTH+' · <b style="color:'+pctCol+'">'+pctTxt+'</b></div>'
+          +'<div class="vd" style="color:'+(s.beat||s.onPace?'#8fe0a8':'#f0b877')+'">'+vd+'</div></div>';
+      });
+      return '<div class="opsa"><div class="opsa-head"><span class="t">Race to Beat Last '+MONTH+'</span>'
+        +'<span class="lg">Solid = booked · dashed = projected</span></div>'
+        +'<div class="opsa-field"><div class="opsa-line"><span class="fin">FINISH</span>'
+        +'<span class="last">LAST '+MONTH.toUpperCase()+'</span></div>'
+        +'<div class="opsa-cols">'+cols+'</div><div class="opsa-caps">'+caps+'</div></div></div>';
     }
 
     // Screen 4 · Bin Rental Rates — the full our_prices sheet: every zone × every size
