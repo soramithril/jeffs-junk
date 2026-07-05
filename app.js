@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '380';
+var APP_VERSION = '381';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10105,6 +10105,18 @@ var NAV_ICO={
   "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
   "goJwg('clothing')":'clothing'
 };
+// Distinct tile colour per More-Tools item so the flyout reads as a colourful
+// app grid (rather than all-white). Main green-rail items stay white line glyphs.
+var NAV_COLOR={
+  "go('documents')":'slate', "go('calendar')":'blue', "go('livejobs')":'cyan',
+  "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
+  "go('damage')":'red', "go('bininventory')":'teal', "go('binmap')":'olive',
+  "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('bookings')":'pink',
+  "go('analytics')":'blue', "go('leaderboard')":'amber', "go('utilization')":'cyan',
+  "go('advisor')":'violet', "go('ourprices')":'green', "openFurniturePrices()":'pink',
+  "go('team')":'indigo', "openUserManager()":'blue', "go('staffcheckin')":'teal',
+  "openEditPresets()":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red'
+};
 function paintNavIcons(){
   if(!window.JWGIcons) return;
   document.querySelectorAll('.sidebar .nav-item').forEach(function(btn){
@@ -10112,7 +10124,16 @@ function paintNavIcons(){
     var key=NAV_ICO[oc];
     if(!key || !JWGIcons.PATHS[key]) return;
     var ico=btn.querySelector('.icon');
-    if(ico) ico.innerHTML=JWGIcons.navIcon(key,{size:16});
+    if(!ico) return;
+    if(btn.closest('#nav-more')){
+      // More-Tools flyout: colourful emboss tile fills the chip
+      var color=NAV_COLOR[oc]||JWGIcons.ICON_COLOR[key]||'green';
+      ico.innerHTML=JWGIcons.embossTile(key,{size:28,radius:8,color:color});
+      ico.style.background='transparent';
+    } else {
+      // main green rail: white line glyph (nav chrome)
+      ico.innerHTML=JWGIcons.navIcon(key,{size:16});
+    }
   });
 }
 function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); paintNavIcons(); }
