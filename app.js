@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '382';
+var APP_VERSION = '383';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11924,10 +11924,10 @@ function _renderVehicleKPIs(dashVehicles, alerts){
     Object.keys(blocks).forEach(function(d){ if(d>=today && d<=endStr) daysOff30++; });
   });
   el.innerHTML = '<div class="h-kpis">'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(34,197,94,.12);color:#22c55e">✓</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+dashVehicles.length+' on track</div></div>'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(220,53,69,.12);color:#dc3545">⛽</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(230,126,34,.13);color:#e67e22">🔧</div><div><div class="h-kpi-num">'+maintDue+'</div><div class="h-kpi-lbl">Maintenance due</div></div></div></div>'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6">🚫</div><div><div class="h-kpi-num">'+daysOff30+'</div><div class="h-kpi-lbl">Days off (30d)</div></div></div></div>'
+    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('confirmed',{size:36,radius:9,color:'green'})+'</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+dashVehicles.length+' on track</div></div>'
+    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('oil',{size:36,radius:9,color:'red'})+'</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
+    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('maintenance',{size:36,radius:9,color:'orange'})+'</div><div><div class="h-kpi-num">'+maintDue+'</div><div class="h-kpi-lbl">Maintenance due</div></div></div></div>'
+    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('cancelled',{size:36,radius:9,color:'blue'})+'</div><div><div class="h-kpi-num">'+daysOff30+'</div><div class="h-kpi-lbl">Days off (30d)</div></div></div></div>'
   +'</div>';
 }
 
@@ -12407,10 +12407,10 @@ async function renderMaintenance(){
 
   if(kpiEl){
     kpiEl.innerHTML='<div class="h-kpis">'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(34,197,94,.12);color:#22c55e">✓</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+fleet.length+' on track</div></div>'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(220,53,69,.12);color:#dc3545">⛽</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(230,126,34,.13);color:#e67e22">🔧</div><div><div class="h-kpi-num">'+serviceDue+'</div><div class="h-kpi-lbl">Service due</div></div></div></div>'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:rgba(59,130,246,.12);color:#3b82f6">📋</div><div><div class="h-kpi-num">'+stickerFlag+'</div><div class="h-kpi-lbl">Sticker expiring</div></div></div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('confirmed',{size:36,radius:9,color:'green'})+'</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+fleet.length+' on track</div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('oil',{size:36,radius:9,color:'red'})+'</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('maintenance',{size:36,radius:9,color:'orange'})+'</div><div><div class="h-kpi-num">'+serviceDue+'</div><div class="h-kpi-lbl">Service due</div></div></div></div>'
+      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('allJobs',{size:36,radius:9,color:'blue'})+'</div><div><div class="h-kpi-num">'+stickerFlag+'</div><div class="h-kpi-lbl">Sticker expiring</div></div></div></div>'
     +'</div>';
   }
 

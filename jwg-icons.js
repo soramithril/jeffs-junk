@@ -60,6 +60,8 @@
     utilization: '<path d="M3.5 18a8.5 8.5 0 0 1 17 0"/><path d="M12 18l4.2-4.6"/><circle cx="12" cy="18" r="1.3"/>',
     clothing:    '<path d="M8.5 3 3 8l2.8 2.2V20a1 1 0 0 0 1 1h10.4a1 1 0 0 0 1-1v-9.8L21 8 15.5 3a3.5 3.5 0 0 1-7 0z"/>',
     advisor:     '<path d="M9.5 18.5h5M10.5 21.3h3"/><path d="M12 2.8a6.2 6.2 0 0 1 3.9 11c-.6.5-.9 1.1-.9 1.9v.3H9v-.3c0-.8-.3-1.4-.9-1.9A6.2 6.2 0 0 1 12 2.8z"/>',
+    /* Oil / fuel — a droplet, for vehicle oil-change KPIs */
+    oil:         '<path d="M12 3s5.6 6.1 5.6 10.3a5.6 5.6 0 1 1-11.2 0C6.4 9.1 12 3 12 3z"/><path d="M9.3 13.4a2.7 2.7 0 0 0 2.5 2.6"/>',
 
     /* Actions / status */
     confirmed:   '<circle cx="12" cy="12" r="9"/><path d="M8 12.4 10.6 15 16 9.3"/>',
@@ -97,7 +99,7 @@
     dashboard:'green', allJobs:'green', schedule:'green', clients:'green', vehicles:'green',
     liveJobs:'green', dispatch:'green', binMap:'green', damage:'green', analytics:'green',
     pricing:'green', documents:'green',
-    newJob:'green', summerWinter:'amber', leaderboard:'amber', utilization:'green', clothing:'violet', advisor:'amber',
+    newJob:'green', summerWinter:'amber', leaderboard:'amber', utilization:'green', clothing:'violet', advisor:'amber', oil:'amber',
     confirmed:'green', cancelled:'red', maintenance:'amber', del:'red', edit:'slate',
     print:'slate', directions:'blue', booked:'green'
   };
