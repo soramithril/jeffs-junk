@@ -53,6 +53,13 @@
     analytics:   '<path d="M6 20v-6M12 20V6M18 20v-9"/><path d="M3 20.5h18"/>',
     pricing:     '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     documents:   '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 16.5h4"/>',
+    /* Navigation extras (sidebar) */
+    newJob:      '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M12 8.3v7.4M8.3 12h7.4"/>',
+    summerWinter:'<circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.3M12 19.1v2.3M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.6 12h2.3M19.1 12h2.3M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>',
+    leaderboard: '<rect x="9.4" y="8" width="5.2" height="13" rx="1"/><rect x="3.2" y="12.5" width="5.2" height="8.5" rx="1"/><rect x="15.6" y="10.5" width="5.2" height="10.5" rx="1"/>',
+    utilization: '<path d="M3.5 18a8.5 8.5 0 0 1 17 0"/><path d="M12 18l4.2-4.6"/><circle cx="12" cy="18" r="1.3"/>',
+    clothing:    '<path d="M8.5 3 3 8l2.8 2.2V20a1 1 0 0 0 1 1h10.4a1 1 0 0 0 1-1v-9.8L21 8 15.5 3a3.5 3.5 0 0 1-7 0z"/>',
+    advisor:     '<path d="M9.5 18.5h5M10.5 21.3h3"/><path d="M12 2.8a6.2 6.2 0 0 1 3.9 11c-.6.5-.9 1.1-.9 1.9v.3H9v-.3c0-.8-.3-1.4-.9-1.9A6.2 6.2 0 0 1 12 2.8z"/>',
 
     /* Actions / status */
     confirmed:   '<circle cx="12" cy="12" r="9"/><path d="M8 12.4 10.6 15 16 9.3"/>',
@@ -90,6 +97,7 @@
     dashboard:'green', allJobs:'green', schedule:'green', clients:'green', vehicles:'green',
     liveJobs:'green', dispatch:'green', binMap:'green', damage:'green', analytics:'green',
     pricing:'green', documents:'green',
+    newJob:'green', summerWinter:'amber', leaderboard:'amber', utilization:'green', clothing:'violet', advisor:'amber',
     confirmed:'green', cancelled:'red', maintenance:'amber', del:'red', edit:'slate',
     print:'slate', directions:'blue', booked:'green'
   };

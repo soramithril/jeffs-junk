@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '379';
+var APP_VERSION = '380';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10086,7 +10086,36 @@ function paintSvcTabIcons(){
   });
   if(typeof atabsSync==='function'){ try{atabsSync('svc');}catch(e){} }
 }
-function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); }
+// Sidebar nav rail: swap each item's feather glyph for the matching JWGIcons
+// white line glyph (navIcon). Keyed by the item's onclick so no markup edits
+// are needed; the feather SVG stays as a fallback if a key is missing or JS
+// fails. Runs once on load. Some items reuse an existing glyph (crew/team/user
+// -> clients, bin fleet -> junk container, furniture quote -> junkQuote,
+// inventory -> allJobs list, staff check-in -> confirmed, email templates -> email).
+var NAV_ICO={
+  "newJob()":'newJob', "go('dashboard')":'dashboard', "go('jobs')":'allJobs',
+  "goJwg('schedule')":'schedule', "go('clients')":'clients', "go('landscaping')":'landscaping',
+  "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('calendar')":'schedule',
+  "go('livejobs')":'liveJobs', "go('dispatch')":'dispatch', "go('vehicles')":'vehicles',
+  "go('crew')":'clients', "go('damage')":'damage', "go('bininventory')":'junk',
+  "go('binmap')":'binMap', "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
+  "go('bookings')":'schedule', "go('analytics')":'analytics', "go('leaderboard')":'leaderboard',
+  "go('utilization')":'utilization', "go('advisor')":'advisor', "go('ourprices')":'pricing',
+  "openFurniturePrices()":'furniture', "go('team')":'clients', "openUserManager()":'clients',
+  "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
+  "goJwg('clothing')":'clothing'
+};
+function paintNavIcons(){
+  if(!window.JWGIcons) return;
+  document.querySelectorAll('.sidebar .nav-item').forEach(function(btn){
+    var oc=(btn.getAttribute('onclick')||'').replace(/\s+/g,'');
+    var key=NAV_ICO[oc];
+    if(!key || !JWGIcons.PATHS[key]) return;
+    var ico=btn.querySelector('.icon');
+    if(ico) ico.innerHTML=JWGIcons.navIcon(key,{size:16});
+  });
+}
+function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); paintNavIcons(); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',paintServiceIcons); else paintServiceIcons();
 
 // Form-level Will Call toggle (used inside the New/Edit Job modal — distinct from
