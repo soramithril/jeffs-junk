@@ -38,6 +38,7 @@
     binPickup:   '<path d="M2 9h12.5"/><path d="M3.6 9 4.7 18h7.6L13.4 9"/><path d="M6.7 9 7.1 18M10 9 9.7 18"/><path d="M19 12V4.6"/><path d="M16.5 7.1 19 4.6 21.5 7.1"/>',
     junkQuote:   '<rect x="5" y="4.5" width="14" height="17" rx="2"/><rect x="9" y="2.8" width="6" height="3.4" rx="1"/><path d="M8.5 10.5h7M8.5 14h7M8.5 17.5h4"/>',
     call:        '<path d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 1.6 3.8 2 2 0 0 1 3.6 1.6h2.6a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.5 2.1L7.3 9.4a16 16 0 0 0 6 6l1.2-1.1a2 2 0 0 1 2.1-.5 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.8 2z"/>',
+    email:       '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M3.4 7 12 12.9 20.6 7"/>',
 
     /* Navigation */
     dashboard:   '<rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/>',
@@ -72,6 +73,8 @@
     olive:  ['#65a30d', '#3f6212'], // Landscaping
     cyan:   ['#06b6d4', '#0e7490'], // Bin drop-off
     pink:   ['#ec4899', '#be185d'], // Bin pickup
+    teal:   ['#14b8a6', '#0d9488'], // Email
+    yellow: ['#eab308', '#a16207'], // Junk removal (app's amber scheme)
     indigo: ['#6366f1', '#4338ca'], // Junk quote
     amber:  ['#d97706', '#b45309'], // Shop / maintenance
     orange: ['#f97316', '#c2410c'], // Off sick
@@ -83,7 +86,7 @@
   var ICON_COLOR = {
     bins:'green', junk:'blue', furniture:'violet', landscaping:'olive', garbage:'red',
     off:'slate', sick:'orange', shop:'amber',
-    binDrop:'cyan', binPickup:'pink', junkQuote:'indigo', call:'amber',
+    binDrop:'cyan', binPickup:'pink', junkQuote:'indigo', call:'amber', email:'teal',
     dashboard:'green', allJobs:'green', schedule:'green', clients:'green', vehicles:'green',
     liveJobs:'green', dispatch:'green', binMap:'green', damage:'green', analytics:'green',
     pricing:'green', documents:'green',

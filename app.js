@@ -2,7 +2,36 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '374';
+var APP_VERSION = '375';
+
+// ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
+// One helper for every service/status emboss tile on a white surface, so sizing
+// and radius stay consistent with the Scheduler. Pass {color} to match a screen's
+// existing colour scheme (e.g. junk is amber on the dashboards, not the icon
+// set's default blue). Returns '' if the key has no glyph — caller keeps its
+// text/emoji fallback so nothing renders blank.
+function iconTile(key, opts){
+  opts = opts || {};
+  if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
+  var size = opts.size || 18;
+  return JWGIcons.embossTile(key, {
+    size: size,
+    radius: opts.radius || Math.max(5, Math.round(size * 0.34)),
+    color: opts.color
+  });
+}
+// Canonical service-type -> icon key + the colour each screen already uses.
+var SVC_ICON = {
+  'Bin Rental':'bins', 'Junk Removal':'junk', 'Junk Quote':'junkQuote',
+  'Furniture Pickup':'furniture', 'Furniture Delivery':'furniture', 'Landscaping':'landscaping'
+};
+var SVC_ICON_COLOR = {
+  'Bin Rental':'green', 'Junk Removal':'yellow', 'Junk Quote':'indigo',
+  'Furniture Pickup':'violet', 'Furniture Delivery':'orange', 'Landscaping':'olive'
+};
+function svcTile(service, size){
+  return iconTile(SVC_ICON[service], { size: size||18, color: SVC_ICON_COLOR[service] });
+}
 
 // ── Cloudinary photo upload config ──
 // Sign up at cloudinary.com (free), create an unsigned upload preset, and fill in:
@@ -2217,14 +2246,14 @@ function dashCountChip(rgbCsv, color, icon, count, label, onclick){
 function dashCountChipsHTML(c){
   var jump = "document.getElementById('card-today-jobs').scrollIntoView({behavior:'smooth',block:'start'})";
   var chips=[];
-  if(c.dropoffs)     chips.push(dashCountChip('8,145,178','#0891b2','🚛',c.dropoffs,'drop'+(c.dropoffs!==1?'s':'')));
-  if(c.pickups)      chips.push(dashCountChip('236,72,153','#ec4899','🚚',c.pickups,'pickup'+(c.pickups!==1?'s':'')));
-  if(c.junkRemovals) chips.push(dashCountChip('234,179,8','#a16207','🗑️',c.junkRemovals,'junk'));
-  if(c.junkQuotes)   chips.push(dashCountChip('13,110,253','#0d6efd','📋',c.junkQuotes,'quote'+(c.junkQuotes!==1?'s':'')));
-  if(c.landscaping)  chips.push(dashCountChip('101,163,13','#65a30d','🌿',c.landscaping,'landscaping'));
-  if(c.furniture)    chips.push(dashCountChip('139,92,246','#8b5cf6','🛋️',c.furniture,'furniture'));
-  if(c.calls)        chips.push(dashCountChip('230,126,34','#e67e22','📞',c.calls,'to call',jump));
-  if(c.emails)       chips.push(dashCountChip('20,184,166','#0d9488','📧',c.emails,'to email',jump));
+  if(c.dropoffs)     chips.push(dashCountChip('8,145,178','#0891b2',iconTile('binDrop',{size:16}),c.dropoffs,'drop'+(c.dropoffs!==1?'s':'')));
+  if(c.pickups)      chips.push(dashCountChip('236,72,153','#ec4899',iconTile('binPickup',{size:16}),c.pickups,'pickup'+(c.pickups!==1?'s':'')));
+  if(c.junkRemovals) chips.push(dashCountChip('234,179,8','#a16207',iconTile('junk',{size:16,color:'yellow'}),c.junkRemovals,'junk'));
+  if(c.junkQuotes)   chips.push(dashCountChip('13,110,253','#0d6efd',iconTile('junkQuote',{size:16}),c.junkQuotes,'quote'+(c.junkQuotes!==1?'s':'')));
+  if(c.landscaping)  chips.push(dashCountChip('101,163,13','#65a30d',iconTile('landscaping',{size:16}),c.landscaping,'landscaping'));
+  if(c.furniture)    chips.push(dashCountChip('139,92,246','#8b5cf6',iconTile('furniture',{size:16}),c.furniture,'furniture'));
+  if(c.calls)        chips.push(dashCountChip('230,126,34','#e67e22',iconTile('call',{size:16}),c.calls,'to call',jump));
+  if(c.emails)       chips.push(dashCountChip('20,184,166','#0d9488',iconTile('email',{size:16}),c.emails,'to email',jump));
   return chips.length
     ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+chips.join('')+'</div>'
     : '<span style="color:var(--muted)">Nothing booked</span>';
@@ -2886,7 +2915,7 @@ async function refreshDashJobs(){
   if(card) card.className = 'chart-card urgency-neutral';
 
   // Render job rows — column-aligned grid layout
-  function makeCat(title,color,list,isPickup){
+  function makeCat(title,color,list,isPickup,icon){
     if(!list.length) return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
@@ -2901,7 +2930,7 @@ async function refreshDashJobs(){
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
     return '<div style="margin-bottom:4px">'
-      +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
@@ -2949,12 +2978,12 @@ async function refreshDashJobs(){
       }).join('')+'</div>';
   }
 
-  var html = makeCat('🚛 Bin Deliveries','#0891b2',dayDropoffs,false)
-    +makeCat('🚚 Bin Pickups','#ec4899',dayPickups,true)
-    +makeCat('Junk Removals','#eab308',junkRemovals,false)
-    +makeCat('📋 Junk Quotes','#0d6efd',junkQuotes,false)
-    +makeCat('🌿 Landscaping','#65a30d',landscaping,false)
-    +makeCat('🛋️ Furniture Pickups','#8b5cf6',furnPickups,false);
+  var html = makeCat('Bin Deliveries','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:20}))
+    +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:20}))
+    +makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:20,color:'yellow'}))
+    +makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:20}))
+    +makeCat('Landscaping','#65a30d',landscaping,false,iconTile('landscaping',{size:20}))
+    +makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:20}));
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -3370,7 +3399,7 @@ async function renderDash(){
   if(todayCard) todayCard.className = 'chart-card urgency-neutral';
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
-  function makeTodayCat(title,color,list,isPickup){
+  function makeTodayCat(title,color,list,isPickup,icon){
     if(!list.length) return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
@@ -3385,7 +3414,7 @@ async function renderDash(){
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
     return '<div style="margin-bottom:4px">'
-      +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+title+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
@@ -3432,12 +3461,12 @@ async function renderDash(){
         +'</div>';
       }).join('')+'</div>';
   }
-  var todayHtml = makeTodayCat('🚛 Bin Deliveries','#0891b2',todayBinDropoffs,false)
-    +makeTodayCat('🚚 Bin Pickups','#ec4899',todayBinPickups,true)
-    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false)
-    +makeTodayCat('📋 Junk Quotes','#0d6efd',todayJunkQuotes,false)
-    +makeTodayCat('🌿 Landscaping','#65a30d',todayLandscaping,false)
-    +makeTodayCat('🛋️ Furniture Pickups','#8b5cf6',todayFurnPickups,false);
+  var todayHtml = makeTodayCat('Bin Deliveries','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:20}))
+    +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:20}))
+    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:20,color:'yellow'}))
+    +makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:20}))
+    +makeTodayCat('Landscaping','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:20}))
+    +makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:20}));
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
@@ -4976,13 +5005,13 @@ async function openCalDayPreview(ds){
   } else {
     // Group into sections: Bin Drop-offs, Bin Pickups, then other services
     var sections=[
-      {key:'dropoff', label:'🚛 Bin Drop-offs',  col:'#0891b2', evs:evs.filter(function(e){return e.type==='dropoff';})},
-      {key:'pickup',  label:'🚚 Bin Pickups',    col:'#ec4899', evs:evs.filter(function(e){return e.type==='pickup';})},
-      {key:'junk',    label:'🗑️ Junk Removal',   col:'#eab308', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
-      {key:'quote',   label:'📋 Junk Quotes',    col:'#0d6efd', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
-      {key:'landscaping', label:'🌿 Landscaping', col:'#65a30d', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Landscaping';})},
-      {key:'furnp',   label:'🛋️ Furniture Pickup',col:'#8b5cf6', evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
-      {key:'furnd',   label:'📦 Furniture Delivery',col:'#f97316',evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
+      {key:'dropoff', label:'Bin Drop-offs',  col:'#0891b2', ic:iconTile('binDrop',{size:15}), evs:evs.filter(function(e){return e.type==='dropoff';})},
+      {key:'pickup',  label:'Bin Pickups',    col:'#ec4899', ic:iconTile('binPickup',{size:15}), evs:evs.filter(function(e){return e.type==='pickup';})},
+      {key:'junk',    label:'Junk Removal',   col:'#eab308', ic:iconTile('junk',{size:15,color:'yellow'}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
+      {key:'quote',   label:'Junk Quotes',    col:'#0d6efd', ic:iconTile('junkQuote',{size:15}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
+      {key:'landscaping', label:'Landscaping', col:'#65a30d', ic:iconTile('landscaping',{size:15}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Landscaping';})},
+      {key:'furnp',   label:'Furniture Pickup',col:'#8b5cf6', ic:iconTile('furniture',{size:15}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
+      {key:'furnd',   label:'Furniture Delivery',col:'#f97316', ic:iconTile('furniture',{size:15,color:'orange'}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
     ].filter(function(s){return s.evs.length>0;});
 
     body=sections.map(function(sec){
@@ -5014,7 +5043,7 @@ async function openCalDayPreview(ds){
           +'</div>';
       }).join('');
       return '<div style="margin-bottom:14px">'
-        +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+sec.col+';margin-bottom:6px">'+sec.label+' ('+sec.evs.length+')</div>'
+        +'<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+sec.col+';margin-bottom:6px">'+(sec.ic||'')+'<span>'+sec.label+' ('+sec.evs.length+')</span></div>'
         +rows+'</div>';
     }).join('');
     body+='<div style="padding-top:12px;border-top:1px solid var(--border)">'
@@ -5627,11 +5656,11 @@ function makeClientCard(row){
   var phone = phones.length?phones[0].num:'';
   var email = (row.emails&&row.emails[0])?row.emails[0]:(row.email||'');
   var addr = row.address||'';
-  var chip=function(icon,n,label,col,bg){return '<span style="font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+col+';background:'+bg+'">'+icon+' '+n+' '+label+'</span>';};
+  var chip=function(icon,n,label,col,bg){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+col+';background:'+bg+'">'+icon+'<span>'+n+' '+label+'</span></span>';};
   var chips='';
-  if(bins) chips+=chip('🚛',bins,'Bin','#0e7490','rgba(8,145,178,.1)');
-  if(junk) chips+=chip('🧹',junk,'Junk','#c2410c','rgba(230,126,34,.12)');
-  if(furn) chips+=chip('🛋️',furn,'Furniture','#7c3aed','rgba(139,92,246,.1)');
+  if(bins) chips+=chip(iconTile('bins',{size:15}),bins,'Bin','#0e7490','rgba(8,145,178,.1)');
+  if(junk) chips+=chip(iconTile('junk',{size:15,color:'yellow'}),junk,'Junk','#c2410c','rgba(230,126,34,.12)');
+  if(furn) chips+=chip(iconTile('furniture',{size:15}),furn,'Furniture','#7c3aed','rgba(139,92,246,.1)');
   var tag='';
   if(row.blacklisted) tag='<span style="font-size:11px;font-weight:700;color:#b4232f;background:rgba(220,53,69,.08);border:1px solid #f1c0c0;padding:2px 8px;border-radius:6px">🚫 Blacklisted</span>';
   else if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:#c2410c;background:rgba(230,126,34,.1);border:1px solid #f0d2b0;padding:2px 8px;border-radius:6px">😴 Dormant</span>';
