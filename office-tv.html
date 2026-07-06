@@ -76,13 +76,13 @@
     display:flex; flex-direction:column; padding:44px 50px; gap:24px;
     transform:scale(var(--s,1)); transform-origin:center center;
   }
-  /* ambient brand art — truck tucked under the weather box (top-right), our bin in
-     the bottom-left. Both lifted above the panels (z-index) so they ride on top of
-     everything. Gentle roll / bob. */
+  /* ambient brand art — truck tucked under the weather box (top-right) with a bin
+     snug to its left (a random one of our board renders each page load). Both lifted
+     above the panels (z-index) so they ride on top of everything. Gentle roll / bob. */
   #tvtruck{position:absolute; top:150px; right:280px; width:160px; z-index:5; opacity:1;
     pointer-events:none; animation:truckRoll 5s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(60,74,58,.28))}
-  #tvbin{position:absolute; bottom:34px; left:50px; width:160px; z-index:5; opacity:1;
+  #tvbin{position:absolute; top:150px; right:452px; width:160px; z-index:5; opacity:1;
     pointer-events:none; animation:bob 3.2s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(60,74,58,.28))}
   #topbar{position:relative; z-index:2}
@@ -311,7 +311,7 @@
       </div>
 
       <img id="tvtruck" src="assets/tv-truck.png" alt="" aria-hidden="true">
-      <img id="tvbin" src="assets/tv-bin-14.png" alt="" aria-hidden="true">
+      <img id="tvbin" alt="" aria-hidden="true">
 
       <div id="stage">
         <!-- Screen 1 · Bin Work Today -->
@@ -361,6 +361,7 @@
     var PANELS = ['bins','schedule','kpis','rates'];
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     var RATES_AREA = 'Barrie & Area';   // which our_prices zone drives the Rates screen
+    var TV_BINS = ['tv-bin-4.png','tv-bin-14.png','tv-bin-20.png'];   // bottom overlay picks one at random each load
 
     // Dedicated session store so this page can NEVER pick up a staff member's
     // dashboard session in the same browser — it only ever runs as the display user.
@@ -1081,6 +1082,7 @@
       }
       el('gate').style.display='none';
       el('viewport').style.display='flex';
+      el('tvbin').src = 'assets/' + TV_BINS[Math.floor(Math.random()*TV_BINS.length)];   // random bin this load
       fitBoard(); window.addEventListener('resize', fitBoard);
       tickClock(); setInterval(tickClock, 1000);
       loadWeather(); setInterval(loadWeather, 30*60*1000);
