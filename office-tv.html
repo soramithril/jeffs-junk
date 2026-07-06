@@ -76,11 +76,15 @@
     display:flex; flex-direction:column; padding:44px 50px; gap:24px;
     transform:scale(var(--s,1)); transform-origin:center center;
   }
-  /* ambient brand truck — tucked under the clock (top-right), behind the panels so
-     it peeks through the title-row band and never covers content. Gentle roll. */
-  #tvtruck{position:absolute; top:150px; right:44px; width:160px; z-index:0; opacity:.58;
+  /* ambient brand art — truck tucked under the weather box (top-right), our bin in
+     the bottom-left. Both lifted above the panels (z-index) so they ride on top of
+     everything. Gentle roll / bob. */
+  #tvtruck{position:absolute; top:150px; right:280px; width:160px; z-index:5; opacity:1;
     pointer-events:none; animation:truckRoll 5s ease-in-out infinite;
-    filter:drop-shadow(0 6px 8px rgba(60,74,58,.2))}
+    filter:drop-shadow(0 8px 10px rgba(60,74,58,.28))}
+  #tvbin{position:absolute; bottom:34px; left:50px; width:160px; z-index:5; opacity:1;
+    pointer-events:none; animation:bob 3.2s ease-in-out infinite;
+    filter:drop-shadow(0 8px 10px rgba(60,74,58,.28))}
   #topbar{position:relative; z-index:2}
   #stage{z-index:1}
 
@@ -123,20 +127,23 @@
   .bb-strip{display:flex; align-items:center; justify-content:space-between; padding:13px 26px; flex:0 0 auto}
   .bb-name{font:700 34px/1 'Baloo 2'; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bb-count{font:700 21px/1 'Baloo 2'; background:#fff; border-radius:14px; padding:6px 16px; flex:0 0 auto}
-  .bb-body{flex:1 1 auto; min-height:0; padding:6px 24px; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden}
-  .bb-row{display:grid; grid-template-columns:110px minmax(0,1fr) 112px 132px; align-items:center; gap:16px; padding:8px 0}
+  /* --cs scales the leg rows (1 = full size); fitBins() dials it down per card so
+     every drop-off/pick-up fits with no clipping. At --cs:1 this is pixel-identical
+     to the original. */
+  .bb-body{--cs:1; flex:1 1 auto; min-height:0; padding:6px 24px; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden}
+  .bb-row{display:grid; grid-template-columns:calc(110px*var(--cs)) minmax(0,1fr) calc(112px*var(--cs)) calc(132px*var(--cs)); align-items:center; gap:calc(16px*var(--cs)); padding:calc(8px*var(--cs)) 0}
   .bb-row:not(.last){border-bottom:2px dotted rgba(38,49,31,.14)}
   .bb-row.done{opacity:.5}
-  .bb-size{font:700 26px/1 'Baloo 2'; color:#b06a1a; background:#fbeecb; border:2px solid var(--gold);
-    border-radius:13px; padding:8px 4px; text-align:center}
+  .bb-size{font-weight:700; font-family:'Baloo 2'; font-size:calc(26px*var(--cs)); line-height:1; color:#b06a1a; background:#fbeecb; border:2px solid var(--gold);
+    border-radius:13px; padding:calc(8px*var(--cs)) 4px; text-align:center}
   .bb-size.warn{background:#fff3d8}
   .bb-dest{min-width:0; display:flex; flex-direction:column; gap:3px}
-  .bb-city{font:700 31px/1 'Baloo 2'; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .bb-who{font:600 18px/1.1 'Hanken Grotesk'; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .bb-kind{font:700 18px/1 'Hanken Grotesk'; letter-spacing:.05em; text-transform:uppercase; border-radius:12px; padding:8px 0; text-align:center}
+  .bb-city{font-weight:700; font-family:'Baloo 2'; font-size:calc(31px*var(--cs)); line-height:1; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bb-who{font-weight:600; font-family:'Hanken Grotesk'; font-size:calc(18px*var(--cs)); line-height:1.1; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bb-kind{font-weight:700; font-family:'Hanken Grotesk'; font-size:calc(18px*var(--cs)); line-height:1; letter-spacing:.05em; text-transform:uppercase; border-radius:12px; padding:calc(8px*var(--cs)) 0; text-align:center}
   .bb-kind.k-drop{color:#2f7d8f; background:#e2eff2}
   .bb-kind.k-pick{color:#c25f8f; background:#f6e6ef}
-  .bb-state{font:700 20px/1 'Baloo 2'; border-radius:14px; padding:9px 0; text-align:center}
+  .bb-state{font-weight:700; font-family:'Baloo 2'; font-size:calc(20px*var(--cs)); line-height:1; border-radius:14px; padding:calc(9px*var(--cs)) 0; text-align:center}
   .bb-state.s-done{color:#2f8a4e; background:#e4f3e8}
   .bb-state.s-todo{color:var(--gold-ink); background:#fbeecb}
   .bb-state.s-assign{color:#fff; background:#d9532b}
@@ -304,6 +311,7 @@
       </div>
 
       <img id="tvtruck" src="assets/tv-truck.png" alt="" aria-hidden="true">
+      <img id="tvbin" src="assets/tv-bin-14.png" alt="" aria-hidden="true">
 
       <div id="stage">
         <!-- Screen 1 · Bin Work Today -->
@@ -411,10 +419,12 @@
       try{ localStorage.setItem(key, JSON.stringify(st)); }catch(e){}
       return now < (st.until||0);
     }
-    // Count-up the big Operations numbers (replays each rotation since #kpiGrid rebuilds).
-    function animateOps(root){
-      var nums = [].slice.call(root.querySelectorAll('span')).filter(function(el){
-        return /^\d+$/.test((el.textContent||'').trim());   // the big service numbers + bins-out
+    // Count-up numbers from 0 (replays each rotation/refresh since the panels rebuild).
+    // Animates any LEAF element whose text is a plain integer — used on the Operations
+    // and Bin Work screens (Rates prices deliberately stay static).
+    function countUp(root){
+      var nums = [].slice.call(root.querySelectorAll('*')).filter(function(el){
+        return el.children.length===0 && /^\d+$/.test((el.textContent||'').trim());
       });
       nums.forEach(function(el, i){
         var target = parseInt(el.textContent, 10), dur = 850, delay = 120 + i*55, start = null;
@@ -678,19 +688,36 @@
     }
 
     // ── renderers ────────────────────────────────────────────────────────────
-    // Screen 1 · Bin Work Today — 2×2 driver cards, unassigned flags red
+    // Shrink each bin card's leg list just enough that every drop-off/pick-up fits —
+    // no clipping. Scales the rows via --cs (1 = full size) and leaves cards that
+    // already fit untouched. clientHeight is fixed by the grid cell (independent of
+    // --cs), so comparing the stacked row heights against it stays stable as we dial
+    // --cs down.
+    function fitBins(wrap){
+      [].slice.call(wrap.querySelectorAll('.bb-body')).forEach(function(body){
+        body.style.setProperty('--cs','1');
+        var avail = body.clientHeight - 12;   // minus the 6px top/bottom padding
+        function contentH(){ var h=0; [].forEach.call(body.children, function(c){ h+=c.offsetHeight; }); return h; }
+        var cs=1, guard=0;   // floor ~0.3 so even a heavy day (a dozen+ legs) still fits, not clipped
+        while(contentH() > avail && cs>0.3 && guard++<40){
+          cs-=0.04; body.style.setProperty('--cs', cs.toFixed(3));
+        }
+      });
+    }
+    // Screen 1 · Bin Work Today — driver cards (grid fits the driver count), unassigned flags red
     function renderBins(){
       var board = DATA.binBoard||[];
       var total=0, done=0;
       board.forEach(function(g){ total+=g.legs.length; done+=g.done; });
       var tag = el('binsTag');
-      tag.textContent = total ? done+' of '+total+' done' : '';
+      tag.innerHTML = total ? '<span>'+done+'</span> of <span>'+total+'</span> done' : '';
       tag.style.display = total ? '' : 'none';
       el('binsMeta').textContent = total
         ? 'Updated '+new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
         : new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
       var wrap = el('binsWrap');
       if(!total){
+        wrap.style.gridTemplateColumns = '1fr';
         wrap.innerHTML = '<div class="bins-empty">No bin drop-offs or pick-ups today</div>';
         return;
       }
@@ -715,9 +742,13 @@
         return '<div class="bb-group'+(g.crewId?'':' warn')+'" style="--i:'+gi+'">'
           + '<div class="bb-strip" style="background:'+color+'">'
           + '<span class="bb-name">'+(g.crewId?esc(g.name):'⚠ Needs a driver')+'</span>'
-          + '<span class="bb-count" style="color:'+color+'">'+g.done+' / '+g.legs.length+(g.crewId?' done':'')+'</span></div>'
+          + '<span class="bb-count" style="color:'+color+'"><span>'+g.done+'</span> / <span>'+g.legs.length+'</span>'+(g.crewId?' done':'')+'</span></div>'
           + '<div class="bb-body">'+rows+'</div></div>';
       }).join('');
+      // grid fits however many drivers there are, so cards never get squeezed off-screen
+      var cols = board.length<=1 ? 1 : board.length<=4 ? 2 : 3;
+      wrap.style.gridTemplateColumns = 'repeat('+cols+',minmax(0,1fr))';
+      fitBins(wrap);
     }
 
     // Screen 2 · Crew · This Week — one grid, name column + Mon–Sat, today gold
@@ -795,9 +826,7 @@
       el('kpiGrid').innerHTML = beatCelebrationActive(services)
         ? renderOpsArena(services, MONTH)
         : renderOpsLanes(services, MONTH);
-
-      animateOps(el('kpiGrid'));
-      animateOps(el('kpiMeta'));   // the bins-out number too
+      // count-up runs centrally in renderCurrent (covers kpiGrid + the bins-out pill)
     }
 
     // 2A — standings lanes
@@ -904,6 +933,11 @@
       else if(name==='schedule') renderSchedule();
       else if(name==='kpis') renderKpis();
       else if(name==='rates') renderRates();
+      // count the numbers up on the Bin Work + Operations screens (not Rates)
+      if(name==='bins' || name==='kpis'){
+        var panel = document.querySelector('.panel[data-panel="'+name+'"]');
+        if(panel) countUp(panel);
+      }
     }
 
     // ── rotation ─────────────────────────────────────────────────────────────
