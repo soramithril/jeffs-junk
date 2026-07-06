@@ -11,12 +11,13 @@
   var _team = null;       // every crew_members row (master), incl. inactive
   var _openColour = null; // id of the person whose colour palette is open
 
-  // Curated colour palette — everyone gets a distinct one; taken colours are
-  // locked out in the picker so no two active people can share.
+  // Colour palette — 24 hues spaced evenly around the wheel (15° apart) so no
+  // two people are close cousins. Everyone gets a distinct one; taken colours
+  // are locked out in the picker so no two active people can share.
   var TEAM_PALETTE = [
-    '#2563eb','#0891b2','#0d9488','#16a34a','#65a30d','#ca8a04','#ea580c','#dc2626',
-    '#e11d48','#db2777','#c026d3','#9333ea','#7c3aed','#4f46e5','#1d4ed8','#0369a1',
-    '#b45309','#be123c','#a21caf','#15803d','#059669','#0284c7','#7e22ce','#9f1239'
+    '#cc3333','#cc5933','#cc8033','#cca633','#cccc33','#a6cc33','#80cc33','#59cc33',
+    '#33cc33','#33cc59','#33cc80','#33cca6','#33cccc','#33a6cc','#3380cc','#3359cc',
+    '#3333cc','#5933cc','#8033cc','#a633cc','#cc33cc','#cc33a6','#cc3380','#cc3359'
   ];
 
   function host(){ return document.getElementById('team-page'); }
