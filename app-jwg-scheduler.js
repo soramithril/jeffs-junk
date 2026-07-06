@@ -106,7 +106,7 @@ const ac=n=>{
   }
   const s=n||"?";const h=([...s]).reduce((a,c)=>a+c.charCodeAt(0),0);return AVC[h%AVC.length];
 };
-function empInitials(name){const p=(name||"?").trim().split(/\s+/);if(p.length>=2)return(p[0][0]+p[1][0]).toUpperCase();if(name.length>=2)return(name[0]+name[1]).toUpperCase();return name[0].toUpperCase();}
+function empInitials(name){if(window.crewAvatarInitials)return crewAvatarInitials(name);const p=(name||"?").trim().split(/\s+/);if(p.length>=2)return(p[0][0]+p[1][0]).toUpperCase();if(name.length>=2)return(name[0]+name[1]).toUpperCase();return name[0].toUpperCase();}
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 
 /* ===== state.js ===== */

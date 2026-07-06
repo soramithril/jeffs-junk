@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '383';
+var APP_VERSION = '384';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -7250,8 +7250,36 @@ function teamColorByName(name){
   if(r && r.color) return r.color;
   return crewAvatarColor(String(name||''));   // stable hash on the name itself
 }
+// Smart initials across the WHOLE roster: 2 letters normally, extended just
+// enough (3+) to stay unique when first names share a prefix (Jack/Jake/Jasper
+// -> JAC/JAK/JAS). Two-word names use first + last initial (Tyler M -> TM).
+function computeCrewInitials(names){
+  var out={}, singles=[];
+  names.forEach(function(name){
+    var p=String(name||'').trim().split(/\s+/).filter(Boolean);
+    if(p.length>=2) out[name]=(p[0][0]+p[1][0]).toUpperCase();
+    else if(p.length===1){ out[name]=p[0].slice(0,2).toUpperCase(); singles.push({name:name,word:p[0]}); }
+    else out[name]='?';
+  });
+  singles.forEach(function(s){
+    var len=2, word=s.word;
+    while(len<word.length && singles.some(function(o){return o!==s && o.word.slice(0,len).toUpperCase()===word.slice(0,len).toUpperCase();})) len++;
+    out[s.name]=word.slice(0,len).toUpperCase();
+  });
+  return out;
+}
+var _crewIniCache=null, _crewIniSig='';
+function crewInitialsMap(){
+  var names=(typeof crewMembers!=='undefined'&&crewMembers)?crewMembers.map(function(c){return c.name;}):[];
+  var sig=names.join('|');
+  if(_crewIniCache&&_crewIniSig===sig) return _crewIniCache;   // recompute only when the roster changes
+  _crewIniSig=sig; _crewIniCache=computeCrewInitials(names);
+  return _crewIniCache;
+}
 function crewAvatarInitials(name){
-  var p = String(name||'').trim().split(/\s+/).filter(Boolean);
+  var m=crewInitialsMap();
+  if(m[name]) return m[name];
+  var p = String(name||'').trim().split(/\s+/).filter(Boolean);   // fallback for names not on the roster
   if(!p.length) return '?';
   if(p.length>=2) return (p[0][0]+p[1][0]).toUpperCase();
   return p[0].slice(0,2).toUpperCase();
