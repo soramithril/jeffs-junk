@@ -746,8 +746,12 @@
           + '<span class="bb-count" style="color:'+color+'"><span>'+g.done+'</span> / <span>'+g.legs.length+'</span>'+(g.crewId?' done':'')+'</span></div>'
           + '<div class="bb-body">'+rows+'</div></div>';
       }).join('');
-      // grid fits however many drivers there are, so cards never get squeezed off-screen
-      var cols = board.length<=1 ? 1 : board.length<=4 ? 2 : 3;
+      // Few drivers each get their OWN full-height column (single row) so a heavy
+      // day's legs show full-size, instead of stacking into half-height cards that
+      // fitBins() then has to shrink. Only when there are many drivers do we wrap
+      // to 2 rows (kept wide enough that the leg rows still fit).
+      var n = board.length;
+      var cols = n<=3 ? n : n<=4 ? 2 : n<=6 ? 3 : 4;
       wrap.style.gridTemplateColumns = 'repeat('+cols+',minmax(0,1fr))';
       fitBins(wrap);
     }
@@ -1000,15 +1004,21 @@
     // cache:'no-store' + a unique query, so no cache can answer it. When the content
     // changes the ETag changes → reload cache-busted (?r=). The Supabase session is
     // persisted, so the reloaded page re-auths without the URL credentials.
-    var _tvEtag = null;
+    var _tvEtag = null, _tvPending = null;
     async function checkForUpdate(){
       try{
         var r = await fetch(location.pathname + '?u=' + Date.now(), { method:'HEAD', cache:'no-store' });
         if(!r.ok) return;
         var tag = r.headers.get('etag') || r.headers.get('last-modified');
         if(!tag) return;
-        if(_tvEtag === null){ _tvEtag = tag; return; }   // first poll = baseline
-        if(tag !== _tvEtag){ location.replace(location.pathname + '?r=' + Date.now()); }
+        if(_tvEtag === null){ _tvEtag = tag; return; }        // first poll = baseline
+        if(tag === _tvEtag){ _tvPending = null; return; }     // unchanged (or settled back) — nothing pending
+        // Changed vs baseline: reload only once the SAME new version shows up on two
+        // checks in a row. Right after a deploy the CDN can briefly serve old/new from
+        // different edges; requiring two matching reads means one clean reload, never
+        // a couple in a row.
+        if(tag === _tvPending){ location.replace(location.pathname + '?r=' + Date.now()); }
+        else { _tvPending = tag; }
       }catch(e){ /* offline blip — retry next tick */ }
     }
 
@@ -1036,7 +1046,10 @@
         if(!_tvCreds){ fail('This screen needs the office display link. Ask an admin to set it up.'); return null; }
         var r = await db.auth.signInWithPassword({ email:_tvCreds.email, password:_tvCreds.pass });
         stripHash();
-        if(r.error){ fail('Could not sign in. Check the display link.'); return null; }
+        // A sign-in error at a 24/7 wall is almost always the office Wi-Fi dropping
+        // mid-request — throw so boot() retries in place (and self-heals when the
+        // connection returns) rather than parking on an error screen.
+        if(r.error){ throw r.error; }
         sess = r.data.session;
       } else { stripHash(); }
       if(!sess || (sess.user && sess.user.email !== DISPLAY_EMAIL)){
@@ -1065,20 +1078,23 @@
     // ── boot ─────────────────────────────────────────────────────────────────
     var _bootFails = 0;
     async function boot(){
-      var sess = await authenticate();
-      if(!sess) return;
       try{
+        var sess = await authenticate();   // returns null ONLY for a permanent stop
+        if(!sess) return;                  //   (no display link / wrong account) — leave that message up
         await loadAll(); net(true); _bootFails = 0;
       }catch(e){
         console.error(e); net(false);
-        // Self-heal: a plain retry re-runs the SAME cached page, so a stale or broken
-        // deploy would spin forever without ever reloading. After a few misses, reload
-        // with a cache-buster so the TV fetches the latest file (GitHub Pages caches
-        // HTML for 10 min). The Supabase session is persisted, so auth recovers on
-        // reload without the URL credentials.
-        if(++_bootFails >= 3){ location.replace(location.pathname + '?r=' + Date.now()); return; }
-        fail('Trouble loading the board — retrying…');
-        setTimeout(boot, 8000); return;
+        // A failure here is a transient blip — the office Wi-Fi dropped mid sign-in
+        // or mid data-load. We RETRY IN PLACE with a gentle backoff and let the
+        // connection come back, keeping the "reconnecting" screen up. We do NOT
+        // reload: reloading can't fix a blip (a genuinely broken build never parses,
+        // so it never reaches this catch), and the old 3-strikes reload is exactly
+        // what stranded the wall in a loop on the loading screen. New builds are
+        // still picked up by checkForUpdate(), so nothing goes stale.
+        _bootFails++;
+        el('gateMsg').textContent = 'Reconnecting to dispatch — hang tight…';
+        setTimeout(boot, Math.min(30000, 6000 * _bootFails));   // 6s, 12s, 18s … capped at 30s
+        return;
       }
       el('gate').style.display='none';
       el('viewport').style.display='flex';
