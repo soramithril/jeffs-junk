@@ -427,6 +427,11 @@
       var nums = [].slice.call(root.querySelectorAll('*')).filter(function(el){
         return el.children.length===0 && /^\d+$/.test((el.textContent||'').trim());
       });
+      // requestAnimationFrame is PAUSED while the tab is hidden, so if we zeroed
+      // the numbers now they'd stick at 0 until the tab is visible again — the
+      // board would read "0 of 0 done". The count-up is only eye-candy, so when
+      // hidden just leave the real values on screen and skip the animation.
+      if(document.hidden){ return; }
       nums.forEach(function(el, i){
         var target = parseInt(el.textContent, 10), dur = 850, delay = 120 + i*55, start = null;
         el.textContent = '0';
@@ -439,6 +444,10 @@
           requestAnimationFrame(tick);
         }
         requestAnimationFrame(tick);
+        // Safety net: setTimeout keeps firing even when rAF is throttled/paused
+        // (e.g. the tab gets hidden mid-animation), so the real number always lands
+        // and the board can never get stuck showing 0.
+        setTimeout(function(){ el.textContent = String(target); }, delay + dur + 400);
       });
     }
 

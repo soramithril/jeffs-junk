@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: geofence-events (v16)
+ * Supabase Edge Function: geofence-events (v17)
  *
  * Crosses bin jobs off the Live Jobs board by watching truck GPS trails.
  *
@@ -23,13 +23,19 @@
  * Because every poll re-reads the FULL day of breadcrumbs, a missed poll or a
  * mid-day deploy self-heals on the next run.
  *
+ * v17 (2026-07-07): widened ZONE_RADIUS_M 30 -> 75. At 30 m the board crossed
+ * off only ~half the bins because a geocoded address sits 40-80 m from where the
+ * truck actually parks (driveway / big lot / street centroid). The 2.5-min DWELL
+ * requirement still filters passing traffic, so a wider circle catches real
+ * visits without false-tripping on drive-bys.
+ *
  * POST {"dryRun": true} computes and reports what it WOULD do — no writes.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEOTAB_AUTH_URL = "https://my.geotab.com/apiv1";
-const ZONE_RADIUS_M = 30;        // zone circles are 25 m; +5 m for GPS jitter
+const ZONE_RADIUS_M = 75;        // widened from 30 m (v17): geocode is often 40-80 m off where the truck parks; the 2.5-min DWELL below still screens out drive-bys
 const DWELL_MS = 150000;         // must stay >=2.5 min inside — filters passing traffic
 const EXIT_CONFIRM_MS = 120000;  // outside >=2 min after last inside point = truly left
 
@@ -137,7 +143,7 @@ function sameEasternDay(iso: string | null, dayISO: string): boolean {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Toronto" }) === dayISO;
 }
 
-/** Metres between two lat/lng points (equirectangular — fine at 30 m scale). */
+/** Metres between two lat/lng points (equirectangular — fine at this scale). */
 function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
