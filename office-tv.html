@@ -495,10 +495,11 @@
       });
       return out.sort(function(a,b){ return timeMins(a.time)-timeMins(b.time); });
     }
-    // Today's bin legs grouped by driver. Done/not-done comes from DB state
-    // only (manual pickup + geofence notifications) — the TV never calls
-    // Geotab. A drop leg counts as done on a real zone visit or once the bin
-    // is picked up; login's inventory auto-drop alone doesn't count.
+    // Today's bin legs grouped by driver. Done/not-done is GEOFENCE-ONLY (Jake
+    // 2026-07-07): a leg crosses off purely from truck-GPS zone visits
+    // (geofence_notifications), NOT the job's bin_instatus. The TV never calls
+    // Geotab. A drop leg counts as done on a zone visit (dropped OR pickedup
+    // notif = the truck was there); a pick leg once the truck has left (pickedup).
     function buildBinBoard(rows, today, notifRows){
       var geo = {dropped:{}, pickedup:{}};
       (notifRows||[]).forEach(function(n){ if(geo[n.status]) geo[n.status][n.job_id]=1; });
@@ -510,7 +511,7 @@
       }
       rows.forEach(function(j){
         if(j.status==='Cancelled' || j.service!=='Bin Rental') return;
-        var picked = j.bin_instatus==='pickedup' || geo.pickedup[j.job_id];
+        var picked = !!geo.pickedup[j.job_id];   // geofence-ONLY (Jake 2026-07-07): a leg crosses off from truck-GPS zone visits only, never the job's bin_instatus
         if(j.bin_dropoff===today)
           push(j.dropoff_crew_id, {kind:'drop', time:j.bin_dropoff_time||'', j:j, done: !!(picked || geo.dropped[j.job_id])});
         if(j.bin_pickup===today)

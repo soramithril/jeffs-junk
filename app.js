@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '385';
+var APP_VERSION = '386';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -383,6 +383,7 @@ db.channel('bin-status-notify')
 
 var _binNotifyQueue=[];
 var _binNotifyShowing=false;
+var _binNotifyTimer=null;
 function showBinNotify(status, name, binBid, addr, city, jobId){
   _binNotifyQueue.push({status:status,name:name,binBid:binBid,addr:addr,city:city,jobId:jobId});
   if(!_binNotifyShowing) _showNextBinNotify();
@@ -415,8 +416,14 @@ function _showNextBinNotify(){
     else{assignBtn.style.display='none';}
   }
   overlay.classList.add('show');
+  // Auto-dismiss after 5 min so a drop/pickup banner never lingers if nobody
+  // clicks it (and never blocks the queue). Visual only — never touches the job.
+  // A manual dismiss clears this first.
+  clearTimeout(_binNotifyTimer);
+  _binNotifyTimer=setTimeout(dismissBinNotify,300000);
 }
 function dismissBinNotify(){
+  clearTimeout(_binNotifyTimer);
   var overlay=document.getElementById('bin-notify-overlay');
   if(!overlay)return;
   overlay.classList.remove('show');
