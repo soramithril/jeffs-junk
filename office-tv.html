@@ -133,14 +133,16 @@
   .bb-body{--cs:1; flex:1 1 auto; min-height:0; padding:6px 24px; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden}
   .bb-row{display:grid; grid-template-columns:calc(110px*var(--cs)) minmax(0,1fr) calc(112px*var(--cs)) calc(132px*var(--cs)); align-items:center; gap:calc(16px*var(--cs)); padding:calc(8px*var(--cs)) 0}
   .bb-row:not(.last){border-bottom:2px dotted rgba(38,49,31,.14)}
-  /* Done legs are visually CROSSED OFF (Jake 2026-07-07): a bold green line struck
-     clean through the whole leg + the text lined through, so "done" reads instantly
-     from across the room — not just a small pill change. */
-  .bb-row.done{opacity:.6; position:relative}
-  .bb-row.done::after{content:''; position:absolute; left:calc(-6px*var(--cs)); right:calc(-6px*var(--cs)); top:50%;
-    height:calc(4px*var(--cs)); background:#2f8a4e; border-radius:999px; transform:translateY(-50%);
-    pointer-events:none; z-index:3}
-  .bb-row.done .bb-city, .bb-row.done .bb-who{text-decoration:line-through; text-decoration-color:#2f8a4e; text-decoration-thickness:calc(2px*var(--cs))}
+  /* Done legs read as COMPLETED (Jake 2026-07-07): a soft green wash behind the
+     leg + the name struck through + badges dimmed — a clean "crossed off" that
+     doesn't slash a hard line through the badges/pills. Keeps the ✓ Done pill. */
+  .bb-row.done{opacity:1; position:relative}
+  .bb-row.done::before{content:''; position:absolute; inset:calc(3px*var(--cs)) 0; background:rgba(47,138,78,.11);
+    border-radius:calc(13px*var(--cs)); z-index:0; pointer-events:none}
+  .bb-row.done > *{position:relative; z-index:1}
+  .bb-row.done .bb-city{text-decoration:line-through; text-decoration-color:#2f8a4e; text-decoration-thickness:calc(3px*var(--cs)); text-underline-offset:calc(1px*var(--cs)); color:#63705a}
+  .bb-row.done .bb-who{text-decoration:line-through; text-decoration-color:rgba(47,138,78,.5); color:var(--muted)}
+  .bb-row.done .bb-size{opacity:.5}
   .bb-size{font-weight:700; font-family:'Baloo 2'; font-size:calc(26px*var(--cs)); line-height:1; color:#b06a1a; background:#fbeecb; border:2px solid var(--gold);
     border-radius:13px; padding:calc(8px*var(--cs)) 4px; text-align:center}
   .bb-size.warn{background:#fff3d8}
