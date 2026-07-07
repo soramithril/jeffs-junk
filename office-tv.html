@@ -1021,8 +1021,9 @@
     // Yodeck (and the browser) cache the page, so a new deploy can sit stale on the
     // wall indefinitely. This polls the file's ETag straight from GitHub — a HEAD with
     // cache:'no-store' + a unique query, so no cache can answer it. When the content
-    // changes the ETag changes → reload cache-busted (?r=). The Supabase session is
-    // persisted, so the reloaded page re-auths without the URL credentials.
+    // changes the ETag changes → reload cache-busted (?r=), carrying the display
+    // creds forward in the hash so the reloaded page always re-auths (the persisted
+    // session isn't reliable across a Yodeck reload — see below).
     var _tvEtag = null, _tvPending = null;
     async function checkForUpdate(){
       try{
@@ -1036,7 +1037,15 @@
         // checks in a row. Right after a deploy the CDN can briefly serve old/new from
         // different edges; requiring two matching reads means one clean reload, never
         // a couple in a row.
-        if(tag === _tvPending){ location.replace(location.pathname + '?r=' + Date.now()); }
+        if(tag === _tvPending){
+          // Carry the display creds forward in the hash so the reloaded page can
+          // ALWAYS sign itself back in. The self-reload drops the original Yodeck
+          // hash, and the persisted session does NOT reliably survive a Yodeck
+          // reload — without this the board stranded on the "needs display link"
+          // gate after every update until someone reloaded it by hand.
+          var frag = _tvCreds ? ('#e='+encodeURIComponent(_tvCreds.email)+'&p='+encodeURIComponent(_tvCreds.pass)) : '';
+          location.replace(location.pathname + '?r=' + Date.now() + frag);
+        }
         else { _tvPending = tag; }
       }catch(e){ /* offline blip — retry next tick */ }
     }
