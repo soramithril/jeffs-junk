@@ -6,8 +6,7 @@ var DOCUMENTS = [
   { name: 'Furniture Drop-Off',          group: 'Furniture',        desc: "Left at the customer's location. Lists accepted items and condition requirements.", file: '2026 FB Drop Off - final draft.pdf' },
   { name: 'Furniture Pick-Up',           group: 'Furniture',        desc: 'Signed at pickup to confirm items received and condition noted.',                   file: '2026 FB Pick-up final draft.pdf' },
   { name: 'Junk Removal Agreement',      group: 'Junk & Donations', desc: 'Customer authorizes removal. Covers liability, access, and disposal terms.',        file: '2026 Junk Removal - final draft.pdf' },
-  { name: 'Junk Quote Form',             group: 'Junk & Donations', desc: 'Blank estimate sheet to hand to a customer on-site before booking.',                file: '2026 Junk Quote - final draft.pdf' },
-  { name: 'Donation Receiving Document', group: 'Junk & Donations', desc: 'Receipt given to a donor when items are accepted for charity.',                     file: '2026_DONATION_RECEIVING_DOCUMENT-1.pdf' }
+  { name: 'Junk Quote Form',             group: 'Junk & Donations', desc: 'Blank estimate sheet to hand to a customer on-site before booking.',                file: '2026 Junk Quote - final draft.pdf' }
 ];
 function renderDocuments(){
   var el = document.getElementById('documents-list');

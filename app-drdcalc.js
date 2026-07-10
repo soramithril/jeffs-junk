@@ -1,18 +1,26 @@
-// ─── FURNITURE QUOTE CALCULATOR (standalone DRD-driven quote tool) ───
-// Depends on app.js globals: DRD_ITEMS, toast, newJob, drdRecalc
+// ─── FURNITURE QUOTE CALCULATOR (standalone quote tool) ───
+// Depends on app.js globals: DRD_ITEMS, DRD_ORDER, drdGroupedOrder, toast, newJob, drdModalRecalc
 // Called by render('drdcalc') in app.js.
 function renderDrdCalc(){
   var g=document.getElementById('drdc-grid');
   if(!g) return;
-  g.innerHTML=DRD_ORDER.map(function(i){
-    var item=DRD_ITEMS[i];
-    var sid='drdc-qty-'+i;
-    return '<div class="drdc-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-      +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt</div></div>'
-      +'<input type="number" id="'+sid+'" min="0" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdcRecalc()">'
-      +'</div>';
-  }).join('');
+  var html='';
+  drdGroupedOrder().forEach(function(G){
+    html+='<div class="drd-hdr" style="grid-column:1/-1;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-top:10px">'+G.grp+'</div>';
+    G.subs.forEach(function(S){
+      if(S.sub) html+='<div class="drd-hdr" style="grid-column:1/-1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">'+S.sub+'</div>';
+      S.idxs.forEach(function(i){
+        var item=DRD_ITEMS[i];
+        var sid='drdc-qty-'+i;
+        html+='<div class="drdc-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+          +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
+          +'<input type="number" id="'+sid+'" min="0" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdcRecalc()">'
+          +'</div>';
+      });
+    });
+  });
+  g.innerHTML=html;
   var otherRows=document.getElementById('drdc-other-rows');
   if(otherRows&&!otherRows.children.length) drdcAddOtherRow();
   drdcRecalc();
@@ -77,6 +85,10 @@ function drdcFilter(){
     var n=el.getAttribute('data-name')||'';
     el.style.display=(!q||n.indexOf(q)>=0)?'':'none';
   });
+  // Category headers only make sense for the full list — hide while searching
+  document.querySelectorAll('#drdc-grid .drd-hdr').forEach(function(el){
+    el.style.display=q?'none':'';
+  });
 }
 function drdcStartJob(){
   // Capture current quantities from the calculator
@@ -92,10 +104,10 @@ function drdcStartJob(){
     if(svc){ svc.value='Furniture Pickup'; svc.dispatchEvent(new Event('change')); }
     setTimeout(function(){
       Object.keys(qtys).forEach(function(i){
-        var el=document.getElementById('drd-qty-'+i);
+        var el=document.getElementById('drd-m-qty-'+i);
         if(el){el.value=qtys[i];}
       });
-      if(typeof drdRecalc==='function') drdRecalc();
+      if(typeof drdModalRecalc==='function') drdModalRecalc();
     },300);
   },100);
 }
