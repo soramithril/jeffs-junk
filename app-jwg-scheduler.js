@@ -195,25 +195,28 @@ function dismissToast(){
 
 function closeModal(){const o=document.getElementById("moverlay");if(o)o.remove();}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
-function updateModal(html,width){
+// fullpage=true renders the modal as a full page (day editor, assign/clear
+// multiple, usual weeks, locations) with a floating ✕; small dialogs stay cards.
+const FP_CLOSE='<button class="mfp-close" onclick="JWG.closeModal()" aria-label="Close">✕</button>';
+function updateModal(html,width,fullpage){
   // Update existing modal content in-place (preserves scroll, no flicker)
   const m=document.querySelector("#moverlay .modal");
   if(m){
     const scrollTop=m.scrollTop;
-    m.innerHTML=html;
-    if(width)m.style.width=width;
+    m.innerHTML=(fullpage?FP_CLOSE:"")+html;
+    if(width&&!fullpage)m.style.width=width;
     m.scrollTop=scrollTop;
   } else {
-    openModal(html,width);
+    openModal(html,width,fullpage);
   }
 }
-function openModal(html,width){
+function openModal(html,width,fullpage){
   closeModal();
-  const ov=document.createElement("div");ov.className="moverlay open";ov.id="moverlay";
+  const ov=document.createElement("div");ov.className="moverlay open"+(fullpage?" fullpage":"");ov.id="moverlay";
   ov.onmousedown=e=>{if(e.target===ov)closeModal();};
   const m=document.createElement("div");m.className="modal";
-  if(width)m.style.width=width;
-  m.innerHTML=html;ov.appendChild(m);(document.getElementById("view-jwgscheduler")||document.body).appendChild(ov);
+  if(width&&!fullpage)m.style.width=width;
+  m.innerHTML=(fullpage?FP_CLOSE:"")+html;ov.appendChild(m);(document.getElementById("view-jwgscheduler")||document.body).appendChild(ov);
 }
 // Shared confirm dialog (branded, named target + consequence). Returns Promise<boolean>.
 function jwgConfirm(opts){
@@ -564,7 +567,7 @@ function renderShiftModal(empId,day,emp,dayData){
     <button class="modal-cancel" onclick="JWG.closeSaveShift('${empId}','${day}')">Close</button>
     ${working?`<button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">Add shift</button>`:""}
   </div>`;
-  openModal(h);
+  openModal(h,null,true);
 }
 
 function startEditShift(empId,day,idx){
@@ -781,7 +784,7 @@ function renderMultiAssign(){
     </button>
   </div>`;
 
-  updateModal(h,"480px");
+  updateModal(h,null,true);
 }
 
 function maPick(id){
@@ -929,7 +932,7 @@ function renderMultiClear(){
       Clear${ready?" "+selCount+" × "+_mc.days.length+" day"+(_mc.days.length!==1?"s":""):""}
     </button>
   </div>`;
-  updateModal(h,"480px");
+  updateModal(h,null,true);
 }
 
 function mcPickTask(id){_mc.task=id;renderMultiClear();}
@@ -1316,7 +1319,7 @@ function renderUsualWeeks(fresh){
   <div class="modal-sub">Save someone's typical week once — any week that hasn't been scheduled yet starts from it automatically (this week and onwards). Changing a single week never changes the usual week. "Use this week" copies the week you're viewing (${wlbl(S.weekOffset)}).</div>
   <div>${rows}</div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
-  if(fresh)openModal(h,"580px");else updateModal(h,"580px");
+  if(fresh)openModal(h,null,true);else updateModal(h,null,true);
 }
 async function saveUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
@@ -2260,7 +2263,7 @@ function openAddSummerLocation(){
       <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     </div>
   </div>`;
-  openModal(html,"520px");
+  openModal(html,null,true);
   setTimeout(()=>{
     document.querySelectorAll('.sum-svc-toggle-add').forEach(cb=>{
       cb.addEventListener('change',()=>{
@@ -2367,7 +2370,7 @@ function editSummerLocation(locId){
       <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     </div>
   </div>`;
-  openModal(html,"520px");
+  openModal(html,null,true);
   // Wire up checkbox show/hide for detail rows
   setTimeout(()=>{
     document.querySelectorAll('.sum-svc-toggle').forEach(cb=>{
@@ -2656,7 +2659,7 @@ function openAddWinterLocation(){
       <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     </div>
   </div>`;
-  openModal(html,"520px");
+  openModal(html,null,true);
   setTimeout(()=>{
     document.querySelectorAll('.win-svc-toggle-add').forEach(cb=>{
       cb.addEventListener('change',()=>{
@@ -2749,7 +2752,7 @@ function editWinterLocation(locId){
       <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     </div>
   </div>`;
-  openModal(html,"520px");
+  openModal(html,null,true);
   setTimeout(()=>{
     document.querySelectorAll('.win-svc-toggle').forEach(cb=>{
       cb.addEventListener('change',()=>{

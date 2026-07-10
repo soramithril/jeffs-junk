@@ -1482,3 +1482,10 @@
 #view-jwgscheduler .shift-bar-flow.has-ico{display:flex!important;flex-direction:row;align-items:center;gap:6px}
 #view-jwgscheduler .shift-bar-flow{min-height:32px}
 #view-jwgscheduler .status-label{gap:6px}
+
+/* ── Full-page modals: day editor, assign/clear multiple, usual weeks, add/edit
+   locations. Small quick dialogs (confirms, work hours, notes) stay as cards. ── */
+#view-jwgscheduler .moverlay.fullpage {align-items:stretch;justify-content:stretch;padding:0;background:var(--bg-elevated);backdrop-filter:none;-webkit-backdrop-filter:none;}
+#view-jwgscheduler .moverlay.fullpage .modal {width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;border:none;box-shadow:none;margin:0;padding:38px clamp(20px,7vw,110px) 56px;overflow-y:auto;animation:jwg-mUp .25s var(--ease-out);background:var(--bg-elevated);}
+#view-jwgscheduler .mfp-close {position:fixed;top:16px;right:20px;z-index:20;width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg-deep);color:var(--fg-muted);font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.10);}
+#view-jwgscheduler .mfp-close:hover {color:var(--fg);border-color:var(--border-h);}
