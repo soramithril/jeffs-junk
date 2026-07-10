@@ -34,7 +34,7 @@
       + '<div class="sugg-body"'+(done?' style="text-decoration:line-through"':'')+'>'+esc(n.body)+'</div>'
       + '<div class="sugg-foot">'
       +   '<span style="flex:1">'+esc(n.author)+' · '+when+(done&&n.done_by?' · ✅ '+esc(n.done_by):'')+'</span>'
-      +   (adm&&!done ? '<button class="sugg-btn" onclick="SuggestBox.markDone(\''+n.id+'\')" title="Mark done">✓ Done</button>' : '')
+      +   (!done ? '<button class="sugg-btn" onclick="SuggestBox.markDone(\''+n.id+'\')" title="Mark done">✓ Done</button>' : '')
       +   (adm ? '<button class="sugg-btn" onclick="SuggestBox.remove(\''+n.id+'\')" title="Take the note down">✕</button>' : '')
       + '</div></div>';
   }

@@ -133,13 +133,13 @@
     var COLORS = {1:PC[0], 2:PC[1], 3:PC[2]};
     var startD = new Date(parseLocalDate(today)); startD.setDate(startD.getDate() - (DAYS - 1));
 
-    // Weekdays only — the crew isn't seen on Sat/Sun, so weekends are dropped
-    // from every column, average and streak. N is the real column count after.
+    // Mon–Sat — the crew works Saturdays now (Jake 2026-07-10); only Sundays are
+    // dropped from every column, average and streak. N is the real column count.
     var dates = [], monthMarks = [], lastMonth = -1;
     for(var i = 0; i < DAYS; i++){
       var d = new Date(startD); d.setDate(startD.getDate() + i);
       var dow = d.getDay();
-      if(dow === 0 || dow === 6) continue;
+      if(dow === 0) continue;
       if(d.getMonth() !== lastMonth){ monthMarks.push({ n: MONTHS[d.getMonth()], idx: dates.length }); lastMonth = d.getMonth(); }
       dates.push(ymdLocal(d));
     }
@@ -147,7 +147,7 @@
 
     var pitch = Math.max(6, Math.min(12, Math.floor(1010 / N)));
     var cellW = pitch - 2;
-    var weeksShown = Math.ceil(N / 5);   // 5 weekdays per week now
+    var weeksShown = Math.ceil(N / 6);   // 6 working days per week (Mon–Sat)
     var miniCell = weeksShown <= 12 ? 9 : (weeksShown <= 16 ? 7 : 5);
     var monthLabels = monthMarks.map(function(m){ return { n:m.n, x:m.idx*pitch }; });
     if(monthLabels.length > 1 && monthLabels[1].x - monthLabels[0].x < 34) monthLabels.shift();
@@ -209,7 +209,7 @@
     // header
     h += '<div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">'
       +  '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;letter-spacing:1.5px;line-height:1;color:#1a1a2e">STAFF CHECK-IN</div>'
-      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · weekdays only · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved</div></div>'
+      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · Monday–Saturday · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved</div></div>'
       +  '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[2]+'">'+teamToday+'</span></span>'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[2]+'"></span>'+goods+' good · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[1]+'"></span>'+okays+' okay · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'

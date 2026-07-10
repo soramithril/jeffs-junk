@@ -2067,16 +2067,17 @@ async function initSummerPage(){
 function renderSummerPage(){
   const root=document.getElementById("sum-page");
   if(!root)return;
-  const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday",""];
+  const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",""];
   let h=`<div class="si-header">
     <div><div class="si-title">Landscaping locations</div></div>
     <div class="si-actions">
       <button class="si-action-btn" onclick="JWG.openAddSummerLocation()">Add location</button>
+      <button class="si-action-btn secondary" onclick="JWG.SUM.filtersOpen=!JWG.SUM.filtersOpen;var b=document.getElementById('sum-filter-bar');if(b)b.style.display=JWG.SUM.filtersOpen?'':'none'">🔍 Filters</button>
       <button class="si-action-btn secondary" onclick="JWG.openManageSummerServiceTypes()">Edit service list</button>
       <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
     </div>
   </div>
-  <div class="si-filter-bar">
+  <div class="si-filter-bar" id="sum-filter-bar" style="${SUM.filtersOpen?"":"display:none"}">
     <input type="text" class="si-filter-input" placeholder="Search location…" id="sum-search" oninput="JWG.SUM.filter=this.value;JWG.filterAndSortSummer()">
     <select class="si-filter-select" id="sum-sort" onchange="JWG.SUM.sortBy=this.value;JWG.filterAndSortSummer()">
       <option value="name">Sort: A–Z</option>
@@ -2095,6 +2096,7 @@ function renderSummerPage(){
       <option value="Wednesday">Wednesday</option>
       <option value="Thursday">Thursday</option>
       <option value="Friday">Friday</option>
+      <option value="Saturday">Saturday</option>
     </select>
   </div>
   <div style="padding:0 0 14px 0;overflow-x:auto;">`;
@@ -2158,7 +2160,7 @@ function renderSummerPage(){
   }
 
   // Weekly calendar view
-  const DAYS_WEEK=["Monday","Tuesday","Wednesday","Thursday","Friday"];
+  const DAYS_WEEK=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   h+=`<div class="sum-cal-wrap">
     <div class="sum-cal-header">
       <h3 class="sum-cal-title">Weekly Schedule</h3>
@@ -2240,6 +2242,7 @@ function openAddSummerLocation(){
         <option value="Wednesday">Wednesday</option>
         <option value="Thursday">Thursday</option>
         <option value="Friday">Friday</option>
+        <option value="Saturday">Saturday</option>
       </select>
     </div>
     <div class="si-form-group">
@@ -2348,6 +2351,7 @@ function editSummerLocation(locId){
         <option value="Wednesday"${loc.service_day==="Wednesday"?" selected":""}>Wednesday</option>
         <option value="Thursday"${loc.service_day==="Thursday"?" selected":""}>Thursday</option>
         <option value="Friday"${loc.service_day==="Friday"?" selected":""}>Friday</option>
+        <option value="Saturday"${loc.service_day==="Saturday"?" selected":""}>Saturday</option>
       </select>
     </div>
     <div class="si-form-group">
@@ -2501,11 +2505,12 @@ function renderWinterPage(){
     <div><div class="si-title">Snow &amp; salt locations</div></div>
     <div class="si-actions">
       <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">Add location</button>
+      <button class="si-action-btn secondary" onclick="JWG.WIN.filtersOpen=!JWG.WIN.filtersOpen;var b=document.getElementById('win-filter-bar');if(b)b.style.display=JWG.WIN.filtersOpen?'':'none'">🔍 Filters</button>
       <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">Edit service list</button>
       <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
     </div>
   </div>
-  <div class="si-filter-bar">
+  <div class="si-filter-bar" id="win-filter-bar" style="${WIN.filtersOpen?"":"display:none"}">
     <input type="text" class="si-filter-input" placeholder="Search location…" id="win-search" oninput="JWG.WIN.filter=this.value;JWG.filterAndSortWinter()">
     <select class="si-filter-select" id="win-sort" onchange="JWG.WIN.sortBy=this.value;JWG.filterAndSortWinter()">
       <option value="name"${WIN.sortBy==="name"?" selected":""}>Sort: A–Z</option>

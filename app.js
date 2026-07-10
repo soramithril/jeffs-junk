@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '395';
+var APP_VERSION = '396';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11752,7 +11752,7 @@ function _render30DayStrip(vid){
     var b = blocks[ds];
     var cls = '';
     if(i===0) cls = 'today';
-    else if(d.getDay()===0 || d.getDay()===6) cls = 'weekend';
+    else if(d.getDay()===0) cls = 'weekend';   // Sundays only — we work Mon–Sat
     if(b){
       if(b.reason==='Service / Repair') cls = 'svc';
       else if(b.reason==='Personal Use') cls = 'per';
@@ -13979,7 +13979,7 @@ async function renderCrew(){
     +'<thead><tr>'
     +'<th style="width:128px;text-align:left;padding:9px 10px;font-size:12px;font-weight:700;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">Crew</th>';
   days.forEach(function(d){
-    var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0||d.getDay()===6);
+    var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0);
     html+='<th style="padding:8px 4px;font-size:11px;font-weight:700;color:'+(isT?'var(--accent)':'var(--muted)')+';background:'+(isT?'rgba(34,197,94,.08)':'var(--surface2)')+';border-bottom:1px solid var(--border);border-left:1px solid var(--border)">'+dayNames[d.getDay()]+'<br><span style="font-size:15px;color:'+(isT?'var(--accent)':'var(--text)')+'">'+d.getDate()+'</span></th>';
   });
   html+='</tr></thead><tbody>';
@@ -13990,7 +13990,7 @@ async function renderCrew(){
         +'<div style="display:flex;align-items:center;gap:8px">'+teamAvatar(c.name, crewAvatarColor(c.id), 26)+'<span style="font-weight:600;font-size:13px">'+escHtml(c.name)+'</span></div>'
       +'</td>';
     days.forEach(function(d){
-      var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0||d.getDay()===6);
+      var ds=ymdLocal(d), isT=ds===todayS, wknd=(d.getDay()===0);
       var cell='';
       // time off first
       crewDayBlocks(c.id, ds).forEach(function(b){
