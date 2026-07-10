@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '389';
+var APP_VERSION = '390';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2218,6 +2218,14 @@ function render(name){
 function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
 
 // ─── BADGES ───
+// Human label for a bin_side value: left/right get "Side" appended, others
+// ("see notes", "single driveway") are just title-cased.
+function binSideLabel(side){
+  if(!side) return '';
+  var s=side.toLowerCase();
+  var t=s.split(' ').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(' ');
+  return (s==='left'||s==='right') ? t+' Side' : t;
+}
 function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
 function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del','Landscaping':'svc-landscaping'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
 function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
@@ -9134,7 +9142,7 @@ async function openDetail(id, returnCid){
   }
   var bin='';
   if(j.service==='Bin Rental'){
-    var sideLabel=j.binSide?(' · 🚗 '+j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' side')):'';
+    var sideLabel=j.binSide?(' · 🚗 '+binSideLabel(j.binSide)):'';
     var bsStatus=j.binInstatus==='dropped'?'<span style="display:inline-flex;align-items:center;gap:5px;color:#22c55e;font-weight:700">'+iconTile('confirmed',{size:15})+'Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="display:inline-flex;align-items:center;gap:5px;color:#22c55e;font-weight:700">'+iconTile('confirmed',{size:15})+'Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
@@ -9143,7 +9151,7 @@ async function openDetail(id, returnCid){
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
       +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
-      +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?j.binSide.charAt(0).toUpperCase()+j.binSide.slice(1)+(j.binSide.toLowerCase()==='see notes'?'':' Side'):'—')+'</span></div>'
+      +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?binSideLabel(j.binSide):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
       +(j.swapCount?'<div class="detail-item"><label>Swap Outs</label><span>'+j.swapCount+'</span></div>':'')
@@ -10516,7 +10524,7 @@ function getPreset(key) {
 }
 
 function fillEmailTemplate(template, j) {
-  var side = j.binSide ? ' (' + j.binSide + (j.binSide.toLowerCase()==='see notes'?'':' side') + ')' : '';
+  var side = j.binSide ? ' (' + binSideLabel(j.binSide) + ')' : '';
   // Use the correct scheduled date based on service type
   var schedDate = jobSchedDate(j);
   var dropoffDate = j.binDropoff || j.date || '';
@@ -12460,7 +12468,7 @@ async function printBinRental(jobId) {
     var city = j.city || '';
 
     // Driveway side — skip "see notes" since the actual notes print separately
-    var side = (j.binSide && j.binSide.toLowerCase() !== 'see notes') ? j.binSide + ' Side' : '';
+    var side = (j.binSide && j.binSide.toLowerCase() !== 'see notes') ? binSideLabel(j.binSide) : '';
 
     // ── LEFT COLUMN: Customer Info ──
     var nameLine = j.name + (j.businessName ? ' — ' + j.businessName : '');
@@ -12710,31 +12718,33 @@ async function printJunkRemoval(jobId) {
     // Payment type
     dt(j.payMethod || '', 130, 598);
 
-    // Notes — next to bin placement area at bottom
+    // Notes — in the EQUIPMENT NEEDED box (2nd table row). Line 1 starts after
+    // the printed label; up to 3 lines fit in the box. Anything longer spills
+    // to the old bin-placement area at the bottom.
     var notesText = j.notes || '';
     if (notesText) {
-      var maxW = 310;
-      var lh = 30;
-      var ny = 673;
-      var ln = 0;
-      var paragraphs = notesText.split(/\r?\n/);
-      for (var pi = 0; pi < paragraphs.length; pi++) {
-        var words = paragraphs[pi].split(' ');
+      var noteLines = [];
+      notesText.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(par) {
+        var words = par.split(' ');
         var line = '';
         for (var wi = 0; wi < words.length; wi++) {
           var testLine = line ? line + ' ' + words[wi] : words[wi];
-          var testWidth = font.widthOfTextAtSize(testLine, 10);
-          if (testWidth > maxW && line) {
-            dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
+          var maxW = noteLines.length === 0 ? 250 : 355;
+          if (font.widthOfTextAtSize(testLine, 9) > maxW && line) {
+            noteLines.push(line);
             line = words[wi];
-            ln++;
           } else {
             line = testLine;
           }
         }
-        if (line) dt(line, ln === 0 ? 105 : 80, ny + ln * lh);
-        ln++;
-      }
+        if (line) noteLines.push(line);
+      });
+      noteLines.slice(0, 3).forEach(function(line, i) {
+        dt(line, i === 0 ? 232 : 127, 318 + i * 11, 9);
+      });
+      noteLines.slice(3).forEach(function(line, i) {
+        dt(line, i === 0 ? 105 : 80, 673 + i * 30, 9);
+      });
     }
 
     var filledBytes = await pdfDoc.save();
