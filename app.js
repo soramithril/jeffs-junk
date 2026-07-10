@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '391';
+var APP_VERSION = '392';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1473,14 +1473,17 @@ async function loadJobsPage(page) {
     query = query.eq('completed', true);
   } else if (svcF === 'Cancelled') {
     query = query.eq('status', 'Cancelled');
+  } else if (svcF === 'Postponed') {
+    query = query.eq('status', 'Postponed');
   } else if (svcF === 'Recurring') {
     query = query.eq('recurring', true);
   } else if (svcF && svcF !== 'all') {
     query = query.eq('service', svcF);
   }
-  // 4A: the "Active" Show mode hides completed jobs server-side
+  // 4A: the "Active" Show mode hides completed + postponed jobs server-side
+  // (every job's status is a non-null string, so neq is safe here)
   if (jobShowF === 'active') {
-    query = query.eq('completed', false);
+    query = query.eq('completed', false).neq('status', 'Postponed');
   }
   // Apply status filter
   if (jobStatusF && jobStatusF !== 'all') {
@@ -2191,6 +2194,7 @@ function render(name){
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='landscaping') renderLandscapingPage();
   else if(name==='calendar') renderCal();
+  else if(name==='suggestions') renderSuggestions();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
   else if(name==='analytics'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
   else if(name==='utilization') renderUtilization();
@@ -2226,7 +2230,7 @@ function binSideLabel(side){
   var t=s.split(' ').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(' ');
   return (s==='left'||s==='right') ? t+' Side' : t;
 }
-function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';return '';}
+function stb(s){if(s==='Cancelled')return '<span class="badge badge-cancelled">⚪ Cancelled</span>';if(s==='Postponed')return '<span class="badge badge-postponed">⏸ Postponed</span>';return '';}
 function sb(s){var cls={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del','Landscaping':'svc-landscaping'};return '<span class="service-badge '+(cls[s]||'')+'">'+s+'</span>';}
 function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 
@@ -3869,6 +3873,7 @@ function _applyJobFilters(){
   else if (jobShowF === 'BinsOut')   svcF = 'BinsOut';
   else if (jobShowF === 'Recurring') svcF = 'Recurring';
   else if (jobShowF === 'Completed') svcF = 'Completed';
+  else if (jobShowF === 'Postponed') svcF = 'Postponed';
   else                               svcF = jobSvcF;   // 'active': 'all' = grouped view, or one service
 
   // Bin-drop filter only makes sense for bin rows
@@ -4766,6 +4771,13 @@ function renderJobs(){
     document.getElementById('jobs-cancelled-junk-tbody').innerHTML=crJunk.length?crJunk.map(makeCancelledRow).join(''):emptyJobRow(5);
     document.getElementById('jobs-cancelled-quote-tbody').innerHTML=crQuote.length?crQuote.map(makeCancelledRow).join(''):emptyJobRow(5);
     document.getElementById('jobs-cancelled-furn-tbody').innerHTML=crFurn.length?crFurn.map(makeCancelledRowWithSvc).join(''):emptyJobRow(6);
+  } else if(svcF==='Postponed'){
+    if(cancelledSection) cancelledSection.style.display='none';
+    ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
+    document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
+    // No date filter — postponed jobs have their dates cleared until reopened
+    var pfilt=all.filter(function(j){return j.status==='Postponed'&&m(j);});
+    document.getElementById('jobs-tbody').innerHTML=pfilt.length?pfilt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
   } else if(svcF==='Recurring'){
     if(cancelledSection) cancelledSection.style.display='none';
     ['jobs-bin-count','jobs-junk-count','jobs-quote-count','jobs-furn-count','jobs-landscaping-count'].forEach(function(id){var el=document.getElementById(id);if(el)el.closest('.cat-section').style.display='block';});
@@ -9121,6 +9133,28 @@ async function reopenLandscapeJob(id){
   closeM('detail-modal');
   refresh();
 }
+async function postponeJob(id){
+  if(!confirm('Postpone this job? It comes off the calendar and moves to All Jobs → Postponed until you reopen it.'))return;
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.status='Postponed';
+  j.date='';j.time='';j.junkDate='';j.junkTime='';j.fbDate='';j.fbTime='';j.binDropoff='';j.binPickup='';
+  // Old dates stay visible in the job's Edit History (log_job_changes trigger)
+  await db.from('jobs').update({status:'Postponed', date:null, time:null, junk_date:null, junk_time:null, fb_date:null, fb_time:null, bin_dropoff:null, bin_pickup:null}).eq('job_id',id);
+  toast('⏸ Job postponed — find it under All Jobs → Postponed.');
+  closeM('detail-modal');
+  refresh();
+}
+async function reopenPostponedJob(id){
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j)return;
+  j.status='';
+  await db.from('jobs').update({status:''}).eq('job_id',id);
+  toast('Job reopened — give it a new date.');
+  closeM('detail-modal');
+  refresh();
+  openEdit(id);
+}
 async function openDetail(id, returnCid){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});
   if(!j){
@@ -9226,6 +9260,7 @@ async function openDetail(id, returnCid){
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="downloadQuoteInvite(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📅 Calendar Invite</button>':'')
     +(j.service==='Landscaping'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Landscaping'?(j.completed
         ?'<button class="btn btn-ghost" onclick="reopenLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+' · Reopen</button>'
@@ -9233,6 +9268,9 @@ async function openDetail(id, returnCid){
     +(j.service==='Furniture Delivery'?'<button class="btn btn-ghost" onclick="printFbDropOff(\''+j.id+'\')" style="justify-content:center;border-color:rgba(249,115,22,.4);color:#f97316">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">'+lineIcon('print',14)+' Print Form</button>':'')
     +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Job</button>'
+    +(j.status==='Postponed'
+      ?'<button class="btn btn-ghost" onclick="reopenPostponedJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">▶ Postponed · Reopen</button>'
+      :(j.status!=='Cancelled'?'<button class="btn btn-ghost" onclick="postponeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(100,116,139,.4);color:#64748b">⏸ Postpone</button>':''))
     +'<button class="btn btn-ghost" onclick="openDamageReport(\''+j.id+'\')" style="justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545">⚠️ Report Damage</button>'
     +'</div></div>'
 
@@ -12758,6 +12796,49 @@ async function printJunkRemoval(jobId) {
 }
 
 async function printJunkQuote(jobId) { return printJunkRemoval(jobId); }
+
+// ── Junk Quote calendar invite (.ics with Jeff + Barbara invited) ──
+// Opening the file in Apple Calendar adds the event with both already on the
+// invite list; saving it into an iCloud/Exchange calendar sends them the emails.
+var QUOTE_INVITE_ATTENDEES = [
+  {name:'Jeff', email:'jeff@jeffwhitegroup.com'},
+  {name:'Barbara', email:'barbara@jeffwhitegroup.com'}
+];
+function _icsEscape(s){return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');}
+async function downloadQuoteInvite(jobId){
+  var r = await db.from('jobs').select('*').eq('job_id', jobId).single();
+  if (r.error || !r.data) { toast('Job not found'); return; }
+  var j = dbToJob(r.data);
+  var d = j.junkDate || j.date;
+  if (!d) { toast('Set a quote date on the job first'); return; }
+  var t = j.junkTime || j.time || '09:00';
+  if (t.length === 5) t += ':00';
+  var sd = new Date(d + 'T' + t);
+  var ed = new Date(sd.getTime() + 60*60*1000);
+  function p2(n){ return String(n).padStart(2,'0'); }
+  function icsDt(x){ return x.getFullYear()+p2(x.getMonth()+1)+p2(x.getDate())+'T'+p2(x.getHours())+p2(x.getMinutes())+'00'; }
+  var loc = (j.address||'') + (j.city ? ', ' + j.city : '');
+  var desc = 'Job #' + j.id + (j.phone ? '\nPhone: ' + j.phone : '') + (j.notes ? '\n\n' + j.notes : '');
+  var lines = [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Jeffs Junk//Dashboard//EN',
+    'BEGIN:VEVENT',
+    'UID:quote-'+j.id+'@jeffsjunk.ca',
+    'DTSTAMP:'+icsDt(new Date()),
+    'DTSTART:'+icsDt(sd),
+    'DTEND:'+icsDt(ed),
+    'SUMMARY:'+_icsEscape('Junk Quote — '+(j.name||'')),
+    loc.trim() ? 'LOCATION:'+_icsEscape(loc) : '',
+    'DESCRIPTION:'+_icsEscape(desc)
+  ];
+  QUOTE_INVITE_ATTENDEES.forEach(function(a){ lines.push('ATTENDEE;CN='+a.name+';RSVP=TRUE:mailto:'+a.email); });
+  lines.push('END:VEVENT','END:VCALENDAR');
+  var blob = new Blob([lines.filter(Boolean).join('\r\n')+'\r\n'], {type:'text/calendar'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'quote-'+j.id+'.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('📅 Invite downloaded — open it to add the quote to Apple Calendar with Jeff & Barbara invited.');
+}
 
 // ── Landscaping Form Print ──
 // No PDF template exists for Landscaping, so build a clean printable HTML sheet
