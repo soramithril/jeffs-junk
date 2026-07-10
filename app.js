@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '394';
+var APP_VERSION = '395';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9260,7 +9260,7 @@ async function openDetail(id, returnCid){
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
-    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="downloadQuoteInvite(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📅 Calendar Invite</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="openQuoteInvite(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📅 Calendar Invite</button>':'')
     +(j.service==='Landscaping'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Landscaping'?(j.completed
         ?'<button class="btn btn-ghost" onclick="reopenLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+' · Reopen</button>'
@@ -12808,6 +12808,26 @@ var QUOTE_INVITE_ATTENDEES = [
   {name:'Barbara', email:'barbara@jeffwhitegroup.com'}
 ];
 function _icsEscape(s){return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');}
+// Small picker so each invite chooses its recipients (Jake 2026-07-10)
+function openQuoteInvite(jobId){
+  var old=document.getElementById('quote-invite-overlay'); if(old) old.remove();
+  var ov=document.createElement('div');
+  ov.className='modal-overlay open'; ov.id='quote-invite-overlay';
+  ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+  var checks=QUOTE_INVITE_ATTENDEES.map(function(a,i){
+    return '<label style="display:flex;align-items:center;gap:9px;font-size:14px;padding:9px 4px;cursor:pointer"><input type="checkbox" id="qi-att-'+i+'" checked style="width:16px;height:16px;accent-color:var(--accent)"> '+a.name+' <span style="color:var(--muted);font-size:12px">'+a.email+'</span></label>';
+  }).join('');
+  ov.innerHTML='<div class="modal" style="max-width:430px;width:92vw">'
+    +'<h3 style="margin:0 0 4px">📅 Calendar invite</h3>'
+    +'<div style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Pick who gets invited, then open the downloaded file to add the quote to Apple Calendar.</div>'
+    +checks
+    +'<input id="qi-extra" type="text" placeholder="Another email (optional)" style="width:100%;margin-top:8px;padding:9px 11px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'
+    +'<button class="btn btn-ghost" onclick="document.getElementById(\'quote-invite-overlay\').remove()">Cancel</button>'
+    +'<button class="btn btn-primary" onclick="downloadQuoteInvite(\''+jobId+'\')">Download invite</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+}
 async function downloadQuoteInvite(jobId){
   var r = await db.from('jobs').select('*').eq('job_id', jobId).single();
   if (r.error || !r.data) { toast('Job not found'); return; }
@@ -12833,14 +12853,21 @@ async function downloadQuoteInvite(jobId){
     loc.trim() ? 'LOCATION:'+_icsEscape(loc) : '',
     'DESCRIPTION:'+_icsEscape(desc)
   ];
-  QUOTE_INVITE_ATTENDEES.forEach(function(a){ lines.push('ATTENDEE;CN='+a.name+';RSVP=TRUE:mailto:'+a.email); });
+  // Recipients come from the picker when it's open; default to everyone otherwise
+  var attendees=[];
+  QUOTE_INVITE_ATTENDEES.forEach(function(a,i){ var cb=document.getElementById('qi-att-'+i); if(!cb||cb.checked) attendees.push(a); });
+  var extraEl=document.getElementById('qi-extra');
+  var extra=extraEl?extraEl.value.trim():'';
+  if(extra) attendees.push({name:extra.split('@')[0], email:extra});
+  attendees.forEach(function(a){ lines.push('ATTENDEE;CN='+a.name+';RSVP=TRUE:mailto:'+a.email); });
   lines.push('END:VEVENT','END:VCALENDAR');
   var blob = new Blob([lines.filter(Boolean).join('\r\n')+'\r\n'], {type:'text/calendar'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'quote-'+j.id+'.ics';
   document.body.appendChild(a); a.click(); a.remove();
-  toast('📅 Invite downloaded — open it to add the quote to Apple Calendar with Jeff & Barbara invited.');
+  var ovl=document.getElementById('quote-invite-overlay'); if(ovl) ovl.remove();
+  toast('📅 Invite downloaded — open it to add the quote to Apple Calendar.');
 }
 
 // ── Landscaping Form Print ──

@@ -13,7 +13,9 @@
   var _gifts = [];        // employee_incentives rows (admins only — RLS hides them otherwise)
   var _giftOpen = null;   // id of the person whose gift-card modal is open
 
-  var GIFT_CARDS = ['Tim Hortons','Amazon','Gas','Restaurant','Other'];
+  // Card types are Tim Hortons plus whatever's been logged before — picking
+  // "New card type…" in the modal lets admins add more as needed.
+  var GIFT_SEED = ['Tim Hortons'];
 
   // Colour palette — 24 hues spaced evenly around the wheel (15° apart) so no
   // two people are close cousins. Everyone gets a distinct one; taken colours
@@ -202,12 +204,17 @@
         + '<button onclick="TeamMgr.removeGift(\''+g.id+'\')" title="Remove entry" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:14px">×</button>'
         + '</div>';
     }).join('') : '<div style="padding:18px 0;color:var(--muted);font-size:13px;text-align:center">No gift cards logged yet.</div>';
-    var opts = GIFT_CARDS.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+    var types = GIFT_SEED.slice();
+    _gifts.forEach(function(g){ if(g.gift_card && types.indexOf(g.gift_card)===-1) types.push(g.gift_card); });
+    types.sort();
+    var opts = types.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('')
+      + '<option value="__new">➕ New card type…</option>';
     return '<div class="modal-overlay open" onclick="if(event.target===this)TeamMgr.closeGift()"><div class="modal" style="max-width:560px;width:92vw">'
       + '<h3 style="margin:0 0 4px">🎁 '+esc(p.name)+' — Gift cards</h3>'
       + '<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">Log a gift card given for a good review or great work.</div>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px">'
-      +   '<select id="gift-card-sel" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'+opts+'</select>'
+      +   '<select id="gift-card-sel" onchange="document.getElementById(\'gift-card-new\').style.display=this.value===\'__new\'?\'\':\'none\'" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'+opts+'</select>'
+      +   '<input id="gift-card-new" type="text" placeholder="New card type (e.g. Canadian Tire)" style="display:none;min-width:160px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
       +   '<input id="gift-qty" type="number" min="1" value="1" style="width:60px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
       +   '<input id="gift-reason" type="text" placeholder="Why? (e.g. 5-star review from the Hansons)" style="flex:1;min-width:170px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
       +   '<button class="btn btn-primary" onclick="TeamMgr.giveGift()" style="padding:9px 18px;font-size:13px">Give it</button>'
@@ -220,7 +227,9 @@
   function closeGift(){ _giftOpen = null; paint(); }
   async function giveGift(){
     var p = find(_giftOpen); if(!p) return;
-    var card = document.getElementById('gift-card-sel').value;
+    var sel = document.getElementById('gift-card-sel').value;
+    var card = sel === '__new' ? document.getElementById('gift-card-new').value.trim() : sel;
+    if(!card){ toast('Type the new card name first.', 'error'); return; }
     var qty = parseInt(document.getElementById('gift-qty').value, 10) || 1;
     var reason = document.getElementById('gift-reason').value.trim();
     var by = (typeof currentUser!=='undefined' && currentUser) ? (currentUser.displayName || String(currentUser.email||'').split('@')[0]) : '';
