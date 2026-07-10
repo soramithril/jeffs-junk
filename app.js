@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '386';
+var APP_VERSION = '387';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1729,7 +1729,7 @@ function _itemInpAC(inp){
   }
   if(!val||val.length<1){dd.style.display='none';return;}
   if(typeof DRD_ITEMS==='undefined'){dd.style.display='none';return;}
-  var matches=DRD_ITEMS.filter(function(item){return item.name.toLowerCase().indexOf(val)>=0;}).slice(0,8);
+  var matches=DRD_ITEMS.filter(function(item){return !item.hidden&&item.name.toLowerCase().indexOf(val)>=0;}).slice(0,8);
   if(!matches.length){dd.style.display='none';return;}
   dd.innerHTML=matches.map(function(m,i){
     return '<div class="item-ac-opt'+(i===0?' item-ac-active':'')+'" onmousedown="_itemAcPick(this)" style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);font-family:\'DM Sans\',sans-serif;border-bottom:1px solid var(--border)" onmouseover="this.parentNode.querySelectorAll(\'.item-ac-opt\').forEach(function(o){o.classList.remove(\'item-ac-active\')});this.classList.add(\'item-ac-active\')">'+m.name+'</div>';
@@ -11189,43 +11189,57 @@ function _fillDrdModal(drd){
   drdModalRecalc();
 }
 
-// Each item carries two prices:
+// Each item carries two prices plus Redwood 2026 taxonomy data:
 //   fee = Pick Up Fee  → what the customer pays
 //   val = Tax Receipt Value → donation-receipt value (kept as the historical `val`)
+//   vol = cubic feet (Redwood 2026 Master Taxonomy)
+//   grp / sub = Redwood group / sub-category
 // IMPORTANT: array order is FIXED. Saved Furniture Pickup jobs store DRD
 // quantities positionally (quantities[i] ↔ DRD_ITEMS[i]), so existing items must
 // keep their index. New items are APPENDED at the end. Display is alphabetised
 // separately via DRD_ORDER below — never re-sort this array in place.
+// hidden:true items were retired in the Redwood 2026 alignment (2026-07-09) but
+// keep their original fee/val so totals on old saved jobs stay correct.
 var DRD_ITEMS = [
-  {name:'Air Conditioner',fee:10,val:100},{name:'Armchair',fee:60,val:100},{name:'Armoire',fee:90,val:200},
-  {name:'Artificial Plant',fee:15,val:50},{name:'Bag of Linens',fee:15,val:25},{name:'Bar Fridge',fee:30,val:100},
-  {name:'Bed Frame - Double/Twin',fee:30,val:75},{name:'Bed Frame - Queen',fee:30,val:100},{name:'Bench',fee:30,val:50},
-  {name:'Box - Assorted Home Goods',fee:15,val:25},{name:'Box - Cookware',fee:15,val:25},{name:'Box - Dishware',fee:15,val:25},
-  {name:'Boxspring - Double',fee:60,val:150},{name:'Boxspring - Queen',fee:60,val:150},{name:'Boxspring - Twin',fee:60,val:100},
-  {name:'Buffet Hutch',fee:90,val:150},{name:'Cabinet',fee:60,val:150},{name:'CD Stand',fee:15,val:25},
-  {name:'Chair (dining/kitchen/occas)',fee:15,val:50},{name:'Chest',fee:30,val:100},{name:'Coat Rack',fee:15,val:25},
-  {name:'Credenza',fee:60,val:150},{name:'Desk',fee:60,val:100},{name:'Dresser',fee:60,val:100},
-  {name:'DVD Player',fee:15,val:25},{name:'Entertainment Unit',fee:90,val:150},{name:'Filing Cabinet',fee:15,val:50},
-  {name:'Folding Chair',fee:15,val:25},{name:'Folding Table',fee:15,val:50},{name:'Futon - Complete',fee:90,val:150},
-  {name:'Ironing Board',fee:15,val:25},{name:'Lamp',fee:15,val:25},{name:'Laundry Hamper',fee:15,val:25},
-  {name:'Loveseat',fee:75,val:150},{name:'Mattress - Double',fee:60,val:150},{name:'Mattress - Queen',fee:60,val:150},
-  {name:'Mattress - Twin',fee:60,val:100},{name:'Microwave',fee:15,val:50},{name:'Microwave Stand',fee:30,val:50},
-  {name:'Mirror',fee:15,val:50},{name:'Office Chair',fee:15,val:50},{name:'Ottoman',fee:15,val:50},
-  {name:'Picture - Artwork',fee:10,val:25},{name:'Recliner',fee:60,val:100},{name:'Rocking Chair',fee:30,val:75},
-  {name:'Room Divider',fee:15,val:25},{name:'Rug',fee:30,val:75},{name:'Sectional',fee:150,val:350},
-  {name:'Shelf - Large',fee:60,val:100},{name:'Shelf - Small',fee:30,val:75},{name:'Shoe Rack',fee:15,val:25},
-  {name:'Sideboard',fee:90,val:150},{name:'Small Appliance',fee:15,val:25},{name:'Sofa',fee:100,val:250},
-  {name:'Sofabed',fee:150,val:200},{name:'Space Heater',fee:15,val:25},{name:'Stereo',fee:15,val:25},
-  {name:'Stool (dining/kitchen)',fee:15,val:25},{name:'Table - Coffee',fee:30,val:100},{name:'Table - Dining/Kitchen',fee:60,val:150},
-  {name:'Table - Night',fee:15,val:50},{name:'Table - Side',fee:15,val:50},{name:'Television - Tube',fee:30,val:50},
-  {name:'Television Stand',fee:30,val:75},{name:'TV - Flat Screen Under 32"',fee:15,val:100},
-  {name:'TV - Flat Screen Over 32"',fee:30,val:150},{name:'Trunk',fee:30,val:75},{name:'TV Tray',fee:15,val:25},
-  {name:'Vacuum',fee:15,val:75},{name:'Vanity',fee:60,val:150},{name:'Wall Unit',fee:90,val:100},
-  {name:'Wardrobe',fee:90,val:200},{name:'Waste Basket',fee:15,val:25},
-  // ── Appended 2026-06-08 (new items — keep at end to preserve indices) ──
-  {name:'Clock',fee:15,val:25},{name:'Computer Monitor',fee:15,val:100},{name:'Electric Fireplace',fee:30,val:50},
-  {name:'Fan',fee:15,val:25},{name:'Headboards',fee:25,val:50},{name:'Magazine Rack',fee:15,val:25},
-  {name:'Sofa - Luxury',fee:100,val:500},{name:'Suitcase',fee:15,val:25},{name:'Throw Rugs',fee:15,val:25}
+  {name:'Air Conditioner',fee:10,val:100,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Armchair',fee:60,val:100,vol:26,grp:'Living Room',sub:'Armchairs'},{name:'Armoire',fee:90,val:200,vol:28,grp:'Bedroom',sub:'Armoires & Wardrobes'},
+  {name:'Artificial Plant / Christmas Tree',fee:15,val:25,vol:19,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Linens (per bag)',fee:15,val:25,vol:10,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Bar Fridge',fee:30,val:100,vol:6,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Bed Frame - Double/Twin',fee:30,val:75,hidden:true},{name:'Bed Frame - Queen',fee:30,val:100,hidden:true},{name:'Bench',fee:30,val:50,vol:16,grp:'Living Room',sub:'Benches'},
+  {name:'Box - Assorted Home Goods',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Box - Cookware',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Box - Dishware',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},
+  {name:'Boxspring - Double',fee:60,val:150,vol:22,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Boxspring - Queen',fee:60,val:150,vol:34,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Boxspring - Twin',fee:60,val:100,vol:21,grp:'Bedroom',sub:'Mattresses & Bed Frames'},
+  {name:'Buffet and Hutch',fee:90,val:150,vol:51,grp:'Kitchen/Dining',sub:'Buffets & Hutches'},{name:'Large Cabinet',fee:60,val:150,vol:23,grp:'Living Room',sub:'Cabinets & Storage'},{name:'CD Stand',fee:15,val:25,vol:9,grp:'Living Room',sub:'TV Stands & Entertainment'},
+  {name:'Chair - Dining / Kitchen / Occasional',fee:15,val:50,vol:11,grp:'Kitchen/Dining',sub:'Chairs & Stools'},{name:'Chest',fee:30,val:100,vol:21,grp:'Bedroom',sub:'Dressers & Vanities'},{name:'Clock',fee:15,val:25,hidden:true},
+  {name:'Coat Rack',fee:15,val:25,vol:12,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Computer Monitor',fee:15,val:100,hidden:true},{name:'Credenza',fee:60,val:150,vol:21,grp:'Kitchen/Dining',sub:'Sideboards & Credenzas'},
+  {name:'Desk',fee:60,val:100,vol:22,grp:'Study/Office',sub:'Desks'},{name:'Dresser',fee:60,val:100,vol:21,grp:'Bedroom',sub:'Dressers & Vanities'},{name:'DVD / VCR Player',fee:15,val:25,vol:1,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Electric Fireplace',fee:30,val:50,hidden:true},{name:'Entertainment Unit - Large',fee:90,val:150,vol:31,grp:'Living Room',sub:'TV Stands & Entertainment'},{name:'Fan',fee:15,val:25,vol:1,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Filing Cabinet - Small',fee:15,val:50,vol:5,grp:'Study/Office',sub:'Filing & Storage'},{name:'Folding Chair',fee:15,val:25,vol:11,grp:'Kitchen/Dining',sub:'Chairs & Stools'},{name:'Folding Table',fee:15,val:50,vol:45,grp:'Kitchen/Dining',sub:'Dining Tables'},
+  {name:'Futon - Complete',fee:90,val:150,vol:51,grp:'Living Room',sub:'Sofas'},{name:'Headboard',fee:25,val:50,vol:34,grp:'Bedroom',sub:'Headboards'},{name:'Ironing Board',fee:15,val:25,vol:19,grp:'Accents',sub:'Housewares & Home Decor'},
+  {name:'Lamp',fee:15,val:25,vol:2,grp:'Accents',sub:'Lighting'},{name:'Laundry Hamper',fee:15,val:25,vol:4,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Loveseat',fee:75,val:150,vol:34,grp:'Living Room',sub:'Sofas'},
+  {name:'Magazine Rack',fee:15,val:25,hidden:true},{name:'Mattress - Double',fee:60,val:150,vol:22,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Mattress - Queen',fee:60,val:150,vol:34,grp:'Bedroom',sub:'Mattresses & Bed Frames'},
+  {name:'Mattress - Twin',fee:60,val:100,vol:21,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Microwave',fee:15,val:50,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Microwave Stand',fee:30,val:50,vol:13,grp:'Kitchen/Dining',sub:'Carts & Stands'},
+  {name:'Mirror',fee:15,val:50,vol:1,grp:'Accents',sub:'Mirrors'},{name:'Office Chair',fee:15,val:50,vol:9,grp:'Study/Office',sub:'Office Chairs'},{name:'Ottoman',fee:15,val:50,vol:7,grp:'Living Room',sub:'Ottomans'},
+  {name:'Picture (Art)',fee:10,val:25,vol:1,grp:'Accents',sub:'Art'},{name:'Recliner',fee:60,val:100,vol:32,grp:'Living Room',sub:'Armchairs'},{name:'Rocking Chair',fee:30,val:75,vol:23,grp:'Living Room',sub:'Occasional Chairs'},
+  {name:'Room Divider',fee:15,val:25,vol:4,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Rug',fee:30,val:75,vol:14,grp:'Accents',sub:'Area Rugs'},{name:'Sofa - Sectional',fee:150,val:350,vol:121,grp:'Living Room',sub:'Sofas'},
+  {name:'Shelf - Large',fee:60,val:100,vol:15,grp:'Living Room',sub:'Shelves'},{name:'Shelf - Small',fee:30,val:75,vol:9,grp:'Living Room',sub:'Shelves'},{name:'Shoe Rack',fee:15,val:25,vol:3,grp:'Accents',sub:'Housewares & Home Decor'},
+  {name:'Sideboard',fee:90,val:150,vol:21,grp:'Kitchen/Dining',sub:'Sideboards & Credenzas'},{name:'Small Appliance (per box)',fee:15,val:25,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Sofa',fee:100,val:250,vol:51,grp:'Living Room',sub:'Sofas'},
+  {name:'Sofa - Luxury',fee:100,val:500,hidden:true},{name:'Sofabed',fee:150,val:200,vol:51,grp:'Living Room',sub:'Sofas'},{name:'Space Heater',fee:15,val:25,vol:2,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Stereo',fee:15,val:25,vol:1,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Stool - Dining / Kitchen',fee:15,val:25,vol:4,grp:'Kitchen/Dining',sub:'Chairs & Stools'},{name:'Suitcase',fee:15,val:25,hidden:true},
+  {name:'Table - Coffee',fee:30,val:100,vol:10,grp:'Living Room',sub:'Tables'},{name:'Table - Dining / Kitchen',fee:60,val:150,vol:45,grp:'Kitchen/Dining',sub:'Dining Tables'},{name:'Table - Night',fee:15,val:50,vol:6,grp:'Bedroom',sub:'Nightstands'},
+  {name:'Table - Side',fee:15,val:50,vol:6,grp:'Living Room',sub:'Tables'},{name:'Television - Tube',fee:30,val:50,hidden:true},{name:'Television Stand - Small',fee:30,val:75,vol:10,grp:'Living Room',sub:'TV Stands & Entertainment'},
+  {name:'Throw Rug',fee:15,val:25,vol:2,grp:'Accents',sub:'Area Rugs'},{name:'Trunk',fee:30,val:75,hidden:true},{name:'Television - Large Flat Screen',fee:30,val:150,vol:3,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Television - Small Flat Screen',fee:15,val:100,vol:2,grp:'Electronics',sub:'Electronics & Appliances'},{name:'TV Tray',fee:15,val:25,vol:4,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Vacuum Cleaner',fee:15,val:75,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Vanity',fee:60,val:150,vol:16,grp:'Bedroom',sub:'Dressers & Vanities'},{name:'Wall Unit',fee:90,val:100,hidden:true},{name:'Wardrobe',fee:90,val:200,hidden:true},
+  {name:'Waste Basket',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},
+  // ── Appended 2026-07-09 (Redwood 2026 alignment — keep at end to preserve indices) ──
+  {name:'Metal Bed Frame - Twin',fee:30,val:75,vol:5,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Metal Bed Frame - Double',fee:30,val:75,vol:8,grp:'Bedroom',sub:'Mattresses & Bed Frames'},
+  {name:'Metal Bed Frame - Queen',fee:30,val:75,vol:12,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Complete Bed Frame - Twin',fee:60,val:100,vol:23,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Complete Bed Frame - Double',fee:75,val:125,vol:23,grp:'Bedroom',sub:'Mattresses & Bed Frames'},
+  {name:'Complete Bed Frame - Queen',fee:90,val:150,vol:39,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Small Cabinet',fee:30,val:100,vol:21,grp:'Living Room',sub:'Cabinets & Storage'},{name:'Sofa - Extra Large',fee:150,val:350,vol:84,grp:'Living Room',sub:'Sofas'},
+  {name:'Recliner Sofa',fee:150,val:350,vol:94,grp:'Living Room',sub:'Sofas'},{name:'Garment Rack',fee:15,val:25,vol:12,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Plastic Storage Unit',fee:15,val:25,vol:4,grp:'Accents',sub:'Housewares & Home Decor'},
+  {name:'Stepstool / Footstool',fee:15,val:25,vol:2,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Air Fryer',fee:15,val:25,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Blender',fee:15,val:25,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Coffee Maker',fee:15,val:25,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Countertop Dishwasher',fee:15,val:25,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Freezer',fee:15,val:50,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Humidifier / Dehumidifier',fee:15,val:25,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Indoor Grill',fee:15,val:25,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Juicer',fee:15,val:25,vol:7,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Sewing Machine',fee:15,val:75,vol:10,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Steam Cleaner',fee:15,val:75,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Kitchen Cart / Tea Cart / Bar Cart',fee:30,val:75,vol:9,grp:'Kitchen/Dining',sub:'Carts & Stands'},
+  {name:'Table - Nesting Set',fee:15,val:50,vol:6,grp:'Living Room',sub:'Tables'},{name:'Table - Console',fee:60,val:100,vol:22,grp:'Living Room',sub:'Tables'},{name:'Patio Table',fee:60,val:100,vol:45,grp:'Outdoor',sub:'Outdoor Furniture'},
+  {name:'Patio Chair / Side Table',fee:15,val:25,vol:11,grp:'Outdoor',sub:'Outdoor Furniture'}
 ];
 // Display order only — indices into DRD_ITEMS sorted alphabetically by name,
 // excluding hidden items. Grids render in this order; storage/recalc still use
@@ -11254,8 +11268,13 @@ function applyFurniturePrices(rows){
       existing.fee=Number(r.fee)||0;
       existing.val=Number(r.val)||0;
       existing.hidden=(r.active===false);
+      // vol/grp/subcategory only come from DB rows — the Settings editor saves
+      // without them, so only overwrite when the row actually carries them.
+      if(r.vol!==undefined) existing.vol=Number(r.vol)||0;
+      if(r.grp!==undefined) existing.grp=r.grp||'';
+      if(r.subcategory!==undefined) existing.sub=r.subcategory||'';
     } else if(r.active!==false){
-      var ni={name:nm, fee:Number(r.fee)||0, val:Number(r.val)||0};
+      var ni={name:nm, fee:Number(r.fee)||0, val:Number(r.val)||0, vol:Number(r.vol)||0, grp:r.grp||'', sub:r.subcategory||''};
       DRD_ITEMS.push(ni);
       byName[nm.toLowerCase()]=ni;
     }
