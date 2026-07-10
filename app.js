@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '400';
+var APP_VERSION = '401';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2124,7 +2124,6 @@ function animateView(viewEl){
   });
 }
 
-var allViews = ['dashboard','jobs','calendar','clients','documents','bininventory','binmap','vehicles','maintenance','analytics','utilization','pricing','ourprices','drdcalc','dispatch','leaderboard','advisor','bookings'];
 var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
 function canAccessAnalytics(){
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;

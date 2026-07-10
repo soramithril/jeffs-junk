@@ -1,10 +1,11 @@
-/* app-jwg-scheduler.js -- generated bundle; rebuild via build_jwg_js.py */
+/* app-jwg-scheduler.js -- JWG Staff Scheduler. Edited directly (the old
+   build_jwg_js.py bundler and its source files are retired). */
 (function(){
 /* ===== config.js ===== */
 // ── CONFIG.JS ──────────────────────────────────────────
 // Part of JWG Staff Scheduler
 
-const SUPABASE_URL=window.SUPABASE_URL,SUPABASE_ANON_KEY=window.SUPABASE_KEY,USE_SUPABASE=true;
+const SUPABASE_URL=window.SUPABASE_URL,SUPABASE_ANON_KEY=window.SUPABASE_KEY;
 const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const WEEKDAYS=["Monday","Tuesday","Wednesday","Thursday","Friday"];
 const WEEKEND=["Saturday","Sunday"];
@@ -15,11 +16,9 @@ let WH=JSON.parse(localStorage.getItem("ss_wh")||"null")||{start:7,end:17};
 // ── APP SETTINGS (Supabase-backed) ──
 async function saveSetting(key,value){
   localStorage.setItem("ss_"+key,JSON.stringify(value));
-  if(!USE_SUPABASE)return;
   try{await sbF("POST","jwg_app_settings?on_conflict=key",{key,value,updated_at:new Date().toISOString()});}catch(e){console.warn("Setting save failed:",e);}
 }
 async function loadSettings(){
-  if(!USE_SUPABASE)return;
   try{
     const rows=await sbF("GET","jwg_app_settings?select=*");
     if(!Array.isArray(rows))return;
@@ -68,12 +67,7 @@ const DEFAULT_TASKS=[
   {id:"garbage",label:"Garbage",bg:"#fee2e2",text:"#dc2626",dot:"#f87171"},
   {id:"shop",label:"Shop",bg:"#fef9c3",text:"#a16207",dot:"#eab308"},
 ];
-let tasks=JSON.parse(localStorage.getItem("ss_tasks")||"null");
-// Reset tasks if they contain old default task IDs (migration)
-if(tasks&&tasks.some(t=>["open","floor","cash","kitchen","delivery","supervisor","training","close","break"].includes(t.id))){
-  tasks=null;localStorage.removeItem("ss_tasks");
-}
-tasks=tasks||DEFAULT_TASKS;
+let tasks=JSON.parse(localStorage.getItem("ss_tasks")||"null")||DEFAULT_TASKS;
 const TM=()=>Object.fromEntries(tasks.map(t=>[t.id,t]));
 // ── Icon set (handoff "Emboss"): task/status id -> emboss tile. Built-in ids
 // (bins/junk/furniture/off/sick/shop) get the 3-D tile; custom tasks & 'garbage'
@@ -170,13 +164,9 @@ async function sbF(m,p,b){
   if(!r.ok)throw new Error(await r.text());
   return r.status===204?null:r.json();
 }
-function lsG(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}}
-function lsS(k,v){localStorage.setItem(k,JSON.stringify(v))}
-async function loadEmps(){if(USE_SUPABASE)return sbF("GET","jwg_employees?select=*&order=name");return lsG("ss_emps")||[];}
-async function saveEmp(name){if(USE_SUPABASE){const r=await sbF("POST","jwg_employees",{name});return r[0];}const l=lsG("ss_emps")||[],e={id:Date.now().toString(),name};lsS("ss_emps",[...l,e]);return e;}
-async function delEmp(id){if(USE_SUPABASE)return sbF("DELETE",`jwg_employees?id=eq.${id}`);lsS("ss_emps",(lsG("ss_emps")||[]).filter(e=>e.id!==id));}
-async function loadScheds(){if(USE_SUPABASE){const since=new Date();since.setFullYear(since.getFullYear()-1);return sbF("GET","jwg_schedules?select=*&week_start=gte."+localDateStr(since));}return lsG("ss_scheds")||[];}
-async function upsertSched(eid,ws,data){const w=localDateStr(ws);if(USE_SUPABASE)return sbF("POST","jwg_schedules?on_conflict=employee_id,week_start",{employee_id:eid,week_start:w,schedule_data:data,updated_at:new Date().toISOString()});const l=lsG("ss_scheds")||[],i=l.findIndex(s=>s.employee_id===eid&&s.week_start===w);const e={id:`${eid}_${w}`,employee_id:eid,week_start:w,schedule_data:data};if(i>=0)l[i]=e;else l.push(e);lsS("ss_scheds",l);}
+async function loadEmps(){return sbF("GET","jwg_employees?select=*&order=name");}
+async function loadScheds(){const since=new Date();since.setFullYear(since.getFullYear()-1);return sbF("GET","jwg_schedules?select=*&week_start=gte."+localDateStr(since));}
+async function upsertSched(eid,ws,data){const w=localDateStr(ws);return sbF("POST","jwg_schedules?on_conflict=employee_id,week_start",{employee_id:eid,week_start:w,schedule_data:data,updated_at:new Date().toISOString()});}
 
 let toastT;
 const TOAST_ICONS={success:"✓",error:"✕",info:"ℹ"};
@@ -993,14 +983,14 @@ function refreshGrid(){
 
 function render(){
   const app=document.getElementById("app");
-  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics",team:"Team","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
+  const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
   // tell the host which tab-group is active so the header shows the right sub-tabs
   const _tg={summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
   const _v=document.getElementById("view-jwgscheduler");if(_v)_v.setAttribute("data-tabgroup",_tg);
   // Sync desktop nav
   document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b.textContent.trim()===labelMap[S.tab]);});
   // Sync mobile nav
-  ["schedule","summer","winter","team","inventory","clothing"].forEach(t=>{
+  ["schedule","summer","winter","inventory","clothing"].forEach(t=>{
     const el=document.getElementById("mnav-"+t);
     if(el)el.classList.toggle("active",S.tab===t);
   });
@@ -1014,7 +1004,7 @@ function render(){
   else if(S.tab==="winter"){app.innerHTML=buildWinterPage();initWinterPage();}
   else if(S.tab==="inventory"){app.innerHTML=buildInventoryPage();initInventoryPage();}
   else if(S.tab==="clothing"){app.innerHTML=buildClothingPage();initClothingPage();}
-  else{app.innerHTML=buildTeam();initTeamDrag();}
+  else{S.tab="schedule";app.innerHTML=buildSched();}  // people are managed on the main Team page
   updateFAB();
 }
 
@@ -1665,46 +1655,8 @@ function buildHistory(){
 }
 
 // Team
-/* ===== team.js ===== */
-// ── TEAM.JS ──────────────────────────────────────────
-// Part of JWG Staff Scheduler
-
-function buildTeam(){
-  let h=`<div class="card"><div class="twrap"><div class="stitle" style="margin-bottom:5px">Team</div><div class="ssub" style="margin-bottom:22px">Manage your employees · search by name or drag ⠿ to reorder</div>
-  <div class="addbox"><div class="sect-label" style="margin-bottom:11px">Add person</div>
-  <div style="display:flex;gap:9px"><input class="addinput" id="nEmp" placeholder="Full name…" onkeydown="if(event.key==='Enter')JWG.addEmp()"><button class="addbtn" onclick="JWG.addEmp()">Add person</button></div></div>
-  ${S.employees.length>1?`<input class="addinput" id="teamSearch" placeholder="Search by name…" style="margin-bottom:14px" oninput="JWG.teamSearch(this.value)">`:""}`;
-  if(!S.employees.length)h+=`<div class="empty" style="height:100px">No employees yet.</div>`;
-  else{
-    h+=`<div id="team-list">`;
-    S.employees.forEach((emp,i)=>{
-      const tot=S.allSchedules.filter(s=>s.employee_id===emp.id).reduce((n,s)=>n+countH(s.schedule_data),0);
-      const[abg,afg]=ac(emp.name);
-      h+=`<div class="tcard" draggable="true" data-empid="${emp.id}" data-empidx="${i}">
-        <span style="cursor:grab;color:rgba(0,0,0,0.18);font-size:18px;padding:0 10px 0 0;user-select:none;flex-shrink:0;display:flex;align-items:center;" title="Drag to reorder">⠿</span>
-        <div style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">
-          <div class="avatar" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
-          <div style="min-width:0"><div style="font-weight:600;font-size:14px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(emp.name)}</div><div style="font-size:12px;color:var(--fg-muted)">${tot}h total scheduled</div></div>
-        </div>
-        <button class="rmbtn" onclick="JWG.removeEmp('${emp.id}')">Remove</button>
-      </div>`;
-    });
-    h+=`</div>`;
-  }
-  if(!USE_SUPABASE)h+=`<div class="sbbox local" style="margin-top:26px"><div style="font-weight:600;font-size:13px;color:#a16207;margin-bottom:5px">⚡ Local Storage Mode</div><div style="font-size:12px;color:var(--fg-muted)">Data saves in your browser.</div></div>`;
-  h+=`</div></div>`;return h;
-}
-
-function teamSearch(q){
-  q=(q||"").toLowerCase().trim();
-  document.querySelectorAll("#team-list .tcard").forEach(card=>{
-    const id=card.getAttribute("data-empid");
-    const emp=S.employees.find(e=>e.id===id);
-    card.style.display=(!q||(emp&&emp.name.toLowerCase().includes(q)))?"":"none";
-  });
-}
-async function addEmp(){const inp=document.getElementById("nEmp"),name=(inp?.value||"").trim();if(!name){toast("Enter a name","error");return;}if(S.employees.find(e=>e.name.toLowerCase()===name.toLowerCase())){toast("Already exists","error");return;}try{const emp=await saveEmp(name);S.employees.push(emp);S.schedule[emp.id]=defSched();if(inp)inp.value="";toast(`${name} added`);render();}catch(e){toast(e.message,"error");}}
-async function removeEmp(id){const emp=S.employees.find(e=>e.id===id);const name=emp?emp.name:"this person";if(!(await jwgConfirm({title:"Remove staff member",target:name,message:"This permanently removes them and all their logged hours.",consequence:"This can't be undone.",confirmLabel:"Remove"})))return;try{await delEmp(id);S.employees=S.employees.filter(e=>e.id!==id);delete S.schedule[id];S.allSchedules=S.allSchedules.filter(s=>s.employee_id!==id);toast(`${name} removed`);render();}catch(e){toast(e.message,"error");}}
+/* ===== drag helpers (the old Team tab was retired — people are managed on
+   the main Team page, which mirrors into jwg_employees automatically) ===== */
 
 // ── DRAG & DROP — shared helpers ──
 function saveEmpOrder(){const ids=S.employees.map(e=>e.id);localStorage.setItem("ss_emp_order",JSON.stringify(ids));saveSetting("emp_order",ids);}
@@ -1754,47 +1706,6 @@ function initGridDrag(){
       if(fromIdx<0||toIdx<0)return;
       const [moved]=S.employees.splice(fromIdx,1);
       toIdx=S.employees.findIndex(em=>em.id===row.dataset.empid);
-      S.employees.splice(insertBefore?toIdx:toIdx+1,0,moved);
-      saveEmpOrder();
-      render();
-    });
-  });
-}
-
-// ── DRAG — Team list cards ──
-function initTeamDrag(){
-  const cards=document.querySelectorAll("#team-list .tcard[data-empid]");
-  let dragId=null;
-  cards.forEach(card=>{
-    card.addEventListener("dragstart",e=>{
-      dragId=card.dataset.empid;
-      card.classList.add("is-dragging");
-      e.dataTransfer.effectAllowed="move";
-    });
-    card.addEventListener("dragend",()=>{
-      dragId=null;
-      cards.forEach(c=>c.classList.remove("is-dragging","drag-over-above","drag-over-below"));
-    });
-    card.addEventListener("dragover",e=>{
-      if(!dragId||dragId===card.dataset.empid)return;
-      e.preventDefault();
-      cards.forEach(c=>c.classList.remove("drag-over-above","drag-over-below"));
-      const rect=card.getBoundingClientRect();
-      card.classList.add(e.clientY<rect.top+rect.height/2?"drag-over-above":"drag-over-below");
-    });
-    card.addEventListener("dragleave",()=>{
-      card.classList.remove("drag-over-above","drag-over-below");
-    });
-    card.addEventListener("drop",e=>{
-      e.preventDefault();
-      if(!dragId||dragId===card.dataset.empid)return;
-      const rect=card.getBoundingClientRect();
-      const insertBefore=e.clientY<rect.top+rect.height/2;
-      const fromIdx=S.employees.findIndex(em=>em.id===dragId);
-      let toIdx=S.employees.findIndex(em=>em.id===card.dataset.empid);
-      if(fromIdx<0||toIdx<0)return;
-      const[moved]=S.employees.splice(fromIdx,1);
-      toIdx=S.employees.findIndex(em=>em.id===card.dataset.empid);
       S.employees.splice(insertBefore?toIdx:toIdx+1,0,moved);
       saveEmpOrder();
       render();
@@ -3776,5 +3687,5 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
-window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,teamSearch:teamSearch,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
