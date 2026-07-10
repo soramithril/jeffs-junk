@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '393';
+var APP_VERSION = '394';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10113,7 +10113,7 @@ var NAV_ICO={
   "go('utilization')":'utilization', "go('advisor')":'advisor', "go('ourprices')":'pricing',
   "openFurniturePrices()":'furniture', "go('team')":'clients', "openUserManager()":'clients',
   "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
-  "goJwg('clothing')":'clothing'
+  "goJwg('clothing')":'clothing', "go('suggestions')":'advisor'
 };
 // Distinct tile colour per More-Tools item so the flyout reads as a colourful
 // app grid (rather than all-white). Main green-rail items stay white line glyphs.
@@ -10125,7 +10125,8 @@ var NAV_COLOR={
   "go('analytics')":'blue', "go('leaderboard')":'amber', "go('utilization')":'cyan',
   "go('advisor')":'violet', "go('ourprices')":'green', "openFurniturePrices()":'pink',
   "go('team')":'indigo', "openUserManager()":'blue', "go('staffcheckin')":'teal',
-  "openEditPresets()":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red'
+  "openEditPresets()":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red',
+  "go('suggestions')":'yellow'
 };
 function paintNavIcons(){
   if(!window.JWGIcons) return;
@@ -12756,9 +12757,10 @@ async function printJunkRemoval(jobId) {
     // Payment type
     dt(j.payMethod || '', 130, 598);
 
-    // Notes — in the EQUIPMENT NEEDED box (2nd table row). Line 1 starts after
-    // the printed label; up to 3 lines fit in the box. Anything longer spills
-    // to the old bin-placement area at the bottom.
+    // Notes — start 2 lines below the EQUIPMENT NEEDED label so they never touch
+    // it. If items/equipment are printed in the rows above, start below the last
+    // printed row instead. Flow down the blank description rows; anything past
+    // the payment row spills to the bin-placement area at the bottom.
     var notesText = j.notes || '';
     if (notesText) {
       var noteLines = [];
@@ -12767,8 +12769,7 @@ async function printJunkRemoval(jobId) {
         var line = '';
         for (var wi = 0; wi < words.length; wi++) {
           var testLine = line ? line + ' ' + words[wi] : words[wi];
-          var maxW = noteLines.length === 0 ? 250 : 355;
-          if (font.widthOfTextAtSize(testLine, 9) > maxW && line) {
+          if (font.widthOfTextAtSize(testLine, 9) > 355 && line) {
             noteLines.push(line);
             line = words[wi];
           } else {
@@ -12777,10 +12778,12 @@ async function printJunkRemoval(jobId) {
         }
         if (line) noteLines.push(line);
       });
-      noteLines.slice(0, 3).forEach(function(line, i) {
-        dt(line, i === 0 ? 232 : 127, 318 + i * 11, 9);
+      var noteY = printed > 0 ? _FORM_ITEM_ROWS[printed - 1] + 20 : 340;
+      var noteMax = Math.max(0, Math.floor((585 - noteY) / 11));
+      noteLines.slice(0, noteMax).forEach(function(line, i) {
+        dt(line, 127, noteY + i * 11, 9);
       });
-      noteLines.slice(3).forEach(function(line, i) {
+      noteLines.slice(noteMax).forEach(function(line, i) {
         dt(line, i === 0 ? 105 : 80, 673 + i * 30, 9);
       });
     }
