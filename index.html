@@ -7,6 +7,12 @@
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json?v=397">
+<link rel="apple-touch-icon" href="assets/app-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Jeff's Junk">
+<meta name="theme-color" content="#16a34a">
 <link rel="stylesheet" href="style.css?v=392">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=396">
 <link rel="stylesheet" href="app-jwg-theme.css?v=396">
@@ -155,6 +161,7 @@
     <button class="nav-item" onclick="go('documents')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span>Documents</span></button>
     <button class="nav-item" onclick="go('calendar')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span>Calendar</span></button>
     <button class="nav-item" onclick="go('suggestions')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span><span>Suggestions</span></button>
+    <button class="nav-item" onclick="openPushSettings()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span>Notifications</span></button>
     <div class="nav-label">Operations</div>
     <button class="nav-item" onclick="go('livejobs')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><span>Live Jobs</span></button>
     <button class="nav-item" onclick="go('dispatch')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 9 6 12 12 18 6 21 6"/><polyline points="3 18 9 18 12 12 18 18 21 18"/><circle cx="12" cy="12" r="2"/></svg></span><span>Dispatch</span></button>
@@ -2434,8 +2441,8 @@
 <script src="app-advisor.js?v=197"></script>
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
-<script src="jwg-icons.js?v=383"></script>
-<script src="app.js?v=396"></script>
+<script src="jwg-icons.js?v=397"></script>
+<script src="app.js?v=397"></script>
 <script src="app-jwg-scheduler.js?v=396"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

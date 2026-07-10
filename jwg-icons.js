@@ -71,6 +71,7 @@
     edit:        '<path d="M13.5 6.5 17.5 10.5"/><path d="M4.5 19.5 5.4 16 16 5.4a2 2 0 0 1 2.9 2.9L8.3 18.9 4.5 19.5z"/>',
     print:       '<path d="M6.5 9.5V3.5h11v6"/><path d="M6.5 17.5H5a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3.5a2 2 0 0 1-2 2h-1.5"/><rect x="6.5" y="14.5" width="11" height="6" rx="1"/>',
     directions:  '<path d="M3 11 21 3l-8 18-2.4-7.6L3 11z"/>',
+    bell:        '<path d="M18 8.4a6 6 0 0 0-12 0c0 6.6-2.6 8.4-2.6 8.4h17.2S18 15 18 8.4"/><path d="M13.7 20.6a2 2 0 0 1-3.4 0"/>',
     booked:      '<rect x="5" y="4.5" width="14" height="17" rx="2"/><rect x="9" y="2.8" width="6" height="3.4" rx="1"/><path d="M8.6 13 10.6 15 15 10.6"/>'
   };
 
@@ -101,7 +102,7 @@
     pricing:'green', documents:'green',
     newJob:'green', summerWinter:'amber', leaderboard:'amber', utilization:'green', clothing:'violet', advisor:'amber', oil:'amber',
     confirmed:'green', cancelled:'red', maintenance:'amber', del:'red', edit:'slate',
-    print:'slate', directions:'blue', booked:'green'
+    print:'slate', directions:'blue', booked:'green', bell:'orange'
   };
 
   /* What each icon replaces today + where it's used (for find/replace + docs). */

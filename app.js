@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '396';
+var APP_VERSION = '397';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10113,7 +10113,7 @@ var NAV_ICO={
   "go('utilization')":'utilization', "go('advisor')":'advisor', "go('ourprices')":'pricing',
   "openFurniturePrices()":'furniture', "go('team')":'clients', "openUserManager()":'clients',
   "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
-  "goJwg('clothing')":'clothing', "go('suggestions')":'advisor'
+  "goJwg('clothing')":'clothing', "go('suggestions')":'advisor', "openPushSettings()":'bell'
 };
 // Distinct tile colour per More-Tools item so the flyout reads as a colourful
 // app grid (rather than all-white). Main green-rail items stay white line glyphs.
@@ -10126,7 +10126,7 @@ var NAV_COLOR={
   "go('advisor')":'violet', "go('ourprices')":'green', "openFurniturePrices()":'pink',
   "go('team')":'indigo', "openUserManager()":'blue', "go('staffcheckin')":'teal',
   "openEditPresets()":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red',
-  "go('suggestions')":'yellow'
+  "go('suggestions')":'yellow', "openPushSettings()":'orange'
 };
 function paintNavIcons(){
   if(!window.JWGIcons) return;
@@ -10455,6 +10455,73 @@ function setUserCardSignedOut(){
   if(signoutBtn) signoutBtn.style.display='none';
 }
 
+// ── iPhone push notifications ─────────────────────────────────────────────
+// Each person enables notifications once on their own phone (dashboard must be
+// added to the Home Screen on iOS first). Who gets which notification is decided
+// by the send-push edge function, keyed on the account email.
+function _pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function _b64uToBytes(s){ var p = '='.repeat((4 - s.length % 4) % 4); var b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); var a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+
+async function openPushSettings(){
+  var old = document.getElementById('push-settings-overlay'); if (old) old.remove();
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  var body;
+  if (isIOS && !isStandalone) {
+    body = '<div style="font-size:14px;line-height:1.7">On an iPhone, notifications only work once the dashboard is on your Home Screen:'
+      + '<ol style="margin:10px 0 0 18px;padding:0"><li>Tap the <b>Share</b> button in Safari</li><li>Tap <b>Add to Home Screen</b></li><li>Open <b>Jeff\'s Junk</b> from your Home Screen</li><li>Come back to this page and tap Enable</li></ol></div>';
+  } else if (!_pushSupported()) {
+    body = '<div style="font-size:14px">This browser doesn\'t support notifications. On an iPhone, add the dashboard to your Home Screen first and open it from there.</div>';
+  } else {
+    body = '<div id="push-status" style="font-size:13.5px;color:var(--muted);margin-bottom:14px">Checking this device…</div>'
+      + '<button class="btn btn-primary" onclick="enablePush()" style="width:100%;justify-content:center;padding:13px">🔔 Enable notifications on this device</button>';
+  }
+  var ov = document.createElement('div');
+  ov.className = 'modal-overlay open'; ov.id = 'push-settings-overlay';
+  ov.onclick = function(e){ if (e.target === ov) ov.remove(); };
+  ov.innerHTML = '<div class="modal" style="max-width:440px;width:92vw">'
+    + '<h3 style="margin:0 0 4px">🔔 Notifications</h3>'
+    + '<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">New junk quotes go to Jeff; the morning bin summary goes to Jeff, Barbara and Jake. Enabling on a device that isn\'t on those lists does nothing bad — it just stays quiet.</div>'
+    + body
+    + '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" onclick="document.getElementById(\'push-settings-overlay\').remove()">Close</button></div>'
+    + '</div>';
+  document.body.appendChild(ov);
+  if (_pushSupported()) {
+    try {
+      var reg = await navigator.serviceWorker.register('sw.js');
+      var sub = await reg.pushManager.getSubscription();
+      var st = document.getElementById('push-status');
+      if (st) st.textContent = sub ? '✅ Notifications are ON for this device.' : (Notification.permission === 'denied' ? '🚫 Notifications are blocked in this browser\'s settings.' : 'Notifications are off on this device.');
+    } catch(e){ /* status line just stays generic */ }
+  }
+}
+
+async function enablePush(){
+  try {
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Notifications were not allowed.'); return; }
+    var reg = await navigator.serviceWorker.register('sw.js');
+    var r = await fetch(SUPABASE_URL + '/functions/v1/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY, 'apikey': SUPABASE_KEY },
+      body: JSON.stringify({ action: 'public-key' })
+    });
+    if (!r.ok) throw new Error('Couldn\'t reach the notification service (' + r.status + ')');
+    var cfg = await r.json();
+    var sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: _b64uToBytes(cfg.publicKey) });
+    var k = sub.toJSON();
+    var ins = await db.from('push_subscriptions').upsert({
+      user_id: currentUser.id,
+      display_name: currentUser.displayName || (currentUser.email || '').split('@')[0],
+      email: currentUser.email,
+      endpoint: k.endpoint, p256dh: k.keys.p256dh, auth: k.keys.auth
+    }, { onConflict: 'endpoint' });
+    if (ins.error) throw ins.error;
+    toast('🔔 Notifications are on for this device!');
+    openPushSettings();
+  } catch(e){ console.error('enablePush:', e); toast('Couldn\'t enable notifications: ' + (e.message || e), 'error'); }
+}
+
 async function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
@@ -10471,6 +10538,8 @@ async function onLoginSuccess() {
   applySettingsVisibility();
   document.getElementById('login-screen').style.display = 'none';
   document.body.classList.add('signed-in');
+  // Keep the push service worker registered/updated on devices that enabled it
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
   resetInactivityTimer();
   loadAllFromSupabase();
 }
