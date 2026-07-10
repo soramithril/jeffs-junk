@@ -10,6 +10,10 @@
 
   var _team = null;       // every crew_members row (master), incl. inactive
   var _openColour = null; // id of the person whose colour palette is open
+  var _gifts = [];        // employee_incentives rows (admins only — RLS hides them otherwise)
+  var _giftOpen = null;   // id of the person whose gift-card modal is open
+
+  var GIFT_CARDS = ['Tim Hortons','Amazon','Gas','Restaurant','Other'];
 
   // Colour palette — 24 hues spaced evenly around the wheel (15° apart) so no
   // two people are close cousins. Everyone gets a distinct one; taken colours
@@ -23,6 +27,7 @@
   function host(){ return document.getElementById('team-page'); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function canRemove(){ return typeof canDelete !== 'undefined' && canDelete; }
+  function canGift(){ return typeof canAccessAnalytics === 'function' && canAccessAnalytics(); }
 
   // Avatar helpers — initials in the person's real driver colour (same colour
   // Dispatch uses). Falls back to the app's per-id palette when none is set.
@@ -47,6 +52,13 @@
     var r = await db.from('crew_members').select('*').order('name');
     if(r.error) throw r.error;
     _team = r.data || [];
+    _gifts = [];
+    if(canGift()){
+      // Incentives are a side panel — a load failure here shouldn't block the roster
+      var g = await db.from('employee_incentives').select('*').order('given_at',{ascending:false});
+      if(g.error) console.warn('Incentives load failed:', g.error.message);
+      else _gifts = g.data || [];
+    }
     syncGlobalCrew();
   }
 
@@ -94,6 +106,7 @@
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'summer',p.summer,'Summer','#f59e0b')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'winter',p.winter,'Winter','#38bdf8')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'active',p.active,p.active?'Active':'Inactive','#6b7280')+'</td>'
+      + (canGift() ? '<td style="padding:9px 8px;text-align:center">'+giftCell(p)+'</td>' : '')
       + '<td style="padding:9px 12px;text-align:right">'
         + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove (soft — keeps history)" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>' : '')
       + '</td>';
@@ -153,7 +166,7 @@
     h += '<div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)">'
       +  '<table style="width:100%;border-collapse:collapse">'
       +  '<thead><tr style="background:var(--surface2)">'
-      +  th('Person','left') + th('Junk / Bins') + th('JWG') + th('Summer') + th('Winter') + th('Active') + th('','right')
+      +  th('Person','left') + th('Junk / Bins') + th('JWG') + th('Summer') + th('Winter') + th('Active') + (canGift() ? th('Gift Cards') : '') + th('','right')
       +  '</tr></thead><tbody>'
       +  people.map(row).join('')
       +  '</tbody></table></div>';
@@ -163,8 +176,68 @@
       +  'JWG people also appear on the Jeff White Group schedule and Staff Check-In.'
       +  '</div>';
     h += '</div>';
+    if(_giftOpen) h += giftModal();
     el.innerHTML = h;
   }
+
+  // ── gift-card incentives (admins only) ──
+  function giftCell(p){
+    var mine = _gifts.filter(function(g){ return g.crew_member_id===p.id; });
+    var n = mine.reduce(function(s,g){ return s+(g.qty||1); }, 0);
+    return '<button onclick="TeamMgr.openGift(\''+p.id+'\')" title="Gift cards given to '+esc(p.name)+'" '
+      + 'style="cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:99px;white-space:nowrap;'
+      + (n ? 'background:rgba(245,158,11,.12);color:#b45309;border:1.5px solid rgba(245,158,11,.4);'
+           : 'background:#fff;color:#adb5bd;border:1.5px solid #e9ecef;')
+      + '">🎁 '+n+'</button>';
+  }
+  function giftModal(){
+    var p = find(_giftOpen); if(!p) return '';
+    var mine = _gifts.filter(function(g){ return g.crew_member_id===p.id; });
+    var hist = mine.length ? mine.map(function(g){
+      var d = g.given_at ? new Date(g.given_at+'T00:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}) : '';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">'
+        + '<span style="font-weight:700;white-space:nowrap">'+esc(g.gift_card)+(g.qty>1?' ×'+g.qty:'')+'</span>'
+        + '<span style="flex:1;color:var(--muted)">'+esc(g.reason||'')+'</span>'
+        + '<span style="color:var(--muted);font-size:11.5px;white-space:nowrap">'+d+(g.created_by?' · '+esc(g.created_by):'')+'</span>'
+        + '<button onclick="TeamMgr.removeGift(\''+g.id+'\')" title="Remove entry" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:14px">×</button>'
+        + '</div>';
+    }).join('') : '<div style="padding:18px 0;color:var(--muted);font-size:13px;text-align:center">No gift cards logged yet.</div>';
+    var opts = GIFT_CARDS.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+    return '<div class="modal-overlay open" onclick="if(event.target===this)TeamMgr.closeGift()"><div class="modal" style="max-width:560px;width:92vw">'
+      + '<h3 style="margin:0 0 4px">🎁 '+esc(p.name)+' — Gift cards</h3>'
+      + '<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">Log a gift card given for a good review or great work.</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px">'
+      +   '<select id="gift-card-sel" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'+opts+'</select>'
+      +   '<input id="gift-qty" type="number" min="1" value="1" style="width:60px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
+      +   '<input id="gift-reason" type="text" placeholder="Why? (e.g. 5-star review from the Hansons)" style="flex:1;min-width:170px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
+      +   '<button class="btn btn-primary" onclick="TeamMgr.giveGift()" style="padding:9px 18px;font-size:13px">Give it</button>'
+      + '</div>'
+      + '<div style="margin-top:14px;max-height:300px;overflow-y:auto">'+hist+'</div>'
+      + '<div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-ghost" onclick="TeamMgr.closeGift()">Close</button></div>'
+      + '</div></div>';
+  }
+  function openGift(id){ _giftOpen = id; paint(); }
+  function closeGift(){ _giftOpen = null; paint(); }
+  async function giveGift(){
+    var p = find(_giftOpen); if(!p) return;
+    var card = document.getElementById('gift-card-sel').value;
+    var qty = parseInt(document.getElementById('gift-qty').value, 10) || 1;
+    var reason = document.getElementById('gift-reason').value.trim();
+    var by = (typeof currentUser!=='undefined' && currentUser) ? (currentUser.displayName || String(currentUser.email||'').split('@')[0]) : '';
+    var r = await db.from('employee_incentives').insert({crew_member_id:p.id, gift_card:card, qty:qty, reason:reason||null, created_by:by}).select();
+    if(r.error){ toast('Couldn\'t save: '+r.error.message, 'error'); return; }
+    if(r.data && r.data[0]) _gifts.unshift(r.data[0]);
+    toast('🎁 Logged — '+card+(qty>1?' ×'+qty:'')+' for '+p.name);
+    paint();
+  }
+  async function removeGift(id){
+    if(!confirm('Remove this gift card entry?')) return;
+    var r = await db.from('employee_incentives').delete().eq('id', id);
+    if(r.error){ toast('Couldn\'t remove: '+r.error.message, 'error'); return; }
+    _gifts = _gifts.filter(function(g){ return g.id!==id; });
+    paint();
+  }
+
   function statChip(txt, color){
     return '<span style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+color+'"></span>'+esc(txt)+'</span>';
   }
@@ -268,5 +341,6 @@
 
   window.renderTeamPage = renderTeamPage;
   window.TeamMgr = { toggle:toggle, rename:rename, color:color, add:add, remove:remove,
-    openColour:openColour, closeColour:closeColour, pick:pick };
+    openColour:openColour, closeColour:closeColour, pick:pick,
+    openGift:openGift, closeGift:closeGift, giveGift:giveGift, removeGift:removeGift };
 })();
