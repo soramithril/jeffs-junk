@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '399';
+var APP_VERSION = '400';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12847,7 +12847,7 @@ async function printJunkRemoval(jobId) {
         }
         if (line) noteLines.push(line);
       });
-      var noteY = printed > 0 ? _FORM_ITEM_ROWS[printed - 1] + 20 : 340;
+      var noteY = printed > 0 ? _FORM_ITEM_ROWS[printed - 1] + 20 : 373;  // 373 = 3 lines lower per Jake
       var noteMax = Math.max(0, Math.floor((585 - noteY) / 11));
       noteLines.slice(0, noteMax).forEach(function(line, i) {
         dt(line, 127, noteY + i * 11, 9);
