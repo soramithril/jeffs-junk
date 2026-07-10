@@ -1040,6 +1040,7 @@ function buildSched(){
   h+=`<div class="ctrl-sep"></div>
     <div class="ctrl-actions">
       <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.copyLastWeek()">📋 Copy last week</button>
+      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()">⭐ Usual weeks</button>
       <button class="ctrl-btn" onclick="JWG.openTaskMgr()">⚙ Tasks</button>
       <button class="ctrl-btn" onclick="JWG.openMultiAssign()">👥 Assign</button>
       <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()">🗑 Clear</button>
@@ -1253,7 +1254,9 @@ function toggleDay(d){
   render();
 }
 function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
-function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
+// Blank-week starting point: the employee's usual week (current/future weeks only), else empty
+function weekStartSched(emp){return S.weekOffset>=0&&emp&&emp.usual_week?migrateSched(JSON.parse(JSON.stringify(emp.usual_week))):defSched();}
+function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):weekStartSched(e);});}
 
 async function copyLastWeek(){
   const prevKey=wkey(S.weekOffset-1);
@@ -1265,6 +1268,76 @@ async function copyLastWeek(){
   autoSave(null);
   refreshGrid();
   toast("Copied last week's schedule");
+}
+
+// ── USUAL WEEKS ──
+// A per-person template week (jwg_employees.usual_week). Any week with no saved
+// schedule starts from it (this week and future weeks). Editing a single week
+// never changes the template.
+function openUsualWeeks(){renderUsualWeeks(true);}
+function renderUsualWeeks(fresh){
+  const tm=TM();
+  let rows="";
+  S.employees.forEach(e=>{
+    const[abg,afg]=ac(e.name);
+    const tpl=e.usual_week;
+    let summary;
+    if(tpl){
+      const chips=DAYS.filter(d=>{const day=tpl[d];if(!day||day.status==="off")return false;if(day.status==="work"&&(!day.shifts||!day.shifts.length))return false;return true;}).map(d=>{
+        const day=tpl[d];
+        let lbl,style;
+        if(day.status==="dayoff"){lbl="Off";style="background:rgba(0,0,0,0.05);color:rgba(0,0,0,0.45)";}
+        else if(day.status==="sick"){lbl="Sick";style="background:#fff7ed;color:#c2410c";}
+        else if(day.status==="nonworking"){lbl="Non working";style="background:rgba(71,85,105,0.08);color:#475569";}
+        else{
+          const sh=day.shifts[0];
+          const tid=getShiftTasks(sh)[0];
+          const t=tm[tid];
+          lbl=(t?t.label:tid||"?")+(sh.start&&sh.end?" "+fmtRange(sh.start,sh.end):"")+(day.shifts.length>1?" +"+(day.shifts.length-1):"");
+          style=`background:${t?t.bg:"var(--surface-sm)"};color:${t?t.text:"var(--fg-muted)"}`;
+        }
+        return `<span style="${style};padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;display:inline-flex;gap:5px;align-items:center;white-space:nowrap"><b style="opacity:.55;font-weight:800">${d.slice(0,3).toUpperCase()}</b>${esc(lbl)}</span>`;
+      });
+      summary=chips.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:7px">${chips.join("")}</div>`:`<div style="font-size:11.5px;color:var(--fg-muted);margin-top:5px">Usual week is empty</div>`;
+    } else {
+      summary=`<div style="font-size:11.5px;color:var(--fg-muted);margin-top:5px">No usual week set</div>`;
+    }
+    rows+=`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" style="background:${abg};color:${afg};width:32px;height:32px;font-size:11px;flex-shrink:0">${empInitials(e.name)}</div>
+        <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px">${esc(e.name)}</div>
+        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Save the week you're viewing as ${esc(e.name)}'s usual week">Use this week</button>
+        ${tpl?`<button class="ctrl-btn ctrl-btn-danger" onclick="JWG.clearUsualWeek('${e.id}')">✕ Clear</button>`:""}
+      </div>
+      ${summary}
+    </div>`;
+  });
+  const h=`<div class="modal-title">⭐ Usual weeks</div>
+  <div class="modal-sub">Save someone's typical week once — any week that hasn't been scheduled yet starts from it automatically (this week and onwards). Changing a single week never changes the usual week. "Use this week" copies the week you're viewing (${wlbl(S.weekOffset)}).</div>
+  <div>${rows}</div>
+  <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
+  if(fresh)openModal(h,"580px");else updateModal(h,"580px");
+}
+async function saveUsualWeek(empId){
+  const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
+  const tpl=JSON.parse(JSON.stringify(S.schedule[empId]||defSched()));
+  DAYS.forEach(d=>{if(tpl[d])delete tpl[d].note;});  // notes are week-specific
+  try{
+    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:tpl});
+    emp.usual_week=tpl;
+    toast(`Saved ${emp.name}'s usual week`);
+    renderUsualWeeks(false);
+  }catch(e){toast("Couldn't save usual week: "+e.message,"error");}
+}
+async function clearUsualWeek(empId){
+  const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
+  if(!(await jwgConfirm({title:"Clear usual week",target:emp.name,message:"Weeks that haven't been scheduled yet will start empty instead.",confirmLabel:"Clear"})))return;
+  try{
+    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:null});
+    emp.usual_week=null;
+    toast(`Cleared ${emp.name}'s usual week`);
+    renderUsualWeeks(false);
+  }catch(e){toast("Couldn't clear usual week: "+e.message,"error");}
 }
 
 // ── AUTO-SAVE (debounced) ──
@@ -3508,7 +3581,7 @@ function initRealtime(){
             return;
           }
           if(payload.eventType==="DELETE"){
-            S.schedule[row.employee_id]=defSched();
+            S.schedule[row.employee_id]=weekStartSched(emp);
           }else{
             S.schedule[row.employee_id]=migrateSched(JSON.parse(JSON.stringify(row.schedule_data)));
           }
@@ -3658,8 +3731,11 @@ async function bootApp(){
     await loadSettings();
     const[emps,scheds]=await Promise.all([loadEmps(),loadScheds()]);
     S.employees=emps||[];S.allSchedules=scheds||[];applyStoredOrder();
+    loadWeekSched();
+    // Materialize usual weeks: save this week's row for template employees so
+    // their hours count in stats without anyone having to touch the week first
     const w=wkey(S.weekOffset);
-    S.employees.forEach(e=>{const f=(scheds||[]).find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});
+    S.employees.filter(e=>e.usual_week&&!S.allSchedules.some(s=>s.employee_id===e.id&&s.week_start===w)).forEach(e=>autoSave(e.id));
   }catch(e){toast("Load failed: "+e.message,"error");}
   // Auto-select today in mobile day view for current week
   const todayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
@@ -3692,5 +3768,5 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
-window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,teamSearch:teamSearch,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addEmp:addEmp,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeEmp:removeEmp,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,teamSearch:teamSearch,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
