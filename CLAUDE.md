@@ -4,7 +4,7 @@
 
 Explain what you will change and ask to confirm the change so we are on the same page.
 
-When it's confirmed, push it live.
+Commit work locally as you go, but **never `git push` until Jake explicitly says to push** — each deploy goes out on his word, not automatically once a change is built. (Rule added 2026-07-10 at Jake's request.)
 
 ## Code rules
 
