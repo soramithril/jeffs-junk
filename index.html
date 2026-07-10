@@ -435,21 +435,17 @@
 <!-- ═══════════════ ALL JOBS ═══════════════ -->
 <div id="view-landscaping" class="view">
   <div class="page-header">
-    <div><div class="page-title">🌿 Extra Jobs</div><div class="page-sub">Possible, scheduled &amp; completed extra jobs — all in one place</div></div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="newJob()">+ New Job</button></div>
+    <div><div class="page-title" style="display:flex;align-items:center;gap:12px"><img src="assets/jwg-logo.png" alt="Jeff White Group" style="height:44px;width:44px;object-fit:contain">Extra Jobs</div><div class="page-sub">Possible, scheduled &amp; completed extra jobs — all in one place</div></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="newJob();setFormSvc('Landscaping')">+ New Job</button></div>
   </div>
-  <div style="margin-bottom:26px">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);display:flex;align-items:center;gap:10px;margin:0 0 12px;padding-bottom:6px;border-bottom:2px solid #65a30d">📋 Possible — no date yet <span id="ls-possible-count" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:700;background:var(--surface2);color:var(--muted);border-radius:12px;padding:2px 10px">0</span></div>
-    <div id="ls-possible-body"></div>
+  <div id="ls-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+    <button class="lb-period-btn active" style="font-size:13px;padding:8px 16px" onclick="setLsTab('possible',this)">📋 Possible <span id="ls-possible-count" style="display:inline-block;min-width:18px;background:var(--surface2);color:var(--muted);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">0</span></button>
+    <button class="lb-period-btn" style="font-size:13px;padding:8px 16px" onclick="setLsTab('scheduled',this)">📅 Scheduled <span id="ls-scheduled-count" style="display:inline-block;min-width:18px;background:var(--surface2);color:var(--muted);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">0</span></button>
+    <button class="lb-period-btn" style="font-size:13px;padding:8px 16px" onclick="setLsTab('completed',this)">✅ Completed <span id="ls-completed-count" style="display:inline-block;min-width:18px;background:var(--surface2);color:var(--muted);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">0</span></button>
   </div>
-  <div style="margin-bottom:26px">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);display:flex;align-items:center;gap:10px;margin:0 0 12px;padding-bottom:6px;border-bottom:2px solid #0891b2">📅 Scheduled <span id="ls-scheduled-count" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:700;background:var(--surface2);color:var(--muted);border-radius:12px;padding:2px 10px">0</span></div>
-    <div id="ls-scheduled-body"></div>
-  </div>
-  <div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);display:flex;align-items:center;gap:10px;margin:0 0 12px;padding-bottom:6px;border-bottom:2px solid #16a34a">✅ Completed <span id="ls-completed-count" style="font-family:'Inter',sans-serif;font-size:12px;font-weight:700;background:var(--surface2);color:var(--muted);border-radius:12px;padding:2px 10px">0</span></div>
-    <div id="ls-completed-body"></div>
-  </div>
+  <div id="ls-possible-body"></div>
+  <div id="ls-scheduled-body" style="display:none"></div>
+  <div id="ls-completed-body" style="display:none"></div>
 </div>
 <div id="view-jobs" class="view">
   <div class="page-header">
@@ -2436,7 +2432,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=383"></script>
-<script src="app.js?v=388"></script>
+<script src="app.js?v=389"></script>
 <script src="app-jwg-scheduler.js?v=384"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=372"></script>

@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '388';
+var APP_VERSION = '389';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3633,6 +3633,13 @@ async function renderLandscapingPage(){
   _renderLsSection('ls-possible', possible, 'possible');
   _renderLsSection('ls-scheduled', scheduled, 'scheduled');
   _renderLsSection('ls-completed', completed, 'completed');
+}
+// Extra Jobs tabs — Possible / Scheduled / Completed, one section visible at a time.
+function setLsTab(kind, btn){
+  document.querySelectorAll('#ls-tabs .lb-period-btn').forEach(function(b){ b.classList.toggle('active', b===btn); });
+  ['possible','scheduled','completed'].forEach(function(k){
+    document.getElementById('ls-'+k+'-body').style.display = (k===kind) ? '' : 'none';
+  });
 }
 function _renderLsSection(prefix, list, kind){
   var countEl=document.getElementById(prefix+'-count'); if(countEl) countEl.textContent=list.length;
