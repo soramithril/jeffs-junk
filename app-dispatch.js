@@ -474,6 +474,14 @@ async function renderDispatch(){
   var totalMins = todayJobs.reduce(function(s,j){return s+(j._estMinutes||0);},0);
   var swapPairs = Object.keys(swapPartner).length / 2;
   var _vm = dispatchGetViewMode();
+  if(_vm === 'canvas'){
+    // Full-page canvas: all controls live inside the board (dcvMount builds them)
+    host.innerHTML = '<div id="dcv-host"></div>';
+    dcvMount();
+    dispatchFillUnknownDriveTimes();
+    dispatchFillMissingCoords();
+    return;
+  }
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
   html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
@@ -500,7 +508,6 @@ async function renderDispatch(){
   html += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
   html += '</div>';
   html += '</div></div>';
-  if(_vm === 'list'){
   // Numbered steps + P/D legend
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted)">';
   html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">1.</strong> Pick a date</span>';
@@ -516,7 +523,6 @@ async function renderDispatch(){
   html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">COMBO</span>';
   html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
   html += '</div></div>';
-  } // end list-only intro sections
   html += '<div data-tour="dispatch-working" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Working today &mdash; click to toggle</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
@@ -537,14 +543,6 @@ async function renderDispatch(){
     });
   }
   html += '</div></div>';
-  if(_vm === 'canvas'){
-    html += '<div id="dcv-host"></div>';
-    host.innerHTML = html;
-    dcvMount();
-    dispatchFillUnknownDriveTimes();
-    dispatchFillMissingCoords();
-    return;
-  }
   html += '<div data-tour="dispatch-unassigned" ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, null)" style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;min-height:60px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Unassigned ('+unassigned.length+')</div>';
   if(!unassigned.length){
@@ -792,7 +790,56 @@ function dcvMount(){
   _dcv.suppressEdges = false;
   _dcv.drag = null;
   var unassignedCount = _dispatchJobsCache.filter(function(j){ return !dcvJobCrewId(j); }).length;
-  var h = '<div id="dcv-vp" style="position:relative;height:max(540px,calc(100vh - 330px));border:1px solid '+T.border+';border-radius:16px;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background-color:'+T.canvas+'">';
+  // Full-page shell: fixed beside the sidebar; on mobile it sits below the 56px top bar
+  if(!document.getElementById('dcv-style')){
+    var st = document.createElement('style');
+    st.id = 'dcv-style';
+    st.textContent = '#dcv-shell{position:fixed;top:0;right:0;bottom:0;left:var(--sidebar-w,0px);z-index:140;display:flex;flex-direction:column}'
+      + '@media(max-width:900px){#dcv-shell{top:56px}}';
+    document.head.appendChild(st);
+  }
+  var totalMins = _dispatchJobsCache.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
+  var comboPairs = _dispatchJobsCache.filter(function(j){ return j._partnerId; }).length/2;
+  var workingIds = dispatchGetWorkingIds();
+  var h = '<div id="dcv-shell" style="background:'+T.canvas+'">';
+  // top bar — the old page-header controls, themed and moved inside
+  h += '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:'+T.surface+';border-bottom:1px solid '+T.border+'">';
+  h += '<div style="line-height:1.15;margin-right:4px"><div style="font-size:15px;font-weight:800;color:'+T.ink+';letter-spacing:-.2px">Dispatch</div>';
+  h += '<div style="font-size:10.5px;color:'+T.sub+'">'+_dispatchJobsCache.length+' bin jobs · est '+dispatchFmtTotal(totalMins)+(comboPairs?' · '+comboPairs+' combo pair'+(comboPairs>1?'s':''):'')+'</div></div>';
+  h += '<div style="display:inline-flex;align-items:center;border:1px solid '+T.border+';border-radius:10px;overflow:hidden">';
+  h += '<button onclick="dispatchShiftDate(-1)" title="Previous day" style="background:transparent;border:0;padding:7px 12px;color:'+T.ink+';cursor:pointer;font-size:17px;line-height:1;border-right:1px solid '+T.border+';font-family:inherit">&lsaquo;</button>';
+  h += '<input type="date" value="'+(_dispatchDate||todayStr())+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:transparent;border:0;color:'+T.ink+';color-scheme:dark;padding:7px 10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;min-width:130px;text-align:center">';
+  h += '<button onclick="dispatchShiftDate(1)" title="Next day" style="background:transparent;border:0;padding:7px 12px;color:'+T.ink+';cursor:pointer;font-size:17px;line-height:1;border-left:1px solid '+T.border+';font-family:inherit">&rsaquo;</button>';
+  h += '</div>';
+  h += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid '+T.border+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer">Today</button>';
+  h += '<div style="display:inline-flex;border:1px solid '+T.border+';border-radius:10px;overflow:hidden">';
+  h += '<button onclick="dispatchSetViewMode(\'canvas\')" style="border:0;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;background:'+T.accent+';color:#04160c">Canvas</button>';
+  h += '<button onclick="dispatchSetViewMode(\'list\')" style="border:0;border-left:1px solid '+T.border+';padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:transparent;color:'+T.ink+'">List</button>';
+  h += '</div>';
+  h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
+  h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill unassigned</button>';
+  h += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid '+T.border+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
+  h += '</div>';
+  h += '</div>';
+  // crew strip — the old "Working today" toggles, themed and moved inside
+  h += '<div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 16px;background:'+T.chip+';border-bottom:1px solid '+T.border+'">';
+  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:'+T.sub+'">Working today</span>';
+  if(!crewMembers.length){
+    h += '<span style="font-size:12px;color:'+T.sub+';font-style:italic">No crew members yet.</span>';
+  } else {
+    crewMembers.forEach(function(c){
+      var on = workingIds.indexOf(c.id) >= 0;
+      var color = c.color || crewAvatarColor(c.id);
+      var cst = (typeof crewStatusForDate==='function') ? crewStatusForDate(c.id, _dispatchDate) : {state:'free', label:''};
+      var lbl = (cst.label||'').replace(/"/g,'&quot;');
+      var offTag = cst.state==='off' ? ' <span style="font-size:10px" title="Booked off: '+lbl+'">🚫</span>'
+                 : cst.state==='partial' ? ' <span style="font-size:10px" title="Partly booked: '+lbl+'">⏱</span>' : '';
+      h += '<button onclick="dispatchToggleWorking(\''+c.id+'\')" title="'+(cst.state!=='free'?lbl:'Available')+'" style="border:1px solid '+(on?color:T.chipbd)+';background:'+(on?dcvRgba(color,0.16):'transparent')+';color:'+(on?color:T.sub)+';padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">'+(on?'&#10003; ':'')+escHtml(c.name)+offTag+'</button>';
+    });
+  }
+  h += '</div>';
+  // stage
+  h += '<div id="dcv-vp" style="position:relative;flex:1;min-height:0;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background-color:'+T.canvas+'">';
   h += '<div id="dcv-world" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">';
   h += '<svg id="dcv-svg" style="position:absolute;top:0;left:0;overflow:visible;pointer-events:none"></svg>';
   _dispatchJobsCache.forEach(function(j){ h += dcvJobCardHtml(j, T, pos['j:'+j.id], _dcv.selId === 'j:'+j.id); });
@@ -801,8 +848,7 @@ function dcvMount(){
   // in-canvas header: date + legend chips
   function chip(inner){ return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:'+T.sub+';background:'+T.chip+';border:1px solid '+T.chipbd+';border-radius:99px;padding:3px 9px">'+inner+'</span>'; }
   h += '<div style="position:absolute;top:16px;left:18px;z-index:20;pointer-events:none">';
-  h += '<div style="font-size:15px;font-weight:800;color:'+T.ink+';letter-spacing:-.2px">'+dcvDateLabel()+'</div>';
-  h += '<div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;max-width:420px">';
+  h += '<div style="display:flex;gap:7px;flex-wrap:wrap;max-width:460px">';
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#60a5fa"></span>Pickup');
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#eab308"></span>Drop');
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:'+T.accent+'"></span>Swap = combo pair');
@@ -834,7 +880,8 @@ function dcvMount(){
   });
   h += '<span style="font-size:11.5px;font-weight:700;color:#495057;min-width:56px">'+T.name+'</span>';
   h += '</div>';
-  h += '</div>';
+  h += '</div>'; // /stage
+  h += '</div>'; // /shell
   hostEl.innerHTML = h;
   _dcv.els = {
     vp: document.getElementById('dcv-vp'),
@@ -857,14 +904,6 @@ function dcvMount(){
   if(!_dcv.played) dcvAnimateIn();
   else dcvDrawEdges();
 }
-function dcvDateLabel(){
-  var iso = _dispatchDate || todayStr();
-  var d = new Date(iso+'T00:00:00');
-  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  var mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return (iso === todayStr() ? 'Today · ' : '') + days[d.getDay()]+' '+mons[d.getMonth()]+' '+d.getDate();
-}
-
 // ---------- view transform / edges ----------
 function dcvApplyView(){
   var e = _dcv.els;
