@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '403';
+var APP_VERSION = '404';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6177,8 +6177,8 @@ function renderOurPrices(){
     +_opField('14 Yard 3-Day',    _opNumInput('op-b143d', bins['14 yard 3 day'], '—'), 'Zone 1 special — leave blank if not offered here')
     +_opField('14 Yard',          _opNumInput('op-b14',  bins['14 yard']))
     +_opField('20 Yard',          _opNumInput('op-b20',  bins['20 yard']))
-    +_opField('Monthly 14 Yard',  _opNumInput('op-bm14', bins['monthly 14 yard'], '—'))
-    +_opField('Monthly 20 Yard',  _opNumInput('op-bm20', bins['monthly 20 yard'], '—'))
+    +_opField('Monthly 14 Yard',  _opNumInput('op-bm14', bins['monthly 14 yard'], '—'), 'Contractors only')
+    +_opField('Monthly 20 Yard',  _opNumInput('op-bm20', bins['monthly 20 yard'], '—'), 'Contractors only')
     +'</div></div>'
 
     // Location — drives the zone grouping + drive time on the pricing sheet
@@ -13636,8 +13636,11 @@ var PV_TABLE_HEADS = {
   '14 yard':['14 yd','1–7 Days'], '20 yard':['20 yd','1–7 Days'],
   '4 yard dirt':['4 yd','Dirt'], '4 yard concrete':['4 yd','Concrete'],
   '7 yard dirt':['7 yd','Dirt'], '7 yard concrete':['7 yd','Concrete'],
-  'monthly 14 yard':['14 yd','Monthly'], 'monthly 20 yard':['20 yd','Monthly']
+  'monthly 14 yard':['14 yd','Monthly*'], 'monthly 20 yard':['20 yd','Monthly*']
 };
+// Monthly rentals are sold to contractors only — flagged on the column header
+// (asterisk), the sheet note, and the Quote Builder when a monthly is selected.
+function _pvIsMonthly(sz){ return sz.indexOf('monthly')===0; }
 // Colour family per column group (price colour + header chip — see .pv-g-* CSS).
 var PV_SIZE_GROUP = {
   '14 yard 3 day':'special',
@@ -13841,7 +13844,7 @@ function renderPricingAreas(){
   } else {
     note += '. Where a dump fee is set, 14 & 20 yd prices include the first tonne.';
   }
-  note += ' Dirt & concrete bins are flat rate.';
+  note += ' Dirt & concrete bins are flat rate. *Monthly rentals are for contractors only.';
   html += '<div class="pv-table-note">'+note+'</div>';
   host.innerHTML = html;
 }
@@ -13865,14 +13868,19 @@ function renderPricingRail(){
   var total = base+dump+hst;
   var town = r.town;
   var spoken = _pvSpoken(sz);
+  var monthly = _pvIsMonthly(sz);
   var script = hasDump
     ? '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(town)
-      +'. That includes the bin rental, dump fee up to one tonne, and tax. Anything over one tonne is prorated at $'+r.tonne+' per tonne."'
+      +'. That includes the bin rental, dump fee up to one tonne, and tax. Anything over one tonne is prorated at $'+r.tonne+' per tonne.'
+      +(monthly?' Just so you know, monthly rentals are for contractor accounts only.':'')+'"'
     : '"That\'ll be <b>$'+total.toFixed(2)+'</b> all-in for the '+_pvEsc(spoken)+' bin in '+_pvEsc(town)
-      +'. That includes the bin rental and tax."';
+      +'. That includes the bin rental and tax.'
+      +(monthly?' Just so you know, monthly rentals are for contractor accounts only.':'')+'"';
   var html = '<div class="pv-rail">';
   html += '<div class="pv-rail-h">Quote Builder</div>';
-  html += '<div class="pv-rail-bin">'+_pvSizeLabel(sz)+' bin · '+_pvEsc(r.town)+'</div>';
+  html += '<div class="pv-rail-bin">'+_pvSizeLabel(sz)+' bin · '+_pvEsc(r.town)
+       + (monthly?' <span style="display:inline-block;vertical-align:2px;margin-left:6px;padding:2px 9px;border-radius:999px;background:#ecebfc;color:#4f46e5;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase">Contractor only</span>':'')
+       + '</div>';
   html += '<div class="pv-rail-line"><span class="lbl">Bin price</span><span class="val">$'+base.toFixed(2)+'</span></div>';
   if(hasDump) html += '<div class="pv-rail-line"><span class="lbl">+ Dump fee (1 tonne included)</span><span class="val">$'+dump.toFixed(2)+'</span></div>';
   html += '<div class="pv-rail-line"><span class="lbl">+ HST (13%)</span><span class="val">$'+hst.toFixed(2)+'</span></div>';
