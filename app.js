@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '412';
+var APP_VERSION = '413';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13943,9 +13943,11 @@ function pvToggleCompare(){
 // price column reads LIVE from ourPricesV2 (14 yard) via the area name, so the
 // console tracks the pricing sheet automatically. Everything else — wage,
 // diesel, speed, trips, target margin, zone-ladder what-ifs — is a dial.
-// Look & feel: dark neon console from the Claude Design "Heatmap visual
-// upgrade" project (v412) — zone-grouped glowing heatmap, live-verdict card,
-// and a Margin curve tab that sweeps one price across every zone.
+// Look & feel: layout from the Claude Design "Heatmap visual upgrade" project
+// (v412), re-skinned to the dashboard's light/green aesthetic per Jake (v413) —
+// zone-grouped heatmap (each block: margin % + profit $), live-verdict card,
+// and a Margin curve tab that sweeps one price across every zone. The grid
+// flows down the page (one scrollbar); the verdict card rides along sticky.
 // Entries: [display name, near km, our_prices area, fastest min, slowest min, far-edge km|null]
 var RC_CITIES = [
  ['Barrie (HQ / local)',0,'Barrie',0,0,null],
@@ -14038,28 +14040,22 @@ function _rcVerdict(c, price){
   else { key='tight'; label='TIGHT'; }
   return {cst:cst, md:md, mp:mp, hrs:hrs, pph:pph, key:key, label:label};
 }
-// Neon heat colours — margin% runs red → amber → neon green; each cell glows
-// on the dark console, brighter the further it sits from break-even.
+// Heat colours — the dashboard's light ramp: red → amber → green across the
+// margin scale, dark/white ink picked by luminance. Zones use the same tier
+// colours as the pricing sheet (pv-z1..pv-z5).
 function _rcLerp(a,b,t){ return a.map(function(x,i){return Math.round(x+(b[i]-x)*t);}); }
-function _rcNeonRGB(mp){
-  var st=[[-0.30,[255,42,42]],[-0.08,[255,92,40]],[0.06,[255,150,36]],[0.18,[255,214,48]],[0.30,[196,226,58]],[0.45,[70,224,118]],[0.62,[26,240,150]]];
-  if(mp<=st[0][0]) return st[0][1];
-  if(mp>=st[st.length-1][0]) return st[st.length-1][1];
-  for(var i=0;i<st.length-1;i++){ if(mp>=st[i][0]&&mp<=st[i+1][0]) return _rcLerp(st[i][1],st[i+1][1],(mp-st[i][0])/(st[i+1][0]-st[i][0])); }
-  return st[st.length-1][1];
-}
-function _rcNeonCell(mp){
-  var rgb=_rcNeonRGB(mp).join(','), t=Math.min(1,Math.abs(mp)/0.6);
-  var glow=Math.round(7+t*15), bgA=(0.10+t*0.16).toFixed(2), ring=(0.40+t*0.35).toFixed(2), shA=(0.30+t*0.40).toFixed(2);
-  return 'background:rgba('+rgb+','+bgA+');color:rgb('+rgb+');box-shadow:0 0 '+glow+'px rgba('+rgb+','+shA+'),inset 0 0 0 1px rgba('+rgb+','+ring+');text-shadow:0 0 8px rgba('+rgb+',0.85)';
-}
-function _rcNeonZone(z){ return ['','#22f5a0','#1ad6ff','#ffc42c','#ff8a2c','#ff2d6b'][z]; }
+function _rcHeatRGB(mp){ var R=[214,66,66],A=[240,178,70],G=[45,161,92];
+  if(mp<=-0.30) return R; if(mp>=0.60) return G;
+  return mp<=0.15 ? _rcLerp(R,A,(mp+0.30)/0.45) : _rcLerp(A,G,(mp-0.15)/0.45); }
+function _rcInk(rgb){ return (0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2])/255>0.62?'#14181d':'#fff'; }
+function _rcCellStyle(mp){ var rgb=_rcHeatRGB(mp); return 'background:rgb('+rgb.join(',')+');color:'+_rcInk(rgb); }
+function _rcZoneColor(z){ return ['','#16a34a','#0d9488','#d97706','#ea580c','#dc2626'][z]; }
 function _rcHexRGB(hex){ var n=parseInt(hex.replace('#',''),16); return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255); }
 function _rcClean(n){ return String(n).replace(/\s*\(.*\)$/,''); }
 function _rcZoneKm(z){ return ['','0–25 km','25–50 km','50–75 km','75–100 km','100 km +'][z]; }
 function _rcZoneCities(z){ return RC_CITIES.filter(function(c){return _rcZoneFor(c)===z;}); }
 function _rcMedianTown(z){ var t=_rcZoneCities(z).sort(function(a,b){return a.km-b.km;}); return t.length?t[Math.floor(t.length/2)]:null; }
-function _rcStatusOf(mp){ if(mp<0) return {w:'Loss',c:'#ff3a3a'}; if(mp<0.18) return {w:'Thin',c:'#ff9224'}; if(mp<_rc.A.target) return {w:'Tight',c:'#ffd630'}; return {w:'Strong',c:'#28e07a'}; }
+function _rcStatusOf(mp){ if(mp<0) return {w:'Loss',c:'#b02633'}; if(mp<0.18) return {w:'Thin',c:'#c2410c'}; if(mp<_rc.A.target) return {w:'Tight',c:'#b45309'}; return {w:'Strong',c:'#15803d'}; }
 
 function rcTab(t){
   _rc.tab=t;
@@ -14095,17 +14091,17 @@ function _rcRenderHeat(){
   h+='</tr></thead><tbody>';
   for(var z=1;z<=5;z++){
     var cs=_rcZoneCities(z); if(!cs.length) continue;
-    var zc=_rcNeonZone(z);
-    h+='<tr class="nx-zrow"><td colspan="'+(3+RC_LADDER.length)+'"><span class="nx-zn" style="color:'+zc+'">Zone '+z+'</span><span class="nx-zmeta">'+_rcZoneKm(z)+' · '+cs.length+' town'+(cs.length!==1?'s':'')+' · model $'+zp[z]+'</span></td></tr>';
+    var zc=_rcZoneColor(z);
+    h+='<tr class="nx-zrow pv-z'+z+'"><td colspan="'+(3+RC_LADDER.length)+'"><span class="nx-zn">Zone '+z+'</span><span class="nx-zmeta">'+_rcZoneKm(z)+' · '+cs.length+' town'+(cs.length!==1?'s':'')+' · model $'+zp[z]+'</span></td></tr>';
     cs.forEach(function(c){
       var ci=RC_CITIES.indexOf(c), cst=_rcCost(c), cur=_rcCur(c);
       var ro=S&&S.ci===ci?' nx-rowon':'';
-      h+='<tr><td class="nx-city'+ro+'"><span class="nx-accent" style="background:'+zc+';box-shadow:0 0 8px '+zc+'"></span>'+_pvEsc(_rcClean(c.name))+'<div class="nx-tsub">'+_rcKmStr(c)+' km</div></td>'
+      h+='<tr><td class="nx-city'+ro+'"><span class="nx-accent" style="background:'+zc+'"></span>'+_pvEsc(_rcClean(c.name))+'<div class="nx-tsub">'+_rcKmStr(c)+' km</div></td>'
         +'<td class="nx-cost'+ro+'">$'+Math.round(cst)+'</td>'
         +'<td class="nx-now'+ro+'">'+(cur!=null?'$'+cur:'—')+'</td>';
       RC_LADDER.forEach(function(p,pi){
-        var mp=(p-cst)/p, sel=(S&&S.ci===ci&&S.pi===pi)?' nx-sel':'';
-        h+='<td class="nx-cell" onclick="rcPick('+ci+','+pi+')"><div class="nx-cb'+sel+'" style="'+_rcNeonCell(mp)+'">'+Math.round(mp*100)+'</div></td>';
+        var md=p-cst, mp=md/p, sel=(S&&S.ci===ci&&S.pi===pi)?' nx-sel':'';
+        h+='<td class="nx-cell" onclick="rcPick('+ci+','+pi+')"><div class="nx-cb'+sel+'" style="'+_rcCellStyle(mp)+'">'+Math.round(mp*100)+'%<div class="nx-cbsub">'+(md>=0?'+$'+Math.round(md):'-$'+Math.round(-md))+'</div></div></td>';
       });
       h+='</tr>';
     });
@@ -14173,36 +14169,36 @@ function _rcRenderCurve(){
   };
   var svg='<svg viewBox="0 0 '+W+' '+H+'" class="nx-chart" preserveAspectRatio="xMidYMid meet">';
   [-0.4,-0.2,0,0.2,0.4,0.6].forEach(function(g){
-    var y=Y(g), isZero=(g===0), col=isZero?'rgba(255,90,114,.4)':'rgba(255,255,255,.06)';
+    var y=Y(g), isZero=(g===0), col=isZero?'rgba(176,38,51,.45)':'rgba(26,26,46,.08)';
     svg+='<line x1="'+x0+'" y1="'+y.toFixed(1)+'" x2="'+x1+'" y2="'+y.toFixed(1)+'" stroke="'+col+'" stroke-width="1"'+(isZero?' stroke-dasharray="5 5"':'')+'/>'
-      +'<text x="'+(x0-8)+'" y="'+(y+4).toFixed(1)+'" fill="'+(isZero?'#ff5a72':'#6b7280')+'" font-size="11" text-anchor="end" font-family="Inter">'+Math.round(g*100)+'%</text>';
+      +'<text x="'+(x0-8)+'" y="'+(y+4).toFixed(1)+'" fill="'+(isZero?'#b02633':'#868e96')+'" font-size="11" text-anchor="end" font-family="Inter">'+Math.round(g*100)+'%</text>';
   });
-  svg+='<text x="'+x1+'" y="'+(Y(0)-7).toFixed(1)+'" fill="#ff5a72" font-size="11" text-anchor="end" font-weight="700" font-family="Inter">break-even</text>';
-  [195,250,300,400,500].forEach(function(p){ svg+='<text x="'+X(p).toFixed(1)+'" y="'+(y1+20)+'" fill="#6b7280" font-size="11" text-anchor="middle" font-family="Inter">$'+p+'</text>'; });
+  svg+='<text x="'+x1+'" y="'+(Y(0)-7).toFixed(1)+'" fill="#b02633" font-size="11" text-anchor="end" font-weight="700" font-family="Inter">break-even</text>';
+  [195,250,300,400,500].forEach(function(p){ svg+='<text x="'+X(p).toFixed(1)+'" y="'+(y1+20)+'" fill="#868e96" font-size="11" text-anchor="middle" font-family="Inter">$'+p+'</text>'; });
   zones.forEach(function(z){
-    var c=_rcMedianTown(z), col=_rcNeonZone(z), rgb=_rcHexRGB(col);
+    var c=_rcMedianTown(z), col=_rcZoneColor(z), rgb=_rcHexRGB(col);
     var pts=RC_CURVE_PRICES.map(function(p){ return [X(p), clampY((p-_rcCost(c))/p)]; });
     var d=smooth(pts), ex=pts[pts.length-1][0], ey=pts[pts.length-1][1];
     svg+='<path d="'+d+'" fill="none" stroke="rgba('+rgb+',0.10)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>'
-      +'<path d="'+d+'" fill="none" stroke="rgba('+rgb+',0.30)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<path d="'+d+'" fill="none" stroke="rgba('+rgb+',0.25)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
       +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
       +'<text x="'+(ex+9).toFixed(1)+'" y="'+(ey+4).toFixed(1)+'" fill="'+col+'" font-size="12" font-weight="800" font-family="Inter">Z'+z+'</text>';
   });
   var sx=X(_rc.scrub);
-  svg+='<line x1="'+sx.toFixed(1)+'" y1="'+y0+'" x2="'+sx.toFixed(1)+'" y2="'+y1+'" stroke="rgba(255,255,255,.4)" stroke-width="1.4" stroke-dasharray="4 4"/>';
+  svg+='<line x1="'+sx.toFixed(1)+'" y1="'+y0+'" x2="'+sx.toFixed(1)+'" y2="'+y1+'" stroke="rgba(26,26,46,.35)" stroke-width="1.4" stroke-dasharray="4 4"/>';
   zones.forEach(function(z){
-    var c=_rcMedianTown(z), col=_rcNeonZone(z), rgb=_rcHexRGB(col);
+    var c=_rcMedianTown(z), col=_rcZoneColor(z), rgb=_rcHexRGB(col);
     var cy=clampY((_rc.scrub-_rcCost(c))/_rc.scrub);
-    svg+='<circle cx="'+sx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="8" fill="rgba('+rgb+',0.30)"/><circle cx="'+sx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3.6" fill="'+col+'"/>';
+    svg+='<circle cx="'+sx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="8" fill="rgba('+rgb+',0.25)"/><circle cx="'+sx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3.6" fill="'+col+'"/>';
   });
-  svg+='<text x="'+sx.toFixed(1)+'" y="'+(y0-8)+'" fill="#fff" font-size="12" font-weight="800" text-anchor="middle" font-family="Inter">$'+_rc.scrub+'</text>';
+  svg+='<text x="'+sx.toFixed(1)+'" y="'+(y0-8)+'" fill="#1a1a2e" font-size="12" font-weight="800" text-anchor="middle" font-family="Inter">$'+_rc.scrub+'</text>';
   chart.innerHTML=svg+'</svg>';
 
   var p=_rc.scrub, rows='', nc=0;
   zones.forEach(function(z){
-    var c=_rcMedianTown(z), col=_rcNeonZone(z), mp=(p-_rcCost(c))/p, s=_rcStatusOf(mp);
+    var c=_rcMedianTown(z), col=_rcZoneColor(z), mp=(p-_rcCost(c))/p, s=_rcStatusOf(mp);
     if(mp>0) nc++;
-    rows+='<div class="nx-rd-row"><span class="nx-rd-dot" style="background:'+col+';box-shadow:0 0 9px '+col+'"></span><span class="nx-rd-z">Zone '+z+'</span><span class="nx-rd-town">'+_pvEsc(_rcClean(c.name))+'</span><span class="nx-rd-mp" style="color:'+s.c+'">'+Math.round(mp*100)+'%</span><span class="nx-rd-word" style="color:'+s.c+'">'+s.w+'</span></div>';
+    rows+='<div class="nx-rd-row"><span class="nx-rd-dot" style="background:'+col+'"></span><span class="nx-rd-z">Zone '+z+'</span><span class="nx-rd-town">'+_pvEsc(_rcClean(c.name))+'</span><span class="nx-rd-mp" style="color:'+s.c+'">'+Math.round(mp*100)+'%</span><span class="nx-rd-word" style="color:'+s.c+'">'+s.w+'</span></div>';
   });
   read.innerHTML='<div class="nx-console"><div class="nx-console-top">At $'+p+' / rental</div><div class="nx-console-body">'
     +'<div class="nx-rd-head"><b>'+nc+' of '+zones.length+'</b> zones turn a profit at this price</div>'+rows
