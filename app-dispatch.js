@@ -387,7 +387,7 @@ function dispatchRenderCard(j, clockStartMins){
   return '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="position:relative;background:'+cardBg+';'+cardBorder+';border-radius:11px;padding:11px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:grab">'
     +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">'
       +'<span style="font-size:10px;font-weight:800;color:#fff;background:'+legBg+';padding:2px 8px;border-radius:5px;letter-spacing:.3px">'+legLabel+'</span>'
-      +(j._partnerId?'<span style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:2px 7px;border-radius:5px">🔁 Combo</span>':'')
+      +(j._partnerId?'<span style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:2px 7px;border-radius:5px">🔗 Paired</span>':'')
       +'<span style="margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:600">~'+j._estMinutes+'m</span>'
     +'</div>'
     +clockTxt
@@ -484,7 +484,7 @@ async function renderDispatch(){
   }
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
-  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
+  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' paired trip'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
   html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
   // Connected date stepper
   html += '<div style="display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
@@ -520,7 +520,7 @@ async function renderDispatch(){
   html += '<div data-tour="dispatch-combo-info" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
   html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
   html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
-  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">COMBO</span>';
+  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">PAIRED</span>';
   html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
   html += '</div></div>';
   html += '<div data-tour="dispatch-working" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
@@ -730,7 +730,7 @@ function dcvJobCardHtml(j, T, p, selected){
   h += '<span style="font-family:ui-monospace,monospace;font-size:9px;font-weight:700;letter-spacing:.4px;color:'+T.sub+'">#'+j.id+'</span>';
   h += '<span style="width:4px;height:4px;border-radius:50%;background:'+svcCol+';flex:0 0 auto"></span>';
   h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
-  if(isCombo) h += '<span title="Combo — pickup + delivery on one trip" style="font-size:9px">🔁</span>';
+  if(isCombo) h += '<span title="Paired — pickup + delivery on one trip" style="font-size:9px">🔗</span>';
   h += '<span style="margin-left:auto;font-size:10px;color:'+T.sub+';font-family:ui-monospace,monospace">'+win+'</span>';
   h += '</div>';
   h += '<div style="font-size:16px;font-weight:800;letter-spacing:-.3px;color:'+T.ink+';line-height:1.06;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(j.city||'—')+'</div>';
@@ -805,7 +805,7 @@ function dcvMount(){
   // top bar — the old page-header controls, themed and moved inside
   h += '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:'+T.surface+';border-bottom:1px solid '+T.border+'">';
   h += '<div style="line-height:1.15;margin-right:4px"><div style="font-size:15px;font-weight:800;color:'+T.ink+';letter-spacing:-.2px">Dispatch</div>';
-  h += '<div style="font-size:10.5px;color:'+T.sub+'">'+_dispatchJobsCache.length+' bin jobs · est '+dispatchFmtTotal(totalMins)+(comboPairs?' · '+comboPairs+' combo pair'+(comboPairs>1?'s':''):'')+'</div></div>';
+  h += '<div style="font-size:10.5px;color:'+T.sub+'">'+_dispatchJobsCache.length+' bin jobs · est '+dispatchFmtTotal(totalMins)+(comboPairs?' · '+comboPairs+' paired trip'+(comboPairs>1?'s':''):'')+'</div></div>';
   h += '<div style="display:inline-flex;align-items:center;border:1px solid '+T.border+';border-radius:10px;overflow:hidden">';
   h += '<button onclick="dispatchShiftDate(-1)" title="Previous day" style="background:transparent;border:0;padding:7px 12px;color:'+T.ink+';cursor:pointer;font-size:17px;line-height:1;border-right:1px solid '+T.border+';font-family:inherit">&lsaquo;</button>';
   h += '<input type="date" value="'+(_dispatchDate||todayStr())+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:transparent;border:0;color:'+T.ink+';color-scheme:dark;padding:7px 10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;min-width:130px;text-align:center">';
@@ -851,7 +851,7 @@ function dcvMount(){
   h += '<div style="display:flex;gap:7px;flex-wrap:wrap;max-width:460px">';
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#60a5fa"></span>Pickup');
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#eab308"></span>Drop');
-  h += chip('<span style="font-size:10px">🔁</span>Combo = pickup + delivery on one trip');
+  h += chip('<span style="font-size:10px">🔗</span>Paired = pickup + delivery on one trip');
   if(unassignedCount) h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>'+unassignedCount+' unassigned');
   h += chip('drag ○ from a job onto a crew card to assign');
   h += '</div></div>';
@@ -1149,7 +1149,7 @@ function dcvInspectorHtml(){
     var j = dcvJobById(id.slice(2));
     if(!j) return '';
     var isCombo = !!j._partnerId;
-    var svc = (j._isPickup ? 'Pickup' : 'Drop') + (isCombo ? ' · 🔁 combo' : '');
+    var svc = (j._isPickup ? 'Pickup' : 'Drop') + (isCombo ? ' · 🔗 paired' : '');
     var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
     var cid = dcvJobCrewId(j);
     var cr = cid && crewMembers.find(function(c){ return c.id === cid; });
@@ -1162,7 +1162,7 @@ function dcvInspectorHtml(){
     h += row('Bin size', escHtml(j.binSize||'—'));
     h += row('Window', (!j._isPickup && j.binDropoffTime) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : 'Flexible');
     h += row('Est. time', '~'+(j._estMinutes||0)+'m');
-    if(partner) h += row('Combo with', escHtml(partner.name||('#'+partner.id)));
+    if(partner) h += row('Paired with', escHtml(partner.name||('#'+partner.id)));
     h += row('Driver', cr ? escHtml(cr.name) : '<span style="color:#d97706">Unassigned — drag its ○ onto a crew card</span>');
     h += '<div style="display:flex;gap:8px;margin-top:18px">';
     h += '<button onclick="dcvFocusSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e9ecef;background:#f8f9fa;color:#343a40;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Focus</button>';

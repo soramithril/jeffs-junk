@@ -47,9 +47,9 @@ var PAGE_TOURS = [
     { sel:'#lj-list', title:'Job list', body:'Every job for today, split into sections like Bin Drop-offs, Pick-ups, Junk Removals and Furniture, with a count on each. Click a row to focus it on the map and open the booking.' }
   ]},
   { view:'dispatch', label:'Dispatch', icon:'🚚', section:'Operations', summary:'The daily route-planning board for bin trips.', steps:[
-    { sel:'[data-tour="dispatch-summary"]', title:'Day summary', body:'The header shows which day you are planning and a quick tally — how many bin jobs there are, the rough total time, and how many money-saving combo pairs were found.' },
+    { sel:'[data-tour="dispatch-summary"]', title:'Day summary', body:'The header shows which day you are planning and a quick tally — how many bin jobs there are, the rough total time, and how many money-saving paired trips were found.' },
     { sel:'[data-tour="dispatch-fill"]', title:'Fill unassigned button', body:'Auto-assigns only the jobs that still have no driver, leaving any you set by hand untouched. The grey button beside it wipes everything and reshuffles from scratch.' },
-    { sel:'[data-tour="dispatch-combo-info"]', title:'Combo explainer', body:'A COMBO is one trip that handles both a pickup and a delivery so the empty bin goes straight to the next customer instead of back to the yard — about 6–10 minutes saved.' },
+    { sel:'[data-tour="dispatch-combo-info"]', title:'Paired trips', body:'A PAIRED trip handles both a pickup and a delivery in one run, so the empty bin goes straight to the next customer instead of back to the yard — about 6–10 minutes saved.' },
     { sel:'[data-tour="dispatch-working"]', title:'Working today', body:'Click a crew member to toggle whether they are working this day; only the ones turned on get a route lane and become assignable.' },
     { sel:'[data-tour="dispatch-unassigned"]', title:'Unassigned pool', body:'Holds every stop with no driver yet, with a count in the header. Tap 👤 Assign on a card and pick a driver — the stop jumps to that lane (dragging a card still works too).' },
     { sel:'[data-tour="dispatch-lanes"]', title:'Driver lanes', body:'One column per working driver, with an avatar and a load bar (green → amber → red) showing how full their day is. Stops list in order with a running clock; tap 🧭 Maps to open the lane route in Google Maps.' }
