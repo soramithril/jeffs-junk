@@ -2402,22 +2402,22 @@ body.signed-in .help-fab{display:flex;}
 .nx-gridwrap{border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-sm)}
 .nx-t{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
 .nx-t th,.nx-t td{white-space:nowrap}
-.nx-t thead th{position:sticky;top:0;z-index:4;background:var(--surface2);border-bottom:1px solid var(--border);padding:9px 8px;font-size:11px;font-weight:700;color:var(--muted);text-align:center}
+.nx-t thead th{position:sticky;top:0;z-index:4;background:var(--surface2);border-bottom:1px solid var(--border);padding:9px 4px;font-size:11px;font-weight:700;color:var(--muted);text-align:center}
 .nx-t thead th:first-child{border-top-left-radius:16px}
 .nx-t thead th:last-child{border-top-right-radius:16px}
 .nx-t thead th.nx-h{text-align:left;padding-left:16px}
 .nx-t thead th.nx-colon{background:#e8f7ee;color:var(--accent-hover)}
 .nx-t td{border-bottom:1px solid var(--border)}
 .nx-t tbody tr:last-child td{border-bottom:none}
-.nx-t td.nx-city{position:relative;padding:7px 8px 7px 18px;text-align:left;font-size:12.5px;font-weight:700;color:var(--text);width:190px;min-width:190px}
+.nx-t td.nx-city{position:relative;padding:7px 8px 7px 16px;text-align:left;font-size:12.5px;font-weight:700;color:var(--text);width:150px;min-width:150px}
 .nx-accent{position:absolute;left:0;top:8px;bottom:8px;width:4px;border-radius:3px}
 .nx-tsub{font-size:10px;color:var(--muted);font-weight:500;margin-top:1px}
-.nx-t td.nx-cost{text-align:right;padding:0 10px;font-size:12px;font-weight:600;color:var(--muted);width:56px}
-.nx-t td.nx-now{text-align:right;padding:0 10px;font-size:12.5px;font-weight:800;color:var(--accent-hover);width:56px;border-right:2px solid var(--border)}
+.nx-t td.nx-cost{text-align:right;padding:0 8px;font-size:12px;font-weight:600;color:var(--muted);width:48px}
+.nx-t td.nx-now{text-align:right;padding:0 8px;font-size:12.5px;font-weight:800;color:var(--accent-hover);width:48px;border-right:2px solid var(--border)}
 .nx-t td.nx-city.nx-rowon,.nx-t td.nx-cost.nx-rowon,.nx-t td.nx-now.nx-rowon{background:#e8f7ee}
-.nx-t td.nx-cell{padding:3px;min-width:64px;cursor:pointer}
-.nx-cb{height:44px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;font-weight:800;line-height:1.1;transition:transform .12s,filter .12s}
-.nx-cbsub{font-size:9.5px;font-weight:700;opacity:.85}
+.nx-t td.nx-cell{padding:2px;min-width:42px;cursor:pointer}
+.nx-cb{height:42px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;line-height:1.1;transition:transform .12s,filter .12s}
+.nx-cbsub{font-size:9px;font-weight:700;opacity:.85}
 .nx-t td.nx-cell:hover .nx-cb{filter:brightness(1.06);transform:translateY(-1px)}
 .nx-cb.nx-sel{outline:2.5px solid #14181d;outline-offset:1px;transform:scale(1.05);position:relative;z-index:1}
 .nx-zrow td{background:var(--zc-soft,#f5f7f5);padding:7px 18px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
@@ -2505,7 +2505,7 @@ body.signed-in .help-fab{display:flex;}
 /* notes + footer */
 .rc-note{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.6}
 .rc-foot{color:var(--muted);font-size:11.5px;margin-top:26px;border-top:1px solid var(--border);padding-top:14px;line-height:1.7}
-@media(max-width:1024px){.nx-board,.nx-curveview{grid-template-columns:1fr}.nx-console{position:static}}
+@media(max-width:1366px){.nx-board,.nx-curveview{grid-template-columns:1fr}.nx-console{position:static}}
 
 /* ═══════════════ EDIT OUR PRICES — zone-grouped town picker ═══════════════
    Same zone tiers + heat colours as the pricing sheet (pv-zN vars), so the
