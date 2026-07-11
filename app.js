@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '404';
+var APP_VERSION = '405';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2155,7 +2155,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2203,6 +2203,7 @@ function render(name){
   else if(name==='utilization') renderUtilization();
   else if(name==='leaderboard') renderLeaderboardPage();
   else if(name==='pricing') renderPricing();
+  else if(name==='pricingconsole') renderRouteConsole();
   else if(name==='ourprices') renderOurPrices();
   else if(name==='drdcalc') renderDrdCalc();
   else if(name==='dispatch') renderDispatch();
@@ -5960,6 +5961,9 @@ function setPricingCat(cat,el){
 }
 
 function renderPricing(){
+  // Margin Console is admin-only — hide its door from everyone else.
+  var cb = document.getElementById('pv-console-btn');
+  if(cb) cb.style.display = canAccessAnalytics() ? '' : 'none';
   renderPricingAreas();
   renderPricingRail();
   // Competitor comparison tables render on demand (pvToggleCompare); keep them
@@ -13919,6 +13923,259 @@ function pvToggleCompare(){
   if(btn) btn.textContent = open ? '📊 Show competitor comparison' : '📊 Hide competitor comparison';
   if(!open) renderPricingGrids();
 }
+
+// ═══════════════ MARGIN CONSOLE (admin what-if pricing tool) ═══════════════
+// Jake's route-cost model, folded into the dashboard 2026-07-11. Real one-way
+// distances + drive-time ranges from 92 Davidson St (Google Maps). The CURRENT
+// price column reads LIVE from ourPricesV2 (14 yard) via the area name, so the
+// console tracks the pricing sheet automatically. Everything else — wage,
+// diesel, speed, trips, target margin, zone-ladder what-ifs — is a dial.
+// Entries: [display name, near km, our_prices area, fastest min, slowest min, far-edge km|null]
+var RC_CITIES = [
+ ['Barrie (HQ / local)',0,'Barrie',0,0,null],
+ ['Midhurst',7.0,'Midhurst',11,14,null],
+ ['Shanty Bay',13.8,'Shanty Bay',11,14,null],
+ ['Oro-Medonte (township)',14.0,'Oro-Medonte',10,30,48],
+ ['Minesing',15.9,'Minesing',18,23,null],
+ ['Thornton',17.0,'Thornton',16,19,null],
+ ['Anten Mills',17.6,'Anten Mills',19,21,null],
+ ['Innisfil (township)',17.9,'Innisfil',21,27,35],
+ ['Angus',19.9,'Angus',21,24,null],
+ ['Elmvale',25.6,'Elmvale',25,27,null],
+ ['Hillsdale',26.3,'Hillsdale',17,21,null],
+ ['Gilford',34.6,'Gilford',27,33,null],
+ ['Tiny Township',34.8,'Tiny Township',33,51,56],
+ ['Orillia',36.4,'Orillia',26,28,null],
+ ['Wasaga Beach',36.7,'Wasaga Beach',35,41,null],
+ ['Stayner',38.8,'Stayner',37,42,null],
+ ['Bradford',40.5,'Bradford',31,36,null],
+ ['Creemore',40.8,'Creemore',39,45,null],
+ ['Alliston',41.0,'Alliston',37,47,null],
+ ['Warminster',41.6,'Warminster',30,32,null],
+ ['Severn (township)',43.9,'Severn',26,47,63],
+ ['Beeton',47.2,'Beeton',35,36,null],
+ ['Mansfield',48.4,'Mansfield',43,44,null],
+ ['Waubaushene',50.1,'Waubaushene',34,34,null],
+ ['Midland',51.1,'Midland',40,47,null],
+ ['Schomberg',51.3,'Schomberg',37,38,null],
+ ['Mulmur',51.4,'Mulmur',46,49,null],
+ ['Port McNicoll',51.8,'Port McNicoll',38,47,null],
+ ['Penetanguishene',53.1,'Penetanguishene',42,54,null],
+ ['Washago',53.7,'Washago',33,42,null],
+ ['Tottenham',54.0,'Tottenham',42,52,null],
+ ['Victoria Harbour',54.2,'Victoria Harbour',34,36,null],
+ ['Collingwood',54.9,'Collingwood',51,56,null],
+ ['Newmarket',56.1,'Newmarket',44,49,null],
+ ['Brechin',56.8,'Brechin',43,52,null],
+ ['Ramara (township)',56.8,'Ramara',43,50,62],
+ ['King City',60.3,'King City',40,45,null],
+ ['Aurora',62.1,'Aurora',49,51,null],
+ ['Blue Mountains (township)',64.6,'Blue Mountains',63,71,76],
+ ['Shelburne',69.5,'Shelburne',61,64,null],
+ ['Gravenhurst',73.3,'Gravenhurst',49,58,null],
+ ['Muskoka (district)',73.3,'Muskoka',49,78,124],
+ ['Thornbury',75.8,'Thornbury',71,88,null],
+ ['Bracebridge',89.2,'Bracebridge',57,66,null],
+ ['Bala',97.1,'Bala',61,72,null],
+ ['Port Carling',114,'Port Carling',72,81,null],
+ ['Huntsville',124,'Huntsville',78,87,null]
+].map(function(c){ return {name:c[0], km:c[1], area:c[2], tmin:c[3], tmax:c[4], kmMax:c[5]}; });
+var RC_PRICES = []; (function(){ for(var p=195;p<=650;p+=5) RC_PRICES.push(p); })();
+var _rc = {trips:2, mode:'pct', tab:'heat', sel:null, bench:100, A:{}};
+
+function _rcKmStr(c){ return (c.kmMax&&c.kmMax!==c.km) ? c.km+'–'+c.kmMax : String(c.km); }
+function _rcDriveStr(c){ return c.tmin===c.tmax ? c.tmin+' min' : c.tmin+'–'+c.tmax+' min'; }
+function _rcDials(){
+  var A=_rc.A, v=function(id,d){ var el=document.getElementById(id); var n=el?parseFloat(el.value):NaN; return isNaN(n)?d:n; };
+  A.wage=v('rc-wage',25); A.diesel=v('rc-diesel',1.90); A.fe=v('rc-fe',25); A.speed=v('rc-speed',60)||60;
+  A.onsite=v('rc-onsite',0.25); A.other=v('rc-other',0); A.target=v('rc-target',45)/100;
+  A.z1=v('rc-z1',195); A.z2=v('rc-z2',225); A.step=v('rc-step',25);
+}
+function _rcZoneOf(km){ return km<=25?1:km<=50?2:km<=75?3:km<=100?4:5; }
+function _rcHours(c){ var A=_rc.A; return c.km*2*_rc.trips/A.speed + A.onsite*_rc.trips; }
+function _rcCost(c){ var A=_rc.A, t=c.km*2*_rc.trips; return (t/A.speed+A.onsite*_rc.trips)*A.wage + t*(A.fe/100)*A.diesel + A.other; }
+function _rcSuggested(c){ return _rcCost(c)/(1-_rc.A.target); }
+// Live 14-yard price for a console city, straight off the pricing sheet.
+function _rcCur(c){ var p=parseFloat((getAreaPrices(c.area).bins||{})['14 yard']); return p>0?p:null; }
+function _rcZonePrices(){ var A=_rc.A; return {1:A.z1, 2:A.z2, 3:A.z2+A.step, 4:A.z2+2*A.step, 5:A.z2+3*A.step}; }
+// Typical local $/truck-hour: median of Zone-1 towns at the Zone-1 dial price.
+function _rcBench(){
+  var v = RC_CITIES.filter(function(c){return _rcZoneOf(c.km)===1;})
+    .map(function(c){return (_rc.A.z1-_rcCost(c))/_rcHours(c);}).sort(function(a,b){return a-b;});
+  return v.length ? v[Math.floor(v.length/2)] : 100;
+}
+function _rcVerdict(c, price){
+  var cst=_rcCost(c), md=price-cst, mp=md/price, hrs=_rcHours(c), pph=md/hrs, ratio=pph/_rc.bench;
+  var key, label;
+  if(mp<0){ key='loss'; label="DON'T"; }
+  else if(ratio<0.35){ key='tight'; label='THIN'; }       // truck earns too little per hour for the distance
+  else if(mp>=_rc.A.target+0.15 && ratio>=0.6){ key='good'; label='STRONG'; }
+  else if(mp>=_rc.A.target){ key='good'; label='GOOD'; }
+  else { key='tight'; label='TIGHT'; }
+  return {cst:cst, md:md, mp:mp, hrs:hrs, pph:pph, key:key, label:label};
+}
+// Heat colours — light-theme: margin% runs red→yellow→green (dark text);
+// profit$ runs red→neutral→green (white text at the saturated ends).
+function _rcLerp(a,b,t){ return a.map(function(x,i){return Math.round(x+(b[i]-x)*t);}); }
+function _rcHex(c){ return '#'+c.map(function(x){return x.toString(16).padStart(2,'0');}).join(''); }
+function _rcColPct(v){ var R=[224,49,49],Y=[246,224,94],G=[47,179,68];
+  if(v<=-0.30) return _rcHex(R); if(v>=0.60) return _rcHex(G);
+  return v<=0.15 ? _rcHex(_rcLerp(R,Y,(v+0.30)/0.45)) : _rcHex(_rcLerp(Y,G,(v-0.15)/0.45)); }
+function _rcColDol(v){ var R=[224,49,49],M=[240,243,240],G=[47,179,68];
+  if(v<=-150) return _rcHex(R); if(v>=300) return _rcHex(G);
+  return v<=0 ? _rcHex(_rcLerp(R,M,(v+150)/150)) : _rcHex(_rcLerp(M,G,v/300)); }
+function _rcTextOn(v,pct){ if(pct) return '#14181d'; return (v>-120&&v<260)?'#14181d':'#fff'; }
+
+function rcTab(t){
+  _rc.tab=t;
+  document.querySelectorAll('#view-pricingconsole .rc-tab').forEach(function(x){ x.classList.toggle('active', x.getAttribute('data-v')===t); });
+  document.querySelectorAll('#view-pricingconsole .rc-view').forEach(function(x){ x.classList.toggle('on', x.id==='rc-v-'+t); });
+  rcRender();
+}
+function rcMode(m){
+  _rc.mode=m;
+  document.querySelectorAll('#rc-mode button').forEach(function(x){ x.classList.toggle('active', x.getAttribute('data-m')===m); });
+  rcRender();
+}
+function rcTrips(t){
+  _rc.trips=t;
+  document.querySelectorAll('#rc-trips button').forEach(function(x){ x.classList.toggle('active', +x.getAttribute('data-t')===t); });
+  rcRender();
+}
+function rcPick(ci,pi){ _rc.sel={ci:ci,pi:pi}; rcRender(); }
+function rcKm(ci,v){ RC_CITIES[ci].km=parseFloat(v)||0; rcRender(); }
+
+function _rcRenderHeat(){
+  var host=document.getElementById('rc-heat'); if(!host) return;
+  var zr=_rcZonePrices(), S=_rc.sel;
+  var h='<thead><tr><th class="rc-cityhead">City</th><th class="rc-costhead">Cost</th>';
+  RC_PRICES.forEach(function(p,pi){ h+='<th'+(S&&S.pi===pi?' class="rc-colhl"':'')+'>$'+p+'</th>'; });
+  h+='</tr></thead><tbody>';
+  RC_CITIES.forEach(function(c,ci){
+    var cst=_rcCost(c), z=_rcZoneOf(c.km), rec=zr[z], cur=_rcCur(c);
+    var curCell = cur!=null ? Math.round(cur/5)*5 : null;
+    var rowhl=S&&S.ci===ci?' rc-rowhl':'';
+    h+='<tr><td class="rc-city'+rowhl+'" onclick="rcPick('+ci+','+(S?S.pi:0)+')">'+_pvEsc(c.name)
+      +'<div class="rc-city-sub">'+_rcKmStr(c)+' km · '+_rcDriveStr(c)+'</div></td>'
+      +'<td class="rc-cost'+rowhl+'">$'+Math.round(cst)+'</td>';
+    RC_PRICES.forEach(function(p,pi){
+      var md=p-cst, mp=md/p;
+      var bg=_rc.mode==='pct'?_rcColPct(mp):_rcColDol(md), fg=_rcTextOn(_rc.mode==='pct'?mp:md,_rc.mode==='pct');
+      var val=_rc.mode==='pct'?Math.round(mp*100)+'%':(md>=0?'$'+Math.round(md):'-$'+Math.round(-md));
+      var cls='rc-cell';
+      if(p===rec) cls+=' rc-model';       // ringed = zone-ladder dial price
+      if(p===curCell) cls+=' rc-live';    // dotted = today's live sheet price
+      if(S&&S.ci===ci&&S.pi===pi) cls+=' rc-sel';
+      else if(S&&S.ci===ci) cls+=' rc-hl-row';
+      else if(S&&S.pi===pi) cls+=' rc-hl-col';
+      h+='<td class="'+cls+'" onclick="rcPick('+ci+','+pi+')" style="background:'+bg+';color:'+fg+'">'+val+'</td>';
+    });
+    h+='</tr>';
+  });
+  host.innerHTML=h+'</tbody>';
+}
+
+function _rcRenderVerdict(){
+  var host=document.getElementById('rc-verdict'); if(!host) return;
+  if(!_rc.sel){
+    host.innerHTML='<div class="rc-placeholder">Click a cell in the grid.<br><br>The console reads the profit, the margin, and — crucially — what the truck earns per hour, then tells you whether that price is worth it for how far out the job is.</div>';
+    return;
+  }
+  var c=RC_CITIES[_rc.sel.ci], p=RC_PRICES[_rc.sel.pi], v=_rcVerdict(c,p), A=_rc.A;
+  var be=Math.round(v.cst), sug=Math.round(_rcSuggested(c)/5)*5, z=_rcZoneOf(c.km), zp=_rcZonePrices()[z], cur=_rcCur(c);
+  var pct=Math.round(v.mp*100), pph=Math.round(v.pph), hrs=v.hrs.toFixed(1), bench=Math.round(_rc.bench);
+  var badge=v.key==='loss'?'rc-b-loss':v.key==='good'?'rc-b-good':'rc-b-tight';
+  var say;
+  if(v.key==='loss')
+    say='At $'+p+" you'd <b>lose $"+Math.round(-v.md)+'</b> just getting to '+_pvEsc(c.name)+' and back. Break-even is $'+be+' — never book below it.';
+  else if(v.label==='THIN')
+    say=pct+'% looks okay on paper, but '+_pvEsc(c.name)+' is <b>'+c.km+' km out</b>. This ties the truck up ~'+hrs+' hrs and earns only <b>~$'+pph+'/hr</b> — a local job pulls ~$'+bench+'/hr in that same window. For a run this far, '+pct+"% isn't worth it. Hold out for $"+sug+' (your '+Math.round(A.target*100)+'% target), or only take it as a fill-in when you\'re already headed that way.';
+  else if(v.label==='TIGHT')
+    say='$'+p+' clears cost at '+pct+'% (~$'+pph+'/hr over ~'+hrs+' hrs). Under your '+Math.round(A.target*100)+'% target but the hourly return holds up. Fine for a competitive quote; $'+sug+' is the number to aim for.';
+  else if(v.label==='STRONG')
+    say='Strong price — <b>'+pct+'%</b> and <b>~$'+pph+'/hr</b>, above target and holding its own against local work. Book it.';
+  else
+    say='On target — <b>'+pct+'%</b>, $'+Math.round(v.md)+' profit, ~$'+pph+'/hr over ~'+hrs+' hrs. Good to book.';
+  host.innerHTML=
+    '<span class="rc-badge '+badge+'">'+v.label+' · '+pct+'%</span>'
+    +'<div class="rc-c-city">'+_pvEsc(c.name)+'</div>'
+    +'<div class="rc-c-meta">'+_rcKmStr(c)+' km one-way · '+_rcDriveStr(c)+' drive · Zone '+z+' · '+_rc.trips+' trip'+(_rc.trips>1?'s':'')+'/rental</div>'
+    +'<div class="rc-c-price">$'+p+'<small> / rental</small></div>'
+    +'<div class="rc-rows">'
+    +'<div class="rc-r"><span>Drive cost</span><span>$'+Math.round(v.cst)+'</span></div>'
+    +'<div class="rc-r"><span>Profit</span><span class="'+(v.md>=0?'rc-pos':'rc-neg')+'">'+(v.md>=0?'+$'+Math.round(v.md):'-$'+Math.round(-v.md))+'</span></div>'
+    +'<div class="rc-r"><span>Margin</span><span class="'+(v.mp>=0?'rc-pos':'rc-neg')+'">'+pct+'%</span></div>'
+    +'<div class="rc-r"><span>Truck tied up</span><span>'+hrs+' hrs</span></div>'
+    +'<div class="rc-r rc-key"><span>Profit / truck-hour</span><span>$'+pph+'/hr</span></div>'
+    +'<div class="rc-r"><span>Model Zone '+z+' price</span><span>$'+zp+'</span></div>'
+    +(cur!=null?'<div class="rc-r"><span>Live sheet price (14 yd)</span><span>$'+cur+'</span></div>':'')
+    +'<div class="rc-r"><span>Break-even</span><span>$'+be+'</span></div>'
+    +'<div class="rc-r"><span>Suggested @'+Math.round(A.target*100)+'%</span><span>$'+sug+'</span></div>'
+    +'</div>'
+    +'<div class="rc-say">'+say+'</div>';
+}
+
+function _rcRenderCost(){
+  var host=document.getElementById('rc-cost'); if(!host) return;
+  var h='<thead><tr><th>City</th><th>1-way km</th><th>Drive time</th><th>Zone</th><th>Cost (break-even)</th><th>Suggested @'+Math.round(_rc.A.target*100)+'%</th><th>Live price (14 yd)</th><th>Margin @ live</th><th>$/truck-hr</th><th>Verdict</th></tr></thead><tbody>';
+  RC_CITIES.forEach(function(c,ci){
+    var cst=_rcCost(c), z=_rcZoneOf(c.km), cur=_rcCur(c), sug=Math.round(_rcSuggested(c)/5)*5;
+    var kmCell=(c.kmMax&&c.kmMax!==c.km) ? _rcKmStr(c)
+      : '<input type="number" value="'+c.km+'" min="0" step="0.1" onchange="rcKm('+ci+',this.value)">';
+    if(cur!=null){
+      var v=_rcVerdict(c,cur);
+      h+='<tr><td>'+_pvEsc(c.name)+'</td><td>'+kmCell+'</td><td>'+_rcDriveStr(c)+'</td>'
+        +'<td>Z'+z+'</td><td>$'+Math.round(cst)+'</td><td>$'+sug+'</td><td>$'+cur+'</td>'
+        +'<td><span class="'+(v.md>=0?'rc-pos':'rc-neg')+'">'+(v.md>=0?'+$'+Math.round(v.md):'-$'+Math.round(-v.md))+' · '+Math.round(v.mp*100)+'%</span></td>'
+        +'<td>$'+Math.round(v.pph)+'/hr</td>'
+        +'<td><span class="rc-pill rc-p-'+v.key+'">'+v.label+'</span></td></tr>';
+    } else {
+      h+='<tr><td>'+_pvEsc(c.name)+'</td><td>'+kmCell+'</td><td>'+_rcDriveStr(c)+'</td>'
+        +'<td>Z'+z+'</td><td>$'+Math.round(cst)+'</td><td>$'+sug+'</td><td>—</td><td>—</td><td>—</td>'
+        +'<td><span class="rc-pill rc-p-none">NO PRICE</span></td></tr>';
+    }
+  });
+  host.innerHTML=h+'</tbody>';
+}
+
+function _rcRenderZones(){
+  var host=document.getElementById('rc-zones'); if(!host) return;
+  var zp=_rcZonePrices(), A=_rc.A;
+  var bands={1:'0–25 km',2:'26–50 km',3:'51–75 km',4:'76–100 km',5:'100+ km'};
+  var h='';
+  for(var z=1;z<=5;z++){
+    var cs=RC_CITIES.filter(function(c){return _rcZoneOf(c.km)===z;});
+    var wm=Infinity, wc=cs[0];
+    cs.forEach(function(c){ var v=_rcVerdict(c,zp[z]); if(v.mp<wm){wm=v.mp;wc=c;} });
+    var mp=Math.round(wm*100), cls=wm<0?'rc-neg':(wm<A.target?'':'rc-pos');
+    var names=cs.map(function(c){return c.name.replace(' (HQ / local)','').replace(' (district)','').replace(' (township)','');});
+    h+='<div class="rc-zcard pv-z'+z+'">'
+      +'<div class="rc-zn">Zone '+z+'</div><div class="rc-zband">'+bands[z]+'</div>'
+      +'<div class="rc-zp">$'+zp[z]+'<small> / rental</small></div>'
+      +'<div class="rc-zworst">Worst case — '+_pvEsc(wc.name.replace(' (HQ / local)','').replace(' (district)','').replace(' (township)',''))+' ('+wc.km+'km): <span class="'+cls+'">'+mp+'%</span></div>'
+      +'<div class="rc-zcities">'+_pvEsc(names.join(' · '))+'</div></div>';
+  }
+  host.innerHTML=h;
+  var note=document.getElementById('rc-znote');
+  if(note) note.textContent='Flat ladder: Zone 1 $'+A.z1+', Zone 2 $'+A.z2+', then +$'+A.step+' a zone. "Worst case" is the margin at that price for the farthest town in the zone — watch the far zones at '+_rc.trips+' trip'+(_rc.trips>1?'s':'')+'/rental; flip trips to 1 above if you batch pickups. These model zones split by real driving km, so a town can sit in a different zone than the pricing doc.';
+}
+
+function _rcRenderFoot(){
+  var host=document.getElementById('rc-foot'); if(!host) return;
+  var A=_rc.A;
+  host.textContent='Cost per rental = driver labour ($'+A.wage+'/hr) + Hino 195 diesel ($'+A.diesel+'/L @ '+A.fe+' L/100km), for '+_rc.trips+' round trip'+(_rc.trips>1?'s':'')+' from 92 Davidson St. "Profit / truck-hour" = profit ÷ hours the truck is tied up — the real test of whether a far job is worth it. A typical local job earns ~$'+Math.round(_rc.bench)+'/hr. Prices are before HST; the dump fee roughly washes (customer pays $135, the landfill charges ~$135/tonne) — use the Other-cost dial for heavy loads.';
+}
+
+function rcRender(){
+  _rcDials();
+  _rc.bench=_rcBench();
+  if(_rc.tab==='heat') _rcRenderHeat();
+  if(_rc.tab==='cost') _rcRenderCost();
+  if(_rc.tab==='zones') _rcRenderZones();
+  _rcRenderVerdict();
+  _rcRenderFoot();
+}
+function renderRouteConsole(){ rcRender(); }
 
 // ═══════════════════════════════════════════════════════════════════
 // CREW AVAILABILITY (employee scheduling)
