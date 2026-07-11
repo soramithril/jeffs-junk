@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '406';
+var APP_VERSION = '407';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14005,6 +14005,12 @@ function _rcDials(){
   A.z1=v('rc-z1',195); A.z2=v('rc-z2',225); A.step=v('rc-step',25);
 }
 function _rcZoneOf(km){ return km<=25?1:km<=50?2:km<=75?3:km<=100?4:5; }
+// A town's zone COPIES the pricing sheet (its live zone column). Distance-derived
+// zones are only the fallback for a town the sheet doesn't know.
+function _rcZoneFor(c){
+  var m = /zone\s*(\d)/i.exec(getAreaPrices(c.area).zone||'');
+  return m ? +m[1] : _rcZoneOf(c.km);
+}
 function _rcHours(c){ var A=_rc.A; return c.km*2*_rc.trips/A.speed + A.onsite*_rc.trips; }
 function _rcCost(c){ var A=_rc.A, t=c.km*2*_rc.trips; return (t/A.speed+A.onsite*_rc.trips)*A.wage + t*(A.fe/100)*A.diesel + A.other; }
 function _rcSuggested(c){ return _rcCost(c)/(1-_rc.A.target); }
@@ -14013,7 +14019,7 @@ function _rcCur(c){ var p=parseFloat((getAreaPrices(c.area).bins||{})['14 yard']
 function _rcZonePrices(){ var A=_rc.A; return {1:A.z1, 2:A.z2, 3:A.z2+A.step, 4:A.z2+2*A.step, 5:A.z2+3*A.step}; }
 // Typical local $/truck-hour: median of Zone-1 towns at the Zone-1 dial price.
 function _rcBench(){
-  var v = RC_CITIES.filter(function(c){return _rcZoneOf(c.km)===1;})
+  var v = RC_CITIES.filter(function(c){return _rcZoneFor(c)===1;})
     .map(function(c){return (_rc.A.z1-_rcCost(c))/_rcHours(c);}).sort(function(a,b){return a-b;});
   return v.length ? v[Math.floor(v.length/2)] : 100;
 }
@@ -14061,16 +14067,17 @@ function rcKm(ci,v){ RC_CITIES[ci].km=parseFloat(v)||0; rcRender(); }
 function _rcRenderHeat(){
   var host=document.getElementById('rc-heat'); if(!host) return;
   var zr=_rcZonePrices(), S=_rc.sel;
-  var h='<thead><tr><th class="rc-cityhead">City</th><th class="rc-costhead">Cost</th>';
+  var h='<thead><tr><th class="rc-cityhead">City</th><th class="rc-costhead">Cost</th><th class="rc-nowhead">Now</th>';
   RC_PRICES.forEach(function(p,pi){ h+='<th'+(S&&S.pi===pi?' class="rc-colhl"':'')+'>$'+p+'</th>'; });
   h+='</tr></thead><tbody>';
   RC_CITIES.forEach(function(c,ci){
-    var cst=_rcCost(c), z=_rcZoneOf(c.km), rec=zr[z], cur=_rcCur(c);
+    var cst=_rcCost(c), z=_rcZoneFor(c), rec=zr[z], cur=_rcCur(c);
     var curCell = cur!=null ? Math.round(cur/5)*5 : null;
     var rowhl=S&&S.ci===ci?' rc-rowhl':'';
     h+='<tr><td class="rc-city'+rowhl+'" onclick="rcPick('+ci+','+(S?S.pi:0)+')">'+_pvEsc(c.name)
-      +'<div class="rc-city-sub">'+_rcKmStr(c)+' km · '+_rcDriveStr(c)+'</div></td>'
-      +'<td class="rc-cost'+rowhl+'">$'+Math.round(cst)+'</td>';
+      +'<div class="rc-city-sub">Zone '+z+' · '+_rcKmStr(c)+' km · '+_rcDriveStr(c)+'</div></td>'
+      +'<td class="rc-cost'+rowhl+'">$'+Math.round(cst)+'</td>'
+      +'<td class="rc-now'+rowhl+'">'+(cur!=null?'$'+cur:'—')+'</td>';
     RC_PRICES.forEach(function(p,pi){
       var md=p-cst, mp=md/p;
       var bg=_rc.mode==='pct'?_rcColPct(mp):_rcColDol(md), fg=_rcTextOn(_rc.mode==='pct'?mp:md,_rc.mode==='pct');
@@ -14095,7 +14102,7 @@ function _rcRenderVerdict(){
     return;
   }
   var c=RC_CITIES[_rc.sel.ci], p=RC_PRICES[_rc.sel.pi], v=_rcVerdict(c,p), A=_rc.A;
-  var be=Math.round(v.cst), sug=Math.round(_rcSuggested(c)/5)*5, z=_rcZoneOf(c.km), zp=_rcZonePrices()[z], cur=_rcCur(c);
+  var be=Math.round(v.cst), sug=Math.round(_rcSuggested(c)/5)*5, z=_rcZoneFor(c), zp=_rcZonePrices()[z], cur=_rcCur(c);
   var pct=Math.round(v.mp*100), pph=Math.round(v.pph), hrs=v.hrs.toFixed(1), bench=Math.round(_rc.bench);
   var badge=v.key==='loss'?'rc-b-loss':v.key==='good'?'rc-b-good':'rc-b-tight';
   var say;
@@ -14132,7 +14139,7 @@ function _rcRenderCost(){
   var host=document.getElementById('rc-cost'); if(!host) return;
   var h='<thead><tr><th>City</th><th>1-way km</th><th>Drive time</th><th>Zone</th><th>Cost (break-even)</th><th>Suggested @'+Math.round(_rc.A.target*100)+'%</th><th>Live price (14 yd)</th><th>Margin @ live</th><th>$/truck-hr</th><th>Verdict</th></tr></thead><tbody>';
   RC_CITIES.forEach(function(c,ci){
-    var cst=_rcCost(c), z=_rcZoneOf(c.km), cur=_rcCur(c), sug=Math.round(_rcSuggested(c)/5)*5;
+    var cst=_rcCost(c), z=_rcZoneFor(c), cur=_rcCur(c), sug=Math.round(_rcSuggested(c)/5)*5;
     var kmCell=(c.kmMax&&c.kmMax!==c.km) ? _rcKmStr(c)
       : '<input type="number" value="'+c.km+'" min="0" step="0.1" onchange="rcKm('+ci+',this.value)">';
     if(cur!=null){
@@ -14154,23 +14161,29 @@ function _rcRenderCost(){
 function _rcRenderZones(){
   var host=document.getElementById('rc-zones'); if(!host) return;
   var zp=_rcZonePrices(), A=_rc.A;
-  var bands={1:'0–25 km',2:'26–50 km',3:'51–75 km',4:'76–100 km',5:'100+ km'};
   var h='';
   for(var z=1;z<=5;z++){
-    var cs=RC_CITIES.filter(function(c){return _rcZoneOf(c.km)===z;});
+    var cs=RC_CITIES.filter(function(c){return _rcZoneFor(c)===z;});
+    if(!cs.length) continue;
+    // Band label + membership come from the pricing sheet, not from km.
+    var band=''; cs.some(function(c){ var zl=getAreaPrices(c.area).zone; if(zl){ band=_pvZoneLabel(zl).replace(/^Zone \d+\s*·\s*/,''); return true; } return false; });
+    var curs=cs.map(_rcCur).filter(function(v){return v!=null;});
+    var today='—';
+    if(curs.length){ var lo=Math.min.apply(null,curs), hi=Math.max.apply(null,curs); today=(lo===hi?'$'+lo:'$'+lo+'–$'+hi); }
     var wm=Infinity, wc=cs[0];
     cs.forEach(function(c){ var v=_rcVerdict(c,zp[z]); if(v.mp<wm){wm=v.mp;wc=c;} });
     var mp=Math.round(wm*100), cls=wm<0?'rc-neg':(wm<A.target?'':'rc-pos');
     var names=cs.map(function(c){return c.name.replace(' (HQ / local)','').replace(' (district)','').replace(' (township)','');});
     h+='<div class="rc-zcard pv-z'+z+'">'
-      +'<div class="rc-zn">Zone '+z+'</div><div class="rc-zband">'+bands[z]+'</div>'
-      +'<div class="rc-zp">$'+zp[z]+'<small> / rental</small></div>'
-      +'<div class="rc-zworst">Worst case — '+_pvEsc(wc.name.replace(' (HQ / local)','').replace(' (district)','').replace(' (township)',''))+' ('+wc.km+'km): <span class="'+cls+'">'+mp+'%</span></div>'
+      +'<div class="rc-zn">Zone '+z+'</div><div class="rc-zband">'+_pvEsc(band)+'</div>'
+      +'<div class="rc-zp">$'+zp[z]+'<small> / rental (what-if)</small></div>'
+      +'<div class="rc-ztoday">On the sheet today: <b>'+today+'</b> (14 yd)</div>'
+      +'<div class="rc-zworst">Worst case at the what-if price — '+_pvEsc(wc.name.replace(' (HQ / local)','').replace(' (district)','').replace(' (township)',''))+' ('+wc.km+'km): <span class="'+cls+'">'+mp+'%</span></div>'
       +'<div class="rc-zcities">'+_pvEsc(names.join(' · '))+'</div></div>';
   }
   host.innerHTML=h;
   var note=document.getElementById('rc-znote');
-  if(note) note.textContent='Flat ladder: Zone 1 $'+A.z1+', Zone 2 $'+A.z2+', then +$'+A.step+' a zone. "Worst case" is the margin at that price for the farthest town in the zone — watch the far zones at '+_rc.trips+' trip'+(_rc.trips>1?'s':'')+'/rental; flip trips to 1 above if you batch pickups. These model zones split by real driving km, so a town can sit in a different zone than the pricing doc.';
+  if(note) note.textContent='Zones and their towns copy the pricing sheet. The big number is the what-if ladder from the dials (Zone 1 $'+A.z1+', Zone 2 $'+A.z2+', then +$'+A.step+' a zone) — "on the sheet today" is what those towns actually sell for right now. "Worst case" is the margin at the what-if price for the costliest town in the zone; watch the far zones at '+_rc.trips+' trip'+(_rc.trips>1?'s':'')+'/rental, and flip trips to 1 if you batch pickups.';
 }
 
 function _rcRenderFoot(){

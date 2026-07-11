@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=406">
+<link rel="stylesheet" href="style.css?v=407">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=396">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1006,7 +1006,7 @@
   <div class="rc-tabs">
     <button class="rc-tab active" data-v="heat" onclick="rcTab('heat')">Heatmap</button>
     <button class="rc-tab" data-v="cost" onclick="rcTab('cost')">Cost Model</button>
-    <button class="rc-tab" data-v="zones" onclick="rcTab('zones')">Model Zones</button>
+    <button class="rc-tab" data-v="zones" onclick="rcTab('zones')">Zones</button>
   </div>
 
   <div class="rc-view on" id="rc-v-heat">
@@ -1020,7 +1020,7 @@
           <div class="rc-legend"><span>loss</span><span class="rc-legend-bar"></span><span>strong</span></div>
         </div>
         <div class="rc-scroll"><table id="rc-heat"></table></div>
-        <div class="rc-note">◎ Ringed cell = the model zone price from the dials · ▢ dotted cell = today's live sheet price. Click any cell to lock the crosshair and read the verdict.</div>
+        <div class="rc-note"><b>Now</b> column + ◉ solid ring = today's price on the pricing sheet · ▢ dashed ring = the what-if zone price from the dials. Zones copy the pricing sheet. Click any cell to lock the crosshair and read the verdict.</div>
       </div>
       <div class="rc-console">
         <div class="rc-console-top">Verdict</div>
@@ -2522,7 +2522,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=406"></script>
+<script src="app.js?v=407"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>
