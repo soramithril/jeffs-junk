@@ -473,6 +473,7 @@ async function renderDispatch(){
   });
   var totalMins = todayJobs.reduce(function(s,j){return s+(j._estMinutes||0);},0);
   var swapPairs = Object.keys(swapPartner).length / 2;
+  var _vm = dispatchGetViewMode();
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
   html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' combo pair'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
@@ -485,6 +486,11 @@ async function renderDispatch(){
   html += '</div>';
   // Today button (always shown)
   html += '<button onclick="_dispatchDate=null;renderDispatch()" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Today</button>';
+  // Canvas / List view toggle
+  html += '<div style="display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+  html += '<button onclick="dispatchSetViewMode(\'canvas\')" style="border:0;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:'+(_vm==='canvas'?'#1a1a2e':'transparent')+';color:'+(_vm==='canvas'?'#fff':'var(--text)')+'">Canvas</button>';
+  html += '<button onclick="dispatchSetViewMode(\'list\')" style="border:0;border-left:1px solid var(--border);padding:8px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:'+(_vm==='list'?'#1a1a2e':'transparent')+';color:'+(_vm==='list'?'#fff':'var(--text)')+'">List</button>';
+  html += '</div>';
   // Balance routes (primary action, icon, pushed to right via margin-left:auto)
   html += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
   html += '<button data-tour="dispatch-fill" onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
@@ -494,6 +500,7 @@ async function renderDispatch(){
   html += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
   html += '</div>';
   html += '</div></div>';
+  if(_vm === 'list'){
   // Numbered steps + P/D legend
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted)">';
   html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">1.</strong> Pick a date</span>';
@@ -509,6 +516,7 @@ async function renderDispatch(){
   html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">COMBO</span>';
   html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
   html += '</div></div>';
+  } // end list-only intro sections
   html += '<div data-tour="dispatch-working" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Working today &mdash; click to toggle</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
@@ -529,6 +537,14 @@ async function renderDispatch(){
     });
   }
   html += '</div></div>';
+  if(_vm === 'canvas'){
+    html += '<div id="dcv-host"></div>';
+    host.innerHTML = html;
+    dcvMount();
+    dispatchFillUnknownDriveTimes();
+    dispatchFillMissingCoords();
+    return;
+  }
   html += '<div data-tour="dispatch-unassigned" ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, null)" style="background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;min-height:60px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Unassigned ('+unassigned.length+')</div>';
   if(!unassigned.length){
@@ -600,4 +616,617 @@ async function renderDispatch(){
   host.innerHTML = html;
   dispatchFillUnknownDriveTimes();
   dispatchFillMissingCoords();
+}
+
+// ═══════════════════ CANVAS VIEW (v408) ═══════════════════
+// Node-canvas redesign of the dispatch board ("Canvas Redesign Options" design).
+// Jobs are dark ticket-stub cards, crew are capacity cards; dragging the ○ port
+// from a job onto a crew card assigns that leg through the existing
+// dispatchAssignJob (same DB writes as the List view). Pan by dragging empty
+// canvas, wheel to zoom, click a card for the inspector. The List view is the
+// old board, one toggle away.
+
+function dispatchGetViewMode(){
+  return localStorage.getItem('dispatch_view') === 'list' ? 'list' : 'canvas';
+}
+function dispatchSetViewMode(m){
+  localStorage.setItem('dispatch_view', m);
+  renderDispatch();
+}
+
+var DCV_JOB_W = 250, DCV_CREW_W = 228;
+var DCV_THEMES = {
+  forest:  {name:'Forest',  canvas:'#0b1710', surface:'#12241a', border:'#1e3a29', ink:'#e6f3ea', sub:'#8bab97', chip:'#12241a', chipbd:'#20402d', track:'#183021', dot:'rgba(52,209,127,.11)',  stub:'linear-gradient(160deg,#34d17f,#0b6b34)', stubtext:'#04160c', accent:'#34d17f'},
+  steel:   {name:'Steel',   canvas:'#141a23', surface:'#1d2431', border:'#2b3547', ink:'#e5ebf3', sub:'#93a1b5', chip:'#1a2130', chipbd:'#2f3b4f', track:'#212a3a', dot:'rgba(160,180,210,.10)', stub:'linear-gradient(160deg,#22c55e,#12833f)', stubtext:'#ffffff', accent:'#22c55e'},
+  obsidian:{name:'Obsidian',canvas:'#08090b', surface:'#131417', border:'#23252b', ink:'#f4f5f7', sub:'#8d9096', chip:'#141519', chipbd:'#26282f', track:'#1b1d22', dot:'rgba(47,229,127,.08)',  stub:'linear-gradient(160deg,#2fe57f,#0f9a4f)', stubtext:'#04160c', accent:'#2fe57f'}
+};
+var _dcv = {
+  view: {tx:60, ty:40, scale:1},
+  posByDate: {},
+  fitByDate: {},
+  theme: localStorage.getItem('dispatch_canvas_theme') || 'forest',
+  selId: null,
+  played: false,
+  suppressEdges: false,
+  drag: null,
+  els: null
+};
+function dcvTheme(){ return DCV_THEMES[_dcv.theme] || DCV_THEMES.forest; }
+function dcvSetTheme(key){
+  if(!DCV_THEMES[key]) return;
+  _dcv.theme = key;
+  localStorage.setItem('dispatch_canvas_theme', key);
+  renderDispatch();
+}
+function dcvRgba(hex, a){
+  var h = (hex||'#22c55e').replace('#','');
+  if(h.length === 3) h = h.split('').map(function(c){return c+c;}).join('');
+  var n = parseInt(h, 16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+function dcvInitials(name){
+  var p = (name||'?').trim().split(/\s+/);
+  return (p[0].charAt(0) + (p[1]?p[1].charAt(0):'')).toUpperCase();
+}
+function dcvJobById(jobId){
+  return _dispatchJobsCache.find(function(j){ return String(j.id) === String(jobId); });
+}
+function dcvLegOf(jobId){
+  var j = dcvJobById(jobId);
+  return (j && j._isPickup) ? 'pickup' : 'dropoff';
+}
+function dcvJobCrewId(j){ return j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||''); }
+// Crew shown on the canvas: everyone toggled "working today" plus anyone who
+// already has a stop assigned on this date (mirrors the board's lane logic).
+function dcvCrewNodes(){
+  var set = {};
+  dispatchGetWorkingIds().forEach(function(id){ set[id] = true; });
+  _dispatchJobsCache.forEach(function(j){ var c = dcvJobCrewId(j); if(c) set[c] = true; });
+  return crewMembers.filter(function(c){ return set[c.id]; });
+}
+// Seed positions once per date (combo pairs placed adjacent), then leave them
+// alone so user drags survive every re-render. Missing nodes just get seeded.
+function dcvPositions(){
+  var key = _dispatchDate || 'd';
+  if(!_dcv.posByDate[key]) _dcv.posByDate[key] = {};
+  var pos = _dcv.posByDate[key];
+  var order = dispatchGroupCombos(_dispatchJobsCache.slice());
+  var perCol = 5;
+  var cols = Math.max(1, Math.ceil(order.length/perCol));
+  order.forEach(function(j, i){
+    var k = 'j:'+j.id;
+    if(pos[k]) return;
+    pos[k] = {x: 40 + Math.floor(i/perCol)*292, y: 40 + (i%perCol)*128};
+  });
+  var crewX = 40 + cols*292 + 120;
+  dcvCrewNodes().forEach(function(c, i){
+    var k = 'c:'+c.id;
+    if(pos[k]) return;
+    pos[k] = {x: crewX, y: 40 + i*206};
+  });
+  return pos;
+}
+function dcvNodeEl(key){
+  if(!_dcv.els || !_dcv.els.world) return null;
+  return _dcv.els.world.querySelector('[data-node="'+key+'"]');
+}
+
+// ---------- card builders (theme colors baked in; rebuilt on every render) ----------
+function dcvJobCardHtml(j, T, p, selected){
+  var num = parseInt(j.binSize, 10);
+  var numTxt = isNaN(num) ? 'BIN' : String(num);
+  var isSwap = !!j._partnerId;
+  var svc = isSwap ? 'Swap' : (j._isPickup ? 'Pickup' : 'Drop');
+  var svcCol = isSwap ? T.accent : (j._isPickup ? '#60a5fa' : '#eab308');
+  var win = (!j._isPickup && j.binDropoffTime) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
+  var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
+  var h = '<div data-node="j:'+j.id+'" style="position:absolute;top:0;left:0;width:'+DCV_JOB_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
+  h += '<div data-card style="'+outline+'background:'+T.surface+';border:1px solid '+T.border+';border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,.4);overflow:hidden;display:flex;position:relative">';
+  h += '<div style="width:62px;flex:0 0 auto;background:'+T.stub+';display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px">';
+  h += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(isNaN(num)?'21':'30')+'px;line-height:.8;letter-spacing:.5px;color:'+T.stubtext+'">'+numTxt+'</div>';
+  if(!isNaN(num)) h += '<div style="font-size:8px;font-weight:800;letter-spacing:2px;color:'+T.stubtext+';opacity:.9">YD</div>';
+  h += '</div>';
+  h += '<div style="width:0;flex:0 0 auto;border-left:2px dashed '+T.border+';margin:7px 0"></div>';
+  h += '<div style="flex:1;min-width:0;padding:8px 12px">';
+  h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">';
+  h += '<span style="font-family:ui-monospace,monospace;font-size:9px;font-weight:700;letter-spacing:.4px;color:'+T.sub+'">#'+j.id+'</span>';
+  h += '<span style="width:4px;height:4px;border-radius:50%;background:'+svcCol+';flex:0 0 auto"></span>';
+  h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
+  if(isSwap) h += '<span title="Combo pair" style="font-size:9px">🔁</span>';
+  h += '<span style="margin-left:auto;font-size:10px;color:'+T.sub+';font-family:ui-monospace,monospace">'+win+'</span>';
+  h += '</div>';
+  h += '<div style="font-size:16px;font-weight:800;letter-spacing:-.3px;color:'+T.ink+';line-height:1.06;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(j.city||'—')+'</div>';
+  h += '<div style="display:flex;align-items:center;gap:4px;margin-top:1px">';
+  h += '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="'+T.sub+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;opacity:.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+  h += '<span style="font-size:11px;color:'+T.sub+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml((j.address||'—')+(j.name?' · '+j.name:''))+'</span>';
+  h += '</div></div></div>';
+  h += '<div data-port="out" data-node="j:'+j.id+'" title="Drag onto a crew card to assign" style="position:absolute;right:-8px;top:38px;width:15px;height:15px;border-radius:50%;background:'+T.surface+';border:2.5px solid '+T.accent+';cursor:crosshair;box-shadow:0 0 0 3px '+dcvRgba(T.accent,0.16)+'"></div>';
+  h += '</div>';
+  return h;
+}
+function dcvCrewCardHtml(c, T, p, selected){
+  var col = c.color || crewAvatarColor(c.id);
+  var laneJobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
+  var total = laneJobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
+  var pct = Math.min(Math.round(total/480*100), 100);
+  var barCol = pct < 60 ? '#22c55e' : (pct < 90 ? '#f59e0b' : '#dc3545');
+  var startMins = dispatchParseClock(dispatchGetLaneStart(c.id)) || 480;
+  var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
+  var h = '<div data-node="c:'+c.id+'" style="position:absolute;top:0;left:0;width:'+DCV_CREW_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
+  h += '<div data-card style="'+outline+'background:'+T.surface+';border:1px solid '+T.border+';border-radius:15px;box-shadow:0 8px 26px rgba(0,0,0,.35);overflow:hidden">';
+  h += '<div style="height:4px;background:'+col+'"></div>';
+  h += '<div style="display:flex;align-items:center;gap:12px;padding:13px 14px">';
+  h += '<span style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex:0 0 auto;background:'+col+';box-shadow:0 2px 7px rgba(0,0,0,.22)">'+escHtml(dcvInitials(c.name))+'</span>';
+  h += '<div style="min-width:0;flex:1">';
+  h += '<div style="font-size:15.5px;font-weight:800;letter-spacing:-.2px;color:'+T.ink+';line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(c.name)+'</div>';
+  h += '<div style="font-size:11px;color:'+T.sub+';margin-top:2px">starts '+dispatchFmtClock(startMins)+'</div>';
+  h += '</div>';
+  h += '<span style="width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:'+col+'"></span>';
+  h += '</div>';
+  h += '<div style="padding:0 14px 13px">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">';
+  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+T.sub+'">Today\'s load</span>';
+  h += '<span style="font-size:11px;color:'+T.sub+';font-family:ui-monospace,monospace"><span style="color:'+T.accent+';font-weight:800">'+laneJobs.length+'</span> stop'+(laneJobs.length===1?'':'s')+' · '+dispatchFmtTotal(total)+'</span>';
+  h += '</div>';
+  h += '<div style="height:8px;background:'+T.track+';border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;transition:width .4s cubic-bezier(.4,0,.2,1)"></div></div>';
+  h += '</div></div>';
+  h += '<div data-port="in" data-node="c:'+c.id+'" style="position:absolute;left:-8px;top:32px;width:15px;height:15px;border-radius:50%;background:'+T.surface+';border:2.5px solid '+T.accent+';box-shadow:0 0 0 3px '+dcvRgba(T.accent,0.14)+'"></div>';
+  h += '</div>';
+  return h;
+}
+
+// ---------- mount ----------
+function dcvMount(){
+  var hostEl = document.getElementById('dcv-host');
+  if(!hostEl) return;
+  var T = dcvTheme();
+  var pos = dcvPositions();
+  var crewNodes = dcvCrewNodes();
+  // Drop a stale selection (node gone after date change / data reload)
+  if(_dcv.selId){
+    var sid = _dcv.selId;
+    var alive = sid.indexOf('j:') === 0 ? !!dcvJobById(sid.slice(2))
+      : crewNodes.some(function(c){ return 'c:'+c.id === sid; });
+    if(!alive) _dcv.selId = null;
+  }
+  _dcv.suppressEdges = false;
+  _dcv.drag = null;
+  var unassignedCount = _dispatchJobsCache.filter(function(j){ return !dcvJobCrewId(j); }).length;
+  var h = '<div id="dcv-vp" style="position:relative;height:max(540px,calc(100vh - 330px));border:1px solid '+T.border+';border-radius:16px;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background-color:'+T.canvas+'">';
+  h += '<div id="dcv-world" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">';
+  h += '<svg id="dcv-svg" style="position:absolute;top:0;left:0;overflow:visible;pointer-events:none"></svg>';
+  _dispatchJobsCache.forEach(function(j){ h += dcvJobCardHtml(j, T, pos['j:'+j.id], _dcv.selId === 'j:'+j.id); });
+  crewNodes.forEach(function(c){ h += dcvCrewCardHtml(c, T, pos['c:'+c.id], _dcv.selId === 'c:'+c.id); });
+  h += '</div>';
+  // in-canvas header: date + legend chips
+  function chip(inner){ return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:'+T.sub+';background:'+T.chip+';border:1px solid '+T.chipbd+';border-radius:99px;padding:3px 9px">'+inner+'</span>'; }
+  h += '<div style="position:absolute;top:16px;left:18px;z-index:20;pointer-events:none">';
+  h += '<div style="font-size:15px;font-weight:800;color:'+T.ink+';letter-spacing:-.2px">'+dcvDateLabel()+'</div>';
+  h += '<div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;max-width:420px">';
+  h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#60a5fa"></span>Pickup');
+  h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#eab308"></span>Drop');
+  h += chip('<span style="width:8px;height:8px;border-radius:50%;background:'+T.accent+'"></span>Swap = combo pair');
+  if(unassignedCount) h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>'+unassignedCount+' unassigned');
+  h += chip('drag ○ from a job onto a crew card to assign');
+  h += '</div></div>';
+  // empty-state hint
+  if(!_dispatchJobsCache.length || !crewNodes.length){
+    var msg = !_dispatchJobsCache.length ? 'No bin jobs on this date.' : 'No drivers yet — toggle who\'s working above.';
+    h += '<div style="position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:20;pointer-events:none;background:'+T.chip+';border:1px solid '+T.chipbd+';color:'+T.sub+';font-size:12.5px;font-weight:600;border-radius:99px;padding:8px 16px;white-space:nowrap">'+msg+'</div>';
+  }
+  // inspector shell
+  h += '<div id="dcv-insp" data-dcv-ui style="position:absolute;top:14px;right:14px;bottom:14px;width:300px;background:#fff;border:1px solid #e9ecef;border-radius:16px;box-shadow:0 20px 50px rgba(26,26,46,.14);transform:translateX(340px);transition:transform .3s cubic-bezier(.16,1,.3,1);z-index:70;display:flex;flex-direction:column;overflow:hidden;color:#1a1a2e">'+dcvInspectorHtml()+'</div>';
+  // zoom dock
+  h += '<div data-dcv-ui style="position:absolute;left:16px;bottom:16px;z-index:60;display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:5px;box-shadow:0 8px 24px rgba(26,26,46,.1)">';
+  h += '<button onclick="dcvZoomBy(0.87)" style="width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:#495057;cursor:pointer;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center">−</button>';
+  h += '<span id="dcv-zoom" style="min-width:48px;text-align:center;font-size:12px;font-weight:700;color:#1a1a2e;font-family:ui-monospace,monospace">100%</span>';
+  h += '<button onclick="dcvZoomBy(1.15)" style="width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:#495057;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center">+</button>';
+  h += '<span style="width:1px;height:20px;background:#e9ecef;margin:0 3px"></span>';
+  h += '<button onclick="dcvFit()" title="Fit everything in view" style="height:32px;padding:0 11px;border-radius:8px;border:none;background:transparent;color:#495057;cursor:pointer;font-size:11.5px;font-weight:700;font-family:inherit">Fit</button>';
+  h += '<button onclick="dcvReset()" title="Back to 100%" style="height:32px;padding:0 11px;border-radius:8px;border:none;background:transparent;color:#495057;cursor:pointer;font-size:11.5px;font-weight:700;font-family:inherit">Reset</button>';
+  h += '</div>';
+  // theme swatches
+  h += '<div data-dcv-ui style="position:absolute;right:16px;bottom:16px;z-index:60;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:6px 10px;box-shadow:0 8px 24px rgba(26,26,46,.1)">';
+  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#adb5bd">Look</span>';
+  ['forest','steel','obsidian'].forEach(function(key){
+    var t = DCV_THEMES[key], active = (_dcv.theme === key);
+    h += '<button onclick="dcvSetTheme(\''+key+'\')" title="'+t.name+'" style="width:25px;height:25px;border-radius:7px;border:1px solid '+(active?t.accent:'#d4d8dd')+';'+(active?'box-shadow:0 0 0 2px '+t.accent+';':'')+'background:'+t.canvas+';cursor:pointer;padding:0;position:relative;overflow:hidden"><span style="position:absolute;left:4px;right:4px;bottom:4px;height:7px;border-radius:2px;background:'+t.accent+'"></span></button>';
+  });
+  h += '<span style="font-size:11.5px;font-weight:700;color:#495057;min-width:56px">'+T.name+'</span>';
+  h += '</div>';
+  h += '</div>';
+  hostEl.innerHTML = h;
+  _dcv.els = {
+    vp: document.getElementById('dcv-vp'),
+    world: document.getElementById('dcv-world'),
+    svg: document.getElementById('dcv-svg'),
+    insp: document.getElementById('dcv-insp'),
+    zoom: document.getElementById('dcv-zoom')
+  };
+  _dcv.els.vp.addEventListener('pointerdown', dcvDown);
+  _dcv.els.vp.addEventListener('wheel', dcvWheel, {passive:false});
+  var dateKey = _dispatchDate || 'd';
+  if(!_dcv.fitByDate[dateKey] && _dispatchJobsCache.length){
+    _dcv.fitByDate[dateKey] = true;
+    dcvFit();
+  } else {
+    dcvApplyView();
+  }
+  dcvUpdateZoomLabel();
+  dcvSyncInspector();
+  if(!_dcv.played) dcvAnimateIn();
+  else dcvDrawEdges();
+}
+function dcvDateLabel(){
+  var iso = _dispatchDate || todayStr();
+  var d = new Date(iso+'T00:00:00');
+  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return (iso === todayStr() ? 'Today · ' : '') + days[d.getDay()]+' '+mons[d.getMonth()]+' '+d.getDate();
+}
+
+// ---------- view transform / edges ----------
+function dcvApplyView(){
+  var e = _dcv.els;
+  if(!e || !e.world) return;
+  var v = _dcv.view, T = dcvTheme();
+  e.world.style.transform = 'translate('+v.tx+'px,'+v.ty+'px) scale('+v.scale+')';
+  var size = 26*v.scale;
+  e.vp.style.backgroundImage = 'radial-gradient('+T.dot+' 1px, transparent 1px)';
+  e.vp.style.backgroundSize = size+'px '+size+'px';
+  e.vp.style.backgroundPosition = v.tx+'px '+v.ty+'px';
+}
+function dcvAnchor(key, side){
+  var pos = _dcv.posByDate[_dispatchDate || 'd'];
+  var p = pos && pos[key];
+  if(!p) return null;
+  if(side === 'out') return {x: p.x + DCV_JOB_W - 0.5, y: p.y + 45.5};
+  return {x: p.x - 0.5, y: p.y + 39.5};
+}
+function dcvPathD(a, b){
+  var dx = Math.max(40, Math.abs(b.x-a.x)*0.5);
+  return 'M '+a.x+' '+a.y+' C '+(a.x+dx)+' '+a.y+', '+(b.x-dx)+' '+b.y+', '+b.x+' '+b.y;
+}
+function dcvDrawEdges(){
+  var svg = _dcv.els && _dcv.els.svg;
+  if(!svg) return;
+  if(_dcv.suppressEdges){ svg.innerHTML = ''; return; }
+  var col = dcvTheme().accent;
+  var inner = '';
+  _dispatchJobsCache.forEach(function(j){
+    var cid = dcvJobCrewId(j);
+    if(!cid) return;
+    var a = dcvAnchor('j:'+j.id, 'out'), b = dcvAnchor('c:'+cid, 'in');
+    if(!a || !b) return;
+    inner += '<path d="'+dcvPathD(a,b)+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linecap="round" opacity="0.95"/>';
+    inner += '<circle cx="'+a.x+'" cy="'+a.y+'" r="3.4" fill="'+col+'"/><circle cx="'+b.x+'" cy="'+b.y+'" r="3.4" fill="'+col+'"/>';
+  });
+  if(_dcv.drag && _dcv.drag.type === 'conn'){
+    var a2 = dcvAnchor(_dcv.drag.from, 'out'), b2 = _dcv.drag.cur;
+    if(a2 && b2) inner += '<path d="'+dcvPathD(a2,b2)+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-dasharray="6 5" opacity="0.9"/><circle cx="'+b2.x+'" cy="'+b2.y+'" r="4" fill="'+col+'"/>';
+  }
+  svg.innerHTML = inner;
+}
+
+// ---------- pointer ----------
+function dcvDown(e){
+  if(e.button != null && e.button !== 0) return;
+  var vp = _dcv.els && _dcv.els.vp;
+  if(!vp) return;
+  if(e.target.closest('[data-dcv-ui]')) return; // inspector / dock / swatches
+  var rect = vp.getBoundingClientRect();
+  _dcv.rect = rect;
+  var v = _dcv.view;
+  var port = e.target.closest('[data-port="out"]');
+  var nodeEl = e.target.closest('[data-node]');
+  if(port){
+    _dcv.drag = {type:'conn', from:port.getAttribute('data-node'), cur:{x:(e.clientX-rect.left-v.tx)/v.scale, y:(e.clientY-rect.top-v.ty)/v.scale}, moved:0};
+  } else if(nodeEl){
+    _dcv.drag = {type:'node', id:nodeEl.getAttribute('data-node'), el:nodeEl, lastX:e.clientX, lastY:e.clientY, moved:0};
+    nodeEl.style.zIndex = '30';
+  } else {
+    _dcv.drag = {type:'pan', lastX:e.clientX, lastY:e.clientY, moved:0};
+    vp.style.cursor = 'grabbing';
+  }
+  window.addEventListener('pointermove', dcvMove);
+  window.addEventListener('pointerup', dcvUp);
+  e.preventDefault();
+}
+function dcvMove(e){
+  var d = _dcv.drag;
+  if(!d) return;
+  var v = _dcv.view;
+  if(d.type === 'pan'){
+    var dx = e.clientX-d.lastX, dy = e.clientY-d.lastY;
+    v.tx += dx; v.ty += dy;
+    d.lastX = e.clientX; d.lastY = e.clientY;
+    d.moved += Math.abs(dx)+Math.abs(dy);
+    dcvApplyView();
+  } else if(d.type === 'node'){
+    var ndx = (e.clientX-d.lastX)/v.scale, ndy = (e.clientY-d.lastY)/v.scale;
+    var pos = _dcv.posByDate[_dispatchDate || 'd'];
+    var p = pos && pos[d.id];
+    if(p){
+      p.x += ndx; p.y += ndy;
+      if(d.el) d.el.style.transform = 'translate('+p.x+'px,'+p.y+'px)';
+    }
+    d.lastX = e.clientX; d.lastY = e.clientY;
+    d.moved += Math.abs(ndx)+Math.abs(ndy);
+    dcvDrawEdges();
+  } else if(d.type === 'conn'){
+    d.cur = {x:(e.clientX-_dcv.rect.left-v.tx)/v.scale, y:(e.clientY-_dcv.rect.top-v.ty)/v.scale};
+    d.moved += 1;
+    dcvDrawEdges();
+  }
+}
+function dcvUp(e){
+  var d = _dcv.drag;
+  _dcv.drag = null;
+  window.removeEventListener('pointermove', dcvMove);
+  window.removeEventListener('pointerup', dcvUp);
+  var vp = _dcv.els && _dcv.els.vp;
+  if(vp) vp.style.cursor = 'grab';
+  if(!d) return;
+  if(d.type === 'node'){
+    if(d.el) d.el.style.zIndex = '';
+    if(d.moved < 4) dcvSelect(d.id);
+  } else if(d.type === 'conn'){
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    var tn = t && t.closest('[data-node]');
+    if(tn && tn.getAttribute('data-node').indexOf('c:') === 0){
+      dispatchAssignJob(d.from.slice(2), tn.getAttribute('data-node').slice(2), dcvLegOf(d.from.slice(2)));
+    } else if(d.moved < 4){
+      dcvSelect(d.from);
+    }
+    dcvDrawEdges();
+  }
+}
+function dcvWheel(e){
+  var vp = _dcv.els && _dcv.els.vp;
+  if(!vp) return;
+  e.preventDefault();
+  var rect = vp.getBoundingClientRect();
+  var v = _dcv.view;
+  var f = e.deltaY < 0 ? 1.12 : 0.89;
+  var cx = e.clientX-rect.left, cy = e.clientY-rect.top;
+  var wx = (cx-v.tx)/v.scale, wy = (cy-v.ty)/v.scale;
+  v.scale = Math.max(0.4, Math.min(2, v.scale*f));
+  v.tx = cx-wx*v.scale; v.ty = cy-wy*v.scale;
+  dcvApplyView(); dcvUpdateZoomLabel();
+}
+
+// ---------- zoom / fit ----------
+function dcvUpdateZoomLabel(){
+  if(_dcv.els && _dcv.els.zoom) _dcv.els.zoom.textContent = Math.round(_dcv.view.scale*100)+'%';
+}
+function dcvZoomBy(f){
+  var vp = _dcv.els && _dcv.els.vp;
+  if(!vp) return;
+  var rect = vp.getBoundingClientRect();
+  var v = _dcv.view;
+  var cx = rect.width/2, cy = rect.height/2;
+  var wx = (cx-v.tx)/v.scale, wy = (cy-v.ty)/v.scale;
+  v.scale = Math.max(0.4, Math.min(2, v.scale*f));
+  v.tx = cx-wx*v.scale; v.ty = cy-wy*v.scale;
+  dcvApplyView(); dcvUpdateZoomLabel();
+}
+function dcvFit(){
+  var e = _dcv.els;
+  if(!e || !e.vp) return;
+  var pos = dcvPositions();
+  var keys = Object.keys(pos).filter(function(k){ return !!dcvNodeEl(k); });
+  if(!keys.length){ dcvApplyView(); return; }
+  var minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+  keys.forEach(function(k){
+    var el = dcvNodeEl(k), p = pos[k];
+    var w = el.offsetWidth || 220, hh = el.offsetHeight || 100;
+    if(p.x < minx) minx = p.x;
+    if(p.y < miny) miny = p.y;
+    if(p.x+w > maxx) maxx = p.x+w;
+    if(p.y+hh > maxy) maxy = p.y+hh;
+  });
+  var rect = e.vp.getBoundingClientRect(), pad = 70;
+  var s = Math.max(0.4, Math.min(1.4, Math.min((rect.width-pad*2)/(maxx-minx), (rect.height-pad*2)/(maxy-miny))));
+  var v = _dcv.view;
+  v.scale = s;
+  v.tx = (rect.width-(maxx-minx)*s)/2 - minx*s;
+  v.ty = (rect.height-(maxy-miny)*s)/2 - miny*s;
+  dcvApplyView(); dcvUpdateZoomLabel();
+}
+function dcvReset(){
+  _dcv.view = {tx:60, ty:40, scale:1};
+  dcvApplyView(); dcvUpdateZoomLabel();
+}
+
+// ---------- selection / inspector ----------
+function dcvSelect(id){
+  _dcv.selId = id;
+  var T = dcvTheme();
+  var world = _dcv.els && _dcv.els.world;
+  if(world){
+    [].slice.call(world.querySelectorAll('[data-node]')).forEach(function(el){
+      var card = el.querySelector('[data-card]');
+      if(!card) return;
+      if(el.getAttribute('data-node') === id){ card.style.outline = '2px solid '+T.accent; card.style.outlineOffset = '2px'; }
+      else card.style.outline = 'none';
+    });
+  }
+  dcvSyncInspector();
+}
+function dcvCloseInspector(){
+  _dcv.selId = null;
+  var world = _dcv.els && _dcv.els.world;
+  if(world) [].slice.call(world.querySelectorAll('[data-card]')).forEach(function(card){ card.style.outline = 'none'; });
+  dcvSyncInspector();
+}
+function dcvSyncInspector(){
+  var insp = _dcv.els && _dcv.els.insp;
+  if(!insp) return;
+  if(_dcv.selId){
+    insp.innerHTML = dcvInspectorHtml();
+    insp.style.transform = 'translateX(0)';
+  } else {
+    insp.style.transform = 'translateX(340px)';
+  }
+}
+function dcvFocusSel(){
+  var id = _dcv.selId;
+  if(!id) return;
+  var pos = _dcv.posByDate[_dispatchDate || 'd'];
+  var p = pos && pos[id];
+  var vp = _dcv.els && _dcv.els.vp;
+  if(!p || !vp) return;
+  var el = dcvNodeEl(id);
+  var w = (el && el.offsetWidth) || 220, hh = (el && el.offsetHeight) || 100;
+  var rect = vp.getBoundingClientRect();
+  var v = _dcv.view;
+  if(v.scale < 1) v.scale = 1;
+  v.tx = rect.width/2 - (p.x+w/2)*v.scale;
+  v.ty = rect.height/2 - (p.y+hh/2)*v.scale;
+  dcvApplyView(); dcvUpdateZoomLabel();
+}
+function dcvUnassignSel(){
+  var id = _dcv.selId;
+  if(!id || id.indexOf('j:') !== 0) return;
+  var jid = id.slice(2);
+  dispatchAssignJob(jid, '', dcvLegOf(jid));
+}
+function dcvInspectorHtml(){
+  var id = _dcv.selId;
+  if(!id) return '';
+  function head(dotCol, label){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid #eef0f2;flex:0 0 auto">'
+      +'<span style="width:11px;height:11px;border-radius:4px;background:'+dotCol+';flex:0 0 auto"></span>'
+      +'<span style="font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#868e96">'+label+'</span>'
+      +'<button onclick="dcvCloseInspector()" style="margin-left:auto;width:26px;height:26px;border-radius:8px;border:1px solid #e9ecef;background:#f8f9fa;color:#868e96;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center">×</button></div>';
+  }
+  function row(k, v){
+    return '<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #f1f3f5">'
+      +'<span style="font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#adb5bd;flex:0 0 90px">'+k+'</span>'
+      +'<span style="font-size:13px;color:#343a40;font-weight:600;min-width:0">'+v+'</span></div>';
+  }
+  var h = '';
+  if(id.indexOf('j:') === 0){
+    var j = dcvJobById(id.slice(2));
+    if(!j) return '';
+    var isSwap = !!j._partnerId;
+    var svc = isSwap ? 'Swap (combo)' : (j._isPickup ? 'Pickup' : 'Drop');
+    var svcCol = isSwap ? dcvTheme().accent : (j._isPickup ? '#60a5fa' : '#eab308');
+    var cid = dcvJobCrewId(j);
+    var cr = cid && crewMembers.find(function(c){ return c.id === cid; });
+    var partner = j._partnerId ? dcvJobById(j._partnerId) : null;
+    h += head(svcCol, 'Job · Bin rental');
+    h += '<div style="padding:16px;overflow-y:auto;flex:1">';
+    h += '<div style="font-size:19px;font-weight:800;color:#1a1a2e;letter-spacing:-.3px;margin-bottom:3px">'+escHtml(j.name||'—')+' <span style="font-size:12px;color:#adb5bd;font-weight:600">#'+j.id+'</span></div>';
+    h += '<div style="font-size:12.5px;color:#868e96;margin-bottom:16px">'+escHtml((j.address||'—')+(j.city?', '+j.city:''))+'</div>';
+    h += row('Type', escHtml(svc));
+    h += row('Bin size', escHtml(j.binSize||'—'));
+    h += row('Window', (!j._isPickup && j.binDropoffTime) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : 'Flexible');
+    h += row('Est. time', '~'+(j._estMinutes||0)+'m');
+    if(partner) h += row('Combo with', escHtml(partner.name||('#'+partner.id)));
+    h += row('Driver', cr ? escHtml(cr.name) : '<span style="color:#d97706">Unassigned — drag its ○ onto a crew card</span>');
+    h += '<div style="display:flex;gap:8px;margin-top:18px">';
+    h += '<button onclick="dcvFocusSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e9ecef;background:#f8f9fa;color:#343a40;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Focus</button>';
+    if(cid) h += '<button onclick="dcvUnassignSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(220,53,69,.3);background:rgba(220,53,69,.07);color:#dc3545;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Unassign</button>';
+    h += '</div></div>';
+    return h;
+  }
+  var c = crewMembers.find(function(x){ return x.id === id.slice(2); });
+  if(!c) return '';
+  var col = c.color || crewAvatarColor(c.id);
+  var laneJobs = _dispatchJobsCache.filter(function(x){ return dcvJobCrewId(x) === c.id; });
+  var total = laneJobs.reduce(function(s,x){ return s+(x._estMinutes||0); }, 0);
+  var startTime = dispatchGetLaneStart(c.id);
+  var startMins = dispatchParseClock(startTime) || 480;
+  var ord = laneJobs.length ? dispatchOrderLaneJobs(laneJobs) : {jobs:[], warnings:[]};
+  var routeUrl = laneJobs.length ? dispatchMapsRouteUrl(ord.jobs) : null;
+  h += head(col, 'Crew member');
+  h += '<div style="padding:16px;overflow-y:auto;flex:1">';
+  h += '<div style="font-size:19px;font-weight:800;color:#1a1a2e;letter-spacing:-.3px;margin-bottom:3px">'+escHtml(c.name)+'</div>';
+  h += '<div style="font-size:12.5px;color:#868e96;margin-bottom:16px">'+laneJobs.length+' stop'+(laneJobs.length===1?'':'s')+' · '+dispatchFmtTotal(total)+' est</div>';
+  h += row('Starts', '<input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+c.id+'\', this.value)" style="background:#f8f9fa;border:1px solid #e9ecef;color:#343a40;padding:4px 8px;border-radius:6px;font-size:12px;font-family:inherit">');
+  h += '<div style="font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#adb5bd;margin:14px 0 2px">Route — in order</div>';
+  if(!ord.jobs.length){
+    h += '<div style="font-size:12.5px;color:#868e96;font-style:italic;padding:10px 0">No stops yet — drag a job\'s ○ onto this card.</div>';
+  } else {
+    var warns = ord.warnings.slice();
+    var clock = startMins;
+    ord.jobs.forEach(function(x){
+      if(x._isDelivery && x.binDropoffTime){
+        var ft2 = dispatchParseClock(x.binDropoffTime);
+        if(clock > ft2 + 5) warns.push('May miss '+ft(x.binDropoffTime)+' drop');
+        clock = Math.max(clock, ft2);
+      }
+      var legBg = x._isPickup ? '#0d6efd' : '#eab308';
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f3f5">';
+      h += '<span style="font-family:ui-monospace,monospace;font-size:10.5px;color:#868e96;flex:0 0 100px">'+dispatchFmtClock(clock)+'–'+dispatchFmtClock(clock + (x._estMinutes||0))+'</span>';
+      h += '<span style="font-size:12.5px;font-weight:600;color:#343a40;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(x.name||x.city||'—')+'</span>';
+      h += '<span style="font-size:9px;font-weight:800;color:#fff;background:'+legBg+';padding:2px 6px;border-radius:4px;flex:0 0 auto">'+(x._isPickup?'PICKUP':'DROP')+'</span>';
+      h += '</div>';
+      clock += (x._estMinutes||0);
+    });
+    if(warns.length) h += '<div style="margin-top:8px;font-size:11px;color:#d97706;background:#f59e0b18;border:1px solid #f59e0b55;border-radius:6px;padding:4px 8px;line-height:1.4">&#9888; '+warns.join('; ')+'</div>';
+  }
+  h += '<div style="display:flex;gap:8px;margin-top:18px">';
+  h += '<button onclick="dcvFocusSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e9ecef;background:#f8f9fa;color:#343a40;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Focus</button>';
+  if(routeUrl) h += '<a href="'+routeUrl+'" target="_blank" rel="noopener" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(13,110,253,.35);background:rgba(13,110,253,.08);color:#0d6efd;font-size:12.5px;font-weight:700;text-align:center;text-decoration:none">Open in Maps</a>';
+  h += '</div></div>';
+  return h;
+}
+
+// ---------- intro animation (plays once per visit, like the design's Generate) ----------
+function dcvAnimateIn(){
+  _dcv.played = true;
+  var world = _dcv.els && _dcv.els.world;
+  if(!world) return;
+  _dcv.suppressEdges = true;
+  if(_dcv.els.svg) _dcv.els.svg.innerHTML = '';
+  var nodes = [].slice.call(world.querySelectorAll('[data-node]')).filter(function(el){ return !!el.querySelector('[data-card]'); });
+  if(!nodes.length){ _dcv.suppressEdges = false; dcvDrawEdges(); return; }
+  var stagger = Math.min(120, Math.max(45, Math.floor(1700/nodes.length)));
+  var variants = [
+    [{opacity:0, transform:'translateY(22px) scale(.95)'}, {opacity:1, transform:'none'}],
+    [{opacity:0, transform:'translateX(-28px) scale(.97)'}, {opacity:1, transform:'none'}],
+    [{opacity:0, transform:'scale(.78)'}, {opacity:1, transform:'scale(1.04)'}, {opacity:1, transform:'scale(1)'}],
+    [{opacity:0, transform:'translateY(-20px) scale(.96)'}, {opacity:1, transform:'none'}]
+  ];
+  nodes.forEach(function(el){
+    var card = el.querySelector('[data-card]');
+    if(card) card.style.opacity = '0';
+    var port = el.querySelector('[data-port]');
+    if(port) port.style.transform = 'scale(0)';
+  });
+  nodes.forEach(function(el, idx){
+    setTimeout(function(){
+      var card = el.querySelector('[data-card]');
+      if(card){
+        card.style.opacity = '1';
+        try{ card.animate(variants[idx % variants.length], {duration:440, easing:'cubic-bezier(.16,1,.3,1)', fill:'both'}); }catch(err){}
+      }
+      var port = el.querySelector('[data-port]');
+      if(port){
+        setTimeout(function(){
+          port.style.transform = 'scale(1)';
+          try{ port.animate([{transform:'scale(0)'},{transform:'scale(1.3)'},{transform:'scale(1)'}], {duration:360, easing:'cubic-bezier(.16,1,.3,1)', fill:'both'}); }catch(err){}
+        }, 220);
+      }
+    }, idx*stagger);
+  });
+  setTimeout(function(){
+    _dcv.suppressEdges = false;
+    dcvDrawEdges();
+    var svg = _dcv.els && _dcv.els.svg;
+    if(!svg) return;
+    [].slice.call(svg.querySelectorAll('path')).forEach(function(pth, i){
+      var len = 600;
+      try{ len = pth.getTotalLength(); }catch(err){}
+      pth.style.strokeDasharray = len;
+      pth.style.strokeDashoffset = len;
+      try{ pth.animate([{strokeDashoffset:len},{strokeDashoffset:0}], {duration:520, delay:i*90, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}); }catch(err){ pth.style.strokeDashoffset = 0; }
+    });
+    [].slice.call(svg.querySelectorAll('circle')).forEach(function(cc, i){
+      cc.style.opacity = '0';
+      try{ cc.animate([{opacity:0},{opacity:1}], {duration:260, delay:140+i*40, fill:'forwards'}); }catch(err){ cc.style.opacity = '1'; }
+    });
+  }, nodes.length*stagger + 320);
 }
