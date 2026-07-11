@@ -713,9 +713,9 @@ function dcvNodeEl(key){
 function dcvJobCardHtml(j, T, p, selected){
   var num = parseInt(j.binSize, 10);
   var numTxt = isNaN(num) ? 'BIN' : String(num);
-  var isSwap = !!j._partnerId;
-  var svc = isSwap ? 'Swap' : (j._isPickup ? 'Pickup' : 'Drop');
-  var svcCol = isSwap ? T.accent : (j._isPickup ? '#60a5fa' : '#eab308');
+  var isCombo = !!j._partnerId;
+  var svc = j._isPickup ? 'Pickup' : 'Drop';
+  var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
   var win = (!j._isPickup && j.binDropoffTime) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
   var h = '<div data-node="j:'+j.id+'" style="position:absolute;top:0;left:0;width:'+DCV_JOB_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
@@ -730,7 +730,7 @@ function dcvJobCardHtml(j, T, p, selected){
   h += '<span style="font-family:ui-monospace,monospace;font-size:9px;font-weight:700;letter-spacing:.4px;color:'+T.sub+'">#'+j.id+'</span>';
   h += '<span style="width:4px;height:4px;border-radius:50%;background:'+svcCol+';flex:0 0 auto"></span>';
   h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
-  if(isSwap) h += '<span title="Combo pair" style="font-size:9px">🔁</span>';
+  if(isCombo) h += '<span title="Combo — pickup + delivery on one trip" style="font-size:9px">🔁</span>';
   h += '<span style="margin-left:auto;font-size:10px;color:'+T.sub+';font-family:ui-monospace,monospace">'+win+'</span>';
   h += '</div>';
   h += '<div style="font-size:16px;font-weight:800;letter-spacing:-.3px;color:'+T.ink+';line-height:1.06;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(j.city||'—')+'</div>';
@@ -851,7 +851,7 @@ function dcvMount(){
   h += '<div style="display:flex;gap:7px;flex-wrap:wrap;max-width:460px">';
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#60a5fa"></span>Pickup');
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#eab308"></span>Drop');
-  h += chip('<span style="width:8px;height:8px;border-radius:50%;background:'+T.accent+'"></span>Swap = combo pair');
+  h += chip('<span style="font-size:10px">🔁</span>Combo = pickup + delivery on one trip');
   if(unassignedCount) h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>'+unassignedCount+' unassigned');
   h += chip('drag ○ from a job onto a crew card to assign');
   h += '</div></div>';
@@ -1148,9 +1148,9 @@ function dcvInspectorHtml(){
   if(id.indexOf('j:') === 0){
     var j = dcvJobById(id.slice(2));
     if(!j) return '';
-    var isSwap = !!j._partnerId;
-    var svc = isSwap ? 'Swap (combo)' : (j._isPickup ? 'Pickup' : 'Drop');
-    var svcCol = isSwap ? dcvTheme().accent : (j._isPickup ? '#60a5fa' : '#eab308');
+    var isCombo = !!j._partnerId;
+    var svc = (j._isPickup ? 'Pickup' : 'Drop') + (isCombo ? ' · 🔁 combo' : '');
+    var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
     var cid = dcvJobCrewId(j);
     var cr = cid && crewMembers.find(function(c){ return c.id === cid; });
     var partner = j._partnerId ? dcvJobById(j._partnerId) : null;
