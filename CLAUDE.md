@@ -36,11 +36,22 @@ GitHub Pages auto-deploys from `main` branch root. Repo is `soramithril/jeffs-ju
 
 ## Dev workflow
 
-Live site: **https://soramithril.github.io/jeffs-junk/** — GitHub Pages auto-deploys from `main` in ~30s. This is where verification happens; there's no local dev server.
+Live site: **https://soramithril.github.io/jeffs-junk/** — GitHub Pages auto-deploys from `main` in ~30s.
 
 Edit files in place — no temp clones, no copying around. Then:
 
-1. No local parse check — `node` isn't installed on this machine. JS syntax errors blank the whole site (including the sign-in screen), so verify on the live site after pushing (step 4).
+1. Local verification is TIERED — `node` isn't installed, and a JS syntax error blanks the
+   whole live site (including sign-in) for all staff, so never push app.js changes blind.
+   Match the effort to the change (policy agreed with Jake 2026-07-11):
+   - **Any app.js change**: quick load-check — serve the repo statically (in-app browser,
+     port 8767), open index.html, confirm the sign-in screen renders and the console has no
+     SyntaxError. Seconds, cheap, catches the blank-site disaster.
+   - **New features / math-heavy changes**: full local walkthrough — inject mock data via
+     the browser JS console (set `ourPricesV2`/`currentUser`/etc., call the render fns) and
+     check output, math, and access gates before pushing.
+   - **HTML- or text-only tweaks**: no local pass needed.
+   Note: screenshots hang in the automation browser on this machine — verify via DOM/JS
+   evals instead. Kill the intro `<video>` first if the renderer acts up.
 2. If you changed `app.js`, bump THREE things to the same number, in lockstep:
    - `<script src="app.js?v=N">` in `index.html` (near the bottom)
    - `var APP_VERSION = 'N';` near the top of `app.js`
@@ -50,10 +61,11 @@ Edit files in place — no temp clones, no copying around. Then:
    - `<link rel="stylesheet" href="style.css?v=N">` when you change `style.css`
    - `<script src="app-bookings.js?v=N">` when you change `app-bookings.js` (the Bookings widget code)
    These are SEPARATE from `app.js`'s `?v`. Forget one and browsers keep serving the old cached file: e.g. new markup renders with class names that have no matching CSS rules, so the page looks broken/unstyled even though the pushed file is correct. (Whenever `version.txt` changes, also bump `APP_VERSION` in lockstep — otherwise the auto-update banner misfires forever.)
-3. `git add`, `git commit -m "..."`, `git push origin main`. GitHub Pages deploys in ~30s.
-4. Verify live two ways:
-   - `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep -ao 'app.js?v=[0-9]*'` — should show the new version (use `-a` because index.html trips ripgrep's binary heuristic).
-   - Load the live site in a browser to catch JS syntax errors that curl can't see.
+3. `git add`, `git commit -m "..."` — then `git push origin main` ONLY on Jake's explicit
+   push order (see working agreement). GitHub Pages deploys in ~30s.
+4. After every push, verify live (always — it's nearly free):
+   - `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep -ao 'app.js?v=[0-9]*'` — should show the new version (use `-a` because index.html trips ripgrep's binary heuristic). Poll a few times; the deploy takes ~25s.
+   - Load the live site in a browser: confirm `APP_VERSION` matches and the console has no errors.
 
 ## Auto-update banner
 
