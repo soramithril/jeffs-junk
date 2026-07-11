@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=407">
+<link rel="stylesheet" href="style.css?v=412">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=396">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -968,78 +968,98 @@
   </div>
 </div>
 
-<!-- ═══════════════ MARGIN CONSOLE (admin what-if pricing tool) ═══════════════ -->
+<!-- ═══════════════ MARGIN CONSOLE (admin what-if pricing tool — neon console) ═══════════════ -->
 <div id="view-pricingconsole" class="view">
-  <div class="pv-hero">
-    <div class="pv-hero-main">
-      <div class="pv-hero-title">📈 Margin Console</div>
-      <div class="pv-hero-sub">What the truck really earns at any price — drive cost, margin, and profit per truck-hour. Sandbox only: it reads today's sheet prices but nothing here can change them.</div>
-    </div>
-    <div class="pv-hero-actions">
-      <button class="btn btn-ghost" onclick="go('pricing')">← Pricing Sheet</button>
-    </div>
-  </div>
-
-  <div class="rc-dials">
-    <div class="rc-dials-top"><span class="rc-tag">Assumptions</span><span class="rc-hint">these drive every number below</span></div>
-    <div class="rc-grid">
-      <div class="rc-dial"><label>Driver wage ($/hr)</label><input id="rc-wage" type="number" step="0.5" value="25" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Diesel ($/L)</label><input id="rc-diesel" type="number" step="0.01" value="1.90" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Fuel economy (L/100km)</label><input id="rc-fe" type="number" step="0.5" value="25" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Avg speed (km/h)</label><input id="rc-speed" type="number" step="1" value="60" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>On-site time / stop (hr)</label><input id="rc-onsite" type="number" step="0.05" value="0.25" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Other cost / rental ($)</label><input id="rc-other" type="number" step="5" value="0" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Target margin (%)</label><input id="rc-target" type="number" step="1" value="45" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Zone 1 price ($)</label><input id="rc-z1" type="number" step="5" value="195" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Zone 2 price ($)</label><input id="rc-z2" type="number" step="5" value="225" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Zone step ($)</label><input id="rc-step" type="number" step="5" value="25" oninput="rcRender()"></div>
-      <div class="rc-dial"><label>Trips per rental</label>
-        <div class="rc-seg" id="rc-trips">
-          <button data-t="1" onclick="rcTrips(1)">1</button>
-          <button data-t="2" class="active" onclick="rcTrips(2)">2</button>
-        </div>
-      </div>
-      <div class="rc-trip-note">1 = single round trip · 2 = drop-off + pickup (the true cost of a rental). Biggest lever on the far zones.</div>
-    </div>
-  </div>
-
-  <div class="rc-tabs">
-    <button class="rc-tab active" data-v="heat" onclick="rcTab('heat')">Heatmap</button>
-    <button class="rc-tab" data-v="cost" onclick="rcTab('cost')">Cost Model</button>
-    <button class="rc-tab" data-v="zones" onclick="rcTab('zones')">Zones</button>
-  </div>
-
-  <div class="rc-view on" id="rc-v-heat">
-    <div class="rc-board">
+  <div class="nx-app">
+    <div class="nx-hero">
       <div>
-        <div class="rc-tools">
-          <div class="rc-seg" id="rc-mode">
-            <button data-m="pct" class="active" onclick="rcMode('pct')">Margin %</button>
-            <button data-m="dol" onclick="rcMode('dol')">Profit $</button>
-          </div>
-          <div class="rc-legend"><span>loss</span><span class="rc-legend-bar"></span><span>strong</span></div>
-        </div>
-        <div class="rc-scroll"><table id="rc-heat"></table></div>
-        <div class="rc-note"><b>Now</b> column + ◉ solid ring = today's price on the pricing sheet · ▢ dashed ring = the what-if zone price from the dials. Zones copy the pricing sheet. Click any cell to lock the crosshair and read the verdict.</div>
+        <div class="nx-title">Margin Console<span class="nx-live">● LIVE</span></div>
+        <div class="nx-sub">What the truck really earns at any price — glowing where it pays, hot where it doesn't. Sandbox only: it reads today's sheet prices but nothing here can change them.</div>
       </div>
-      <div class="rc-console">
-        <div class="rc-console-top">Verdict</div>
-        <div class="rc-console-body" id="rc-verdict"></div>
+      <div class="nx-kpis">
+        <div class="nx-kpi"><div class="k">Local rate</div><div class="v" id="rc-bench-kpi">$—</div></div>
+        <button class="nx-back" onclick="go('pricing')">← Pricing Sheet</button>
       </div>
     </div>
-  </div>
 
-  <div class="rc-view" id="rc-v-cost">
-    <div class="rc-scroll" style="max-height:72vh"><table class="rc-ctable" id="rc-cost"></table></div>
-    <div class="rc-note">One-way km are editable — drop in real Geotab distances to lock exact margins. Margin &amp; verdict are at today's live 14-yard sheet price; the verdict weighs both your margin target and profit-per-truck-hour.</div>
-  </div>
+    <div class="nx-assume">
+      <span class="lab">Assumptions</span>
+      <span class="k">Wage <b id="rc-as-wage">$25</b></span><span class="sep"></span>
+      <span class="k">Diesel <b id="rc-as-diesel">$1.90</b></span><span class="sep"></span>
+      <span class="k">Fuel <b id="rc-as-fe">25 L/100</b></span><span class="sep"></span>
+      <span class="k">Zone ladder <b id="rc-as-ladder">$195 · $225 · +$25</b></span><span class="sep"></span>
+      <span class="k">Trips <b id="rc-as-trips">2</b></span>
+      <button class="edit" id="rc-adjust" onclick="rcToggleDials()">Adjust ▸</button>
+    </div>
 
-  <div class="rc-view" id="rc-v-zones">
-    <div class="rc-zgrid" id="rc-zones"></div>
-    <div class="rc-note" id="rc-znote"></div>
-  </div>
+    <div class="rc-dials" id="rc-dials" style="display:none">
+      <div class="rc-dials-top"><span class="rc-tag">Dials</span><span class="rc-hint">every number on this page reads from these</span></div>
+      <div class="rc-grid">
+        <div class="rc-dial"><label>Driver wage ($/hr)</label><input id="rc-wage" type="number" step="0.5" value="25" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Diesel ($/L)</label><input id="rc-diesel" type="number" step="0.01" value="1.90" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Fuel economy (L/100km)</label><input id="rc-fe" type="number" step="0.5" value="25" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Avg speed (km/h)</label><input id="rc-speed" type="number" step="1" value="60" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>On-site time / stop (hr)</label><input id="rc-onsite" type="number" step="0.05" value="0.25" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Other cost / rental ($)</label><input id="rc-other" type="number" step="5" value="0" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Target margin (%)</label><input id="rc-target" type="number" step="1" value="45" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Zone 1 price ($)</label><input id="rc-z1" type="number" step="5" value="195" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Zone 2 price ($)</label><input id="rc-z2" type="number" step="5" value="225" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Zone step ($)</label><input id="rc-step" type="number" step="5" value="25" oninput="rcRender()"></div>
+        <div class="rc-dial"><label>Trips per rental</label>
+          <div class="rc-seg" id="rc-trips">
+            <button data-t="1" onclick="rcTrips(1)">1</button>
+            <button data-t="2" class="active" onclick="rcTrips(2)">2</button>
+          </div>
+        </div>
+        <div class="rc-trip-note">1 = single round trip · 2 = drop-off + pickup (the true cost of a rental). Biggest lever on the far zones.</div>
+      </div>
+    </div>
 
-  <div class="rc-foot" id="rc-foot"></div>
+    <div class="nx-tabs">
+      <button class="nx-tab on" data-v="heat" onclick="rcTab('heat')">Heatmap</button>
+      <button class="nx-tab" data-v="curve" onclick="rcTab('curve')">Margin curve</button>
+      <button class="nx-tab" data-v="cost" onclick="rcTab('cost')">Cost Model</button>
+      <button class="nx-tab" data-v="zones" onclick="rcTab('zones')">Zones</button>
+    </div>
+
+    <div class="rc-view on" id="rc-v-heat">
+      <div class="nx-board">
+        <div class="nx-gridwrap"><table class="nx-t" id="rc-heat"></table></div>
+        <div class="nx-consolecol">
+          <div class="nx-console">
+            <div class="nx-console-top">Live verdict</div>
+            <div class="nx-console-body" id="rc-verdict"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rc-view" id="rc-v-curve">
+      <div class="nx-curveview">
+        <div>
+          <div class="nx-chartwrap" id="rc-curve"></div>
+          <div class="nx-scrubwrap">
+            <span class="nx-scrub-label">Sweep price</span>
+            <input type="range" class="nx-slider" id="rc-scrub" min="195" max="500" step="5" value="300" oninput="rcScrub(this.value)">
+            <span class="nx-scrubval" id="rc-scrubval">$300</span>
+          </div>
+        </div>
+        <div id="rc-readout"></div>
+      </div>
+    </div>
+
+    <div class="rc-view" id="rc-v-cost">
+      <div class="rc-scroll" style="max-height:72vh"><table class="rc-ctable" id="rc-cost"></table></div>
+      <div class="rc-note">One-way km are editable — drop in real Geotab distances to lock exact margins. Margin &amp; verdict are at today's live 14-yard sheet price; the verdict weighs both your margin target and profit-per-truck-hour.</div>
+    </div>
+
+    <div class="rc-view" id="rc-v-zones">
+      <div class="rc-zgrid" id="rc-zones"></div>
+      <div class="rc-note" id="rc-znote"></div>
+    </div>
+
+    <div class="rc-foot" id="rc-foot"></div>
+  </div>
 </div>
 
 <!-- ═══════════════ OUR PRICES (editor) ═══════════════ -->
@@ -2522,7 +2542,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=411"></script>
+<script src="app.js?v=412"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

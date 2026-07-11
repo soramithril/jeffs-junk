@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '411';
+var APP_VERSION = '412';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13939,10 +13939,13 @@ function pvToggleCompare(){
 
 // ═══════════════ MARGIN CONSOLE (admin what-if pricing tool) ═══════════════
 // Jake's route-cost model, folded into the dashboard 2026-07-11. Real one-way
-// distances + drive-time ranges from 92 Davidson St (Google Maps). The CURRENT
+// distances + drive-time ranges from 92 Davidson St (Google Maps). The NOW
 // price column reads LIVE from ourPricesV2 (14 yard) via the area name, so the
 // console tracks the pricing sheet automatically. Everything else — wage,
 // diesel, speed, trips, target margin, zone-ladder what-ifs — is a dial.
+// Look & feel: dark neon console from the Claude Design "Heatmap visual
+// upgrade" project (v412) — zone-grouped glowing heatmap, live-verdict card,
+// and a Margin curve tab that sweeps one price across every zone.
 // Entries: [display name, near km, our_prices area, fastest min, slowest min, far-edge km|null]
 var RC_CITIES = [
  ['Barrie (HQ / local)',0,'Barrie',0,0,null],
@@ -13993,8 +13996,10 @@ var RC_CITIES = [
  ['Port Carling',114,'Port Carling',72,81,null],
  ['Huntsville',124,'Huntsville',78,87,null]
 ].map(function(c){ return {name:c[0], km:c[1], area:c[2], tmin:c[3], tmax:c[4], kmMax:c[5]}; });
-var RC_PRICES = []; (function(){ for(var p=195;p<=650;p+=5) RC_PRICES.push(p); })();
-var _rc = {trips:2, mode:'pct', tab:'heat', sel:null, bench:100, A:{}};
+var RC_LADDER = [195, 245, 300, 360, 415, 470];                        // heatmap price columns
+var RC_CURVE_PRICES = [195,210,225,245,265,290,320,360,410,460,500];   // margin-curve sample points
+var _rc = {trips:2, tab:'heat', scrub:300, bench:100, A:{},
+           sel:{ci:RC_CITIES.findIndex(function(c){return c.name==='Wasaga Beach';}), pi:2}};
 
 function _rcKmStr(c){ return (c.kmMax&&c.kmMax!==c.km) ? c.km+'–'+c.kmMax : String(c.km); }
 function _rcDriveStr(c){ return c.tmin===c.tmax ? c.tmin+' min' : c.tmin+'–'+c.tmax+' min'; }
@@ -14033,28 +14038,46 @@ function _rcVerdict(c, price){
   else { key='tight'; label='TIGHT'; }
   return {cst:cst, md:md, mp:mp, hrs:hrs, pph:pph, key:key, label:label};
 }
-// Heat colours — light-theme: margin% runs red→yellow→green (dark text);
-// profit$ runs red→neutral→green (white text at the saturated ends).
+// Neon heat colours — margin% runs red → amber → neon green; each cell glows
+// on the dark console, brighter the further it sits from break-even.
 function _rcLerp(a,b,t){ return a.map(function(x,i){return Math.round(x+(b[i]-x)*t);}); }
-function _rcHex(c){ return '#'+c.map(function(x){return x.toString(16).padStart(2,'0');}).join(''); }
-function _rcColPct(v){ var R=[224,49,49],Y=[246,224,94],G=[47,179,68];
-  if(v<=-0.30) return _rcHex(R); if(v>=0.60) return _rcHex(G);
-  return v<=0.15 ? _rcHex(_rcLerp(R,Y,(v+0.30)/0.45)) : _rcHex(_rcLerp(Y,G,(v-0.15)/0.45)); }
-function _rcColDol(v){ var R=[224,49,49],M=[240,243,240],G=[47,179,68];
-  if(v<=-150) return _rcHex(R); if(v>=300) return _rcHex(G);
-  return v<=0 ? _rcHex(_rcLerp(R,M,(v+150)/150)) : _rcHex(_rcLerp(M,G,v/300)); }
-function _rcTextOn(v,pct){ if(pct) return '#14181d'; return (v>-120&&v<260)?'#14181d':'#fff'; }
+function _rcNeonRGB(mp){
+  var st=[[-0.30,[255,42,42]],[-0.08,[255,92,40]],[0.06,[255,150,36]],[0.18,[255,214,48]],[0.30,[196,226,58]],[0.45,[70,224,118]],[0.62,[26,240,150]]];
+  if(mp<=st[0][0]) return st[0][1];
+  if(mp>=st[st.length-1][0]) return st[st.length-1][1];
+  for(var i=0;i<st.length-1;i++){ if(mp>=st[i][0]&&mp<=st[i+1][0]) return _rcLerp(st[i][1],st[i+1][1],(mp-st[i][0])/(st[i+1][0]-st[i][0])); }
+  return st[st.length-1][1];
+}
+function _rcNeonCell(mp){
+  var rgb=_rcNeonRGB(mp).join(','), t=Math.min(1,Math.abs(mp)/0.6);
+  var glow=Math.round(7+t*15), bgA=(0.10+t*0.16).toFixed(2), ring=(0.40+t*0.35).toFixed(2), shA=(0.30+t*0.40).toFixed(2);
+  return 'background:rgba('+rgb+','+bgA+');color:rgb('+rgb+');box-shadow:0 0 '+glow+'px rgba('+rgb+','+shA+'),inset 0 0 0 1px rgba('+rgb+','+ring+');text-shadow:0 0 8px rgba('+rgb+',0.85)';
+}
+function _rcNeonZone(z){ return ['','#22f5a0','#1ad6ff','#ffc42c','#ff8a2c','#ff2d6b'][z]; }
+function _rcHexRGB(hex){ var n=parseInt(hex.replace('#',''),16); return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255); }
+function _rcClean(n){ return String(n).replace(/\s*\(.*\)$/,''); }
+function _rcZoneKm(z){ return ['','0–25 km','25–50 km','50–75 km','75–100 km','100 km +'][z]; }
+function _rcZoneCities(z){ return RC_CITIES.filter(function(c){return _rcZoneFor(c)===z;}); }
+function _rcMedianTown(z){ var t=_rcZoneCities(z).sort(function(a,b){return a.km-b.km;}); return t.length?t[Math.floor(t.length/2)]:null; }
+function _rcStatusOf(mp){ if(mp<0) return {w:'Loss',c:'#ff3a3a'}; if(mp<0.18) return {w:'Thin',c:'#ff9224'}; if(mp<_rc.A.target) return {w:'Tight',c:'#ffd630'}; return {w:'Strong',c:'#28e07a'}; }
 
 function rcTab(t){
   _rc.tab=t;
-  document.querySelectorAll('#view-pricingconsole .rc-tab').forEach(function(x){ x.classList.toggle('active', x.getAttribute('data-v')===t); });
+  document.querySelectorAll('#view-pricingconsole .nx-tab').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-v')===t); });
   document.querySelectorAll('#view-pricingconsole .rc-view').forEach(function(x){ x.classList.toggle('on', x.id==='rc-v-'+t); });
   rcRender();
 }
-function rcMode(m){
-  _rc.mode=m;
-  document.querySelectorAll('#rc-mode button').forEach(function(x){ x.classList.toggle('active', x.getAttribute('data-m')===m); });
-  rcRender();
+function rcToggleDials(){
+  var d=document.getElementById('rc-dials'), b=document.getElementById('rc-adjust');
+  if(!d) return;
+  var open=d.style.display!=='none';
+  d.style.display=open?'none':'';
+  if(b) b.textContent=open?'Adjust ▸':'Close ▴';
+}
+function rcScrub(v){
+  _rc.scrub=+v;
+  var el=document.getElementById('rc-scrubval'); if(el) el.textContent='$'+_rc.scrub;
+  _rcRenderCurve();
 }
 function rcTrips(t){
   _rc.trips=t;
@@ -14066,73 +14089,136 @@ function rcKm(ci,v){ RC_CITIES[ci].km=parseFloat(v)||0; rcRender(); }
 
 function _rcRenderHeat(){
   var host=document.getElementById('rc-heat'); if(!host) return;
-  var zr=_rcZonePrices(), S=_rc.sel;
-  var h='<thead><tr><th class="rc-cityhead">City</th><th class="rc-costhead">Cost</th><th class="rc-nowhead">Now</th>';
-  RC_PRICES.forEach(function(p,pi){ h+='<th'+(S&&S.pi===pi?' class="rc-colhl"':'')+'>$'+p+'</th>'; });
+  var zp=_rcZonePrices(), S=_rc.sel;
+  var h='<thead><tr><th class="nx-h nx-cityh">Town</th><th class="nx-h nx-costh">Cost</th><th class="nx-h nx-nowh">Now</th>';
+  RC_LADDER.forEach(function(p,pi){ h+='<th'+(S&&S.pi===pi?' class="nx-colon"':'')+'>$'+p+'</th>'; });
   h+='</tr></thead><tbody>';
-  RC_CITIES.forEach(function(c,ci){
-    var cst=_rcCost(c), z=_rcZoneFor(c), rec=zr[z], cur=_rcCur(c);
-    var curCell = cur!=null ? Math.round(cur/5)*5 : null;
-    var rowhl=S&&S.ci===ci?' rc-rowhl':'';
-    h+='<tr><td class="rc-city'+rowhl+'" onclick="rcPick('+ci+','+(S?S.pi:0)+')">'+_pvEsc(c.name)
-      +'<div class="rc-city-sub">Zone '+z+' · '+_rcKmStr(c)+' km · '+_rcDriveStr(c)+'</div></td>'
-      +'<td class="rc-cost'+rowhl+'">$'+Math.round(cst)+'</td>'
-      +'<td class="rc-now'+rowhl+'">'+(cur!=null?'$'+cur:'—')+'</td>';
-    RC_PRICES.forEach(function(p,pi){
-      var md=p-cst, mp=md/p;
-      var bg=_rc.mode==='pct'?_rcColPct(mp):_rcColDol(md), fg=_rcTextOn(_rc.mode==='pct'?mp:md,_rc.mode==='pct');
-      var val=_rc.mode==='pct'?Math.round(mp*100)+'%':(md>=0?'$'+Math.round(md):'-$'+Math.round(-md));
-      var cls='rc-cell';
-      if(p===rec) cls+=' rc-model';       // ringed = zone-ladder dial price
-      if(p===curCell) cls+=' rc-live';    // dotted = today's live sheet price
-      if(S&&S.ci===ci&&S.pi===pi) cls+=' rc-sel';
-      else if(S&&S.ci===ci) cls+=' rc-hl-row';
-      else if(S&&S.pi===pi) cls+=' rc-hl-col';
-      h+='<td class="'+cls+'" onclick="rcPick('+ci+','+pi+')" style="background:'+bg+';color:'+fg+'">'+val+'</td>';
+  for(var z=1;z<=5;z++){
+    var cs=_rcZoneCities(z); if(!cs.length) continue;
+    var zc=_rcNeonZone(z);
+    h+='<tr class="nx-zrow"><td colspan="'+(3+RC_LADDER.length)+'"><span class="nx-zn" style="color:'+zc+'">Zone '+z+'</span><span class="nx-zmeta">'+_rcZoneKm(z)+' · '+cs.length+' town'+(cs.length!==1?'s':'')+' · model $'+zp[z]+'</span></td></tr>';
+    cs.forEach(function(c){
+      var ci=RC_CITIES.indexOf(c), cst=_rcCost(c), cur=_rcCur(c);
+      var ro=S&&S.ci===ci?' nx-rowon':'';
+      h+='<tr><td class="nx-city'+ro+'"><span class="nx-accent" style="background:'+zc+';box-shadow:0 0 8px '+zc+'"></span>'+_pvEsc(_rcClean(c.name))+'<div class="nx-tsub">'+_rcKmStr(c)+' km</div></td>'
+        +'<td class="nx-cost'+ro+'">$'+Math.round(cst)+'</td>'
+        +'<td class="nx-now'+ro+'">'+(cur!=null?'$'+cur:'—')+'</td>';
+      RC_LADDER.forEach(function(p,pi){
+        var mp=(p-cst)/p, sel=(S&&S.ci===ci&&S.pi===pi)?' nx-sel':'';
+        h+='<td class="nx-cell" onclick="rcPick('+ci+','+pi+')"><div class="nx-cb'+sel+'" style="'+_rcNeonCell(mp)+'">'+Math.round(mp*100)+'</div></td>';
+      });
+      h+='</tr>';
     });
-    h+='</tr>';
-  });
+  }
   host.innerHTML=h+'</tbody>';
 }
 
 function _rcRenderVerdict(){
   var host=document.getElementById('rc-verdict'); if(!host) return;
-  if(!_rc.sel){
-    host.innerHTML='<div class="rc-placeholder">Click a cell in the grid.<br><br>The console reads the profit, the margin, and — crucially — what the truck earns per hour, then tells you whether that price is worth it for how far out the job is.</div>';
+  var S=_rc.sel;
+  if(!S||S.ci<0){
+    host.innerHTML='<div class="rc-placeholder">Tap a cell in the grid.<br><br>The console reads the profit, the margin, and — crucially — what the truck earns per hour, then tells you whether that price is worth it for how far out the job is.</div>';
     return;
   }
-  var c=RC_CITIES[_rc.sel.ci], p=RC_PRICES[_rc.sel.pi], v=_rcVerdict(c,p), A=_rc.A;
-  var be=Math.round(v.cst), sug=Math.round(_rcSuggested(c)/5)*5, z=_rcZoneFor(c), zp=_rcZonePrices()[z], cur=_rcCur(c);
+  var c=RC_CITIES[S.ci], p=RC_LADDER[S.pi], v=_rcVerdict(c,p), A=_rc.A;
+  var be=Math.round(v.cst), sug=Math.round(_rcSuggested(c)/5)*5, z=_rcZoneFor(c);
   var pct=Math.round(v.mp*100), pph=Math.round(v.pph), hrs=v.hrs.toFixed(1), bench=Math.round(_rc.bench);
-  var badge=v.key==='loss'?'rc-b-loss':v.key==='good'?'rc-b-good':'rc-b-tight';
+  var bc=v.key==='loss'?'nx-b-loss':v.key==='good'?'nx-b-good':'nx-b-tight';
   var say;
   if(v.key==='loss')
-    say='At $'+p+" you'd <b>lose $"+Math.round(-v.md)+'</b> just getting to '+_pvEsc(c.name)+' and back. Break-even is $'+be+' — never book below it.';
+    say='At $'+p+" you'd <b>lose $"+Math.round(-v.md)+'</b> just reaching '+_pvEsc(c.name)+' and back. Break-even is $'+be+' — never book below it.';
   else if(v.label==='THIN')
-    say=pct+'% looks okay on paper, but '+_pvEsc(c.name)+' is <b>'+c.km+' km out</b>. This ties the truck up ~'+hrs+' hrs and earns only <b>~$'+pph+'/hr</b> — a local job pulls ~$'+bench+'/hr in that same window. For a run this far, '+pct+"% isn't worth it. Hold out for $"+sug+' (your '+Math.round(A.target*100)+'% target), or only take it as a fill-in when you\'re already headed that way.';
+    say=pct+'% reads fine, but '+_pvEsc(c.name)+' is <b>'+c.km+' km out</b> — only <b>~$'+pph+'/truck-hr</b> over ~'+hrs+' hrs vs ~$'+bench+' on a local job. Not worth the haul at this price; hold out for $'+sug+', or take it as a fill-in when you\'re already headed that way.';
   else if(v.label==='TIGHT')
-    say='$'+p+' clears cost at '+pct+'% (~$'+pph+'/hr over ~'+hrs+' hrs). Under your '+Math.round(A.target*100)+'% target but the hourly return holds up. Fine for a competitive quote; $'+sug+' is the number to aim for.';
+    say='$'+p+' clears cost at '+pct+'% (~$'+pph+'/truck-hr) — under your '+Math.round(A.target*100)+'% target but the hourly return holds up. Fine for a competitive quote; $'+sug+' is the number to aim for.';
   else if(v.label==='STRONG')
-    say='Strong price — <b>'+pct+'%</b> and <b>~$'+pph+'/hr</b>, above target and holding its own against local work. Book it.';
+    say='Strong price — <b>'+pct+'%</b> and <b>~$'+pph+'/truck-hr</b>, above target and holding its own against local work. Book it.';
   else
     say='On target — <b>'+pct+'%</b>, $'+Math.round(v.md)+' profit, ~$'+pph+'/hr over ~'+hrs+' hrs. Good to book.';
+  var st=function(k,val,cls){ return '<div class="nx-stat"><div class="k">'+k+'</div><div class="v '+(cls||'')+'">'+val+'</div></div>'; };
   host.innerHTML=
-    '<span class="rc-badge '+badge+'">'+v.label+' · '+pct+'%</span>'
-    +'<div class="rc-c-city">'+_pvEsc(c.name)+'</div>'
-    +'<div class="rc-c-meta">'+_rcKmStr(c)+' km one-way · '+_rcDriveStr(c)+' drive · Zone '+z+' · '+_rc.trips+' trip'+(_rc.trips>1?'s':'')+'/rental</div>'
-    +'<div class="rc-c-price">$'+p+'<small> / rental</small></div>'
-    +'<div class="rc-rows">'
-    +'<div class="rc-r"><span>Drive cost</span><span>$'+Math.round(v.cst)+'</span></div>'
-    +'<div class="rc-r"><span>Profit</span><span class="'+(v.md>=0?'rc-pos':'rc-neg')+'">'+(v.md>=0?'+$'+Math.round(v.md):'-$'+Math.round(-v.md))+'</span></div>'
-    +'<div class="rc-r"><span>Margin</span><span class="'+(v.mp>=0?'rc-pos':'rc-neg')+'">'+pct+'%</span></div>'
-    +'<div class="rc-r"><span>Truck tied up</span><span>'+hrs+' hrs</span></div>'
-    +'<div class="rc-r rc-key"><span>Profit / truck-hour</span><span>$'+pph+'/hr</span></div>'
-    +'<div class="rc-r"><span>Model Zone '+z+' price</span><span>$'+zp+'</span></div>'
-    +(cur!=null?'<div class="rc-r"><span>Live sheet price (14 yd)</span><span>$'+cur+'</span></div>':'')
-    +'<div class="rc-r"><span>Break-even</span><span>$'+be+'</span></div>'
-    +'<div class="rc-r"><span>Suggested @'+Math.round(A.target*100)+'%</span><span>$'+sug+'</span></div>'
-    +'</div>'
-    +'<div class="rc-say">'+say+'</div>';
+    '<span class="nx-badge '+bc+'">'+v.label+' · '+pct+'%</span>'
+    +'<div class="nx-v-city">'+_pvEsc(c.name)+'</div>'
+    +'<div class="nx-v-meta">'+_rcKmStr(c)+' km · '+_rcDriveStr(c)+' · Zone '+z+' · '+_rc.trips+' trip'+(_rc.trips>1?'s':'')+'/rental</div>'
+    +'<div class="nx-v-price">$'+p+'<small> / rental</small></div>'
+    +'<div class="nx-stats">'
+    +st('Profit',(v.md>=0?'+$'+Math.round(v.md):'-$'+Math.round(-v.md)),v.md>=0?'pos':'neg')
+    +st('$ / truck-hr','$'+pph)
+    +st('Break-even','$'+be)
+    +st('Truck tied up',hrs+' hr')
+    +'</div><div class="nx-say">'+say+'</div>'
+    +'<div class="nx-hintline">◆ tap any cell in the grid</div>';
+}
+
+// ── Margin curve: one glowing curve per zone (its median-distance town),
+//    swept by a price scrub — the readout shows every zone at that price. ──
+function _rcRenderCurve(){
+  var chart=document.getElementById('rc-curve'), read=document.getElementById('rc-readout');
+  if(!chart||!read) return;
+  var zones=[1,2,3,4,5].filter(function(z){ return _rcZoneCities(z).length; });
+  var W=960,H=430,mL=52,mR=118,mT=26,mB=40, x0=mL,x1=W-mR,y0=mT,y1=H-mB;
+  var pMin=195,pMax=500,gMin=-0.5,gMax=0.72;
+  var X=function(p){ return x0+(p-pMin)/(pMax-pMin)*(x1-x0); };
+  var Y=function(g){ return y1-(g-gMin)/(gMax-gMin)*(y1-y0); };
+  var clampY=function(g){ return Y(Math.max(gMin,Math.min(gMax,g))); };
+  var smooth=function(pts){
+    var d='M'+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+    for(var i=0;i<pts.length-1;i++){
+      var p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+      d+=' C'+(p1[0]+(p2[0]-p0[0])/6).toFixed(1)+' '+(p1[1]+(p2[1]-p0[1])/6).toFixed(1)
+        +' '+(p2[0]-(p3[0]-p1[0])/6).toFixed(1)+' '+(p2[1]-(p3[1]-p1[1])/6).toFixed(1)
+        +' '+p2[0].toFixed(1)+' '+p2[1].toFixed(1);
+    }
+    return d;
+  };
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="nx-chart" preserveAspectRatio="xMidYMid meet">';
+  [-0.4,-0.2,0,0.2,0.4,0.6].forEach(function(g){
+    var y=Y(g), isZero=(g===0), col=isZero?'rgba(255,90,114,.4)':'rgba(255,255,255,.06)';
+    svg+='<line x1="'+x0+'" y1="'+y.toFixed(1)+'" x2="'+x1+'" y2="'+y.toFixed(1)+'" stroke="'+col+'" stroke-width="1"'+(isZero?' stroke-dasharray="5 5"':'')+'/>'
+      +'<text x="'+(x0-8)+'" y="'+(y+4).toFixed(1)+'" fill="'+(isZero?'#ff5a72':'#6b7280')+'" font-size="11" text-anchor="end" font-family="Inter">'+Math.round(g*100)+'%</text>';
+  });
+  svg+='<text x="'+x1+'" y="'+(Y(0)-7).toFixed(1)+'" fill="#ff5a72" font-size="11" text-anchor="end" font-weight="700" font-family="Inter">break-even</text>';
+  [195,250,300,400,500].forEach(function(p){ svg+='<text x="'+X(p).toFixed(1)+'" y="'+(y1+20)+'" fill="#6b7280" font-size="11" text-anchor="middle" font-family="Inter">$'+p+'</text>'; });
+  zones.forEach(function(z){
+    var c=_rcMedianTown(z), col=_rcNeonZone(z), rgb=_rcHexRGB(col);
+    var pts=RC_CURVE_PRICES.map(function(p){ return [X(p), clampY((p-_rcCost(c))/p)]; });
+    var d=smooth(pts), ex=pts[pts.length-1][0], ey=pts[pts.length-1][1];
+    svg+='<path d="'+d+'" fill="none" stroke="rgba('+rgb+',0.10)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<path d="'+d+'" fill="none" stroke="rgba('+rgb+',0.30)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'<text x="'+(ex+9).toFixed(1)+'" y="'+(ey+4).toFixed(1)+'" fill="'+col+'" font-size="12" font-weight="800" font-family="Inter">Z'+z+'</text>';
+  });
+  var sx=X(_rc.scrub);
+  svg+='<line x1="'+sx.toFixed(1)+'" y1="'+y0+'" x2="'+sx.toFixed(1)+'" y2="'+y1+'" stroke="rgba(255,255,255,.4)" stroke-width="1.4" stroke-dasharray="4 4"/>';
+  zones.forEach(function(z){
+    var c=_rcMedianTown(z), col=_rcNeonZone(z), rgb=_rcHexRGB(col);
+    var cy=clampY((_rc.scrub-_rcCost(c))/_rc.scrub);
+    svg+='<circle cx="'+sx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="8" fill="rgba('+rgb+',0.30)"/><circle cx="'+sx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3.6" fill="'+col+'"/>';
+  });
+  svg+='<text x="'+sx.toFixed(1)+'" y="'+(y0-8)+'" fill="#fff" font-size="12" font-weight="800" text-anchor="middle" font-family="Inter">$'+_rc.scrub+'</text>';
+  chart.innerHTML=svg+'</svg>';
+
+  var p=_rc.scrub, rows='', nc=0;
+  zones.forEach(function(z){
+    var c=_rcMedianTown(z), col=_rcNeonZone(z), mp=(p-_rcCost(c))/p, s=_rcStatusOf(mp);
+    if(mp>0) nc++;
+    rows+='<div class="nx-rd-row"><span class="nx-rd-dot" style="background:'+col+';box-shadow:0 0 9px '+col+'"></span><span class="nx-rd-z">Zone '+z+'</span><span class="nx-rd-town">'+_pvEsc(_rcClean(c.name))+'</span><span class="nx-rd-mp" style="color:'+s.c+'">'+Math.round(mp*100)+'%</span><span class="nx-rd-word" style="color:'+s.c+'">'+s.w+'</span></div>';
+  });
+  read.innerHTML='<div class="nx-console"><div class="nx-console-top">At $'+p+' / rental</div><div class="nx-console-body">'
+    +'<div class="nx-rd-head"><b>'+nc+' of '+zones.length+'</b> zones turn a profit at this price</div>'+rows
+    +'<div class="nx-say">Drag the slider to sweep one price across every zone at once. Each dot rides its zone\'s margin curve — the typical (median-distance) town out there. Green is a healthy margin, red means the truck loses money.</div>'
+    +'</div></div>';
+}
+
+// Slim assumptions strip + Local-rate KPI mirror the dials (Adjust edits them).
+function _rcRenderAssume(){
+  var A=_rc.A, set=function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+  set('rc-as-wage','$'+A.wage);
+  set('rc-as-diesel','$'+A.diesel.toFixed(2));
+  set('rc-as-fe',A.fe+' L/100');
+  set('rc-as-ladder','$'+A.z1+' · $'+A.z2+' · +$'+A.step);
+  set('rc-as-trips',String(_rc.trips));
+  var k=document.getElementById('rc-bench-kpi'); if(k) k.innerHTML='$'+Math.round(_rc.bench)+'<small>/hr</small>';
 }
 
 function _rcRenderCost(){
@@ -14195,10 +14281,11 @@ function _rcRenderFoot(){
 function rcRender(){
   _rcDials();
   _rc.bench=_rcBench();
-  if(_rc.tab==='heat') _rcRenderHeat();
+  _rcRenderAssume();
+  if(_rc.tab==='heat'){ _rcRenderHeat(); _rcRenderVerdict(); }
+  if(_rc.tab==='curve') _rcRenderCurve();
   if(_rc.tab==='cost') _rcRenderCost();
   if(_rc.tab==='zones') _rcRenderZones();
-  _rcRenderVerdict();
   _rcRenderFoot();
 }
 function renderRouteConsole(){ rcRender(); }
