@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '405';
+var APP_VERSION = '406';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2174,9 +2174,9 @@ function go(name){
   render(name);
   if(el) animateView(el);
   closeSidebar();
-  // Pricing is a full-screen page: a body class collapses .main's padding so
-  // the sheet gets the whole viewport (see .pv-full rules in style.css).
-  document.body.classList.toggle('pv-full', name==='pricing');
+  // The pricing family (sheet, editor, margin console) are full-screen pages:
+  // a body class collapses .main's padding so they get the whole viewport.
+  document.body.classList.toggle('pv-full', ['pricing','ourprices','pricingconsole'].indexOf(name)!==-1);
   if(typeof mSyncTab==='function') mSyncTab(name);
 }
 // Open the JWG scheduler at a specific internal tab (sidebar deep-links).
@@ -6143,20 +6143,35 @@ function renderOurPrices(){
   var bins = ap.bins || {};
   var junk = ap.junk || {};
 
-  var areaTabs = pricingAreas.map(function(area){
-    var active = area === activeOurArea;
-    return '<div onclick="selectOurArea(\''+area+'\')" '
-      +'style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:24px;'
-      +'border:1.5px solid '+(active?'var(--accent)':'var(--border)')+';'
-      +'background:'+(active?'rgba(34,197,94,.12)':'var(--surface)')+';'
-      +'color:'+(active?'var(--accent)':'var(--text)')+';'
-      +'cursor:pointer;font-size:14px;font-weight:'+(active?'700':'500')+';transition:all .15s">'
-      +'<span>📍 '+area+'</span>'
-      +'<span onclick="event.stopPropagation();renameOurArea(\''+area+'\')" style="font-size:12px;opacity:.6;padding:0 2px" title="Rename">'+lineIcon('edit',13)+'</span>'
-      +'<span onclick="event.stopPropagation();deleteOurArea(\''+area+'\')" style="font-size:14px;opacity:.6;padding:0 2px" title="Delete">✕</span>'
-      +'</div>';
+  // Town picker grouped into the same zone tiers (and colours) as the pricing
+  // sheet — this page IS that sheet's editor, so they read as one system.
+  var zoneNames = [], byZone = {};
+  pricingAreas.forEach(function(area){
+    var z = (ourPricesV2[area] && ourPricesV2[area].zone) || 'Other Areas';
+    if(!byZone[z]){ byZone[z] = []; zoneNames.push(z); }
+    byZone[z].push(area);
+  });
+  zoneNames.sort(function(a,b){
+    if(a==='Other Areas') return 1;
+    if(b==='Other Areas') return -1;
+    return a.localeCompare(b, undefined, {numeric:true});
+  });
+  var areaTabs = zoneNames.map(function(z){
+    var zc = _pvZoneClass(z);
+    var chips = byZone[z].map(function(area){
+      var aq = String(area).replace(/'/g,"\\'");
+      var active = area === activeOurArea;
+      return '<div class="op-chip '+zc+(active?' active':'')+'" onclick="selectOurArea(\''+aq+'\')">'
+        +'<span class="op-dot"></span><span>'+_pvEsc(area)+'</span>'
+        +'<span class="op-chip-tool" onclick="event.stopPropagation();renameOurArea(\''+aq+'\')" title="Rename">'+lineIcon('edit',12)+'</span>'
+        +'<span class="op-chip-tool" onclick="event.stopPropagation();deleteOurArea(\''+aq+'\')" title="Delete">✕</span>'
+        +'</div>';
+    }).join('');
+    return '<div class="op-zone-group '+zc+'">'
+      +'<div class="op-zone-label">'+_pvZoneEmoji(z)+' '+_pvEsc(_pvZoneLabel(z))+'</div>'
+      +'<div class="op-zone-chips">'+chips+'</div></div>';
   }).join('')
-  +'<button class="btn btn-ghost" onclick="addOurPricingArea()" style="padding:10px 18px;border-radius:24px;border:1.5px dashed var(--border);font-size:14px">+ Add Area</button>';
+  +'<button class="btn btn-ghost" onclick="addOurPricingArea()" style="padding:8px 16px;border-radius:24px;border:1.5px dashed var(--border);font-size:13px;margin-top:12px">+ Add Town</button>';
 
   // Bin Rental card — GREEN theme
   var binCard = '<div style="background:var(--surface);border:1px solid var(--border);border-top:5px solid #22c55e;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.04)">'
@@ -6213,16 +6228,14 @@ function renderOurPrices(){
     +_opField('Full Truck',   _opNumInput('op-j-full',    junk.full))
     +'</div></div>';
 
-  var areaBadge = '<div style="display:inline-flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;margin-bottom:20px">'
+  var areaBadge = '<div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;margin-bottom:20px">'
     +'<span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Editing prices for</span>'
-    +'<span style="font-size:15px;font-weight:700;color:#22c55e">📍 '+activeOurArea+'</span>'
-    +(ap.towns?'<span style="font-size:12px;color:var(--muted);font-style:italic">— '+ap.towns+'</span>':'')
+    +'<span style="font-size:15px;font-weight:700;color:#22c55e">📍 '+_pvEsc(activeOurArea)+'</span>'
+    +(ap.zone?'<span class="pv-lg-chip '+_pvZoneClass(ap.zone)+'">'+_pvZoneEmoji(ap.zone)+' '+_pvEsc(_pvZoneLabel(ap.zone))+'</span>':'')
+    +(ap.driveTime?'<span style="font-size:12px;color:var(--muted)">~'+_pvEsc(ap.driveTime)+' drive</span>':'')
     +'</div>';
 
-  wrap.innerHTML = '<div style="margin-bottom:18px">'
-    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">Service Areas</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+areaTabs+'</div>'
-    +'</div>'
+  wrap.innerHTML = '<div class="op-picker">'+areaTabs+'</div>'
     +areaBadge
     +binCard
     +junkCard;

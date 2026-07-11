@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=405">
+<link rel="stylesheet" href="style.css?v=406">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=396">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1044,12 +1044,15 @@
 
 <!-- ═══════════════ OUR PRICES (editor) ═══════════════ -->
 <div id="view-ourprices" class="view">
-  <div class="page-header">
-    <div>
-      <div class="page-title page-title-sm">Our Prices</div>
-      <div class="page-sub">Set your bin rental and junk removal prices per service area</div>
+  <div class="pv-hero">
+    <div class="pv-hero-main">
+      <div class="pv-hero-title">🏷️ Edit Our Prices</div>
+      <div class="pv-hero-sub">The master prices behind the pricing sheet — pick a town, change a number, hit save. The sheet updates instantly.</div>
     </div>
-    <button class="btn btn-primary" onclick="saveOurPricesFromPage()" style="font-size:14px;padding:10px 22px">💾 Save Prices</button>
+    <div class="pv-hero-actions">
+      <button class="btn btn-ghost" onclick="go('pricing')">← Pricing Sheet</button>
+      <button class="btn btn-primary" onclick="saveOurPricesFromPage()">💾 Save Prices</button>
+    </div>
   </div>
   <div id="ourprices-content"></div>
 </div>
@@ -2519,7 +2522,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=405"></script>
+<script src="app.js?v=406"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

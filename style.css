@@ -2459,3 +2459,19 @@ body.signed-in .help-fab{display:flex;}
 .rc-zcities{margin-top:10px;color:var(--muted);font-size:11.5px;line-height:1.5;border-top:1px solid var(--border);padding-top:9px}
 .rc-note{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.6}
 .rc-foot{color:var(--muted);font-size:11.5px;margin-top:26px;border-top:1px solid var(--border);padding-top:14px;line-height:1.7}
+
+/* ═══════════════ EDIT OUR PRICES — zone-grouped town picker ═══════════════
+   Same zone tiers + heat colours as the pricing sheet (pv-zN vars), so the
+   editor and the sheet read as one system. */
+.op-picker{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:18px;box-shadow:var(--shadow-sm)}
+.op-zone-group{margin-bottom:12px}
+.op-zone-group:last-of-type{margin-bottom:0}
+.op-zone-label{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--zc,var(--muted));margin-bottom:6px}
+.op-zone-chips{display:flex;flex-wrap:wrap;gap:6px}
+.op-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;font-weight:600;transition:all .12s}
+.op-chip:hover{border-color:var(--zc,var(--accent))}
+.op-chip.active{background:var(--zc,var(--accent));border-color:var(--zc,var(--accent));color:#fff;font-weight:800}
+.op-dot{width:8px;height:8px;border-radius:50%;background:var(--zc,var(--muted));flex:0 0 auto}
+.op-chip.active .op-dot{background:#fff}
+.op-chip-tool{opacity:.5;font-size:11px;padding:0 1px;line-height:1}
+.op-chip:hover .op-chip-tool{opacity:.85}
