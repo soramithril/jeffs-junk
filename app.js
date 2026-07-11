@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '401';
+var APP_VERSION = '402';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1348,7 +1348,8 @@ async function loadAllFromSupabase() {
         ourPricesV2 = {};
         rPrices.data.forEach(function(r){
           // bin_fuel is intentionally NOT loaded — we stopped charging a fuel surcharge (July 2026)
-          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binTonne:(r.bins&&r.bins._tonne!=null)?String(r.bins._tonne):'', towns:r.towns||''};
+          ourPricesV2[r.area||'Default'] = {bins:r.bins||{}, junk:r.junk||{}, binTonne:(r.bins&&r.bins._tonne!=null)?String(r.bins._tonne):'', towns:r.towns||'',
+                                            zone:r.zone||'', driveTime:r.drive_time||''};
         });
         // Derive pricingAreas entirely from Supabase data — authoritative
         pricingAreas = Object.keys(ourPricesV2);
@@ -5919,11 +5920,13 @@ function saveOurPricesData(){
       if(ap.binTonne) binsToSave._tonne = parseFloat(ap.binTonne);
       else delete binsToSave._tonne;
       var row = {
-        area:     area,
-        bins:     binsToSave,
-        junk:     ap.junk || {},
-        bin_fuel: null,   // fuel surcharge removed July 2026 — clears any legacy value on save
-        towns:    ap.towns || ''
+        area:       area,
+        bins:       binsToSave,
+        junk:       ap.junk || {},
+        bin_fuel:   null,   // fuel surcharge removed July 2026 — clears any legacy value on save
+        towns:      ap.towns || '',
+        zone:       ap.zone || null,
+        drive_time: ap.driveTime || null
       };
       return row;
     });
@@ -5942,7 +5945,7 @@ function saveOurPricesData(){
 }
 function savePricingAreas(){ /* pricingAreas derived from Supabase our_prices — no separate save needed */ }
 function nextCompId(){ return 'c'+(Date.now()%100000); }
-function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binTonne:'',towns:''}; }
+function getAreaPrices(area){ return ourPricesV2[area] || {bins:{},junk:{},binTonne:'',towns:'',zone:'',driveTime:''}; }
 
 function setPricingCat(cat,el){
   pricingCat=cat;
@@ -6097,6 +6100,11 @@ function _opNumInput(id, val, placeholder){
     +'onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">'
     +'</div>';
 }
+function _opTextInput(id, val, placeholder){
+  return '<input id="'+id+'" type="text" value="'+String(val||'').replace(/"/g,'&quot;')+'" placeholder="'+(placeholder||'')+'" '
+    +'style="width:100%;padding:14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;outline:none;transition:border-color .15s" '
+    +'onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">';
+}
 function _opField(label, control, hint){
   return '<div style="display:flex;flex-direction:column;gap:6px">'
     +'<label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+label+'</label>'
@@ -6163,16 +6171,24 @@ function renderOurPrices(){
     // Large bins
     +'<div style="margin-top:24px"><div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;display:inline-block">Large Bins (14 &amp; 20 yard)</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">'
+    +_opField('14 Yard 3-Day',    _opNumInput('op-b143d', bins['14 yard 3 day'], '—'), 'Zone 1 special — leave blank if not offered here')
     +_opField('14 Yard',          _opNumInput('op-b14',  bins['14 yard']))
     +_opField('20 Yard',          _opNumInput('op-b20',  bins['20 yard']))
     +_opField('Monthly 14 Yard',  _opNumInput('op-bm14', bins['monthly 14 yard'], '—'))
     +_opField('Monthly 20 Yard',  _opNumInput('op-bm20', bins['monthly 20 yard'], '—'))
     +'</div></div>'
 
+    // Location — drives the zone grouping + drive time on the pricing sheet
+    +'<div style="margin-top:24px"><div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;display:inline-block">Location</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">'
+    +_opField('Zone', _opTextInput('op-zone', ap.zone, 'e.g. Zone 1 (0-25km)'), 'Towns with the same zone group together on the pricing sheet')
+    +_opField('Drive Time', _opTextInput('op-drive', ap.driveTime, 'e.g. 20-25 mins'), 'Approx drive from the yard — shown under the town name')
+    +'</div></div>'
+
     // Fees — no fuel surcharge (removed July 2026)
     +'<div style="margin-top:24px"><div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;display:inline-block">Fees</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">'
-    +_opField('Dump Fee ($/tonne)', _opNumInput('op-b-tonne', ap.binTonne, '135'), 'First tonne included in the quote — overage prorated at this rate. 14 &amp; 20 yard bins only')
+    +_opField('Dump Fee ($/tonne)', _opNumInput('op-b-tonne', ap.binTonne, '135'), 'First tonne included in the quote — overage prorated at this rate. All 14 &amp; 20 yard prices (3-day, weekly, monthly); dirt &amp; concrete bins are flat rate')
     +'</div></div>'
     +'</div>';
 
@@ -6215,6 +6231,7 @@ function saveOurPricesFromPage(){
       '4 yard concrete': v('op-b4conc'),
       '7 yard dirt':     v('op-b7dirt'),
       '7 yard concrete': v('op-b7conc'),
+      '14 yard 3 day':   v('op-b143d'),
       '14 yard':         v('op-b14'),
       '20 yard':         v('op-b20'),
       'monthly 14 yard': v('op-bm14'),
@@ -6227,7 +6244,9 @@ function saveOurPricesFromPage(){
       half:    v('op-j-half'),
       full:    v('op-j-full')
     },
-    towns: prev.towns || ''
+    towns: prev.towns || '',
+    zone: v('op-zone').trim(),
+    driveTime: v('op-drive').trim()
   };
   saveOurPricesData();
   renderPricing();
@@ -13601,43 +13620,47 @@ function initReportSection() {
 
 // ═══════════════ PRICING PAGE — price sheet + quote rail ═══════════════
 // One view built for phone quoting: a spreadsheet-style sheet on the left —
-// locations down the side, bin types across the top, 3-day rentals first then
-// 7-day ordered cheapest to priciest. Clicking any price builds the quote
+// towns grouped into drive-time zone tiers (Zone 1 → 5, mirroring Jake's
+// pricing doc), bin types across the top. Clicking any price builds the quote
 // (breakdown + read-aloud script) in the sticky right rail. No fuel surcharge —
 // we stopped charging it July 2026.
 var _pvSel = {area:null, town:null, size:'14 yard'};
-var PV_MAIN_SIZES  = ['14 yard','20 yard'];   // household garbage bins — the main event
-var PV_OTHER_SIZES = ['4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'];
-// Sheet columns, in phone-quoting order. Monthly prices stay out of the sheet
-// (they live in Edit Our Prices + the competitor comparison).
-var PV_TABLE_SIZES = ['14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete'];
+// Sheet columns, mirroring the pricing doc: 3-day special first, then the
+// weekly household bins, dirt/concrete, and the monthly rentals.
+var PV_TABLE_SIZES = ['14 yard 3 day','14 yard','20 yard','4 yard dirt','4 yard concrete','7 yard dirt','7 yard concrete','monthly 14 yard','monthly 20 yard'];
 var PV_TABLE_HEADS = {
-  '14 yard':['14 yd','Household'], '20 yard':['20 yd','Household'],
+  '14 yard 3 day':['14 yd','3-Day'],
+  '14 yard':['14 yd','1–7 Days'], '20 yard':['20 yd','1–7 Days'],
   '4 yard dirt':['4 yd','Dirt'], '4 yard concrete':['4 yd','Concrete'],
-  '7 yard dirt':['7 yd','Dirt'], '7 yard concrete':['7 yd','Concrete']
+  '7 yard dirt':['7 yd','Dirt'], '7 yard concrete':['7 yd','Concrete'],
+  'monthly 14 yard':['14 yd','Monthly'], 'monthly 20 yard':['20 yd','Monthly']
 };
 
 function _pvEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function _pvSizeLabel(sz){ return sz.replace(' yard','yd').replace('monthly ','Mo '); }
+function _pvSizeLabel(sz){ return sz.replace('14 yard 3 day','14yd 3-day').replace(' yard','yd').replace('monthly ','Mo '); }
 function _pvSpoken(sz){
   // '14 yard' → '14-yard' · '4 yard dirt' → '4-yard dirt' · 'monthly 14 yard' → '14-yard monthly'
   var monthly = sz.indexOf('monthly')===0;
-  var s = sz.replace('monthly ','').replace(/^(\d+) yard/,'$1-yard');
+  var s = sz.replace('monthly ','').replace(/^(\d+) yard/,'$1-yard').replace('3 day','3-day');
   return monthly ? s+' monthly' : s;
 }
 function pvFmtR(v){ return v==null?'—':'$'+Math.round(v); }
-// All-in = (base + dump fee for 14/20yd) + 13% HST.
+// Every household 14/20 yd price (3-day, weekly, monthly) includes the dump fee;
+// dirt & concrete bins are flat rate — same math as the pricing doc's "+Tax" columns.
+function _pvHasDump(sz){ return sz.indexOf('dirt')<0 && sz.indexOf('concrete')<0; }
+// All-in = (base + dump fee where it applies) + 13% HST.
 function pvCalcAllIn(base, sz, tonne){
   if(!base) return null;
   var v = parseFloat(base);
-  if((sz==='14 yard'||sz==='20 yard') && tonne) v += parseFloat(tonne);
+  if(_pvHasDump(sz) && tonne) v += parseFloat(tonne);
   return v * 1.13;
 }
 function pvAllAreas(){
   return pricingAreas.map(function(area){
-    var ap = ourPricesV2[area] || {bins:{},junk:{},binTonne:'',towns:''};
+    var ap = getAreaPrices(area);
     var areaComps = competitors.filter(function(c){ return (c.area||'Default')===area; });
     return { id:area, name:area, towns:ap.towns||'',
+      zone:ap.zone||'', drive:ap.driveTime||'',
       tonne:parseFloat(ap.binTonne)||0,
       bins:ap.bins||{}, junk:ap.junk||{}, comps:areaComps };
   });
@@ -13653,9 +13676,8 @@ function _pvTownList(a){
 function pvAllRows(){
   var rows = [];
   pvAllAreas().forEach(function(a){
-    var is3 = _pvIs3Day(a);
     _pvTownList(a).forEach(function(town){
-      rows.push({ area:a.id, town:town, zone:a.name, is3day:is3,
+      rows.push({ area:a.id, town:town, zone:a.zone, drive:a.drive,
         tonne:a.tonne, bins:a.bins, comps:a.comps });
     });
   });
@@ -13678,8 +13700,9 @@ function pvPick(areaId, town, sz){
 }
 
 // Competitors don't split 4/7yd into dirt/concrete — map our size to their key.
+// No competitor tracks a 3-day or monthly rate, so those sizes get no comparison.
 function _pvCompKey(sz){
-  if(sz.indexOf('monthly')===0) return null;
+  if(sz.indexOf('monthly')===0 || sz==='14 yard 3 day') return null;
   if(sz.indexOf('4 yard')===0) return '4 yard';
   if(sz.indexOf('7 yard')===0) return '7 yard';
   return sz;
@@ -13705,7 +13728,7 @@ function _pvEnsureSelection(rows){
   function hasPrices(r){ return PV_TABLE_SIZES.some(function(s){return parseFloat(r.bins[s])>0;}); }
   var r = rows.find(function(x){return x.area===_pvSel.area && x.town===_pvSel.town;});
   if(!r){
-    r = rows.find(function(x){return /^barrie/i.test(x.town) && !x.is3day && parseFloat(x.bins['14 yard'])>0;})
+    r = rows.find(function(x){return /^barrie/i.test(x.town) && parseFloat(x.bins['14 yard'])>0;})
       || rows.find(hasPrices)
       || rows[0];
     _pvSel.area = r.area; _pvSel.town = r.town;
@@ -13715,10 +13738,6 @@ function _pvEnsureSelection(rows){
   }
   return r;
 }
-
-// A "3-day" row is any area whose name says so (e.g. "Barrie 3-Day"); everything
-// else is the standard 7-day rental. Rows sort cheapest-first by 14-yard price.
-function _pvIs3Day(a){ return /3[\s-]?day/i.test(a.name); }
 
 function _pvCell(r, sz, aq, tq){
   var base = parseFloat(r.bins[sz]);
@@ -13743,8 +13762,19 @@ function renderPricingAreas(){
   _pvEnsureSelection(rows);
   function p14(r){ var p=parseFloat(r.bins['14 yard']); return p>0?p:Infinity; }
   function byPrice(x,y){ return p14(x)-p14(y) || String(x.town).localeCompare(String(y.town)); }
-  var threeDay = rows.filter(function(r){ return r.is3day; }).sort(byPrice);
-  var sevenDay = rows.filter(function(r){ return !r.is3day; }).sort(byPrice);
+  // Group towns into their zone tiers (Zone 1 → 5, like the pricing doc);
+  // towns with no zone set land in a trailing "Other Areas" section.
+  var zoneNames = [], byZone = {};
+  rows.forEach(function(r){
+    var z = r.zone || 'Other Areas';
+    if(!byZone[z]){ byZone[z] = []; zoneNames.push(z); }
+    byZone[z].push(r);
+  });
+  zoneNames.sort(function(a,b){
+    if(a==='Other Areas') return 1;
+    if(b==='Other Areas') return -1;
+    return a.localeCompare(b, undefined, {numeric:true});
+  });
 
   var html = '<div class="pv-table-wrap"><table class="pv-table"><thead><tr>'
     + '<th class="pv-loc">Location</th>'
@@ -13760,18 +13790,16 @@ function renderPricingAreas(){
     list.forEach(function(r){
       var aq = _pvArg(r.area), tq = _pvArg(r.town);
       var active = (r.area===_pvSel.area && r.town===_pvSel.town);
-      var showZone = r.zone && r.zone!==r.town;   // grouped-zone context, e.g. "Barrie & Area"
       h += '<tr class="pv-row'+(active?' pv-active':'')+'">'
         + '<td class="pv-loc"><div class="pv-loc-name">'+_pvEsc(r.town)+'</div>'
-        + (showZone?'<div class="pv-loc-towns" title="'+_pvEsc(r.zone)+'">'+_pvEsc(r.zone)+'</div>':'')
+        + (r.drive?'<div class="pv-loc-towns">~'+_pvEsc(r.drive)+' drive</div>':'')
         + '</td>';
       PV_TABLE_SIZES.forEach(function(sz){ h += _pvCell(r, sz, aq, tq); });
       h += '</tr>';
     });
     return h;
   }
-  html += sectionRows(threeDay, '3-Day Rentals');
-  html += sectionRows(sevenDay, '7-Day Rentals');
+  zoneNames.forEach(function(z){ html += sectionRows(byZone[z].sort(byPrice), z); });
   html += '</tbody></table></div>';
 
   // Sheet-wide note. Only claim the dump fee is baked in if EVERY row that has a
@@ -13784,11 +13812,12 @@ function renderPricingAreas(){
   var tk = Object.keys(tonnes);
   var note = 'Prices are all-in: HST included';
   if(allTonned){
-    note += ', and 14 & 20 yd include the dump fee (first tonne)'
+    note += ', and every 14 & 20 yd price (3-day, weekly, monthly) includes the dump fee (first tonne)'
          + (tk.length===1 ? ' — overage $'+tk[0]+'/tonne.' : '.');
   } else {
-    note += '. Where a dump fee is set, 14 & 20 yd include the first tonne.';
+    note += '. Where a dump fee is set, 14 & 20 yd prices include the first tonne.';
   }
+  note += ' Dirt & concrete bins are flat rate.';
   html += '<div class="pv-table-note">'+note+'</div>';
   host.innerHTML = html;
 }
@@ -13806,7 +13835,7 @@ function renderPricingRail(){
       +' yet — open <b>Edit Our Prices</b> to add them, or click a price in another city.</div></div>';
     return;
   }
-  var hasDump = (sz==='14 yard'||sz==='20 yard') && r.tonne>0;
+  var hasDump = _pvHasDump(sz) && r.tonne>0;
   var dump = hasDump?r.tonne:0;
   var hst = (base+dump)*0.13;
   var total = base+dump+hst;

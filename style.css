@@ -1393,14 +1393,12 @@ input[type=date],input[type=time]{position:relative;}
 @media(max-width:1024px){.pv-layout{grid-template-columns:1fr}}
 
 /* Left: spreadsheet-style price sheet — locations down, bin types across.
-   Full page: the sheet flows down the whole page (no inner scroll box); the
-   header row and location column stick to the page scroll. Opaque backgrounds
-   everywhere so sticky cells cover content scrolling underneath. Below the
-   layout breakpoint the sheet gets its own horizontal scroll so the page body
-   never scrolls sideways. */
-.pv-table-wrap{overflow:visible;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
-@media(max-width:1024px){.pv-table-wrap{overflow-x:auto}}
-.pv-table{border-collapse:separate;border-spacing:0;width:100%;min-width:720px}
+   The doc-mirror sheet (9 price columns since v402) is wider than the layout
+   column, so the wrap is its OWN scroll pane both ways: the header row and
+   location column stick inside it, and the page body never scrolls sideways.
+   Opaque backgrounds everywhere so sticky cells cover content scrolling under. */
+.pv-table-wrap{overflow:auto;max-height:calc(100vh - 190px);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
+.pv-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1060px}
 .pv-table th,.pv-table td{border-bottom:1px solid var(--border)}
 .pv-table thead th{position:sticky;top:0;z-index:3;background:var(--surface2);padding:10px 12px;text-align:center;white-space:nowrap}
 .pv-table th.pv-loc{z-index:4;text-align:left}
