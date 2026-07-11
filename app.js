@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '402';
+var APP_VERSION = '403';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2174,6 +2174,9 @@ function go(name){
   render(name);
   if(el) animateView(el);
   closeSidebar();
+  // Pricing is a full-screen page: a body class collapses .main's padding so
+  // the sheet gets the whole viewport (see .pv-full rules in style.css).
+  document.body.classList.toggle('pv-full', name==='pricing');
   if(typeof mSyncTab==='function') mSyncTab(name);
 }
 // Open the JWG scheduler at a specific internal tab (sidebar deep-links).
@@ -13635,6 +13638,19 @@ var PV_TABLE_HEADS = {
   '7 yard dirt':['7 yd','Dirt'], '7 yard concrete':['7 yd','Concrete'],
   'monthly 14 yard':['14 yd','Monthly'], 'monthly 20 yard':['20 yd','Monthly']
 };
+// Colour family per column group (price colour + header chip — see .pv-g-* CSS).
+var PV_SIZE_GROUP = {
+  '14 yard 3 day':'special',
+  '14 yard':'week', '20 yard':'week',
+  '4 yard dirt':'dirt', '7 yard dirt':'dirt',
+  '4 yard concrete':'conc', '7 yard concrete':'conc',
+  'monthly 14 yard':'month', 'monthly 20 yard':'month'
+};
+// Zone tier styling: 'Zone 3 (51-75km)' → class pv-z3 (heat colours: green near
+// the yard shading to red far away) + an emoji that sells the drive.
+function _pvZoneClass(z){ var m=/zone\s*(\d)/i.exec(z||''); return m?'pv-z'+m[1]:'pv-z0'; }
+function _pvZoneEmoji(z){ var m=/zone\s*(\d)/i.exec(z||''); return ({1:'🏠',2:'🚛',3:'🛣️',4:'⛰️',5:'🌲'})[m&&m[1]]||'📍'; }
+function _pvZoneLabel(z){ return String(z).replace(/\s*\((.+)\)\s*$/,' · $1'); }
 
 function _pvEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _pvSizeLabel(sz){ return sz.replace('14 yard 3 day','14yd 3-day').replace(' yard','yd').replace('monthly ','Mo '); }
@@ -13744,7 +13760,7 @@ function _pvCell(r, sz, aq, tq){
   if(!(base>0)) return '<td class="pv-cell pv-empty">—</td>';
   var allIn = pvCalcAllIn(base, sz, r.tonne);
   var sel = (r.area===_pvSel.area && r.town===_pvSel.town && sz===_pvSel.size);
-  return '<td class="pv-cell'+(sel?' pv-selected':'')+'" onclick="pvPick(\''+aq+'\',\''+tq+'\',\''+sz+'\')">'
+  return '<td class="pv-cell pv-g-'+(PV_SIZE_GROUP[sz]||'week')+(sel?' pv-selected':'')+'" onclick="pvPick(\''+aq+'\',\''+tq+'\',\''+sz+'\')">'
     + '<div class="pv-c-allin">'+pvFmtR(allIn)+'</div>'
     + '<div class="pv-c-base">$'+base+' before tax</div>'
     + '</td>';
@@ -13780,17 +13796,19 @@ function renderPricingAreas(){
     + '<th class="pv-loc">Location</th>'
     + PV_TABLE_SIZES.map(function(sz){
         var hd = PV_TABLE_HEADS[sz];
-        return '<th><div class="pv-th-sz">'+hd[0]+'</div><div class="pv-th-type">'+hd[1]+'</div></th>';
+        return '<th class="pv-g-'+(PV_SIZE_GROUP[sz]||'week')+'"><div class="pv-th-sz">'+hd[0]+'</div><div class="pv-th-type">'+hd[1]+'</div></th>';
       }).join('')
     + '</tr></thead><tbody>';
 
   function sectionRows(list, label){
     if(!list.length) return '';
-    var h = '<tr class="pv-sec"><td colspan="'+(PV_TABLE_SIZES.length+1)+'"><span>'+label+'</span></td></tr>';
+    var zc = _pvZoneClass(label);
+    var h = '<tr class="pv-sec '+zc+'"><td colspan="'+(PV_TABLE_SIZES.length+1)+'"><span>'
+      + _pvZoneEmoji(label)+' '+_pvEsc(_pvZoneLabel(label))+'</span></td></tr>';
     list.forEach(function(r){
       var aq = _pvArg(r.area), tq = _pvArg(r.town);
       var active = (r.area===_pvSel.area && r.town===_pvSel.town);
-      h += '<tr class="pv-row'+(active?' pv-active':'')+'">'
+      h += '<tr class="pv-row '+zc+(active?' pv-active':'')+'">'
         + '<td class="pv-loc"><div class="pv-loc-name">'+_pvEsc(r.town)+'</div>'
         + (r.drive?'<div class="pv-loc-towns">~'+_pvEsc(r.drive)+' drive</div>':'')
         + '</td>';
@@ -13801,6 +13819,12 @@ function renderPricingAreas(){
   }
   zoneNames.forEach(function(z){ html += sectionRows(byZone[z].sort(byPrice), z); });
   html += '</tbody></table></div>';
+
+  // Hero legend — one coloured chip per zone tier, so the tiers read at a glance.
+  var legend = document.getElementById('pv-zone-legend');
+  if(legend) legend.innerHTML = zoneNames.map(function(z){
+    return '<span class="pv-lg-chip '+_pvZoneClass(z)+'">'+_pvZoneEmoji(z)+' '+_pvEsc(_pvZoneLabel(z))+'</span>';
+  }).join('');
 
   // Sheet-wide note. Only claim the dump fee is baked in if EVERY row that has a
   // 14/20 yd price actually has a tonne rate — pvCalcAllIn only adds the fee when
