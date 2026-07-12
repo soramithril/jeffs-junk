@@ -17,7 +17,6 @@
   window.__liquidNav = true;
 
   /* ---- tunables (variant 8) ---- */
-  var SIDEBAR_W = 240;       // must match --sidebar-w
   var FILL      = '#f8f9fa'; // must match --bg (page background)
   var RR        = 14;        // concave fillet radius (carve into the page)
   var RL        = 15;        // rounded left-corner radius
@@ -43,11 +42,14 @@
 
   var svg, path, sidebar, nav, moreLabel, cur = null, raf = 0;
 
+  /* live rail width — the sidebar collapses/expands on hover (v416) */
+  function railW() { return sidebar.getBoundingClientRect().width; }
+
   function draw(g) {
     if (!path) return;
     if (g.hidden) { path.style.opacity = '0'; return; }
     path.style.opacity = '1';
-    path.setAttribute('d', notchPath(g.t, g.b, g.lx, SIDEBAR_W));
+    path.setAttribute('d', notchPath(g.t, g.b, g.lx, railW()));
   }
 
   /* the active Daily item = a direct child .nav-item.active (not the action button) */
@@ -84,9 +86,10 @@
   }
   function sizeSvg() {
     var h = sidebar.getBoundingClientRect().height || sidebar.offsetHeight;
-    svg.setAttribute('width', SIDEBAR_W);
+    var w = railW();
+    svg.setAttribute('width', w);
     svg.setAttribute('height', h);
-    svg.setAttribute('viewBox', '0 0 ' + SIDEBAR_W + ' ' + h);
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
   }
   function snap() {
     var el = railTarget();
@@ -198,6 +201,9 @@
     snap();
     nav.addEventListener('scroll', snap, { passive: true });
     window.addEventListener('resize', function () { sizeSvg(); snap(); flySnap(); });
+    /* rail hover-collapse (v416): redraw every frame of the width transition
+       so the carved tab stays glued to the moving right edge */
+    new ResizeObserver(function () { sizeSvg(); snap(); }).observe(sidebar);
 
     /* flyout highlight */
     fly = document.getElementById('nav-more');
@@ -208,6 +214,8 @@
       fly.insertBefore(flyHL, fly.firstChild);
       fly.addEventListener('scroll', flySnap, { passive: true });
       var mo = new MutationObserver(function () {
+        /* keep the collapsed rail expanded while the flyout is open (v416) */
+        sidebar.classList.toggle('flyout-pin', fly.classList.contains('open'));
         requestAnimationFrame(function () {
           animateTo();                                   /* slide the rail tab onto / off the More tools button */
           if (fly.classList.contains('open')) flySnap(); /* place the flyout highlight */

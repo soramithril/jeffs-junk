@@ -14,7 +14,8 @@
   --text:#1a1a2e;--text-secondary:#495057;--muted:#868e96;
   --green:#22c55e;--yellow:#eab308;--red:#dc3545;--blue:#0d6efd;--orange:#f97316;--purple:#8b5cf6;
   --c-bin:#0891b2;--c-junk:#eab308;--c-furn:#8b5cf6;--c-furn-del:#f97316;--c-landscaping:#65a30d;
-  --sidebar-w:240px;
+  --sidebar-w:240px;        /* expanded rail (hover) */
+  --sidebar-rail:82px;      /* resting rail (icons only) — .main is laid out against this */
   --radius:10px;
   --radius-sm:6px;
   --radius-lg:14px;
@@ -147,7 +148,7 @@ body{
 /* Icon tiles: translucent on the green rail, brand-green on the active (white) tab */
 .nav-item .icon{flex:none;width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .14s,color .14s;}
 .nav-item.active .icon{background:var(--accent);color:#fff;}
-.nav-item-action{padding:12px 14px;font-size:14.5px;}
+.nav-item-action{padding:8px 11px;font-size:14.5px;} /* same padding as the other rows so the icon column lines up in the collapsed rail */
 .nav-item-action .icon{width:auto;height:auto;background:none;border-radius:0;color:#15803d;}
 .nav-item-daily .nav-hint{color:#fff;}
 .nav-item-daily.active .nav-hint{color:#4d8a64;opacity:1;}
@@ -201,8 +202,26 @@ body{
 /* Sidebar overlay for mobile */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:140;}
 
+/* ── COLLAPSIBLE RAIL (v416) ──
+   The rail rests slim (icon tiles only) and the page is laid out against that
+   slim width, so every screen gets the extra room. Hovering the rail expands
+   it OVER the page edge (the page itself never reflows); liquid-nav.js adds
+   .flyout-pin while the More-Tools flyout is open so the rail stays expanded.
+   Text keeps its layout space and only fades, so nothing shifts vertically
+   between the two states. Desktop only — mobile keeps the slide-in drawer. */
+@media(min-width:901px){
+  .sidebar{width:var(--sidebar-rail);overflow:hidden;--nav-txt:0;
+    transition:width .26s cubic-bezier(.22,1,.36,1) .05s,box-shadow .26s ease .05s,transform .25s;}
+  .sidebar:hover,.sidebar.flyout-pin{width:var(--sidebar-w);--nav-txt:1;
+    box-shadow:14px 0 34px rgba(0,0,0,.16);}
+  .logo-title,.sidebar .nav-label,.sidebar .nav>.nav-item span:not(.icon),
+  #nav-more-label .nav-more-txt,#nav-more-arrow,.sidebar-footer>*{
+    opacity:var(--nav-txt);transition:opacity .18s ease .05s;}
+  .sidebar .nav>.nav-item,#nav-more-label{white-space:nowrap;}
+}
+
 /* ── MAIN ── */
-.main{margin-left:var(--sidebar-w);min-height:100vh;padding:32px 40px;
+.main{margin-left:var(--sidebar-rail);min-height:100vh;padding:32px 40px;
   /* Soft aurora wash behind the glass cards — without it backdrop-filter has nothing to blur */
   background:
     radial-gradient(1100px 520px at 85% -10%, rgba(34,197,94,.09), transparent 60%),
@@ -920,7 +939,7 @@ input[type=date],input[type=time]{position:relative;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:900px){
-  :root{--sidebar-w:0px;}
+  :root{--sidebar-w:0px;--sidebar-rail:0px;}
   .sidebar{width:260px;transform:translateX(-100%);}
   .sidebar.mob-open{transform:translateX(0);}
   .sidebar-overlay.mob-open{display:block;}

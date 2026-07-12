@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '415';
+var APP_VERSION = '416';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10135,7 +10135,7 @@ function paintSvcTabIcons(){
   if(typeof atabsSync==='function'){ try{atabsSync('svc');}catch(e){} }
 }
 // Sidebar nav rail: swap each item's feather glyph for the matching JWGIcons
-// white line glyph (navIcon). Keyed by the item's onclick so no markup edits
+// emboss tile. Keyed by the item's onclick so no markup edits
 // are needed; the feather SVG stays as a fallback if a key is missing or JS
 // fails. Runs once on load. Some items reuse an existing glyph (crew/team/user
 // -> clients, bin fleet -> junk container, furniture quote -> junkQuote,
@@ -10153,9 +10153,13 @@ var NAV_ICO={
   "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
   "goJwg('clothing')":'clothing', "go('suggestions')":'advisor', "openPushSettings()":'bell'
 };
-// Distinct tile colour per More-Tools item so the flyout reads as a colourful
-// app grid (rather than all-white). Main green-rail items stay white line glyphs.
+// Distinct tile colour per nav item so the flyout — and, since v416, the main
+// rail too — reads as a colourful app grid. Rail items are listed first; the
+// rail rests icon-only (collapsible), so colour carries the meaning there.
 var NAV_COLOR={
+  "newJob()":'green', "go('dashboard')":'blue', "go('jobs')":'amber',
+  "goJwg('schedule')":'violet', "go('clients')":'teal', "go('landscaping')":'olive',
+  "goJwg('summer')":'yellow',
   "go('documents')":'slate', "go('calendar')":'blue', "go('livejobs')":'cyan',
   "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
   "go('damage')":'red', "go('bininventory')":'teal', "go('binmap')":'olive',
@@ -10174,15 +10178,16 @@ function paintNavIcons(){
     if(!key || !JWGIcons.PATHS[key]) return;
     var ico=btn.querySelector('.icon');
     if(!ico) return;
+    var color=NAV_COLOR[oc]||JWGIcons.ICON_COLOR[key]||'green';
     if(btn.closest('#nav-more')){
       // More-Tools flyout: colourful emboss tile fills the chip
-      var color=NAV_COLOR[oc]||JWGIcons.ICON_COLOR[key]||'green';
       ico.innerHTML=JWGIcons.embossTile(key,{size:28,radius:8,color:color});
-      ico.style.background='transparent';
     } else {
-      // main green rail: white line glyph (nav chrome)
-      ico.innerHTML=JWGIcons.navIcon(key,{size:16});
+      // main green rail: same emboss tiles at chip size (v416) — the rail
+      // rests icon-only, so the coloured tiles carry the meaning by themselves
+      ico.innerHTML=JWGIcons.embossTile(key,{size:34,radius:9,color:color});
     }
+    ico.style.background='transparent';
   });
 }
 function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); paintNavIcons(); }
