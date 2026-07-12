@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '417';
+var APP_VERSION = '418';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3235,7 +3235,13 @@ async function renderBinsAttention(){
     +'</div>';
   }).join('');
 }
-// Dashboard greeting — "<date> · Good morning, <name>" + a loose-ends headline.
+// Dashboard greeting — "<date> · Good morning, <name>" + a fun time-of-day
+// headline that rotates daily (v418; replaced the static "Here's your day").
+var GREET_FUN={
+  morning:["Rise and shine","Coffee first, junk second","Fresh day, empty bins","Let's get rolling","Up and at 'em"],
+  afternoon:["Keep on truckin'","Rolling right along","Full swing ahead","Keep it moving"],
+  evening:["Home stretch","Wrapping up the day","Finish strong","Almost quitting time"]
+};
 function renderGreeting(){
   var subEl=document.getElementById('dash-greeting-sub');
   var headEl=document.getElementById('dash-greeting-head');
@@ -3248,12 +3254,14 @@ function renderGreeting(){
   var raw=nameEl?(nameEl.textContent||'').trim():'';
   var nm=(raw && raw!=='—')?raw.split(' ')[0]:'';
   subEl.textContent=dateStr+' · '+part+(nm?', '+nm:'');
+  var list=h<12?GREET_FUN.morning:(h<18?GREET_FUN.afternoon:GREET_FUN.evening);
+  var phrase=list[now.getDate()%list.length]; // same phrase all day, new one tomorrow
   var ny=document.getElementById('dash-needs-you');
-  if(!ny || !ny.hasAttribute('data-count')){ headEl.textContent="Here's your day"; return; }
+  if(!ny || !ny.hasAttribute('data-count')){ headEl.textContent=phrase; return; }
   var n=parseInt(ny.getAttribute('data-count')||'0',10);
   headEl.innerHTML = n>0
-    ? "Here's your day — <span style=\"color:var(--accent)\">"+n+" loose end"+(n===1?'':'s')+"</span> to clear"
-    : "Here's your day — <span style=\"color:var(--accent)\">you're all caught up</span> 🎉";
+    ? phrase+" — <span style=\"color:var(--accent)\">"+n+" loose end"+(n===1?'':'s')+"</span> to clear"
+    : phrase+" — <span style=\"color:var(--accent)\">you're all caught up</span> 🎉";
 }
 async function renderDash(){
   // Banner: kick off fetch + re-render every time dashboard renders
@@ -10189,6 +10197,13 @@ function paintNavIcons(){
     }
     ico.style.background='transparent';
   });
+  // "More tools" toggle row gets a tile too (v418) — same grid glyph, indigo
+  // so it reads as its own thing next to the blue Dashboard tile
+  var moreLbl=document.getElementById('nav-more-label');
+  if(moreLbl && !moreLbl.querySelector('.jwg-emboss')){
+    var msvg=moreLbl.querySelector('svg');
+    if(msvg) msvg.outerHTML=JWGIcons.embossTile('dashboard',{size:34,radius:9,color:'indigo'});
+  }
 }
 function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); paintNavIcons(); }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',paintServiceIcons); else paintServiceIcons();

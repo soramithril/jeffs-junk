@@ -119,6 +119,7 @@ body{
 /* ── SIDEBAR ── */
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:#16a34a;display:flex;flex-direction:column;z-index:150;padding:0 0 24px;transition:transform .25s;}
 .logo{padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.16);}
+.logo-truck{display:none;} /* only shown in the collapsed desktop rail (see COLLAPSIBLE RAIL block) */
 .logo-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff;line-height:1;}
 .logo-sub{font-size:10px;color:rgba(255,255,255,.7);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:500;}
 .nav{padding:12px 12px;flex:1;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
@@ -215,9 +216,19 @@ body{
   .sidebar:hover,.sidebar.flyout-pin{width:var(--sidebar-w);--nav-txt:1;
     box-shadow:14px 0 34px rgba(0,0,0,.16);}
   .logo-title,.sidebar .nav-label,.sidebar .nav>.nav-item>span:not(.icon),
-  #nav-more-label .nav-more-txt,#nav-more-arrow,.sidebar-footer>*{
+  #nav-more-label .nav-more-txt,#nav-more-arrow,.footer-slim{
     opacity:var(--nav-txt);transition:opacity .18s ease .05s;}
   .sidebar .nav>.nav-item,#nav-more-label{white-space:nowrap;}
+  /* collapsed rail: truck logo instead of the wordmark (cross-fades on expand) */
+  .logo{position:relative;}
+  .logo-truck{display:block;position:absolute;left:16px;top:50%;transform:translateY(-50%);
+    width:50px;opacity:calc(1 - var(--nav-txt));transition:opacity .18s ease .05s;pointer-events:none;}
+  /* collapsed rail: user card shrinks to just the avatar, lined up with the tiles */
+  .sidebar-footer{padding:16px 12px;}
+  .user-card{overflow:hidden;}
+  .sidebar:not(:hover):not(.flyout-pin) .user-meta,
+  .sidebar:not(:hover):not(.flyout-pin) .user-signout,
+  .sidebar:not(:hover):not(.flyout-pin) .user-signin-label{display:none;}
 }
 
 /* ── MAIN ── */
