@@ -214,7 +214,7 @@ body{
     transition:width .26s cubic-bezier(.22,1,.36,1) .05s,box-shadow .26s ease .05s,transform .25s;}
   .sidebar:hover,.sidebar.flyout-pin{width:var(--sidebar-w);--nav-txt:1;
     box-shadow:14px 0 34px rgba(0,0,0,.16);}
-  .logo-title,.sidebar .nav-label,.sidebar .nav>.nav-item span:not(.icon),
+  .logo-title,.sidebar .nav-label,.sidebar .nav>.nav-item>span:not(.icon),
   #nav-more-label .nav-more-txt,#nav-more-arrow,.sidebar-footer>*{
     opacity:var(--nav-txt);transition:opacity .18s ease .05s;}
   .sidebar .nav>.nav-item,#nav-more-label{white-space:nowrap;}
