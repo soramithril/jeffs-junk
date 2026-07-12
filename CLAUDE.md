@@ -4,7 +4,7 @@
 
 Explain what you will change and ask to confirm the change so we are on the same page.
 
-Commit work locally as you go, but **never `git push` until Jake explicitly says to push** — each deploy goes out on his word, not automatically once a change is built. (Rule added 2026-07-10 at Jake's request.)
+Commit as you go and **push once the change is verified — no need to ask first**. (Jake lifted the ask-before-push rule 2026-07-11; it had been in place since 2026-07-10.) Always verify the live site after pushing, and say in the reply what went out.
 
 ## Code rules
 
@@ -61,8 +61,8 @@ Edit files in place — no temp clones, no copying around. Then:
    - `<link rel="stylesheet" href="style.css?v=N">` when you change `style.css`
    - `<script src="app-bookings.js?v=N">` when you change `app-bookings.js` (the Bookings widget code)
    These are SEPARATE from `app.js`'s `?v`. Forget one and browsers keep serving the old cached file: e.g. new markup renders with class names that have no matching CSS rules, so the page looks broken/unstyled even though the pushed file is correct. (Whenever `version.txt` changes, also bump `APP_VERSION` in lockstep — otherwise the auto-update banner misfires forever.)
-3. `git add`, `git commit -m "..."` — then `git push origin main` ONLY on Jake's explicit
-   push order (see working agreement). GitHub Pages deploys in ~30s.
+3. `git add`, `git commit -m "..."`, `git push origin main` — no push order needed
+   (Jake lifted the ask-first rule 2026-07-11). GitHub Pages deploys in ~30s.
 4. After every push, verify live (always — it's nearly free):
    - `curl -s https://soramithril.github.io/jeffs-junk/index.html | grep -ao 'app.js?v=[0-9]*'` — should show the new version (use `-a` because index.html trips ripgrep's binary heuristic). Poll a few times; the deploy takes ~25s.
    - Load the live site in a browser: confirm `APP_VERSION` matches and the console has no errors.
