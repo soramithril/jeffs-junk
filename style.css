@@ -2559,6 +2559,71 @@ body.signed-in .help-fab{display:flex;}
 .rc-note{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.6}
 .rc-foot{color:var(--muted);font-size:11.5px;margin-top:26px;border-top:1px solid var(--border);padding-top:14px;line-height:1.7}
 @media(max-width:1500px){.nx-board,.nx-curveview{grid-template-columns:1fr}.nx-console{position:static}}
+/* ── Zone Map tab: full-screen satellite coverage map ── */
+#view-pricingconsole.rc-mapmode .pv-hero,
+#view-pricingconsole.rc-mapmode .nx-assume,
+#view-pricingconsole.rc-mapmode .rc-dials,
+#view-pricingconsole.rc-mapmode .nx-tabs,
+#view-pricingconsole.rc-mapmode .rc-foot{display:none}
+#rc-map-board{position:fixed;inset:0;width:100vw;height:100vh;background:#0e1a14;overflow:hidden;z-index:4000}
+#rc-leaf-map{position:absolute;inset:0}
+@keyframes rc-spin{to{transform:rotate(360deg)}}
+#rc-map-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;color:#e8edea;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;background:#0e1a14;z-index:1500;pointer-events:none}
+.rc-map-spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:#22c55e;border-radius:50%;animation:rc-spin .8s linear infinite}
+.rc-map-topbar{position:absolute;top:14px;left:14px;right:14px;z-index:1200;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.rc-map-tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.7);border-radius:15px;box-shadow:0 8px 26px rgba(0,0,0,.3);backdrop-filter:blur(14px);padding:6px 8px 6px 13px}
+.rc-map-brand{font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:.8px;color:#15803d;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.rc-map-tabsep{width:1px;height:22px;background:#e2e8e5;margin:0 3px}
+.rc-map-tabs .nx-tab{padding:7px 13px;font-size:12.5px;white-space:nowrap;background:#fff}
+.rc-map-tabs .nx-tab.on{background:var(--accent)}
+.rc-map-back{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:11px 17px;border-radius:13px;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;background:#15803d;color:#fff;border:1px solid #15803d;box-shadow:0 8px 24px rgba(21,128,61,.42)}
+.rc-map-modecard{position:absolute;top:74px;left:14px;z-index:1000;background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.7);border-radius:13px;box-shadow:0 8px 24px rgba(0,0,0,.26);backdrop-filter:blur(14px);padding:10px 12px}
+.rc-map-modelbl{font-size:9px;letter-spacing:1.3px;text-transform:uppercase;font-weight:800;color:#8a978f;margin-bottom:6px}
+.rc-map-modeseg{display:flex;background:#eef2f0;border-radius:9px;padding:3px;gap:2px}
+.rc-map-modeseg button{border:0;background:transparent;color:#6b7d73;font-size:12px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;font-family:inherit}
+.rc-map-modeseg button.active{background:var(--accent);color:#fff}
+.rc-map-modenote{font-size:10px;color:#6b7d73;margin-top:7px;max-width:214px;line-height:1.45}
+#rc-mapside{position:absolute;top:74px;right:14px;bottom:16px;width:322px;z-index:1000;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.rc-map-glass{background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.7);border-radius:16px;box-shadow:0 12px 34px rgba(0,0,0,.26);backdrop-filter:blur(14px);overflow:hidden}
+.rc-map-ghead{padding:11px 15px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;font-weight:800;color:#8a978f;border-bottom:1px solid #edf1ef;display:flex;justify-content:space-between;align-items:center}
+.rc-map-ghead span{font-size:9.5px;font-weight:700;color:#a3b0a8;letter-spacing:.4px}
+.rc-map-legend{flex:none}
+.rc-map-legbody{padding:10px 14px 6px}
+.rc-leg-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.rc-leg-sw{width:12px;height:12px;border-radius:4px;flex:none}
+.rc-leg-main{flex:1;min-width:0}
+.rc-leg-name{font-size:12.5px;font-weight:800;color:#1a1a2e}
+.rc-leg-name span{color:#8a978f;font-weight:600;font-size:11px}
+.rc-leg-sub{font-size:10px;color:#a3b0a8}
+.rc-leg-price{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:14px;font-weight:700;letter-spacing:.3px}
+.rc-map-dir{flex:1;min-height:0;display:flex;flex-direction:column}
+.rc-map-dir .rc-map-ghead{flex:none}
+.rc-dir-scroll{overflow-y:auto;flex:1;min-height:0}
+.rc-dir-z{background:#f5f8f6;padding:5px 15px;border-top:1px solid #edf1ef;border-bottom:1px solid #edf1ef;display:flex;align-items:center;gap:7px;position:sticky;top:0}
+.rc-dir-zsw{width:8px;height:8px;border-radius:2px}
+.rc-dir-zn{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.6px}
+.rc-dir-zb{font-size:10px;color:#8a978f;font-weight:600}
+.rc-dir-row{display:flex;align-items:center;gap:9px;padding:7px 15px;border-bottom:1px solid #f1f4f2;cursor:pointer}
+.rc-dir-row:hover{background:rgba(34,197,94,.09)}
+.rc-dir-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.rc-dir-main{flex:1;min-width:0}
+.rc-dir-name{font-size:12.5px;font-weight:700;color:#1a1a2e}
+.rc-dir-sub{font-size:10px;color:#96a49b}
+.rc-dir-price{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:#1a1a2e}
+@media(max-width:900px){#rc-mapside{display:none}}
+/* leaflet skin, scoped to the map board (Live Jobs keeps its dark popups) */
+#rc-map-board .leaflet-container{font-family:'Inter',system-ui,sans-serif;background:#0e1a14}
+#rc-map-board .leaflet-tile-pane{filter:brightness(1.5) saturate(1.32) contrast(1.05)}
+#rc-map-board .leaflet-bar a{background:rgba(255,255,255,.94)!important;border-radius:8px!important;color:#1a1a2e!important;border-color:rgba(0,0,0,.08)!important}
+#rc-map-board .leaflet-bar a:hover{background:#fff!important}
+#rc-map-board .leaflet-control-attribution{background:rgba(255,255,255,.78)!important;color:#6b7d73!important}
+#rc-map-board .leaflet-control-attribution a{color:#15803d!important}
+.leaflet-popup.rc-pop .leaflet-popup-content-wrapper{background:#fff!important;border:0!important;color:#1a1a2e!important;border-radius:12px!important;box-shadow:0 18px 44px rgba(0,0,0,.4)!important;padding:2px!important}
+.leaflet-popup.rc-pop .leaflet-popup-content{margin:12px 14px!important;color:#1a1a2e}
+.leaflet-popup.rc-pop .leaflet-popup-tip{background:#fff!important}
+.leaflet-popup.rc-pop a.leaflet-popup-close-button{color:#adb5bd!important}
+.rc-tt{background:#1a1a2e!important;color:#fff!important;border:0!important;border-radius:6px!important;font-weight:700!important;font-size:11px!important;letter-spacing:.3px!important;padding:3px 8px!important;box-shadow:0 4px 12px rgba(0,0,0,.45)!important}
+.rc-tt:before{border-top-color:#1a1a2e!important}
 
 /* ═══════════════ EDIT OUR PRICES — zone-grouped town picker ═══════════════
    Same zone tiers + heat colours as the pricing sheet (pv-zN vars), so the

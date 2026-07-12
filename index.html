@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=420">
+<link rel="stylesheet" href="style.css?v=421">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=396">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1016,13 +1016,44 @@
     </div>
 
     <div class="nx-tabs">
-      <button class="nx-tab on" data-v="heat" onclick="rcTab('heat')">Heatmap</button>
+      <button class="nx-tab on" data-v="map" onclick="rcTab('map')">🗺️ Zone Map</button>
+      <button class="nx-tab" data-v="heat" onclick="rcTab('heat')">Heatmap</button>
       <button class="nx-tab" data-v="curve" onclick="rcTab('curve')">Margin curve</button>
       <button class="nx-tab" data-v="cost" onclick="rcTab('cost')">Cost Model</button>
       <button class="nx-tab" data-v="zones" onclick="rcTab('zones')">Zones</button>
     </div>
 
-    <div class="rc-view on" id="rc-v-heat">
+    <!-- Zone Map — full-screen satellite coverage map (fixed overlay; the
+         in-map top bar carries the tabs + back button while it's up) -->
+    <div class="rc-view on" id="rc-v-map">
+      <div id="rc-map-board">
+        <div id="rc-leaf-map"></div>
+        <div id="rc-map-loading"><div class="rc-map-spin"></div>Loading satellite imagery…</div>
+        <div class="rc-map-topbar">
+          <div class="rc-map-tabs">
+            <span class="rc-map-brand">🚛 Coverage</span>
+            <span class="rc-map-tabsep"></span>
+            <button class="nx-tab on" data-v="map" onclick="rcTab('map')">🗺️ Zone Map</button>
+            <button class="nx-tab" data-v="heat" onclick="rcTab('heat')">Heatmap</button>
+            <button class="nx-tab" data-v="curve" onclick="rcTab('curve')">Margin curve</button>
+            <button class="nx-tab" data-v="cost" onclick="rcTab('cost')">Cost Model</button>
+            <button class="nx-tab" data-v="zones" onclick="rcTab('zones')">Zones</button>
+          </div>
+          <button class="rc-map-back" onclick="go('pricing')">← Back to Pricing Sheet</button>
+        </div>
+        <div class="rc-map-modecard">
+          <div class="rc-map-modelbl">Colour towns by</div>
+          <div class="rc-map-modeseg">
+            <button id="rc-mode-price" class="active" onclick="rcMapMode('price')">Pricing zone</button>
+            <button id="rc-mode-radius" onclick="rcMapMode('radius')">Distance ring</button>
+          </div>
+          <div class="rc-map-modenote" id="rc-mode-note">Colour = the town's pricing zone (what sets its price).</div>
+        </div>
+        <div id="rc-mapside"></div>
+      </div>
+    </div>
+
+    <div class="rc-view" id="rc-v-heat">
       <div class="nx-board">
         <div class="nx-gridwrap"><table class="nx-t" id="rc-heat"></table></div>
         <div class="nx-consolecol">
@@ -2387,6 +2418,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6/dist/d3-delaunay.min.js"></script>
 <div class="modal-overlay" id="bin-avail-warning-modal">
   <div style="background:rgba(220,53,69,0.08);border:1.5px solid rgba(220,53,69,0.45);border-radius:14px;padding:28px 26px;max-width:480px;width:90%;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(220,53,69,0.18),inset 0 1px 0 rgba(255,255,255,0.04)">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
@@ -2541,7 +2573,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=420"></script>
+<script src="app.js?v=421"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

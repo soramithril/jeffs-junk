@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '420';
+var APP_VERSION = '421';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13968,62 +13968,62 @@ function pvToggleCompare(){
 // zone-grouped heatmap (each block: margin % + profit $), live-verdict card,
 // and a Margin curve tab that sweeps one price across every zone. The grid
 // flows down the page (one scrollbar); the verdict card rides along sticky.
-// Entries: [display name, near km, our_prices area, fastest min, slowest min, far-edge km|null]
+// Entries: [display name, near km, our_prices area, fastest min, slowest min, far-edge km|null, lat, lng]
 var RC_CITIES = [
- ['Barrie (HQ / local)',0,'Barrie',0,0,null],
- ['Midhurst',7.0,'Midhurst',11,14,null],
- ['Shanty Bay',13.8,'Shanty Bay',11,14,null],
- ['Oro-Medonte (township)',14.0,'Oro-Medonte',10,30,48],
- ['Minesing',15.9,'Minesing',18,23,null],
- ['Thornton',17.0,'Thornton',16,19,null],
- ['Anten Mills',17.6,'Anten Mills',19,21,null],
- ['Innisfil (township)',17.9,'Innisfil',21,27,35],
- ['Angus',19.9,'Angus',21,24,null],
- ['Elmvale',25.6,'Elmvale',25,27,null],
- ['Hillsdale',26.3,'Hillsdale',17,21,null],
- ['Gilford',34.6,'Gilford',27,33,null],
- ['Tiny Township',34.8,'Tiny Township',33,51,56],
- ['Orillia',36.4,'Orillia',26,28,null],
- ['Wasaga Beach',36.7,'Wasaga Beach',35,41,null],
- ['Stayner',38.8,'Stayner',37,42,null],
- ['Bradford',40.5,'Bradford',31,36,null],
- ['Creemore',40.8,'Creemore',39,45,null],
- ['Alliston',41.0,'Alliston',37,47,null],
- ['Warminster',41.6,'Warminster',30,32,null],
- ['Severn (township)',43.9,'Severn',26,47,63],
- ['Beeton',47.2,'Beeton',35,36,null],
- ['Mansfield',48.4,'Mansfield',43,44,null],
- ['Waubaushene',50.1,'Waubaushene',34,34,null],
- ['Midland',51.1,'Midland',40,47,null],
- ['Schomberg',51.3,'Schomberg',37,38,null],
- ['Mulmur',51.4,'Mulmur',46,49,null],
- ['Port McNicoll',51.8,'Port McNicoll',38,47,null],
- ['Penetanguishene',53.1,'Penetanguishene',42,54,null],
- ['Washago',53.7,'Washago',33,42,null],
- ['Tottenham',54.0,'Tottenham',42,52,null],
- ['Victoria Harbour',54.2,'Victoria Harbour',34,36,null],
- ['Collingwood',54.9,'Collingwood',51,56,null],
- ['Newmarket',56.1,'Newmarket',44,49,null],
- ['Brechin',56.8,'Brechin',43,52,null],
- ['Ramara (township)',56.8,'Ramara',43,50,62],
- ['King City',60.3,'King City',40,45,null],
- ['Aurora',62.1,'Aurora',49,51,null],
- ['Blue Mountains (township)',64.6,'Blue Mountains',63,71,76],
- ['Shelburne',69.5,'Shelburne',61,64,null],
- ['Gravenhurst',73.3,'Gravenhurst',49,58,null],
- ['Muskoka (district)',73.3,'Muskoka',49,78,124],
- ['Thornbury',75.8,'Thornbury',71,88,null],
- ['Bracebridge',89.2,'Bracebridge',57,66,null],
- ['Bala',97.1,'Bala',61,72,null],
- ['Port Carling',114,'Port Carling',72,81,null],
- ['Huntsville',124,'Huntsville',78,87,null]
-].map(function(c){ return {name:c[0], km:c[1], area:c[2], tmin:c[3], tmax:c[4], kmMax:c[5]}; });
+ ['Barrie (HQ / local)',0,'Barrie',0,0,null,44.3894,-79.6903],
+ ['Midhurst',7.0,'Midhurst',11,14,null,44.4331,-79.7336],
+ ['Shanty Bay',13.8,'Shanty Bay',11,14,null,44.4142,-79.5714],
+ ['Oro-Medonte (township)',14.0,'Oro-Medonte',10,30,48,44.5300,-79.5300],
+ ['Minesing',15.9,'Minesing',18,23,null,44.3861,-79.8536],
+ ['Thornton',17.0,'Thornton',16,19,null,44.2350,-79.7869],
+ ['Anten Mills',17.6,'Anten Mills',19,21,null,44.3781,-79.8181],
+ ['Innisfil (township)',17.9,'Innisfil',21,27,35,44.3000,-79.5850],
+ ['Angus',19.9,'Angus',21,24,null,44.3181,-79.8811],
+ ['Elmvale',25.6,'Elmvale',25,27,null,44.5836,-79.8664],
+ ['Hillsdale',26.3,'Hillsdale',17,21,null,44.5300,-79.7800],
+ ['Gilford',34.6,'Gilford',27,33,null,44.2278,-79.5344],
+ ['Tiny Township',34.8,'Tiny Township',33,51,56,44.6800,-79.9300],
+ ['Orillia',36.4,'Orillia',26,28,null,44.6083,-79.4200],
+ ['Wasaga Beach',36.7,'Wasaga Beach',35,41,null,44.5203,-80.0164],
+ ['Stayner',38.8,'Stayner',37,42,null,44.4189,-80.0847],
+ ['Bradford',40.5,'Bradford',31,36,null,44.1153,-79.5636],
+ ['Creemore',40.8,'Creemore',39,45,null,44.3242,-80.1050],
+ ['Alliston',41.0,'Alliston',37,47,null,44.1522,-79.8656],
+ ['Warminster',41.6,'Warminster',30,32,null,44.6175,-79.5342],
+ ['Severn (township)',43.9,'Severn',26,47,63,44.7000,-79.6500],
+ ['Beeton',47.2,'Beeton',35,36,null,44.0819,-79.7828],
+ ['Mansfield',48.4,'Mansfield',43,44,null,44.1839,-80.0331],
+ ['Waubaushene',50.1,'Waubaushene',34,34,null,44.7519,-79.7047],
+ ['Midland',51.1,'Midland',40,47,null,44.7500,-79.8833],
+ ['Schomberg',51.3,'Schomberg',37,38,null,44.0000,-79.6864],
+ ['Mulmur',51.4,'Mulmur',46,49,null,44.2000,-80.1167],
+ ['Port McNicoll',51.8,'Port McNicoll',38,47,null,44.7519,-79.8067],
+ ['Penetanguishene',53.1,'Penetanguishene',42,54,null,44.7669,-79.9314],
+ ['Washago',53.7,'Washago',33,42,null,44.7519,-79.3383],
+ ['Tottenham',54.0,'Tottenham',42,52,null,44.0175,-79.8039],
+ ['Victoria Harbour',54.2,'Victoria Harbour',34,36,null,44.7519,-79.7644],
+ ['Collingwood',54.9,'Collingwood',51,56,null,44.5008,-80.2169],
+ ['Newmarket',56.1,'Newmarket',44,49,null,44.0592,-79.4613],
+ ['Brechin',56.8,'Brechin',43,52,null,44.5333,-79.1833],
+ ['Ramara (township)',56.8,'Ramara',43,50,62,44.6000,-79.2200],
+ ['King City',60.3,'King City',40,45,null,43.9256,-79.5289],
+ ['Aurora',62.1,'Aurora',49,51,null,44.0065,-79.4504],
+ ['Blue Mountains (township)',64.6,'Blue Mountains',63,71,76,44.5300,-80.4000],
+ ['Shelburne',69.5,'Shelburne',61,64,null,44.0783,-80.2042],
+ ['Gravenhurst',73.3,'Gravenhurst',49,58,null,44.9167,-79.3667],
+ ['Muskoka (district)',73.3,'Muskoka',49,78,124,45.1500,-79.3500],
+ ['Thornbury',75.8,'Thornbury',71,88,null,44.5636,-80.4553],
+ ['Bracebridge',89.2,'Bracebridge',57,66,null,45.0333,-79.3000],
+ ['Bala',97.1,'Bala',61,72,null,45.0167,-79.6167],
+ ['Port Carling',114,'Port Carling',72,81,null,45.1167,-79.5833],
+ ['Huntsville',124,'Huntsville',78,87,null,45.3269,-79.2158]
+].map(function(c){ return {name:c[0], km:c[1], area:c[2], tmin:c[3], tmax:c[4], kmMax:c[5], lat:c[6], lng:c[7]}; });
 // Heatmap price columns — matches how the pricing actually climbs: $195 first,
 // then $25 rungs from $200 up ($200, $225 … $475). Sized to fit the page width
 // with no sideways scroll.
 var RC_LADDER = [195]; (function(){ for(var p=200;p<=475;p+=25) RC_LADDER.push(p); })();
 var RC_CURVE_PRICES = [195,210,225,245,265,290,320,360,410,460,500];   // margin-curve sample points
-var _rc = {trips:2, tab:'heat', scrub:300, bench:100, A:{},
+var _rc = {trips:2, tab:'map', scrub:300, bench:100, A:{}, mapMode:'price',
            sel:{ci:RC_CITIES.findIndex(function(c){return c.name==='Wasaga Beach';}), pi:RC_LADDER.indexOf(300)}};
 
 function _rcKmStr(c){ return (c.kmMax&&c.kmMax!==c.km) ? c.km+'–'+c.kmMax : String(c.km); }
@@ -14082,6 +14082,10 @@ function _rcStatusOf(mp){ if(mp<0) return {w:'Loss',c:'#b02633'}; if(mp<0.18) re
 
 function rcTab(t){
   _rc.tab=t;
+  // Map tab is a full-screen overlay — a view class hides the console chrome
+  // (hero, assumptions, dials, tab row, footer) while it's up.
+  var view=document.getElementById('view-pricingconsole');
+  if(view) view.classList.toggle('rc-mapmode', t==='map');
   document.querySelectorAll('#view-pricingconsole .nx-tab').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-v')===t); });
   document.querySelectorAll('#view-pricingconsole .rc-view').forEach(function(x){ x.classList.toggle('on', x.id==='rc-v-'+t); });
   rcRender();
@@ -14297,17 +14301,198 @@ function _rcRenderFoot(){
   host.textContent='Cost per rental = driver labour ($'+A.wage+'/hr) + Hino 195 diesel ($'+A.diesel+'/L @ '+A.fe+' L/100km), for '+_rc.trips+' round trip'+(_rc.trips>1?'s':'')+' from 92 Davidson St. "Profit / truck-hour" = profit ÷ hours the truck is tied up — the real test of whether a far job is worth it. A typical local job earns ~$'+Math.round(_rc.bench)+'/hr. Prices are before HST; the dump fee roughly washes (customer pays $135, the landfill charges ~$135/tonne) — use the Other-cost dial for heavy loads.';
 }
 
+// ── ZONE MAP TAB — full-screen satellite coverage map ──
+// Esri World Imagery under Voronoi town territories (d3-delaunay), straight-line
+// distance rings from the yard, and a live-price pill per town. Colours follow
+// the pricing sheet's zones, or flip to raw distance rings via the toggle.
+// From the Claude Design "Margin Console" project (v421).
+var RC_YARD={lat:44.3683,lng:-79.6831};   // 92 Davidson St
+var RC_ZEMOJI=['','🏠','🚛','🛣️','⛰️','🌲'];
+function _rcStraightKm(c){
+  var R=6371, toR=Math.PI/180;
+  var dLat=(c.lat-RC_YARD.lat)*toR, dLng=(c.lng-RC_YARD.lng)*toR;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(RC_YARD.lat*toR)*Math.cos(c.lat*toR)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function _rcRingOf(c){ var d=_rcStraightKm(c); return d<=25?1:d<=50?2:d<=75?3:d<=100?4:5; }
+function _rcDotZone(c){ return _rc.mapMode==='radius' ? _rcRingOf(c) : _rcZoneFor(c); }
+function _rcAllIn(p){ return Math.round((p+135)*1.13); }
+
+function _rcRenderMap(){
+  _rcBuildMap();
+  if(!_rc.map) return;
+  _rcDrawBorders();
+  _rcDrawCities();
+  _rcRenderMapSide();
+  var m=_rc.map; setTimeout(function(){ m.invalidateSize(); },40);
+}
+function _rcBuildMap(){
+  var el=document.getElementById('rc-leaf-map');
+  if(!el || _rc.map) return;
+  var map=L.map(el,{zoomControl:true, scrollWheelZoom:true}).setView([RC_YARD.lat,RC_YARD.lng],8);
+  _rc.map=map;
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+    maxZoom:19, crossOrigin:true, attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics, USDA, USGS'
+  }).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{
+    maxZoom:19, crossOrigin:true, opacity:0.85
+  }).addTo(map);
+  _rc.borderLayer=L.layerGroup().addTo(map);
+  _rc.ringLayer=L.layerGroup().addTo(map);
+  _rc.cityLayer=L.layerGroup().addTo(map);
+  _rcDrawRings();
+  // yard marker
+  var yardIcon=L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],html:
+    '<div style="transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none">'
+    +'<div style="display:inline-flex;align-items:center;gap:6px;background:#14532d;color:#fff;border:2px solid #fff;border-radius:999px;padding:4px 10px 4px 7px;box-shadow:0 4px 12px rgba(0,0,0,.35);font-family:Inter,sans-serif;white-space:nowrap"><span style="font-size:13px">🏠</span><span style="font-size:11px;font-weight:800;letter-spacing:.3px">HQ · Barrie yard</span></div>'
+    +'<div style="width:2px;height:9px;background:#14532d"></div><div style="width:9px;height:9px;border-radius:50%;background:#14532d;border:2px solid #fff;margin-top:-2px;box-shadow:0 2px 5px rgba(0,0,0,.35)"></div>'
+    +'</div>'});
+  L.marker([RC_YARD.lat,RC_YARD.lng],{icon:yardIcon,zIndexOffset:1000,interactive:false}).addTo(map);
+  // frame the full 100 km coverage circle
+  var outer=L.circle([RC_YARD.lat,RC_YARD.lng],{radius:100000}).addTo(map);
+  map.fitBounds(outer.getBounds().pad(0.03));
+  outer.remove();
+  var load=document.getElementById('rc-map-loading'); if(load) load.style.display='none';
+  setTimeout(function(){ map.invalidateSize(); },60);
+}
+function _rcDrawRings(){
+  if(!_rc.ringLayer) return;
+  _rc.ringLayer.clearLayers();
+  [5,4,3,2,1].forEach(function(z){
+    var r = z===5?132:[0,25,50,75,100][z];
+    var col=_rcZoneColor(z), dashed=(z===5);
+    // white casing under the coloured line so it reads on satellite imagery
+    L.circle([RC_YARD.lat,RC_YARD.lng],{radius:r*1000, color:'#ffffff', weight:z===5?3:4.5, opacity:0.5, fill:false, dashArray:dashed?'2 9':null, interactive:false}).addTo(_rc.ringLayer);
+    L.circle([RC_YARD.lat,RC_YARD.lng],{
+      radius:r*1000, color:col, weight:z===5?1.4:2.2, opacity:z===5?0.75:1,
+      fillColor:col, fillOpacity:z===5?0.02:0.05, dashArray:dashed?'2 9':null, interactive:false
+    }).addTo(_rc.ringLayer);
+  });
+  // ring distance labels — out NW into Georgian Bay, clear of the town clusters
+  [1,2,3,4].forEach(function(z){
+    var r=[0,25,50,75,100][z], col=_rcZoneColor(z);
+    var ang=315*Math.PI/180;
+    var dLat=(r/111.0)*Math.cos(ang);
+    var dLng=(r/(111.0*Math.cos(RC_YARD.lat*Math.PI/180)))*Math.sin(ang);
+    var ic=L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],html:
+      '<div style="transform:translate(-50%,-50%);background:rgba(255,255,255,.96);border:1.5px solid '+col+';color:'+col+';font-family:ui-monospace,\'JetBrains Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)">'+r+' KM</div>'});
+    L.marker([RC_YARD.lat+dLat, RC_YARD.lng+dLng],{icon:ic,interactive:false,zIndexOffset:400}).addTo(_rc.ringLayer);
+  });
+}
+function _rcDrawCities(){
+  if(!_rc.cityLayer) return;
+  _rc.cityLayer.clearLayers();
+  _rc.markers=[];
+  RC_CITIES.forEach(function(c,idx){
+    var col=_rcZoneColor(_rcDotZone(c)), cur=_rcCur(c);
+    var pill=L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],html:
+      '<div style="transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;background:#fff;border:1.5px solid '+col+';border-radius:999px;box-shadow:0 2px 9px rgba(0,0,0,.4);font-family:ui-monospace,\'JetBrains Mono\',monospace;cursor:pointer;white-space:nowrap">'
+      +'<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex:none"></span>'
+      +'<span style="font-size:10px;font-weight:700;color:#1a1a2e;letter-spacing:.2px">'+(cur!=null?'$'+cur:'—')+'</span>'
+      +'</div>'});
+    var mk=L.marker([c.lat,c.lng],{icon:pill,riseOnHover:true,zIndexOffset:(600-Math.round(_rcStraightKm(c)))});
+    mk.bindTooltip(_rcClean(c.name),{direction:'top',offset:[0,-8],className:'rc-tt',opacity:1});
+    mk.bindPopup(_rcPopupHtml(c),{className:'rc-pop',maxWidth:250,closeButton:true});
+    mk.on('click',function(){ _rc.map.flyTo([c.lat,c.lng], Math.max(_rc.map.getZoom(),10), {duration:0.6}); });
+    mk.addTo(_rc.cityLayer);
+    _rc.markers[idx]=mk;
+  });
+}
+function _rcDrawBorders(){
+  if(!_rc.map || !(window.d3 && d3.Delaunay)) return;
+  _rc.borderLayer.clearLayers();
+  var del=d3.Delaunay.from(RC_CITIES.map(function(c){return [c.lng,c.lat];}));
+  var vor=del.voronoi([-80.95,43.55,-78.75,45.75]);
+  RC_CITIES.forEach(function(c,i){
+    var cell=vor.cellPolygon(i); if(!cell) return;
+    var latlngs=cell.map(function(p){return [p[1],p[0]];});
+    var col=_rcZoneColor(_rcDotZone(c));
+    // white casing + coloured territory outline, legible over imagery
+    L.polygon(latlngs,{color:'#ffffff',weight:2.4,opacity:0.4,fill:false,interactive:false,lineJoin:'round'}).addTo(_rc.borderLayer);
+    L.polygon(latlngs,{color:col,weight:1.3,opacity:0.9,fillColor:col,fillOpacity:0.07,interactive:false,lineJoin:'round'}).addTo(_rc.borderLayer);
+  });
+}
+function _rcPopupHtml(c){
+  var z=_rcZoneFor(c), col=_rcZoneColor(z), cur=_rcCur(c);
+  return '<div style="font-family:Inter,sans-serif;min-width:186px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="width:11px;height:11px;border-radius:50%;background:'+col+';flex:none"></span><span style="font-size:15px;font-weight:800;color:#1a1a2e">'+_pvEsc(_rcClean(c.name))+'</span></div>'
+    +'<div style="font-size:11px;color:#868e96;margin-bottom:11px">'+RC_ZEMOJI[z]+' Zone '+z+' · '+_rcKmStr(c)+' km · '+_rcDriveStr(c)+' drive</div>'
+    +'<div style="display:flex;align-items:baseline;gap:8px"><span style="font-family:ui-monospace,\'JetBrains Mono\',monospace;font-size:28px;font-weight:700;color:'+col+';line-height:.9">'+(cur!=null?'$'+cur:'—')+'</span><span style="font-size:11px;color:#868e96;font-weight:600">14 yd · pre-tax</span></div>'
+    +(cur!=null?'<div style="font-size:11px;color:#495057;margin-top:8px;border-top:1px solid #e9ecef;padding-top:8px">All-in ≈ <b style="color:#1a1a2e">$'+_rcAllIn(cur)+'</b> <span style="color:#868e96">(+ $135 dump + 13% HST)</span></div>':'')
+    +'</div>';
+}
+function rcMapMode(m){
+  _rc.mapMode=m;
+  var bp=document.getElementById('rc-mode-price'), br=document.getElementById('rc-mode-radius'), note=document.getElementById('rc-mode-note');
+  if(bp) bp.classList.toggle('active', m==='price');
+  if(br) br.classList.toggle('active', m==='radius');
+  if(note) note.textContent = m==='price'
+    ? "Colour = the town's pricing zone (what sets its price)."
+    : "Colour = the straight-line ring the town physically falls in.";
+  _rcDrawBorders();
+  _rcDrawCities();
+  _rcRenderMapSide();
+}
+function rcFlyTo(idx){
+  if(!_rc.map) return;
+  var c=RC_CITIES[idx];
+  _rc.map.flyTo([c.lat,c.lng], Math.max(_rc.map.getZoom(),10), {duration:0.6});
+  var mk=_rc.markers && _rc.markers[idx];
+  if(mk) setTimeout(function(){ mk.openPopup(); },650);
+}
+function _rcRenderMapSide(){
+  var host=document.getElementById('rc-mapside'); if(!host) return;
+  var h='';
+  // legend
+  h+='<div class="rc-map-glass rc-map-legend">';
+  h+='<div class="rc-map-ghead">Zones &amp; pricing<span>14 YD · PRE-TAX</span></div>';
+  h+='<div class="rc-map-legbody">';
+  for(var z=1;z<=5;z++){
+    var cs=_rcZoneCities(z); if(!cs.length) continue;
+    var col=_rcZoneColor(z);
+    var prices=cs.map(_rcCur).filter(function(v){return v!=null;});
+    var range='—';
+    if(prices.length){ var lo=Math.min.apply(null,prices), hi=Math.max.apply(null,prices); range=lo===hi?('$'+lo):('$'+lo+'–$'+hi); }
+    h+='<div class="rc-leg-row"><span class="rc-leg-sw" style="background:'+col+'"></span>'
+      +'<div class="rc-leg-main"><div class="rc-leg-name">Zone '+z+' <span>· '+_rcZoneKm(z)+'</span></div>'
+      +'<div class="rc-leg-sub">'+cs.length+' town'+(cs.length!==1?'s':'')+'</div></div>'
+      +'<div class="rc-leg-price" style="color:'+col+'">'+range+'</div></div>';
+  }
+  h+='</div></div>';
+  // directory
+  h+='<div class="rc-map-glass rc-map-dir">';
+  h+='<div class="rc-map-ghead">All '+RC_CITIES.length+' towns · tap to locate</div>';
+  h+='<div class="rc-dir-scroll">';
+  for(var dz=1;dz<=5;dz++){
+    var dcs=_rcZoneCities(dz); if(!dcs.length) continue;
+    var dcol=_rcZoneColor(dz);
+    h+='<div class="rc-dir-z"><span class="rc-dir-zsw" style="background:'+dcol+'"></span><span class="rc-dir-zn" style="color:'+dcol+'">ZONE '+dz+'</span><span class="rc-dir-zb">'+_rcZoneKm(dz)+'</span></div>';
+    dcs.slice().sort(function(a,b){return a.km-b.km;}).forEach(function(c){
+      var idx=RC_CITIES.indexOf(c), cur=_rcCur(c);
+      h+='<div class="rc-dir-row" onclick="rcFlyTo('+idx+')">'
+        +'<span class="rc-dir-dot" style="background:'+dcol+'"></span>'
+        +'<div class="rc-dir-main"><div class="rc-dir-name">'+_pvEsc(_rcClean(c.name))+'</div><div class="rc-dir-sub">'+_rcDriveStr(c)+' · '+_rcKmStr(c)+' km</div></div>'
+        +'<div class="rc-dir-price">'+(cur!=null?'$'+cur:'—')+'</div></div>';
+    });
+  }
+  h+='</div></div>';
+  host.innerHTML=h;
+}
+
 function rcRender(){
   _rcDials();
   _rc.bench=_rcBench();
   _rcRenderAssume();
+  if(_rc.tab==='map') _rcRenderMap();
   if(_rc.tab==='heat'){ _rcRenderHeat(); _rcRenderVerdict(); }
   if(_rc.tab==='curve') _rcRenderCurve();
   if(_rc.tab==='cost') _rcRenderCost();
   if(_rc.tab==='zones') _rcRenderZones();
   _rcRenderFoot();
 }
-function renderRouteConsole(){ rcRender(); }
+// rcTab (not bare rcRender) so the rc-mapmode chrome class and tab buttons are
+// in sync with whatever tab the console was left on.
+function renderRouteConsole(){ rcTab(_rc.tab); }
 
 // ═══════════════════════════════════════════════════════════════════
 // CREW AVAILABILITY (employee scheduling)
