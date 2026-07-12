@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '421';
+var APP_VERSION = '422';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14316,6 +14316,12 @@ function _rcStraightKm(c){
 }
 function _rcRingOf(c){ var d=_rcStraightKm(c); return d<=25?1:d<=50?2:d<=75?3:d<=100?4:5; }
 function _rcDotZone(c){ return _rc.mapMode==='radius' ? _rcRingOf(c) : _rcZoneFor(c); }
+// Map-only zone palette — five unmistakable hues that pop on satellite imagery
+// (the console's other tabs keep the pricing sheet's softer tier colours).
+// Distance rings deliberately use cyan, outside this palette, so a measurement
+// line can never be mistaken for a zone territory border.
+function _rcMapZoneColor(z){ return ['','#17c653','#1e90ff','#a855f7','#ff7a00','#ff2d55'][z]; }
+var RC_RING_COL='#00e5ff';
 function _rcAllIn(p){ return Math.round((p+135)*1.13); }
 
 function _rcRenderMap(){
@@ -14359,23 +14365,22 @@ function _rcDrawRings(){
   if(!_rc.ringLayer) return;
   _rc.ringLayer.clearLayers();
   [5,4,3,2,1].forEach(function(z){
-    var r = z===5?132:[0,25,50,75,100][z];
-    var col=_rcZoneColor(z), dashed=(z===5);
-    // white casing under the coloured line so it reads on satellite imagery
-    L.circle([RC_YARD.lat,RC_YARD.lng],{radius:r*1000, color:'#ffffff', weight:z===5?3:4.5, opacity:0.5, fill:false, dashArray:dashed?'2 9':null, interactive:false}).addTo(_rc.ringLayer);
+    var r = z===5?132:[0,25,50,75,100][z], dashed=(z===5);
+    // dark casing under the cyan line so it glows on any terrain
+    L.circle([RC_YARD.lat,RC_YARD.lng],{radius:r*1000, color:'#00323d', weight:z===5?4:6, opacity:0.55, fill:false, dashArray:dashed?'3 10':null, interactive:false}).addTo(_rc.ringLayer);
     L.circle([RC_YARD.lat,RC_YARD.lng],{
-      radius:r*1000, color:col, weight:z===5?1.4:2.2, opacity:z===5?0.75:1,
-      fillColor:col, fillOpacity:z===5?0.02:0.05, dashArray:dashed?'2 9':null, interactive:false
+      radius:r*1000, color:RC_RING_COL, weight:z===5?1.8:2.6, opacity:z===5?0.8:0.95,
+      fill:false, dashArray:dashed?'3 10':null, interactive:false
     }).addTo(_rc.ringLayer);
   });
   // ring distance labels — out NW into Georgian Bay, clear of the town clusters
   [1,2,3,4].forEach(function(z){
-    var r=[0,25,50,75,100][z], col=_rcZoneColor(z);
+    var r=[0,25,50,75,100][z];
     var ang=315*Math.PI/180;
     var dLat=(r/111.0)*Math.cos(ang);
     var dLng=(r/(111.0*Math.cos(RC_YARD.lat*Math.PI/180)))*Math.sin(ang);
     var ic=L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],html:
-      '<div style="transform:translate(-50%,-50%);background:rgba(255,255,255,.96);border:1.5px solid '+col+';color:'+col+';font-family:ui-monospace,\'JetBrains Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)">'+r+' KM</div>'});
+      '<div style="transform:translate(-50%,-50%);background:rgba(2,26,32,.85);border:1.5px solid '+RC_RING_COL+';color:'+RC_RING_COL+';font-family:ui-monospace,\'JetBrains Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)">'+r+' KM</div>'});
     L.marker([RC_YARD.lat+dLat, RC_YARD.lng+dLng],{icon:ic,interactive:false,zIndexOffset:400}).addTo(_rc.ringLayer);
   });
 }
@@ -14384,9 +14389,9 @@ function _rcDrawCities(){
   _rc.cityLayer.clearLayers();
   _rc.markers=[];
   RC_CITIES.forEach(function(c,idx){
-    var col=_rcZoneColor(_rcDotZone(c)), cur=_rcCur(c);
+    var col=_rcMapZoneColor(_rcDotZone(c)), cur=_rcCur(c);
     var pill=L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],html:
-      '<div style="transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;background:#fff;border:1.5px solid '+col+';border-radius:999px;box-shadow:0 2px 9px rgba(0,0,0,.4);font-family:ui-monospace,\'JetBrains Mono\',monospace;cursor:pointer;white-space:nowrap">'
+      '<div style="transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;background:#fff;border:2px solid '+col+';border-radius:999px;box-shadow:0 2px 9px rgba(0,0,0,.4);font-family:ui-monospace,\'JetBrains Mono\',monospace;cursor:pointer;white-space:nowrap">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex:none"></span>'
       +'<span style="font-size:10px;font-weight:700;color:#1a1a2e;letter-spacing:.2px">'+(cur!=null?'$'+cur:'—')+'</span>'
       +'</div>'});
@@ -14406,14 +14411,14 @@ function _rcDrawBorders(){
   RC_CITIES.forEach(function(c,i){
     var cell=vor.cellPolygon(i); if(!cell) return;
     var latlngs=cell.map(function(p){return [p[1],p[0]];});
-    var col=_rcZoneColor(_rcDotZone(c));
+    var col=_rcMapZoneColor(_rcDotZone(c));
     // white casing + coloured territory outline, legible over imagery
     L.polygon(latlngs,{color:'#ffffff',weight:2.4,opacity:0.4,fill:false,interactive:false,lineJoin:'round'}).addTo(_rc.borderLayer);
-    L.polygon(latlngs,{color:col,weight:1.3,opacity:0.9,fillColor:col,fillOpacity:0.07,interactive:false,lineJoin:'round'}).addTo(_rc.borderLayer);
+    L.polygon(latlngs,{color:col,weight:1.8,opacity:1,fillColor:col,fillOpacity:0.12,interactive:false,lineJoin:'round'}).addTo(_rc.borderLayer);
   });
 }
 function _rcPopupHtml(c){
-  var z=_rcZoneFor(c), col=_rcZoneColor(z), cur=_rcCur(c);
+  var z=_rcZoneFor(c), col=_rcMapZoneColor(z), cur=_rcCur(c);
   return '<div style="font-family:Inter,sans-serif;min-width:186px">'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="width:11px;height:11px;border-radius:50%;background:'+col+';flex:none"></span><span style="font-size:15px;font-weight:800;color:#1a1a2e">'+_pvEsc(_rcClean(c.name))+'</span></div>'
     +'<div style="font-size:11px;color:#868e96;margin-bottom:11px">'+RC_ZEMOJI[z]+' Zone '+z+' · '+_rcKmStr(c)+' km · '+_rcDriveStr(c)+' drive</div>'
@@ -14449,7 +14454,7 @@ function _rcRenderMapSide(){
   h+='<div class="rc-map-legbody">';
   for(var z=1;z<=5;z++){
     var cs=_rcZoneCities(z); if(!cs.length) continue;
-    var col=_rcZoneColor(z);
+    var col=_rcMapZoneColor(z);
     var prices=cs.map(_rcCur).filter(function(v){return v!=null;});
     var range='—';
     if(prices.length){ var lo=Math.min.apply(null,prices), hi=Math.max.apply(null,prices); range=lo===hi?('$'+lo):('$'+lo+'–$'+hi); }
@@ -14465,7 +14470,7 @@ function _rcRenderMapSide(){
   h+='<div class="rc-dir-scroll">';
   for(var dz=1;dz<=5;dz++){
     var dcs=_rcZoneCities(dz); if(!dcs.length) continue;
-    var dcol=_rcZoneColor(dz);
+    var dcol=_rcMapZoneColor(dz);
     h+='<div class="rc-dir-z"><span class="rc-dir-zsw" style="background:'+dcol+'"></span><span class="rc-dir-zn" style="color:'+dcol+'">ZONE '+dz+'</span><span class="rc-dir-zb">'+_rcZoneKm(dz)+'</span></div>';
     dcs.slice().sort(function(a,b){return a.km-b.km;}).forEach(function(c){
       var idx=RC_CITIES.indexOf(c), cur=_rcCur(c);
