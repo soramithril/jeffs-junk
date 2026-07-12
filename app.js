@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '422';
+var APP_VERSION = '423';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2113,6 +2113,7 @@ function animateView(viewEl){
   if(!viewEl) return;
   var children=viewEl.children;
   Array.prototype.forEach.call(children,function(c,i){
+    if(c.hasAttribute('data-noanim')) return;   // full-screen overlays must not shift
     c.style.opacity='0';
     c.style.transform='translateY(20px)';
     c.style.transition='none';
@@ -2122,6 +2123,14 @@ function animateView(viewEl){
       c.style.opacity='1';
       c.style.transform='translateY(0)';
     },10);
+    // clear the transform once the slide lands — a lingering translateY(0)
+    // makes the child a containing block, which re-anchors position:fixed
+    // descendants (e.g. the Margin Console's map board) off the viewport.
+    setTimeout(function(){
+      c.style.transition='';
+      c.style.transitionDelay='';
+      c.style.transform='';
+    },10+i*45+320);
   });
 }
 
@@ -14335,7 +14344,9 @@ function _rcRenderMap(){
 function _rcBuildMap(){
   var el=document.getElementById('rc-leaf-map');
   if(!el || _rc.map) return;
-  var map=L.map(el,{zoomControl:true, scrollWheelZoom:true}).setView([RC_YARD.lat,RC_YARD.lng],8);
+  // zoom control lives bottom-left — top-left is under the Coverage tab bar
+  var map=L.map(el,{zoomControl:false, scrollWheelZoom:true}).setView([RC_YARD.lat,RC_YARD.lng],8);
+  L.control.zoom({position:'bottomleft'}).addTo(map);
   _rc.map=map;
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
     maxZoom:19, crossOrigin:true, attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics, USDA, USGS'
