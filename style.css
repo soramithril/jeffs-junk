@@ -1389,7 +1389,8 @@ input[type=date],input[type=time]{position:relative;}
 .pv-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:all .25s;z-index:9999}
 .pv-toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
 
-.pv-layout{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start}
+.pv-layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+#pv-rail-host{align-self:stretch} /* full-height track so the sticky rail can ride the page scroll */
 @media(max-width:1024px){.pv-layout{grid-template-columns:1fr}}
 
 /* Full-screen mode: go('pricing') stamps body.pv-full so the sheet gets the
@@ -1423,12 +1424,19 @@ input[type=date],input[type=time]{position:relative;}
 .pv-g-month{--gc:#4f46e5;--gc-soft:#ecebfc}
 
 /* Left: spreadsheet-style price sheet — locations down, bin types across.
-   The doc-mirror sheet (9 price columns since v402) is wider than the layout
-   column, so the wrap is its OWN scroll pane both ways: the header row and
-   location column stick inside it, and the page body never scrolls sideways.
+   On wide screens (v415, like the Margin Console) the sheet flows down the
+   page — one scrollbar — with the header row pinned to the viewport and the
+   quote rail riding along sticky. On narrower screens the 9-column doc-mirror
+   sheet can't fit beside the rail, so the wrap falls back to being its OWN
+   scroll pane both ways (header row and location column stick inside it).
    Opaque backgrounds everywhere so sticky cells cover content scrolling under. */
-.pv-table-wrap{overflow:auto;max-height:calc(100vh - 190px);background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
+.pv-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-sm)}
+@media(max-width:1799px){.pv-table-wrap{overflow:auto;max-height:calc(100vh - 190px)}}
 .pv-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1060px}
+.pv-table thead th:first-child{border-top-left-radius:14px}
+.pv-table thead th:last-child{border-top-right-radius:14px}
+.pv-table tbody tr:last-child td:first-child{border-bottom-left-radius:14px}
+.pv-table tbody tr:last-child td:last-child{border-bottom-right-radius:14px}
 .pv-table th,.pv-table td{border-bottom:1px solid var(--border)}
 .pv-table thead th{position:sticky;top:0;z-index:3;background:var(--surface2);padding:10px 12px;text-align:center;white-space:nowrap}
 .pv-table th.pv-loc{z-index:4;text-align:left}
@@ -2505,7 +2513,7 @@ body.signed-in .help-fab{display:flex;}
 /* notes + footer */
 .rc-note{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.6}
 .rc-foot{color:var(--muted);font-size:11.5px;margin-top:26px;border-top:1px solid var(--border);padding-top:14px;line-height:1.7}
-@media(max-width:1366px){.nx-board,.nx-curveview{grid-template-columns:1fr}.nx-console{position:static}}
+@media(max-width:1500px){.nx-board,.nx-curveview{grid-template-columns:1fr}.nx-console{position:static}}
 
 /* ═══════════════ EDIT OUR PRICES — zone-grouped town picker ═══════════════
    Same zone tiers + heat colours as the pricing sheet (pv-zN vars), so the

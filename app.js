@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '414';
+var APP_VERSION = '415';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13998,12 +13998,13 @@ var RC_CITIES = [
  ['Port Carling',114,'Port Carling',72,81,null],
  ['Huntsville',124,'Huntsville',78,87,null]
 ].map(function(c){ return {name:c[0], km:c[1], area:c[2], tmin:c[3], tmax:c[4], kmMax:c[5]}; });
-// Heatmap price columns: every $25 from $195 to $470 — the full bar, sized to
-// fit the page width with no sideways scroll.
-var RC_LADDER = []; (function(){ for(var p=195;p<=470;p+=25) RC_LADDER.push(p); })();
+// Heatmap price columns — matches how the pricing actually climbs: $195 first,
+// then $25 rungs from $200 up ($200, $225 … $475). Sized to fit the page width
+// with no sideways scroll.
+var RC_LADDER = [195]; (function(){ for(var p=200;p<=475;p+=25) RC_LADDER.push(p); })();
 var RC_CURVE_PRICES = [195,210,225,245,265,290,320,360,410,460,500];   // margin-curve sample points
 var _rc = {trips:2, tab:'heat', scrub:300, bench:100, A:{},
-           sel:{ci:RC_CITIES.findIndex(function(c){return c.name==='Wasaga Beach';}), pi:4}};
+           sel:{ci:RC_CITIES.findIndex(function(c){return c.name==='Wasaga Beach';}), pi:RC_LADDER.indexOf(300)}};
 
 function _rcKmStr(c){ return (c.kmMax&&c.kmMax!==c.km) ? c.km+'–'+c.kmMax : String(c.km); }
 function _rcDriveStr(c){ return c.tmin===c.tmax ? c.tmin+' min' : c.tmin+'–'+c.tmax+' min'; }
