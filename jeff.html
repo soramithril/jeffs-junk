@@ -198,7 +198,7 @@ a:hover{color:#15803d}
         var odoKm = (odoBy[v.vid]!=null) ? odoBy[v.vid] : null;
         var oil=oilStatus(v), st=stickerStatus(v), svc=serviceStatus(maintBy[v.vid], odoKm);
         var img = /L7/i.test(v.name) ? 'assets/truck-l7.webp'
-                : /hino|bin/i.test(v.name+' '+v.type) ? 'assets/truck-195.webp' : null;
+                : /hino|bin/i.test(v.name+' '+v.type) ? 'assets/truck-bin.jpg' : null;
         var worst='ok';
         [oil.state, st.state, svc?svc.state:'ok'].forEach(function(s){ if(STATE_RANK[s]>STATE_RANK[worst]) worst=s; });
         if(v.vehicle_status && v.vehicle_status!=='Available' && STATE_RANK.warn>STATE_RANK[worst]) worst='warn';
@@ -577,10 +577,16 @@ a:hover{color:#15803d}
 
     var hero;
     if(t.img){
-      hero = '<div style="position:relative;height:196px;overflow:hidden;margin:8px -18px 0">'+
-          '<div style="position:absolute;left:50%;bottom:14px;width:76%;height:24px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent 78%);filter:blur(10px)"></div>'+
-          '<img src="'+t.img+'" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 14px 16px rgba(0,0,0,.5));pointer-events:none;user-select:none">'+
-        '</div>';
+      // Photos with their own dark background (the real Jeff's Junk trucks) blend into the
+      // screen and already carry a shadow — no ground blob or drop-shadow. Transparent
+      // renders (L7) get the floating drop-shadow + ground shadow.
+      var opaqueHero = /\.jpe?g$/i.test(t.img);
+      hero = opaqueHero
+        ? '<div style="height:196px;margin:8px -18px 0"><img src="'+t.img+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none"></div>'
+        : '<div style="position:relative;height:196px;overflow:hidden;margin:8px -18px 0">'+
+            '<div style="position:absolute;left:50%;bottom:14px;width:76%;height:24px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent 78%);filter:blur(10px)"></div>'+
+            '<img src="'+t.img+'" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 14px 16px rgba(0,0,0,.5));pointer-events:none;user-select:none">'+
+          '</div>';
     } else {
       hero = '<div style="height:150px;display:flex;align-items:center;justify-content:center;margin:10px 0 0"><div style="width:118px;height:118px;border-radius:28px;background:linear-gradient(160deg,'+t.color+',rgba(0,0,0,.35));display:flex;align-items:center;justify-content:center;font-size:58px;box-shadow:0 16px 30px rgba(0,0,0,.4)">🚐</div></div>';
     }
