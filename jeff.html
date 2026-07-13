@@ -100,7 +100,7 @@ a:hover{color:#15803d}
   var state = {
     screen:'home', dayOffset:0, truckIdx:0, filter:'all',
     toast:'', fleet:null, fleetErr:false, jobs:null, syncedAt:'',
-    authChecked:false, authed:false, me:null, loginErr:'', loginBusy:false
+    authChecked:false, authed:false, me:null
   };
   var lastScreen = null;
   var toastTimer = null, feedTimer = null, pendingJob = null;
@@ -325,29 +325,12 @@ a:hover{color:#15803d}
     showToast(urls.length ? ('📷 '+urls.length+' added'+(failed?' · '+failed+' failed':'')) : '⚠ Upload failed');
   }
 
-  // ---------- auth ----------
-  // Username → email via the same RPC the dashboard uses, then password sign-in.
-  async function doSignIn(){
-    var uEl=document.getElementById('lg-user'), pEl=document.getElementById('lg-pass');
-    var u=(uEl&&uEl.value||'').trim(), p=(pEl&&pEl.value||'');
-    if(!u||!p){ setState({loginErr:'Enter your username and password.'}); return; }
-    setState({loginBusy:true, loginErr:''});
-    try{
-      var em = await db.rpc('get_email_by_username', { lookup_username: u });
-      if(em.error || !em.data){ setState({loginBusy:false, loginErr:'Username not found.'}); return; }
-      var r = await db.auth.signInWithPassword({ email: em.data, password: p });
-      if(r.error){ var m=r.error.message||'Sign-in failed'; if(/invalid login/i.test(m)) m='Wrong username or password.'; setState({loginBusy:false, loginErr:m}); return; }
-      // onAuthStateChange takes it from here (loads data, drops the login screen).
-    }catch(ex){ setState({loginBusy:false, loginErr:'Network error — try again.'}); }
-  }
-  async function signOut(){ try{ await db.auth.signOut(); }catch(e){} }
-
   var ACTS = {
     goHome:function(){ nav('home'); }, goJobs:function(){ nav('jobs'); }, goPhotos:function(){ nav('photos'); }, goTrucks:function(){ nav('trucks'); },
     openAlert:openAlert, onPrev:prevDay, onNext:nextDay, onPick:openDate,
     setAll:function(){ setFilter('all'); }, setQuote:function(){ setFilter('Quote'); }, setLand:function(){ setFilter('Landscaping'); },
     pickTruck:function(arg){ pickTruck(arg); }, onLoc:refreshFleet,
-    addPhoto:function(arg){ addPhoto(arg); }, signIn:doSignIn, signOut:signOut,
+    addPhoto:function(arg){ addPhoto(arg); },
     goDash:function(){ try{ localStorage.setItem('jjLayout','dashboard'); }catch(e){} location.href='index.html'; }
   };
 
@@ -386,7 +369,7 @@ a:hover{color:#15803d}
           '<div style="font-size:11px;font-weight:800;letter-spacing:1.6px;color:#16a34a;text-transform:uppercase">'+esc(eyebrow)+'</div>'+
           '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;line-height:.9;color:#17223a;letter-spacing:.5px;margin-top:3px">Hey '+esc(who)+' 👋</div>'+
         '</div>'+
-        '<div class="pa" data-act="signOut" title="Sign out" style="width:50px;height:50px;border-radius:16px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 8px 18px rgba(22,163,74,.38);cursor:pointer">🚛</div>'+
+        '<div style="width:50px;height:50px;border-radius:16px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 8px 18px rgba(22,163,74,.38)">🚛</div>'+
       '</div>'+
 
       '<div class="pa" data-act="goJobs" style="background:linear-gradient(150deg,#16a34a,#12813b);border-radius:26px;padding:20px 24px;color:#fff;box-shadow:0 18px 34px rgba(22,163,74,.34);position:relative;overflow:hidden;cursor:pointer">'+
@@ -539,22 +522,6 @@ a:hover{color:#15803d}
     '</div>';
   }
 
-  function loginHTML(){
-    var err = state.loginErr ? '<div style="color:#dc2626;font-size:13px;font-weight:700;text-align:center">'+esc(state.loginErr)+'</div>' : '';
-    var inputCss = 'width:100%;border:1px solid #d7ddd9;border-radius:14px;padding:15px 16px;font-size:16px;font-family:inherit;color:#17223a;background:#fff;outline:none;box-shadow:0 2px 8px rgba(20,40,25,.04)';
-    return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:0 26px;display:flex;flex-direction:column;justify-content:center;gap:14px">'+
-      '<div style="text-align:center;margin-bottom:8px">'+
-        '<div style="width:64px;height:64px;border-radius:20px;margin:0 auto 14px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 12px 26px rgba(22,163,74,.4)">🚛</div>'+
-        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:#17223a;letter-spacing:.5px;line-height:.9">Jeff\'s Junk</div>'+
-        '<div style="font-size:14px;color:#98a0aa;margin-top:5px">Sign in to see your day</div>'+
-      '</div>'+
-      '<input id="lg-user" type="text" autocomplete="username" placeholder="Username" value="'+esc(state.loginUser||'')+'" style="'+inputCss+'">'+
-      '<input id="lg-pass" type="password" autocomplete="current-password" placeholder="Password" style="'+inputCss+'">'+
-      err+
-      '<div class="pa" data-act="signIn" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#16a34a,#12813b);color:#fff;border-radius:15px;padding:16px 0;font-size:17px;font-weight:800;box-shadow:0 12px 24px rgba(22,163,74,.32);cursor:pointer;margin-top:4px;'+(state.loginBusy?'opacity:.65;pointer-events:none':'')+'">'+(state.loginBusy?'Signing in…':'Sign In')+'</div>'+
-    '</div>';
-  }
-
   function trucksHTML(){
     var head =
       '<div style="display:flex;align-items:center;gap:12px">'+
@@ -673,11 +640,11 @@ a:hover{color:#15803d}
   function render(){
     var scroll = document.getElementById('scroll');
     var screen = document.getElementById('screen');
-    // Auth gate: splash while we check, login until signed in, then the app.
-    var viewKey = !state.authChecked ? 'splash' : !state.authed ? 'login' : state.screen;
+    // Reuse the dashboard's login: show a splash until we have a session (no session
+    // redirects to index.html), then the app.
+    var viewKey = (!state.authChecked || !state.authed) ? 'splash' : state.screen;
     var html;
     if(viewKey==='splash') html='<div style="min-height:898px;display:flex;align-items:center;justify-content:center;color:#98a0aa;font-size:15px;background:linear-gradient(180deg,#f7f9f7,#edf1ee)">Loading…</div>';
-    else if(viewKey==='login') html=loginHTML();
     else if(viewKey==='home') html=homeHTML();
     else if(viewKey==='jobs') html=jobsHTML();
     else if(viewKey==='photos') html=photosHTML();
@@ -705,14 +672,18 @@ a:hover{color:#15803d}
     var fn = ACTS[t.getAttribute('data-act')];
     if(fn) fn(t.getAttribute('data-arg'));
   });
-  // Enter submits the login form.
-  document.querySelector('.glass').addEventListener('keydown', function(e){
-    if(e.key==='Enter' && state.authChecked && !state.authed){ e.preventDefault(); doSignIn(); }
-  });
   document.getElementById('jeff-photo-input').addEventListener('change', onPhoto);
   document.getElementById('jeff-date-input').addEventListener('change', onDate);
 
   // ---------- auth boot ----------
+  // This app has no login of its own — it reuses the dashboard's. supabase-js shares the
+  // session across index.html and jeff.html (same origin), so a dashboard sign-in flows
+  // straight in. With no session we send the user to the dashboard's existing login.
+  function toDashboardLogin(){
+    // Drop a 'mobile' layout preference first so the dashboard doesn't bounce us back.
+    try{ if(localStorage.getItem('jjLayout')==='mobile') localStorage.setItem('jjLayout','dashboard'); }catch(e){}
+    location.replace('index.html');
+  }
   async function loadMe(user){
     var name = (user.email||'').split('@')[0];
     try{ var r = await db.from('user_profiles').select('username').eq('id', user.id).single(); if(r.data && r.data.username) name=r.data.username; }catch(e){}
@@ -721,7 +692,7 @@ a:hover{color:#15803d}
     render();
   }
   function onAuthed(session){
-    state.authed=true; state.authChecked=true; state.loginBusy=false; state.loginErr=''; state.loginUser='';
+    state.authed=true; state.authChecked=true;
     render();
     loadMe(session.user);
     loadAll();
@@ -731,15 +702,11 @@ a:hover{color:#15803d}
   db.auth.getSession().then(function(r){
     var sess = r.data && r.data.session;
     if(sess){ onAuthed(sess); }
-    else { setState({ authChecked:true }); }
+    else { toDashboardLogin(); }
   });
   db.auth.onAuthStateChange(function(ev, session){
     if(session && !state.authed){ onAuthed(session); }
-    else if(!session && ev==='SIGNED_OUT'){
-      clearInterval(feedTimer); feedTimer=null;
-      state.authed=false; state.fleet=null; state.jobs=null; state.me=null;
-      setState({ screen:'home' });
-    }
+    else if(!session && ev==='SIGNED_OUT'){ clearInterval(feedTimer); feedTimer=null; toDashboardLogin(); }
   });
 
   render();
