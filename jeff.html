@@ -100,7 +100,7 @@ a:hover{color:#15803d}
   var state = {
     screen:'home', dayIdx:0, truckIdx:0, filter:'all',
     photos:{walsh:[],roy:[],nguyen:[]},
-    toast:'', angle:0, feed:null, syncedAt:''
+    toast:'', fleet:null, fleetErr:false, syncedAt:''
   };
   var lastScreen = null;
   var toastTimer = null, feedTimer = null, pendingJob = null;
@@ -108,12 +108,52 @@ a:hover{color:#15803d}
   // ---------- data ----------
   function clock(){ var d=new Date(),h=d.getHours(),m=d.getMinutes(),ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+(m<10?'0':'')+m+' '+ap; }
 
-  function LIVE(){
-    return [
-      {name:'Hino 195', plate:'BX·812', odo:'84,120', fuelPct:63, oilPct:72, oilKm:'in ~4,800 km', sticker:'Nov 2026', stickerLeft:'132 days left', stickerOk:true, loc:'Workyard', seen:'just now', state:'Parked', health:'good', statusMsg:'No issues detected'},
-      {name:'Hino L7', plate:'CF·440', odo:'142,540', fuelPct:41, oilPct:14, oilKm:'now — overdue', sticker:'Jul 24', stickerLeft:'12 days left', stickerOk:false, loc:'Barrie · on site', seen:'just now', state:'Working', health:'engine', statusMsg:'Book it into the shop'}
-    ];
+  // ---------- real fleet data (same Supabase the desktop Vehicles page uses) ----------
+  var SB_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
+  var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+  var STC = { ok:'#22c55e', warn:'#f5b342', bad:'#ef4444', muted:'#6b727a' };
+  var STBG = { '#22c55e':'rgba(34,197,94,.14)', '#f5b342':'rgba(245,179,66,.14)', '#ef4444':'rgba(239,68,68,.15)', '#6b727a':'rgba(139,146,153,.14)' };
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var STATE_RANK = { muted:0, ok:1, warn:2, bad:3 };
+
+  function sbGet(path){ return fetch(SB_URL+'/rest/v1/'+path, { headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY } }).then(function(r){ if(!r.ok) throw new Error('rest '+r.status); return r.json(); }); }
+  function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function fmtTime(iso){ try{ return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+
+  // Oil status — mirrors the desktop _vehOilStatus (>180d overdue, >90d due soon).
+  function oilStatus(v){
+    if(!v.oil_date) return { state:'muted', head:'Oil', sub:'No date set' };
+    var days = Math.floor((Date.now() - new Date(v.oil_date+'T12:00:00')) / 86400000);
+    var state = days>180 ? 'bad' : days>90 ? 'warn' : 'ok';
+    var head = 'Oil '+(state==='bad'?'overdue':state==='warn'?'due soon':'OK');
+    var sub = days+'d since last'+(v.oil_km?' · '+Number(v.oil_km).toLocaleString()+' km':'');
+    return { state:state, head:head, sub:sub, days:days };
   }
+  // Sticker status — mirrors the desktop _vehStickerStatus (valid through end of month).
+  function stickerStatus(v){
+    if(!v.sticker_month || !v.sticker_year) return { state:'muted', head:'Sticker', sub:'Not set' };
+    var y=parseInt(v.sticker_year,10), m=parseInt(v.sticker_month,10);
+    var expiry=new Date(y,m,0); expiry.setHours(23,59,59,999);
+    var diff=Math.floor((expiry-Date.now())/86400000);
+    var state = diff<0 ? 'bad' : diff<30 ? 'warn' : 'ok';
+    var sub = MONTHS[m-1]+' '+y+(diff<0?' · expired':diff<30?' · '+diff+'d left':'');
+    return { state:state, head:'Sticker', sub:sub, days:diff };
+  }
+  // Soonest km-based service from the desktop's maintenance_schedules + live odometer.
+  function serviceStatus(list, odoKm){
+    if(!list || !list.length) return null;
+    var soonest=null;
+    list.forEach(function(s){
+      var kmLeft = (s.next_due_km!=null && odoKm!=null) ? (s.next_due_km - odoKm) : null;
+      if(kmLeft==null) return;
+      if(soonest==null || kmLeft<soonest.km) soonest={ km:kmLeft, type:s.maintenance_type };
+    });
+    if(!soonest) return { state:'muted', text:'Schedule set · no odometer' };
+    var state = soonest.km<=0 ? 'bad' : soonest.km<=500 ? 'warn' : 'ok';
+    var text = soonest.type+' '+(soonest.km<=0 ? Math.abs(soonest.km).toLocaleString()+' km overdue' : 'in '+soonest.km.toLocaleString()+' km');
+    return { state:state, text:text };
+  }
+  function shortName(n){ return String(n).replace(/^Hino\s+/i,'').replace(/Furniture Bank Van/i,'Van'); }
 
   function DAYS(){
     return [
@@ -149,13 +189,7 @@ a:hover{color:#15803d}
     ];
   }
 
-  function TRUCKS(){
-    if(state.feed && state.feed.length) return state.feed;
-    return [
-      {name:'Hino 195', plate:'BX·812', odo:'84,120', fuelPct:78, oilPct:72, oilKm:'in ~4,800 km', sticker:'Nov 2026', stickerLeft:'132 days left', stickerOk:true, loc:'Workyard', seen:'12 min ago', state:'Parked', health:'good', statusMsg:'No issues detected'},
-      {name:'Hino L7', plate:'CF·440', odo:'142,540', fuelPct:34, oilPct:14, oilKm:'now — overdue', sticker:'Jul 24', stickerLeft:'12 days left', stickerOk:false, loc:'Barrie · on site', seen:'8 min ago', state:'Working', health:'engine', statusMsg:'Book it into the shop'}
-    ];
-  }
+  function TRUCKS(){ return state.fleet || []; }
 
   function JOBS(){
     return [
@@ -165,14 +199,47 @@ a:hover{color:#15803d}
     ];
   }
 
-  // ---------- feed ----------
-  function loadFeed(){
-    fetch('geotab-feed.json?t=' + Date.now(), { cache:'no-store' })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(d){ setState({ feed:(d && d.trucks && d.trucks.length) ? d.trucks : LIVE(), syncedAt: clock() }); })
-      .catch(function(){ setState({ feed:LIVE(), syncedAt: clock() }); });
+  // ---------- fleet load ----------
+  // Pulls the real fleet from Supabase (vehicles + odometer + maintenance + today's
+  // driver) plus live Geotab position, and builds one model per truck. Non-fleet
+  // (leaderboard-only personal) trucks are excluded, matching the desktop fleet views.
+  function loadFleet(){
+    Promise.all([
+      sbGet('vehicles?select=vid,name,type,color,notes,sticker_month,sticker_year,oil_date,oil_km,oil_interval,vehicle_status,leaderboard_only&leaderboard_only=eq.false&order=created_at'),
+      sbGet('vehicle_odometers?select=vid,odometer_km'),
+      sbGet('maintenance_schedules?select=vid,maintenance_type,next_due_km,status'),
+      sbGet('vehicle_assignments?select=vid,crew_member_id,ended_at&assignment_date=eq.'+todayISO()),
+      sbGet('crew_members?select=id,name'),
+      fetch(SB_URL+'/functions/v1/geotab-proxy',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'device-status'}) })
+        .then(function(r){ return r.ok?r.json():{devices:[]}; }).catch(function(){ return {devices:[]}; })
+    ]).then(function(res){
+      var veh=res[0]||[], odo=res[1]||[], maint=res[2]||[], assign=res[3]||[], crew=res[4]||[], dev=(res[5]&&res[5].devices)||[];
+      var odoBy={}; odo.forEach(function(o){ odoBy[o.vid]=o.odometer_km; });
+      var crewBy={}; crew.forEach(function(c){ crewBy[c.id]=c.name; });
+      var driverBy={}; assign.forEach(function(a){ if(!a.ended_at) driverBy[a.vid]=crewBy[a.crew_member_id]||null; });
+      var devBy={}; dev.forEach(function(d){ devBy[d.name]=d; });
+      var maintBy={}; maint.forEach(function(m){ (maintBy[m.vid]=maintBy[m.vid]||[]).push(m); });
+
+      var fleet = veh.map(function(v){
+        var odoKm = (odoBy[v.vid]!=null) ? odoBy[v.vid] : null;
+        var oil=oilStatus(v), st=stickerStatus(v), svc=serviceStatus(maintBy[v.vid], odoKm);
+        var img = /L7/i.test(v.name) ? 'assets/truck-l7.webp'
+                : /hino|bin/i.test(v.name+' '+v.type) ? 'assets/truck-195.webp' : null;
+        var worst='ok';
+        [oil.state, st.state, svc?svc.state:'ok'].forEach(function(s){ if(STATE_RANK[s]>STATE_RANK[worst]) worst=s; });
+        if(v.vehicle_status && v.vehicle_status!=='Available' && STATE_RANK.warn>STATE_RANK[worst]) worst='warn';
+        var alerts=[];
+        if(oil.state==='bad'||oil.state==='warn') alerts.push({ sev:oil.state, text:'Oil '+(oil.state==='bad'?'overdue':'due soon') });
+        if(st.state==='bad'||st.state==='warn') alerts.push({ sev:st.state, text:'Sticker '+(st.state==='bad'?'expired':'expiring') });
+        if(svc && (svc.state==='bad'||svc.state==='warn')) alerts.push({ sev:svc.state, text:svc.text });
+        return { vid:v.vid, name:v.name, type:v.type||'Truck', color:v.color||'#22c55e', status:v.vehicle_status||'Available',
+                 odoKm:odoKm, oil:oil, sticker:st, service:svc, driver:driverBy[v.vid]||null, device:devBy[v.name]||null,
+                 img:img, alerts:alerts, worst:worst };
+      });
+      setState({ fleet:fleet, fleetErr:false, syncedAt: clock() });
+    }).catch(function(e){ setState({ fleet:[], fleetErr:true, syncedAt: clock() }); });
   }
-  function refreshFeed(){ showToast('🔄 Syncing with Geotab…'); loadFeed(); }
+  function refreshFleet(){ showToast('🔄 Refreshing trucks…'); loadFleet(); }
 
   // ---------- state ----------
   function setState(patch){ for(var k in patch) state[k]=patch[k]; render(); }
@@ -181,14 +248,13 @@ a:hover{color:#15803d}
 
   // ---------- actions ----------
   function nav(sc){ state.toast=''; renderToast(); setState({screen:sc}); }
-  function openAlert(){ var t=TRUCKS(); var i=-1; for(var k=0;k<t.length;k++){ if(t[k].health!=='good'){ i=k; break; } } state.toast=''; renderToast(); setState({screen:'trucks', truckIdx: i<0?0:i, angle:0}); }
+  function openAlert(){ var t=TRUCKS(); var i=-1; for(var k=0;k<t.length;k++){ if(t[k].alerts && t[k].alerts.length){ i=k; break; } } state.toast=''; renderToast(); setState({screen:'trucks', truckIdx: i<0?0:i}); }
   function prevDay(){ setState({dayIdx: Math.max(0, state.dayIdx-1)}); }
   function nextDay(){ var n=DAYS().length-1; setState({dayIdx: Math.min(n, state.dayIdx+1)}); }
   function openDate(){ var el=document.getElementById('jeff-date-input'); if(!el) return; el.value=DAYS()[state.dayIdx].iso; try{ if(el.showPicker) el.showPicker(); else el.click(); }catch(e){ el.click(); } }
   function onDate(e){ var v=e.target.value; if(!v) return; var base=new Date('2026-07-13T12:00:00'); var d=new Date(v+'T12:00:00'); var off=Math.round((d-base)/86400000); var n=DAYS().length-1; off=Math.max(0, Math.min(n, off)); setState({dayIdx:off}); }
   function setFilter(f){ setState({filter:f}); }
-  function switchTruck(){ setState({truckIdx:(state.truckIdx+1)%2, angle:0}); }
-  function onStatus(){ var t=TRUCKS()[state.truckIdx]; showToast(t.health==='good'?'✅ Everything checks out':'🔧 Best to book it in soon'); }
+  function pickTruck(i){ setState({truckIdx: parseInt(i,10)||0}); }
 
   function addPhoto(id){ pendingJob=id; var el=document.getElementById('jeff-photo-input'); if(el){ el.value=''; el.click(); } }
   function onPhoto(e){
@@ -213,7 +279,7 @@ a:hover{color:#15803d}
     goHome:function(){ nav('home'); }, goJobs:function(){ nav('jobs'); }, goPhotos:function(){ nav('photos'); }, goTrucks:function(){ nav('trucks'); },
     openAlert:openAlert, onPrev:prevDay, onNext:nextDay, onPick:openDate,
     setAll:function(){ setFilter('all'); }, setQuote:function(){ setFilter('Quote'); }, setLand:function(){ setFilter('Landscaping'); },
-    onSwitch:switchTruck, onStatus:onStatus, onLoc:refreshFeed,
+    pickTruck:function(arg){ pickTruck(arg); }, onLoc:refreshFleet,
     addPhoto:function(arg){ addPhoto(arg); },
     goDash:function(){ try{ localStorage.setItem('jjLayout','dashboard'); }catch(e){} location.href='index.html'; }
   };
@@ -224,14 +290,19 @@ a:hover{color:#15803d}
   // ---------- screens ----------
   function homeHTML(){
     var days=DAYS(), today=days[0], trucks=TRUCKS();
-    var alertT=null; for(var i=0;i<trucks.length;i++){ if(trucks[i].health!=='good'){ alertT=trucks[i]; break; } }
-    var alert = alertT ? (
+    var flagged=[]; trucks.forEach(function(t){ if(t.alerts && t.alerts.length) flagged.push(t); });
+    flagged.sort(function(a,b){ return (b.worst==='bad'?1:0)-(a.worst==='bad'?1:0); });
+    var alert='';
+    if(flagged.length){
+      var lead=flagged[0], urgent=lead.worst==='bad';
+      var extra=flagged.length>1 ? ' · +'+(flagged.length-1)+' more truck'+(flagged.length>2?'s':'') : '';
+      alert =
       '<div class="pa" data-act="openAlert" style="display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,#fffdf3,#fff6dd);border:1px solid #f4e1a4;border-radius:20px;padding:13px 15px;cursor:pointer">'+
-        '<div style="width:44px;height:44px;border-radius:13px;background:#fdecb8;display:flex;align-items:center;justify-content:center;font-size:22px">🟡</div>'+
-        '<div style="flex:1"><div style="font-weight:800;font-size:15px;color:#7c5e12">'+esc(alertT.name)+' needs attention</div><div style="font-size:13px;color:#a1801f;margin-top:1px">Oil due soon · sticker in 12 days</div></div>'+
+        '<div style="width:44px;height:44px;border-radius:13px;background:#fdecb8;display:flex;align-items:center;justify-content:center;font-size:22px">'+(urgent?'🔴':'🟡')+'</div>'+
+        '<div style="flex:1"><div style="font-weight:800;font-size:15px;color:#7c5e12">'+esc(lead.name)+' needs attention</div><div style="font-size:13px;color:#a1801f;margin-top:1px">'+esc(lead.alerts.map(function(a){return a.text;}).join(' · '))+extra+'</div></div>'+
         '<div style="color:#d6b24a;font-size:22px">›</div>'+
-      '</div>'
-    ) : '';
+      '</div>';
+    }
     var dashPill = isJake ? ('<div class="pa" data-act="goDash" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#eef2ff;border:1px solid #d9e0f7;border-radius:14px;padding:11px;font-size:13px;font-weight:800;color:#4152b3;cursor:pointer">⇄ Switch to full dashboard</div>') : '';
     return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
       dashPill+
@@ -375,69 +446,110 @@ a:hover{color:#15803d}
   }
 
   function trucksHTML(){
-    var trucks=TRUCKS(), truck=trucks[state.truckIdx];
-    var truckImg = state.truckIdx===0 ? 'assets/truck-195.webp' : 'assets/truck-l7.webp';
-    var fuelColor = truck.fuelPct>=50 ? '#22c55e' : truck.fuelPct>=25 ? '#f59e0b' : '#ef4444';
-    var oilColor = truck.oilPct>=50 ? '#22c55e' : truck.oilPct>=20 ? '#f59e0b' : '#ef4444';
-    var stateColor = truck.health==='good'?'#22c55e':truck.health==='attention'?'#f5b342':'#ef4444';
-    var HS = { good:{icon:'🛡️',title:'All good',color:'#22c55e'}, attention:{icon:'⚠️',title:'Attention soon',color:'#f5b342'}, engine:{icon:'🔧',title:'Engine light on',color:'#ef4444'} };
-    var hs = HS[truck.health] || HS.good;
-    var stickerHead = truck.stickerOk?'#22c55e':'#f5b342';
-    var synced = state.syncedAt ? ('synced '+state.syncedAt) : 'sample data';
-
-    var hero = '<div style="position:relative;height:236px;overflow:hidden">'+
-        '<div style="position:absolute;left:50%;bottom:18px;width:80%;height:30px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,0) 78%);filter:blur(11px);pointer-events:none;z-index:0"></div>'+
-        '<img src="'+truckImg+'" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 16px 18px rgba(0,0,0,.5));pointer-events:none;user-select:none">'+
-      '</div>';
-
-    return '<div class="screenpad" style="min-height:898px;background:radial-gradient(135% 90% at 50% 24%,#14161a 0%,#0a0b0e 58%,#060708 100%);padding:58px 18px 38px;display:flex;flex-direction:column;color:#f4f6f7">'+
+    var head =
       '<div style="display:flex;align-items:center;gap:12px">'+
         '<div class="pa" data-act="goHome" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px;color:#e6e9ec;cursor:pointer;flex-shrink:0">‹</div>'+
-        '<div class="pa" data-act="onSwitch" style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">'+
-          '<span style="font-size:24px;font-weight:800;letter-spacing:-.02em;color:#fff">'+esc(truck.name)+'</span>'+
-          '<span style="font-size:15px;color:#8b9299">⌄</span>'+
-        '</div>'+
-      '</div>'+
+        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;letter-spacing:.6px;color:#fff;line-height:1;flex:1">Trucks</div>'+
+        '<div class="pa" data-act="onLoc" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;flex-shrink:0">🔄</div>'+
+      '</div>';
+    var open = '<div class="screenpad" style="min-height:898px;background:radial-gradient(135% 90% at 50% 24%,#14161a 0%,#0a0b0e 58%,#060708 100%);padding:58px 18px 38px;display:flex;flex-direction:column;color:#f4f6f7">';
 
-      '<div style="display:flex;align-items:center;gap:11px;margin-top:14px">'+
-        '<span style="font-size:18px">⛽</span>'+
-        '<div style="width:120px;height:15px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden"><div style="height:100%;width:'+truck.fuelPct+'%;background:'+fuelColor+';border-radius:999px;animation:gaugeGrow 1s cubic-bezier(.34,1,.4,1) both"></div></div>'+
-        '<span style="font-size:16px;font-weight:800;color:#fff">'+truck.fuelPct+'%</span>'+
-      '</div>'+
-      '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">'+
-        '<span style="width:9px;height:9px;border-radius:50%;background:'+stateColor+'"></span>'+
-        '<span style="font-size:16px;color:#c3c9cf;font-weight:500;white-space:nowrap">'+esc(truck.state)+'</span>'+
-      '</div>'+
+    if(state.fleet===null){
+      return open+head+'<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#8b9299;font-size:15px">Loading fleet…</div></div>';
+    }
+    if(state.fleetErr || !state.fleet.length){
+      return open+head+'<div style="margin-top:56px;text-align:center;color:#8b9299"><div style="font-size:40px">🚛</div><div style="font-size:15px;margin-top:10px">'+(state.fleetErr?'Couldn\'t reach the fleet data.':'No trucks found.')+'</div><div class="pa" data-act="onLoc" style="display:inline-block;margin-top:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 20px;font-size:14px;font-weight:700;color:#e6e9ec;cursor:pointer">Try again</div></div></div>';
+    }
 
-      '<div style="margin:2px -18px 4px">'+hero+'</div>'+
-      '<div style="height:2px"></div>'+
+    var idx = Math.min(state.truckIdx, state.fleet.length-1);
+    var t = state.fleet[idx];
 
-      '<div class="pa" data-act="onStatus" style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:16px 18px;cursor:pointer">'+
-        '<span style="font-size:26px">'+hs.icon+'</span>'+
-        '<div style="flex:1"><div style="font-size:17px;font-weight:800;color:'+hs.color+'">'+esc(hs.title)+'</div><div style="font-size:14px;color:#8b9299;margin-top:1px">'+esc(truck.statusMsg)+'</div></div>'+
-        '<span style="font-size:20px;color:#6b727a">›</span>'+
-      '</div>'+
+    var chips = state.fleet.map(function(tk,i){
+      var on = i===idx;
+      var dot = tk.worst==='bad' ? '<span style="width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0"></span>'
+              : tk.worst==='warn' ? '<span style="width:6px;height:6px;border-radius:50%;background:#f5b342;flex-shrink:0"></span>' : '';
+      return '<div class="pa" data-act="pickTruck" data-arg="'+i+'" style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding:8px 13px;border-radius:999px;cursor:pointer;background:'+(on?'rgba(255,255,255,.13)':'rgba(255,255,255,.04)')+';border:1px solid '+(on?'rgba(255,255,255,.22)':'rgba(255,255,255,.08)')+'">'+
+          '<span style="width:9px;height:9px;border-radius:50%;background:'+tk.color+';flex-shrink:0"></span>'+
+          '<span style="font-size:13px;font-weight:'+(on?'800':'600')+';color:'+(on?'#fff':'#c3c9cf')+';white-space:nowrap">'+esc(shortName(tk.name))+'</span>'+dot+
+        '</div>';
+    }).join('');
+    var selector = '<div class="jscroll" style="display:flex;gap:8px;overflow-x:auto;margin:14px -18px 6px;padding:2px 18px">'+chips+'</div>';
 
-      '<div class="pa" data-act="onLoc" style="display:flex;align-items:center;gap:13px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:14px 18px;margin-top:11px;cursor:pointer">'+
-        '<span style="font-size:22px">📍</span>'+
-        '<div style="flex:1"><div style="font-size:15px;color:#e6e9ec;font-weight:700">'+esc(truck.loc)+'</div><div style="font-size:13px;color:#8b9299;margin-top:1px">Geotab · updated '+esc(truck.seen)+' · '+esc(synced)+'</div></div>'+
-        '<span style="font-size:17px;color:#6b727a">🔄</span>'+
-      '</div>'+
+    var statusColor = t.status==='Available' ? STC.ok : /shop/i.test(t.status) ? STC.warn : STC.muted;
+    var nameRow =
+      '<div style="display:flex;align-items:flex-start;gap:10px;margin-top:4px">'+
+        '<div style="flex:1"><div style="font-size:25px;font-weight:800;color:#fff;letter-spacing:-.02em;line-height:1.05">'+esc(t.name)+'</div><div style="font-size:13px;color:#8b9299;margin-top:2px">'+esc(t.type)+'</div></div>'+
+        '<span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:6px 12px;border-radius:999px;color:'+statusColor+';background:'+STBG[statusColor]+';border:1px solid '+statusColor+'44;white-space:nowrap">'+esc(t.status)+'</span>'+
+      '</div>';
 
-      '<div style="display:flex;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:15px 0;margin-top:11px">'+
+    var alertStrip='';
+    if(t.alerts.length){
+      var ac = t.worst==='bad'?STC.bad:STC.warn;
+      alertStrip = '<div style="display:flex;align-items:center;gap:9px;background:'+STBG[ac]+';border:1px solid '+ac+'44;border-radius:14px;padding:10px 13px;margin-top:11px">'+
+          '<span style="font-size:16px">'+(t.worst==='bad'?'🔴':'🟡')+'</span>'+
+          '<span style="font-size:13px;font-weight:700;color:'+ac+'">'+esc(t.alerts.map(function(a){return a.text;}).join(' · '))+'</span>'+
+        '</div>';
+    }
+
+    var hero;
+    if(t.img){
+      hero = '<div style="position:relative;height:196px;overflow:hidden;margin:8px -18px 0">'+
+          '<div style="position:absolute;left:50%;bottom:14px;width:76%;height:24px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent 78%);filter:blur(10px)"></div>'+
+          '<img src="'+t.img+'" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 14px 16px rgba(0,0,0,.5));pointer-events:none;user-select:none">'+
+        '</div>';
+    } else {
+      hero = '<div style="height:150px;display:flex;align-items:center;justify-content:center;margin:10px 0 0"><div style="width:118px;height:118px;border-radius:28px;background:linear-gradient(160deg,'+t.color+',rgba(0,0,0,.35));display:flex;align-items:center;justify-content:center;font-size:58px;box-shadow:0 16px 30px rgba(0,0,0,.4)">🚐</div></div>';
+    }
+
+    var odoBlock = '<div style="text-align:center;margin-top:2px">'+
+        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:52px;line-height:.9;color:#fff;letter-spacing:1px">'+(t.odoKm!=null?Number(t.odoKm).toLocaleString():'—')+'</div>'+
+        '<div style="font-size:11px;font-weight:700;color:#8b9299;letter-spacing:1.5px;margin-top:1px">KM ON THE CLOCK</div>'+
+      '</div>';
+
+    var locMain, locSub, locDot;
+    if(t.device){
+      locMain = t.device.isDriving ? ('On the move'+(t.device.speed?' · '+Math.round(t.device.speed)+' km/h':'')) : 'Parked';
+      locSub = 'Geotab · seen '+fmtTime(t.device.lastUpdate);
+      locDot = t.device.isDriving ? STC.ok : '#8b9299';
+    } else { locMain='No live GPS'; locSub='Not reporting to Geotab'; locDot=STC.muted; }
+    var mapLink = t.device ? '<a href="https://www.google.com/maps?q='+t.device.lat+','+t.device.lng+'" target="_blank" rel="noopener" style="font-size:13px;color:#7fb2ff;font-weight:700;white-space:nowrap;text-decoration:none">Map ›</a>' : '';
+    var locCard = '<div style="display:flex;align-items:center;gap:13px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:14px 18px;margin-top:14px">'+
+        '<span style="width:9px;height:9px;border-radius:50%;background:'+locDot+';flex-shrink:0"></span>'+
+        '<div style="flex:1"><div style="font-size:15px;color:#e6e9ec;font-weight:700">'+esc(locMain)+'</div><div style="font-size:13px;color:#8b9299;margin-top:1px">'+esc(locSub)+'</div></div>'+
+        mapLink+
+      '</div>';
+
+    var driverCard = t.driver ? ('<div style="display:flex;align-items:center;gap:13px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:14px 18px;margin-top:11px">'+
+        '<span style="font-size:20px">👤</span>'+
+        '<div style="flex:1"><div style="font-size:13px;color:#8b9299">Today\'s driver</div><div style="font-size:15px;color:#e6e9ec;font-weight:700;margin-top:1px">'+esc(t.driver)+'</div></div>'+
+      '</div>') : '';
+
+    var oilC = STC[t.oil.state]||STC.muted, stC = STC[t.sticker.state]||STC.muted;
+    var oilStk = '<div style="display:flex;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:15px 0;margin-top:11px">'+
         '<div style="flex:1;display:flex;align-items:center;gap:11px;padding:0 15px">'+
           '<span style="font-size:19px">🛢️</span>'+
-          '<div><div style="font-size:12px;color:'+oilColor+';font-weight:700;text-transform:uppercase;letter-spacing:.3px">Oil life '+truck.oilPct+'%</div><div style="font-size:14px;color:#e6e9ec;font-weight:600;margin-top:2px">Due '+esc(truck.oilKm)+'</div></div>'+
+          '<div><div style="font-size:12px;color:'+oilC+';font-weight:700;text-transform:uppercase;letter-spacing:.3px">'+esc(t.oil.head)+'</div><div style="font-size:13px;color:#e6e9ec;font-weight:600;margin-top:2px">'+esc(t.oil.sub)+'</div></div>'+
         '</div>'+
         '<div style="width:1px;background:rgba(255,255,255,.1)"></div>'+
         '<div style="flex:1;display:flex;align-items:center;gap:11px;padding:0 15px">'+
           '<span style="font-size:19px">📋</span>'+
-          '<div><div style="font-size:12px;color:'+stickerHead+';font-weight:700;text-transform:uppercase;letter-spacing:.3px">Sticker</div><div style="font-size:14px;color:#e6e9ec;font-weight:600;margin-top:2px">'+esc(truck.sticker)+' · '+esc(truck.stickerLeft)+'</div></div>'+
+          '<div><div style="font-size:12px;color:'+stC+';font-weight:700;text-transform:uppercase;letter-spacing:.3px">'+esc(t.sticker.head)+'</div><div style="font-size:13px;color:#e6e9ec;font-weight:600;margin-top:2px">'+esc(t.sticker.sub)+'</div></div>'+
         '</div>'+
-      '</div>'+
+      '</div>';
 
-      '<div style="font-size:12px;color:#6b727a;text-align:center;margin-top:9px">🛞 '+esc(truck.odo)+' km on the clock · synced from Geotab</div>'+
-    '</div>';
+    var svcCard='';
+    if(t.service){
+      var svcC = STC[t.service.state]||STC.muted;
+      var svcTextColor = (t.service.state==='ok'||t.service.state==='muted') ? '#e6e9ec' : svcC;
+      svcCard = '<div style="display:flex;align-items:center;gap:13px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:14px 18px;margin-top:11px">'+
+          '<span style="font-size:20px">🔧</span>'+
+          '<div style="flex:1"><div style="font-size:13px;color:#8b9299">Next service</div><div style="font-size:15px;color:'+svcTextColor+';font-weight:700;margin-top:1px">'+esc(t.service.text)+'</div></div>'+
+        '</div>';
+    }
+
+    var footer = '<div style="font-size:12px;color:#6b727a;text-align:center;margin-top:14px">Live from the office'+(state.syncedAt?' · '+esc(state.syncedAt):'')+'</div>';
+
+    return open+head+selector+nameRow+alertStrip+hero+odoBlock+locCard+driverCard+oilStk+svcCard+footer+'</div>';
   }
 
   // ---------- render ----------
@@ -489,8 +601,8 @@ a:hover{color:#15803d}
   }catch(e){}
 
   render();
-  loadFeed();
-  feedTimer = setInterval(loadFeed, 60000);
+  loadFleet();
+  feedTimer = setInterval(loadFleet, 60000);
 })();
 </script>
 </body>
