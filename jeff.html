@@ -32,21 +32,14 @@ a:hover{color:#15803d}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
 .jscreen{animation:screenIn .26s ease both}
 .jscroll::-webkit-scrollbar{width:0;height:0;display:none}
-.jscroll{scrollbar-width:none;-ms-overflow-style:none}
+.jscroll{scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior:contain}
 .pa{transition:transform .12s ease;-webkit-tap-highlight-color:transparent}
 .pa:active{transform:scale(.96)}
 .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px}
 .phone{position:relative;width:426px;height:898px;border-radius:56px;background:linear-gradient(150deg,#15171b,#000);padding:12px;box-shadow:0 50px 100px rgba(0,0,0,.32),0 6px 20px rgba(0,0,0,.2)}
 .glass{position:relative;width:100%;height:100%;border-radius:46px;overflow:hidden;background:#eef1ee}
-.notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:126px;height:37px;border-radius:24px;background:#000;z-index:50}
-.sb{position:absolute;top:0;left:0;right:0;height:54px;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:0 34px 0 32px;color:#17223a}
-.sb.dark{color:#fff}
-.sb-time{font-size:15px;font-weight:700;letter-spacing:.3px}
-.sb-bar{background:currentColor;border-radius:1px}
-.sb-batt{width:24px;height:12px;border:1.5px solid currentColor;border-radius:3px;position:relative;display:flex;align-items:center;padding:1.5px}
-.hi{width:139px;height:5px;border-radius:100px;background:rgba(0,0,0,.24)}
-.hi.dark{background:rgba(255,255,255,.45)}
 @media (max-width:466px){
+  html,body{overflow:hidden;height:100%}
   .wrap{padding:0}
   .phone{width:100vw;height:100vh;border-radius:0;padding:0;box-shadow:none}
   .glass{border-radius:0}
@@ -57,26 +50,9 @@ a:hover{color:#15803d}
 <div class="wrap">
   <div class="phone">
     <div class="glass">
-      <div class="notch"></div>
-      <div class="sb" id="sb">
-        <div class="sb-time">9:41</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="display:flex;align-items:flex-end;gap:2px;height:12px">
-            <div class="sb-bar" style="width:3px;height:5px"></div>
-            <div class="sb-bar" style="width:3px;height:8px"></div>
-            <div class="sb-bar" style="width:3px;height:11px"></div>
-            <div class="sb-bar" style="width:3px;height:12px"></div>
-          </div>
-          <div style="font-size:11px;font-weight:800">5G</div>
-          <div class="sb-batt"><div style="width:15px;height:100%;background:currentColor;border-radius:1px"></div><div style="position:absolute;right:-3px;top:3px;width:2px;height:6px;background:currentColor;border-radius:0 1px 1px 0"></div></div>
-        </div>
+      <div class="jscroll" id="scroll" style="position:absolute;inset:0;overflow-y:auto;display:flex;flex-direction:column">
+        <div id="screen" style="flex:1 0 auto;display:flex;flex-direction:column"></div>
       </div>
-
-      <div class="jscroll" id="scroll" style="position:absolute;inset:0;overflow-y:auto">
-        <div id="screen"></div>
-      </div>
-
-      <div style="position:absolute;bottom:0;left:0;right:0;height:30px;z-index:60;display:flex;justify-content:center;align-items:flex-end;padding-bottom:9px;pointer-events:none"><div class="hi" id="hi"></div></div>
 
       <div id="toast"></div>
     </div>
@@ -362,7 +338,7 @@ a:hover{color:#15803d}
     var who = state.me && state.me.name ? state.me.name : 'there';
     var showDash = isJake || (state.me && state.me.name==='Jake');
     var dashPill = showDash ? ('<div class="pa" data-act="goDash" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#eef2ff;border:1px solid #d9e0f7;border-radius:14px;padding:11px;font-size:13px;font-weight:800;color:#4152b3;cursor:pointer">⇄ Switch to full dashboard</div>') : '';
-    return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
+    return '<div class="screenpad" style="flex:1 0 auto;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:calc(env(safe-area-inset-top, 0px) + 22px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);display:flex;flex-direction:column;gap:14px">'+
       dashPill+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">'+
         '<div>'+
@@ -372,12 +348,12 @@ a:hover{color:#15803d}
         '<div style="width:50px;height:50px;border-radius:16px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 8px 18px rgba(22,163,74,.38)">🚛</div>'+
       '</div>'+
 
-      '<div class="pa" data-act="goJobs" style="background:linear-gradient(150deg,#16a34a,#12813b);border-radius:26px;padding:20px 24px;color:#fff;box-shadow:0 18px 34px rgba(22,163,74,.34);position:relative;overflow:hidden;cursor:pointer">'+
+      '<div class="pa" data-act="goJobs" style="background:linear-gradient(150deg,#16a34a,#12813b);border-radius:26px;padding:16px 22px;color:#fff;box-shadow:0 18px 34px rgba(22,163,74,.34);position:relative;overflow:hidden;cursor:pointer">'+
         '<div style="position:absolute;right:-16px;top:-26px;font-size:150px;opacity:.10;line-height:1">🧾</div>'+
         '<div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;opacity:.85">Jobs today</div>'+
         '<div style="display:flex;align-items:flex-end;gap:12px;margin-top:2px">'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:96px;line-height:.78;letter-spacing:1px">'+jVal+'</div>'+
-          '<div style="padding-bottom:14px;font-size:15px;font-weight:600;opacity:.95;line-height:1.2">stops to<br>knock out</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:84px;line-height:.78;letter-spacing:1px">'+jVal+'</div>'+
+          '<div style="padding-bottom:12px;font-size:15px;font-weight:600;opacity:.95;line-height:1.2">stops to<br>knock out</div>'+
         '</div>'+
         '<div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700">See today\'s list ›</div>'+
       '</div>'+
@@ -385,12 +361,12 @@ a:hover{color:#15803d}
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
         '<div class="pa" data-act="goJobs" style="background:#fff;border:1px solid #e7eae8;border-radius:20px;padding:14px 15px;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
           '<div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">🗑️</span><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#0891b2;text-transform:uppercase">Drops</span></div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:54px;line-height:.85;color:#0e7490;margin-top:8px">'+dVal+'</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:48px;line-height:.85;color:#0e7490;margin-top:8px">'+dVal+'</div>'+
           '<div style="font-size:12px;color:#98a0aa;margin-top:2px">bins going out</div>'+
         '</div>'+
         '<div class="pa" data-act="goJobs" style="background:#fff;border:1px solid #e7eae8;border-radius:20px;padding:14px 15px;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
           '<div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">🔁</span><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#be185d;text-transform:uppercase">Picks</span></div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:54px;line-height:.85;color:#be185d;margin-top:8px">'+pVal+'</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:48px;line-height:.85;color:#be185d;margin-top:8px">'+pVal+'</div>'+
           '<div style="font-size:12px;color:#98a0aa;margin-top:2px">bins coming back</div>'+
         '</div>'+
       '</div>'+
@@ -447,7 +423,7 @@ a:hover{color:#15803d}
         '<div style="font-size:14px;color:#98a0aa;margin-top:2px">No stops on this day.</div>'+
       '</div>';
     }
-    return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
+    return '<div class="screenpad" style="flex:1 0 auto;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:calc(env(safe-area-inset-top, 0px) + 22px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);display:flex;flex-direction:column;gap:14px">'+
       '<div style="display:flex;align-items:center;gap:12px">'+
         '<div class="pa" data-act="goHome" style="width:44px;height:44px;border-radius:50%;background:#fff;border:1px solid #e7eae8;display:flex;align-items:center;justify-content:center;font-size:22px;color:#5b6472;box-shadow:0 4px 12px rgba(20,40,25,.05);cursor:pointer">‹</div>'+
         '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:36px;letter-spacing:.6px;color:#17223a;line-height:1;flex:1">The Day</div>'+
@@ -508,7 +484,7 @@ a:hover{color:#15803d}
           '</div>';
       }).join('');
     }
-    return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
+    return '<div class="screenpad" style="flex:1 0 auto;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:calc(env(safe-area-inset-top, 0px) + 22px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);display:flex;flex-direction:column;gap:14px">'+
       '<div style="display:flex;align-items:center;gap:12px">'+
         '<div class="pa" data-act="goHome" style="width:44px;height:44px;border-radius:50%;background:#fff;border:1px solid #e7eae8;display:flex;align-items:center;justify-content:center;font-size:22px;color:#5b6472;box-shadow:0 4px 12px rgba(20,40,25,.05);cursor:pointer">‹</div>'+
         '<div style="flex:1"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;letter-spacing:.5px;color:#17223a;line-height:.95">Quotes &amp; Jobs</div><div style="font-size:13px;color:#5b6472">Tap a job, add photos</div></div>'+
@@ -529,7 +505,7 @@ a:hover{color:#15803d}
         '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;letter-spacing:.6px;color:#fff;line-height:1;flex:1">Trucks</div>'+
         '<div class="pa" data-act="onLoc" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;flex-shrink:0">🔄</div>'+
       '</div>';
-    var open = '<div class="screenpad" style="min-height:898px;background:radial-gradient(135% 90% at 50% 24%,#14161a 0%,#0a0b0e 58%,#060708 100%);padding:58px 18px 38px;display:flex;flex-direction:column;color:#f4f6f7">';
+    var open = '<div class="screenpad" style="flex:1 0 auto;background:radial-gradient(135% 90% at 50% 24%,#14161a 0%,#0a0b0e 58%,#060708 100%);padding:calc(env(safe-area-inset-top, 0px) + 22px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);display:flex;flex-direction:column;color:#f4f6f7">';
 
     if(state.fleet===null){
       return open+head+'<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#8b9299;font-size:15px">Loading fleet…</div></div>';
@@ -644,22 +620,21 @@ a:hover{color:#15803d}
     // redirects to index.html), then the app.
     var viewKey = (!state.authChecked || !state.authed) ? 'splash' : state.screen;
     var html;
-    if(viewKey==='splash') html='<div style="min-height:898px;display:flex;align-items:center;justify-content:center;color:#98a0aa;font-size:15px;background:linear-gradient(180deg,#f7f9f7,#edf1ee)">Loading…</div>';
+    if(viewKey==='splash') html='<div style="flex:1 0 auto;display:flex;align-items:center;justify-content:center;color:#98a0aa;font-size:15px;background:linear-gradient(180deg,#f7f9f7,#edf1ee)">Loading…</div>';
     else if(viewKey==='home') html=homeHTML();
     else if(viewKey==='jobs') html=jobsHTML();
     else if(viewKey==='photos') html=photosHTML();
     else html=trucksHTML();
 
     var changed = viewKey!==lastScreen;
-    var keepScroll = changed ? 0 : scroll.scrollTop;
+    // Home (and the splash) are static — no scroll. Other screens scroll.
+    var isStatic = viewKey==='home' || viewKey==='splash';
+    scroll.style.overflowY = isStatic ? 'hidden' : 'auto';
+    var keepScroll = (changed || isStatic) ? 0 : scroll.scrollTop;
     screen.innerHTML = html;
     var inner = screen.firstElementChild;
     if(inner && changed && html.indexOf('jscreen')<0) inner.className += ' jscreen';
     scroll.scrollTop = keepScroll;
-
-    var dark = viewKey==='trucks';
-    document.getElementById('sb').classList.toggle('dark', dark);
-    document.getElementById('hi').classList.toggle('dark', dark);
     lastScreen = viewKey;
 
     renderToast();
