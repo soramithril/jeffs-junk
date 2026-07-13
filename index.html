@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Jeff's Junk — Dashboard</title>
+<script>
+  /* Layout switch (Jake only): if Jake last chose the mobile layout on this
+     device, land straight on jeff.html. Gated by jjDashUser (set only on Jake's
+     verified dashboard login, cleared on sign-out), so no one else is redirected.
+     Runs before the app renders to avoid a flash of the dashboard. */
+  try {
+    if (localStorage.getItem('jjDashUser') === 'Jake' && localStorage.getItem('jjLayout') === 'mobile') {
+      location.replace('jeff.html');
+    }
+  } catch (e) {}
+</script>
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -208,6 +219,9 @@
         <div id="logged-in-username" class="user-name">—</div>
         <div id="user-role" class="user-role">—</div>
       </div>
+      <button id="jeff-view-btn" class="user-signout" title="Switch to Jeff's mobile view" onclick="event.stopPropagation();goJeffMobile()" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      </button>
       <button id="user-signout" class="user-signout" title="Sign out" onclick="event.stopPropagation();handleAdminBtn()" style="display:none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
@@ -2573,7 +2587,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=423"></script>
+<script src="app.js?v=424"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

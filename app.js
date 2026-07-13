@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '423';
+var APP_VERSION = '424';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10389,6 +10389,7 @@ db.auth.onAuthStateChange(function(event, session) {
   }
   if (event === 'SIGNED_OUT') {
     clearTimeout(_inactivityTimer);
+    try { localStorage.removeItem('jjDashUser'); } catch(e){}
     currentUser = null;
     canDelete = false;
     appLoaded = false;
@@ -10504,6 +10505,8 @@ function setUserCardSignedIn(username, role){
   if(nameEl) nameEl.textContent = username || '—';
   if(roleEl) roleEl.textContent = role || 'User';
   if(signoutBtn) signoutBtn.style.display='';
+  var jeffBtn = document.getElementById('jeff-view-btn');
+  if(jeffBtn) jeffBtn.style.display = (username === 'Jake') ? '' : 'none';
 }
 function setUserCardSignedOut(){
   var card = document.getElementById('user-card');
@@ -10520,6 +10523,16 @@ function setUserCardSignedOut(){
   if(avatar) avatar.style.display='none';
   if(meta) meta.style.display='none';
   if(signoutBtn) signoutBtn.style.display='none';
+  var jeffBtn = document.getElementById('jeff-view-btn');
+  if(jeffBtn) jeffBtn.style.display='none';
+}
+
+// Switch to Jeff's simplified mobile layout (Jake only — button is Jake-gated).
+// Remembers the choice so opening the site lands on the mobile layout until Jake
+// switches back; jeff.html reads jjLayout on load. See the inline redirect in index.html.
+function goJeffMobile(){
+  try { localStorage.setItem('jjLayout', 'mobile'); } catch(e){}
+  location.href = 'jeff.html';
 }
 
 // ── iPhone push notifications ─────────────────────────────────────────────
@@ -10600,6 +10613,10 @@ async function onLoginSuccess() {
   var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
   var role  = (r.data && r.data.role) ? r.data.role : 'User';
   currentUser.displayName = uname;
+  // Layout-switch gate: only Jake gets the "Jeff's mobile view" toggle, and only
+  // Jake's device auto-remembers a layout choice. Written here so it reflects a
+  // real, Supabase-verified login; cleared on sign-out and for every other user.
+  try { if (uname === 'Jake') localStorage.setItem('jjDashUser', 'Jake'); else localStorage.removeItem('jjDashUser'); } catch(e){}
   setUserCardSignedIn(uname, role);
   applyDeleteVisibility();
   applySettingsVisibility();
