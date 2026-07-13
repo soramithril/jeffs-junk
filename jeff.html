@@ -30,7 +30,6 @@ a{color:#16a34a;text-decoration:none}
 a:hover{color:#15803d}
 @keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
-@keyframes gaugeGrow{from{width:0}}
 .jscreen{animation:screenIn .26s ease both}
 .jscroll::-webkit-scrollbar{width:0;height:0;display:none}
 .jscroll{scrollbar-width:none;-ms-overflow-style:none}
@@ -85,8 +84,9 @@ a:hover{color:#15803d}
 </div>
 
 <input id="jeff-photo-input" type="file" accept="image/*" multiple style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px">
-<input id="jeff-date-input" type="date" min="2026-07-13" max="2026-07-19" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px">
+<input id="jeff-date-input" type="date" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px">
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   "use strict";
@@ -98,9 +98,9 @@ a:hover{color:#15803d}
   try { isJake = localStorage.getItem('jjDashUser') === 'Jake'; } catch(e){}
 
   var state = {
-    screen:'home', dayIdx:0, truckIdx:0, filter:'all',
-    photos:{walsh:[],roy:[],nguyen:[]},
-    toast:'', fleet:null, fleetErr:false, syncedAt:''
+    screen:'home', dayOffset:0, truckIdx:0, filter:'all',
+    toast:'', fleet:null, fleetErr:false, jobs:null, syncedAt:'',
+    authChecked:false, authed:false, me:null, loginErr:'', loginBusy:false
   };
   var lastScreen = null;
   var toastTimer = null, feedTimer = null, pendingJob = null;
@@ -108,17 +108,55 @@ a:hover{color:#15803d}
   // ---------- data ----------
   function clock(){ var d=new Date(),h=d.getHours(),m=d.getMinutes(),ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+(m<10?'0':'')+m+' '+ap; }
 
-  // ---------- real fleet data (same Supabase the desktop Vehicles page uses) ----------
+  // ---------- Supabase (same project + auth as the desktop dashboard) ----------
   var SB_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
   var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+  // supabase-js persists the session in localStorage under the same key the dashboard
+  // uses (same origin + project), so a dashboard login carries straight into this app.
+  var db = supabase.createClient(SB_URL, SB_KEY);
+  // Cloudinary unsigned upload — same account/preset as the dashboard (see app.js).
+  var CLOUDINARY_CLOUD_NAME = 'dglezca2l';
+  var CLOUDINARY_PRESET = 'jeffs_junk';
   var STC = { ok:'#22c55e', warn:'#f5b342', bad:'#ef4444', muted:'#6b727a' };
   var STBG = { '#22c55e':'rgba(34,197,94,.14)', '#f5b342':'rgba(245,179,66,.14)', '#ef4444':'rgba(239,68,68,.15)', '#6b727a':'rgba(139,146,153,.14)' };
   var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var STATE_RANK = { muted:0, ok:1, warn:2, bad:3 };
 
-  function sbGet(path){ return fetch(SB_URL+'/rest/v1/'+path, { headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY } }).then(function(r){ if(!r.ok) throw new Error('rest '+r.status); return r.json(); }); }
-  function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function ymd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function todayISO(){ return ymd(new Date()); }
+  function dateFromOffset(off){ var d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+off); return d; }
   function fmtTime(iso){ try{ return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+  // Turn a stored "14:30" / "2:30 PM" style time into a short label; blank stays blank.
+  function prettyTime(t){
+    if(!t) return '';
+    var m = String(t).match(/^(\d{1,2}):(\d{2})/);
+    if(!m) return String(t);
+    var h=parseInt(m[1],10), mn=m[2], ap=h>=12?'PM':'AM'; h=h%12||12;
+    return h+':'+mn+' '+ap;
+  }
+  function timeKey(t){ var m=String(t||'').match(/(\d{1,2}):(\d{2})/); return m ? (parseInt(m[1],10)*60+parseInt(m[2],10)) : 9999; }
+
+  // ---------- Cloudinary photo upload (mirrors app.js) ----------
+  async function compressImage(file){
+    var bmp = await createImageBitmap(file, {imageOrientation:'from-image'});
+    var scale = Math.min(1, 1920/Math.max(bmp.width,bmp.height));
+    var w=Math.round(bmp.width*scale), h=Math.round(bmp.height*scale);
+    var c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(bmp,0,0,w,h);
+    return new Promise(function(res,rej){ c.toBlob(function(b){ b?res(b):rej(new Error('toBlob failed')); }, 'image/jpeg', 0.82); });
+  }
+  async function uploadToCloudinary(file){
+    var blob = await compressImage(file);
+    var fd = new FormData(); fd.append('file', blob); fd.append('upload_preset', CLOUDINARY_PRESET);
+    var res = await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD_NAME+'/image/upload', {method:'POST', body:fd});
+    if(!res.ok) throw new Error('Upload failed: HTTP '+res.status);
+    var data = await res.json();
+    if(!data.secure_url) throw new Error('Upload failed: no URL');
+    return data.secure_url;
+  }
+  function cloudinaryThumb(url, width){
+    if(!url || url.indexOf('/upload/')<0) return url;
+    return url.replace('/upload/', '/upload/f_auto,q_auto,w_'+(width||200)+'/');
+  }
 
   // Oil status — mirrors the desktop _vehOilStatus (>180d overdue, >90d due soon).
   function oilStatus(v){
@@ -155,65 +193,25 @@ a:hover{color:#15803d}
   }
   function shortName(n){ return String(n).replace(/^Hino\s+/i,'').replace(/Furniture Bank Van/i,'Van'); }
 
-  function DAYS(){
-    return [
-      {lab:'TODAY', date:'Mon · Jul 13', iso:'2026-07-13', drops:3, picks:2, jobs:[
-        {c:'#eab308', svc:'Junk Removal', who:'Miller · Barrie', time:'8:30', ap:'AM', ph:false},
-        {c:'#65a30d', svc:'Landscaping', who:'Roy · Barrie', time:'10:00', ap:'AM', ph:true},
-        {c:'#0d6efd', svc:'Junk Quote', who:'Walsh · Midland', time:'1:30', ap:'PM', ph:true},
-        {c:'#8b5cf6', svc:'Furniture Pickup', who:'Adams · Orillia', time:'3:00', ap:'PM', ph:false}
-      ]},
-      {lab:'TOMORROW', date:'Tue · Jul 14', iso:'2026-07-14', drops:2, picks:4, jobs:[
-        {c:'#eab308', svc:'Junk Removal', who:'Bianchi · Innisfil', time:'9:00', ap:'AM', ph:false},
-        {c:'#0d6efd', svc:'Junk Quote', who:'Patel · Barrie', time:'11:00', ap:'AM', ph:true},
-        {c:'#65a30d', svc:'Landscaping', who:'Gagnon · Oro', time:'2:00', ap:'PM', ph:false}
-      ]},
-      {lab:'WED', date:'Jul 15', iso:'2026-07-15', drops:4, picks:1, jobs:[
-        {c:'#0d6efd', svc:'Junk Quote', who:'Lee · Barrie', time:'8:45', ap:'AM', ph:false},
-        {c:'#f97316', svc:'Furniture Delivery', who:'Smith · Midland', time:'1:00', ap:'PM', ph:false}
-      ]},
-      {lab:'THU', date:'Jul 16', iso:'2026-07-16', drops:1, picks:3, jobs:[
-        {c:'#65a30d', svc:'Landscaping', who:'Roy · Barrie', time:'9:30', ap:'AM', ph:true},
-        {c:'#eab308', svc:'Junk Removal', who:'Kovac · Barrie', time:'12:00', ap:'PM', ph:false},
-        {c:'#eab308', svc:'Junk Removal', who:'Tran · Orillia', time:'2:30', ap:'PM', ph:false},
-        {c:'#0d6efd', svc:'Junk Quote', who:'Doyle · Innisfil', time:'4:00', ap:'PM', ph:false}
-      ]},
-      {lab:'FRI', date:'Jul 17', iso:'2026-07-17', drops:5, picks:2, jobs:[
-        {c:'#0d6efd', svc:'Junk Quote', who:'Meyer · Barrie', time:'10:00', ap:'AM', ph:true}
-      ]},
-      {lab:'SAT', date:'Jul 18', iso:'2026-07-18', drops:0, picks:3, jobs:[
-        {c:'#eab308', svc:'Junk Removal', who:'Park · Barrie', time:'8:00', ap:'AM', ph:false},
-        {c:'#65a30d', svc:'Landscaping', who:'Osei · Barrie', time:'11:00', ap:'AM', ph:false}
-      ]},
-      {lab:'SUN', date:'Jul 19', iso:'2026-07-19', drops:0, picks:0, jobs:[]}
-    ];
-  }
-
   function TRUCKS(){ return state.fleet || []; }
-
-  function JOBS(){
-    return [
-      {id:'walsh', name:'Walsh', addr:'14 Bay St · Midland', type:'Quote', preset:['linear-gradient(150deg,#c7d6dd,#9fb3bd)','linear-gradient(150deg,#d8cdbf,#b3a390)']},
-      {id:'roy', name:'Roy', addr:'8 Cedar Ln · Barrie', type:'Landscaping', preset:['linear-gradient(150deg,#b6cdae,#8fae83)','linear-gradient(150deg,#c9d3b1,#a3b284)','linear-gradient(150deg,#a9c2c9,#84a1ab)','linear-gradient(150deg,#cdbfa8,#a99a80)']},
-      {id:'nguyen', name:'Nguyen', addr:'22 Maple Dr · Orillia', type:'Quote', preset:[]}
-    ];
-  }
 
   // ---------- fleet load ----------
   // Pulls the real fleet from Supabase (vehicles + odometer + maintenance + today's
   // driver) plus live Geotab position, and builds one model per truck. Non-fleet
   // (leaderboard-only personal) trucks are excluded, matching the desktop fleet views.
+  function loadAll(){ loadFleet(); loadJobs(); }
+
   function loadFleet(){
     Promise.all([
-      sbGet('vehicles?select=vid,name,type,color,notes,sticker_month,sticker_year,oil_date,oil_km,oil_interval,vehicle_status,leaderboard_only&leaderboard_only=eq.false&order=created_at'),
-      sbGet('vehicle_odometers?select=vid,odometer_km'),
-      sbGet('maintenance_schedules?select=vid,maintenance_type,next_due_km,status'),
-      sbGet('vehicle_assignments?select=vid,crew_member_id,ended_at&assignment_date=eq.'+todayISO()),
-      sbGet('crew_members?select=id,name'),
+      db.from('vehicles').select('vid,name,type,color,notes,sticker_month,sticker_year,oil_date,oil_km,oil_interval,vehicle_status,leaderboard_only').eq('leaderboard_only',false).order('created_at'),
+      db.from('vehicle_odometers').select('vid,odometer_km'),
+      db.from('maintenance_schedules').select('vid,maintenance_type,next_due_km,status'),
+      db.from('vehicle_assignments').select('vid,crew_member_id,ended_at').eq('assignment_date', todayISO()),
+      db.from('crew_members').select('id,name'),
       fetch(SB_URL+'/functions/v1/geotab-proxy',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'device-status'}) })
         .then(function(r){ return r.ok?r.json():{devices:[]}; }).catch(function(){ return {devices:[]}; })
     ]).then(function(res){
-      var veh=res[0]||[], odo=res[1]||[], maint=res[2]||[], assign=res[3]||[], crew=res[4]||[], dev=(res[5]&&res[5].devices)||[];
+      var veh=res[0].data||[], odo=res[1].data||[], maint=res[2].data||[], assign=res[3].data||[], crew=res[4].data||[], dev=(res[5]&&res[5].devices)||[];
       var odoBy={}; odo.forEach(function(o){ odoBy[o.vid]=o.odometer_km; });
       var crewBy={}; crew.forEach(function(c){ crewBy[c.id]=c.name; });
       var driverBy={}; assign.forEach(function(a){ if(!a.ended_at) driverBy[a.vid]=crewBy[a.crew_member_id]||null; });
@@ -241,6 +239,54 @@ a:hover{color:#15803d}
   }
   function refreshFleet(){ showToast('🔄 Refreshing trucks…'); loadFleet(); }
 
+  // ---------- jobs load (real schedule) ----------
+  // One query covers both The Day and Photos: every non-cancelled job with any of its
+  // date fields on/after a few days ago. We bucket it into per-day "stops" client-side.
+  function loadJobs(){
+    var since = ymd(dateFromOffset(-3));
+    db.from('jobs')
+      .select('job_id,service,status,name,city,address,time,date,bin_dropoff,bin_pickup,bin_dropoff_time,bin_pickup_time,junk_date,junk_time,fb_date,fb_time,photos,bin_size')
+      .neq('status','Cancelled')
+      .or('date.gte.'+since+',bin_dropoff.gte.'+since+',bin_pickup.gte.'+since+',junk_date.gte.'+since+',fb_date.gte.'+since)
+      .limit(1500)
+      .then(function(r){ setState({ jobs: r.error ? [] : (r.data||[]) }); });
+  }
+
+  function svcColor(s){ s=s||''; if(/quote/i.test(s)) return '#0d6efd'; if(/junk/i.test(s)) return '#eab308'; if(/land/i.test(s)) return '#65a30d'; if(/furniture/i.test(s)) return '#8b5cf6'; if(/bin/i.test(s)) return '#0891b2'; return '#5b6472'; }
+
+  function mkStop(j,label,color,time){
+    return { label:label, color:color, who:[j.name,j.city].filter(Boolean).join(' · '), addr:j.address||'',
+             time:prettyTime(time), tk:timeKey(time), hasPhotos:!!(j.photos&&j.photos.length), binSize:j.bin_size||'' };
+  }
+  // Build the ordered list of stops for a given YYYY-MM-DD, from the loaded jobs.
+  function dayStops(D){
+    var stops=[];
+    (state.jobs||[]).forEach(function(j){
+      var m=false;
+      if(j.bin_dropoff===D){ stops.push(mkStop(j,'Drop','#0891b2',j.bin_dropoff_time)); m=true; }
+      if(j.bin_pickup===D){ stops.push(mkStop(j,'Pick','#be185d',j.bin_pickup_time)); m=true; }
+      if(j.junk_date===D){ stops.push(mkStop(j,j.service||'Junk',svcColor(j.service),j.junk_time)); m=true; }
+      if(j.fb_date===D){ stops.push(mkStop(j,j.service||'Furniture','#8b5cf6',j.fb_time)); m=true; }
+      if(!m && j.date===D){ stops.push(mkStop(j,j.service||'Job',svcColor(j.service),j.time)); }
+    });
+    stops.sort(function(a,b){ return a.tk-b.tk; });
+    return stops;
+  }
+
+  // Photo-worthy jobs for the Photos screen (quotes / landscaping / junk / furniture —
+  // not the routine bin drops/picks, which live on The Day).
+  function photosJobs(){
+    var f=state.filter;
+    var list=(state.jobs||[]).filter(function(j){
+      if(j.service==='Bin Rental') return false;
+      if(f==='Quote') return j.service==='Junk Quote';
+      if(f==='Landscaping') return j.service==='Landscaping';
+      return true;
+    });
+    list.sort(function(a,b){ return String(a.fb_date||a.junk_date||a.date||'').localeCompare(String(b.fb_date||b.junk_date||b.date||'')); });
+    return list.slice(0,40);
+  }
+
   // ---------- state ----------
   function setState(patch){ for(var k in patch) state[k]=patch[k]; render(); }
 
@@ -249,38 +295,59 @@ a:hover{color:#15803d}
   // ---------- actions ----------
   function nav(sc){ state.toast=''; renderToast(); setState({screen:sc}); }
   function openAlert(){ var t=TRUCKS(); var i=-1; for(var k=0;k<t.length;k++){ if(t[k].alerts && t[k].alerts.length){ i=k; break; } } state.toast=''; renderToast(); setState({screen:'trucks', truckIdx: i<0?0:i}); }
-  function prevDay(){ setState({dayIdx: Math.max(0, state.dayIdx-1)}); }
-  function nextDay(){ var n=DAYS().length-1; setState({dayIdx: Math.min(n, state.dayIdx+1)}); }
-  function openDate(){ var el=document.getElementById('jeff-date-input'); if(!el) return; el.value=DAYS()[state.dayIdx].iso; try{ if(el.showPicker) el.showPicker(); else el.click(); }catch(e){ el.click(); } }
-  function onDate(e){ var v=e.target.value; if(!v) return; var base=new Date('2026-07-13T12:00:00'); var d=new Date(v+'T12:00:00'); var off=Math.round((d-base)/86400000); var n=DAYS().length-1; off=Math.max(0, Math.min(n, off)); setState({dayIdx:off}); }
+  function prevDay(){ setState({dayOffset: state.dayOffset-1}); }
+  function nextDay(){ setState({dayOffset: state.dayOffset+1}); }
+  function openDate(){ var el=document.getElementById('jeff-date-input'); if(!el) return; el.value=ymd(dateFromOffset(state.dayOffset)); try{ if(el.showPicker) el.showPicker(); else el.click(); }catch(e){ el.click(); } }
+  function onDate(e){ var v=e.target.value; if(!v) return; var d=new Date(v+'T12:00:00'); var off=Math.round((d - dateFromOffset(0))/86400000); setState({dayOffset:off}); }
   function setFilter(f){ setState({filter:f}); }
   function pickTruck(i){ setState({truckIdx: parseInt(i,10)||0}); }
 
-  function addPhoto(id){ pendingJob=id; var el=document.getElementById('jeff-photo-input'); if(el){ el.value=''; el.click(); } }
-  function onPhoto(e){
+  // Add photos to a REAL job: upload each to Cloudinary, append the URL to jobs.photos.
+  function addPhoto(jobId){ pendingJob=jobId; var el=document.getElementById('jeff-photo-input'); if(el){ el.value=''; el.click(); } }
+  async function onPhoto(e){
     var files = Array.prototype.slice.call(e.target.files||[]);
-    var id = pendingJob;
-    if(!id || !files.length) return;
-    var left = files.length;
-    files.forEach(function(f){
-      var r = new FileReader();
-      r.onload = function(){
-        var p = Object.assign({}, state.photos);
-        p[id] = (p[id]||[]).concat([r.result]);
-        try{ localStorage.setItem('jeffAppPhotos', JSON.stringify(p)); }catch(err){}
-        state.photos = p; render();
-        left--; if(left<=0) showToast('📷 Photo added');
-      };
-      r.readAsDataURL(f);
-    });
+    var jobId = pendingJob;
+    if(!jobId || !files.length) return;
+    showToast('📤 Uploading '+files.length+' photo'+(files.length>1?'s':'')+'…');
+    var urls=[], failed=0;
+    for(var i=0;i<files.length;i++){
+      try{ urls.push(await uploadToCloudinary(files[i])); }
+      catch(err){ failed++; }
+    }
+    if(urls.length){
+      var job=(state.jobs||[]).filter(function(j){ return j.job_id===jobId; })[0];
+      var next=((job&&job.photos)||[]).concat(urls);
+      var r = await db.from('jobs').update({photos:next}).eq('job_id', jobId);
+      if(r.error){ showToast('⚠ Couldn\'t save to the job'); return; }
+      if(job){ job.photos=next; }
+      render();
+    }
+    showToast(urls.length ? ('📷 '+urls.length+' added'+(failed?' · '+failed+' failed':'')) : '⚠ Upload failed');
   }
+
+  // ---------- auth ----------
+  // Username → email via the same RPC the dashboard uses, then password sign-in.
+  async function doSignIn(){
+    var uEl=document.getElementById('lg-user'), pEl=document.getElementById('lg-pass');
+    var u=(uEl&&uEl.value||'').trim(), p=(pEl&&pEl.value||'');
+    if(!u||!p){ setState({loginErr:'Enter your username and password.'}); return; }
+    setState({loginBusy:true, loginErr:''});
+    try{
+      var em = await db.rpc('get_email_by_username', { lookup_username: u });
+      if(em.error || !em.data){ setState({loginBusy:false, loginErr:'Username not found.'}); return; }
+      var r = await db.auth.signInWithPassword({ email: em.data, password: p });
+      if(r.error){ var m=r.error.message||'Sign-in failed'; if(/invalid login/i.test(m)) m='Wrong username or password.'; setState({loginBusy:false, loginErr:m}); return; }
+      // onAuthStateChange takes it from here (loads data, drops the login screen).
+    }catch(ex){ setState({loginBusy:false, loginErr:'Network error — try again.'}); }
+  }
+  async function signOut(){ try{ await db.auth.signOut(); }catch(e){} }
 
   var ACTS = {
     goHome:function(){ nav('home'); }, goJobs:function(){ nav('jobs'); }, goPhotos:function(){ nav('photos'); }, goTrucks:function(){ nav('trucks'); },
     openAlert:openAlert, onPrev:prevDay, onNext:nextDay, onPick:openDate,
     setAll:function(){ setFilter('all'); }, setQuote:function(){ setFilter('Quote'); }, setLand:function(){ setFilter('Landscaping'); },
     pickTruck:function(arg){ pickTruck(arg); }, onLoc:refreshFleet,
-    addPhoto:function(arg){ addPhoto(arg); },
+    addPhoto:function(arg){ addPhoto(arg); }, signIn:doSignIn, signOut:signOut,
     goDash:function(){ try{ localStorage.setItem('jjLayout','dashboard'); }catch(e){} location.href='index.html'; }
   };
 
@@ -289,7 +356,7 @@ a:hover{color:#15803d}
 
   // ---------- screens ----------
   function homeHTML(){
-    var days=DAYS(), today=days[0], trucks=TRUCKS();
+    var trucks=TRUCKS();
     var flagged=[]; trucks.forEach(function(t){ if(t.alerts && t.alerts.length) flagged.push(t); });
     flagged.sort(function(a,b){ return (b.worst==='bad'?1:0)-(a.worst==='bad'?1:0); });
     var alert='';
@@ -303,23 +370,31 @@ a:hover{color:#15803d}
         '<div style="color:#d6b24a;font-size:22px">›</div>'+
       '</div>';
     }
-    var dashPill = isJake ? ('<div class="pa" data-act="goDash" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#eef2ff;border:1px solid #d9e0f7;border-radius:14px;padding:11px;font-size:13px;font-weight:800;color:#4152b3;cursor:pointer">⇄ Switch to full dashboard</div>') : '';
+    var loaded = state.jobs!==null;
+    var today = loaded ? dayStops(todayISO()) : [];
+    var nDrops = today.filter(function(s){return s.label==='Drop';}).length;
+    var nPicks = today.filter(function(s){return s.label==='Pick';}).length;
+    var jVal = loaded ? today.length : '·', dVal = loaded ? nDrops : '·', pVal = loaded ? nPicks : '·';
+    var eyebrow = new Date().toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric'});
+    var who = state.me && state.me.name ? state.me.name : 'there';
+    var showDash = isJake || (state.me && state.me.name==='Jake');
+    var dashPill = showDash ? ('<div class="pa" data-act="goDash" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#eef2ff;border:1px solid #d9e0f7;border-radius:14px;padding:11px;font-size:13px;font-weight:800;color:#4152b3;cursor:pointer">⇄ Switch to full dashboard</div>') : '';
     return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
       dashPill+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">'+
         '<div>'+
-          '<div style="font-size:11px;font-weight:800;letter-spacing:1.6px;color:#16a34a;text-transform:uppercase">Monday · Jul 13</div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;line-height:.9;color:#17223a;letter-spacing:.5px;margin-top:3px">Hey Jeff 👋</div>'+
+          '<div style="font-size:11px;font-weight:800;letter-spacing:1.6px;color:#16a34a;text-transform:uppercase">'+esc(eyebrow)+'</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;line-height:.9;color:#17223a;letter-spacing:.5px;margin-top:3px">Hey '+esc(who)+' 👋</div>'+
         '</div>'+
-        '<div style="width:50px;height:50px;border-radius:16px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 8px 18px rgba(22,163,74,.38)">🚛</div>'+
+        '<div class="pa" data-act="signOut" title="Sign out" style="width:50px;height:50px;border-radius:16px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 8px 18px rgba(22,163,74,.38);cursor:pointer">🚛</div>'+
       '</div>'+
 
       '<div class="pa" data-act="goJobs" style="background:linear-gradient(150deg,#16a34a,#12813b);border-radius:26px;padding:20px 24px;color:#fff;box-shadow:0 18px 34px rgba(22,163,74,.34);position:relative;overflow:hidden;cursor:pointer">'+
         '<div style="position:absolute;right:-16px;top:-26px;font-size:150px;opacity:.10;line-height:1">🧾</div>'+
         '<div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;opacity:.85">Jobs today</div>'+
         '<div style="display:flex;align-items:flex-end;gap:12px;margin-top:2px">'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:96px;line-height:.78;letter-spacing:1px">'+today.jobs.length+'</div>'+
-          '<div style="padding-bottom:14px;font-size:15px;font-weight:600;opacity:.95;line-height:1.2">jobs to<br>knock out</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:96px;line-height:.78;letter-spacing:1px">'+jVal+'</div>'+
+          '<div style="padding-bottom:14px;font-size:15px;font-weight:600;opacity:.95;line-height:1.2">stops to<br>knock out</div>'+
         '</div>'+
         '<div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700">See today\'s list ›</div>'+
       '</div>'+
@@ -327,12 +402,12 @@ a:hover{color:#15803d}
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
         '<div class="pa" data-act="goJobs" style="background:#fff;border:1px solid #e7eae8;border-radius:20px;padding:14px 15px;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
           '<div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">🗑️</span><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#0891b2;text-transform:uppercase">Drops</span></div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:54px;line-height:.85;color:#0e7490;margin-top:8px">'+today.drops+'</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:54px;line-height:.85;color:#0e7490;margin-top:8px">'+dVal+'</div>'+
           '<div style="font-size:12px;color:#98a0aa;margin-top:2px">bins going out</div>'+
         '</div>'+
         '<div class="pa" data-act="goJobs" style="background:#fff;border:1px solid #e7eae8;border-radius:20px;padding:14px 15px;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
           '<div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">🔁</span><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#be185d;text-transform:uppercase">Picks</span></div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:54px;line-height:.85;color:#be185d;margin-top:8px">'+today.picks+'</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:54px;line-height:.85;color:#be185d;margin-top:8px">'+pVal+'</div>'+
           '<div style="font-size:12px;color:#98a0aa;margin-top:2px">bins coming back</div>'+
         '</div>'+
       '</div>'+
@@ -355,14 +430,29 @@ a:hover{color:#15803d}
   }
 
   function jobsHTML(){
-    var days=DAYS(), day=days[state.dayIdx];
-    var stops='';
-    if(day.jobs.length>0){
-      var items = day.jobs.map(function(job){
+    var D = ymd(dateFromOffset(state.dayOffset));
+    var dObj = dateFromOffset(state.dayOffset);
+    var lab = state.dayOffset===0 ? 'TODAY' : state.dayOffset===1 ? 'TOMORROW' : state.dayOffset===-1 ? 'YESTERDAY'
+              : dObj.toLocaleDateString('en-US',{weekday:'long'}).toUpperCase();
+    var dateStr = dObj.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'});
+    var loaded = state.jobs!==null;
+    var arr = loaded ? dayStops(D) : [];
+    var nDrops = arr.filter(function(s){return s.label==='Drop';}).length;
+    var nPicks = arr.filter(function(s){return s.label==='Pick';}).length;
+
+    var stops;
+    if(!loaded){
+      stops = '<div style="text-align:center;color:#98a0aa;padding:34px;font-size:14px">Loading your day…</div>';
+    } else if(arr.length){
+      var items = arr.map(function(s){
         return '<div style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e7eae8;border-radius:18px;padding:13px 15px;box-shadow:0 4px 12px rgba(20,40,25,.04)">'+
-          '<div style="width:9px;height:46px;border-radius:6px;background:'+job.c+'"></div>'+
-          '<div style="flex:1"><div style="font-weight:800;font-size:16px;color:#17223a">'+esc(job.svc)+(job.ph?'<span style="font-size:12px"> 📷</span>':'')+'</div><div style="font-size:13px;color:#98a0aa">'+esc(job.who)+'</div></div>'+
-          '<div style="font-weight:800;font-size:15px;color:#3a4048">'+job.time+'<span style="font-size:11px;color:#98a0aa;font-weight:600"> '+job.ap+'</span></div>'+
+          '<div style="width:9px;height:50px;border-radius:6px;background:'+s.color+';flex-shrink:0"></div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:800;font-size:16px;color:#17223a">'+esc(s.label)+(s.binSize?' · '+esc(s.binSize):'')+(s.hasPhotos?'<span style="font-size:12px"> 📷</span>':'')+'</div>'+
+            '<div style="font-size:13px;color:#98a0aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.who||'—')+'</div>'+
+            (s.addr?'<div style="font-size:12px;color:#b3bbc3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.addr)+'</div>':'')+
+          '</div>'+
+          '<div style="font-weight:800;font-size:14px;color:#3a4048;white-space:nowrap;flex-shrink:0">'+(s.time||'—')+'</div>'+
         '</div>';
       }).join('');
       stops = '<div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#aab1b9;text-transform:uppercase;margin-top:2px;padding-left:4px">The stops</div>'+
@@ -370,8 +460,8 @@ a:hover{color:#15803d}
     } else {
       stops = '<div style="margin-top:8px;background:#fff;border:1px solid #e7eae8;border-radius:22px;padding:38px 20px;text-align:center;box-shadow:0 6px 16px rgba(20,40,25,.05)">'+
         '<div style="font-size:44px">🌤️</div>'+
-        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#17223a;margin-top:8px;letter-spacing:.5px">Day off</div>'+
-        '<div style="font-size:14px;color:#98a0aa;margin-top:2px">Nothing booked. Enjoy it, Jeff.</div>'+
+        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:#17223a;margin-top:8px;letter-spacing:.5px">Nothing booked</div>'+
+        '<div style="font-size:14px;color:#98a0aa;margin-top:2px">No stops on this day.</div>'+
       '</div>';
     }
     return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
@@ -384,16 +474,16 @@ a:hover{color:#15803d}
       '<div style="background:#fff;border:1px solid #e7eae8;border-radius:22px;padding:14px 12px;box-shadow:0 6px 16px rgba(20,40,25,.05)">'+
         '<div style="display:flex;align-items:center;justify-content:space-between">'+
           '<div class="pa" data-act="onPrev" style="width:44px;height:44px;border-radius:50%;background:#f1f4f2;display:flex;align-items:center;justify-content:center;font-size:22px;color:#5b6472;cursor:pointer">‹</div>'+
-          '<div data-act="onPick" style="text-align:center;cursor:pointer"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:34px;letter-spacing:1px;color:#16a34a;line-height:.9">'+esc(day.lab)+'</div><div style="font-size:13px;font-weight:600;color:#5b6472;margin-top:3px">'+esc(day.date)+'</div></div>'+
+          '<div data-act="onPick" style="text-align:center;cursor:pointer"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:34px;letter-spacing:1px;color:#16a34a;line-height:.9">'+esc(lab)+'</div><div style="font-size:13px;font-weight:600;color:#5b6472;margin-top:3px">'+esc(dateStr)+'</div></div>'+
           '<div class="pa" data-act="onNext" style="width:44px;height:44px;border-radius:50%;background:#f1f4f2;display:flex;align-items:center;justify-content:center;font-size:22px;color:#5b6472;cursor:pointer">›</div>'+
         '</div>'+
-        '<div style="text-align:center;font-size:11px;color:#aab1b9;margin-top:8px;letter-spacing:.4px">tap a day, or 📅 to jump to any date</div>'+
+        '<div style="text-align:center;font-size:11px;color:#aab1b9;margin-top:8px;letter-spacing:.4px">‹ › to change day, or 📅 to jump to any date</div>'+
       '</div>'+
 
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'+
-        '<div style="background:#ecfdf3;border:1px solid #c9ecd6;border-radius:16px;padding:11px 8px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;line-height:.8;color:#16a34a">'+day.jobs.length+'</div><div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#15803d;text-transform:uppercase;margin-top:4px">Jobs</div></div>'+
-        '<div style="background:#ecfbff;border:1px solid #bce6f2;border-radius:16px;padding:11px 8px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;line-height:.8;color:#0e7490">'+day.drops+'</div><div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#0e7490;text-transform:uppercase;margin-top:4px">Drops</div></div>'+
-        '<div style="background:#fdeef5;border:1px solid #f3cadd;border-radius:16px;padding:11px 8px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;line-height:.8;color:#be185d">'+day.picks+'</div><div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#be185d;text-transform:uppercase;margin-top:4px">Picks</div></div>'+
+        '<div style="background:#ecfdf3;border:1px solid #c9ecd6;border-radius:16px;padding:11px 8px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;line-height:.8;color:#16a34a">'+(loaded?arr.length:'·')+'</div><div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#15803d;text-transform:uppercase;margin-top:4px">Stops</div></div>'+
+        '<div style="background:#ecfbff;border:1px solid #bce6f2;border-radius:16px;padding:11px 8px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;line-height:.8;color:#0e7490">'+(loaded?nDrops:'·')+'</div><div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#0e7490;text-transform:uppercase;margin-top:4px">Drops</div></div>'+
+        '<div style="background:#fdeef5;border:1px solid #f3cadd;border-radius:16px;padding:11px 8px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:38px;line-height:.8;color:#be185d">'+(loaded?nPicks:'·')+'</div><div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#be185d;text-transform:uppercase;margin-top:4px">Picks</div></div>'+
       '</div>'+
 
       stops+
@@ -403,34 +493,38 @@ a:hover{color:#15803d}
   function photosHTML(){
     var segOn = 'flex:1;text-align:center;border-radius:10px;padding:9px 0;font-size:13px;font-weight:800;color:#16a34a;background:#fff;box-shadow:0 2px 6px rgba(20,40,25,.08);cursor:pointer';
     var segOff = 'flex:1;text-align:center;border-radius:10px;padding:9px 0;font-size:13px;font-weight:700;color:#7c848c;cursor:pointer';
-    var f=state.filter;
-    var cards = JOBS().filter(function(j){ return f==='all' || j.type===f; }).map(function(j){
-      var added = state.photos[j.id] || [];
-      var thumbs = j.preset.map(function(g){ return {grad:g}; }).concat(added.map(function(u){ return {img:u}; }));
-      var badge = j.type==='Quote' ? {fg:'#0d6efd', bg:'#eaf3ff'} : {fg:'#4d7c0f', bg:'#f2f9e7'};
-      var body;
-      if(thumbs.length>0){
-        var tiles = thumbs.map(function(t){
-          if(t.img) return '<div style="width:58px;height:58px;border-radius:12px;background-image:url(\''+t.img+'\');background-size:cover;background-position:center"></div>';
-          return '<div style="width:58px;height:58px;border-radius:12px;background:'+t.grad+'"></div>';
-        }).join('');
-        body = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:13px">'+tiles+
-            '<div class="pa" data-act="addPhoto" data-arg="'+j.id+'" style="width:58px;height:58px;border-radius:12px;background:#f1f4f2;border:2px dashed #cdd6ce;display:flex;align-items:center;justify-content:center;color:#9aa2ab;font-size:26px;cursor:pointer">+</div>'+
-          '</div>'+
-          '<div class="pa" data-act="addPhoto" data-arg="'+j.id+'" style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(150deg,#16a34a,#12813b);color:#fff;border-radius:15px;padding:15px 0;font-size:16px;font-weight:800;box-shadow:0 10px 22px rgba(22,163,74,.3);cursor:pointer">📷 Add Photos</div>';
-      } else {
-        body = '<div class="pa" data-act="addPhoto" data-arg="'+j.id+'" style="margin-top:13px;border:2px dashed #d4ddd6;border-radius:15px;padding:20px 0;text-align:center;background:#fafcfa;cursor:pointer">'+
-            '<div style="font-size:30px">📷</div>'+
-            '<div style="font-size:14px;font-weight:800;color:#16a34a;margin-top:4px">Tap to add the first photo</div>'+
+    var f=state.filter, loaded=state.jobs!==null;
+    var list = loaded ? photosJobs() : [];
+    var cards;
+    if(!loaded){
+      cards = '<div style="text-align:center;color:#98a0aa;padding:34px;font-size:14px">Loading jobs…</div>';
+    } else if(!list.length){
+      cards = '<div style="background:#fff;border:1px solid #e7eae8;border-radius:22px;padding:34px 20px;text-align:center;box-shadow:0 6px 16px rgba(20,40,25,.05)"><div style="font-size:38px">📷</div><div style="font-size:14px;color:#98a0aa;margin-top:8px">No jobs here right now.</div></div>';
+    } else {
+      cards = list.map(function(j){
+        var photos = j.photos || [];
+        var badgeFg = svcColor(j.service);
+        var body;
+        if(photos.length){
+          var tiles = photos.map(function(u){ return '<div style="width:58px;height:58px;border-radius:12px;background-image:url(\''+cloudinaryThumb(u,120)+'\');background-size:cover;background-position:center"></div>'; }).join('');
+          body = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:13px">'+tiles+
+              '<div class="pa" data-act="addPhoto" data-arg="'+esc(j.job_id)+'" style="width:58px;height:58px;border-radius:12px;background:#f1f4f2;border:2px dashed #cdd6ce;display:flex;align-items:center;justify-content:center;color:#9aa2ab;font-size:26px;cursor:pointer">+</div>'+
+            '</div>'+
+            '<div class="pa" data-act="addPhoto" data-arg="'+esc(j.job_id)+'" style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(150deg,#16a34a,#12813b);color:#fff;border-radius:15px;padding:15px 0;font-size:16px;font-weight:800;box-shadow:0 10px 22px rgba(22,163,74,.3);cursor:pointer">📷 Add Photos</div>';
+        } else {
+          body = '<div class="pa" data-act="addPhoto" data-arg="'+esc(j.job_id)+'" style="margin-top:13px;border:2px dashed #d4ddd6;border-radius:15px;padding:20px 0;text-align:center;background:#fafcfa;cursor:pointer">'+
+              '<div style="font-size:30px">📷</div>'+
+              '<div style="font-size:14px;font-weight:800;color:#16a34a;margin-top:4px">Tap to add the first photo</div>'+
+            '</div>';
+        }
+        return '<div style="background:#fff;border:1px solid #e7eae8;border-radius:22px;padding:16px;box-shadow:0 6px 16px rgba(20,40,25,.05)">'+
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">'+
+              '<div style="min-width:0"><div style="font-weight:800;font-size:18px;color:#17223a">'+esc(j.name||'—')+'</div><div style="font-size:13px;color:#98a0aa;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(j.address||j.city||'')+'</div></div>'+
+              '<span style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:5px 10px;border-radius:999px;color:'+badgeFg+';background:#f3f5f7;white-space:nowrap;flex-shrink:0">'+esc(j.service||'')+'</span>'+
+            '</div>'+body+
           '</div>';
-      }
-      return '<div style="background:#fff;border:1px solid #e7eae8;border-radius:22px;padding:16px;box-shadow:0 6px 16px rgba(20,40,25,.05)">'+
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">'+
-            '<div><div style="font-weight:800;font-size:18px;color:#17223a">'+esc(j.name)+'</div><div style="font-size:13px;color:#98a0aa;margin-top:1px">'+esc(j.addr)+'</div></div>'+
-            '<span style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:5px 10px;border-radius:999px;color:'+badge.fg+';background:'+badge.bg+'">'+esc(j.type)+'</span>'+
-          '</div>'+body+
-        '</div>';
-    }).join('');
+      }).join('');
+    }
     return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:64px 18px 40px;display:flex;flex-direction:column;gap:14px">'+
       '<div style="display:flex;align-items:center;gap:12px">'+
         '<div class="pa" data-act="goHome" style="width:44px;height:44px;border-radius:50%;background:#fff;border:1px solid #e7eae8;display:flex;align-items:center;justify-content:center;font-size:22px;color:#5b6472;box-shadow:0 4px 12px rgba(20,40,25,.05);cursor:pointer">‹</div>'+
@@ -442,6 +536,22 @@ a:hover{color:#15803d}
         '<div data-act="setLand" style="'+(f==='Landscaping'?segOn:segOff)+'">Landscaping</div>'+
       '</div>'+
       cards+
+    '</div>';
+  }
+
+  function loginHTML(){
+    var err = state.loginErr ? '<div style="color:#dc2626;font-size:13px;font-weight:700;text-align:center">'+esc(state.loginErr)+'</div>' : '';
+    var inputCss = 'width:100%;border:1px solid #d7ddd9;border-radius:14px;padding:15px 16px;font-size:16px;font-family:inherit;color:#17223a;background:#fff;outline:none;box-shadow:0 2px 8px rgba(20,40,25,.04)';
+    return '<div class="screenpad" style="min-height:898px;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:0 26px;display:flex;flex-direction:column;justify-content:center;gap:14px">'+
+      '<div style="text-align:center;margin-bottom:8px">'+
+        '<div style="width:64px;height:64px;border-radius:20px;margin:0 auto 14px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 12px 26px rgba(22,163,74,.4)">🚛</div>'+
+        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:#17223a;letter-spacing:.5px;line-height:.9">Jeff\'s Junk</div>'+
+        '<div style="font-size:14px;color:#98a0aa;margin-top:5px">Sign in to see your day</div>'+
+      '</div>'+
+      '<input id="lg-user" type="text" autocomplete="username" placeholder="Username" value="'+esc(state.loginUser||'')+'" style="'+inputCss+'">'+
+      '<input id="lg-pass" type="password" autocomplete="current-password" placeholder="Password" style="'+inputCss+'">'+
+      err+
+      '<div class="pa" data-act="signIn" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#16a34a,#12813b);color:#fff;border-radius:15px;padding:16px 0;font-size:17px;font-weight:800;box-shadow:0 12px 24px rgba(22,163,74,.32);cursor:pointer;margin-top:4px;'+(state.loginBusy?'opacity:.65;pointer-events:none':'')+'">'+(state.loginBusy?'Signing in…':'Sign In')+'</div>'+
     '</div>';
   }
 
@@ -563,23 +673,27 @@ a:hover{color:#15803d}
   function render(){
     var scroll = document.getElementById('scroll');
     var screen = document.getElementById('screen');
+    // Auth gate: splash while we check, login until signed in, then the app.
+    var viewKey = !state.authChecked ? 'splash' : !state.authed ? 'login' : state.screen;
     var html;
-    if(state.screen==='home') html=homeHTML();
-    else if(state.screen==='jobs') html=jobsHTML();
-    else if(state.screen==='photos') html=photosHTML();
+    if(viewKey==='splash') html='<div style="min-height:898px;display:flex;align-items:center;justify-content:center;color:#98a0aa;font-size:15px;background:linear-gradient(180deg,#f7f9f7,#edf1ee)">Loading…</div>';
+    else if(viewKey==='login') html=loginHTML();
+    else if(viewKey==='home') html=homeHTML();
+    else if(viewKey==='jobs') html=jobsHTML();
+    else if(viewKey==='photos') html=photosHTML();
     else html=trucksHTML();
 
-    var changed = state.screen!==lastScreen;
+    var changed = viewKey!==lastScreen;
     var keepScroll = changed ? 0 : scroll.scrollTop;
     screen.innerHTML = html;
     var inner = screen.firstElementChild;
-    if(inner && changed) inner.className += ' jscreen';
+    if(inner && changed && html.indexOf('jscreen')<0) inner.className += ' jscreen';
     scroll.scrollTop = keepScroll;
 
-    var dark = state.screen==='trucks';
+    var dark = viewKey==='trucks';
     document.getElementById('sb').classList.toggle('dark', dark);
     document.getElementById('hi').classList.toggle('dark', dark);
-    lastScreen = state.screen;
+    lastScreen = viewKey;
 
     renderToast();
   }
@@ -591,18 +705,44 @@ a:hover{color:#15803d}
     var fn = ACTS[t.getAttribute('data-act')];
     if(fn) fn(t.getAttribute('data-arg'));
   });
+  // Enter submits the login form.
+  document.querySelector('.glass').addEventListener('keydown', function(e){
+    if(e.key==='Enter' && state.authChecked && !state.authed){ e.preventDefault(); doSignIn(); }
+  });
   document.getElementById('jeff-photo-input').addEventListener('change', onPhoto);
   document.getElementById('jeff-date-input').addEventListener('change', onDate);
 
-  // ---------- boot ----------
-  try{
-    var raw = localStorage.getItem('jeffAppPhotos');
-    if(raw){ var s = JSON.parse(raw); if(s && typeof s==='object') state.photos = Object.assign({walsh:[],roy:[],nguyen:[]}, s); }
-  }catch(e){}
+  // ---------- auth boot ----------
+  async function loadMe(user){
+    var name = (user.email||'').split('@')[0];
+    try{ var r = await db.from('user_profiles').select('username').eq('id', user.id).single(); if(r.data && r.data.username) name=r.data.username; }catch(e){}
+    state.me = { name:name };
+    if(name==='Jake'){ isJake=true; try{ localStorage.setItem('jjDashUser','Jake'); }catch(e){} }
+    render();
+  }
+  function onAuthed(session){
+    state.authed=true; state.authChecked=true; state.loginBusy=false; state.loginErr=''; state.loginUser='';
+    render();
+    loadMe(session.user);
+    loadAll();
+    if(!feedTimer) feedTimer = setInterval(loadAll, 60000);
+  }
+
+  db.auth.getSession().then(function(r){
+    var sess = r.data && r.data.session;
+    if(sess){ onAuthed(sess); }
+    else { setState({ authChecked:true }); }
+  });
+  db.auth.onAuthStateChange(function(ev, session){
+    if(session && !state.authed){ onAuthed(session); }
+    else if(!session && ev==='SIGNED_OUT'){
+      clearInterval(feedTimer); feedTimer=null;
+      state.authed=false; state.fleet=null; state.jobs=null; state.me=null;
+      setState({ screen:'home' });
+    }
+  });
 
   render();
-  loadFleet();
-  feedTimer = setInterval(loadFleet, 60000);
 })();
 </script>
 </body>
