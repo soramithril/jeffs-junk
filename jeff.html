@@ -199,8 +199,8 @@ a:hover{color:#15803d}
         var oil=oilStatus(v), st=stickerStatus(v), svc=serviceStatus(maintBy[v.vid], odoKm);
         // Three switchable angles per truck (source: hino 195 1-3 for the bin trucks,
         // hino L7 1-3 for the L7), cleaned + composited onto the dark hero.
-        var imgs = /L7/i.test(v.name) ? ['assets/truck-l7-1.jpg','assets/truck-l7-2.jpg','assets/truck-l7-3.jpg']
-                 : /hino|bin/i.test(v.name+' '+v.type) ? ['assets/truck-bin-1.jpg','assets/truck-bin-2.jpg','assets/truck-bin-3.jpg']
+        var imgs = /L7/i.test(v.name) ? ['assets/truck-l7-1.png','assets/truck-l7-2.png','assets/truck-l7-3.png']
+                 : /hino|bin/i.test(v.name+' '+v.type) ? ['assets/truck-bin-1.png','assets/truck-bin-2.png','assets/truck-bin-3.png']
                  : [];
         var worst='ok';
         [oil.state, st.state, svc?svc.state:'ok'].forEach(function(s){ if(STATE_RANK[s]>STATE_RANK[worst]) worst=s; });
