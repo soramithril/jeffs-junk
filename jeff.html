@@ -74,7 +74,7 @@ a:hover{color:#15803d}
   try { isJake = localStorage.getItem('jjDashUser') === 'Jake'; } catch(e){}
 
   var state = {
-    screen:'home', dayOffset:0, truckIdx:0, filter:'all',
+    screen:'home', dayOffset:0, truckIdx:0, angle:0, filter:'all',
     toast:'', fleet:null, fleetErr:false, jobs:null, syncedAt:'',
     authChecked:false, authed:false, me:null
   };
@@ -197,8 +197,11 @@ a:hover{color:#15803d}
       var fleet = veh.map(function(v){
         var odoKm = (odoBy[v.vid]!=null) ? odoBy[v.vid] : null;
         var oil=oilStatus(v), st=stickerStatus(v), svc=serviceStatus(maintBy[v.vid], odoKm);
-        var img = /L7/i.test(v.name) ? 'assets/truck-l7.webp'
-                : /hino|bin/i.test(v.name+' '+v.type) ? 'assets/truck-bin.jpg' : null;
+        // Three switchable angles per truck (source: hino 195 1-3 for the bin trucks,
+        // hino L7 1-3 for the L7), cleaned + composited onto the dark hero.
+        var imgs = /L7/i.test(v.name) ? ['assets/truck-l7-1.jpg','assets/truck-l7-2.jpg','assets/truck-l7-3.jpg']
+                 : /hino|bin/i.test(v.name+' '+v.type) ? ['assets/truck-bin-1.jpg','assets/truck-bin-2.jpg','assets/truck-bin-3.jpg']
+                 : [];
         var worst='ok';
         [oil.state, st.state, svc?svc.state:'ok'].forEach(function(s){ if(STATE_RANK[s]>STATE_RANK[worst]) worst=s; });
         if(v.vehicle_status && v.vehicle_status!=='Available' && STATE_RANK.warn>STATE_RANK[worst]) worst='warn';
@@ -208,7 +211,7 @@ a:hover{color:#15803d}
         if(svc && (svc.state==='bad'||svc.state==='warn')) alerts.push({ sev:svc.state, text:svc.text });
         return { vid:v.vid, name:v.name, type:v.type||'Truck', color:v.color||'#22c55e', status:v.vehicle_status||'Available',
                  odoKm:odoKm, oil:oil, sticker:st, service:svc, driver:driverBy[v.vid]||null, device:devBy[v.name]||null,
-                 img:img, alerts:alerts, worst:worst };
+                 imgs:imgs, alerts:alerts, worst:worst };
       });
       setState({ fleet:fleet, fleetErr:false, syncedAt: clock() });
     }).catch(function(e){ setState({ fleet:[], fleetErr:true, syncedAt: clock() }); });
@@ -270,13 +273,15 @@ a:hover{color:#15803d}
 
   // ---------- actions ----------
   function nav(sc){ state.toast=''; renderToast(); setState({screen:sc}); }
-  function openAlert(){ var t=TRUCKS(); var i=-1; for(var k=0;k<t.length;k++){ if(t[k].alerts && t[k].alerts.length){ i=k; break; } } state.toast=''; renderToast(); setState({screen:'trucks', truckIdx: i<0?0:i}); }
+  function openAlert(){ var t=TRUCKS(); var i=-1; for(var k=0;k<t.length;k++){ if(t[k].alerts && t[k].alerts.length){ i=k; break; } } state.toast=''; renderToast(); setState({screen:'trucks', truckIdx: i<0?0:i, angle:0}); }
   function prevDay(){ setState({dayOffset: state.dayOffset-1}); }
   function nextDay(){ setState({dayOffset: state.dayOffset+1}); }
   function openDate(){ var el=document.getElementById('jeff-date-input'); if(!el) return; el.value=ymd(dateFromOffset(state.dayOffset)); try{ if(el.showPicker) el.showPicker(); else el.click(); }catch(e){ el.click(); } }
   function onDate(e){ var v=e.target.value; if(!v) return; var d=new Date(v+'T12:00:00'); var off=Math.round((d - dateFromOffset(0))/86400000); setState({dayOffset:off}); }
   function setFilter(f){ setState({filter:f}); }
-  function pickTruck(i){ setState({truckIdx: parseInt(i,10)||0}); }
+  function pickTruck(i){ setState({truckIdx: parseInt(i,10)||0, angle:0}); }
+  function setAngle(i){ setState({angle: parseInt(i,10)||0}); }
+  function nextAngle(){ var f=TRUCKS(); var t=f[Math.min(state.truckIdx, f.length-1)]; var n=(t&&t.imgs&&t.imgs.length)?t.imgs.length:1; setState({angle:(state.angle+1)%n}); }
 
   // Add photos to a REAL job: upload each to Cloudinary, append the URL to jobs.photos.
   function addPhoto(jobId){ pendingJob=jobId; var el=document.getElementById('jeff-photo-input'); if(el){ el.value=''; el.click(); } }
@@ -306,6 +311,7 @@ a:hover{color:#15803d}
     openAlert:openAlert, onPrev:prevDay, onNext:nextDay, onPick:openDate,
     setAll:function(){ setFilter('all'); }, setQuote:function(){ setFilter('Quote'); }, setLand:function(){ setFilter('Landscaping'); },
     pickTruck:function(arg){ pickTruck(arg); }, onLoc:refreshFleet,
+    setAngle:function(arg){ setAngle(arg); }, nextAngle:nextAngle,
     addPhoto:function(arg){ addPhoto(arg); },
     goQuotes:function(){ state.filter='Quote'; nav('photos'); },
     goDash:function(){ try{ localStorage.setItem('jjLayout','dashboard'); }catch(e){} location.href='index.html'; }
@@ -576,17 +582,15 @@ a:hover{color:#15803d}
     }
 
     var hero;
-    if(t.img){
-      // Photos with their own dark background (the real Jeff's Junk trucks) blend into the
-      // screen and already carry a shadow — no ground blob or drop-shadow. Transparent
-      // renders (L7) get the floating drop-shadow + ground shadow.
-      var opaqueHero = /\.jpe?g$/i.test(t.img);
-      hero = opaqueHero
-        ? '<div style="height:196px;margin:8px -18px 0"><img src="'+t.img+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none"></div>'
-        : '<div style="position:relative;height:196px;overflow:hidden;margin:8px -18px 0">'+
-            '<div style="position:absolute;left:50%;bottom:14px;width:76%;height:24px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent 78%);filter:blur(10px)"></div>'+
-            '<img src="'+t.img+'" alt="" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 14px 16px rgba(0,0,0,.5));pointer-events:none;user-select:none">'+
-          '</div>';
+    if(t.imgs && t.imgs.length){
+      // Switch between the three angles (tap the photo or a dot). Photos have their own
+      // dark background, so they blend into the hero with no extra drop-shadow.
+      var ang = Math.min(state.angle||0, t.imgs.length-1);
+      var imgEl = '<div class="pa" data-act="nextAngle" style="height:196px;margin:8px -18px 0;cursor:pointer"><img src="'+t.imgs[ang]+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none"></div>';
+      var dots = t.imgs.length>1 ? ('<div style="display:flex;justify-content:center;gap:8px;margin-top:2px">'+
+          t.imgs.map(function(_,i){ var on=i===ang; return '<div class="pa" data-act="setAngle" data-arg="'+i+'" style="width:'+(on?'20px':'8px')+';height:8px;border-radius:999px;cursor:pointer;background:'+(on?'#22c55e':'rgba(255,255,255,.25)')+';transition:width .2s"></div>'; }).join('')+
+        '</div>') : '';
+      hero = imgEl+dots;
     } else {
       hero = '<div style="height:150px;display:flex;align-items:center;justify-content:center;margin:10px 0 0"><div style="width:118px;height:118px;border-radius:28px;background:linear-gradient(160deg,'+t.color+',rgba(0,0,0,.35));display:flex;align-items:center;justify-content:center;font-size:58px;box-shadow:0 16px 30px rgba(0,0,0,.4)">🚐</div></div>';
     }
