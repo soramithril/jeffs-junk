@@ -554,18 +554,20 @@
       // the wrong day.
       var dayStartIso = parseLocal(today).toISOString();
       var dayEndIso   = new Date(parseLocal(today).getTime()+864e5).toISOString();
-      // month windows for the month-vs-last-year tile (count-only queries). BOTH
-      // sides are cut at the same day-of-month (first N days vs first N days) so
-      // mid-month numbers compare fairly — jobs.date is the SCHEDULED day, so an
-      // uncut current month would include pre-booked future jobs and inflate it.
+      // month windows for the month-vs-last-year tile (count-only queries). jobs.date
+      // is the SCHEDULED day, so the current side is cut at today — an uncut current
+      // month would include pre-booked future jobs and inflate it. Last year gets TWO
+      // cuts, on purpose:
+      //   lyCut      — same day-of-month as today. Feeds the % ONLY, so "up or down"
+      //                reads day-for-day against where we stood last year.
+      //   lyMonthEnd — last year's WHOLE month. The "beat last year" finish line: the
+      //                bar tick, the projection and the pace verdict all aim at it.
       var y = +today.slice(0,4), mo = +today.slice(5,7);
       function monthStartStr(yy,mm){ return yy+'-'+String(mm).padStart(2,'0')+'-01'; }
       var moStart = monthStartStr(y, mo);
       var lyStart = monthStartStr(y-1, mo);
       var d0 = parseLocal(today);
       var lyCut = ymd(new Date(d0.getFullYear()-1, d0.getMonth(), d0.getDate()+1));
-      // last-year FULL month end (1st of the following month, last year). The "beat
-      // last year" tiles compare this month SO FAR vs last year's WHOLE month.
       var lyMonthEnd = (mo===12) ? monthStartStr(y, 1) : monthStartStr(y-1, mo+1);
 
       var res = await Promise.all([
@@ -591,15 +593,19 @@
           .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')'),
         // today's geofence enter/leave notifications — done/not-done for the bin board
         db.from('geofence_notifications').select('job_id,status').gte('created_at', dayStartIso),
-        // ── "beat last year" per service: this month SO FAR vs last year's FULL month ──
-        // count-only, by scheduled `date`, excluding cancelled. (12/13 bins, 14/15 junk,
-        // 16/17 furniture)
+        // ── "beat last year" per service ── count-only, by scheduled `date`, excluding
+        // cancelled. Three cuts each: this month so far (12/14/16), last year's FULL
+        // month for the finish line (13/15/17), last year to the SAME day for the %
+        // (18/19/20).
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',moStart).lt('date',tomorrow).neq('status','Cancelled'),
-        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled')
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled')
       ]);
       // Every query is critical — fail fast so the board never renders half-loaded.
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
@@ -653,9 +659,9 @@
         completedToday: (res[9].data||[]).length,
         lowStock: DATA.inv.filter(function(it){ return (it.current_stock||0) <= (it.min_threshold||0); }).length,
         workingToday: workingTodayCount(),
-        binsMonth: res[12].count||0, binsLastYear: res[13].count||0,
-        junkMonth: res[14].count||0, junkLastYear: res[15].count||0,
-        furnMonth: res[16].count||0, furnLastYear: res[17].count||0
+        binsMonth: res[12].count||0, binsLastYear: res[13].count||0, binsLastYearToDate: res[18].count||0,
+        junkMonth: res[14].count||0, junkLastYear: res[15].count||0, junkLastYearToDate: res[19].count||0,
+        furnMonth: res[16].count||0, furnLastYear: res[17].count||0, furnLastYearToDate: res[20].count||0
       };
     }
 
@@ -796,16 +802,18 @@
       var MONTH=now.toLocaleDateString(undefined,{month:'long'});
       el('kpiMeta').innerHTML='<span class="binsout"><b>'+(k.binsOut||0)+'</b><span>Bins out<br>right now</span></span>';
 
+      // `last` = last year's FULL month — the target the race is run against.
+      // `lastTd` = last year cut at today's day-of-month — the % only, day-for-day.
       var services=[
-        {name:'Bin Rentals',      accent:'#2f8a4e', cur:k.binsMonth||0, last:k.binsLastYear||0},
-        {name:'Junk Removal',     accent:'#c98a2b', cur:k.junkMonth||0, last:k.junkLastYear||0},
-        {name:'Furniture Pickup', accent:'#b7654a', cur:k.furnMonth||0, last:k.furnLastYear||0}
+        {name:'Bin Rentals',      accent:'#2f8a4e', cur:k.binsMonth||0, last:k.binsLastYear||0, lastTd:k.binsLastYearToDate||0},
+        {name:'Junk Removal',     accent:'#c98a2b', cur:k.junkMonth||0, last:k.junkLastYear||0, lastTd:k.junkLastYearToDate||0},
+        {name:'Furniture Pickup', accent:'#b7654a', cur:k.furnMonth||0, last:k.furnLastYear||0, lastTd:k.furnLastYearToDate||0}
       ];
       services.forEach(function(s){
         s.proj  = paceProject(s.cur);
         s.beat  = s.last>0 && s.cur>=s.last;
         s.onPace= s.last>0 && s.proj>=s.last;
-        s.pct   = s.last>0 ? Math.round((s.cur-s.last)/s.last*100) : null;
+        s.pct   = s.lastTd>0 ? Math.round((s.cur-s.lastTd)/s.lastTd*100) : null;
       });
 
       el('kpiGrid').innerHTML = beatCelebrationActive(services)
@@ -831,7 +839,7 @@
           +'<div class="accent" style="background:'+s.accent+'"></div>'
           +'<div class="who"><div class="nm">'+esc(s.name)+'</div>'
             +(s.beat?'<div class="beatchip">★ BEAT LAST '+MONTH.slice(0,3).toUpperCase()+'</div>':'')
-            +'<div class="pc" style="color:'+pctCol+'">'+pctTxt+' <em>so far vs last '+MONTH+'</em></div></div>'
+            +'<div class="pc" style="color:'+pctCol+'">'+pctTxt+' <em>vs same days last '+MONTH+'</em></div></div>'
           +'<div class="mid"><div class="big"><span class="n" style="color:'+s.accent+'">'+s.cur+'</span>'
             +'<span class="lab">this '+MONTH+'<br>so far</span></div>'
             +'<div class="bar"><div class="fill" style="width:'+solid+'%;background:'+s.accent+'"></div>'
@@ -869,7 +877,7 @@
           +'</div></div>';
         var vd=s.beat?'AHEAD · proj '+s.proj:(s.onPace?'ON PACE ✓ proj '+s.proj:'BEHIND PACE · proj '+s.proj);
         caps+='<div class="opsa-col-cap"><div class="nm">'+esc(s.name)+'</div>'
-          +'<div class="vs">vs '+s.last+' last '+MONTH+' · <b style="color:'+pctCol+'">'+pctTxt+'</b></div>'
+          +'<div class="vs">last '+MONTH+' '+s.last+' · <b style="color:'+pctCol+'">'+pctTxt+' vs same days</b></div>'
           +'<div class="vd" style="color:'+(s.beat||s.onPace?'#8fe0a8':'#f0b877')+'">'+vd+'</div></div>';
       });
       return '<div class="opsa"><div class="opsa-head"><span class="t">Race to Beat Last '+MONTH+'</span>'
