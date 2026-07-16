@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '425';
+var APP_VERSION = '426';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10764,6 +10764,16 @@ async function onLoginSuccess() {
   // Jake's device auto-remembers a layout choice. Written here so it reflects a
   // real, Supabase-verified login; cleared on sign-out and for every other user.
   try { if (uname === 'Jake') localStorage.setItem('jjDashUser', 'Jake'); else localStorage.removeItem('jjDashUser'); } catch(e){}
+  // Jeff's mobile app has no login of its own — it sends people here and marks where it
+  // wants them back. Honoured only on a real sign-in, so a session that won't stick lands
+  // on the dashboard rather than looping between the two pages.
+  try {
+    if (localStorage.getItem('jjReturn') === 'jeff.html') {
+      localStorage.removeItem('jjReturn');
+      location.replace('jeff.html');
+      return;
+    }
+  } catch(e){}
   setUserCardSignedIn(uname, role);
   applyDeleteVisibility();
   applySettingsVisibility();

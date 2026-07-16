@@ -30,6 +30,8 @@ a{color:#16a34a;text-decoration:none}
 a:hover{color:#15803d}
 @keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes jspin{to{transform:rotate(360deg)}}
+.jspin{width:38px;height:38px;border-radius:50%;border:3px solid #e7eae8;border-top-color:#16a34a;animation:jspin .8s linear infinite}
 .jscreen{animation:screenIn .26s ease both}
 .jscroll::-webkit-scrollbar{width:0;height:0;display:none}
 .jscroll{scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior:contain}
@@ -55,6 +57,7 @@ a:hover{color:#15803d}
       </div>
 
       <div id="toast"></div>
+      <div id="busy"></div>
     </div>
   </div>
 </div>
@@ -75,7 +78,7 @@ a:hover{color:#15803d}
 
   var state = {
     screen:'home', dayOffset:0, truckIdx:0, angle:0, filter:'all',
-    toast:'', fleet:null, fleetErr:false, jobs:null, syncedAt:'',
+    toast:'', busy:'', fleet:null, fleetErr:false, jobs:null, syncedAt:'',
     authChecked:false, authed:false, me:null
   };
   var lastScreen = null;
@@ -283,27 +286,52 @@ a:hover{color:#15803d}
   function setAngle(i){ setState({angle: parseInt(i,10)||0}); }
   function nextAngle(){ var f=TRUCKS(); var t=f[Math.min(state.truckIdx, f.length-1)]; var n=(t&&t.imgs&&t.imgs.length)?t.imgs.length:1; setState({angle:(state.angle+1)%n}); }
 
+  // A photo can take a while on a truck's signal. Hold the screen with something obvious
+  // and centred until it's actually saved — a toast that fades after 2 seconds reads as
+  // "done" while the upload is still going.
+  function setBusy(title, note){ state.busy=title||''; state.busyNote=note||''; renderBusy(); }
+
   // Add photos to a REAL job: upload each to Cloudinary, append the URL to jobs.photos.
   function addPhoto(jobId){ pendingJob=jobId; var el=document.getElementById('jeff-photo-input'); if(el){ el.value=''; el.click(); } }
   async function onPhoto(e){
     var files = Array.prototype.slice.call(e.target.files||[]);
     var jobId = pendingJob;
     if(!jobId || !files.length) return;
-    showToast('📤 Uploading '+files.length+' photo'+(files.length>1?'s':'')+'…');
     var urls=[], failed=0;
     for(var i=0;i<files.length;i++){
+      setBusy('Uploading…', files.length>1 ? ('Photo '+(i+1)+' of '+files.length) : '');
       try{ urls.push(await uploadToCloudinary(files[i])); }
       catch(err){ failed++; }
     }
     if(urls.length){
+      setBusy('Uploading…', 'Saving to the job…');
       var job=(state.jobs||[]).filter(function(j){ return j.job_id===jobId; })[0];
       var next=((job&&job.photos)||[]).concat(urls);
       var r = await db.from('jobs').update({photos:next}).eq('job_id', jobId);
-      if(r.error){ showToast('⚠ Couldn\'t save to the job'); return; }
+      if(r.error){ setBusy(''); showToast('⚠ Couldn\'t save to the job'); return; }
       if(job){ job.photos=next; }
       render();
     }
+    setBusy('');
     showToast(urls.length ? ('📷 '+urls.length+' added'+(failed?' · '+failed+' failed':'')) : '⚠ Upload failed');
+  }
+
+  // Take a photo off a job. The file stays in Cloudinary — the unsigned upload preset has
+  // no delete rights — but it's off the job, which is what the crew sees.
+  async function delPhoto(arg){
+    var bits = String(arg||'').split('|');
+    var jobId = bits[0], idx = parseInt(bits[1],10);
+    var job=(state.jobs||[]).filter(function(j){ return j.job_id===jobId; })[0];
+    if(!job || !job.photos || !job.photos[idx]) return;
+    if(!confirm('Delete this photo?')) return;
+    var next = job.photos.slice(); next.splice(idx,1);
+    setBusy('Deleting…', '');
+    var r = await db.from('jobs').update({photos:next}).eq('job_id', jobId);
+    setBusy('');
+    if(r.error){ showToast('⚠ Couldn\'t delete'); return; }
+    job.photos=next;
+    render();
+    showToast('🗑 Photo deleted');
   }
 
   var ACTS = {
@@ -314,6 +342,7 @@ a:hover{color:#15803d}
     setAngle:function(arg){ setAngle(arg); }, nextAngle:nextAngle,
     addPhoto:function(arg){ addPhoto(arg); },
     goQuotes:function(){ state.filter='Quote'; nav('photos'); },
+    delPhoto:delPhoto,
     goDash:function(){ try{ localStorage.setItem('jjLayout','dashboard'); }catch(e){} location.href='index.html'; }
   };
 
@@ -502,7 +531,12 @@ a:hover{color:#15803d}
         var badgeFg = svcColor(j.service);
         var body;
         if(photos.length){
-          var tiles = photos.map(function(u){ return '<div style="width:58px;height:58px;border-radius:12px;background-image:url(\''+cloudinaryThumb(u,120)+'\');background-size:cover;background-position:center"></div>'; }).join('');
+          var tiles = photos.map(function(u, idx){
+            return '<div style="position:relative;width:58px;height:58px;flex:0 0 auto">'+
+                '<div style="width:58px;height:58px;border-radius:12px;background-image:url(\''+cloudinaryThumb(u,120)+'\');background-size:cover;background-position:center"></div>'+
+                '<div class="pa" data-act="delPhoto" data-arg="'+esc(j.job_id)+'|'+idx+'" style="position:absolute;top:-5px;right:-5px;width:24px;height:24px;border-radius:50%;background:#e5484d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;line-height:1;box-shadow:0 2px 7px rgba(0,0,0,.3);cursor:pointer">×</div>'+
+              '</div>';
+          }).join('');
           body = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:13px">'+tiles+
               '<div class="pa" data-act="addPhoto" data-arg="'+esc(j.job_id)+'" style="width:58px;height:58px;border-radius:12px;background:#f1f4f2;border:2px dashed #cdd6ce;display:flex;align-items:center;justify-content:center;color:#9aa2ab;font-size:26px;cursor:pointer">+</div>'+
             '</div>'+
@@ -647,6 +681,21 @@ a:hover{color:#15803d}
   }
 
   // ---------- render ----------
+  // Centre of the screen, over everything, and it swallows taps — nobody should be able to
+  // wander off mid-upload and wonder whether the photo landed.
+  function renderBusy(){
+    var el = document.getElementById('busy');
+    if(!el) return;
+    if(!state.busy){ el.innerHTML=''; return; }
+    el.innerHTML = '<div style="position:absolute;inset:0;z-index:90;background:rgba(14,22,16,.5);display:flex;align-items:center;justify-content:center">'+
+        '<div style="background:#fff;border-radius:24px;padding:30px 38px;display:flex;flex-direction:column;align-items:center;gap:15px;box-shadow:0 20px 50px rgba(0,0,0,.32);min-width:190px">'+
+          '<div class="jspin"></div>'+
+          '<div style="font-size:18px;font-weight:800;color:#17223a">'+esc(state.busy)+'</div>'+
+          (state.busyNote ? '<div style="font-size:13px;color:#98a0aa">'+esc(state.busyNote)+'</div>' : '')+
+        '</div>'+
+      '</div>';
+  }
+
   function renderToast(){
     var el = document.getElementById('toast');
     if(state.toast){
@@ -679,6 +728,7 @@ a:hover{color:#15803d}
     lastScreen = viewKey;
 
     renderToast();
+    renderBusy();
   }
 
   // ---------- wiring ----------
@@ -698,6 +748,11 @@ a:hover{color:#15803d}
   function toDashboardLogin(){
     // Drop a 'mobile' layout preference first so the dashboard doesn't bounce us back.
     try{ if(localStorage.getItem('jjLayout')==='mobile') localStorage.setItem('jjLayout','dashboard'); }catch(e){}
+    // Mark where to come back to. Without this, anyone who isn't Jake signs in and is
+    // stranded on the full dashboard with no way back to this app — which is exactly how
+    // Jeff's app "disappeared". The dashboard consumes this on a successful sign-in only,
+    // so a session that won't stick can't bounce the two pages off each other forever.
+    try{ localStorage.setItem('jjReturn','jeff.html'); }catch(e){}
     location.replace('index.html');
   }
   async function loadMe(user){
