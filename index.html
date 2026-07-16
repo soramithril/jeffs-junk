@@ -492,7 +492,7 @@
         <button class="lb-period-btn"        data-status="Cancelled" onclick="setJobShow('Cancelled',this)">Cancelled</button>
         <button class="lb-period-btn"        data-status="Postponed" onclick="setJobShow('Postponed',this)">⏸ Postponed</button>
         <button class="lb-period-btn"        data-status="BinsOut"   onclick="setJobShow('BinsOut',this)">Bins out</button>
-        <button class="lb-period-btn"        data-status="Recurring" onclick="setJobShow('Recurring',this)">Recurring</button>
+        <button class="lb-period-btn"        data-status="Recurring" onclick="setJobShow('Recurring',this)">Recurring<span id="jobs-recur-chip"></span></button>
       </div>
       <div style="display:flex;gap:8px;margin-left:auto">
         <button id="jsort-toggle" class="btn btn-ghost btn-sm" onclick="cycleJobSort()">📅 By Date</button>
@@ -603,6 +603,7 @@
     </div>
   </div>
   <div id="jobs-single-view" style="display:none">
+    <div id="jobs-recur-warn"></div>
     <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('service')">Service</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th>Bin</th><th>Pickup Confirmed</th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-tbody"></tbody></table></div>
   </div>
   <div id="jobs-pagination-bottom"></div>
@@ -1861,7 +1862,7 @@
           <div class="form-grid">
             <div class="form-group"><label>Repeat Every</label><select id="f-junk-recur-interval"><option value="weekly">Every Week</option><option value="biweekly" selected>Every 2 Weeks</option><option value="3weeks">Every 3 Weeks</option><option value="monthly">Every Month</option></select></div>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">When the job is marked done, you can quickly schedule the next visit.</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Saving books the next 8 weeks of visits right away. Dates already booked for this client are skipped.</div>
         </div>
       </div>
 
@@ -2587,7 +2588,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=424"></script>
+<script src="app.js?v=425"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

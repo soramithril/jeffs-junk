@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '424';
+var APP_VERSION = '425';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1252,6 +1252,9 @@ async function loadAllFromSupabase() {
       if (!seen[j.id]) { seen[j.id] = true; jobs.push(j); }
     });
 
+    // Recurring runs — needed by any job detail opened before the Jobs page loads
+    await loadRecurRuns();
+
     // 4. Bins (small table, load all)
     showLoading('Loading bin inventory...', 60);
     var rb = await db.from('bin_items').select('*');
@@ -1512,6 +1515,7 @@ async function loadJobsPage(page) {
       }
     }
   }
+  await loadRecurRuns();
   jobsLoading = false;
   renderJobs();
   renderJobsPagination();
@@ -4739,6 +4743,7 @@ setInterval(function(){
 }, 60000);
 
 function renderJobs(){
+  renderRecurWarnings(false);   // chip count on every tab; the Recurring branch re-calls with the banner
   var q=searchF.toLowerCase();
   function m(j){return !q||j.name.toLowerCase().indexOf(q)>=0||(j.address||'').toLowerCase().indexOf(q)>=0||(j.city||'').toLowerCase().indexOf(q)>=0||j.id.toLowerCase().indexOf(q)>=0;}
   function matchStatus(j){return jobStatusF==='all'||j.status===jobStatusF;}
@@ -4805,6 +4810,7 @@ function renderJobs(){
     document.getElementById('jobs-cat-view').style.display='none';document.getElementById('jobs-single-view').style.display='block';
     var filt=all.filter(function(j){return j.recurring&&j.status!=='Cancelled'&&m(j)&&matchStatus(j)&&matchDateFilter(j);});
     document.getElementById('jobs-tbody').innerHTML=filt.length?filt.map(makeJobRowWithSvc).join(''):emptyJobRow(8);
+    renderRecurWarnings(true);
   } else if(svcF==='Landscaping'){
     // Landscaping filter shows the clean Landscaping table (Job Name + Guys, no bin/pickup/email),
     // not the generic single-view that carries Bin / Pickup Confirmed / Email columns.
@@ -9081,6 +9087,13 @@ async function saveJob(e){
   // the edit form / email greeting use realName() to keep it truly nameless.
   if(svc==='Landscaping' && !names.length){ job.name = job.address; }
 
+  // Booking the run is what makes the Recurring tick mean anything. Fire it only on
+  // the moment a job becomes recurring — a new booking, or the box ticked on an
+  // existing job. On a plain re-save the run is already booked; re-running it would
+  // stack a second run on top. Read before the memory swap below overwrites the old job.
+  var startRun = svc==='Junk Removal' && job.recurring
+              && !(editId && (jobs.find(function(x){return x.id===editId;})||{}).recurring);
+
   // Replace local job in memory (DB-side change history is handled by the
   // `log_job_changes` Postgres trigger — do NOT insert into job_changes here).
   if(editId){
@@ -9106,6 +9119,10 @@ async function saveJob(e){
     // trigger \u2014 no client-side insert needed.
     _clientStatsCache = null;
     toast('\u2705 ' + job.id + ' saved!');
+    if(startRun){
+      try { await bookRecurringRun(job); }
+      catch(ex){ alert('\u274c ' + job.id + ' saved, but booking its repeat visits failed:\n\n' + ex.message + '\n\nUse the \u267b\ufe0f Next Visit button to book them by hand.'); }
+    }
   } catch(ex){
     alert('\u274c Exception: ' + ex.message);
     console.error(ex);
@@ -9255,10 +9272,21 @@ async function openDetail(id, returnCid){
       })()
       +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.3);color:#22c55e;width:100%">'+lineIcon('binDrop',14)+' Assign Bin</button></div>')+'</div>';
   }
-  // Show recurring badge for non-bin services
+  // Show recurring badge for non-bin services. The run's last booked visit is the
+  // thing worth surfacing — nothing extends a run, so it needs to be seen running out.
   if(j.recurring&&j.service!=='Bin Rental'){
     var recurLabel2={'weekly':'Every Week','biweekly':'Every 2 Weeks','3weeks':'Every 3 Weeks','monthly':'Every Month'}[j.recurInterval]||j.recurInterval||'';
-    bin+='<div class="detail-section"><div class="detail-section-title">♻️ Recurring Schedule&nbsp;<span style="font-size:11px;background:rgba(13,110,253,.15);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 8px">'+recurLabel2+'</span></div><div style="font-size:13px;color:var(--muted)">This job is set to repeat automatically. Use the "Schedule Next Visit" button to book the next one.</div></div>';
+    var run2=recurRunOf(j);
+    var runNote;
+    if(!run2)
+      runNote='This job repeats. Use the "♻️ Next Visit" button to book the next one.';
+    else if(run2.last < todayStr())
+      runNote='<span style="color:#dc3545;font-weight:700">⚠ Out of visits — the last one was '+fd(run2.last)+'.</span> Use "♻️ Next Visit" to book more.';
+    else if(run2.last <= recurAddDays(todayStr(), RECUR_WARN_DAYS))
+      runNote='<span style="color:#e67e22;font-weight:700">⚠ Only booked through '+fd(run2.last)+'.</span> Use "♻️ Next Visit" to book more.';
+    else
+      runNote='Booked through '+fd(run2.last)+' — '+run2.count+' visit'+(run2.count===1?'':'s')+' still to come.';
+    bin+='<div class="detail-section"><div class="detail-section-title">♻️ Recurring Schedule&nbsp;<span style="font-size:11px;background:rgba(13,110,253,.15);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 8px">'+recurLabel2+'</span></div><div style="font-size:13px;color:var(--muted)">'+runNote+'</div></div>';
   }
   var paymentInfo='';
   if(j.payMethod){paymentInfo='<div class="detail-item"><label>Method</label><span>'+j.payMethod+'</span></div>';}
@@ -10017,29 +10045,148 @@ async function scheduleNextSwap(id){
   toast('✅ Next swap booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
 }
+// ── RECURRING RUNS ────────────────────────────────────────────────────────────
+// A "run" is every live visit booked for one client on a recurring Junk Removal
+// job. Ticking Recurring books the whole run up front, RECUR_HORIZON_DAYS ahead.
+// Nothing extends a run on its own — once the last booked visit passes, the client
+// silently stops getting service — so a run whose last visit falls inside
+// RECUR_WARN_DAYS is flagged on the job and on the Jobs page Recurring tab.
+var RECUR_HORIZON_DAYS = 56;
+var RECUR_WARN_DAYS    = 14;
+var RECUR_DAYS  = {weekly:7, biweekly:14, '3weeks':21, monthly:30};
+var RECUR_LABEL = {weekly:'1 week', biweekly:'2 weeks', '3weeks':'3 weeks', monthly:'1 month'};
+
+var _recurRuns = {};   // 'clientId|service' -> {name, clientId, service, interval, last, lastId, count}
+
+function recurAddDays(dateStr, n){
+  var d = new Date(dateStr + 'T00:00:00');   // local midnight — a bare YYYY-MM-DD parses as UTC and can slip a day
+  d.setDate(d.getDate() + n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Rebuild every run from the database. The jobs array only ever holds one page,
+// so a run can't be counted from memory. Recurring jobs number in the tens.
+async function loadRecurRuns(){
+  var r = await db.from('jobs')
+    .select('job_id,service,name,client_cid,date,junk_date,recur_interval')
+    .eq('recurring', true).eq('service', 'Junk Removal')
+    .eq('completed', false).neq('status', 'Cancelled');
+  if(r.error) throw new Error('Failed to load recurring runs: ' + r.error.message);
+  var runs = {};
+  (r.data || []).forEach(function(row){
+    var sched = row.junk_date || row.date;
+    if(!sched || !row.client_cid) return;
+    var key = row.client_cid + '|' + row.service;
+    var run = runs[key] || (runs[key] = {name:row.name, clientId:row.client_cid, service:row.service,
+                                          interval:row.recur_interval, last:'', lastId:'', count:0});
+    run.count++;
+    if(sched > run.last){ run.last = sched; run.lastId = row.job_id; }
+  });
+  _recurRuns = runs;
+}
+
+function recurRunOf(j){ return _recurRuns[j.clientId + '|' + j.service] || null; }
+
+// The Recurring tab is where runs get managed, so that's where one about to end gets
+// called out — plus a count on the tab itself, so it's visible without clicking in.
+function renderRecurWarnings(onRecurringTab){
+  var soon = recurRunsEndingSoon();
+  var chip = document.getElementById('jobs-recur-chip');
+  if(chip) chip.innerHTML = soon.length
+    ? ' <span style="background:#dc3545;color:#fff;border-radius:99px;padding:1px 6px;font-size:10px;font-weight:700">'+soon.length+'</span>'
+    : '';
+  var host = document.getElementById('jobs-recur-warn');
+  if(!host) return;
+  if(!onRecurringTab || !soon.length){ host.innerHTML=''; return; }
+  var today = todayStr();
+  host.innerHTML = '<div style="background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.4);border-radius:8px;padding:12px 14px;margin-bottom:12px">'
+    + '<div style="font-weight:700;font-size:13px;color:#e67e22;margin-bottom:6px">⚠ '+soon.length+' recurring '+(soon.length===1?'client is':'clients are')+' running out of booked visits</div>'
+    + soon.map(function(run){
+        return '<div style="font-size:13px;padding:3px 0">'
+          + '<strong>'+escHtml(run.name)+'</strong> — '
+          + (run.last < today
+              ? '<span style="color:#dc3545;font-weight:700">out of visits, last one was '+fd(run.last)+'</span>'
+              : 'booked through '+fd(run.last))
+          + ' · <a href="#" onclick="openDetail(\''+run.lastId+'\');return false" style="color:#0d6efd">open the last visit to book more</a></div>';
+      }).join('')
+    + '</div>';
+}
+
+// Runs already out of visits, or down to their last couple — oldest ending first.
+function recurRunsEndingSoon(){
+  var cutoff = recurAddDays(todayStr(), RECUR_WARN_DAYS);
+  return Object.keys(_recurRuns).map(function(k){ return _recurRuns[k]; })
+    .filter(function(run){ return run.last <= cutoff; })
+    .sort(function(a,b){ return a.last.localeCompare(b.last); });
+}
+
+// Book every visit in a job's run, out to RECUR_HORIZON_DAYS. Dates the client is
+// already booked on are skipped, so a run never double-books over hand-entered visits.
+async function bookRecurringRun(job){
+  var step = RECUR_DAYS[job.recurInterval];
+  if(!step) throw new Error('Unknown repeat interval: ' + job.recurInterval);
+  var base = jobSchedDate(job);
+  if(!base) throw new Error('Job ' + job.id + ' is recurring but has no date to count from');
+
+  var horizon = recurAddDays(base, RECUR_HORIZON_DAYS);
+  var dates = [];
+  for(var d = recurAddDays(base, step); d <= horizon; d = recurAddDays(d, step)) dates.push(d);
+
+  var rEx = await db.from('jobs').select('date,junk_date')
+    .eq('client_cid', job.clientId).eq('service', job.service).neq('status', 'Cancelled');
+  if(rEx.error) throw new Error('Failed to check existing visits: ' + rEx.error.message);
+  var taken = {};
+  (rEx.data || []).forEach(function(row){ var s = row.junk_date || row.date; if(s) taken[s] = true; });
+  var toBook = dates.filter(function(d){ return !taken[d]; });
+  if(!toBook.length){ toast('Every visit in this run is already booked.'); return; }
+
+  var label = RECUR_LABEL[job.recurInterval];
+  for(var i=0;i<toBook.length;i++){
+    var visit = toBook[i];
+    var newId = await nextIdFromDb(job.service);
+    var v = {
+      id:newId, service:job.service, status:'', name:job.name, phone:job.phone||'',
+      address:job.address||'', city:job.city||'', date:visit, time:job.time||'',
+      junkDate:visit, junkTime:job.junkTime||'',
+      price:job.price||'', paid:'Unpaid', payMethod:'', referral:job.referral||'',
+      notes:'Recurring ('+label+') — from job '+job.id,
+      clientId:job.clientId||'', businessName:job.businessName||'',
+      recurring:true, recurInterval:job.recurInterval,
+      createdBy:'system', createdByEmail:'system', editedBy:'', editedByEmail:''
+    };
+    var res = await db.from('jobs').upsert(jobToDb(v), {onConflict:'job_id'});
+    if(res.error) throw new Error('Failed to book the visit on '+fd(visit)+': '+res.error.message);
+  }
+  toast('♻️ Booked '+toBook.length+' more visit'+(toBook.length===1?'':'s')+' — through '+fd(toBook[toBook.length-1]));
+}
+
+// Extend a run by one visit past the horizon it was booked to.
 async function scheduleNextRecurringJob(id){
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
-  var intervalDays={'weekly':7,'biweekly':14,'3weeks':21,'monthly':30}[j.recurInterval]||14;
-  var baseDate=j.date;
-  var nextDate=new Date(baseDate);nextDate.setDate(nextDate.getDate()+intervalDays);
-  var nextDateStr=nextDate.toISOString().split('T')[0];
-  var intervalLabel={'weekly':'1 week','biweekly':'2 weeks','3weeks':'3 weeks','monthly':'1 month'}[j.recurInterval]||'2 weeks';
-  if(!confirm('Schedule next '+j.service+' for '+fd(nextDateStr)+' ('+intervalLabel+' from last job)?\n\nThis will create a new job for '+j.name+' at the same address.'))return;
+  var run=recurRunOf(j);
+  var intervalDays=RECUR_DAYS[j.recurInterval]||14;
+  // Count from the run's last booked visit, and from the day the crew actually goes
+  // (junkDate) — not the day the booking was typed in, which drifts off the weekday.
+  var baseDate=(run&&run.last)||jobSchedDate(j);
+  var nextDateStr=recurAddDays(baseDate,intervalDays);
+  var intervalLabel=RECUR_LABEL[j.recurInterval]||'2 weeks';
+  if(!confirm('Schedule next '+j.service+' for '+fd(nextDateStr)+' ('+intervalLabel+' after the last booked visit)?\n\nThis will create a new job for '+j.name+' at the same address.'))return;
   var newId=await nextIdFromDb(j.service);
   var newJob={
     id:newId,service:j.service,status:'',name:j.name,phone:j.phone||'',
     address:j.address||'',city:j.city||'',date:nextDateStr,time:j.time||'',
+    junkDate:nextDateStr,junkTime:j.junkTime||'',
     price:j.price||'',paid:'Unpaid',payMethod:'',referral:j.referral||'',
-    notes:'Recurring ('+intervalLabel+') — from job '+j.id+(j.notes?'\n'+j.notes:''),
-    clientId:j.clientId||'',
+    notes:'Recurring ('+intervalLabel+') — from job '+j.id,
+    clientId:j.clientId||'',businessName:j.businessName||'',
     recurring:true,recurInterval:j.recurInterval||'biweekly',
     createdBy:'system',createdByEmail:'system',editedBy:'',editedByEmail:''
   };
-  jobs.push(newJob);
   try{
     var dbRow=jobToDb(newJob);
     var res=await db.from('jobs').upsert(dbRow,{onConflict:'job_id'});
     if(res.error){alert('Error creating recurring job: '+res.error.message);return;}
+    await loadRecurRuns();
   }catch(ex){alert('Error: '+ex.message);return;}
   toast('Next '+j.service+' booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
