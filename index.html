@@ -1802,6 +1802,7 @@
         <div class="job-form-subsection-label" style="margin-top:16px">📍 Placement</div>
         <div class="form-grid" style="margin-bottom:14px">
           <div class="form-group"><label>Driveway Side</label><select id="f-bside"><option value="">Not Specified</option><option value="left">Left Side</option><option value="right">Right Side</option><option value="single driveway">Single Driveway</option><option value="see notes">See Notes</option></select></div>
+          <div class="form-group"><label>🚚 Truck for Pickup <span style="font-weight:400;color:var(--muted);font-size:11px">— only when it matters</span></label><select id="f-trucksize"><option value="">Any truck</option><option value="BIG">BIG truck</option><option value="SMALL">SMALL truck</option></select></div>
         </div>
         <input type="hidden" id="f-binstatus" value="">
 
@@ -2237,6 +2238,12 @@
       <div class="form-group" style="margin-bottom:10px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px">
         <label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label>
         <textarea id="c-internal-notes" placeholder="Private staff notes about this client (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea>
+        <label style="color:#eab308;font-weight:600;margin-top:10px;display:block">📎 Internal Images <span style="font-weight:400;color:var(--muted);font-size:11px">— e.g. an emailed PO#. Shown every time this client is booked.</span></label>
+        <div class="photo-section">
+          <div id="c-photos-grid" class="photo-thumb-grid"></div>
+          <input type="file" id="c-photo-input" accept="image/*" multiple style="display:none" onchange="_addClientPhotosFromInput(this)">
+          <button type="button" class="btn btn-blue-solid btn-sm" onclick="document.getElementById('c-photo-input').click()">📎 Add Images</button>
+        </div>
       </div>
 
       <div class="form-group" style="margin-bottom:10px">
@@ -2271,6 +2278,7 @@
     <div style="padding:4px 2px 8px">
       <div id="client-notes-name" style="font-weight:700;font-size:14px;margin-bottom:10px"></div>
       <div id="client-notes-body" style="font-size:14px;line-height:1.6;white-space:pre-wrap;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:12px 14px"></div>
+      <div id="client-notes-images" class="photo-thumb-grid" style="display:none;margin-top:10px"></div>
     </div>
     <div class="form-actions">
       <button type="button" class="btn btn-primary" onclick="closeM('client-notes-modal')">Got it</button>
@@ -2588,7 +2596,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=426"></script>
+<script src="app.js?v=427"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>

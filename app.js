@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '426';
+var APP_VERSION = '427';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -52,8 +52,11 @@ var _formPhotos = [];           // photo URLs being assembled in the open job/qu
 // When adding a new column to the jobs table, update these in this order:
 //   1. dbToJob()  — add the read-from-DB line
 //   2. jobToDb()  — add the write-to-DB line
-//   3. JOB_KEY_MAP below if the JS camelCase name differs from the snake_case DB column
-//   4. The CASE map inside the `log_job_changes` Postgres trigger if you want a
+//   3. JOB_LIST_COLS — the Jobs-page select list. MISS THIS AND THE COLUMN IS SILENTLY
+//      DESTROYED: it loads empty, then the next save writes that empty value back over
+//      the real one. Not optional.
+//   4. JOB_KEY_MAP below if the JS camelCase name differs from the snake_case DB column
+//   5. The CASE map inside the `log_job_changes` Postgres trigger if you want a
 //      pretty label for that column in the edit-history view.
 var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
   status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
@@ -65,7 +68,7 @@ var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed
   toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
   depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
   clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
-  dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id'};
+  dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id', truckSize:'truck_size'};
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -748,11 +751,11 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,completed,completed_at';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,completed,completed_at,truck_size';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
-var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,internal_notes,created_at,blacklisted,contractor';
+var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor';
 
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
@@ -811,6 +814,7 @@ function dbToJob(r) {
     fbTime: r.fb_time || '',
     junkDate: r.junk_date || '',
     junkTime: r.junk_time || '',
+    truckSize: r.truck_size || '',
     completedByVehicle: r.completed_by_vehicle || '',
     assignedCrewIds: r.assigned_crew_ids || [],
     dropoffCrewId: r.dropoff_crew_id || null,
@@ -891,6 +895,7 @@ function dbToClient(r) {
     referral: r.referral || '',
     notes:    r.notes   || '',
     internalNotes: r.internal_notes || '',
+    photos:   r.photos  || [],
     createdAt: r.created_at || '',
     blacklisted: r.blacklisted || false,
     contractor: r.contractor || false,
@@ -952,6 +957,7 @@ function jobToDb(j) {
     fb_time: j.fbTime || '',
     junk_date: j.junkDate || null,
     junk_time: j.junkTime || '',
+    truck_size: j.truckSize || '',
     assigned_crew_ids: j.assignedCrewIds || [],
     dropoff_crew_id: j.dropoffCrewId || null,
     pickup_crew_id:  j.pickupCrewId  || null,
@@ -980,6 +986,7 @@ function clientToDb(c) {
     referral: c.referral || '',
     notes:    c.notes   || '',
     internal_notes: c.internalNotes || '',
+    photos:   c.photos  || [],
     blacklisted: c.blacklisted || false,
     contractor: c.contractor || false,
   };
@@ -1766,6 +1773,10 @@ function openAddClient(){
     document.getElementById('c-business-name').value='';
     document.getElementById('c-referral').value='';
     document.getElementById('c-notes').value='';
+    // Internal notes + images are per-client and must not survive into the next Add Client
+    // — the form is reused, so whatever was last loaded is still sitting in it.
+    var cin=document.getElementById('c-internal-notes');if(cin)cin.value='';
+    _clientPhotos=[]; _renderClientPhotos();
     var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=false;
     var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=false;
     var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
@@ -1798,6 +1809,7 @@ function editClient(cid){
   document.getElementById('c-referral').value=cl.referral||'';
   document.getElementById('c-notes').value=cl.notes||'';
   var cin=document.getElementById('c-internal-notes');if(cin)cin.value=cl.internalNotes||'';
+  _clientPhotos=(cl.photos||[]).slice(); _renderClientPhotos();
   var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=cl.blacklisted||false;
   var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=cl.contractor||false;
   var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
@@ -1870,6 +1882,7 @@ async function saveClient(e){
     referral:document.getElementById('c-referral').value,
     notes:document.getElementById('c-notes').value.trim(),
     internalNotes:(document.getElementById('c-internal-notes')||{value:''}).value.trim(),
+    photos:_clientPhotos.slice(),
     blacklisted:document.getElementById('c-blacklisted')?document.getElementById('c-blacklisted').checked:false,
     contractor:document.getElementById('c-contractor')?document.getElementById('c-contractor').checked:false
   };
@@ -3002,6 +3015,13 @@ async function refreshDashJobs(){
           if(j.binBid){ var ab=binItems.find(function(b){return b.bid===j.binBid;}); var bid=ab?ab.bid:j.binBid;
             binBadge='<span class="tjr2-bin assigned">'+(isPickup?'#'+bid:sz+' · #'+bid)+'</span>';
           } else if(j.binSize){ binBadge='<span class="tjr2-bin unassigned">'+sz+' · unassigned</span>'; }
+          // Which truck this pickup needs. It's an exception (tight driveway, heavy load),
+          // not the norm, so it only appears once someone has set it on the booking —
+          // otherwise every pickup would carry a chip that says nothing. Tap to change.
+          if(isPickup && j.truckSize){
+            var tcol = j.truckSize==='BIG' ? '#8b5cf6' : '#0ea5e9';
+            binBadge += '<span class="tjr2-bin assigned" title="Tap to change or clear" style="cursor:pointer;color:'+tcol+';border-color:'+tcol+'" onclick="cycleTruckSize(\''+j.id+'\',event)">🚚 '+j.truckSize+'</span>';
+          }
         }
         var btns='';
         if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
@@ -3494,6 +3514,13 @@ async function renderDash(){
           if(j.binBid){ var ab=binItems.find(function(b){return b.bid===j.binBid;}); var bid=ab?ab.bid:j.binBid;
             binBadge='<span class="tjr2-bin assigned">'+(isPickup?'#'+bid:sz+' · #'+bid)+'</span>';
           } else if(j.binSize){ binBadge='<span class="tjr2-bin unassigned">'+sz+' · unassigned</span>'; }
+          // Which truck this pickup needs. It's an exception (tight driveway, heavy load),
+          // not the norm, so it only appears once someone has set it on the booking —
+          // otherwise every pickup would carry a chip that says nothing. Tap to change.
+          if(isPickup && j.truckSize){
+            var tcol = j.truckSize==='BIG' ? '#8b5cf6' : '#0ea5e9';
+            binBadge += '<span class="tjr2-bin assigned" title="Tap to change or clear" style="cursor:pointer;color:'+tcol+';border-color:'+tcol+'" onclick="cycleTruckSize(\''+j.id+'\',event)">🚚 '+j.truckSize+'</span>';
+          }
         }
         var btns='';
         if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
@@ -3823,6 +3850,22 @@ async function renderDashBinsOut(){
 }
 
 // ── CONFIRM JOB quick action ──────────────────────────────
+// Which truck a bin pickup needs. Set on the booking; this only cycles an existing value
+// from the board (BIG → SMALL → unset) for a quick correction. Awaits the write before
+// re-rendering — the board re-reads from the database, so a re-render that beat the save
+// would paint the old value straight back.
+async function cycleTruckSize(id, e){
+  if(e) e.stopPropagation();
+  var j=jobs.find(function(x){return x.id===id;});
+  if(!j) throw new Error('cycleTruckSize: job '+id+' is not loaded');
+  if(j.service!=='Bin Rental') throw new Error('cycleTruckSize: '+id+' is a '+j.service+' — truck size is a bin rental field');
+  var next = j.truckSize==='BIG' ? 'SMALL' : (j.truckSize==='SMALL' ? '' : 'BIG');
+  j.truckSize = next;
+  await patchJob(id, {truckSize:next});
+  toast(next ? ('🚚 '+next+' truck — '+j.name) : ('🚚 Truck cleared — '+j.name));
+  refresh();
+}
+
 async function confirmJob(id, e){
   if(e)e.stopPropagation();
   var j=jobs.find(function(x){return x.id===id;});
@@ -5275,10 +5318,27 @@ function selectClientResult(cid){
   showClientNotesPopup(cl);
 }
 
+// Fires when a client is picked on a booking — this is the "for future bookings" surface.
+// Anything stored on the client (notes, and now images like a contractor's emailed PO#)
+// gets put in front of whoever is taking the booking, without them going looking.
 function showClientNotesPopup(cl){
-  if(!cl||!cl.internalNotes||!cl.internalNotes.trim())return;
+  if(!cl) return;
+  var notes  = (cl.internalNotes||'').trim();
+  var photos = cl.photos||[];
+  if(!notes && !photos.length) return;
   document.getElementById('client-notes-name').textContent=cl.name||'';
-  document.getElementById('client-notes-body').textContent=cl.internalNotes;
+  var body=document.getElementById('client-notes-body');
+  body.textContent = notes;                       // textContent first — never trust stored text as HTML
+  body.style.display = notes ? '' : 'none';
+  var imgs=document.getElementById('client-notes-images');
+  if(imgs){
+    imgs.innerHTML = photos.map(function(url){
+      return '<a href="'+encodeURI(url)+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in">'
+        + '<img src="'+encodeURI(_cloudinaryDeliveryUrl(url,{width:200}))+'" alt="" loading="lazy">'
+        + '</a>';
+    }).join('');
+    imgs.style.display = photos.length ? '' : 'none';
+  }
   document.getElementById('client-notes-modal').classList.add('open');
 }
 
@@ -5843,6 +5903,7 @@ async function openClientDetail(cid){
     +renderClientQuoteHistory(cl.cid)
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
     +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+cl.internalNotes+'</p></div>':'')
+    +((cl.photos&&cl.photos.length)?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">📎 Internal Images <span style="font-weight:400;color:var(--muted);font-size:11px">— shown when this client is booked</span></div><div class="photo-thumb-grid">'+cl.photos.map(function(u){return '<a href="'+encodeURI(u)+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in"><img src="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:200}))+'" alt="" loading="lazy"></a>';}).join('')+'</div></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
     +'<button class="btn btn-primary" onclick="closeM(\'client-detail-modal\');newJobForClient(\''+cl.cid+'\')">+ New Job</button>'
     +'<button class="btn btn-ghost" onclick="closeM(\'client-detail-modal\');editClient(\''+cl.cid+'\')">'+lineIcon('edit',14)+' Edit</button>'
@@ -7923,9 +7984,66 @@ function _removeFormPhoto(i){
   _renderFormPhotos();
 }
 
+// ── Client images ──
+// Images that belong to the CLIENT rather than one booking — a contractor's emailed PO#,
+// a gate code photo. They ride along on every future booking for that client via the same
+// popup that already surfaces their internal notes.
+var _clientPhotos = [];
+
+async function _addClientPhotosFromInput(inp){
+  if(!inp.files || !inp.files.length) return;
+  if(!_cloudinaryConfigured()){
+    toast('⚠ Photo upload not yet configured — Cloudinary cloud name + preset needed in app.js','error');
+    inp.value = ''; return;
+  }
+  var grid = document.getElementById('c-photos-grid');
+  var files = [].slice.call(inp.files);
+  inp.value = '';
+  _photoUploadStart(files.length);
+  var added = 0, failed = 0;
+  for(var i = 0; i < files.length; i++){
+    _photoUploadTick(i, files.length);
+    var placeholder = document.createElement('div');
+    placeholder.className = 'photo-thumb photo-thumb-uploading';
+    placeholder.textContent = 'Uploading…';
+    if(grid) grid.appendChild(placeholder);
+    try {
+      var secureUrl = await _uploadPhotoToCloudinary(files[i]);
+      _clientPhotos.push(secureUrl);
+      placeholder.remove();
+      _renderClientPhotos();
+      added++;
+    } catch(err){
+      console.error('client photo upload failed:', err);
+      placeholder.textContent = '❌ Failed';
+      (function(p){ setTimeout(function(){ p.remove(); }, 2500); })(placeholder);
+      failed++;
+    }
+  }
+  _photoUploadDone(added, failed);
+}
+
+function _renderClientPhotos(){
+  var grid = document.getElementById('c-photos-grid');
+  if(!grid) return;
+  grid.innerHTML = _clientPhotos.map(function(url, i){
+    var thumb = _cloudinaryDeliveryUrl(url, {width:200});
+    return '<div class="photo-thumb" onclick="_openPhotoLightbox('+i+',\'client\')">'
+      + '<img src="'+thumb+'" alt="" loading="lazy">'
+      + '<button type="button" class="photo-thumb-remove" onclick="event.stopPropagation();_removeClientPhoto('+i+')" title="Remove">×</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _removeClientPhoto(i){
+  _clientPhotos.splice(i, 1);
+  _renderClientPhotos();
+}
+
 function _openPhotoLightbox(idx, source, jobId){
   var photos;
   if(source === 'form') photos = _formPhotos;
+  else if(source === 'client') photos = _clientPhotos;
   else if(source === 'job'){
     var j = jobs.find(function(x){ return x.id === jobId; });
     photos = j ? (j.photos || []) : [];
@@ -8358,6 +8476,7 @@ function newJob(){
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   document.getElementById('f-bsize').value='';
+  var tsEl=document.getElementById('f-trucksize');if(tsEl)tsEl.value='';
   binPickerSzFilter='all';
   var bps=document.getElementById('bin-picker-selected');if(bps){bps.style.display='none';bps.innerHTML='';delete bps.dataset.bid;}
   var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='none';
@@ -8727,6 +8846,7 @@ async function openEdit(id){
       var wcEl2=document.getElementById('f-bwillcall');
       if(wcEl2){wcEl2.checked=!!j.binWillCall;toggleWillCallForm(!!j.binWillCall);}
       document.getElementById('f-bside').value=j.binSide||'';
+      document.getElementById('f-trucksize').value=j.truckSize||'';
       document.getElementById('f-binstatus').value=j.binInstatus||'';
       // Expand bin picker when editing
       var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='block';
@@ -8978,6 +9098,7 @@ async function saveJob(e){
     job.binPickup   = document.getElementById('f-bpick').value;
     job.binPickupTime = document.getElementById('f-bpick-time').value;
     job.binSide     = document.getElementById('f-bside').value;
+    job.truckSize   = document.getElementById('f-trucksize').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
     job.materialType = document.getElementById('f-material-type').value;
     var wcChk=document.getElementById('f-bwillcall');
@@ -9598,6 +9719,7 @@ function renderDrdInDetail(j){
   // Action buttons
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +'<button class="btn btn-primary" onclick="saveDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center">💾 Save Furniture Data</button>'
+    +'<button class="btn btn-ghost" onclick="drdDetailClearItems()" style="justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545" title="Zero every item and start the list again">🧹 Clear Items</button>'
     +'</div>';
 
   html+='</div>';
@@ -9609,6 +9731,22 @@ function renderDrdInDetail(j){
 }
 
 function _esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// Amending a booked pickup means re-counting from scratch, not hunting down every stale
+// quantity. Clears the tally only — donor name, address, opportunity # and tax receipt
+// auto-fill from the job, so wiping them would just mean retyping. Nothing saves until
+// Save Furniture Data is pressed.
+function drdDetailClearItems(){
+  if(!confirm('Clear every item and start the list fresh?\n\nDonor details stay. Nothing is saved until you press Save Furniture Data.')) return;
+  DRD_ITEMS.forEach(function(_,i){
+    var el=document.getElementById('drd-d-qty-'+i);
+    if(el) el.value='';
+  });
+  var rows=document.getElementById('drd-d-other-rows');
+  if(rows){ rows.innerHTML=''; drdDetailAddOtherRow(); }
+  drdDetailRecalc();
+  toast('Items cleared — press 💾 Save Furniture Data to keep it.');
+}
 
 function drdDetailAddOtherRow(name,qty,fee,val){
   var wrap=document.getElementById('drd-d-other-rows');if(!wrap)return;
