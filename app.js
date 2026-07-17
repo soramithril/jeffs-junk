@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '427';
+var APP_VERSION = '428';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -5332,9 +5332,11 @@ function showClientNotesPopup(cl){
   body.style.display = notes ? '' : 'none';
   var imgs=document.getElementById('client-notes-images');
   if(imgs){
+    // Link the rendered version, not the stored URL — a raw PDF link 401s.
     imgs.innerHTML = photos.map(function(url){
-      return '<a href="'+encodeURI(url)+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in">'
+      return '<a href="'+encodeURI(_cloudinaryDeliveryUrl(url,{width:1600}))+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in">'
         + '<img src="'+encodeURI(_cloudinaryDeliveryUrl(url,{width:200}))+'" alt="" loading="lazy">'
+        + (_cloudinaryIsPdf(url) ? '<span class="photo-thumb-pdf">PDF</span>' : '')
         + '</a>';
     }).join('');
     imgs.style.display = photos.length ? '' : 'none';
@@ -5903,7 +5905,7 @@ async function openClientDetail(cid){
     +renderClientQuoteHistory(cl.cid)
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
     +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+cl.internalNotes+'</p></div>':'')
-    +((cl.photos&&cl.photos.length)?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">📎 Internal Images <span style="font-weight:400;color:var(--muted);font-size:11px">— shown when this client is booked</span></div><div class="photo-thumb-grid">'+cl.photos.map(function(u){return '<a href="'+encodeURI(u)+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in"><img src="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:200}))+'" alt="" loading="lazy"></a>';}).join('')+'</div></div>':'')
+    +((cl.photos&&cl.photos.length)?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">📎 Internal Files <span style="font-weight:400;color:var(--muted);font-size:11px">— shown when this client is booked</span></div><div class="photo-thumb-grid">'+cl.photos.map(function(u){return '<a href="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:1600}))+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in"><img src="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:200}))+'" alt="" loading="lazy">'+(_cloudinaryIsPdf(u)?'<span class="photo-thumb-pdf">PDF</span>':'')+'</a>';}).join('')+'</div></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
     +'<button class="btn btn-primary" onclick="closeM(\'client-detail-modal\');newJobForClient(\''+cl.cid+'\')">+ New Job</button>'
     +'<button class="btn btn-ghost" onclick="closeM(\'client-detail-modal\');editClient(\''+cl.cid+'\')">'+lineIcon('edit',14)+' Edit</button>'
@@ -7894,7 +7896,9 @@ async function _compressImage(file){
 
 async function _uploadPhotoToCloudinary(file){
   if(!_cloudinaryConfigured()) throw new Error('Cloudinary not configured — fill in CLOUDINARY_CLOUD_NAME and CLOUDINARY_PRESET at the top of app.js');
-  var blob = await _compressImage(file);
+  // PDFs go up untouched — the compressor draws to a canvas, which needs a bitmap and
+  // throws on a document. Cloudinary takes the PDF and rasterises it on delivery.
+  var blob = file.type === 'application/pdf' ? file : await _compressImage(file);
   var fd = new FormData();
   fd.append('file', blob);
   fd.append('upload_preset', CLOUDINARY_PRESET);
@@ -7905,10 +7909,22 @@ async function _uploadPhotoToCloudinary(file){
   return data.secure_url;
 }
 
+function _cloudinaryIsPdf(url){ return /\.pdf(\?|$)/i.test(url||''); }
+
+// Every thumbnail, lightbox and printout goes through here, so PDFs are handled once, in
+// one place. A PDF can't render in an <img>, and Cloudinary refuses to deliver the raw
+// file anyway (401 — PDF delivery is off by default on this account), so page 1 is
+// rasterised to an image instead. That's enough to read a PO# off; the original file is
+// not reachable, and a PDF past page 1 isn't shown.
 function _cloudinaryDeliveryUrl(url, opts){
   if(!url || url.indexOf('/upload/') < 0) return url;
   var transforms = ['f_auto','q_auto'];
   if(opts && opts.width) transforms.push('w_'+opts.width);
+  if(_cloudinaryIsPdf(url)){
+    transforms.push('pg_1');
+    return url.replace('/upload/', '/upload/'+transforms.join(',')+'/')
+              .replace(/\.pdf(\?|$)/i, '.jpg$1');
+  }
   return url.replace('/upload/', '/upload/'+transforms.join(',')+'/');
 }
 
@@ -8028,8 +8044,10 @@ function _renderClientPhotos(){
   if(!grid) return;
   grid.innerHTML = _clientPhotos.map(function(url, i){
     var thumb = _cloudinaryDeliveryUrl(url, {width:200});
+    // A rendered PDF page just looks like a white picture — say which ones are documents.
+    var pdfTag = _cloudinaryIsPdf(url) ? '<span class="photo-thumb-pdf">PDF</span>' : '';
     return '<div class="photo-thumb" onclick="_openPhotoLightbox('+i+',\'client\')">'
-      + '<img src="'+thumb+'" alt="" loading="lazy">'
+      + '<img src="'+thumb+'" alt="" loading="lazy">'+pdfTag
       + '<button type="button" class="photo-thumb-remove" onclick="event.stopPropagation();_removeClientPhoto('+i+')" title="Remove">×</button>'
       + '</div>';
   }).join('');

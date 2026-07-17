@@ -1659,6 +1659,22 @@ input[type=date],input[type=time]{position:relative;}
 }
 .photo-thumb-remove:hover{ background:rgba(220,53,69,.9); }
 
+/* A PDF is shown as its rendered first page, which is indistinguishable from a photo —
+   this marks it as a document. */
+.photo-thumb-pdf{
+  position:absolute;
+  left:4px;
+  bottom:4px;
+  background:rgba(220,53,69,.92);
+  color:#fff;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.6px;
+  border-radius:4px;
+  padding:1px 5px;
+  pointer-events:none;
+}
+
 #photo-lightbox-modal{ background:rgba(0,0,0,.92); z-index:9999; }
 .photo-lightbox-content{
   position:relative;
