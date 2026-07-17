@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '428';
+var APP_VERSION = '429';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2155,13 +2155,6 @@ var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
 function canAccessAnalytics(){
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
 }
-function toggleNavSection(id){
-  var sec=document.getElementById(id);if(!sec)return;
-  var arrow=document.getElementById(id+'-arrow');
-  var open=sec.style.display!=='none';
-  sec.style.display=open?'none':'block';
-  if(arrow)arrow.style.transform=open?'rotate(-90deg)':'rotate(90deg)';
-}
 // "More tools" opens as a flyout panel beside the sidebar (no inline scroll).
 function toggleMoreFlyout(){
   var fly=document.getElementById('nav-more');
@@ -2181,7 +2174,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','team'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2193,9 +2186,7 @@ function go(name){
   var el=document.getElementById('view-'+name);
   if(el) el.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){
-    if(n.getAttribute('onclick')==="go('"+name+"')"){n.classList.add('active');
-      var parent=n.parentElement;if(parent&&parent.id&&parent.id!=='nav-more'&&parent.style.display==='none'){parent.style.display='block';var arrow=document.getElementById(parent.id+'-arrow');if(arrow)arrow.style.transform='rotate(90deg)';}
-    }
+    if(n.getAttribute('onclick')==="go('"+name+"')")n.classList.add('active');
   });
   render(name);
   if(el) animateView(el);
@@ -10947,17 +10938,16 @@ function applyDeleteVisibility() {
   });
 }
 // Admin section (reports + settings) is manager-only — gated by canAccessAnalytics.
-// The label renders for admins; the group's open/closed state is owned by toggleNavSection.
+// Buttons that live on shared pages but open admin pages carry class="admin-only".
 function applySettingsVisibility(){
+  var show=canAccessAnalytics();
   var nav=document.getElementById('nav-settings');
   var navLabel=document.getElementById('nav-settings-label');
-  if(canAccessAnalytics()){
-    if(navLabel)navLabel.style.display='';
-    if(nav)nav.style.display='grid';
-  } else {
-    if(nav)nav.style.display='none';
-    if(navLabel)navLabel.style.display='none';
-  }
+  if(nav)nav.style.display=show?'grid':'none';
+  if(navLabel)navLabel.style.display=show?'':'none';
+  document.querySelectorAll('.admin-only').forEach(function(el){
+    el.style.display=show?'':'none';
+  });
 }
 
 function handleAdminBtn() {
@@ -14972,7 +14962,7 @@ async function renderCrew(){
   var host=document.getElementById('crew-page-list'); if(!host) return;
   var sub=document.getElementById('crew-page-sub');
   if(sub) sub.textContent=crewMembers.length+' employee'+(crewMembers.length!==1?'s':'')+' · weekly schedule';
-  if(!crewMembers.length){ host.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No crew yet. <button class="btn btn-primary btn-sm" onclick="go(\'team\')">+ Manage Team</button></div>'; return; }
+  if(!crewMembers.length){ host.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">No crew yet.'+(canAccessAnalytics()?' <button class="btn btn-primary btn-sm" onclick="go(\'team\')">+ Manage Team</button>':'')+'</div>'; return; }
 
   var ws=getWeekStart(_crewWeekOffset), we=new Date(ws); we.setDate(we.getDate()+6);
   var wsS=ymdLocal(ws), weS=ymdLocal(we), todayS=todayStr();

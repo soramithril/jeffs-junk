@@ -28,9 +28,12 @@
 #view-jwgscheduler #header nav{display:flex;gap:6px;flex-wrap:wrap;flex:1}
 #view-jwgscheduler .nav-group{display:flex;align-items:center;gap:6px;background:none!important;border:none!important;padding:0!important}
 #view-jwgscheduler .nav-group-label{display:none!important}
-/* in-page tab groups — all groups stay visible so any page can jump to any other */
+/* in-page tab groups — the header shows only the ACTIVE group's tabs (render() stamps
+   data-tabgroup on the view). Moving between groups happens via the sidebar links. */
 #view-jwgscheduler .jwg-tabgroup{display:flex!important}
-#view-jwgscheduler .jwg-tabgroup+.jwg-tabgroup{border-left:1px solid rgba(0,0,0,.14)!important;padding-left:8px!important;margin-left:2px!important}
+#view-jwgscheduler[data-tabgroup=sched] .jwg-tabgroup:not([data-group=sched]),
+#view-jwgscheduler[data-tabgroup=svc] .jwg-tabgroup:not([data-group=svc]),
+#view-jwgscheduler[data-tabgroup=ops] .jwg-tabgroup:not([data-group=ops]){display:none!important}
 #view-jwgscheduler .tab-btn{
   background:transparent!important;border:none!important;color:var(--jjtx2)!important;
   font-weight:600!important;font-size:13px!important;padding:8px 15px!important;

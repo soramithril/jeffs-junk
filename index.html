@@ -26,7 +26,7 @@
 <meta name="theme-color" content="#16a34a">
 <link rel="stylesheet" href="style.css?v=428">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
-<link rel="stylesheet" href="app-jwg-theme.css?v=396">
+<link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -953,7 +953,7 @@
     </div>
     <div class="pv-hero-actions">
       <button class="btn btn-ghost" id="pv-console-btn" style="display:none" onclick="go('pricingconsole')">📈 Margin Console</button>
-      <button class="btn btn-ghost" onclick="go('ourprices')">Edit Our Prices</button>
+      <button class="btn btn-ghost admin-only" onclick="go('ourprices')">Edit Our Prices</button>
       <button class="btn btn-primary" onclick="openAddCompetitor()">+ Add Competitor</button>
     </div>
   </div>
@@ -1535,7 +1535,7 @@
   <div class="page-header">
     <div><div class="page-title page-title-sm">👷 Crew Schedule</div><div class="page-sub" id="crew-page-sub">Manage employee availability</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-ghost" onclick="go('team')">Manage Team</button>
+      <button class="btn btn-ghost admin-only" onclick="go('team')">Manage Team</button>
     </div>
   </div>
   <div data-tour="crew-howto" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Each row is an employee, each column a day. Colored chips are the jobs they're assigned to — pulled from the jobs board, so assigning someone on a job or in Dispatch shows up here. Click <strong>+ off</strong> in any day to book time off (whole day or a time window).</div>
@@ -2596,7 +2596,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=280"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=428"></script>
+<script src="app.js?v=429"></script>
 <script src="app-jwg-scheduler.js?v=401"></script>
 <script src="app-jwg-feed.js?v=369"></script>
 <script src="app-ratings.js?v=396"></script>
