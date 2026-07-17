@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '429';
+var APP_VERSION = '430';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -5924,7 +5924,7 @@ function renderClientQuoteHistory(cid){
             +'<td>'+escHtml(q.service||'—')+'</td>'
             +'<td>'+escHtml(q.subject||'—')+'</td>'
             +'<td>'+escHtml(q.to_email||'—')+'</td>'
-            +'<td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">'+lineIcon('del',15)+'</button></td>'
+            +'<td style="text-align:right">'+(canDelete?'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">'+lineIcon('del',15)+'</button>':'')+'</td>'
             +'</tr>'
             +'<tr id="qbody-'+q.id+'" style="display:none"><td colspan="6" style="background:rgba(0,0,0,.15);padding:12px 16px"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;margin:0;color:var(--text)">'+escHtml(q.body||'')+'</pre></td></tr>';
         }).join('')
@@ -5940,6 +5940,7 @@ function toggleQuoteBody(id){
 }
 
 function deleteQuoteRecord(id, cid){
+  if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
   if(!confirm('Delete this quote record? The original email in your mail app is not affected.')) return;
   db.from('quote_correspondence').delete().eq('id', id).then(function(r){
     if(r.error){ toast('Delete failed: '+r.error.message,'error'); return; }
