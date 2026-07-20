@@ -272,8 +272,8 @@
   /* ── Screen 4 · Trucks on the Road — live Geotab map + today's pulse ──
      Positions are READ-ONLY (geotab-proxy `device-status`, the same feed the
      dashboard's Live Jobs map uses). The TV never writes to jobs or MyGeotab. */
-  #opsWrap{height:100%; display:grid; grid-template-columns:1.62fr 1fr; gap:24px; min-height:0}
-  .lo-card{background:var(--card); border-radius:28px; box-shadow:0 8px 0 rgba(23,64,42,.13);
+  #opsWrap{height:100%; display:flex; min-height:0}
+  .lo-card{flex:1 1 auto; background:var(--card); border-radius:28px; box-shadow:0 8px 0 rgba(23,64,42,.13);
     overflow:hidden; display:flex; flex-direction:column; min-height:0}
   #tvmap{flex:1 1 auto; min-height:0; background:#dfe4da}
   /* pull the raw OSM tiles toward the board's warm palette so the map reads as ours */
@@ -289,9 +289,8 @@
     stroke-linecap:round; stroke-linejoin:round}
   .lo-tk .n{background:var(--card); border-radius:11px; padding:3px 11px; font:700 16px/1.15 'Hanken Grotesk';
     color:var(--ink); white-space:nowrap; box-shadow:0 3px 8px rgba(23,64,42,.24)}
-  .lo-yard{display:grid; place-items:center; height:26px; border-radius:9px; background:var(--gold);
-    font:700 14px/1 'Hanken Grotesk'; letter-spacing:.16em; color:#5a4a1e;
-    box-shadow:0 3px 8px rgba(23,64,42,.28)}
+  .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
+    box-shadow:0 0 0 4px var(--card), 0 4px 10px rgba(23,64,42,.3)}
   /* Legend sits ON the map, bottom-left. It can't live in the panel head: the
      ambient truck/bin art (#tvtruck/#tvbin, z-index 5) is parked over that exact
      spot and buries it. */
@@ -302,39 +301,8 @@
   #loLegend b{display:flex; align-items:center; gap:9px; font:700 18px/1 'Hanken Grotesk'; color:var(--muted-2)}
   #loLegend i{width:13px; height:13px; border-radius:50%}
 
-  /* right column — four tiles over the next-up queue */
-  #loRight{display:flex; flex-direction:column; gap:22px; min-height:0}
-  .lo-stats{display:grid; grid-template-columns:1fr 1fr; gap:20px; flex:0 0 auto}
-  .lo-stat{position:relative; background:var(--card); border-radius:24px; box-shadow:0 8px 0 rgba(23,64,42,.13);
-    padding:26px 24px 22px; overflow:hidden}
-  .lo-stat::before{content:''; position:absolute; left:0; right:0; top:0; height:8px; background:var(--gold)}
-  .lo-stat .n{font:800 72px/.9 'Baloo 2'; color:var(--spruce); font-variant-numeric:tabular-nums}
-  .lo-stat .n em{font:700 32px/1 'Baloo 2'; color:var(--muted); font-style:normal}
-  .lo-stat .l{font:700 18px/1 'Hanken Grotesk'; letter-spacing:.13em; text-transform:uppercase;
-    color:var(--muted-2); margin-top:12px}
-  .lo-next{flex:1 1 auto; display:flex; flex-direction:column; min-height:0; padding:20px 26px 18px}
-  .lo-next .h{display:flex; align-items:center; gap:14px; flex:0 0 auto; margin-bottom:4px}
-  .lo-next .h .bar{width:11px; height:32px; border-radius:5px; background:var(--gold); flex:0 0 auto}
-  .lo-next .h .t{font:700 34px/1 'Baloo 2'; color:var(--spruce)}
-  .lo-next .h .s{margin-left:auto; font:600 18px/1 'Hanken Grotesk'; color:var(--muted)}
-  .lo-rows{flex:1 1 auto; display:flex; flex-direction:column; justify-content:space-around;
-    min-height:0; overflow:hidden}
-  .lo-row{display:grid; grid-template-columns:104px minmax(0,1fr) auto; align-items:center; gap:14px; padding:8px 0}
-  .lo-row:not(.last){border-bottom:2px dotted rgba(38,49,31,.14)}
-  .lo-time{font:700 26px/1 'Baloo 2'; color:var(--gold-ink); font-variant-numeric:tabular-nums}
-  .lo-what{min-width:0; display:flex; flex-direction:column; gap:4px}
-  .lo-city{font:700 27px/1 'Baloo 2'; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .lo-who{font:600 17px/1.1 'Hanken Grotesk'; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .lo-kind{font:700 16px/1 'Hanken Grotesk'; letter-spacing:.05em; text-transform:uppercase;
-    border-radius:12px; padding:9px 13px; white-space:nowrap}
-  .lo-kind.k-drop{color:#2f7d8f; background:#e2eff2}
-  .lo-kind.k-pick{color:#c25f8f; background:#f6e6ef}
-  .lo-kind.k-junk{color:var(--gold-ink); background:#fbeecb}
-  .lo-kind.k-furn{color:#4f7688; background:#e7eef3}
-  .lo-empty{flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
-    font:700 32px/1.25 'Baloo 2'; color:var(--muted); padding:0 8%}
-  .panel[data-panel="liveops"] .lo-stat,
-  .panel[data-panel="liveops"] .lo-row{animation:tvIn .55s both; animation-delay:calc(var(--i,0) * 60ms)}
+  /* today's job counts ride in the panel head — the map gets the whole body */
+  #loCount{color:var(--gold-ink)}
 
   /* ── net-status pip ── */
   #netdot{position:fixed; bottom:14px; right:14px; width:12px; height:12px; border-radius:50%;
@@ -396,16 +364,10 @@
         <!-- Screen 4 · Trucks on the Road -->
         <section class="panel" data-panel="liveops">
           <div class="p-head"><span class="bar"></span><h2>Trucks on the Road</h2>
-            <span class="tag" id="loTag"></span><span class="spacer"></span><span class="status" id="loMeta"></span></div>
+            <span class="tag" id="loTag"></span><span class="status" id="loCount"></span>
+            <span class="spacer"></span><span class="status" id="loMeta"></span></div>
           <div class="p-body"><div id="opsWrap">
             <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div></div>
-            <div id="loRight">
-              <div class="lo-stats" id="loStats"></div>
-              <div class="lo-card lo-next">
-                <div class="h"><span class="bar"></span><span class="t">Next Up</span><span class="s" id="loNextMeta"></span></div>
-                <div class="lo-rows" id="loRows"></div>
-              </div>
-            </div>
           </div></div>
         </section>
 
@@ -989,8 +951,9 @@
     // the same read-only feed the dashboard's Live Jobs map uses. Visual only: the
     // TV never writes to jobs or to MyGeotab.
     var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
-    var TRUCK_C = { moving:'#2f8a4e', stopped:'#c9861c', yard:'#7a7c5f' };
-    var _map = null, _markers = {}, _yardMarker = null;
+    // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
+    var TRUCK_C = { moving:'#2f8a4e', stopped:'#c9861c' };
+    var _map = null, _markers = {};
 
     function kmFromYard(lat, lng){
       var R = 6371, toR = Math.PI/180;
@@ -1043,16 +1006,15 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom:19, attribution:'© OpenStreetMap'
       }).addTo(_map);
-      _yardMarker = L.marker([YARD.lat, YARD.lng], { interactive:false, icon:yardIcon(0) }).addTo(_map);
+      // A bare landmark dot, no label. A text chip here collides constantly —
+      // Barrie sits right on top of the yard, and truck labels hang down into it.
+      // How many trucks are parked here needs no chip either: "5 of 6 out" says it.
+      L.marker([YARD.lat, YARD.lng], {
+        interactive:false, zIndexOffset:-1000, icon: L.divIcon({
+          className:'', iconSize:[22,22], iconAnchor:[11,11], html:'<div class="lo-yard"></div>'
+        })
+      }).addTo(_map);
       return _map;
-    }
-
-    // n = trucks parked at the yard, folded into the chip rather than drawn as
-    // pins (they'd all land on the same pixel and stack into an unreadable clump).
-    function yardIcon(n){
-      var w = n ? 104 : 74;
-      return L.divIcon({ className:'', iconSize:[w,26], iconAnchor:[w/2,13],
-        html:'<div class="lo-yard">YARD'+(n ? ' &middot; '+n : '')+'</div>' });
     }
 
     function drawTrucks(){
@@ -1061,7 +1023,6 @@
       // Only trucks that are actually OUT get a pin — the yarded ones live in the
       // yard chip's count. That's also what the "trucks out" tile counts.
       var list = (DATA.trucks || []).filter(function(t){ return truckState(t) !== 'yard'; });
-      _yardMarker.setIcon(yardIcon((DATA.trucks || []).length - list.length));
       var seen = {};
       list.forEach(function(t){
         seen[t.id] = 1;
@@ -1084,58 +1045,26 @@
       map.fitBounds(pts, { padding:[70,80], maxZoom:12, animate:false });
     }
 
-    function loKind(service){
-      if(service === 'Bin Drop-off') return { t:'Drop', c:'k-drop' };
-      if(service === 'Bin Pick-up')  return { t:'Pick', c:'k-pick' };
-      if(String(service).indexOf('Furniture') === 0) return { t:'Furniture', c:'k-furn' };
-      return { t:'Junk', c:'k-junk' };
-    }
-
     function renderLiveOps(){
       var list = DATA.trucks || [];
       var out = list.filter(function(t){ return truckState(t) !== 'yard'; }).length;
 
       var tag = el('loTag');
-      tag.innerHTML = list.length ? '<span>'+out+'</span> of <span>'+list.length+'</span> out' : '';
+      tag.textContent = list.length ? out + ' of ' + list.length + ' out' : '';
       tag.style.display = list.length ? '' : 'none';
 
       el('loLegend').innerHTML = '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
         + '<b><i style="background:'+TRUCK_C.stopped+'"></i>Stopped</b>'
-        + '<b><i style="background:'+TRUCK_C.yard+'"></i>At the yard</b>';
+        + '<b><i style="background:var(--gold)"></i>Yard</b>';
       el('loMeta').textContent = DATA.trucksAt
         ? 'Live ' + new Date(DATA.trucksAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
         : 'Waiting on GPS…';
 
-      // Four tiles. The number lives in its own <span> so countUp() — which only
-      // animates leaf elements — can still count it when there's a "/6" beside it.
+      // Bins-out isn't repeated here — the Operations screen already carries it.
+      // These two live nowhere else on the board, so they ride in the head rather
+      // than costing the map any width.
       var k = DATA.kpi || {};
-      el('loStats').innerHTML = [
-        { n:out, sub:'/'+list.length, l:'Trucks out' },
-        { n:k.jobsToday||0,      l:'Jobs today' },
-        { n:k.binsOut||0,        l:'Bins out' },
-        { n:k.completedToday||0, l:'Done today' }
-      ].map(function(s, i){
-        return '<div class="lo-stat" style="--i:'+i+'"><div class="n"><span>'+s.n+'</span>'
-             + (s.sub ? '<em>'+s.sub+'</em>' : '') + '</div><div class="l">'+s.l+'</div></div>';
-      }).join('');
-
-      // Next up — today's remaining work. timeMins() returns 99999 for an untimed
-      // job, so those pass the filter and sort to the bottom on their own.
-      var now = new Date(), nowMins = now.getHours()*60 + now.getMinutes();
-      var up = (DATA.jobs||[]).filter(function(e){ return timeMins(e.time) >= nowMins; });
-      el('loNextMeta').textContent = up.length
-        ? up.length + (up.length === 1 ? ' stop left' : ' stops left') : '';
-      var show = up.slice(0, 4);
-      el('loRows').innerHTML = show.length
-        ? show.map(function(e, i){
-            var kind = loKind(e.service), who = e.business_name || e.name || 'Customer';
-            return '<div class="lo-row'+(i === show.length-1 ? ' last' : '')+'" style="--i:'+i+'">'
-              + '<span class="lo-time">'+(e.time ? fmt12ap(e.time) : '—')+'</span>'
-              + '<span class="lo-what"><span class="lo-city">'+esc(e.city||'')+'</span>'
-              + '<span class="lo-who">'+esc(who)+'</span></span>'
-              + '<span class="lo-kind '+kind.c+'">'+kind.t+'</span></div>';
-          }).join('')
-        : '<div class="lo-empty">That&rsquo;s the day &mdash; nothing left on the board</div>';
+      el('loCount').textContent = (k.jobsToday||0) + ' jobs today · ' + (k.completedToday||0) + ' done';
 
       drawTrucks();
     }
@@ -1151,9 +1080,6 @@
         var panel = document.querySelector('.panel[data-panel="'+name+'"]');
         if(panel) countUp(panel);
       }
-      // Trucks screen counts up too, but only over the right-hand column — running
-      // it across the whole panel would rake through the Leaflet DOM for nothing.
-      if(name==='liveops') countUp(el('loRight'));
     }
 
     // ── rotation ─────────────────────────────────────────────────────────────
