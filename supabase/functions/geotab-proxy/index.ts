@@ -150,9 +150,14 @@ async function handleZones(groupId: string): Promise<{ zones: ProxyZone[] }> {
  * Rolling-window breadcrumbs per truck. One LogRecord call covers every device,
  * so this costs the same whether we have one truck or ten.
  *
- * Raw LogRecord is a point every few seconds — thousands per truck over two
- * hours — so each trail is thinned to at most TRAIL_MAX_POINTS before it goes
+ * Raw LogRecord is a point every few seconds — thousands per truck over the
+ * window — so each trail is thinned to at most TRAIL_MAX_POINTS before it goes
  * over the wire. The newest point is always kept so the line meets the truck.
+ *
+ * Widening TRAIL_WINDOW_MIN has a second effect worth knowing: the TV frames the
+ * map to the whole trail, so a longer window zooms the map OUT. And with the
+ * point cap fixed, a longer window is sampled more coarsely, so the line starts
+ * cutting corners. Raise TRAIL_MAX_POINTS alongside it.
  */
 async function handleTrails(): Promise<{ trails: ProxyTrail[] }> {
   const whitelist = new Set(getWhitelist());
