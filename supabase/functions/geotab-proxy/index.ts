@@ -27,14 +27,18 @@
 import { authenticate, call, getOrCreateBinRentalsGroup, ZONE_PREFIX } from "../_shared/geotab-client.ts";
 
 /**
- * The junk-side trucks. Names must match Geotab's device names EXACTLY — use
- * `{ action: "devices" }` to see the real list rather than guessing.
+ * The bin trucks — the only vehicles we track (Jake, 2026-07-20). Names must
+ * match Geotab's device names EXACTLY; use `{ action: "devices" }` to see the
+ * real list rather than guessing (the SILVERADO, for instance, is registered as
+ * "2022 - 2500 SILVERADO", not "Silverado").
  *
- * This drifted badly: it was still listing Hino 2015 and 2016 (both "In Shop" in
- * the vehicles table) while omitting Hino 2020 and the SILVERADO, which are the
- * two driven every day. The office TV showed five mostly-idle trucks and hid the
- * two doing the work. Geotab's other 17 devices are the JWG side — tractors,
- * Kubotas, skid steer, loader — and stay out.
+ * Everything else Geotab carries stays out: the JWG side (tractors, Kubotas,
+ * skid steer, loader), the pickups, and the Furniture Bank Van.
+ *
+ * NOTE this list is shared — the dashboard's Live Jobs map reads the same proxy,
+ * so anything dropped here disappears from that map too. Bin cross-off is
+ * unaffected: geofence-events pulls its own LogRecord feed and does not filter
+ * through this whitelist.
  */
 const DEFAULT_WHITELIST = [
   "Hino 2015",
@@ -42,9 +46,6 @@ const DEFAULT_WHITELIST = [
   "Hino 2019",
   "Hino 2020",
   "Hino L7 2023",
-  "2022 - 2500 SILVERADO",
-  "Darrin Truck",
-  "Furniture Bank Van",
 ];
 
 function getWhitelist(): string[] {
