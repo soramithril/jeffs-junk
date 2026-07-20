@@ -177,8 +177,10 @@ def speak(text, out_wav):
     import soundfile as sf
     import numpy as np
 
+    voice = os.environ.get("BRIEFING_VOICE", "").strip() or VOICE
+    print("voice: %s" % voice)
     pipeline = KPipeline(lang_code=LANG)
-    chunks = [audio for _, _, audio in pipeline(text, voice=VOICE)]
+    chunks = [audio for _, _, audio in pipeline(text, voice=voice)]
     if not chunks:
         sys.exit("Kokoro produced no audio")
     sf.write(out_wav, np.concatenate(chunks), 24000)
@@ -186,9 +188,18 @@ def speak(text, out_wav):
 
 def main():
     today = datetime.date.today()
-    token = sign_in()
-    stats = collect(token, today.isoformat())
-    text = write_script(stats, today)
+
+    # BRIEFING_TEXT bypasses the database entirely, so the voice can be auditioned
+    # before the Supabase secrets exist — and so the pipeline (model download,
+    # phonemiser, encode, publish) is proven separately from the data side.
+    override = os.environ.get("BRIEFING_TEXT", "").strip()
+    if override:
+        print("BRIEFING_TEXT set — speaking that instead of today's numbers.")
+        stats, text = {"sample": True}, override
+    else:
+        token = sign_in()
+        stats = collect(token, today.isoformat())
+        text = write_script(stats, today)
 
     print("--- briefing script ---")
     print(text)

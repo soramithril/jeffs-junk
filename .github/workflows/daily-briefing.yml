@@ -16,6 +16,22 @@ on:
     # this project. Change to '0 14' in November if that matters.
     - cron: '0 13 * * 1-6'
   workflow_dispatch:        # so it can be tested without waiting for 9 AM
+    inputs:
+      sample_text:
+        description: >-
+          Speak this instead of today's numbers. Lets the voice be auditioned
+          before the Supabase secrets exist. Leave blank for the real briefing.
+        required: false
+        default: >-
+          Good morning. It's Monday the twentieth of July. There are 20 bin
+          movements on the board today: 9 going out, and 11 coming back. They're
+          spread across Alliston, Barrie, Hillsdale and 6 other towns. 53 bins
+          are already out in the field. There are 2 junk removals on the book.
+          Have a good one.
+      voice:
+        description: 'Kokoro voice — bm_george, bm_fable, bm_lewis, bm_daniel'
+        required: false
+        default: bm_george
 
 concurrency:
   group: daily-briefing
@@ -53,13 +69,29 @@ jobs:
         env:
           OFFICETV_EMAIL: ${{ secrets.OFFICETV_EMAIL }}
           OFFICETV_PASSWORD: ${{ secrets.OFFICETV_PASSWORD }}
+          # Only set on a manual run — the 9 AM schedule always speaks real numbers.
+          BRIEFING_TEXT: ${{ github.event.inputs.sample_text }}
+          BRIEFING_VOICE: ${{ github.event.inputs.voice }}
         run: python scripts/build_briefing.py
 
       - name: Encode to mp3
         run: ffmpeg -hide_banner -loglevel error -y -i briefing.wav -codec:a libmp3lame -qscale:a 4 briefing.mp3
 
+      # A sample run must NEVER reach the Release: the TV reads that URL, so
+      # auditioning a voice would broadcast it to the office. Samples come back
+      # as a downloadable artifact on the run instead.
+      - name: Upload sample (not published to the board)
+        if: github.event.inputs.sample_text != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: briefing-sample
+          path: |
+            briefing.mp3
+            briefing.json
+
       # A fixed tag we overwrite daily, so the TV can hardcode one URL.
-      - name: Publish
+      - name: Publish to the board
+        if: github.event.inputs.sample_text == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
