@@ -342,6 +342,17 @@
   /* today's job counts ride in the panel head — the map gets the whole body */
   #loCount{color:var(--gold-ink)}
 
+  /* ── 9 AM briefing card ── */
+  #brief{position:fixed; inset:0; z-index:80; display:none; align-items:center; justify-content:center;
+    background:rgba(18,48,31,.82); backdrop-filter:blur(6px)}
+  #brief.on{display:flex}
+  #brief .card{width:min(1200px,74vw); background:var(--card); border-radius:34px; padding:54px 62px;
+    box-shadow:0 30px 80px rgba(11,38,24,.5); text-align:center}
+  #brief .k{font:700 22px/1 'Hanken Grotesk'; letter-spacing:.24em; text-transform:uppercase;
+    color:var(--gold-ink)}
+  #brief .t{font:700 46px/1.35 'Baloo 2'; color:var(--spruce); margin-top:22px}
+  #brief .warn{font:600 20px/1.4 'Hanken Grotesk'; color:#b06a1a; margin-top:26px}
+
   /* ── net-status pip ── */
   #netdot{position:fixed; bottom:14px; right:14px; width:12px; height:12px; border-radius:50%;
     background:#2f8a4e; opacity:.5; transition:background .3s, opacity .3s; z-index:50}
@@ -412,6 +423,14 @@
       </div>
     </div>
   </div>
+  <!-- 9 AM spoken briefing — the text shows too, so it still works if the
+       browser refuses to autoplay audio -->
+  <div id="brief"><div class="card">
+    <div class="k">This morning</div>
+    <div class="t" id="briefText"></div>
+    <div class="warn" id="briefWarn"></div>
+  </div></div>
+
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1508,6 +1527,53 @@
       }catch(e){ console.warn('weather failed', e); }   // board just shows no weather on a blip
     }
 
+    // ── 9 AM briefing ────────────────────────────────────────────────────────
+    // A GitHub Action speaks the day's work at 9 and publishes it as a Release
+    // asset. The board shows the text alongside, so if the browser blocks
+    // autoplay — Chrome does, without a user gesture, and nobody touches a wall
+    // display — the briefing still lands and we're told why it was silent.
+    var BRIEF_URL = 'https://github.com/soramithril/jeffs-junk/releases/download/briefing/';
+    var BRIEF_HOUR = 9;
+    var BRIEF_SHOW_MS = 45000;
+
+    function briefDoneKey(){ return 'jj-tv-brief-' + todayStr(); }
+
+    async function playBriefing(){
+      try{
+        // ?t= because GitHub caches Release assets and this URL never changes.
+        var meta = await fetch(BRIEF_URL + 'briefing.json?t=' + Date.now(), { cache:'no-store' })
+          .then(function(r){ return r.ok ? r.json() : null; });
+        // Refuse to read out a stale briefing: better silent than announcing
+        // yesterday's work as today's.
+        if(!meta || meta.date !== todayStr()) return;
+
+        el('briefText').textContent = meta.text || '';
+        el('briefWarn').textContent = '';
+        el('brief').classList.add('on');
+
+        var audio = new Audio(BRIEF_URL + 'briefing.mp3?t=' + Date.now());
+        audio.play().catch(function(err){
+          console.warn('briefing autoplay blocked', err);
+          el('briefWarn').textContent = 'Audio blocked by the browser — text only. '
+            + 'Yodeck needs --autoplay-policy=no-user-gesture-required.';
+        });
+
+        setTimeout(function(){ el('brief').classList.remove('on'); }, BRIEF_SHOW_MS);
+      }catch(e){ console.warn('briefing failed', e); }
+    }
+
+    // Fires once on the first tick at or after 9 AM. localStorage keyed by date,
+    // so a reload at 9:30 doesn't replay it and a reload tomorrow does.
+    function checkBriefing(){
+      if(new Date().getHours() < BRIEF_HOUR) return;
+      if(inQuietHours()) return;
+      try{
+        if(localStorage.getItem(briefDoneKey())) return;
+        localStorage.setItem(briefDoneKey(), '1');
+      }catch(e){ return; }   // no storage means we can't dedupe, so don't play
+      playBriefing();
+    }
+
     // ── net status ───────────────────────────────────────────────────────────
     function net(ok){ el('netdot').classList.toggle('bad', !ok); }
 
@@ -1623,6 +1689,7 @@
       el('tvbin').src = 'assets/' + TV_BINS[Math.floor(Math.random()*TV_BINS.length)];   // random bin this load
       fitBoard(); window.addEventListener('resize', fitBoard);
       tickClock(); setInterval(tickClock, 1000);
+      checkBriefing(); setInterval(checkBriefing, 60000);   // 9 AM spoken briefing
       loadWeather(); setInterval(loadWeather, 30*60*1000);
       startRotation();
       // Prime the pins so the map screen has trucks on it the first time it rotates in.

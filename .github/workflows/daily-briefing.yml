@@ -1,0 +1,72 @@
+name: daily-briefing
+
+# Speaks the day's work for the office TV, at 9 AM.
+#
+# Runs here rather than in Supabase because Kokoro is a PyTorch model and edge
+# functions are Deno sandboxes — no GPU, no Python. A GitHub runner is free and
+# we need it once a day.
+#
+# The MP3 is published as a Release asset, NOT committed: a daily commit would
+# trigger a Pages rebuild (currently ~an hour) and grow the repo forever.
+
+on:
+  schedule:
+    # 13:00 UTC = 9 AM EDT. Ontario is UTC-4 in summer and UTC-5 in winter, so
+    # this drifts to 8 AM once the clocks go back — same as the other crons in
+    # this project. Change to '0 14' in November if that matters.
+    - cron: '0 13 * * 1-6'
+  workflow_dispatch:        # so it can be tested without waiting for 9 AM
+
+concurrency:
+  group: daily-briefing
+  cancel-in-progress: true
+
+jobs:
+  speak:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # to publish the Release asset
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # espeak-ng is Kokoro's phonemiser (via misaki); ffmpeg makes the mp3.
+      - name: Install system deps
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng ffmpeg
+
+      # The model is ~330 MB from HuggingFace. Cached so we download it once,
+      # not every morning.
+      - name: Cache HuggingFace model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kokoro-82m-v1
+
+      - name: Install Kokoro
+        run: pip install --quiet kokoro>=0.9 soundfile numpy
+
+      - name: Build the briefing
+        env:
+          OFFICETV_EMAIL: ${{ secrets.OFFICETV_EMAIL }}
+          OFFICETV_PASSWORD: ${{ secrets.OFFICETV_PASSWORD }}
+        run: python scripts/build_briefing.py
+
+      - name: Encode to mp3
+        run: ffmpeg -hide_banner -loglevel error -y -i briefing.wav -codec:a libmp3lame -qscale:a 4 briefing.mp3
+
+      # A fixed tag we overwrite daily, so the TV can hardcode one URL.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view briefing >/dev/null 2>&1 \
+            || gh release create briefing --title "Daily briefing" \
+                 --notes "Audio briefing for the office TV. Overwritten each morning."
+          gh release upload briefing briefing.mp3 briefing.json --clobber
+
+      - name: Show what was said
+        run: cat briefing.json
