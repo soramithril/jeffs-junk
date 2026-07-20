@@ -418,6 +418,7 @@
     var PANELS = ['bins','schedule','kpis','liveops'];
     var YARD = { lat:44.3683, lng:-79.6831 };   // 92 Davidson St — home base
     var YARD_KM = 0.6;                          // inside this ring a truck reads "at the yard"
+    var FOCUS_ZOOM = 13;                        // how close the map flies when it focuses a truck
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     var TV_BINS = ['tv-bin-4.png','tv-bin-14.png','tv-bin-20.png'];   // bottom overlay picks one at random each load
 
@@ -1136,7 +1137,9 @@
       _card = L.tooltip({ permanent:true, direction:'top', offset:[0,-34],
                           className:'lo-pop', interactive:false })
         .setLatLng([t.lat, t.lng]).setContent(truckCard(t)).addTo(_map);
-      _map.panTo([t.lat, t.lng], { animate:true, duration:0.9 });
+      // flyTo, not panTo — panning alone left the map parked at the wide overview
+      // zoom, so a focused truck was a dot in a region. This drops right in on it.
+      _map.flyTo([t.lat, t.lng], FOCUS_ZOOM, { duration:0.9 });
       // Split the screen's dwell across however many trucks are out, with a floor
       // so a big fleet doesn't turn into a strobe.
       var hold = Math.max(6000, Math.floor(panelMs('liveops') / list.length));
