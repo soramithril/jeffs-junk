@@ -324,6 +324,12 @@
     box-shadow:0 5px 14px rgba(23,64,42,.22)}
   #loLegend b{display:flex; align-items:center; gap:9px; font:700 18px/1 'Hanken Grotesk'; color:var(--muted-2)}
   #loLegend i{width:13px; height:13px; border-radius:50%}
+  /* where the focused truck is, top-right of the map */
+  #loTown{position:absolute; right:20px; top:20px; z-index:400; display:none; align-items:center; gap:12px;
+    background:var(--spruce); border-radius:16px; padding:12px 20px; box-shadow:0 6px 16px rgba(23,64,42,.3)}
+  #loTown.on{display:flex}
+  #loTown .k{font:700 14px/1 'Hanken Grotesk'; letter-spacing:.16em; text-transform:uppercase; color:#8fb69c}
+  #loTown .v{font:700 30px/1 'Baloo 2'; color:var(--soft)}
 
   /* today's job counts ride in the panel head — the map gets the whole body */
   #loCount{color:var(--gold-ink)}
@@ -391,7 +397,7 @@
             <span class="tag" id="loTag"></span><span class="status" id="loCount"></span>
             <span class="spacer"></span><span class="status" id="loMeta"></span></div>
           <div class="p-body"><div id="opsWrap">
-            <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div></div>
+            <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div><div id="loTown"></div></div>
           </div></div>
         </section>
 
@@ -988,12 +994,44 @@
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
 
-    function kmFromYard(lat, lng){
+    function kmBetween(aLat, aLng, bLat, bLng){
       var R = 6371, toR = Math.PI/180;
-      var dLat = (lat-YARD.lat)*toR, dLng = (lng-YARD.lng)*toR;
+      var dLat = (bLat-aLat)*toR, dLng = (bLng-aLng)*toR;
       var a = Math.sin(dLat/2)*Math.sin(dLat/2)
-            + Math.cos(YARD.lat*toR)*Math.cos(lat*toR)*Math.sin(dLng/2)*Math.sin(dLng/2);
+            + Math.cos(aLat*toR)*Math.cos(bLat*toR)*Math.sin(dLng/2)*Math.sin(dLng/2);
       return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    function kmFromYard(lat, lng){ return kmBetween(lat, lng, YARD.lat, YARD.lng); }
+
+    // Which town a truck is in. Nearest-town from the same list the dashboard's
+    // coverage map uses (RC_CITIES in app.js) — copied because this page loads no
+    // app.js. Coordinates only, deliberately NOT a reverse-geocode service: a 24/7
+    // wall has no business hammering a public geocoder every time it pans.
+    var TOWNS = [
+      ['Barrie',44.3894,-79.6903],['Midhurst',44.4331,-79.7336],['Shanty Bay',44.4142,-79.5714],
+      ['Oro-Medonte',44.53,-79.53],['Minesing',44.3861,-79.8536],['Thornton',44.235,-79.7869],
+      ['Anten Mills',44.3781,-79.8181],['Innisfil',44.30,-79.585],['Angus',44.3181,-79.8811],
+      ['Elmvale',44.5836,-79.8664],['Hillsdale',44.53,-79.78],['Gilford',44.2278,-79.5344],
+      ['Tiny Township',44.68,-79.93],['Orillia',44.6083,-79.42],['Wasaga Beach',44.5203,-80.0164],
+      ['Stayner',44.4189,-80.0847],['Bradford',44.1153,-79.5636],['Creemore',44.3242,-80.105],
+      ['Alliston',44.1522,-79.8656],['Warminster',44.6175,-79.5342],['Severn',44.70,-79.65],
+      ['Beeton',44.0819,-79.7828],['Mansfield',44.1839,-80.0331],['Waubaushene',44.7519,-79.7047],
+      ['Midland',44.75,-79.8833],['Schomberg',44.00,-79.6864],['Mulmur',44.20,-80.1167],
+      ['Port McNicoll',44.7519,-79.8067],['Penetanguishene',44.7669,-79.9314],['Washago',44.7519,-79.3383],
+      ['Tottenham',44.0175,-79.8039],['Victoria Harbour',44.7519,-79.7644],['Collingwood',44.5008,-80.2169],
+      ['Newmarket',44.0592,-79.4613],['Brechin',44.5333,-79.1833],['Ramara',44.60,-79.22],
+      ['King City',43.9256,-79.5289],['Aurora',44.0065,-79.4504],['Blue Mountains',44.53,-80.40],
+      ['Shelburne',44.0783,-80.2042],['Gravenhurst',44.9167,-79.3667],['Muskoka',45.15,-79.35],
+      ['Thornbury',44.5636,-80.4553],['Bracebridge',45.0333,-79.30],['Bala',45.0167,-79.6167],
+      ['Port Carling',45.1167,-79.5833],['Huntsville',45.3269,-79.2158]
+    ];
+    function nearestTown(lat, lng){
+      var best = null, bestKm = Infinity;
+      for(var i=0; i<TOWNS.length; i++){
+        var km = kmBetween(lat, lng, TOWNS[i][1], TOWNS[i][2]);
+        if(km < bestKm){ bestKm = km; best = TOWNS[i][0]; }
+      }
+      return best;
     }
     // Three states we can actually derive from a position: parked at the yard,
     // moving, or stopped out in the field. (No "on site" here — that needs the
@@ -1118,6 +1156,7 @@
     function stopCycle(){
       _cycleGen++;                       // any chain still in flight now bails out
       clearTimeout(_cycleTimer); _cycleTimer = null; _focusId = null;
+      el('loTown').classList.remove('on');
       // .remove(), not map.closeTooltip() — these are added as layers, and
       // closeTooltip only clears ones opened via openTooltip.
       if(_card){ _card.remove(); _card = null; }
@@ -1133,6 +1172,9 @@
         var m = _markers[x.id];
         if(m) m.setIcon(truckIcon(x, x.id === t.id));
       });
+      var town = el('loTown');
+      town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
+      town.classList.add('on');
       if(_card) _card.remove();
       _card = L.tooltip({ permanent:true, direction:'top', offset:[0,-34],
                           className:'lo-pop', interactive:false })
