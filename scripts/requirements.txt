@@ -1,0 +1,6 @@
+# Daily-briefing TTS dependencies (see .github/workflows/daily-briefing.yml).
+# This file's second job: setup-python's `cache: pip` needs a requirements file
+# to key the cache on — its absence hard-failed the workflow's first two runs.
+kokoro>=0.9
+soundfile
+numpy

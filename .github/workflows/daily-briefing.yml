@@ -57,10 +57,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # cache: pip REQUIRES a requirements file to key on — without one,
+      # setup-python fails the whole job (that was runs #1 and #2).
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
+          cache-dependency-path: scripts/requirements.txt
 
       # espeak-ng is Kokoro's phonemiser (via misaki); ffmpeg makes the mp3.
       - name: Install system deps
@@ -75,7 +78,7 @@ jobs:
           key: kokoro-82m-v1
 
       - name: Install Kokoro
-        run: pip install --quiet kokoro>=0.9 soundfile numpy
+        run: pip install --quiet -r scripts/requirements.txt
 
       - name: Build the briefing
         env:
