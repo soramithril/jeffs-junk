@@ -281,16 +281,40 @@
   .leaflet-tile-pane{filter:saturate(.6) brightness(1.06) contrast(.92) sepia(.12)}
   .leaflet-control-attribution{font:600 11px/1.4 'Hanken Grotesk'; background:rgba(255,251,240,.78); color:#7a7c5f}
   .leaflet-control-attribution a{color:#7a7c5f}
-  /* truck pin: status-coloured disc + name chip */
-  .lo-tk{display:flex; flex-direction:column; align-items:center; gap:5px}
-  .lo-tk .b{display:grid; place-items:center; width:46px; height:46px; border-radius:50%;
-    box-shadow:0 0 0 4px var(--card), 0 7px 14px rgba(23,64,42,.34)}
-  .lo-tk .b svg{width:25px; height:25px; stroke:#fff; fill:none; stroke-width:2;
+  /* Truck pin — the mockup's marker, scaled 1.5x for the 1920-wide board:
+     glossed disc, white ring, name chip, and a ping ring while it's moving. */
+  @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
+  .lo-tk{position:relative; display:flex; flex-direction:column; align-items:center; gap:5px}
+  .lo-tk .b{position:relative; display:grid; place-items:center; width:45px; height:45px; border-radius:50%;
+    box-shadow:0 9px 24px rgba(0,0,0,.30), 0 0 0 5px var(--card), 0 0 0 9px rgba(23,64,42,.07)}
+  .lo-tk .b svg{width:24px; height:24px; stroke:#fff; fill:none; stroke-width:2;
     stroke-linecap:round; stroke-linejoin:round}
-  .lo-tk .n{background:var(--card); border-radius:11px; padding:3px 11px; font:700 16px/1.15 'Hanken Grotesk';
-    color:var(--ink); white-space:nowrap; box-shadow:0 3px 8px rgba(23,64,42,.24)}
+  .lo-tk .ping{position:absolute; inset:-8px; border-radius:50%; border:3px solid currentColor;
+    animation:tkping 1.7s ease-out infinite; pointer-events:none}
+  .lo-tk .n{background:var(--card); border:1px solid rgba(23,64,42,.12); border-radius:9px;
+    padding:3px 11px; font:700 16px/1.15 'Hanken Grotesk';
+    color:var(--ink); white-space:nowrap; box-shadow:0 3px 12px rgba(23,64,42,.20)}
+  /* the truck the map is currently focused on */
+  .lo-tk.sel .b{width:57px; height:57px}
+  .lo-tk.sel .b svg{width:30px; height:30px}
   .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--card), 0 4px 10px rgba(23,64,42,.3)}
+  /* Focused-truck card. A permanent Leaflet tooltip, so it rides with the pin —
+     there's no cursor on a wall, so nothing could ever hover it. */
+  .leaflet-tooltip.lo-pop{background:none; border:0; box-shadow:none; padding:0; margin:0;
+    white-space:normal}
+  .leaflet-tooltip.lo-pop::before{display:none}
+  .lo-pop .card{width:250px; background:var(--card); border-radius:15px; overflow:hidden;
+    box-shadow:0 16px 38px rgba(23,64,42,.32)}
+  .lo-pop .hd{display:flex; align-items:center; gap:10px; padding:10px 15px}
+  .lo-pop .hd .nm{font:700 23px/1 'Baloo 2'; color:#fff}
+  .lo-pop .hd .st{margin-left:auto; font:700 12px/1 'Hanken Grotesk'; letter-spacing:.09em;
+    text-transform:uppercase; color:#fff; background:rgba(255,255,255,.26);
+    border-radius:20px; padding:5px 11px}
+  .lo-pop .rw{display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+    padding:8px 15px 0; font:600 16px/1.2 'Hanken Grotesk'; color:var(--muted)}
+  .lo-pop .rw:last-child{padding-bottom:12px}
+  .lo-pop .rw b{color:var(--ink); font-weight:700}
   /* Legend sits ON the map, bottom-left. It can't live in the panel head: the
      ambient truck/bin art (#tvtruck/#tvbin, z-index 5) is parked over that exact
      spot and buries it. */
@@ -385,7 +409,11 @@
     var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
     var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
     var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
-    var ROTATE_MS  = 20000;   // time each panel is shown
+    var ROTATE_MS  = 20000;   // default time each panel is shown
+    // The map screen earns extra time — it cycles through the trucks, so 20s only
+    // gets you two of them. Everything else stays at ROTATE_MS.
+    var PANEL_MS   = { liveops: 45000 };
+    function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     var PANELS = ['bins','schedule','kpis','liveops'];
     var YARD = { lat:44.3683, lng:-79.6831 };   // 92 Davidson St — home base
@@ -954,6 +982,10 @@
     // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
     var TRUCK_C = { moving:'#2f8a4e', stopped:'#c9861c' };
     var _map = null, _markers = {};
+    // _cycleGen invalidates in-flight cycles. Without it a second startCycle (panel
+    // re-entry, or the async refreshTrucks restart) leaves the previous chain's
+    // pending timeout unclearable, and two chains race, each spawning cards.
+    var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
 
     function kmFromYard(lat, lng){
       var R = 6371, toR = Math.PI/180;
@@ -989,7 +1021,9 @@
     async function refreshTrucks(){
       try{
         await loadTrucks();
-        if(PANELS[panelIdx] === 'liveops') renderLiveOps();
+        // Restart the cycle on fresh data so it steps through the trucks that are
+        // actually out right now, from the top.
+        if(PANELS[panelIdx] === 'liveops'){ renderLiveOps(); startCycle(); }
       }catch(e){ console.warn('truck positions failed', e); }
     }
 
@@ -1017,32 +1051,103 @@
       return _map;
     }
 
+    // Only trucks that are actually OUT get a pin — the yarded ones would all land
+    // on the same pixel. This is also what the "N of M out" tag counts.
+    function outTrucks(){
+      return (DATA.trucks || []).filter(function(t){ return truckState(t) !== 'yard'; });
+    }
+
+    // The mockup's marker: glossed disc, white ring, name chip, and a ping ring
+    // while the truck is moving. `sel` is the truck the map is focused on.
+    function truckIcon(t, sel){
+      var st = truckState(t), c = TRUCK_C[st], d = sel ? 57 : 45;
+      var gloss = 'radial-gradient(circle at 34% 28%, color-mix(in srgb, '+c+' 55%, #fff), '+c+')';
+      var ping = st === 'moving' ? '<span class="ping" style="color:'+c+'"></span>' : '';
+      return L.divIcon({ className:'', iconSize:[d, d+30], iconAnchor:[d/2, d/2],
+        html:'<div class="lo-tk'+(sel ? ' sel' : '')+'">'
+           + '<span class="b" style="background:'+gloss+'">'+TRUCK_SVG+ping+'</span>'
+           + '<span class="n">'+esc(t.name)+'</span></div>' });
+    }
+
+    // Card for the focused truck. A permanent tooltip so it tracks the pin rather
+    // than needing a hover the wall can never give it. Only fields we can stand
+    // behind — driver / current job / load aren't in our data.
+    function truckCard(t){
+      var st = truckState(t), c = TRUCK_C[st];
+      var label = st === 'moving' ? 'Moving' : 'Stopped';
+      var age = DATA.trucksAt && t.lastUpdate
+        ? Math.max(0, Math.round((DATA.trucksAt - Date.parse(t.lastUpdate)) / 60000)) : null;
+      return '<div class="card"><div class="hd" style="background:'+c+'">'
+        + '<span class="nm">'+esc(t.name)+'</span><span class="st">'+label+'</span></div>'
+        + '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
+        + '<div class="rw"><span>Last ping</span><b>'
+        + (age === null ? '—' : age === 0 ? 'just now' : age + ' min ago') + '</b></div></div>';
+    }
+
     function drawTrucks(){
       var map = ensureTruckMap();
       if(!map) return;
-      // Only trucks that are actually OUT get a pin — the yarded ones live in the
-      // yard chip's count. That's also what the "trucks out" tile counts.
-      var list = (DATA.trucks || []).filter(function(t){ return truckState(t) !== 'yard'; });
-      var seen = {};
+      var list = outTrucks(), seen = {};
       list.forEach(function(t){
         seen[t.id] = 1;
-        var icon = L.divIcon({ className:'', iconSize:[46,74], iconAnchor:[23,23],
-          html:'<div class="lo-tk"><span class="b" style="background:'+TRUCK_C[truckState(t)]+'">'
-             + TRUCK_SVG + '</span><span class="n">'+esc(t.name)+'</span></div>' });
         var m = _markers[t.id];
-        if(m){ m.setLatLng([t.lat, t.lng]); m.setIcon(icon); }
-        else { _markers[t.id] = L.marker([t.lat, t.lng], { icon:icon, interactive:false }).addTo(map); }
+        if(m){ m.setLatLng([t.lat, t.lng]); m.setIcon(truckIcon(t, t.id === _focusId)); }
+        else {
+          m = L.marker([t.lat, t.lng], { icon:truckIcon(t, false), interactive:false }).addTo(map);
+          _markers[t.id] = m;
+        }
       });
       Object.keys(_markers).forEach(function(id){
         if(!seen[id]){ map.removeLayer(_markers[id]); delete _markers[id]; }
       });
       // The panel is hidden when the map is first built, so Leaflet needs a nudge
-      // to pick up its real size before we frame anything.
+      // to pick up its real size.
       map.invalidateSize();
-      // Always keep the yard in frame so the board reads as "home + who's out".
-      var pts = list.map(function(t){ return [t.lat, t.lng]; });
+    }
+
+    // Frame everything — the overview we fall back to when there's nobody to focus.
+    function frameAll(){
+      if(!_map) return;
+      var pts = outTrucks().map(function(t){ return [t.lat, t.lng]; });
       pts.push([YARD.lat, YARD.lng]);
-      map.fitBounds(pts, { padding:[70,80], maxZoom:12, animate:false });
+      _map.fitBounds(pts, { padding:[80,90], maxZoom:12, animate:false });
+    }
+
+    // ── focus cycle: step through the trucks while the screen is up ───────────
+    function stopCycle(){
+      _cycleGen++;                       // any chain still in flight now bails out
+      clearTimeout(_cycleTimer); _cycleTimer = null; _focusId = null;
+      // .remove(), not map.closeTooltip() — these are added as layers, and
+      // closeTooltip only clears ones opened via openTooltip.
+      if(_card){ _card.remove(); _card = null; }
+    }
+
+    function focusTruck(i, gen){
+      if(gen !== _cycleGen) return;      // a newer cycle has taken over
+      var list = outTrucks();
+      if(!list.length){ _focusId = null; frameAll(); return; }
+      var t = list[((i % list.length) + list.length) % list.length];
+      _focusId = t.id;
+      list.forEach(function(x){
+        var m = _markers[x.id];
+        if(m) m.setIcon(truckIcon(x, x.id === t.id));
+      });
+      if(_card) _card.remove();
+      _card = L.tooltip({ permanent:true, direction:'top', offset:[0,-34],
+                          className:'lo-pop', interactive:false })
+        .setLatLng([t.lat, t.lng]).setContent(truckCard(t)).addTo(_map);
+      _map.panTo([t.lat, t.lng], { animate:true, duration:0.9 });
+      // Split the screen's dwell across however many trucks are out, with a floor
+      // so a big fleet doesn't turn into a strobe.
+      var hold = Math.max(6000, Math.floor(panelMs('liveops') / list.length));
+      _cycleTimer = setTimeout(function(){ focusTruck(i + 1, gen); }, hold);
+    }
+
+    function startCycle(){
+      stopCycle();
+      if(!_map) return;
+      frameAll();
+      if(outTrucks().length) focusTruck(0, _cycleGen);
     }
 
     function renderLiveOps(){
@@ -1056,9 +1161,9 @@
       el('loLegend').innerHTML = '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
         + '<b><i style="background:'+TRUCK_C.stopped+'"></i>Stopped</b>'
         + '<b><i style="background:var(--gold)"></i>Yard</b>';
-      el('loMeta').textContent = DATA.trucksAt
-        ? 'Live ' + new Date(DATA.trucksAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
-        : 'Waiting on GPS…';
+      // No clock here — the header already has one. This slot only speaks up when
+      // the GPS feed has given us nothing, which the header can't tell you.
+      el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
 
       // Bins-out isn't repeated here — the Operations screen already carries it.
       // These two live nowhere else on the board, so they ride in the head rather
@@ -1092,17 +1197,27 @@
       // Pull fresh truck positions as the map rotates in — once every lap rather
       // than on a timer of its own, so the pins are current exactly when they're
       // on screen and we spend nothing on Geotab's quota the rest of the time.
-      if(name === 'liveops' && !inWeekendQuiet()) refreshTrucks();
+      if(name === 'liveops'){
+        startCycle();                                   // begin with what we have
+        if(!inWeekendQuiet()) refreshTrucks();          // then restart on fresh data
+      } else {
+        stopCycle();                                    // nothing spinning off-screen
+      }
     }
-    function nextPanel(){ showPanel(panelIdx+1); }
+    function nextPanel(){ showPanel(panelIdx+1); armRotation(); }
+    // A setTimeout chain rather than one setInterval, so each panel can hold the
+    // screen for its own length of time.
+    function armRotation(){
+      clearTimeout(rotTimer);
+      rotTimer = setTimeout(nextPanel, panelMs(PANELS[panelIdx]));
+    }
     function startRotation(){
       showPanel(0);
-      clearInterval(rotTimer);
-      rotTimer = setInterval(nextPanel, ROTATE_MS);
+      armRotation();
       // Verification hook only — inert unless the URL carries ?debug. Lets a
-      // reviewer pin a panel (window.__tv.show(i)) without the 20s rotation.
+      // reviewer pin a panel (window.__tv.show(i)) without the rotation moving on.
       if(/[?&]debug\b/.test(location.search)){
-        window.__tv = { show:function(i){ clearInterval(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent };
+        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent };
       }
     }
 
