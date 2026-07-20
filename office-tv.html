@@ -533,7 +533,8 @@
 
     // ── state ────────────────────────────────────────────────────────────────
     var DATA = { jobs:[], crew:{}, crewColor:{}, jwgColor:{}, emps:[], sched:{}, tasks:{},
-                 inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0 };
+                 inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0,
+                 crewAll:{}, driverByDevice:{} };
     var panelIdx = 0, rotTimer = null;
 
     function jobTime(j){
@@ -559,7 +560,8 @@
         if(j.service==='Junk Quote' || j.service==='Landscaping') return;
         function mk(label, time, crewIds){
           out.push({ service:label, time:time||'', name:j.name, business_name:j.business_name,
-                     address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean) });
+                     address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean),
+                     completed: !!j.completed });
         }
         if(j.service==='Bin Rental'){
           if(j.bin_dropoff===today) mk('Bin Drop-off', j.bin_dropoff_time, [j.dropoff_crew_id]);
@@ -665,9 +667,12 @@
       var lyMonthEnd = (mo===12) ? monthStartStr(y, 1) : monthStartStr(y-1, mo+1);
 
       var res = await Promise.all([
-        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid')
+        db.from('jobs').select('job_id,service,status,name,business_name,address,city,date,time,junk_date,junk_time,fb_date,fb_time,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_size,bin_bid,completed')
           .or('date.eq.'+today+',junk_date.eq.'+today+',fb_date.eq.'+today+',bin_dropoff.eq.'+today+',bin_pickup.eq.'+today),
-        db.from('crew_members').select('id,name,color,jwg_id').eq('on_junk', true),
+        // on_junk is no longer filtered server-side: DATA.crew still keeps only the
+        // junk crew (below), but the truck-assignment lookup needs to name ANY
+        // assigned driver, junk-side or not.
+        db.from('crew_members').select('id,name,color,jwg_id,on_junk'),
         db.from('jwg_employees').select('id,name'),
         db.from('jwg_schedules').select('employee_id,schedule_data').eq('week_start', monday),
         db.from('jwg_app_settings').select('key,value').in('key',['tasks','emp_order']),
@@ -699,7 +704,14 @@
         db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
-        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled')
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
+        // ── 21/22 ── who's in which truck today, and which Geotab unit each truck
+        // carries. Together these turn a GPS device id into a driver, and a driver
+        // into their remaining work. APPENDED, not inserted: every res[N] above is
+        // read positionally, so slotting these mid-array would silently repoint the
+        // whole "beat last year" scoreboard.
+        db.from('vehicle_assignments').select('vid,crew_member_id,started_at,ended_at').eq('assignment_date', today),
+        db.from('vehicle_odometers').select('vid,geotab_device_id')
       ]);
       // Every query is critical — fail fast so the board never renders half-loaded.
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
@@ -709,10 +721,34 @@
 
       // crew id -> name, plus master-colour maps (by crew id AND by jwg_id) so
       // both boards can tint each person with their app-wide colour.
-      DATA.crew = {}; DATA.crewColor = {}; DATA.jwgColor = {};
+      DATA.crew = {}; DATA.crewColor = {}; DATA.jwgColor = {}; DATA.crewAll = {};
       (res[1].data||[]).forEach(function(c){
-        DATA.crew[c.id]=c.name;
+        DATA.crewAll[c.id]=c.name;                 // every crew member, for naming drivers
+        if(c.on_junk) DATA.crew[c.id]=c.name;      // junk crew only — unchanged from before
         if(c.color){ DATA.crewColor[c.id]=c.color; if(c.jwg_id) DATA.jwgColor[c.jwg_id]=c.color; }
+      });
+
+      // Geotab device -> today's driver. vehicle_odometers carries the device id
+      // per truck; vehicle_assignments says who is in it today.
+      var assignByVid = {};
+      (res[21].data||[]).forEach(function(a){
+        var cur = assignByVid[a.vid];
+        if(!cur){ assignByVid[a.vid] = a; return; }
+        // Driver swaps happen (a truck can have 2-3 assignments in a day): an open
+        // assignment beats a closed one, otherwise the later start wins.
+        var curOpen = !cur.ended_at, aOpen = !a.ended_at;
+        if(aOpen && !curOpen) assignByVid[a.vid] = a;
+        else if(aOpen === curOpen && Date.parse(a.started_at||0) > Date.parse(cur.started_at||0)) assignByVid[a.vid] = a;
+      });
+      DATA.driverByDevice = {};
+      (res[22].data||[]).forEach(function(o){
+        if(!o.geotab_device_id) return;
+        var a = assignByVid[o.vid];
+        if(!a || !a.crew_member_id) return;
+        DATA.driverByDevice[o.geotab_device_id] = {
+          crewId: a.crew_member_id,
+          name: DATA.crewAll[a.crew_member_id] || ''
+        };
       });
 
       // junk work per person/day for the schedule ghosts (needs DATA.crew, so build it here)
@@ -1108,19 +1144,44 @@
            + '<span class="n">'+esc(t.name)+'</span></div>' });
     }
 
+    // Today's work still outstanding for one crew member. Bin legs come from the
+    // board (done/not-done is geofence-driven, same as Screen 1); everything else
+    // counts as left until the job is marked completed.
+    function jobsLeftFor(crewId){
+      var n = 0;
+      (DATA.binBoard||[]).forEach(function(g){
+        if(g.crewId !== crewId) return;
+        g.legs.forEach(function(l){ if(!l.done) n++; });
+      });
+      (DATA.jobs||[]).forEach(function(e){
+        if(e.service === 'Bin Drop-off' || e.service === 'Bin Pick-up') return;   // counted above
+        if(e.completed) return;
+        if((e.crewIds||[]).indexOf(crewId) !== -1) n++;
+      });
+      return n;
+    }
+
     // Card for the focused truck. A permanent tooltip so it tracks the pin rather
-    // than needing a hover the wall can never give it. Only fields we can stand
-    // behind — driver / current job / load aren't in our data.
+    // than needing a hover the wall can never give it. Driver and jobs-left only
+    // appear when today's truck assignment tells us who is actually in it.
     function truckCard(t){
       var st = truckState(t), c = TRUCK_C[st];
       var label = st === 'moving' ? 'Moving' : 'Stopped';
       var age = DATA.trucksAt && t.lastUpdate
         ? Math.max(0, Math.round((DATA.trucksAt - Date.parse(t.lastUpdate)) / 60000)) : null;
+      var who = (DATA.driverByDevice || {})[t.id];
+      var rows = '';
+      if(who && who.name){
+        var left = jobsLeftFor(who.crewId);
+        rows += '<div class="rw"><span>Driver</span><b>'+esc(who.name)+'</b></div>'
+             +  '<div class="rw"><span>Jobs left</span><b>'+left+'</b></div>';
+      }
+      rows += '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
+           +  '<div class="rw"><span>Last ping</span><b>'
+           +  (age === null ? '—' : age === 0 ? 'just now' : age + ' min ago') + '</b></div>';
       return '<div class="card"><div class="hd" style="background:'+c+'">'
         + '<span class="nm">'+esc(t.name)+'</span><span class="st">'+label+'</span></div>'
-        + '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
-        + '<div class="rw"><span>Last ping</span><b>'
-        + (age === null ? '—' : age === 0 ? 'just now' : age + ' min ago') + '</b></div></div>';
+        + rows + '</div>';
     }
 
     function drawTrucks(){
