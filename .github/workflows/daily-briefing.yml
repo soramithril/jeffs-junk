@@ -29,9 +29,9 @@ on:
           are already out in the field. There are 2 junk removals on the book.
           Have a good one.
       voice:
-        description: 'Kokoro voice — bm_george, bm_fable, bm_lewis, bm_daniel'
+        description: 'Kokoro voice — bm_daniel, bm_george, bm_fable, bm_lewis'
         required: false
-        default: bm_george
+        default: bm_daniel
 
 concurrency:
   group: daily-briefing

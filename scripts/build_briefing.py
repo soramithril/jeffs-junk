@@ -30,7 +30,7 @@ ANON_KEY = (
     "ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w"
 )
 
-VOICE = "bm_george"     # British male, Kokoro's own voice pack
+VOICE = "bm_daniel"     # British male — Jake picked it by ear over george/fable/lewis
 LANG = "b"              # British English
 
 # Truck -> regular driver, mirroring AUTO_ASSIGNMENTS in app-leaderboard.js and
