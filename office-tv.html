@@ -1556,13 +1556,22 @@
 
     async function playBriefing(){
       try{
-        // ?t= because GitHub caches Release assets and this URL never changes.
-        var meta = await fetch(BRIEF_URL + 'briefing.json?t=' + Date.now(), { cache:'no-store' })
+        // Release METADATA must come from api.github.com — the only GitHub host
+        // that answers cross-origin fetches. The plain release-download URL does
+        // NOT (verified from this page's origin: fetch dies with a CORS
+        // TypeError). That's what the first wall test's silence was: the TV
+        // retrying a blocked briefing.json fetch every minute, nothing to show.
+        // Unauthenticated API allows 60 req/hr/IP; at worst one per minute this
+        // stays at the line, and a rate-limited response just skips the tick.
+        var rel = await fetch('https://api.github.com/repos/soramithril/jeffs-junk/releases/tags/briefing',
+                              { cache:'no-store' })
           .then(function(r){ return r.ok ? r.json() : null; });
-        // Refuse to read out a stale briefing: better silent than announcing
-        // yesterday's work as today's. NOT marked as played — the Action may
-        // simply not have published yet, and the next minute-tick retries.
-        if(!meta || meta.date !== todayStr()) return;
+        var mp3 = rel && (rel.assets || []).filter(function(a){ return a.name === 'briefing.mp3'; })[0];
+        // The asset's upload time IS the freshness check — published today
+        // (local) means today's briefing. Refuse anything else: better silent
+        // than announcing yesterday's work as today's. NOT marked as played —
+        // the Action may simply not have published yet; next minute-tick retries.
+        if(!mp3 || ymd(new Date(mp3.updated_at)) !== todayStr()) return;
 
         // Mark played ONLY now that a today-dated briefing is in hand. Marking
         // before the fetch (as first shipped) burned the day at 9:00 while the
