@@ -534,7 +534,7 @@
     // ── state ────────────────────────────────────────────────────────────────
     var DATA = { jobs:[], crew:{}, crewColor:{}, jwgColor:{}, emps:[], sched:{}, tasks:{},
                  inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0,
-                 crewAll:{} };
+                 crewAll:{}, trails:{} };
     var panelIdx = 0, rotTimer = null;
 
     function jobTime(j){
@@ -1000,6 +1000,8 @@
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
+    var _trailLine = null, _replayRaf = null;
+    var REPLAY_MS = 5500;     // 30 min of driving compressed into this
 
     function kmBetween(aLat, aLng, bLat, bLng){
       var R = 6371, toR = Math.PI/180;
@@ -1069,9 +1071,33 @@
     // must never take the board down: keep the last-good pins on the wall (the
     // timestamp in the panel head shows how stale they are) and try again next
     // time the screen rotates in.
+    // Last 30 min of breadcrumbs per truck, replayed when the map focuses one.
+    // Same read-only proxy, separate action.
+    async function loadTrails(){
+      var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'trails' })
+      });
+      var d = await r.json();
+      if(!d.ok) throw new Error(d.error || 'trails failed');
+      var out = {};
+      (d.trails||[]).forEach(function(t){
+        var pts = (t.points||[]).filter(function(p){
+          return p && typeof p[0] === 'number' && typeof p[1] === 'number'
+              && p[0] >= -90 && p[0] <= 90 && p[1] >= -180 && p[1] <= 180
+              && !(p[0] === 0 && p[1] === 0);
+        });
+        if(pts.length >= 2) out[t.id] = pts;      // a single point isn't a path
+      });
+      DATA.trails = out;
+    }
+
     async function refreshTrucks(){
       try{
         await loadTrucks();
+        // Trails are a second Geotab read and only decoration — if they fail, the
+        // pins must still go up, so this is caught on its own.
+        try { await loadTrails(); } catch(e){ console.warn('trails failed', e); }
         // Restart the cycle on fresh data so it steps through the trucks that are
         // actually out right now, from the top.
         if(PANELS[panelIdx] === 'liveops'){ renderLiveOps(); startCycle(); }
@@ -1221,8 +1247,45 @@
       _map.fitBounds(pts, { padding:[80,90], maxZoom:12, animate:false });
     }
 
+    // ── trail replay ──────────────────────────────────────────────────────────
+    function stopReplay(){
+      if(_replayRaf){ cancelAnimationFrame(_replayRaf); _replayRaf = null; }
+      if(_trailLine){ _trailLine.remove(); _trailLine = null; }
+    }
+
+    // Draw the focused truck's recent path, growing it from oldest to newest so
+    // the run replays rather than just appearing. Carries the cycle generation so
+    // a frame that lands after the cycle moved on can't draw onto the next truck.
+    function replayTrail(t, gen){
+      stopReplay();
+      var pts = (DATA.trails || {})[t.id];
+      if(!pts || pts.length < 2 || !_map) return;
+      var c = TRUCK_C[truckState(t)];
+      _trailLine = L.polyline([pts[0]], {
+        color:c, weight:6, opacity:.85, lineCap:'round', lineJoin:'round', interactive:false
+      }).addTo(_map);
+      // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
+      // the tab is hidden, which would strand the line part-drawn — the same reason
+      // countUp() bails when hidden. Nobody is watching then, so just draw the whole
+      // path and skip the animation.
+      if(document.hidden){ _trailLine.setLatLngs(pts); return; }
+      var start = null;
+      function frame(ts){
+        if(gen !== _cycleGen){ return; }
+        if(start === null) start = ts;
+        var p = Math.min(1, (ts - start) / REPLAY_MS);
+        // ease-out so it charges away and settles, rather than crawling linearly
+        var e = 1 - Math.pow(1 - p, 2);
+        _trailLine.setLatLngs(pts.slice(0, Math.max(2, Math.round(e * pts.length))));
+        if(p < 1) _replayRaf = requestAnimationFrame(frame);
+        else _replayRaf = null;
+      }
+      _replayRaf = requestAnimationFrame(frame);
+    }
+
     // ── focus cycle: step through the trucks while the screen is up ───────────
     function stopCycle(){
+      stopReplay();
       _cycleGen++;                       // any chain still in flight now bails out
       clearTimeout(_cycleTimer); _cycleTimer = null; _focusId = null;
       el('loTown').classList.remove('on');
@@ -1250,7 +1313,16 @@
         .setLatLng([t.lat, t.lng]).setContent(truckCard(t)).addTo(_map);
       // flyTo, not panTo — panning alone left the map parked at the wide overview
       // zoom, so a focused truck was a dot in a region. This drops right in on it.
-      _map.flyTo([t.lat, t.lng], FOCUS_ZOOM, { duration:0.9 });
+      // With a trail we frame the whole recent run instead, capped at the same
+      // zoom so a truck that has barely moved doesn't slam to max magnification.
+      var path = (DATA.trails || {})[t.id];
+      if(path && path.length >= 2){
+        _map.flyToBounds(L.latLngBounds(path.concat([[t.lat, t.lng]])),
+                         { maxZoom:FOCUS_ZOOM, padding:[100,110], duration:0.9 });
+      } else {
+        _map.flyTo([t.lat, t.lng], FOCUS_ZOOM, { duration:0.9 });
+      }
+      replayTrail(t, gen);
       // Split the screen's dwell across however many trucks are out, with a floor
       // so a big fleet doesn't turn into a strobe.
       var hold = Math.max(6000, Math.floor(panelMs('liveops') / list.length));
