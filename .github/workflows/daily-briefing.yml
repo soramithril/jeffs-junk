@@ -11,10 +11,15 @@ name: daily-briefing
 
 on:
   schedule:
-    # 13:00 UTC = 9 AM EDT. Ontario is UTC-4 in summer and UTC-5 in winter, so
-    # this drifts to 8 AM once the clocks go back — same as the other crons in
-    # this project. Change to '0 14' in November if that matters.
-    - cron: '0 13 * * 1-6'
+    # 12:45 UTC = 8:45 AM EDT — deliberately BEFORE the board's 9 AM slot. The
+    # render takes a few minutes (more on a cold model cache, and GitHub can
+    # queue cron jobs), and the board plays the file on its first minute-tick
+    # after 9 that finds a today-dated briefing. Publishing early means Daniel
+    # speaks at 9:00 sharp; publishing at 9:00 meant he was still clearing his
+    # throat when the board first looked. Ontario is UTC-4 in summer, UTC-5 in
+    # winter, so this drifts to 7:45 AM in November — earlier is harmless, the
+    # board still waits for 9.
+    - cron: '45 12 * * 1-6'
   workflow_dispatch:        # so it can be tested without waiting for 9 AM
     inputs:
       sample_text:

@@ -1514,7 +1514,7 @@
       // Verification hook only — inert unless the URL carries ?debug. Lets a
       // reviewer pin a panel (window.__tv.show(i)) without the rotation moving on.
       if(/[?&]debug\b/.test(location.search)){
-        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent };
+        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent, brief:checkBriefing };
       }
     }
 
@@ -1565,8 +1565,15 @@
         var meta = await fetch(BRIEF_URL + 'briefing.json?t=' + Date.now(), { cache:'no-store' })
           .then(function(r){ return r.ok ? r.json() : null; });
         // Refuse to read out a stale briefing: better silent than announcing
-        // yesterday's work as today's.
+        // yesterday's work as today's. NOT marked as played — the Action may
+        // simply not have published yet, and the next minute-tick retries.
         if(!meta || meta.date !== todayStr()) return;
+
+        // Mark played ONLY now that a today-dated briefing is in hand. Marking
+        // before the fetch (as first shipped) burned the day at 9:00 while the
+        // Action was still rendering, so the wall would never have spoken at all.
+        try{ localStorage.setItem(briefDoneKey(), '1'); }
+        catch(e){ return; }   // no storage = no dedupe; stay silent over replaying
 
         el('briefText').textContent = meta.text || '';
         el('briefWarn').textContent = '';
@@ -1583,16 +1590,19 @@
       }catch(e){ console.warn('briefing failed', e); }
     }
 
-    // Fires once on the first tick at or after 9 AM. localStorage keyed by date,
-    // so a reload at 9:30 doesn't replay it and a reload tomorrow does.
+    // Ticks every minute. From 9 AM it keeps trying until a today-dated briefing
+    // is found and played, then the marker (set in playBriefing, only on success)
+    // stops it for the rest of the day. Retrying matters: the Action publishes a
+    // few minutes AFTER the hour, so the first checks of the day legitimately
+    // find nothing — burning the marker up front here (as first shipped) meant
+    // the wall checked once at 9:00, missed, and stayed silent forever.
     function checkBriefing(){
       if(new Date().getHours() < BRIEF_HOUR) return;
       if(inQuietHours()) return;
       try{
         if(localStorage.getItem(briefDoneKey())) return;
-        // Sweep old date-keyed markers before writing today's — without this the
-        // board accrues one dead ~30-byte key per day, forever. Trivial, but this
-        // display runs unattended for months.
+        // Sweep old date-keyed markers — without this the board accrues one dead
+        // ~30-byte key per day, forever, and it runs unattended for months.
         //
         // Collect first, THEN remove: localStorage.key(i) order is unspecified
         // and may reshuffle after a removeItem, so deleting while iterating can
@@ -1604,7 +1614,6 @@
           if(k && k.indexOf('jj-tv-brief-') === 0 && k !== briefDoneKey()) stale.push(k);
         }
         stale.forEach(function(s){ localStorage.removeItem(s); });
-        localStorage.setItem(briefDoneKey(), '1');
       }catch(e){ return; }   // no storage means we can't dedupe, so don't play
       playBriefing();
     }
