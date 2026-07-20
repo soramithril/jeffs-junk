@@ -37,6 +37,13 @@ on:
         description: 'Kokoro voice — bm_daniel, bm_george, bm_fable, bm_lewis'
         required: false
         default: bm_daniel
+  # Touching .github/briefing-run triggers a REAL run (build from live data,
+  # publish to the board's release). Exists because the "Run workflow" button
+  # needs a signed-in GitHub session, and pushing is something Claude can do
+  # directly. Push events carry no inputs, so sample mode never fires this way.
+  push:
+    branches: [main]
+    paths: ['.github/briefing-run']
 
 concurrency:
   group: daily-briefing
