@@ -557,7 +557,7 @@
     // ── state ────────────────────────────────────────────────────────────────
     var DATA = { jobs:[], crew:{}, crewColor:{}, jwgColor:{}, emps:[], sched:{}, tasks:{},
                  inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0,
-                 crewAll:{}, trails:{} };
+                 crewAll:{}, trails:{}, trailsAt:0 };
     var panelIdx = 0, rotTimer = null;
 
     function jobTime(j){
@@ -1029,6 +1029,7 @@
     // for panelMs/n — 7.5s at six trucks — so a longer replay would still be
     // drawing when the cycle moves on.
     var REPLAY_MS = 5500;
+    var TRAILS_MAX_AGE_MS = 5 * 60 * 1000;   // how long a fetched trail is reused
 
     function kmBetween(aLat, aLng, bLat, bLng){
       var R = 6371, toR = Math.PI/180;
@@ -1125,6 +1126,7 @@
         if(pts.length >= 2 && moved >= 0.05) out[t.id] = pts;   // 50 m of travel
       });
       DATA.trails = out;
+      DATA.trailsAt = Date.now();
     }
 
     async function refreshTrucks(){
@@ -1132,7 +1134,15 @@
         await loadTrucks();
         // Trails are a second Geotab read and only decoration — if they fail, the
         // pins must still go up, so this is caught on its own.
-        try { await loadTrails(); } catch(e){ console.warn('trails failed', e); }
+        //
+        // Cached for TRAILS_MAX_AGE_MS rather than refetched every lap: the trail
+        // is a 90-MINUTE history, so two fetches 105s apart are ~98% the same
+        // line. Reusing it is invisible on screen and cuts both the payload and
+        // the Geotab LogRecord calls to a third. Positions still refresh every
+        // lap — it's only the history behind them that's cached.
+        if(Date.now() - (DATA.trailsAt || 0) > TRAILS_MAX_AGE_MS){
+          try { await loadTrails(); } catch(e){ console.warn('trails failed', e); }
+        }
         // Restart the cycle on fresh data so it steps through the trucks that are
         // actually out right now, from the top.
         if(PANELS[panelIdx] === 'liveops'){ renderLiveOps(); startCycle(); }
