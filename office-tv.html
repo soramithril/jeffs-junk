@@ -460,7 +460,7 @@
     }
     function todayWeekday(){ return WEEKDAYS[(new Date().getDay()+6)%7]; }
     // When the shop is shut, the board pulls nothing — no Supabase, no Geotab.
-    // Open hours are Mon–Fri 6 AM–7 PM and Sat 6 AM–3 PM; everything else is quiet.
+    // Open hours are Mon–Fri 7 AM–7 PM and Sat 7 AM–2 PM; everything else is quiet.
     //
     // This used to cover the weekend only, which left the board polling every 105
     // seconds all night on weeknights, for trucks parked in the yard. That was
@@ -473,8 +473,8 @@
     function inQuietHours(){
       var n = new Date(), d = n.getDay(), h = n.getHours();
       if(d === 0) return true;             // Sunday
-      if(h < 6) return true;               // before 6 AM, any day
-      if(d === 6) return h >= 15;          // Saturday winds up at 3 PM
+      if(h < 7) return true;               // before 7 AM, any day
+      if(d === 6) return h >= 14;          // Saturday winds up at 2 PM
       return h >= 19;                      // weeknights after 7 PM
     }
     function fmt12(t){                                    // "7:00" -> "7a", "19:00" -> "7p"
