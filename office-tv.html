@@ -645,6 +645,11 @@
       var wkEnd = ymd(new Date(parseLocal(monday).getTime()+7*864e5));
       var tomorrow = ymd(new Date(parseLocal(today).getTime()+864e5));
       var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
+      // Truck assignments are written same-day and sometimes not until lunchtime, so
+      // "today's assignment" leaves the board driverless all morning. We take the most
+      // recent assignment per truck instead, within a window short enough that a truck
+      // parked for weeks doesn't keep showing whoever last drove it.
+      var assignFrom = ymd(new Date(parseLocal(today).getTime()-14*864e5));
       // Local-midnight bounds for timestamptz columns — a bare 'YYYY-MM-DD' string is
       // read as UTC midnight (8 PM ET the day before), which puts evening events on
       // the wrong day.
@@ -710,7 +715,7 @@
         // into their remaining work. APPENDED, not inserted: every res[N] above is
         // read positionally, so slotting these mid-array would silently repoint the
         // whole "beat last year" scoreboard.
-        db.from('vehicle_assignments').select('vid,crew_member_id,started_at,ended_at').eq('assignment_date', today),
+        db.from('vehicle_assignments').select('vid,crew_member_id,assignment_date,started_at').gte('assignment_date', assignFrom),
         db.from('vehicle_odometers').select('vid,geotab_device_id')
       ]);
       // Every query is critical — fail fast so the board never renders half-loaded.
@@ -734,11 +739,12 @@
       (res[21].data||[]).forEach(function(a){
         var cur = assignByVid[a.vid];
         if(!cur){ assignByVid[a.vid] = a; return; }
-        // Driver swaps happen (a truck can have 2-3 assignments in a day): an open
-        // assignment beats a closed one, otherwise the later start wins.
-        var curOpen = !cur.ended_at, aOpen = !a.ended_at;
-        if(aOpen && !curOpen) assignByVid[a.vid] = a;
-        else if(aOpen === curOpen && Date.parse(a.started_at||0) > Date.parse(cur.started_at||0)) assignByVid[a.vid] = a;
+        // One rule — latest wins: a later day, or the same day and a later start.
+        // Covers both a mid-day driver swap and the handover of a truck's regular
+        // driver (Hino L7 went Josh -> Kevin on Jul 10; latest gives Kevin).
+        if(a.assignment_date > cur.assignment_date) assignByVid[a.vid] = a;
+        else if(a.assignment_date === cur.assignment_date
+             && Date.parse(a.started_at||0) > Date.parse(cur.started_at||0)) assignByVid[a.vid] = a;
       });
       DATA.driverByDevice = {};
       (res[22].data||[]).forEach(function(o){
