@@ -173,13 +173,52 @@ def plural(n, one, many):
     return "%d %s" % (n, one if n == 1 else many)
 
 
+def pick(pool, day):
+    """
+    Rotate a phrasing by date. Deterministic rather than random: it advances one
+    step a day so nothing repeats until the pool is exhausted, and re-running the
+    same morning produces the same briefing rather than a different one.
+
+    This exists because the wit is the part that wears out. Identical words at
+    9 AM five days a week stop being heard by about Wednesday.
+    """
+    return pool[day.toordinal() % len(pool)]
+
+
+# Said when every job has a driver. All must make the absence of a warning
+# unambiguous — silence should never be mistakable for an oversight.
+ALL_ASSIGNED = [
+    "Nothing is unassigned. I checked twice.",
+    "Every leg has a name against it.",
+    "Nothing outstanding. I did look.",
+    "All of it is spoken for.",
+    "No gaps anywhere. Verified.",
+    "Every job has someone. As it should be.",
+]
+
+SIGN_OFF = [
+    "The fleet is yours. Do carry on.",
+    "That is the board. Over to you.",
+    "The day is yours.",
+    "That's the picture. Off you go.",
+    "The fleet is yours. Bring it all back.",
+    "That's everything. Do carry on.",
+]
+
+GREETING = [
+    "Good morning. %s.",
+    "Good morning. It is %s.",
+    "Good morning. %s, and the board is set.",
+]
+
+
 def write_script(s, today):
     """
     Plain sentences, read aloud. No headings, no bullets — this is heard once,
     across a room, not read. Singular/plural matters more here than on screen:
     "There are 1 bin movements" is invisible in a table and jarring out loud.
     """
-    lines = ["Good morning. %s." % spoken_date(today)]
+    lines = [pick(GREETING, today) % spoken_date(today)]
 
     movements = s["drops"] + s["picks"]
     if movements:
@@ -214,7 +253,7 @@ def write_script(s, today):
             % plural(s["unassigned"], "job has", "jobs have")
         )
     elif movements:
-        lines.append("Nothing is unassigned. I checked twice.")
+        lines.append(pick(ALL_ASSIGNED, today))
 
     tail = []
     if s["bins_out"]:
@@ -228,7 +267,21 @@ def write_script(s, today):
     if w:
         lines.append("Outside, %d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else ""))
 
-    lines.append("The fleet is yours. Do carry on.")
+    # At most ONE observation, and only when the day actually warrants it — a
+    # remark every single morning is just the catchphrase problem again, one line
+    # further down. Wet weather comes first because it's the only one that's
+    # advice rather than colour.
+    wet = w and w["sky"] in ("drizzly", "rainy", "wet", "snowy", "showery", "stormy")
+    if wet:
+        lines.append("Mind the driveways.")
+    elif today.weekday() == 4:                       # Friday
+        lines.append("Last push of the week.")
+    elif movements >= 25:
+        lines.append("A full board today.")
+    elif 0 < movements <= 3:
+        lines.append("A light one.")
+
+    lines.append(pick(SIGN_OFF, today))
     return " ".join(lines)
 
 
