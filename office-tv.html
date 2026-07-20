@@ -1198,6 +1198,24 @@
       return (DATA.trucks || []).filter(function(t){ return truckState(t) !== 'yard'; });
     }
 
+    // A truck that hasn't moved all trail-window (90 min, under 50 m of travel =
+    // no trail) is parked — shop, yard, wherever — and the focus tour skips it
+    // (Jake 2026-07-20). It keeps its pin; it just doesn't get flown to.
+    //
+    // Two guards keep this honest:
+    // - moving RIGHT NOW always tours, even with no trail yet — covers a truck
+    //   that woke up inside the 5-min trail cache window.
+    // - stale/absent trail data disarms the skip entirely — on a Geotab blip the
+    //   whole fleet would otherwise look asleep and the tour would stop.
+    function isParked(t){
+      if(!DATA.trailsAt || Date.now() - DATA.trailsAt > 15 * 60000) return false;
+      if(truckState(t) === 'moving') return false;
+      return !(DATA.trails || {})[t.id];
+    }
+    function tourTrucks(){
+      return outTrucks().filter(function(t){ return !isParked(t); });
+    }
+
     // The mockup's marker: glossed disc, white ring, name chip, and a ping ring
     // while the truck is moving. `sel` is the truck the map is focused on.
     function truckIcon(t, sel){
@@ -1369,7 +1387,7 @@
 
     function focusTruck(i, gen){
       if(gen !== _cycleGen) return;      // a newer cycle has taken over
-      var list = outTrucks();
+      var list = tourTrucks();           // parked trucks keep pins but aren't flown to
       if(!list.length){ _focusId = null; frameAll(); return; }
       var t = list[((i % list.length) + list.length) % list.length];
       _focusId = t.id;
@@ -1416,7 +1434,10 @@
       stopCycle();
       if(!_map) return;
       frameAll();
-      if(outTrucks().length) focusTruck(0, _cycleGen);
+      // All-parked (or none out) is a valid state: pins stay up, the overview
+      // frames them, and nobody gets flown to. The next data refresh restarts
+      // the tour the moment anything wakes up.
+      if(tourTrucks().length) focusTruck(0, _cycleGen);
     }
 
     function renderLiveOps(){
