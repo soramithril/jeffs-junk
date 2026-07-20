@@ -179,57 +179,56 @@ def write_script(s, today):
     across a room, not read. Singular/plural matters more here than on screen:
     "There are 1 bin movements" is invisible in a table and jarring out loud.
     """
-    lines = ["Good morning. It's %s." % spoken_date(today)]
+    lines = ["Good morning. %s." % spoken_date(today)]
 
     movements = s["drops"] + s["picks"]
     if movements:
-        going = "%d going out" % s["drops"] if s["drops"] else "none going out"
-        back = "%d coming back" % s["picks"] if s["picks"] else "none coming back"
+        # "none" rather than "0" reads better aloud, but it can open the sentence,
+        # so capitalise whatever lands first.
+        split = "%s out, %s back." % (s["drops"] or "none", s["picks"] or "none")
         lines.append(
-            "%s %s on the board today: %s, and %s."
-            % ("There's" if movements == 1 else "There are",
-               plural(movements, "bin movement", "bin movements"), going, back)
+            "%s today. %s"
+            % (plural(movements, "bin movement", "bin movements"),
+               split[0].upper() + split[1:])
         )
-        if s["towns"]:
-            lines.append("They're spread across %s." % join_towns(s["towns"]))
     else:
-        lines.append("There are no bin movements booked today.")
+        # Degraded, but deliberate — the room's real question on an empty day is
+        # "is it empty, or is the board broken?"
+        lines.append("The board is empty of bin movements today, "
+                     "which I have verified rather than assumed.")
 
-    # Who's carrying what — the part each person is listening for.
+    # The line each driver is listening for. A tricolon so a half-listener catches
+    # their own name and number without holding anything in memory.
     if s.get("drivers"):
-        who = ["%s has %s" % (n, plural(c, "leg", "legs")) for n, c in s["drivers"]]
+        who = ["%s with %d" % (n, c) for n, c in s["drivers"]]
         lines.append(
-            (", ".join(who[:-1]) + ", and " + who[-1] if len(who) > 1 else who[0]) + "."
+            "The legs fall to %s."
+            % (", ".join(who[:-1]) + ", and " + who[-1] if len(who) > 1 else who[0])
         )
 
-    # The only line that should change what anyone does this morning, so it comes
-    # before the pleasantries and is never buried.
+    # The only line that should change anyone's morning. Short and flat, straight
+    # after the longer driver sentence, so the contrast does the emphasis.
     if s.get("unassigned"):
         lines.append(
-            "Heads up: %s still without a driver."
-            % plural(s["unassigned"], "job is", "jobs are")
+            "%s no driver. Kindly correct that before the trucks leave the yard."
+            % plural(s["unassigned"], "job has", "jobs have")
         )
     elif movements:
-        lines.append("Everything has a driver.")
+        lines.append("Nothing is unassigned. I checked twice.")
 
+    tail = []
     if s["bins_out"]:
-        lines.append(
-            "%s already out in the field."
-            % (plural(s["bins_out"], "bin is", "bins are"))
-        )
-
-    if s["junk"] == 1:
-        lines.append("There's one junk removal on the book.")
-    elif s["junk"] > 1:
-        lines.append("There are %d junk removals on the book." % s["junk"])
+        tail.append("%s out in the field" % plural(s["bins_out"], "bin is", "bins are"))
+    if s["junk"]:
+        tail.append("%s booked" % plural(s["junk"], "junk removal is", "junk removals are"))
+    if tail:
+        lines.append((" and ".join(tail) + ".").capitalize())
 
     w = s.get("weather")
     if w:
-        lines.append(
-            "It's heading for %d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else "")
-        )
+        lines.append("Outside, %d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else ""))
 
-    lines.append("Have a good one.")
+    lines.append("The fleet is yours. Do carry on.")
     return " ".join(lines)
 
 
