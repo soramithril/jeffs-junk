@@ -292,10 +292,15 @@
   .lo-yard{display:grid; place-items:center; height:26px; border-radius:9px; background:var(--gold);
     font:700 14px/1 'Hanken Grotesk'; letter-spacing:.16em; color:#5a4a1e;
     box-shadow:0 3px 8px rgba(23,64,42,.28)}
-  /* legend rides in the panel head next to the timestamp */
-  #loMeta .lolg{display:inline-flex; align-items:center; gap:18px; margin-right:20px; vertical-align:middle}
-  #loMeta .lolg b{display:flex; align-items:center; gap:8px; font:600 21px/1 'Hanken Grotesk'; color:var(--muted-2)}
-  #loMeta .lolg i{width:13px; height:13px; border-radius:50%}
+  /* Legend sits ON the map, bottom-left. It can't live in the panel head: the
+     ambient truck/bin art (#tvtruck/#tvbin, z-index 5) is parked over that exact
+     spot and buries it. */
+  .lo-card{position:relative}
+  #loLegend{position:absolute; left:20px; bottom:20px; z-index:400; display:flex; gap:18px;
+    background:rgba(255,251,240,.94); border-radius:14px; padding:11px 17px;
+    box-shadow:0 5px 14px rgba(23,64,42,.22)}
+  #loLegend b{display:flex; align-items:center; gap:9px; font:700 18px/1 'Hanken Grotesk'; color:var(--muted-2)}
+  #loLegend i{width:13px; height:13px; border-radius:50%}
 
   /* right column — four tiles over the next-up queue */
   #loRight{display:flex; flex-direction:column; gap:22px; min-height:0}
@@ -393,7 +398,7 @@
           <div class="p-head"><span class="bar"></span><h2>Trucks on the Road</h2>
             <span class="tag" id="loTag"></span><span class="spacer"></span><span class="status" id="loMeta"></span></div>
           <div class="p-body"><div id="opsWrap">
-            <div class="lo-card"><div id="tvmap"></div></div>
+            <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div></div>
             <div id="loRight">
               <div class="lo-stats" id="loStats"></div>
               <div class="lo-card lo-next">
@@ -985,7 +990,7 @@
     // TV never writes to jobs or to MyGeotab.
     var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
     var TRUCK_C = { moving:'#2f8a4e', stopped:'#c9861c', yard:'#7a7c5f' };
-    var _map = null, _markers = {};
+    var _map = null, _markers = {}, _yardMarker = null;
 
     function kmFromYard(lat, lng){
       var R = 6371, toR = Math.PI/180;
@@ -1038,16 +1043,26 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom:19, attribution:'© OpenStreetMap'
       }).addTo(_map);
-      L.marker([YARD.lat, YARD.lng], { interactive:false, icon: L.divIcon({
-        className:'', iconSize:[74,26], iconAnchor:[37,13], html:'<div class="lo-yard">YARD</div>'
-      }) }).addTo(_map);
+      _yardMarker = L.marker([YARD.lat, YARD.lng], { interactive:false, icon:yardIcon(0) }).addTo(_map);
       return _map;
+    }
+
+    // n = trucks parked at the yard, folded into the chip rather than drawn as
+    // pins (they'd all land on the same pixel and stack into an unreadable clump).
+    function yardIcon(n){
+      var w = n ? 104 : 74;
+      return L.divIcon({ className:'', iconSize:[w,26], iconAnchor:[w/2,13],
+        html:'<div class="lo-yard">YARD'+(n ? ' &middot; '+n : '')+'</div>' });
     }
 
     function drawTrucks(){
       var map = ensureTruckMap();
       if(!map) return;
-      var list = DATA.trucks || [], seen = {};
+      // Only trucks that are actually OUT get a pin — the yarded ones live in the
+      // yard chip's count. That's also what the "trucks out" tile counts.
+      var list = (DATA.trucks || []).filter(function(t){ return truckState(t) !== 'yard'; });
+      _yardMarker.setIcon(yardIcon((DATA.trucks || []).length - list.length));
+      var seen = {};
       list.forEach(function(t){
         seen[t.id] = 1;
         var icon = L.divIcon({ className:'', iconSize:[46,74], iconAnchor:[23,23],
@@ -1084,13 +1099,12 @@
       tag.innerHTML = list.length ? '<span>'+out+'</span> of <span>'+list.length+'</span> out' : '';
       tag.style.display = list.length ? '' : 'none';
 
-      var legend = '<span class="lolg">'
-        + '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
+      el('loLegend').innerHTML = '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
         + '<b><i style="background:'+TRUCK_C.stopped+'"></i>Stopped</b>'
-        + '<b><i style="background:'+TRUCK_C.yard+'"></i>At the yard</b></span>';
-      el('loMeta').innerHTML = legend + (DATA.trucksAt
+        + '<b><i style="background:'+TRUCK_C.yard+'"></i>At the yard</b>';
+      el('loMeta').textContent = DATA.trucksAt
         ? 'Live ' + new Date(DATA.trucksAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
-        : 'Waiting on GPS…');
+        : 'Waiting on GPS…';
 
       // Four tiles. The number lives in its own <span> so countUp() — which only
       // animates leaf elements — can still count it when there's a "/6" beside it.
