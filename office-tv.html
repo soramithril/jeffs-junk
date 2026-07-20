@@ -315,6 +315,10 @@
     padding:8px 15px 0; font:600 16px/1.2 'Hanken Grotesk'; color:var(--muted)}
   .lo-pop .rw:last-child{padding-bottom:12px}
   .lo-pop .rw b{color:var(--ink); font-weight:700}
+  /* jobs-left progress, the mockup's .jjbar scaled up */
+  .lo-pop .bar{height:9px; border-radius:5px; background:#ece3ca; overflow:hidden; margin:7px 15px 0}
+  .lo-pop .bar i{display:block; height:100%; border-radius:5px}
+  .lo-pop .cap{font:600 13px/1 'Hanken Grotesk'; color:var(--muted); text-align:right; margin:6px 15px 0}
   /* Legend sits ON the map, bottom-left. It can't live in the panel head: the
      ambient truck/bin art (#tvtruck/#tvbin, z-index 5) is parked over that exact
      spot and buries it. */
@@ -324,6 +328,10 @@
     box-shadow:0 5px 14px rgba(23,64,42,.22)}
   #loLegend b{display:flex; align-items:center; gap:9px; font:700 18px/1 'Hanken Grotesk'; color:var(--muted-2)}
   #loLegend i{width:13px; height:13px; border-radius:50%}
+  /* Trail — the mockup's flowing dashed route line, scaled 1.5x for this board.
+     The dash offset animates, so the path reads as movement even once drawn. */
+  @keyframes trailflow{to{stroke-dashoffset:-34}}
+  .lo-trail{stroke-dasharray:9 8; animation:trailflow .8s linear infinite}
   /* where the focused truck is, top-right of the map */
   #loTown{position:absolute; right:20px; top:20px; z-index:400; display:none; align-items:center; gap:12px;
     background:var(--spruce); border-radius:16px; padding:12px 20px; box-shadow:0 6px 16px rgba(23,64,42,.3)}
@@ -1178,18 +1186,18 @@
     // Today's work still outstanding for one crew member. Bin legs come from the
     // board (done/not-done is geofence-driven, same as Screen 1); everything else
     // counts as left until the job is marked completed.
-    function jobsLeftFor(crewId){
-      var n = 0;
+    function crewProgress(crewId){
+      var done = 0, total = 0;
       (DATA.binBoard||[]).forEach(function(g){
         if(g.crewId !== crewId) return;
-        g.legs.forEach(function(l){ if(!l.done) n++; });
+        g.legs.forEach(function(l){ total++; if(l.done) done++; });
       });
       (DATA.jobs||[]).forEach(function(e){
         if(e.service === 'Bin Drop-off' || e.service === 'Bin Pick-up') return;   // counted above
-        if(e.completed) return;
-        if((e.crewIds||[]).indexOf(crewId) !== -1) n++;
+        if((e.crewIds||[]).indexOf(crewId) === -1) return;
+        total++; if(e.completed) done++;
       });
-      return n;
+      return { done:done, total:total, left:total-done };
     }
 
     // Card for the focused truck. A permanent tooltip so it tracks the pin rather
@@ -1207,8 +1215,16 @@
       var crewId = driver ? crewIdByName(driver) : null;
       var rows = '';
       if(driver && crewId){
+        var pr = crewProgress(crewId);
         rows += '<div class="rw"><span>Driver</span><b>'+esc(driver)+'</b></div>'
-             +  '<div class="rw"><span>Jobs left</span><b>'+jobsLeftFor(crewId)+'</b></div>';
+             +  '<div class="rw"><span>Jobs left</span><b>'+pr.left+'</b></div>';
+        // Bar only when there's work to measure — a 0-of-0 bar reads as "finished"
+        // when it actually means "nothing was assigned".
+        if(pr.total){
+          rows += '<div class="bar"><i style="width:'+Math.round(100*pr.done/pr.total)
+               +  '%;background:'+c+'"></i></div>'
+               +  '<div class="cap">'+pr.done+' of '+pr.total+' done</div>';
+        }
       }
       rows += '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
            +  '<div class="rw"><span>Last ping</span><b>'
@@ -1262,7 +1278,8 @@
       if(!pts || pts.length < 2 || !_map) return;
       var c = TRUCK_C[truckState(t)];
       _trailLine = L.polyline([pts[0]], {
-        color:c, weight:6, opacity:.85, lineCap:'round', lineJoin:'round', interactive:false
+        color:c, weight:6, opacity:.85, lineCap:'round', lineJoin:'round',
+        interactive:false, className:'lo-trail'
       }).addTo(_map);
       // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
       // the tab is hidden, which would strand the line part-drawn — the same reason
