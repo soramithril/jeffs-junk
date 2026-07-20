@@ -95,28 +95,66 @@ def spoken_date(d):
     )
 
 
+def weather():
+    """
+    Open-Meteo — free, no key, same source and yard coordinates the board uses.
+    Never fatal: a briefing without the forecast beats no briefing.
+    """
+    try:
+        url = ("https://api.open-meteo.com/v1/forecast?latitude=44.3683&longitude=-79.6831"
+               "&current=temperature_2m,weather_code&daily=temperature_2m_max"
+               "&forecast_days=1&timezone=auto")
+        with urllib.request.urlopen(url, timeout=15) as r:
+            w = json.load(r)
+        code = w["current"]["weather_code"]
+        high = round(w["daily"]["temperature_2m_max"][0])
+        sky = ("clear", "mostly sunny", "partly cloudy", "overcast")[min(code, 3)] if code <= 3 else {
+            45: "foggy", 48: "foggy", 51: "drizzly", 53: "drizzly", 55: "drizzly",
+            61: "rainy", 63: "rainy", 65: "wet", 71: "snowy", 73: "snowy", 75: "snowy",
+            80: "showery", 81: "showery", 82: "showery", 95: "stormy", 96: "stormy",
+        }.get(code, "")
+        return {"high": high, "sky": sky}
+    except Exception as e:
+        print("weather unavailable: %s" % e)
+        return None
+
+
 def collect(token, today):
     """Today's shape, counted the same way the board counts it."""
-    def count(query):
-        rows = get("/rest/v1/jobs?" + query + "&select=job_id", token)
-        return len(rows)
-
     live = "status=neq.Cancelled"
-    drops = count("bin_dropoff=eq.%s&%s" % (today, live))
-    picks = count("bin_pickup=eq.%s&%s" % (today, live))
-    junk = count("service=eq.Junk%%20Removal&junk_date=eq.%s&%s" % (today, live))
-    out_now = count("service=eq.Bin%20Rental&bin_instatus=eq.dropped&" + live)
 
-    towns = get(
-        "/rest/v1/jobs?or=(bin_dropoff.eq.%s,bin_pickup.eq.%s)&%s&select=city"
-        % (today, today, live),
-        token,
-    )
-    town_list = sorted({t["city"] for t in towns if t.get("city")})
+    def rows(query):
+        return get("/rest/v1/jobs?" + query, token)
+
+    drop_rows = rows("bin_dropoff=eq.%s&%s&select=city,dropoff_crew_id" % (today, live))
+    pick_rows = rows("bin_pickup=eq.%s&%s&select=city,pickup_crew_id" % (today, live))
+    junk_rows = rows("service=eq.Junk%%20Removal&junk_date=eq.%s&%s&select=assigned_crew_ids"
+                     % (today, live))
+    out_now = len(rows("service=eq.Bin%20Rental&bin_instatus=eq.dropped&" + live + "&select=job_id"))
+
+    crew = {c["id"]: c["name"] for c in get("/rest/v1/crew_members?select=id,name", token)}
+
+    # Legs per driver, and — the line that actually changes someone's morning —
+    # anything still without one.
+    per_driver, unassigned = {}, 0
+    for r, key in ((drop_rows, "dropoff_crew_id"), (pick_rows, "pickup_crew_id")):
+        for row in r:
+            name = crew.get(row.get(key))
+            if name:
+                per_driver[name] = per_driver.get(name, 0) + 1
+            else:
+                unassigned += 1
+    for row in junk_rows:
+        if not (row.get("assigned_crew_ids") or []):
+            unassigned += 1
+
+    towns = sorted({r["city"] for r in drop_rows + pick_rows if r.get("city")})
 
     return {
-        "drops": drops, "picks": picks, "junk": junk,
-        "bins_out": out_now, "towns": town_list,
+        "drops": len(drop_rows), "picks": len(pick_rows), "junk": len(junk_rows),
+        "bins_out": out_now, "towns": towns, "unassigned": unassigned,
+        "drivers": sorted(per_driver.items(), key=lambda kv: -kv[1]),
+        "weather": weather(),
     }
 
 
@@ -157,6 +195,23 @@ def write_script(s, today):
     else:
         lines.append("There are no bin movements booked today.")
 
+    # Who's carrying what — the part each person is listening for.
+    if s.get("drivers"):
+        who = ["%s has %s" % (n, plural(c, "leg", "legs")) for n, c in s["drivers"]]
+        lines.append(
+            (", ".join(who[:-1]) + ", and " + who[-1] if len(who) > 1 else who[0]) + "."
+        )
+
+    # The only line that should change what anyone does this morning, so it comes
+    # before the pleasantries and is never buried.
+    if s.get("unassigned"):
+        lines.append(
+            "Heads up: %s still without a driver."
+            % plural(s["unassigned"], "job is", "jobs are")
+        )
+    elif movements:
+        lines.append("Everything has a driver.")
+
     if s["bins_out"]:
         lines.append(
             "%s already out in the field."
@@ -167,6 +222,12 @@ def write_script(s, today):
         lines.append("There's one junk removal on the book.")
     elif s["junk"] > 1:
         lines.append("There are %d junk removals on the book." % s["junk"])
+
+    w = s.get("weather")
+    if w:
+        lines.append(
+            "It's heading for %d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else "")
+        )
 
     lines.append("Have a good one.")
     return " ".join(lines)
