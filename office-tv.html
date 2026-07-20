@@ -459,15 +459,23 @@
       return ymd(d);
     }
     function todayWeekday(){ return WEEKDAYS[(new Date().getDay()+6)%7]; }
-    // Shop is closed Saturday 3 PM through Monday 6 AM — skip data refreshes (Supabase
-    // AND the Geotab truck poll) in that window so the TV pulls nothing all weekend.
-    // (Boot still loads once so a weekend restart isn't a blank board.)
-    function inWeekendQuiet(){
+    // When the shop is shut, the board pulls nothing — no Supabase, no Geotab.
+    // Open hours are Mon–Fri 6 AM–7 PM and Sat 6 AM–3 PM; everything else is quiet.
+    //
+    // This used to cover the weekend only, which left the board polling every 105
+    // seconds all night on weeknights, for trucks parked in the yard. That was
+    // roughly half of all polling, done for an empty office: a measured 36 KB per
+    // trails call adds up to ~700 MB/month of Supabase egress, and busy days would
+    // triple it against a 5 GB free-tier budget. Closing the nights cuts it ~45%
+    // and costs nothing, since nobody is watching.
+    //
+    // (Boot still loads once, so a restart at 2 AM isn't a blank board.)
+    function inQuietHours(){
       var n = new Date(), d = n.getDay(), h = n.getHours();
-      if(d === 6 && h >= 15) return true;  // Saturday from 3 PM
-      if(d === 0) return true;             // all of Sunday
-      if(d === 1 && h < 6) return true;    // Monday before 6 AM
-      return false;
+      if(d === 0) return true;             // Sunday
+      if(h < 6) return true;               // before 6 AM, any day
+      if(d === 6) return h >= 15;          // Saturday winds up at 3 PM
+      return h >= 19;                      // weeknights after 7 PM
     }
     function fmt12(t){                                    // "7:00" -> "7a", "19:00" -> "7p"
       if(!t) return '';
@@ -1431,7 +1439,7 @@
       // on screen and we spend nothing on Geotab's quota the rest of the time.
       if(name === 'liveops'){
         startCycle();                                   // begin with what we have
-        if(!inWeekendQuiet()) refreshTrucks();          // then restart on fresh data
+        if(!inQuietHours()) refreshTrucks();          // then restart on fresh data
       } else {
         stopCycle();                                    // nothing spinning off-screen
       }
@@ -1608,13 +1616,13 @@
       loadWeather(); setInterval(loadWeather, 30*60*1000);
       startRotation();
       // Prime the pins so the map screen has trucks on it the first time it rotates in.
-      if(!inWeekendQuiet()) refreshTrucks();
+      if(!inQuietHours()) refreshTrucks();
       // Auto-pick-up new deploys (bypasses Yodeck/browser cache) so the wall never
       // sits stale — checks every 5 min and reloads itself when a new build ships.
       checkForUpdate(); setInterval(checkForUpdate, 5*60*1000);
       // periodic refresh; keep showing last-good data on a blip
       setInterval(async function(){
-        if(inWeekendQuiet()) return;
+        if(inQuietHours()) return;
         try{
           await ensureFreshSession();
           await loadAll(); net(true); renderCurrent();
