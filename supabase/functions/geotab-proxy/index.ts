@@ -11,9 +11,9 @@
  *     Every BIN_AUTO_ zone in the Bin Rentals group (polygon points + jobId).
  *
  *   POST { action: "trails" } -> { trails: [...] }
- *     Last 30 min of GPS breadcrumbs per whitelisted truck, for the office TV to
- *     replay when it focuses a truck. History only — it says where a truck HAS
- *     BEEN, never where it's going (nothing in our data links a truck to a job).
+ *     Last TRAIL_WINDOW_MIN of GPS breadcrumbs per whitelisted truck, for the
+ *     office TV to replay when it focuses a truck. History only — it says where a
+ *     truck HAS BEEN, never where it's going (nothing links a truck to its job).
  *
  * Whitelist is constant DEFAULT_WHITELIST, overridable via env
  * GEOTAB_DEVICE_WHITELIST="Name 1,Name 2,...".
@@ -75,10 +75,16 @@ interface ProxyTrail {
 
 /**
  * How far back a trail reaches, and how many points survive thinning.
- * 30 minutes is what the office TV replays per truck when it focuses one.
+ *
+ * 90 minutes is what the office TV replays per truck when it focuses one. The
+ * point cap moves with the window on purpose: these two are one setting, not
+ * two. At 500 points a 90-min trail samples roughly every 11s (~180 m at road
+ * speed), which still traces the streets at the zoom a 90-min run frames to.
+ * Leaving the cap at 250 would have sampled every ~22s and straight-lined the
+ * corners.
  */
-const TRAIL_WINDOW_MIN = 30;
-const TRAIL_MAX_POINTS = 250;
+const TRAIL_WINDOW_MIN = 90;
+const TRAIL_MAX_POINTS = 500;
 
 async function handleDeviceStatus(): Promise<{ devices: ProxyDevice[] }> {
   const whitelist = new Set(getWhitelist());

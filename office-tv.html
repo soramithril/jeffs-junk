@@ -1009,7 +1009,11 @@
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
     var _trailLine = null, _replayRaf = null;
-    var REPLAY_MS = 5500;     // 30 min of driving compressed into this
+    // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
+    // short deliberately: with a full fleet out, each truck only holds the screen
+    // for panelMs/n — 7.5s at six trucks — so a longer replay would still be
+    // drawing when the cycle moves on.
+    var REPLAY_MS = 5500;
 
     function kmBetween(aLat, aLng, bLat, bLng){
       var R = 6371, toR = Math.PI/180;
@@ -1095,7 +1099,15 @@
               && p[0] >= -90 && p[0] <= 90 && p[1] >= -180 && p[1] <= 180
               && !(p[0] === 0 && p[1] === 0);
         });
-        if(pts.length >= 2) out[t.id] = pts;      // a single point isn't a path
+        // Geotab keeps emitting heartbeats while a truck sits still, so a parked
+        // truck comes back as several BYTE-IDENTICAL points (measured: 3 points,
+        // 0.0 m spread, over a 90-min window). Length, not point count, is what
+        // makes a path — otherwise an idle truck claims a trail that goes nowhere.
+        var moved = 0;
+        for(var i = 1; i < pts.length; i++){
+          moved += kmBetween(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1]);
+        }
+        if(pts.length >= 2 && moved >= 0.05) out[t.id] = pts;   // 50 m of travel
       });
       DATA.trails = out;
     }
