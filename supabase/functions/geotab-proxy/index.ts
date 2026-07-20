@@ -10,6 +10,11 @@
  *   POST { action: "zones" } -> { zones: [...] }
  *     Every BIN_AUTO_ zone in the Bin Rentals group (polygon points + jobId).
  *
+ *   POST { action: "trails" } -> { trails: [...] }
+ *     Last 30 min of GPS breadcrumbs per whitelisted truck, for the office TV to
+ *     replay when it focuses a truck. History only — it says where a truck HAS
+ *     BEEN, never where it's going (nothing in our data links a truck to a job).
+ *
  * Whitelist is constant DEFAULT_WHITELIST, overridable via env
  * GEOTAB_DEVICE_WHITELIST="Name 1,Name 2,...".
  *
@@ -61,6 +66,19 @@ interface ProxyZone {
   activeFrom: string;
   activeTo: string;
 }
+
+interface ProxyTrail {
+  id: string;
+  name: string;
+  points: [number, number][];   // [lat, lng], oldest -> newest
+}
+
+/**
+ * How far back a trail reaches, and how many points survive thinning.
+ * 30 minutes is what the office TV replays per truck when it focuses one.
+ */
+const TRAIL_WINDOW_MIN = 30;
+const TRAIL_MAX_POINTS = 250;
 
 async function handleDeviceStatus(): Promise<{ devices: ProxyDevice[] }> {
   const whitelist = new Set(getWhitelist());
@@ -128,6 +146,65 @@ async function handleZones(groupId: string): Promise<{ zones: ProxyZone[] }> {
   return { zones };
 }
 
+/**
+ * Rolling-window breadcrumbs per truck. One LogRecord call covers every device,
+ * so this costs the same whether we have one truck or ten.
+ *
+ * Raw LogRecord is a point every few seconds — thousands per truck over two
+ * hours — so each trail is thinned to at most TRAIL_MAX_POINTS before it goes
+ * over the wire. The newest point is always kept so the line meets the truck.
+ */
+async function handleTrails(): Promise<{ trails: ProxyTrail[] }> {
+  const whitelist = new Set(getWhitelist());
+  const allDevices = (await call("Get", { typeName: "Device" })) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const nameById = new Map(
+    allDevices.filter((d) => whitelist.has(d.name)).map((d) => [d.id, d.name]),
+  );
+  if (nameById.size === 0) return { trails: [] };
+
+  const now = Date.now();
+  const records = (await call("Get", {
+    typeName: "LogRecord",
+    search: {
+      fromDate: new Date(now - TRAIL_WINDOW_MIN * 60000).toISOString(),
+      toDate: new Date(now).toISOString(),
+    },
+    resultsLimit: 30000,
+  })) as Array<{
+    device: { id: string };
+    latitude: number;
+    longitude: number;
+    dateTime: string;
+  }>;
+
+  const byDevice = new Map<string, { lat: number; lng: number; t: number }[]>();
+  for (const r of records || []) {
+    const id = r.device?.id;
+    if (!id || !nameById.has(id)) continue;
+    if (typeof r.latitude !== "number" || typeof r.longitude !== "number") continue;
+    if (!byDevice.has(id)) byDevice.set(id, []);
+    byDevice.get(id)!.push({ lat: r.latitude, lng: r.longitude, t: Date.parse(r.dateTime) });
+  }
+
+  const trails: ProxyTrail[] = [];
+  for (const [id, pts] of byDevice) {
+    pts.sort((a, b) => a.t - b.t);
+    const step = Math.ceil(pts.length / TRAIL_MAX_POINTS);
+    const kept = step > 1 ? pts.filter((_, i) => i % step === 0) : pts.slice();
+    const newest = pts[pts.length - 1];
+    if (kept[kept.length - 1] !== newest) kept.push(newest);
+    trails.push({
+      id,
+      name: nameById.get(id)!,
+      points: kept.map((p) => [p.lat, p.lng] as [number, number]),
+    });
+  }
+  return { trails };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -153,6 +230,9 @@ Deno.serve(async (req) => {
         payload = await handleZones(groupId);
         break;
       }
+      case "trails":
+        payload = await handleTrails();
+        break;
       default:
         throw new Error(`Unknown action: ${action}`);
     }
