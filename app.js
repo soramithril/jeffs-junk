@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '431';
+var APP_VERSION = '432';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10908,6 +10908,9 @@ async function onLoginSuccess() {
   var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
   var role  = (r.data && r.data.role) ? r.data.role : 'User';
   currentUser.displayName = uname;
+  // Darrin's login is for the back-shop inventory kiosk only — if it ever lands on
+  // the main dashboard (any browser, any PC), send it to inventory.html untouched.
+  if (uname === 'Darrin') { location.replace('inventory.html'); return; }
   // Layout-switch gate: only Jake gets the "Jeff's mobile view" toggle, and only
   // Jake's device auto-remembers a layout choice. Written here so it reflects a
   // real, Supabase-verified login; cleared on sign-out and for every other user.
