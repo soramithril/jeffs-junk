@@ -534,7 +534,7 @@
     // ── state ────────────────────────────────────────────────────────────────
     var DATA = { jobs:[], crew:{}, crewColor:{}, jwgColor:{}, emps:[], sched:{}, tasks:{},
                  inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0,
-                 crewAll:{}, driverByDevice:{} };
+                 crewAll:{} };
     var panelIdx = 0, rotTimer = null;
 
     function jobTime(j){
@@ -645,11 +645,6 @@
       var wkEnd = ymd(new Date(parseLocal(monday).getTime()+7*864e5));
       var tomorrow = ymd(new Date(parseLocal(today).getTime()+864e5));
       var satEnd = ymd(new Date(parseLocal(monday).getTime()+5*864e5));   // schedule board shows Mon–Sat
-      // Truck assignments are written same-day and sometimes not until lunchtime, so
-      // "today's assignment" leaves the board driverless all morning. We take the most
-      // recent assignment per truck instead, within a window short enough that a truck
-      // parked for weeks doesn't keep showing whoever last drove it.
-      var assignFrom = ymd(new Date(parseLocal(today).getTime()-14*864e5));
       // Local-midnight bounds for timestamptz columns — a bare 'YYYY-MM-DD' string is
       // read as UTC midnight (8 PM ET the day before), which puts evening events on
       // the wrong day.
@@ -709,14 +704,7 @@
         db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
-        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
-        // ── 21/22 ── who's in which truck today, and which Geotab unit each truck
-        // carries. Together these turn a GPS device id into a driver, and a driver
-        // into their remaining work. APPENDED, not inserted: every res[N] above is
-        // read positionally, so slotting these mid-array would silently repoint the
-        // whole "beat last year" scoreboard.
-        db.from('vehicle_assignments').select('vid,crew_member_id,assignment_date,started_at').gte('assignment_date', assignFrom),
-        db.from('vehicle_odometers').select('vid,geotab_device_id')
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled')
       ]);
       // Every query is critical — fail fast so the board never renders half-loaded.
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
@@ -733,29 +721,6 @@
         if(c.color){ DATA.crewColor[c.id]=c.color; if(c.jwg_id) DATA.jwgColor[c.jwg_id]=c.color; }
       });
 
-      // Geotab device -> today's driver. vehicle_odometers carries the device id
-      // per truck; vehicle_assignments says who is in it today.
-      var assignByVid = {};
-      (res[21].data||[]).forEach(function(a){
-        var cur = assignByVid[a.vid];
-        if(!cur){ assignByVid[a.vid] = a; return; }
-        // One rule — latest wins: a later day, or the same day and a later start.
-        // Covers both a mid-day driver swap and the handover of a truck's regular
-        // driver (Hino L7 went Josh -> Kevin on Jul 10; latest gives Kevin).
-        if(a.assignment_date > cur.assignment_date) assignByVid[a.vid] = a;
-        else if(a.assignment_date === cur.assignment_date
-             && Date.parse(a.started_at||0) > Date.parse(cur.started_at||0)) assignByVid[a.vid] = a;
-      });
-      DATA.driverByDevice = {};
-      (res[22].data||[]).forEach(function(o){
-        if(!o.geotab_device_id) return;
-        var a = assignByVid[o.vid];
-        if(!a || !a.crew_member_id) return;
-        DATA.driverByDevice[o.geotab_device_id] = {
-          crewId: a.crew_member_id,
-          name: DATA.crewAll[a.crew_member_id] || ''
-        };
-      });
 
       // junk work per person/day for the schedule ghosts (needs DATA.crew, so build it here)
       DATA.junk = buildJunkWeek(res[10].data||[], monday, satEnd);
@@ -1090,8 +1055,13 @@
       });
       var d = await r.json();
       if(!d.ok) throw new Error(d.error || 'device-status failed');
+      // Range-checked, not just type-checked: Geotab reports 0,0 for a unit that has
+      // never got a fix, which would drop a pin in the Atlantic and drag fitBounds
+      // (and the focus cycle) out there with it.
       DATA.trucks = (d.devices||[]).filter(function(t){
-        return typeof t.lat === 'number' && typeof t.lng === 'number';
+        return typeof t.lat === 'number' && typeof t.lng === 'number'
+            && t.lat >= -90 && t.lat <= 90 && t.lng >= -180 && t.lng <= 180
+            && !(t.lat === 0 && t.lng === 0);
       });
       DATA.trucksAt = Date.now();
     }
@@ -1150,6 +1120,35 @@
            + '<span class="n">'+esc(t.name)+'</span></div>' });
     }
 
+    // Each truck's regular driver — the same pairing app-leaderboard.js encodes as
+    // AUTO_ASSIGNMENTS, and what Jake confirms: Kevin is always in the L7, Neil in
+    // Hino 2020.
+    //
+    // Deliberately NOT vehicle_assignments. That table is the crew ROSTER on a truck
+    // (UNIQUE(vid, crew_member_id, assignment_date); toggleCrewAssignment inserts one
+    // row per person), so a driver and their helper sit there as concurrent open rows
+    // — on 2026-07-07 the L7 held Kevin 08:07 and Josh 11:24 at once. Picking the
+    // latest row therefore names the HELPER, and since bin legs carry only the
+    // driver's crew id, their jobs-left reads 0 while the truck still has a full run.
+    var TRUCK_DRIVERS = [
+      { match:'SILVERADO',    driver:'Max'    },
+      { match:'Darrin Truck', driver:'Darrin' },
+      { match:'2020',         driver:'Neil'   },
+      { match:'L7 2023',      driver:'Kevin'  }
+    ];
+    function driverFor(truckName){
+      var name = String(truckName || ''), hit = null;
+      TRUCK_DRIVERS.forEach(function(d){ if(!hit && name.indexOf(d.match) >= 0) hit = d.driver; });
+      return hit;
+    }
+    function crewIdByName(name){
+      var want = String(name || '').toLowerCase(), hit = null;
+      Object.keys(DATA.crewAll || {}).forEach(function(id){
+        if(!hit && String(DATA.crewAll[id]).toLowerCase() === want) hit = id;
+      });
+      return hit;
+    }
+
     // Today's work still outstanding for one crew member. Bin legs come from the
     // board (done/not-done is geofence-driven, same as Screen 1); everything else
     // counts as left until the job is marked completed.
@@ -1173,14 +1172,17 @@
     function truckCard(t){
       var st = truckState(t), c = TRUCK_C[st];
       var label = st === 'moving' ? 'Moving' : 'Stopped';
-      var age = DATA.trucksAt && t.lastUpdate
-        ? Math.max(0, Math.round((DATA.trucksAt - Date.parse(t.lastUpdate)) / 60000)) : null;
-      var who = (DATA.driverByDevice || {})[t.id];
+      // Against Date.now(), NOT DATA.trucksAt: both of those are stamped at fetch
+      // time, so the age froze and read "just now" for the whole weekend while the
+      // pins were Saturday's. An "ago" label has to keep counting.
+      var age = t.lastUpdate
+        ? Math.max(0, Math.round((Date.now() - Date.parse(t.lastUpdate)) / 60000)) : null;
+      var driver = driverFor(t.name);
+      var crewId = driver ? crewIdByName(driver) : null;
       var rows = '';
-      if(who && who.name){
-        var left = jobsLeftFor(who.crewId);
-        rows += '<div class="rw"><span>Driver</span><b>'+esc(who.name)+'</b></div>'
-             +  '<div class="rw"><span>Jobs left</span><b>'+left+'</b></div>';
+      if(driver && crewId){
+        rows += '<div class="rw"><span>Driver</span><b>'+esc(driver)+'</b></div>'
+             +  '<div class="rw"><span>Jobs left</span><b>'+jobsLeftFor(crewId)+'</b></div>';
       }
       rows += '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
            +  '<div class="rw"><span>Last ping</span><b>'
@@ -1316,7 +1318,14 @@
         stopCycle();                                    // nothing spinning off-screen
       }
     }
-    function nextPanel(){ showPanel(panelIdx+1); armRotation(); }
+    // try/finally is load-bearing: this is a self-rearming chain, so if showPanel()
+    // throws, the re-arm never runs and the wall freezes on one screen forever. The
+    // old setInterval kept firing regardless; the chain has to match that.
+    function nextPanel(){
+      try { showPanel(panelIdx+1); }
+      catch(e){ console.error('panel render failed', e); }
+      finally { armRotation(); }
+    }
     // A setTimeout chain rather than one setInterval, so each panel can hold the
     // screen for its own length of time.
     function armRotation(){
