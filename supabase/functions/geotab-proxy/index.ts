@@ -26,11 +26,23 @@
 
 import { authenticate, call, getOrCreateBinRentalsGroup, ZONE_PREFIX } from "../_shared/geotab-client.ts";
 
+/**
+ * The junk-side trucks. Names must match Geotab's device names EXACTLY — use
+ * `{ action: "devices" }` to see the real list rather than guessing.
+ *
+ * This drifted badly: it was still listing Hino 2015 and 2016 (both "In Shop" in
+ * the vehicles table) while omitting Hino 2020 and the SILVERADO, which are the
+ * two driven every day. The office TV showed five mostly-idle trucks and hid the
+ * two doing the work. Geotab's other 17 devices are the JWG side — tractors,
+ * Kubotas, skid steer, loader — and stay out.
+ */
 const DEFAULT_WHITELIST = [
   "Hino 2015",
   "Hino 2016",
   "Hino 2019",
+  "Hino 2020",
   "Hino L7 2023",
+  "2022 - 2500 SILVERADO",
   "Darrin Truck",
   "Furniture Bank Van",
 ];
@@ -153,6 +165,30 @@ async function handleZones(groupId: string): Promise<{ zones: ProxyZone[] }> {
 }
 
 /**
+ * Every device Geotab knows about, id + name only — no positions, no history.
+ *
+ * Deliberately NOT whitelist-filtered: this exists to configure the whitelist,
+ * and a filtered list can't tell you what you're missing. DEFAULT_WHITELIST went
+ * stale without anyone noticing (it listed two trucks that were in the shop while
+ * omitting the two being driven daily), and there was no way to see that from the
+ * outside because the filter hid the evidence.
+ */
+async function handleDevices(): Promise<
+  { devices: { id: string; name: string; listed: boolean }[] }
+> {
+  const all = (await call("Get", { typeName: "Device" })) as Array<{
+    id: string;
+    name: string;
+  }>;
+  const whitelist = new Set(getWhitelist());
+  return {
+    devices: all
+      .map((d) => ({ id: d.id, name: d.name, listed: whitelist.has(d.name) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+/**
  * Rolling-window breadcrumbs per truck. One LogRecord call covers every device,
  * so this costs the same whether we have one truck or ten.
  *
@@ -243,6 +279,9 @@ Deno.serve(async (req) => {
       }
       case "trails":
         payload = await handleTrails();
+        break;
+      case "devices":
+        payload = await handleDevices();
         break;
       default:
         throw new Error(`Unknown action: ${action}`);
