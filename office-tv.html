@@ -1569,6 +1569,20 @@
       if(inQuietHours()) return;
       try{
         if(localStorage.getItem(briefDoneKey())) return;
+        // Sweep old date-keyed markers before writing today's — without this the
+        // board accrues one dead ~30-byte key per day, forever. Trivial, but this
+        // display runs unattended for months.
+        //
+        // Collect first, THEN remove: localStorage.key(i) order is unspecified
+        // and may reshuffle after a removeItem, so deleting while iterating can
+        // let a key hop past the cursor — verified, one of 30 seeded stale keys
+        // survived a backwards-iterating sweep.
+        var stale = [];
+        for(var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if(k && k.indexOf('jj-tv-brief-') === 0 && k !== briefDoneKey()) stale.push(k);
+        }
+        stale.forEach(function(s){ localStorage.removeItem(s); });
         localStorage.setItem(briefDoneKey(), '1');
       }catch(e){ return; }   // no storage means we can't dedupe, so don't play
       playBriefing();
