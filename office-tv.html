@@ -432,7 +432,14 @@
     var PANELS = ['bins','schedule','kpis','liveops'];
     var YARD = { lat:44.3683, lng:-79.6831 };   // 92 Davidson St — home base
     var YARD_KM = 0.6;                          // inside this ring a truck reads "at the yard"
-    var FOCUS_ZOOM = 13;                        // how close the map flies when it focuses a truck
+    // How close the map flies when it focuses a truck. FOCUS_ZOOM is the cap (a
+    // truck that has barely moved shouldn't slam to max magnification); MIN_ZOOM is
+    // the floor — a 90-min trail can span half the county, and framing all of it
+    // pushed the map so far out you couldn't tell where the truck was. Past the
+    // floor we centre on the truck and let the older trail run off-screen.
+    var FOCUS_ZOOM = 13;
+    var MIN_ZOOM   = 12;
+    var FIT_PAD    = [100, 110];                // per-side, when framing a trail
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     var TV_BINS = ['tv-bin-4.png','tv-bin-14.png','tv-bin-20.png'];   // bottom overlay picks one at random each load
 
@@ -1345,9 +1352,19 @@
       // With a trail we frame the whole recent run instead, capped at the same
       // zoom so a truck that has barely moved doesn't slam to max magnification.
       var path = (DATA.trails || {})[t.id];
-      if(path && path.length >= 2){
-        _map.flyToBounds(L.latLngBounds(path.concat([[t.lat, t.lng]])),
-                         { maxZoom:FOCUS_ZOOM, padding:[100,110], duration:0.9 });
+      var bounds = path && path.length >= 2
+        ? L.latLngBounds(path.concat([[t.lat, t.lng]])) : null;
+      // getBoundsZoom tells us what fitting the trail WOULD cost. If that's wider
+      // than the floor, don't fit it — stay close on the truck instead.
+      //
+      // The doubling is load-bearing: flyToBounds applies `padding` to BOTH sides
+      // and hands getBoundsZoom the sum, while getBoundsZoom treats its argument as
+      // the total. Checking with FIT_PAD un-doubled saw more room than the real
+      // call had, so trails slipped through and then fitted a zoom level below the
+      // floor — measured: a 20 km trail passed the check and framed at 11.
+      if(bounds && _map.getBoundsZoom(bounds, false,
+           L.point(FIT_PAD[0] * 2, FIT_PAD[1] * 2)) >= MIN_ZOOM){
+        _map.flyToBounds(bounds, { maxZoom:FOCUS_ZOOM, padding:FIT_PAD, duration:0.9 });
       } else {
         _map.flyTo([t.lat, t.lng], FOCUS_ZOOM, { duration:0.9 });
       }
