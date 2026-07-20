@@ -342,16 +342,15 @@
   /* today's job counts ride in the panel head — the map gets the whole body */
   #loCount{color:var(--gold-ink)}
 
-  /* ── 9 AM briefing card ── */
-  #brief{position:fixed; inset:0; z-index:80; display:none; align-items:center; justify-content:center;
-    background:rgba(18,48,31,.82); backdrop-filter:blur(6px)}
+  /* ── 9 AM briefing — voice-over only (Jake: the board keeps doing its normal
+     thing). The ONLY visual is this small note, shown when the browser REFUSES
+     the audio: a silent failure with no trace would be indistinguishable from
+     the feature not existing. ── */
+  #brief{position:fixed; left:50%; bottom:34px; transform:translateX(-50%); z-index:80;
+    display:none; align-items:center; gap:12px; background:var(--spruce); border-radius:16px;
+    padding:14px 22px; box-shadow:0 10px 26px rgba(11,38,24,.4)}
   #brief.on{display:flex}
-  #brief .card{width:min(1200px,74vw); background:var(--card); border-radius:34px; padding:54px 62px;
-    box-shadow:0 30px 80px rgba(11,38,24,.5); text-align:center}
-  #brief .k{font:700 22px/1 'Hanken Grotesk'; letter-spacing:.24em; text-transform:uppercase;
-    color:var(--gold-ink)}
-  #brief .t{font:700 46px/1.35 'Baloo 2'; color:var(--spruce); margin-top:22px}
-  #brief .warn{font:600 20px/1.4 'Hanken Grotesk'; color:#b06a1a; margin-top:26px}
+  #brief .warn{font:600 17px/1.35 'Hanken Grotesk'; color:#f0b877}
 
   /* ── net-status pip ── */
   #netdot{position:fixed; bottom:14px; right:14px; width:12px; height:12px; border-radius:50%;
@@ -423,13 +422,9 @@
       </div>
     </div>
   </div>
-  <!-- 9 AM spoken briefing — the text shows too, so it still works if the
-       browser refuses to autoplay audio -->
-  <div id="brief"><div class="card">
-    <div class="k">This morning</div>
-    <div class="t" id="briefText"></div>
-    <div class="warn" id="briefWarn"></div>
-  </div></div>
+  <!-- 9 AM briefing is voice-over only. This note appears solely when the
+       browser refuses to play the audio, so a failure is never invisible. -->
+  <div id="brief"><span class="warn" id="briefWarn"></span></div>
 
   <div id="netdot"></div>
 
@@ -1575,18 +1570,17 @@
         try{ localStorage.setItem(briefDoneKey(), '1'); }
         catch(e){ return; }   // no storage = no dedupe; stay silent over replaying
 
-        el('briefText').textContent = meta.text || '';
-        el('briefWarn').textContent = '';
-        el('brief').classList.add('on');
-
+        // Voice-over only (Jake): the board keeps rotating, nothing on screen.
+        // The one exception is a refusal — if autoplay is blocked, a silent
+        // failure would be invisible, so a small note names the fix.
         var audio = new Audio(BRIEF_URL + 'briefing.mp3?t=' + Date.now());
         audio.play().catch(function(err){
           console.warn('briefing autoplay blocked', err);
-          el('briefWarn').textContent = 'Audio blocked by the browser — text only. '
-            + 'Yodeck needs --autoplay-policy=no-user-gesture-required.';
+          el('briefWarn').textContent = 'Briefing audio blocked — Yodeck needs autoplay '
+            + '(--autoplay-policy=no-user-gesture-required).';
+          el('brief').classList.add('on');
+          setTimeout(function(){ el('brief').classList.remove('on'); }, BRIEF_SHOW_MS);
         });
-
-        setTimeout(function(){ el('brief').classList.remove('on'); }, BRIEF_SHOW_MS);
       }catch(e){ console.warn('briefing failed', e); }
     }
 
@@ -1733,6 +1727,17 @@
       el('tvbin').src = 'assets/' + TV_BINS[Math.floor(Math.random()*TV_BINS.length)];   // random bin this load
       fitBoard(); window.addEventListener('resize', fitBoard);
       tickClock(); setInterval(tickClock, 1000);
+      // One-shot (2026-07-20): clear today's played-marker so the wall can demo
+      // the briefing the evening it shipped — it proves the Yodeck autoplay
+      // question a day early. The reset key deliberately does NOT carry the
+      // 'jj-tv-brief-' prefix, so the daily marker sweep never removes it: each
+      // reset id fires exactly once per device, ever. Bump the id to re-arm.
+      try{
+        if(!localStorage.getItem('jj-tv-briefreset-1')){
+          localStorage.removeItem(briefDoneKey());
+          localStorage.setItem('jj-tv-briefreset-1', '1');
+        }
+      }catch(e){}
       checkBriefing(); setInterval(checkBriefing, 60000);   // 9 AM spoken briefing
       loadWeather(); setInterval(loadWeather, 30*60*1000);
       startRotation();
