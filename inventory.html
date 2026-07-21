@@ -4,18 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Back Shop Inventory — Jeff White Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=350">
 <link rel="stylesheet" href="app-jwg-theme.css?v=350">
 <style>
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Arial,sans-serif;background:#f8f9fa;color:#16223a;-webkit-text-size-adjust:100%}
-  /* Kiosk: this page has no dashboard <main>, so cancel the scheduler's break-out margin */
-  #view-jwgscheduler{margin:0!important;max-width:none!important;padding-bottom:24px!important}
-  /* Kiosk only (Jake 2026-07-21): nothing may navigate away from this page. Hide the two
-     exits — the print button (opens a print window) and the Buy Here supplier link.
-     The dashboard's inventory tab keeps both. */
-  button[onclick="JWG.printInventoryShoppingList()"]{display:none}
-  .inv-card-buy-link{display:none!important}
+  html,body{margin:0;padding:0;font-family:'Inter',system-ui,-apple-system,Arial,sans-serif;background:#eef2f4;color:#16223a;-webkit-text-size-adjust:100%}
+  /* Kiosk: no dashboard <main>, and the futuristic view draws its own surfaces —
+     cancel the scheduler theme's break-out margin and its white card box. */
+  #view-jwgscheduler{margin:0!important;max-width:none!important;padding:0!important;position:relative;z-index:1}
+  #view-jwgscheduler #app{padding:0!important}
+  #kiosk-app .card{background:transparent!important;border:none!important;box-shadow:none!important;border-radius:0!important;margin:0!important;overflow:visible!important}
+  #kiosk-app .card:hover{box-shadow:none!important;transform:none!important;border-color:transparent!important}
   /* ── login ── */
   #kiosk-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#22c55e 0%,#12713a 100%);z-index:50;padding:20px}
   .kl-card{background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(6,60,28,.32);padding:38px 32px;width:100%;max-width:360px;text-align:center}
@@ -31,11 +33,99 @@
   .kl-card button:disabled{opacity:.6;cursor:default}
   .kl-err{color:#dc2626;font-size:12.5px;min-height:17px;margin-top:10px;font-weight:600}
   /* ── kiosk chrome ── */
-  #kiosk-app{display:none;min-height:100vh}
-  #kiosk-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 18px;background:#fff;border-bottom:1px solid #e9ecef;position:sticky;top:0;z-index:20}
-  #kiosk-top .brand{font-weight:900;color:#16a34a;letter-spacing:.4px;font-size:15px}
-  #kiosk-signout{background:transparent;border:1px solid #d7dbe0;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;color:#5b6472;cursor:pointer}
+  #kiosk-app{display:none;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+  #kiosk-top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 26px;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);border-bottom:1px solid #e2e8ec;box-shadow:0 1px 0 rgba(255,255,255,.7),0 6px 20px -12px rgba(16,40,28,.3);z-index:6}
+  .kt-brand{display:flex;align-items:center;gap:12px}
+  .kt-logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(155deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px -5px rgba(34,197,94,.65),inset 0 1px 0 rgba(255,255,255,.5)}
+  .kt-name{font-size:14.5px;font-weight:900;letter-spacing:.3px;color:#16223a;line-height:1.2;white-space:nowrap}
+  .kt-sub{font-size:11px;font-weight:600;color:#8a97a0;letter-spacing:.14em;line-height:1.2;white-space:nowrap}
+  .kt-right{display:flex;align-items:center;gap:16px}
+  .kt-live{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:#eafaf0;border:1px solid #c8ecd6;white-space:nowrap}
+  .kt-live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.8);animation:kgBlink 1.8s ease-in-out infinite}
+  .kt-live-label{font-size:11.5px;font-weight:800;letter-spacing:.08em;color:#15803d}
+  .kt-user{display:flex;align-items:center;gap:9px;padding-left:16px;border-left:1px solid #e2e8ec}
+  .kt-avatar{width:34px;height:34px;border-radius:50%;background:#e8f6ee;border:1px solid #c8ecd6;display:flex;align-items:center;justify-content:center;color:#15803d;font-weight:800;font-size:13px}
+  .kt-uname{font-size:13px;font-weight:700;color:#16223a;line-height:1.2;white-space:nowrap}
+  .kt-usub{font-size:10.5px;color:#8a97a0;line-height:1.2}
+  #kiosk-signout{background:#fff;border:1px solid #d7dbe0;border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:#5b6472;cursor:pointer;white-space:nowrap;transition:.15s}
   #kiosk-signout:hover{border-color:#dc2626;color:#dc2626}
+  #kiosk-scroll{flex:1;min-width:0;overflow-y:auto;position:relative}
+  .kg-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .kg-aurora span:first-child{position:absolute;width:620px;height:620px;top:-220px;left:-120px;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(34,197,94,.16),transparent 66%);filter:blur(30px);animation:kgAuroraA 20s ease-in-out infinite}
+  .kg-aurora span:last-child{position:absolute;width:560px;height:560px;bottom:-220px;right:-100px;border-radius:50%;background:radial-gradient(circle at 55% 45%,rgba(45,212,191,.14),transparent 66%);filter:blur(30px);animation:kgAuroraB 24s ease-in-out infinite}
+  /* ── futuristic content (rendered by renderInventoryKioskPage) ── */
+  #kg-shell{position:relative;padding:30px 40px 64px;max-width:1280px;margin:0 auto}
+  .kg-truck{position:absolute;right:22px;top:6px;width:172px;pointer-events:none;z-index:0;filter:drop-shadow(0 18px 24px rgba(16,40,28,.2));animation:kgDriveIn 1s cubic-bezier(.22,1,.36,1) both,kgBobY 4.6s ease-in-out 1.2s infinite}
+  @media(max-width:900px){.kg-truck{display:none}}
+  .kg-hero{position:relative;z-index:1;margin-bottom:28px}
+  .kg-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#16a34a;margin-bottom:9px}
+  .kg-title{font-family:'Bebas Neue',sans-serif;font-size:56px;font-weight:400;line-height:.9;letter-spacing:.5px;margin:0;color:#16223a}
+  .kg-underline{height:4px;width:230px;margin-top:14px;border-radius:999px;background:linear-gradient(90deg,#22c55e,#2dd4bf);transform-origin:left;animation:kgLineGrow .9s cubic-bezier(.22,1,.36,1) both}
+  .kg-sub{font-size:14.5px;color:#5b6472;margin-top:14px;max-width:640px;line-height:1.55}
+  .kg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:26px;position:relative;z-index:1}
+  .kg-kpi{position:relative;display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e7edf0;border-radius:16px;padding:18px 20px;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);overflow:hidden}
+  .kg-kpi-top{position:absolute;top:0;left:0;right:0;height:3px}
+  .kg-sheen{position:absolute;top:0;bottom:0;width:40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);animation:kgSheen 6s ease-in-out infinite}
+  .kg-kpi-label{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a97a0;white-space:nowrap}
+  .kg-kpi-num{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.9;color:#16223a;margin-top:3px}
+  .kg-kpi-num.low{color:#dc2626}
+  .kg-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;position:relative;z-index:1}
+  #kg-search{flex:1;min-width:220px;max-width:380px;padding:13px 16px;border:1px solid #dbe2e7;border-radius:12px;font-size:14px;background:#fff;color:#16223a;outline:none;box-shadow:0 2px 8px -4px rgba(16,40,28,.12);transition:border-color .2s,box-shadow .2s;font-family:inherit}
+  #kg-search:focus{border-color:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.15)}
+  #kg-search::placeholder{color:#9aa3af}
+  .kg-chip{border-radius:999px;padding:12px 20px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex:none;transition:filter .15s;background:#fff;color:#5b6472;border:1px solid #dbe2e7;box-shadow:0 2px 8px -4px rgba(16,40,28,.1);font-family:inherit}
+  .kg-chip.on{background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;border:1px solid #22c55e;box-shadow:0 6px 16px -4px rgba(34,197,94,.5)}
+  .kg-chip:hover{filter:brightness(.98)}
+  .kg-chip span{opacity:.85;font-weight:800}
+  .kg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;position:relative;z-index:1}
+  .kg-card.enter{animation:kgPopIn .5s cubic-bezier(.22,1,.36,1) both}
+  .kg-inner{position:relative;display:flex;flex-direction:column;height:100%;background:#fff;border:1px solid #e7edf0;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s}
+  .kg-inner:hover{transform:translateY(-5px);box-shadow:0 22px 44px -16px rgba(16,40,28,.3)}
+  .kg-img{position:relative;width:100%;aspect-ratio:1/1;background:#eef2f5}
+  .kg-img img{width:100%;height:100%;object-fit:cover;display:block}
+  .kg-imgph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:15px;font-weight:700;color:#b6c0c8;letter-spacing:.02em}
+  .kg-lowbadge{position:absolute;top:11px;left:11px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:#dc2626;padding:4px 11px;border-radius:999px;box-shadow:0 4px 10px rgba(220,38,38,.45);pointer-events:none;animation:kgLowPulse 1.6s ease-in-out infinite}
+  .kg-cel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .kg-cel-ring{position:absolute;width:74px;height:74px;border-radius:50%;border:4px solid #22c55e;animation:kgBurst .9s ease-out forwards}
+  .kg-cel-pill{display:flex;align-items:center;gap:7px;background:#15803d;color:#fff;font-size:12px;font-weight:800;padding:8px 15px;border-radius:999px;box-shadow:0 10px 24px -6px rgba(21,128,61,.6);animation:kgTada .6s cubic-bezier(.34,1.56,.64,1) both}
+  .kg-body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:9px;flex:1}
+  .kg-nrow{display:flex;align-items:flex-start;gap:8px}
+  .kg-name{font-size:15px;font-weight:800;color:#16223a;flex:1;line-height:1.25}
+  .kg-prod{font-family:'Bebas Neue',monospace;font-size:11px;color:#6b7280;background:#eef1f4;padding:3px 8px;border-radius:6px;letter-spacing:.6px;white-space:nowrap}
+  .kg-meta{font-size:12px;color:#9aa3af}
+  .kg-bar{height:8px;border-radius:999px;background:#eef1f4;overflow:hidden;margin-top:1px}
+  .kg-bar-fill{display:block;height:100%;border-radius:999px;transition:width .45s cubic-bezier(.22,1,.36,1),background .3s}
+  .kg-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:9px;margin-top:auto}
+  .kg-count{display:flex;align-items:baseline;gap:4px}
+  .kg-num{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;color:#16223a;cursor:pointer;display:inline-block}
+  .kg-num.islow{color:#dc2626}
+  .kg-num.kg-bump{animation:kgBump .24s cubic-bezier(.34,1.56,.64,1)}
+  .kg-unit{font-size:12px;color:#9aa3af}
+  .kg-btns{display:flex;gap:8px}
+  .kg-dec,.kg-inc{width:38px;height:38px;border-radius:11px;font-size:20px;font-weight:700;cursor:pointer;line-height:1;transition:.12s;font-family:inherit}
+  .kg-dec{border:1px solid #dbe2e7;background:#fff;color:#5b6472}
+  .kg-dec:hover{border-color:#22c55e;color:#16a34a;background:#f2fbf5}
+  .kg-inc{border:none;background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;box-shadow:0 6px 14px -4px rgba(21,128,61,.55)}
+  .kg-inc:hover{filter:brightness(1.08)}
+  .kg-dec:active,.kg-inc:active{transform:scale(.9)}
+  .kg-empty{text-align:center;padding:60px 20px;position:relative;z-index:1}
+  .kg-empty-big{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#16223a;letter-spacing:.5px}
+  .kg-empty-sub{font-size:13.5px;margin-top:7px;color:#8a97a0}
+  .kg-toast-wrap{position:fixed;left:0;right:0;bottom:28px;display:flex;justify-content:center;z-index:30;pointer-events:none}
+  .kg-toast{display:flex;align-items:center;gap:10px;background:#15803d;color:#fff;padding:13px 22px;border-radius:14px;box-shadow:0 18px 44px -10px rgba(6,60,28,.55);font-size:14px;font-weight:700;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .35s cubic-bezier(.34,1.56,.64,1)}
+  .kg-toast.show{opacity:1;transform:translateY(0)}
+  @keyframes kgPopIn{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:none}}
+  @keyframes kgAuroraA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(46px,32px) scale(1.15)}}
+  @keyframes kgAuroraB{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-44px,-30px) scale(1)}}
+  @keyframes kgLineGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes kgLowPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  @keyframes kgBurst{0%{transform:scale(.35);opacity:.85}100%{transform:scale(2.8);opacity:0}}
+  @keyframes kgTada{0%{transform:scale(.4) rotate(-10deg);opacity:0}55%{transform:scale(1.12) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+  @keyframes kgDriveIn{from{transform:translateX(190px);opacity:0}to{transform:translateX(0);opacity:1}}
+  @keyframes kgBobY{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes kgBlink{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes kgSheen{0%{transform:translateX(-140%)}60%,100%{transform:translateX(360%)}}
+  @keyframes kgBump{0%{transform:scale(1)}50%{transform:scale(1.24)}100%{transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -52,13 +142,23 @@
   </div>
 
   <div id="kiosk-app">
-    <div id="kiosk-top">
-      <span class="brand">JEFF WHITE GROUP · Back Shop</span>
-      <button id="kiosk-signout" type="button">Sign out</button>
-    </div>
-    <div id="view-jwgscheduler" class="view active" data-tabgroup="ops">
-      <div id="app"><div class="card"></div></div>
-      <div id="jwg-toast"></div>
+    <header id="kiosk-top">
+      <div class="kt-brand">
+        <div class="kt-logo" id="kt-logo"></div>
+        <div><div class="kt-name">JEFF WHITE GROUP</div><div class="kt-sub">BACK SHOP · INVENTORY</div></div>
+      </div>
+      <div class="kt-right">
+        <div class="kt-live"><span class="kt-live-dot"></span><span class="kt-live-label">LIVE</span></div>
+        <div class="kt-user"><div class="kt-avatar" id="kt-avatar">–</div><div><div class="kt-uname" id="kt-uname">&nbsp;</div><div class="kt-usub">Signed in</div></div></div>
+        <button id="kiosk-signout" type="button">Sign out</button>
+      </div>
+    </header>
+    <div id="kiosk-scroll">
+      <div class="kg-aurora"><span></span><span></span></div>
+      <div id="view-jwgscheduler" class="view active" data-tabgroup="ops">
+        <div id="app"><div class="card"></div></div>
+        <div id="jwg-toast"></div>
+      </div>
     </div>
   </div>
 
@@ -71,7 +171,8 @@
     // Every page load starts at the login screen; the session lives in memory only.
     window.db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, { auth: { persistSession: false } });
   </script>
-  <script src="app-jwg-scheduler.js?v=350"></script>
+  <script src="jwg-icons.js?v=397"></script>
+  <script src="app-jwg-scheduler.js?v=436"></script>
   <script>
     (function(){
       var loginEl = document.getElementById('kiosk-login');
@@ -82,9 +183,11 @@
       var errEl   = document.getElementById('kl-err');
       var btn     = document.getElementById('kl-btn');
 
+      document.getElementById('kt-logo').innerHTML = JWGIcons.svg('shop', { size: 20, stroke: '#fff' });
+
       function showApp(){
         loginEl.style.display = 'none';
-        appEl.style.display = 'block';
+        appEl.style.display = 'flex';
         window.renderJwgInventoryKiosk();
       }
       function showLogin(){
@@ -113,6 +216,12 @@
           var r = await window.db.auth.signInWithPassword({ email: email, password: p });
           if (r.error) { errEl.textContent = 'Wrong password — try again.'; btn.disabled=false; btn.textContent='Sign in'; return; }
           btn.disabled = false; btn.textContent = 'Sign in';
+          // Personalize the header + hero greeting from the typed username.
+          var display = u.indexOf('@') > -1 ? u.split('@')[0] : u;
+          display = display.charAt(0).toUpperCase() + display.slice(1);
+          window.kioskUserName = display;
+          document.getElementById('kt-uname').textContent = display;
+          document.getElementById('kt-avatar').textContent = display.slice(0, 2).toUpperCase();
           showApp();
         } catch(ex) {
           errEl.textContent = 'Network error — check the connection.';

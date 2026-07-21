@@ -2770,7 +2770,9 @@ async function deleteWinterServiceType(typeId){
 // ── INVENTORY.JS ──────────────────────────────────────────
 // Part of JWG Staff Scheduler
 
-let INV={items:[],categories:[],filter:"all",statusFilter:"all",search:""};
+let INV={items:[],categories:[],filter:"all",statusFilter:"all",search:"",
+  // kiosk-only state (inventory.html futuristic view)
+  kioskFilter:"all",kioskRestocked:0,kioskBumpId:null,kioskCelebrateId:null,kioskToast:""};
 
 async function loadInventoryData(){
   try{
@@ -2800,6 +2802,7 @@ function invStatusFor(item){
   return "in_stock";
 }
 function renderInventoryPage(){
+  if(_invKioskMode){renderInventoryKioskPage();return;}
   const root=document.querySelector(".card");
   if(!root)return;
   let h=`<div class="si-header">
@@ -2894,6 +2897,117 @@ function renderInventoryPage(){
 }
 
 function filterInventory(){renderInventoryPage();}
+
+// ── Futuristic kiosk view (inventory.html only) ─────────────────────────────
+// Jake's Claude Design "Back Shop Inventory - Futuristic" (2026-07-21).
+// bootInventoryKiosk flips _invKioskMode, so every re-render path (adjust,
+// realtime, filter) lands here instead of the dashboard UI above. The kg-
+// classes are styled in inventory.html; the dashboard never loads them.
+let _invKioskMode=false,_invKioskEntrance=true,_kgCelTimer=null,_kgToastTimer=null;
+
+function renderInventoryKioskPage(){
+  const root=document.querySelector(".card");
+  if(!root)return;
+  if(!document.getElementById("kg-shell")){
+    _invKioskEntrance=true;
+    const name=window.kioskUserName||"";
+    root.innerHTML=`<div id="kg-shell">
+      <img src="assets/tv-truck.png" alt="" class="kg-truck">
+      <div class="kg-hero">
+        <div class="kg-eyebrow">${name?"Hey "+esc(name)+" — shelf status":"Shelf status"}</div>
+        <h1 class="kg-title">Back shop inventory</h1>
+        <div class="kg-underline"></div>
+        <div class="kg-sub">Everything on the shelf, live. Tap <b>+</b> as stock comes in and <b>−</b> as it goes out — bump a low item back up and it clears itself.</div>
+      </div>
+      <div class="kg-kpis">
+        <div class="kg-kpi"><span class="kg-kpi-top" style="background:#22c55e"></span><span class="kg-sheen"></span>${JWGIcons.embossTile("documents",{color:"green"})}<div><div class="kg-kpi-label">Items tracked</div><div class="kg-kpi-num" id="kg-k-total">0</div></div></div>
+        <div class="kg-kpi"><span class="kg-kpi-top" style="background:#ef4444"></span>${JWGIcons.embossTile("bell",{color:"red"})}<div><div class="kg-kpi-label">Low or out</div><div class="kg-kpi-num low" id="kg-k-low">0</div></div></div>
+        <div class="kg-kpi"><span class="kg-kpi-top" style="background:#16a34a"></span>${JWGIcons.embossTile("confirmed",{color:"green"})}<div><div class="kg-kpi-label">Restocked today</div><div class="kg-kpi-num" id="kg-k-restock">0</div></div></div>
+      </div>
+      <div class="kg-controls">
+        <input type="text" id="kg-search" placeholder="Search parts…" oninput="JWG.INV.search=this.value;JWG.filterInventory()">
+        <button type="button" class="kg-chip" id="kg-chip-all" onclick="JWG.INV.kioskFilter='all';JWG.filterInventory()">All items</button>
+        <button type="button" class="kg-chip" id="kg-chip-low" onclick="JWG.INV.kioskFilter='low';JWG.filterInventory()">Low or out <span id="kg-chip-low-n">· 0</span></button>
+      </div>
+      <div class="kg-grid" id="kg-grid"></div>
+      <div class="kg-empty" id="kg-empty" hidden>
+        <div class="kg-empty-big">Nothing matches</div>
+        <div class="kg-empty-sub">Try clearing the search or the “Low or out” filter.</div>
+      </div>
+    </div>
+    <div class="kg-toast-wrap"><div class="kg-toast" id="kg-toast">${JWGIcons.svg("confirmed",{size:20,stroke:"#fff"})}<span>Restocked · <span id="kg-toast-name"></span></span></div></div>`;
+  }
+
+  const lowCount=INV.items.filter(i=>i.current_stock<=i.min_threshold).length;
+  document.getElementById("kg-k-total").textContent=INV.items.length;
+  document.getElementById("kg-k-low").textContent=lowCount;
+  document.getElementById("kg-k-restock").textContent=INV.kioskRestocked;
+  document.getElementById("kg-chip-low-n").textContent="· "+lowCount;
+  document.getElementById("kg-chip-all").classList.toggle("on",INV.kioskFilter!=="low");
+  document.getElementById("kg-chip-low").classList.toggle("on",INV.kioskFilter==="low");
+
+  const q=(INV.search||"").trim().toLowerCase();
+  const list=INV.items.filter(i=>
+    (INV.kioskFilter!=="low"||i.current_stock<=i.min_threshold)&&
+    (!q||i.item_name.toLowerCase().includes(q)||(i.product_number||"").toLowerCase().includes(q)));
+  const _rank=i=>i.current_stock===0?0:i.current_stock<=i.min_threshold?1:2;
+  list.sort((a,b)=>_rank(a)-_rank(b)||a.item_name.localeCompare(b.item_name));
+
+  document.getElementById("kg-grid").innerHTML=list.map((item,ix)=>{
+    const low=item.current_stock<=item.min_threshold;
+    const target=Math.max(item.min_threshold*2,item.min_threshold+6);
+    const pct=Math.max(6,Math.min(100,Math.round(item.current_stock/Math.max(1,target)*100)));
+    const barColor=low?"#ef4444":item.current_stock<=Math.ceil(item.min_threshold*1.4)?"#eab308":"#22c55e";
+    return `<div class="kg-card${_invKioskEntrance?" enter":""}"${_invKioskEntrance?' style="animation-delay:'+Math.min(ix,12)*65+'ms"':""}>
+      <div class="kg-inner">
+        <div class="kg-img">
+          ${item.image_url?`<img src="${esc(item.image_url)}" alt="${esc(item.item_name)}">`:`<span class="kg-imgph">${esc(item.item_name)}</span>`}
+          ${low?`<span class="kg-lowbadge">LOW</span>`:""}
+          ${INV.kioskCelebrateId===item.id?`<div class="kg-cel"><span class="kg-cel-ring"></span><span class="kg-cel-pill">${JWGIcons.svg("confirmed",{size:16,stroke:"#fff"})}Restocked!</span></div>`:""}
+        </div>
+        <div class="kg-body">
+          <div class="kg-nrow"><span class="kg-name">${esc(item.item_name)}</span>${item.product_number?`<span class="kg-prod">#${esc(item.product_number)}</span>`:""}</div>
+          <div class="kg-meta">Reorder at ${item.min_threshold} · per ${esc(item.unit||"each")}</div>
+          <div class="kg-bar"><span class="kg-bar-fill" style="width:${pct}%;background:${barColor};box-shadow:0 0 8px ${barColor}66"></span></div>
+          <div class="kg-foot">
+            <div class="kg-count"><span class="kg-num${low?" islow":""}${INV.kioskBumpId===item.id?" kg-bump":""}" onclick="JWG.setInventoryCount('${item.id}')" title="Set exact count">${item.current_stock}</span><span class="kg-unit">${esc(item.unit||"")}</span></div>
+            <div class="kg-btns">
+              <button type="button" class="kg-dec" onclick="JWG.kioskAdjust('${item.id}',-1)">−</button>
+              <button type="button" class="kg-inc" onclick="JWG.kioskAdjust('${item.id}',1)">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("kg-empty").hidden=list.length>0;
+
+  if(INV.kioskToast)document.getElementById("kg-toast-name").textContent=INV.kioskToast;
+  document.getElementById("kg-toast").classList.toggle("show",!!INV.kioskToast);
+
+  _invKioskEntrance=false;
+  INV.kioskBumpId=null;
+}
+
+// Kiosk +/- wrapper: same PATCH as the dashboard via adjustInventory, plus the
+// number-bump, and — when a + takes an item from low back over its minimum —
+// the restock counter, card celebration, and green toast.
+async function kioskAdjustInventory(itemId,delta){
+  const item=INV.items.find(i=>i.id===itemId);
+  if(!item)return;
+  const before=item.current_stock,wasLow=before<=item.min_threshold;
+  INV.kioskBumpId=itemId;
+  await adjustInventory(itemId,delta);
+  if(item.current_stock===before){INV.kioskBumpId=null;return;}
+  if(delta>0&&wasLow&&item.current_stock>item.min_threshold){
+    INV.kioskRestocked++;
+    INV.kioskCelebrateId=item.id;
+    INV.kioskToast=item.item_name;
+    renderInventoryPage();
+    clearTimeout(_kgCelTimer);_kgCelTimer=setTimeout(()=>{INV.kioskCelebrateId=null;renderInventoryPage();},950);
+    clearTimeout(_kgToastTimer);_kgToastTimer=setTimeout(()=>{INV.kioskToast="";renderInventoryPage();},2400);
+  }
+}
 
 async function adjustInventory(itemId,delta){
   const item=INV.items.find(i=>i.id===itemId);
@@ -3674,6 +3788,7 @@ function renderJwgScheduler(){
 // inventory module, not the whole scheduler. Mounts into the page's existing
 // #view-jwgscheduler > #app > .card scaffold.
 async function bootInventoryKiosk(){
+  _invKioskMode=true;  // route all inventory renders to the futuristic kiosk view
   try{
     await loadInventoryData();
     S.tab="inventory";
@@ -3687,5 +3802,5 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
-window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
