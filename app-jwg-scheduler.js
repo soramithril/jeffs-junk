@@ -2904,6 +2904,10 @@ function filterInventory(){renderInventoryPage();}
 // realtime, filter) lands here instead of the dashboard UI above. The kg-
 // classes are styled in inventory.html; the dashboard never loads them.
 let _invKioskMode=false,_invKioskEntrance=true,_kgCelTimer=null,_kgToastTimer=null,_kgTickerKey=null;
+let _kgBannerUntil=0,_kgBannerTimer=null;  // banner shows for 5 min after login / after fresh news
+
+// restocked within the last 24h -> still worth flagging to Darrin
+function _kgRecentRestock(i){return !!i.restocked_at&&(Date.now()-new Date(i.restocked_at).getTime()<86400000);}
 
 // eased 0→to count-up for the KPI numbers on first paint
 function _kgCountUp(el,to){
@@ -2954,28 +2958,27 @@ function renderInventoryKioskPage(){
   }
   document.getElementById("kg-chip-low-n").textContent="· "+lowCount;
 
-  // Ticker: spans are keyed on membership (WHO is low), so a +/- tap never
-  // restarts the scroll — the live counts are painted into the existing spans.
-  const alerts=[
-    ...INV.items.filter(i=>i.current_stock===0).map(i=>({id:i.id,s:"OUT",n:i.item_name,c:0,b:i.backstock||0})),
-    ...INV.items.filter(i=>i.current_stock>0&&i.current_stock<=i.min_threshold).map(i=>({id:i.id,s:"LOW",n:i.item_name,c:i.current_stock,b:i.backstock||0}))
+  // Banner: ordered/restocked news only (lows are already flagged on the cards).
+  // Visible for 5 min after login — or after fresh news arrives — then hides.
+  const events=[
+    ...INV.items.filter(i=>i.status==="ordered").map(i=>({id:i.id,s:"ORDERED",cls:"ord",n:i.item_name})),
+    ...INV.items.filter(i=>i.status!=="ordered"&&_kgRecentRestock(i)).map(i=>({id:i.id,s:"RESTOCKED",cls:"res",n:i.item_name}))
   ];
   const track=document.getElementById("kg-ticker-track");
-  const tickerKey=alerts.map(a=>a.s+a.id).join("|");
+  const tickerKey=events.map(a=>a.s+a.id).join("|");
   if(tickerKey!==_kgTickerKey){
     _kgTickerKey=tickerKey;
+    if(events.length)_kgBannerUntil=Math.max(_kgBannerUntil,Date.now()+300000);  // fresh news restarts the 5 min
     const dot=`<span class="kg-tk-dot">•</span>`;
-    const base=alerts.length
-      ? alerts.map(a=>`<span class="kg-tk ${a.s==="OUT"?"out":"low"}" data-tk="${a.id}"><b>${a.s}</b>${esc(a.n)}<i></i></span>`).join(dot)+dot
-      : `<span class="kg-tk ok">✓ Everything stocked</span>${dot}<span class="kg-tk">JEFF WHITE GROUP — BACK SHOP</span>${dot}`;
+    const base=events.map(a=>`<span class="kg-tk ${a.cls}"><b>${a.s}</b>${esc(a.n)}</span>`).join(dot)+dot;
     let half=""; for(let k=0;k<6;k++)half+=base;
     track.innerHTML=half+half;  // two identical halves -> seamless -50% loop
-    track.style.animationDuration=Math.max(35,alerts.length*14)+"s";
+    track.style.animationDuration=Math.max(90,events.length*40)+"s";
   }
-  alerts.forEach(a=>{
-    const suffix=(a.s==="LOW"?` · ${a.c} left`:"")+(a.b>0?` · ${a.b} in back`:"");
-    track.querySelectorAll(`[data-tk="${a.id}"] i`).forEach(el=>{el.textContent=suffix;});
-  });
+  const showBanner=events.length>0&&Date.now()<_kgBannerUntil;
+  document.querySelector(".kg-tickerbar").style.display=showBanner?"":"none";
+  clearTimeout(_kgBannerTimer);
+  if(showBanner)_kgBannerTimer=setTimeout(()=>renderInventoryPage(),_kgBannerUntil-Date.now()+250);
   document.getElementById("kg-chip-all").classList.toggle("on",INV.kioskFilter!=="low");
   document.getElementById("kg-chip-low").classList.toggle("on",INV.kioskFilter==="low");
 
@@ -2996,6 +2999,7 @@ function renderInventoryKioskPage(){
         <div class="kg-img">
           ${item.image_url?`<img src="${esc(item.image_url)}" alt="${esc(item.item_name)}">`:`<span class="kg-imgph">${esc(item.item_name)}</span>`}
           ${low?`<span class="kg-lowbadge">LOW</span>`:""}
+          ${item.status==="ordered"||_kgRecentRestock(item)?`<div class="kg-flags">${item.status==="ordered"?`<span class="kg-flag ord">ORDERED</span>`:""}${item.status!=="ordered"&&_kgRecentRestock(item)?`<span class="kg-flag res">RESTOCKED ✓</span>`:""}</div>`:""}
           ${INV.kioskCelebrateId===item.id?`<div class="kg-cel"><span class="kg-cel-ring"></span><span class="kg-cel-pill">${JWGIcons.svg("confirmed",{size:16,stroke:"#fff"})}Restocked!</span></div>`:""}
         </div>
         <div class="kg-body">
@@ -3086,7 +3090,7 @@ async function markOrdered(itemId){
   }catch(e){toast("Failed to mark as ordered","error");console.error(e);}
 }
 
-async function setInventoryCount(itemId){
+async function setInventoryCount(itemId,extra){
   const item=INV.items.find(i=>i.id===itemId);
   if(!item)return;
   const ans=prompt(`Set the on-hand count for "${item.item_name}"${item.unit?" ("+item.unit+")":""}:`,item.current_stock);
@@ -3094,13 +3098,16 @@ async function setInventoryCount(itemId){
   const n=Math.max(0,parseInt(ans,10)||0);
   const st=n===0?"out_of_stock":n<=item.min_threshold?"low":"in_stock";
   try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:n,status:st});
-    item.current_stock=n;item.status=st;
+    const patch={current_stock:n,status:st,...(extra||{})};
+    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,patch);
+    Object.assign(item,patch);
     renderInventoryPage();
     toast("Stock updated");
   }catch(e){toast("Failed to update stock","error");console.error(e);}
 }
-async function restockItem(itemId){return setInventoryCount(itemId);}
+// Admin "Restocked" button: same set-count flow, plus the restocked_at stamp the
+// kiosk uses to show Darrin a RESTOCKED flag (and banner) until his next day.
+async function restockItem(itemId){return setInventoryCount(itemId,{restocked_at:new Date().toISOString()});}
 function printInventoryShoppingList(){
   const low=INV.items.filter(i=>i.current_stock<=i.min_threshold).sort((a,b)=>(a.current_stock===0?0:1)-(b.current_stock===0?0:1)||a.item_name.localeCompare(b.item_name));
   const rows=low.map(i=>`<tr><td>${esc(i.item_name)}</td><td>${esc(i.product_number||"")}</td><td style="text-align:center">${i.current_stock}</td><td style="text-align:center">${i.min_threshold}</td><td>${esc(i.unit||"")}</td></tr>`).join("");
@@ -3844,6 +3851,7 @@ function renderJwgScheduler(){
 // #view-jwgscheduler > #app > .card scaffold.
 async function bootInventoryKiosk(){
   _invKioskMode=true;  // route all inventory renders to the futuristic kiosk view
+  _kgBannerUntil=Date.now()+300000;  // news banner runs for 5 min after login
   try{
     await loadInventoryData();
     S.tab="inventory";
