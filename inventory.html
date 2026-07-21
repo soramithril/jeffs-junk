@@ -49,71 +49,74 @@
   .kt-usub{font-size:10.5px;color:#8a97a0;line-height:1.2}
   #kiosk-signout{background:#fff;border:1px solid #d7dbe0;border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:700;color:#5b6472;cursor:pointer;white-space:nowrap;transition:.15s}
   #kiosk-signout:hover{border-color:#dc2626;color:#dc2626}
-  #kiosk-scroll{flex:1;min-width:0;overflow-y:auto;position:relative}
+  #kiosk-scroll{flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;position:relative}
   .kg-aurora{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
   .kg-aurora span:first-child{position:absolute;width:620px;height:620px;top:-220px;left:-120px;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(34,197,94,.16),transparent 66%);filter:blur(30px);animation:kgAuroraA 20s ease-in-out infinite}
   .kg-aurora span:last-child{position:absolute;width:560px;height:560px;bottom:-220px;right:-100px;border-radius:50%;background:radial-gradient(circle at 55% 45%,rgba(45,212,191,.14),transparent 66%);filter:blur(30px);animation:kgAuroraB 24s ease-in-out infinite}
-  /* ── futuristic content (rendered by renderInventoryKioskPage) ── */
-  #kg-shell{position:relative;padding:30px 40px 64px;max-width:1280px;margin:0 auto}
-  .kg-truck{position:absolute;right:22px;top:6px;width:172px;pointer-events:none;z-index:0;filter:drop-shadow(0 18px 24px rgba(16,40,28,.2));animation:kgDriveIn 1s cubic-bezier(.22,1,.36,1) both,kgBobY 4.6s ease-in-out 1.2s infinite}
-  @media(max-width:900px){.kg-truck{display:none}}
-  .kg-hero{position:relative;z-index:1;margin-bottom:28px}
-  .kg-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#16a34a;margin-bottom:9px}
-  .kg-title{font-family:'Bebas Neue',sans-serif;font-size:56px;font-weight:400;line-height:.9;letter-spacing:.5px;margin:0;color:#16223a}
-  .kg-underline{height:4px;width:230px;margin-top:14px;border-radius:999px;background:linear-gradient(90deg,#22c55e,#2dd4bf);transform-origin:left;animation:kgLineGrow .9s cubic-bezier(.22,1,.36,1) both}
-  .kg-sub{font-size:14.5px;color:#5b6472;margin-top:14px;max-width:640px;line-height:1.55}
-  .kg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:26px;position:relative;z-index:1}
-  .kg-kpi{position:relative;display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e7edf0;border-radius:16px;padding:18px 20px;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);overflow:hidden}
-  .kg-kpi-top{position:absolute;top:0;left:0;right:0;height:3px}
-  .kg-sheen{position:absolute;top:0;bottom:0;width:40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);animation:kgSheen 6s ease-in-out infinite}
-  .kg-kpi-label{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a97a0;white-space:nowrap}
-  .kg-kpi-num{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.9;color:#16223a;margin-top:3px}
-  .kg-kpi-num.low{color:#dc2626}
-  .kg-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;position:relative;z-index:1}
-  #kg-search{flex:1;min-width:220px;max-width:380px;padding:13px 16px;border:1px solid #dbe2e7;border-radius:12px;font-size:14px;background:#fff;color:#16223a;outline:none;box-shadow:0 2px 8px -4px rgba(16,40,28,.12);transition:border-color .2s,box-shadow .2s;font-family:inherit}
-  #kg-search:focus{border-color:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.15)}
-  #kg-search::placeholder{color:#9aa3af}
-  .kg-chip{border-radius:999px;padding:12px 20px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex:none;transition:filter .15s;background:#fff;color:#5b6472;border:1px solid #dbe2e7;box-shadow:0 2px 8px -4px rgba(16,40,28,.1);font-family:inherit}
-  .kg-chip.on{background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;border:1px solid #22c55e;box-shadow:0 6px 16px -4px rgba(34,197,94,.5)}
-  .kg-chip:hover{filter:brightness(.98)}
-  .kg-chip span{opacity:.85;font-weight:800}
-  .kg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;position:relative;z-index:1}
-  .kg-card.enter{animation:kgPopIn .5s cubic-bezier(.22,1,.36,1) both}
-  .kg-inner{position:relative;display:flex;flex-direction:column;height:100%;background:#fff;border:1px solid #e7edf0;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s}
-  .kg-inner:hover{transform:translateY(-5px);box-shadow:0 22px 44px -16px rgba(16,40,28,.3)}
-  .kg-img{position:relative;width:100%;aspect-ratio:1/1;background:#eef2f5}
-  .kg-img img{width:100%;height:100%;object-fit:cover;display:block}
-  .kg-imgph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:15px;font-weight:700;color:#b6c0c8;letter-spacing:.02em}
-  .kg-lowbadge{position:absolute;top:11px;left:11px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:#dc2626;padding:4px 11px;border-radius:999px;box-shadow:0 4px 10px rgba(220,38,38,.45);pointer-events:none;animation:kgLowPulse 1.6s ease-in-out infinite}
-  .kg-cel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .kg-cel-ring{position:absolute;width:74px;height:74px;border-radius:50%;border:4px solid #22c55e;animation:kgBurst .9s ease-out forwards}
-  .kg-cel-pill{display:flex;align-items:center;gap:7px;background:#15803d;color:#fff;font-size:12px;font-weight:800;padding:8px 15px;border-radius:999px;box-shadow:0 10px 24px -6px rgba(21,128,61,.6);animation:kgTada .6s cubic-bezier(.34,1.56,.64,1) both}
-  .kg-body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:9px;flex:1}
-  .kg-nrow{display:flex;align-items:flex-start;gap:8px}
-  .kg-name{font-size:15px;font-weight:800;color:#16223a;flex:1;line-height:1.25}
-  .kg-prod{font-family:'Bebas Neue',monospace;font-size:11px;color:#6b7280;background:#eef1f4;padding:3px 8px;border-radius:6px;letter-spacing:.6px;white-space:nowrap}
-  .kg-meta{font-size:12px;color:#9aa3af}
-  .kg-bar{height:8px;border-radius:999px;background:#eef1f4;overflow:hidden;margin-top:1px}
-  .kg-bar-fill{display:block;height:100%;border-radius:999px;transition:width .45s cubic-bezier(.22,1,.36,1),background .3s}
-  .kg-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:9px;margin-top:auto}
-  .kg-count{display:flex;align-items:baseline;gap:4px}
-  .kg-num{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;color:#16223a;cursor:pointer;display:inline-block}
-  .kg-num.islow{color:#dc2626}
-  .kg-num.kg-bump{animation:kgBump .24s cubic-bezier(.34,1.56,.64,1)}
-  .kg-unit{font-size:12px;color:#9aa3af}
-  .kg-btns{display:flex;gap:8px}
-  .kg-dec,.kg-inc{width:38px;height:38px;border-radius:11px;font-size:20px;font-weight:700;cursor:pointer;line-height:1;transition:.12s;font-family:inherit}
-  .kg-dec{border:1px solid #dbe2e7;background:#fff;color:#5b6472}
-  .kg-dec:hover{border-color:#22c55e;color:#16a34a;background:#f2fbf5}
-  .kg-inc{border:none;background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;box-shadow:0 6px 14px -4px rgba(21,128,61,.55)}
-  .kg-inc:hover{filter:brightness(1.08)}
-  .kg-dec:active,.kg-inc:active{transform:scale(.9)}
-  .kg-empty{text-align:center;padding:60px 20px;position:relative;z-index:1}
-  .kg-empty-big{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#16223a;letter-spacing:.5px}
-  .kg-empty-sub{font-size:13.5px;margin-top:7px;color:#8a97a0}
-  .kg-toast-wrap{position:fixed;left:0;right:0;bottom:28px;display:flex;justify-content:center;z-index:30;pointer-events:none}
-  .kg-toast{display:flex;align-items:center;gap:10px;background:#15803d;color:#fff;padding:13px 22px;border-radius:14px;box-shadow:0 18px 44px -10px rgba(6,60,28,.55);font-size:14px;font-weight:700;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .35s cubic-bezier(.34,1.56,.64,1)}
-  .kg-toast.show{opacity:1;transform:translateY(0)}
+  /* ── futuristic content (rendered by renderInventoryKioskPage) ──
+     Every rule is prefixed with #kiosk-app: app-jwg-scheduler.css has a scoped
+     reset `#view-jwgscheduler *{margin:0;padding:0}` whose ID specificity beats
+     bare classes — unprefixed kg- rules lose their margins/paddings. */
+  #kiosk-app #kg-shell{position:relative;padding:30px 40px 64px;max-width:none;margin:0}
+  #kiosk-app .kg-truck{position:absolute;right:40px;top:6px;width:172px;pointer-events:none;z-index:0;filter:drop-shadow(0 18px 24px rgba(16,40,28,.2));animation:kgDriveIn 1s cubic-bezier(.22,1,.36,1) both,kgBobY 4.6s ease-in-out 1.2s infinite}
+  @media(max-width:900px){#kiosk-app .kg-truck{display:none}}
+  #kiosk-app .kg-hero{position:relative;z-index:1;margin-bottom:28px}
+  #kiosk-app .kg-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#16a34a;margin-bottom:9px}
+  #kiosk-app .kg-title{font-family:'Bebas Neue',sans-serif;font-size:56px;font-weight:400;line-height:.9;letter-spacing:.5px;margin:0;color:#16223a}
+  #kiosk-app .kg-underline{height:4px;width:230px;margin-top:14px;border-radius:999px;background:linear-gradient(90deg,#22c55e,#2dd4bf);transform-origin:left;animation:kgLineGrow .9s cubic-bezier(.22,1,.36,1) both}
+  #kiosk-app .kg-sub{font-size:14.5px;color:#5b6472;margin-top:14px;max-width:640px;line-height:1.55}
+  #kiosk-app .kg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:26px;position:relative;z-index:1}
+  #kiosk-app .kg-kpi{position:relative;display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e7edf0;border-radius:16px;padding:18px 20px;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);overflow:hidden}
+  #kiosk-app .kg-kpi-top{position:absolute;top:0;left:0;right:0;height:3px}
+  #kiosk-app .kg-sheen{position:absolute;top:0;bottom:0;width:40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);animation:kgSheen 6s ease-in-out infinite}
+  #kiosk-app .kg-kpi-label{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a97a0;white-space:nowrap}
+  #kiosk-app .kg-kpi-num{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.9;color:#16223a;margin-top:3px}
+  #kiosk-app .kg-kpi-num.low{color:#dc2626}
+  #kiosk-app .kg-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;position:relative;z-index:1}
+  #kiosk-app #kg-search{flex:1;min-width:220px;max-width:380px;padding:13px 16px;border:1px solid #dbe2e7;border-radius:12px;font-size:14px;background:#fff;color:#16223a;outline:none;box-shadow:0 2px 8px -4px rgba(16,40,28,.12);transition:border-color .2s,box-shadow .2s;font-family:inherit}
+  #kiosk-app #kg-search:focus{border-color:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.15)}
+  #kiosk-app #kg-search::placeholder{color:#9aa3af}
+  #kiosk-app .kg-chip{border-radius:999px;padding:12px 20px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex:none;transition:filter .15s;background:#fff;color:#5b6472;border:1px solid #dbe2e7;box-shadow:0 2px 8px -4px rgba(16,40,28,.1);font-family:inherit}
+  #kiosk-app .kg-chip.on{background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;border:1px solid #22c55e;box-shadow:0 6px 16px -4px rgba(34,197,94,.5)}
+  #kiosk-app .kg-chip:hover{filter:brightness(.98)}
+  #kiosk-app .kg-chip span{opacity:.85;font-weight:800}
+  #kiosk-app .kg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;position:relative;z-index:1}
+  #kiosk-app .kg-card.enter{animation:kgPopIn .5s cubic-bezier(.22,1,.36,1) both}
+  #kiosk-app .kg-inner{position:relative;display:flex;flex-direction:column;height:100%;background:#fff;border:1px solid #e7edf0;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s}
+  #kiosk-app .kg-inner:hover{transform:translateY(-5px);box-shadow:0 22px 44px -16px rgba(16,40,28,.3)}
+  #kiosk-app .kg-img{position:relative;width:100%;aspect-ratio:1/1;background:#eef2f5}
+  #kiosk-app .kg-img img{width:100%;height:100%;object-fit:cover;display:block}
+  #kiosk-app .kg-imgph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:15px;font-weight:700;color:#b6c0c8;letter-spacing:.02em}
+  #kiosk-app .kg-lowbadge{position:absolute;top:11px;left:11px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:#dc2626;padding:4px 11px;border-radius:999px;box-shadow:0 4px 10px rgba(220,38,38,.45);pointer-events:none;animation:kgLowPulse 1.6s ease-in-out infinite}
+  #kiosk-app .kg-cel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  #kiosk-app .kg-cel-ring{position:absolute;width:74px;height:74px;border-radius:50%;border:4px solid #22c55e;animation:kgBurst .9s ease-out forwards}
+  #kiosk-app .kg-cel-pill{display:flex;align-items:center;gap:7px;background:#15803d;color:#fff;font-size:12px;font-weight:800;padding:8px 15px;border-radius:999px;box-shadow:0 10px 24px -6px rgba(21,128,61,.6);animation:kgTada .6s cubic-bezier(.34,1.56,.64,1) both}
+  #kiosk-app .kg-body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:9px;flex:1}
+  #kiosk-app .kg-nrow{display:flex;align-items:flex-start;gap:8px}
+  #kiosk-app .kg-name{font-size:15px;font-weight:800;color:#16223a;flex:1;line-height:1.25}
+  #kiosk-app .kg-prod{font-family:'Bebas Neue',monospace;font-size:11px;color:#6b7280;background:#eef1f4;padding:3px 8px;border-radius:6px;letter-spacing:.6px;white-space:nowrap}
+  #kiosk-app .kg-meta{font-size:12px;color:#9aa3af}
+  #kiosk-app .kg-bar{height:8px;border-radius:999px;background:#eef1f4;overflow:hidden;margin-top:1px}
+  #kiosk-app .kg-bar-fill{display:block;height:100%;border-radius:999px;transition:width .45s cubic-bezier(.22,1,.36,1),background .3s}
+  #kiosk-app .kg-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:9px;margin-top:auto}
+  #kiosk-app .kg-count{display:flex;align-items:baseline;gap:4px}
+  #kiosk-app .kg-num{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;color:#16223a;cursor:pointer;display:inline-block}
+  #kiosk-app .kg-num.islow{color:#dc2626}
+  #kiosk-app .kg-num.kg-bump{animation:kgBump .24s cubic-bezier(.34,1.56,.64,1)}
+  #kiosk-app .kg-unit{font-size:12px;color:#9aa3af}
+  #kiosk-app .kg-btns{display:flex;gap:8px}
+  #kiosk-app .kg-dec,#kiosk-app .kg-inc{width:38px;height:38px;border-radius:11px;font-size:20px;font-weight:700;cursor:pointer;line-height:1;transition:.12s;font-family:inherit}
+  #kiosk-app .kg-dec{border:1px solid #dbe2e7;background:#fff;color:#5b6472}
+  #kiosk-app .kg-dec:hover{border-color:#22c55e;color:#16a34a;background:#f2fbf5}
+  #kiosk-app .kg-inc{border:none;background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;box-shadow:0 6px 14px -4px rgba(21,128,61,.55)}
+  #kiosk-app .kg-inc:hover{filter:brightness(1.08)}
+  #kiosk-app .kg-dec:active,#kiosk-app .kg-inc:active{transform:scale(.9)}
+  #kiosk-app .kg-empty{text-align:center;padding:60px 20px;position:relative;z-index:1}
+  #kiosk-app .kg-empty-big{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#16223a;letter-spacing:.5px}
+  #kiosk-app .kg-empty-sub{font-size:13.5px;margin-top:7px;color:#8a97a0}
+  #kiosk-app .kg-toast-wrap{position:fixed;left:0;right:0;bottom:28px;display:flex;justify-content:center;z-index:30;pointer-events:none}
+  #kiosk-app .kg-toast{display:flex;align-items:center;gap:10px;background:#15803d;color:#fff;padding:13px 22px;border-radius:14px;box-shadow:0 18px 44px -10px rgba(6,60,28,.55);font-size:14px;font-weight:700;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .35s cubic-bezier(.34,1.56,.64,1)}
+  #kiosk-app .kg-toast.show{opacity:1;transform:translateY(0)}
   @keyframes kgPopIn{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:none}}
   @keyframes kgAuroraA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(46px,32px) scale(1.15)}}
   @keyframes kgAuroraB{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-44px,-30px) scale(1)}}
