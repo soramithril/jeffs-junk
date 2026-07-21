@@ -2954,24 +2954,28 @@ function renderInventoryKioskPage(){
   }
   document.getElementById("kg-chip-low-n").textContent="· "+lowCount;
 
-  // Ticker: names only (no counts), keyed on membership — so a +/- tap that
-  // doesn't change WHO is low never restarts the scroll mid-loop.
+  // Ticker: spans are keyed on membership (WHO is low), so a +/- tap never
+  // restarts the scroll — the live counts are painted into the existing spans.
   const alerts=[
-    ...INV.items.filter(i=>i.current_stock===0).map(i=>({s:"OUT",n:i.item_name})),
-    ...INV.items.filter(i=>i.current_stock>0&&i.current_stock<=i.min_threshold).map(i=>({s:"LOW",n:i.item_name}))
+    ...INV.items.filter(i=>i.current_stock===0).map(i=>({id:i.id,s:"OUT",n:i.item_name,c:0,b:i.backstock||0})),
+    ...INV.items.filter(i=>i.current_stock>0&&i.current_stock<=i.min_threshold).map(i=>({id:i.id,s:"LOW",n:i.item_name,c:i.current_stock,b:i.backstock||0}))
   ];
-  const tickerKey=alerts.map(a=>a.s+a.n).join("|");
+  const track=document.getElementById("kg-ticker-track");
+  const tickerKey=alerts.map(a=>a.s+a.id).join("|");
   if(tickerKey!==_kgTickerKey){
     _kgTickerKey=tickerKey;
     const dot=`<span class="kg-tk-dot">•</span>`;
     const base=alerts.length
-      ? alerts.map(a=>`<span class="kg-tk ${a.s==="OUT"?"out":"low"}"><b>${a.s}</b>${esc(a.n)}</span>`).join(dot)+dot
+      ? alerts.map(a=>`<span class="kg-tk ${a.s==="OUT"?"out":"low"}" data-tk="${a.id}"><b>${a.s}</b>${esc(a.n)}<i></i></span>`).join(dot)+dot
       : `<span class="kg-tk ok">✓ Everything stocked</span>${dot}<span class="kg-tk">JEFF WHITE GROUP — BACK SHOP</span>${dot}`;
     let half=""; for(let k=0;k<6;k++)half+=base;
-    const track=document.getElementById("kg-ticker-track");
     track.innerHTML=half+half;  // two identical halves -> seamless -50% loop
     track.style.animationDuration=Math.max(35,alerts.length*14)+"s";
   }
+  alerts.forEach(a=>{
+    const suffix=(a.s==="LOW"?` · ${a.c} left`:"")+(a.b>0?` · ${a.b} in back`:"");
+    track.querySelectorAll(`[data-tk="${a.id}"] i`).forEach(el=>{el.textContent=suffix;});
+  });
   document.getElementById("kg-chip-all").classList.toggle("on",INV.kioskFilter!=="low");
   document.getElementById("kg-chip-low").classList.toggle("on",INV.kioskFilter==="low");
 
@@ -3005,6 +3009,14 @@ function renderInventoryKioskPage(){
               <button type="button" class="kg-inc" onclick="JWG.kioskAdjust('${item.id}',1)">+</button>
             </div>
           </div>
+          <div class="kg-back">
+            <span class="kg-back-label">Backstock</span>
+            <span class="kg-back-num">${item.backstock||0}</span>
+            <div class="kg-back-btns">
+              <button type="button" onclick="JWG.kioskAdjustBack('${item.id}',-1)">−</button>
+              <button type="button" onclick="JWG.kioskAdjustBack('${item.id}',1)">+</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -3016,6 +3028,20 @@ function renderInventoryKioskPage(){
 
   _invKioskEntrance=false;
   INV.kioskBumpId=null;
+}
+
+// Backstock (stock kept in the other room) — plain count, no status/low logic:
+// low is judged on the shelf (current_stock) only.
+async function kioskAdjustBackstock(itemId,delta){
+  const item=INV.items.find(i=>i.id===itemId);
+  if(!item)return;
+  const newVal=Math.max(0,(item.backstock||0)+delta);
+  if(newVal===(item.backstock||0))return;
+  try{
+    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{backstock:newVal});
+    item.backstock=newVal;
+    renderInventoryPage();
+  }catch(e){toast("Failed to update backstock","error");console.error(e);}
 }
 
 // Kiosk +/- wrapper: same PATCH as the dashboard via adjustInventory, plus the
@@ -3831,5 +3857,5 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
-window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();

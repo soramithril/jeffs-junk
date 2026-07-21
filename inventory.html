@@ -67,6 +67,7 @@
   #kiosk-app .kg-tk.out b{color:#fca5a5}
   #kiosk-app .kg-tk.low b{color:#fde047}
   #kiosk-app .kg-tk.ok{color:#bbf7d0}
+  #kiosk-app .kg-tk i{font-style:normal;font-weight:600;color:rgba(255,255,255,.75);letter-spacing:.03em}
   #kiosk-app .kg-tk-dot{display:inline-block;color:rgba(255,255,255,.4);margin-right:30px}
   #kiosk-app .kg-drive-truck{position:absolute;bottom:2px;width:74px;pointer-events:none;z-index:2;filter:drop-shadow(0 5px 7px rgba(0,0,0,.3));animation:kgDriveBy 26s linear infinite}
   #kiosk-app .kg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:26px;position:relative;z-index:1}
@@ -116,6 +117,13 @@
   #kiosk-app .kg-inc{border:none;background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;box-shadow:0 6px 14px -4px rgba(21,128,61,.55)}
   #kiosk-app .kg-inc:hover{filter:brightness(1.08)}
   #kiosk-app .kg-dec:active,#kiosk-app .kg-inc:active{transform:scale(.9)}
+  #kiosk-app .kg-back{display:flex;align-items:center;gap:8px;border-top:1px dashed #e2e8ec;padding-top:9px}
+  #kiosk-app .kg-back-label{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a97a0}
+  #kiosk-app .kg-back-num{font-family:'Bebas Neue',sans-serif;font-size:21px;line-height:1;color:#16223a;margin-left:auto}
+  #kiosk-app .kg-back-btns{display:flex;gap:6px}
+  #kiosk-app .kg-back-btns button{width:28px;height:28px;border-radius:8px;border:1px solid #dbe2e7;background:#fff;color:#5b6472;font-size:15px;font-weight:700;cursor:pointer;line-height:1;transition:.12s;font-family:inherit}
+  #kiosk-app .kg-back-btns button:hover{border-color:#22c55e;color:#16a34a;background:#f2fbf5}
+  #kiosk-app .kg-back-btns button:active{transform:scale(.9)}
   #kiosk-app .kg-empty{text-align:center;padding:60px 20px;position:relative;z-index:1}
   #kiosk-app .kg-empty-big{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#16223a;letter-spacing:.5px}
   #kiosk-app .kg-empty-sub{font-size:13.5px;margin-top:7px;color:#8a97a0}
@@ -179,7 +187,7 @@
     window.db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, { auth: { persistSession: false } });
   </script>
   <script src="jwg-icons.js?v=397"></script>
-  <script src="app-jwg-scheduler.js?v=437"></script>
+  <script src="app-jwg-scheduler.js?v=438"></script>
   <script>
     (function(){
       var loginEl = document.getElementById('kiosk-login');
