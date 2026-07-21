@@ -105,6 +105,24 @@
   #kiosk-app .kg-chip.on{background:linear-gradient(160deg,#22c55e,#15803d);color:#fff;border:1px solid #22c55e;box-shadow:0 6px 16px -4px rgba(34,197,94,.5)}
   #kiosk-app .kg-chip:hover{filter:brightness(.98)}
   #kiosk-app .kg-chip span{opacity:.85;font-weight:800}
+  #kiosk-app .kg-chip.add{margin-left:auto;border:1.5px dashed #a9d9bb;color:#15803d;background:#f2fbf5}
+  #kiosk-app .kg-chip.add:hover{border-color:#22c55e;background:#e8f8ee;filter:none}
+  /* ── add-item modal (class-toggled overlay, per the modal pattern) ── */
+  #kiosk-app .kg-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,32,18,.45);backdrop-filter:blur(6px);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
+  #kiosk-app .kg-modal.open{opacity:1;pointer-events:auto}
+  #kiosk-app .kg-modal-card{width:100%;max-width:430px;background:#fff;border-radius:20px;box-shadow:0 26px 64px -18px rgba(6,50,26,.55);padding:26px 26px 22px;display:flex;flex-direction:column;text-align:left}
+  #kiosk-app .kg-modal.open .kg-modal-card{animation:klCardIn .45s cubic-bezier(.22,1,.36,1) both}
+  #kiosk-app .kg-modal-title{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:.5px;color:#16223a;margin-bottom:6px}
+  #kiosk-app .kg-modal-lb{display:block;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a97a0;margin:10px 0 5px}
+  #kiosk-app .kg-modal-in{width:100%;padding:11px 13px;border:1px solid #dbe2e7;border-radius:11px;font-size:14.5px;background:#f6f8fa;color:#16223a;outline:none;font-family:inherit;transition:border-color .2s,box-shadow .2s,background .2s}
+  #kiosk-app .kg-modal-in:focus{border-color:#22c55e;background:#fff;box-shadow:0 0 0 3px rgba(34,197,94,.16)}
+  #kiosk-app .kg-modal-row{display:flex;gap:10px}
+  #kiosk-app .kg-modal-btns{display:flex;gap:10px;margin-top:20px}
+  #kiosk-app .kg-modal-cancel{flex:1;padding:12px;border:1px solid #d7dbe0;border-radius:11px;background:#fff;color:#5b6472;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  #kiosk-app .kg-modal-cancel:hover{border-color:#9aa3af}
+  #kiosk-app .kg-modal-save{flex:2;padding:12px;border:none;border-radius:11px;background:linear-gradient(150deg,#22c55e,#12713a);color:#fff;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 20px -6px rgba(6,60,28,.5);font-family:inherit}
+  #kiosk-app .kg-modal-save:hover{filter:brightness(1.07)}
+  #kiosk-app .kg-modal-save:disabled{opacity:.6;cursor:default}
   #kiosk-app .kg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;position:relative;z-index:1}
   #kiosk-app .kg-card.enter{animation:kgPopIn .5s cubic-bezier(.22,1,.36,1) both}
   #kiosk-app .kg-inner{position:relative;display:flex;flex-direction:column;height:100%;background:#fff;border:1px solid #e7edf0;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s}
@@ -233,7 +251,7 @@
     window.db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, { auth: { persistSession: false } });
   </script>
   <script src="jwg-icons.js?v=397"></script>
-  <script src="app-jwg-scheduler.js?v=440"></script>
+  <script src="app-jwg-scheduler.js?v=441"></script>
   <script>
     (function(){
       var loginEl = document.getElementById('kiosk-login');

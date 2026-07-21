@@ -2945,6 +2945,7 @@ function renderInventoryKioskPage(){
         <input type="text" id="kg-search" placeholder="Search parts…" oninput="JWG.INV.search=this.value;JWG.filterInventory()">
         <button type="button" class="kg-chip" id="kg-chip-all" onclick="JWG.INV.kioskFilter='all';JWG.filterInventory()">All items</button>
         <button type="button" class="kg-chip" id="kg-chip-low" onclick="JWG.INV.kioskFilter='low';JWG.filterInventory()">Low or out <span id="kg-chip-low-n">· 0</span></button>
+        <button type="button" class="kg-chip add" onclick="JWG.kioskOpenAdd()">+ Add item</button>
       </div>
       <div class="kg-grid" id="kg-grid"></div>
       <div class="kg-empty" id="kg-empty" hidden>
@@ -2952,7 +2953,30 @@ function renderInventoryKioskPage(){
         <div class="kg-empty-sub">Try clearing the search or the “Low or out” filter.</div>
       </div>
     </div>
-    <div class="kg-toast-wrap"><div class="kg-toast" id="kg-toast">${JWGIcons.svg("confirmed",{size:20,stroke:"#fff"})}<span>Restocked · <span id="kg-toast-name"></span></span></div></div>`;
+    <div class="kg-toast-wrap"><div class="kg-toast" id="kg-toast">${JWGIcons.svg("confirmed",{size:20,stroke:"#fff"})}<span>Restocked · <span id="kg-toast-name"></span></span></div></div>
+    <div class="kg-modal" id="kg-add-modal" onclick="if(event.target===this)JWG.kioskCloseAdd()">
+      <form class="kg-modal-card" onsubmit="JWG.kioskSaveAdd();return false;">
+        <div class="kg-modal-title">Add an item</div>
+        <label class="kg-modal-lb">Item name</label>
+        <input type="text" id="kg-add-name" class="kg-modal-in" placeholder="e.g. Shop rags" autocomplete="off">
+        <div class="kg-modal-row">
+          <div style="flex:1"><label class="kg-modal-lb">Part #</label><input type="text" id="kg-add-prod" class="kg-modal-in" placeholder="optional" autocomplete="off"></div>
+          <div style="flex:1"><label class="kg-modal-lb">Unit</label><input type="text" id="kg-add-unit" class="kg-modal-in" value="each" autocomplete="off"></div>
+        </div>
+        <label class="kg-modal-lb">Category</label>
+        <select id="kg-add-cat" class="kg-modal-in" onchange="document.getElementById('kg-add-newcat-wrap').hidden=this.value!=='__new'"></select>
+        <div id="kg-add-newcat-wrap" hidden><input type="text" id="kg-add-newcat" class="kg-modal-in" placeholder="New category name" autocomplete="off" style="margin-top:8px"></div>
+        <div class="kg-modal-row">
+          <div style="flex:1"><label class="kg-modal-lb">On the shelf</label><input type="number" min="0" id="kg-add-stock" class="kg-modal-in" value="0"></div>
+          <div style="flex:1"><label class="kg-modal-lb">Backstock</label><input type="number" min="0" id="kg-add-back" class="kg-modal-in" value="0"></div>
+          <div style="flex:1"><label class="kg-modal-lb">Reorder at</label><input type="number" min="0" id="kg-add-min" class="kg-modal-in" value="1"></div>
+        </div>
+        <div class="kg-modal-btns">
+          <button type="button" class="kg-modal-cancel" onclick="JWG.kioskCloseAdd()">Cancel</button>
+          <button type="submit" class="kg-modal-save" id="kg-add-save">Add item</button>
+        </div>
+      </form>
+    </div>`;
   }
 
   const lowCount=INV.items.filter(i=>i.current_stock<=i.min_threshold).length;
@@ -3047,6 +3071,56 @@ function renderInventoryKioskPage(){
 
   _invKioskEntrance=false;
   INV.kioskBumpId=null;
+}
+
+// Kiosk "Add item" modal. Deliberately has NO image/link/price fields — the
+// kiosk must never offer a way off the page (Jake); admins add those on the
+// dashboard later. The category picker can create a new category inline.
+function kioskOpenAddItem(){
+  const sel=document.getElementById("kg-add-cat");
+  sel.innerHTML=INV.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")+`<option value="__new">+ New category…</option>`;
+  document.getElementById("kg-add-newcat-wrap").hidden=INV.categories.length>0;
+  document.getElementById("kg-add-newcat").value="";
+  document.getElementById("kg-add-name").value="";
+  document.getElementById("kg-add-prod").value="";
+  document.getElementById("kg-add-unit").value="each";
+  document.getElementById("kg-add-stock").value="0";
+  document.getElementById("kg-add-back").value="0";
+  document.getElementById("kg-add-min").value="1";
+  document.getElementById("kg-add-modal").classList.add("open");
+  setTimeout(()=>document.getElementById("kg-add-name").focus(),80);
+}
+function kioskCloseAddItem(){document.getElementById("kg-add-modal").classList.remove("open");}
+async function kioskSaveAddItem(){
+  const name=document.getElementById("kg-add-name").value.trim();
+  if(!name){toast("Enter the item name","error");return;}
+  let catId=document.getElementById("kg-add-cat").value||null;
+  const newCat=document.getElementById("kg-add-newcat").value.trim();
+  const unit=document.getElementById("kg-add-unit").value.trim()||"each";
+  const stock=Math.max(0,parseInt(document.getElementById("kg-add-stock").value,10)||0);
+  const back=Math.max(0,parseInt(document.getElementById("kg-add-back").value,10)||0);
+  const min=Math.max(0,parseInt(document.getElementById("kg-add-min").value,10)||0);
+  const prod=document.getElementById("kg-add-prod").value.trim();
+  const btn=document.getElementById("kg-add-save");
+  btn.disabled=true;
+  try{
+    if(catId==="__new"){
+      if(!newCat){toast("Name the new category","error");btn.disabled=false;return;}
+      const maxSort=INV.categories.reduce((m,c)=>Math.max(m,c.sort_order||0),0);
+      const rows=await sbF("POST","jwg_inventory_categories",{name:newCat,sort_order:maxSort+1,is_active:true});
+      catId=rows&&rows[0]?rows[0].id:null;
+    }
+    await sbF("POST","jwg_inventory_items",{
+      item_name:name,product_number:prod,category_id:catId,
+      current_stock:stock,min_threshold:min,backstock:back,unit,
+      status:stock===0?"out_of_stock":stock<=min?"low":"in_stock",notes:""
+    });
+    await loadInventoryData();
+    kioskCloseAddItem();
+    renderInventoryPage();
+    toast("Added "+esc(name));
+  }catch(e){toast("Couldn't save — try again","error");console.error(e);}
+  btn.disabled=false;
 }
 
 // Backstock (stock kept in the other room) — plain count, no status/low logic:
@@ -3904,5 +3978,5 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
-window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
