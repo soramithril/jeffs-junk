@@ -11,6 +11,8 @@
   html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Arial,sans-serif;background:#f8f9fa;color:#16223a;-webkit-text-size-adjust:100%}
   /* Kiosk: this page has no dashboard <main>, so cancel the scheduler's break-out margin */
   #view-jwgscheduler{margin:0!important;max-width:none!important;padding-bottom:24px!important}
+  /* Kiosk only: no print button here (Jake 2026-07-21) — the dashboard's inventory tab keeps it */
+  button[onclick="JWG.printInventoryShoppingList()"]{display:none}
   /* ── login ── */
   #kiosk-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#22c55e 0%,#12713a 100%);z-index:50;padding:20px}
   .kl-card{background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(6,60,28,.32);padding:38px 32px;width:100%;max-width:360px;text-align:center}
