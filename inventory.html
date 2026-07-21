@@ -18,20 +18,45 @@
   #view-jwgscheduler #app{padding:0!important}
   #kiosk-app .card{background:transparent!important;border:none!important;box-shadow:none!important;border-radius:0!important;margin:0!important;overflow:visible!important}
   #kiosk-app .card:hover{box-shadow:none!important;transform:none!important;border-color:transparent!important}
-  /* ── login ── */
-  #kiosk-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#22c55e 0%,#12713a 100%);z-index:50;padding:20px}
-  .kl-card{background:#fff;border-radius:20px;box-shadow:0 24px 60px rgba(6,60,28,.32);padding:38px 32px;width:100%;max-width:360px;text-align:center}
-  .kl-logo{font-size:23px;font-weight:900;color:#15803d;letter-spacing:.5px;margin-bottom:6px}
-  .kl-card h1{font-size:17px;font-weight:700;margin:0 0 4px;color:#16223a}
-  .kl-card .sub{font-size:13px;color:#6b7280;margin-bottom:24px}
-  .kl-card input{width:100%;padding:13px 14px;border:1px solid #dfe3e8;border-radius:11px;font-size:15px;margin-bottom:11px;outline:none;background:#f6f8fa;color:#16223a}
+  /* ── login (Yard Drift — Jake's Claude Design "Back Shop Login" 1B) ── */
+  #kiosk-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#28c569 0%,#0f5e33 100%);z-index:50;padding:20px;transition:opacity .55s ease,transform .6s cubic-bezier(.22,1,.36,1)}
+  #kiosk-login.away{opacity:0;transform:scale(1.06);pointer-events:none}
+  .kl-scene{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .kl-scene img{position:absolute}
+  .kl-bin1{width:270px;top:20px;left:-34px;opacity:.5;filter:drop-shadow(0 20px 30px rgba(0,0,0,.28)) blur(.4px);animation:klFloatA 7s ease-in-out infinite}
+  .kl-bin2{width:186px;top:34px;right:-16px;opacity:.6;filter:drop-shadow(0 16px 24px rgba(0,0,0,.24));animation:klFloatB 6.2s ease-in-out .5s infinite}
+  .kl-bin3{width:250px;bottom:2px;left:6px;opacity:.48;filter:drop-shadow(0 18px 26px rgba(0,0,0,.28)) blur(.6px);animation:klFloatB 8s ease-in-out .8s infinite}
+  .kl-truck{width:372px;bottom:-34px;right:-30px;opacity:.92;filter:drop-shadow(0 24px 30px rgba(0,0,0,.32));animation:klFloatA 9s ease-in-out .3s infinite}
+  .kl-vignette{position:absolute;inset:0;background:radial-gradient(circle at 50% 44%,rgba(255,255,255,.18),transparent 38%),radial-gradient(circle at 50% 122%,rgba(0,0,0,.3),transparent 60%)}
+  .kl-card{position:relative;z-index:2;background:#fff;border-radius:20px;box-shadow:0 26px 64px -18px rgba(6,50,26,.55);padding:36px 32px 28px;width:100%;max-width:384px;text-align:center;animation:klCardIn .7s cubic-bezier(.22,1,.36,1) both}
+  .kl-logo-img{height:48px;width:auto;object-fit:contain;margin:0 auto 8px;display:block}
+  .kl-eyebrow{font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#16a34a;margin-bottom:16px}
+  .kl-card h1{font-family:'Bebas Neue',sans-serif;font-size:38px;font-weight:400;line-height:.94;letter-spacing:.5px;margin:0;color:#16223a}
+  .kl-card .sub{font-size:13.5px;color:#6b7280;margin:8px 0 22px}
+  .kl-field{position:relative;margin-bottom:11px}
+  .kl-card input{width:100%;padding:14px 40px 14px 15px;border:1px solid #dfe3e8;border-radius:12px;font-size:15px;background:#f6f8fa;color:#16223a;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
   .kl-card input::placeholder{color:#9aa3af}
-  .kl-card input:focus{border-color:#22c55e;background:#fff;box-shadow:0 0 0 3px rgba(34,197,94,.16)}
+  .kl-card input:focus{border-color:#22c55e;background:#fff;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
   .kl-card input:-webkit-autofill,.kl-card input:-webkit-autofill:hover,.kl-card input:-webkit-autofill:focus{-webkit-text-fill-color:#16223a;-webkit-box-shadow:0 0 0 1000px #f6f8fa inset;caret-color:#16223a;transition:background-color 9999s ease-in-out 0s}
-  .kl-card button{width:100%;padding:13px;border:none;border-radius:11px;background:#15803d;color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:6px;letter-spacing:.2px}
-  .kl-card button:hover{background:#166534}
-  .kl-card button:disabled{opacity:.6;cursor:default}
-  .kl-err{color:#dc2626;font-size:12.5px;min-height:17px;margin-top:10px;font-weight:600}
+  .kl-ck{position:absolute;right:13px;top:50%;transform:translateY(-50%);opacity:0;transition:opacity .25s;pointer-events:none;display:flex}
+  .kl-ck.show{opacity:1}
+  #kl-btn{position:relative;display:block;width:100%;height:54px;margin:8px auto 0;border:none;border-radius:12px;background:linear-gradient(150deg,#22c55e,#12713a);color:#fff;font-size:15.5px;font-weight:800;letter-spacing:.3px;cursor:pointer;box-shadow:0 12px 30px -8px rgba(6,60,28,.6);transition:width .5s cubic-bezier(.22,1,.36,1),border-radius .5s cubic-bezier(.22,1,.36,1),filter .2s}
+  #kl-btn:hover{filter:brightness(1.07)}
+  #kl-btn.success{width:58px;border-radius:999px}
+  #kl-btn:disabled{cursor:default}
+  .kl-bt,.kl-bs,.kl-bc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+  #kl-btn .kl-bt{opacity:1}
+  #kl-btn.signing .kl-bt,#kl-btn.success .kl-bt{opacity:0}
+  #kl-btn.signing .kl-bs{opacity:1}
+  #kl-btn.success .kl-bc{opacity:1}
+  .kl-spin{width:20px;height:20px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:klSpin .7s linear infinite}
+  .kl-err{color:#dc2626;font-size:12.5px;min-height:17px;margin-top:12px;font-weight:700}
+  #kiosk-app.enter{animation:klAppIn .6s ease .1s both}
+  @keyframes klCardIn{from{opacity:0;transform:translateY(28px) scale(.94)}to{opacity:1;transform:none}}
+  @keyframes klFloatA{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+  @keyframes klFloatB{0%,100%{transform:translateY(0)}50%{transform:translateY(-25px)}}
+  @keyframes klSpin{to{transform:rotate(360deg)}}
+  @keyframes klAppIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
   /* ── kiosk chrome ── */
   #kiosk-app{display:none;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
   #kiosk-top{flex:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 26px;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);border-bottom:1px solid #e2e8ec;box-shadow:0 1px 0 rgba(255,255,255,.7),0 6px 20px -12px rgba(16,40,28,.3);z-index:6}
@@ -149,13 +174,31 @@
 </head>
 <body>
   <div id="kiosk-login">
+    <div class="kl-scene">
+      <img src="assets/bin-14yd.png" alt="" class="kl-bin1">
+      <img src="assets/bin-4yd.png" alt="" class="kl-bin2">
+      <img src="assets/bin-20yd.png" alt="" class="kl-bin3">
+      <img src="assets/tv-truck.png" alt="" class="kl-truck">
+      <div class="kl-vignette"></div>
+    </div>
     <form class="kl-card" id="kl-form" autocomplete="off">
-      <div class="kl-logo">JEFF WHITE GROUP</div>
+      <img src="assets/jeffs-junk-logo.png" alt="Jeff's Junk" class="kl-logo-img">
+      <div class="kl-eyebrow">Jeff White Group</div>
       <h1>Back Shop Inventory</h1>
       <div class="sub">Sign in to continue</div>
-      <input type="text" id="kl-user" placeholder="Username" autocomplete="off" autocapitalize="none" autocorrect="off" autofocus>
-      <input type="password" id="kl-pass" placeholder="Password" autocomplete="off">
-      <button type="submit" id="kl-btn">Sign in</button>
+      <div class="kl-field">
+        <input type="text" id="kl-user" placeholder="Username" autocomplete="off" autocapitalize="none" autocorrect="off" autofocus>
+        <span class="kl-ck" id="kl-user-ck"></span>
+      </div>
+      <div class="kl-field">
+        <input type="password" id="kl-pass" placeholder="Password" autocomplete="off">
+        <span class="kl-ck" id="kl-pass-ck"></span>
+      </div>
+      <button type="submit" id="kl-btn">
+        <span class="kl-bt">Sign in</span>
+        <span class="kl-bs"><span class="kl-spin"></span></span>
+        <span class="kl-bc" id="kl-btn-ck"></span>
+      </button>
       <div class="kl-err" id="kl-err"></div>
     </form>
   </div>
@@ -200,18 +243,41 @@
       var passInp = document.getElementById('kl-pass');
       var errEl   = document.getElementById('kl-err');
       var btn     = document.getElementById('kl-btn');
+      var userCk  = document.getElementById('kl-user-ck');
+      var passCk  = document.getElementById('kl-pass-ck');
 
       document.getElementById('kt-logo').innerHTML = JWGIcons.svg('shop', { size: 20, stroke: '#fff' });
+      userCk.innerHTML = JWGIcons.svg('confirmed', { size: 18, stroke: '#16a34a' });
+      passCk.innerHTML = JWGIcons.svg('confirmed', { size: 18, stroke: '#16a34a' });
+      document.getElementById('kl-btn-ck').innerHTML = JWGIcons.svg('confirmed', { size: 24, stroke: '#fff' });
 
+      // green checkmarks fade in beside filled inputs
+      userInp.addEventListener('input', function(){ userCk.classList.toggle('show', !!userInp.value.trim()); errEl.textContent = ''; });
+      passInp.addEventListener('input', function(){ passCk.classList.toggle('show', !!passInp.value); errEl.textContent = ''; });
+
+      function resetBtn(){ btn.disabled = false; btn.classList.remove('signing', 'success'); }
+
+      // hand-off: login zooms/fades out while the inventory fades in beneath it
       function showApp(){
-        loginEl.style.display = 'none';
         appEl.style.display = 'flex';
+        appEl.classList.add('enter');
         window.renderJwgInventoryKiosk();
+        loginEl.classList.add('away');
+        setTimeout(function(){
+          loginEl.style.display = 'none';
+          loginEl.classList.remove('away');
+          appEl.classList.remove('enter');
+          resetBtn();
+        }, 700);
       }
       function showLogin(){
         appEl.style.display = 'none';
         loginEl.style.display = 'flex';
-        passInp.value = '';
+        passInp.value = ''; passCk.classList.remove('show');
+        userCk.classList.toggle('show', !!userInp.value.trim());
+        resetBtn();
+        // replay the springy card entrance
+        form.style.animation = 'none'; void form.offsetWidth; form.style.animation = '';
         setTimeout(function(){ userInp.focus(); }, 50);
       }
 
@@ -223,27 +289,27 @@
         var u = userInp.value.trim();
         var p = passInp.value;
         if (!u || !p) { errEl.textContent = 'Enter your username and password.'; return; }
-        btn.disabled = true; btn.textContent = 'Signing in…';
+        btn.disabled = true; btn.classList.add('signing');
         try {
           var email = u;
           if (u.indexOf('@') === -1) {
             var em = await window.db.rpc('get_email_by_username', { lookup_username: u });
-            if (!em || !em.data) { errEl.textContent = 'Username not found.'; btn.disabled=false; btn.textContent='Sign in'; return; }
+            if (!em || !em.data) { errEl.textContent = 'Username not found.'; resetBtn(); return; }
             email = em.data;
           }
           var r = await window.db.auth.signInWithPassword({ email: email, password: p });
-          if (r.error) { errEl.textContent = 'Wrong password — try again.'; btn.disabled=false; btn.textContent='Sign in'; return; }
-          btn.disabled = false; btn.textContent = 'Sign in';
-          // Personalize the header + hero greeting from the typed username.
+          if (r.error) { errEl.textContent = 'Wrong password — try again.'; resetBtn(); return; }
+          // success: button morphs to a checkmark circle, then the hand-off
+          btn.classList.remove('signing'); btn.classList.add('success');
           var display = u.indexOf('@') > -1 ? u.split('@')[0] : u;
           display = display.charAt(0).toUpperCase() + display.slice(1);
           window.kioskUserName = display;
           document.getElementById('kt-uname').textContent = display;
           document.getElementById('kt-avatar').textContent = display.slice(0, 2).toUpperCase();
-          showApp();
+          setTimeout(showApp, 750);
         } catch(ex) {
           errEl.textContent = 'Network error — check the connection.';
-          btn.disabled = false; btn.textContent = 'Sign in';
+          resetBtn();
         }
       });
 
