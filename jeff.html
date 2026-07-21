@@ -767,8 +767,11 @@ a:hover{color:#15803d}
     render();
     loadMe(session.user);
     loadAll();
-    if(!feedTimer) feedTimer = setInterval(loadAll, 60000);
+    if(!feedTimer) feedTimer = setInterval(loadAll, 1200000); // 20 min — keeps Supabase egress low
   }
+  // Phones freeze timers while the screen is off — reload once when the app comes back
+  // into view so Jeff never looks at stale data between the 20-min ticks.
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && state.authed) loadAll(); });
 
   db.auth.getSession().then(function(r){
     var sess = r.data && r.data.session;
