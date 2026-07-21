@@ -85,7 +85,8 @@
   #kiosk-app .kg-inner{position:relative;display:flex;flex-direction:column;height:100%;background:#fff;border:1px solid #e7edf0;border-radius:18px;overflow:hidden;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s}
   #kiosk-app .kg-inner:hover{transform:translateY(-5px);box-shadow:0 22px 44px -16px rgba(16,40,28,.3)}
   #kiosk-app .kg-img{position:relative;width:100%;aspect-ratio:1/1;background:#eef2f5}
-  #kiosk-app .kg-img img{width:100%;height:100%;object-fit:cover;display:block}
+  /* absolute so a tall photo can't stretch the square frame — the frame crops it */
+  #kiosk-app .kg-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
   #kiosk-app .kg-imgph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:15px;font-weight:700;color:#b6c0c8;letter-spacing:.02em}
   #kiosk-app .kg-lowbadge{position:absolute;top:11px;left:11px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:#dc2626;padding:4px 11px;border-radius:999px;box-shadow:0 4px 10px rgba(220,38,38,.45);pointer-events:none;animation:kgLowPulse 1.6s ease-in-out infinite}
   #kiosk-app .kg-cel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
