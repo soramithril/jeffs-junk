@@ -266,6 +266,18 @@ Deno.serve(async (req) => {
     const { action } = body;
     if (!action) throw new Error("Missing 'action' in body");
 
+    // Diagnostic channel for the office TV, handled BEFORE authenticate() so it
+    // costs zero Geotab calls. The wall is otherwise a black box that fails
+    // silently — the 2026-07-20 briefing test died invisibly THREE ways in a row
+    // (CORS, then unknown). It writes to the function log only; nothing stored.
+    if (action === "tv-log") {
+      console.log("TV-LOG", JSON.stringify(body).slice(0, 600));
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
     await authenticate();
 
     let payload: Record<string, unknown>;

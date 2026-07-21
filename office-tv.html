@@ -1509,7 +1509,7 @@
       // Verification hook only — inert unless the URL carries ?debug. Lets a
       // reviewer pin a panel (window.__tv.show(i)) without the rotation moving on.
       if(/[?&]debug\b/.test(location.search)){
-        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent, brief:checkBriefing };
+        window.__tv = { show:function(i){ clearTimeout(rotTimer); showPanel(i); }, next:nextPanel, DATA:DATA, render:renderCurrent, brief:checkBriefing, play:playBriefing };
       }
     }
 
@@ -1552,6 +1552,23 @@
     var BRIEF_HOUR = 9;
     var BRIEF_SHOW_MS = 45000;
 
+    // ── wall telemetry ──────────────────────────────────────────────────────
+    // The TV is otherwise a black box that fails silently: the 2026-07-20
+    // briefing test died invisibly twice, and the only diagnostic was Jake
+    // standing at the wall saying "silence". Every notable event goes to the
+    // proxy's tv-log action (function log only, no auth, no Geotab, nothing
+    // stored). Fire-and-forget: telemetry must never be able to break the board.
+    var TV_BUILD = '2026-07-21a';
+    function tvLog(event, detail){
+      try{
+        fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ action:'tv-log', event:event, detail:detail||'',
+                                 build:TV_BUILD, at:new Date().toISOString() })
+        }).catch(function(){});
+      }catch(e){}
+    }
+
     function briefDoneKey(){ return 'jj-tv-brief-' + todayStr(); }
 
     async function playBriefing(){
@@ -1566,12 +1583,14 @@
         var rel = await fetch('https://api.github.com/repos/soramithril/jeffs-junk/releases/tags/briefing',
                               { cache:'no-store' })
           .then(function(r){ return r.ok ? r.json() : null; });
-        var mp3 = rel && (rel.assets || []).filter(function(a){ return a.name === 'briefing.mp3'; })[0];
+        if(!rel){ tvLog('brief-api-fail'); return; }
+        var mp3 = (rel.assets || []).filter(function(a){ return a.name === 'briefing.mp3'; })[0];
         // The asset's upload time IS the freshness check — published today
         // (local) means today's briefing. Refuse anything else: better silent
         // than announcing yesterday's work as today's. NOT marked as played —
         // the Action may simply not have published yet; next minute-tick retries.
-        if(!mp3 || ymd(new Date(mp3.updated_at)) !== todayStr()) return;
+        if(!mp3){ tvLog('brief-no-asset'); return; }
+        if(ymd(new Date(mp3.updated_at)) !== todayStr()){ tvLog('brief-stale', mp3.updated_at); return; }
 
         // Mark played ONLY now that a today-dated briefing is in hand. Marking
         // before the fetch (as first shipped) burned the day at 9:00 while the
@@ -1583,14 +1602,31 @@
         // The one exception is a refusal — if autoplay is blocked, a silent
         // failure would be invisible, so a small note names the fix.
         var audio = new Audio(BRIEF_URL + 'briefing.mp3?t=' + Date.now());
-        audio.play().catch(function(err){
+        // The element's error event catches what play() can't: a media that
+        // starts, then dies on the redirect chain or a decode fault mid-stream.
+        audio.addEventListener('error', function(){
+          tvLog('brief-audio-error', String(audio.error && audio.error.code));
+        });
+        audio.addEventListener('playing', function(){ tvLog('brief-playing'); });
+        audio.addEventListener('ended', function(){ tvLog('brief-ended'); });
+        tvLog('brief-attempt');
+        audio.play().then(function(){
+          tvLog('brief-play-accepted');
+        }).catch(function(err){
           console.warn('briefing autoplay blocked', err);
+          // Diagnostic probe: many kiosks allow MUTED autoplay only. If muted
+          // playback is accepted, the blocker is precisely the audible-autoplay
+          // policy — worth knowing before touching Yodeck settings blind.
+          var probe = new Audio(BRIEF_URL + 'briefing.mp3?t=' + Date.now());
+          probe.muted = true;
+          probe.play().then(function(){ probe.pause(); tvLog('brief-blocked-muted-ok', String(err && err.name)); })
+                      .catch(function(e2){ tvLog('brief-blocked-fully', String(err && err.name) + '/' + String(e2 && e2.name)); });
           el('briefWarn').textContent = 'Briefing audio blocked — Yodeck needs autoplay '
             + '(--autoplay-policy=no-user-gesture-required).';
           el('brief').classList.add('on');
           setTimeout(function(){ el('brief').classList.remove('on'); }, BRIEF_SHOW_MS);
         });
-      }catch(e){ console.warn('briefing failed', e); }
+      }catch(e){ tvLog('brief-error', String(e)); console.warn('briefing failed', e); }
     }
 
     // Ticks every minute. From 9 AM it keeps trying until a today-dated briefing
@@ -1651,6 +1687,7 @@
           // reload — without this the board stranded on the "needs display link"
           // gate after every update until someone reloaded it by hand.
           var frag = _tvCreds ? ('#e='+encodeURIComponent(_tvCreds.email)+'&p='+encodeURIComponent(_tvCreds.pass)) : '';
+          tvLog('reload-for-update');
           location.replace(location.pathname + '?r=' + Date.now() + frag);
         }
         else { _tvPending = tag; }
@@ -1733,6 +1770,9 @@
       }
       el('gate').style.display='none';
       el('viewport').style.display='flex';
+      // A boot ping per page-load: its presence with a NEW build id is the only
+      // remote proof the wall actually picks up deploys.
+      tvLog('boot');
       el('tvbin').src = 'assets/' + TV_BINS[Math.floor(Math.random()*TV_BINS.length)];   // random bin this load
       fitBoard(); window.addEventListener('resize', fitBoard);
       tickClock(); setInterval(tickClock, 1000);
