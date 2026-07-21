@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '434';
+var APP_VERSION = '435';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2211,8 +2211,8 @@ function goJwg(tab){
   });
   if(window.JWG && typeof window.JWG.switchTab==='function') window.JWG.switchTab(tab);
 }
-function render(name){
-  if(name==='dashboard'){ renderDash(); }
+function render(name, bg){
+  if(name==='dashboard'){ renderDash(bg); }
   else if(name==='livejobs') renderLiveJobs();
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='landscaping') renderLandscapingPage();
@@ -2243,7 +2243,9 @@ function render(name){
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
   if(typeof _loadUnassignedBinAlertJobs === 'function') _loadUnassignedBinAlertJobs();
 }
-function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''));}
+// Background refresh (realtime / auto-updates): re-render the active view without
+// arrival behaviors (skeletons, animations, scroll reset) — see renderDash(bg).
+function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''), true);}
 
 // ─── BADGES ───
 // Human label for a bin_side value: left/right get "Side" appended, others
@@ -3162,7 +3164,7 @@ async function renderWeekCal(){
       if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
       else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'||dragJob.service==='Landscaping'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
       else{patch={date:newDate};dragJob.date=newDate;}
-      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash();
+      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash(true);
     });
   });
 }
@@ -3290,10 +3292,14 @@ function renderGreeting(){
     ? phrase+" — <span style=\"color:var(--accent)\">"+n+" loose end"+(n===1?'':'s')+"</span> to clear"
     : phrase+" — <span style=\"color:var(--accent)\">you're all caught up</span> 🎉";
 }
-async function renderDash(){
+async function renderDash(bg){
+  // bg=true → background data refresh (realtime): swap content in place only.
+  // Skeletons, entrance animations and scroll-to-top are arrival behaviors — replaying
+  // them on every background refresh made the screen flash and stole scroll position.
   // Banner: kick off fetch + re-render every time dashboard renders
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
   if(typeof _loadUnassignedBinAlertJobs === 'function') _loadUnassignedBinAlertJobs(true);
+  if(!bg){
   // ── Skeleton loading: show placeholders while data loads (v18) ──
   var skTodayJobs=document.getElementById('dash-today-jobs');
   if(skTodayJobs) skTodayJobs.innerHTML=skeletonRows(4);
@@ -3314,6 +3320,7 @@ async function renderDash(){
 
   // Scroll to top so dashboard content is visible after loading screen
   var mainEl=document.getElementById('main');if(mainEl)mainEl.scrollTop=0;
+  }
 
   var todayS = todayStr();
   var now = new Date();
@@ -5063,7 +5070,7 @@ async function renderCal(){
       if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
       else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'||dragJob.service==='Landscaping'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
       else{patch={date:newDate};dragJob.date=newDate;}
-      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash();
+      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash(true);
     });
   });
 }
@@ -7611,7 +7618,7 @@ function saveBinItem(e){
   var oorVal=document.getElementById('bi-oor').value==='oor';
   var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
   if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
-  editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash();
+  editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash(true);
 }
 function delBinItem(bid){
   if(!mGuard())return;
@@ -7724,7 +7731,7 @@ function doBinCsvImport(){
     binItems.push({bid:nextBinItemId(),num:r.num,type:r.type,size:r.size,color:r.color,damage:r.damage,status:r.status,notes:r.notes});
     added++;
   });
-  saveBins();renderBinInventory();renderDash();
+  saveBins();renderBinInventory();renderDash(true);
   closeM('bin-import-modal');
   toast('✅ Imported '+added+' bin'+(added!==1?'s':'')+(skipped?' ('+skipped+' duplicates skipped)':'')+'.');
 }
