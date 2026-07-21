@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '433';
+var APP_VERSION = '434';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -346,11 +346,14 @@ document.addEventListener('input', function(e) {
 // a user who is mid-action (modal open, input focused, etc.)
 var _rtDebounce = null;
 function _isUserBusy(){
-  // Don't refresh if a modal is open or an input/textarea/select is focused
+  // Only an open modal (mid-edit) or a focused textarea (long-form typing) defers the
+  // refresh. A cursor merely parked in a search box or filter must NOT count as busy —
+  // it starved these refreshes indefinitely, so screens kept showing stale crew
+  // assignments until a click happened to blur the field. Search/filter inputs are
+  // static in index.html, so refreshing under them never disturbs typing or focus.
   if(document.querySelector('.modal-overlay.open')) return true;
   var ae = document.activeElement;
-  if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')) return true;
-  return false;
+  return !!(ae && ae.tagName==='TEXTAREA');
 }
 function _scheduleRealtimeRefresh(){
   clearTimeout(_rtDebounce);
