@@ -57,14 +57,18 @@
      Every rule is prefixed with #kiosk-app: app-jwg-scheduler.css has a scoped
      reset `#view-jwgscheduler *{margin:0;padding:0}` whose ID specificity beats
      bare classes — unprefixed kg- rules lose their margins/paddings. */
-  #kiosk-app #kg-shell{position:relative;padding:30px 40px 64px;max-width:none;margin:0}
-  #kiosk-app .kg-truck{position:absolute;right:40px;top:6px;width:172px;pointer-events:none;z-index:0;filter:drop-shadow(0 18px 24px rgba(16,40,28,.2));animation:kgDriveIn 1s cubic-bezier(.22,1,.36,1) both,kgBobY 4.6s ease-in-out 1.2s infinite}
-  @media(max-width:900px){#kiosk-app .kg-truck{display:none}}
-  #kiosk-app .kg-hero{position:relative;z-index:1;margin-bottom:28px}
-  #kiosk-app .kg-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#16a34a;margin-bottom:9px}
-  #kiosk-app .kg-title{font-family:'Bebas Neue',sans-serif;font-size:56px;font-weight:400;line-height:.9;letter-spacing:.5px;margin:0;color:#16223a}
-  #kiosk-app .kg-underline{height:4px;width:230px;margin-top:14px;border-radius:999px;background:linear-gradient(90deg,#22c55e,#2dd4bf);transform-origin:left;animation:kgLineGrow .9s cubic-bezier(.22,1,.36,1) both}
-  #kiosk-app .kg-sub{font-size:14.5px;color:#5b6472;margin-top:14px;max-width:640px;line-height:1.55}
+  #kiosk-app #kg-shell{position:relative;padding:22px 40px 64px;max-width:none;margin:0}
+  /* ── ticker banner: scrolling stock alerts + the truck driving across ── */
+  #kiosk-app .kg-tickerbar{position:relative;height:54px;border-radius:14px;background:linear-gradient(90deg,#15803d,#0b4f27);box-shadow:0 10px 24px -10px rgba(6,60,28,.5),inset 0 1px 0 rgba(255,255,255,.18);overflow:hidden;margin-bottom:22px;z-index:1}
+  #kiosk-app .kg-ticker{position:absolute;inset:0;display:flex;align-items:center;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+  #kiosk-app .kg-ticker-track{display:inline-block;white-space:nowrap;will-change:transform;animation:kgTicker 40s linear infinite}
+  #kiosk-app .kg-tk{display:inline-block;color:#eafaf0;font-size:14px;font-weight:700;letter-spacing:.05em;margin-right:30px;text-transform:uppercase}
+  #kiosk-app .kg-tk b{font-weight:900;letter-spacing:.12em;margin-right:8px}
+  #kiosk-app .kg-tk.out b{color:#fca5a5}
+  #kiosk-app .kg-tk.low b{color:#fde047}
+  #kiosk-app .kg-tk.ok{color:#bbf7d0}
+  #kiosk-app .kg-tk-dot{display:inline-block;color:rgba(255,255,255,.4);margin-right:30px}
+  #kiosk-app .kg-drive-truck{position:absolute;bottom:2px;width:74px;pointer-events:none;z-index:2;filter:drop-shadow(0 5px 7px rgba(0,0,0,.3));animation:kgDriveBy 26s linear infinite}
   #kiosk-app .kg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:26px;position:relative;z-index:1}
   #kiosk-app .kg-kpi{position:relative;display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e7edf0;border-radius:16px;padding:18px 20px;box-shadow:0 4px 16px -8px rgba(16,40,28,.16);overflow:hidden}
   #kiosk-app .kg-kpi-top{position:absolute;top:0;left:0;right:0;height:3px}
@@ -121,12 +125,11 @@
   @keyframes kgPopIn{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:none}}
   @keyframes kgAuroraA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(46px,32px) scale(1.15)}}
   @keyframes kgAuroraB{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-44px,-30px) scale(1)}}
-  @keyframes kgLineGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes kgTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @keyframes kgDriveBy{0%{transform:translateX(108vw)}46%{transform:translateX(-90px)}100%{transform:translateX(-90px)}}
   @keyframes kgLowPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
   @keyframes kgBurst{0%{transform:scale(.35);opacity:.85}100%{transform:scale(2.8);opacity:0}}
   @keyframes kgTada{0%{transform:scale(.4) rotate(-10deg);opacity:0}55%{transform:scale(1.12) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
-  @keyframes kgDriveIn{from{transform:translateX(190px);opacity:0}to{transform:translateX(0);opacity:1}}
-  @keyframes kgBobY{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
   @keyframes kgBlink{0%,100%{opacity:1}50%{opacity:.3}}
   @keyframes kgSheen{0%{transform:translateX(-140%)}60%,100%{transform:translateX(360%)}}
   @keyframes kgBump{0%{transform:scale(1)}50%{transform:scale(1.24)}100%{transform:scale(1)}}
@@ -176,7 +179,7 @@
     window.db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, { auth: { persistSession: false } });
   </script>
   <script src="jwg-icons.js?v=397"></script>
-  <script src="app-jwg-scheduler.js?v=436"></script>
+  <script src="app-jwg-scheduler.js?v=437"></script>
   <script>
     (function(){
       var loginEl = document.getElementById('kiosk-login');

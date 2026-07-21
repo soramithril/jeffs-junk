@@ -2903,21 +2903,25 @@ function filterInventory(){renderInventoryPage();}
 // bootInventoryKiosk flips _invKioskMode, so every re-render path (adjust,
 // realtime, filter) lands here instead of the dashboard UI above. The kg-
 // classes are styled in inventory.html; the dashboard never loads them.
-let _invKioskMode=false,_invKioskEntrance=true,_kgCelTimer=null,_kgToastTimer=null;
+let _invKioskMode=false,_invKioskEntrance=true,_kgCelTimer=null,_kgToastTimer=null,_kgTickerKey=null;
+
+// eased 0→to count-up for the KPI numbers on first paint
+function _kgCountUp(el,to){
+  const t0=performance.now(),dur=700;
+  const step=t=>{const p=Math.min(1,(t-t0)/dur);el.textContent=Math.round((1-Math.pow(1-p,3))*to);if(p<1)requestAnimationFrame(step);};
+  requestAnimationFrame(step);
+}
 
 function renderInventoryKioskPage(){
   const root=document.querySelector(".card");
   if(!root)return;
   if(!document.getElementById("kg-shell")){
     _invKioskEntrance=true;
-    const name=window.kioskUserName||"";
+    _kgTickerKey=null;
     root.innerHTML=`<div id="kg-shell">
-      <img src="assets/tv-truck.png" alt="" class="kg-truck">
-      <div class="kg-hero">
-        <div class="kg-eyebrow">${name?"Hey "+esc(name)+" — shelf status":"Shelf status"}</div>
-        <h1 class="kg-title">Back shop inventory</h1>
-        <div class="kg-underline"></div>
-        <div class="kg-sub">Everything on the shelf, live. Tap <b>+</b> as stock comes in and <b>−</b> as it goes out — bump a low item back up and it clears itself.</div>
+      <div class="kg-tickerbar">
+        <div class="kg-ticker"><div class="kg-ticker-track" id="kg-ticker-track"></div></div>
+        <img src="assets/tv-truck.png" alt="" class="kg-drive-truck">
       </div>
       <div class="kg-kpis">
         <div class="kg-kpi"><span class="kg-kpi-top" style="background:#22c55e"></span><span class="kg-sheen"></span>${JWGIcons.embossTile("documents",{color:"green"})}<div><div class="kg-kpi-label">Items tracked</div><div class="kg-kpi-num" id="kg-k-total">0</div></div></div>
@@ -2939,10 +2943,35 @@ function renderInventoryKioskPage(){
   }
 
   const lowCount=INV.items.filter(i=>i.current_stock<=i.min_threshold).length;
-  document.getElementById("kg-k-total").textContent=INV.items.length;
-  document.getElementById("kg-k-low").textContent=lowCount;
-  document.getElementById("kg-k-restock").textContent=INV.kioskRestocked;
+  if(_invKioskEntrance){
+    _kgCountUp(document.getElementById("kg-k-total"),INV.items.length);
+    _kgCountUp(document.getElementById("kg-k-low"),lowCount);
+    _kgCountUp(document.getElementById("kg-k-restock"),INV.kioskRestocked);
+  }else{
+    document.getElementById("kg-k-total").textContent=INV.items.length;
+    document.getElementById("kg-k-low").textContent=lowCount;
+    document.getElementById("kg-k-restock").textContent=INV.kioskRestocked;
+  }
   document.getElementById("kg-chip-low-n").textContent="· "+lowCount;
+
+  // Ticker: names only (no counts), keyed on membership — so a +/- tap that
+  // doesn't change WHO is low never restarts the scroll mid-loop.
+  const alerts=[
+    ...INV.items.filter(i=>i.current_stock===0).map(i=>({s:"OUT",n:i.item_name})),
+    ...INV.items.filter(i=>i.current_stock>0&&i.current_stock<=i.min_threshold).map(i=>({s:"LOW",n:i.item_name}))
+  ];
+  const tickerKey=alerts.map(a=>a.s+a.n).join("|");
+  if(tickerKey!==_kgTickerKey){
+    _kgTickerKey=tickerKey;
+    const dot=`<span class="kg-tk-dot">•</span>`;
+    const base=alerts.length
+      ? alerts.map(a=>`<span class="kg-tk ${a.s==="OUT"?"out":"low"}"><b>${a.s}</b>${esc(a.n)}</span>`).join(dot)+dot
+      : `<span class="kg-tk ok">✓ Everything stocked</span>${dot}<span class="kg-tk">JEFF WHITE GROUP — BACK SHOP</span>${dot}`;
+    let half=""; for(let k=0;k<6;k++)half+=base;
+    const track=document.getElementById("kg-ticker-track");
+    track.innerHTML=half+half;  // two identical halves -> seamless -50% loop
+    track.style.animationDuration=Math.max(35,alerts.length*14)+"s";
+  }
   document.getElementById("kg-chip-all").classList.toggle("on",INV.kioskFilter!=="low");
   document.getElementById("kg-chip-low").classList.toggle("on",INV.kioskFilter==="low");
 
