@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '435';
+var APP_VERSION = '436';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10931,6 +10931,16 @@ async function onLoginSuccess() {
   // Jake's device auto-remembers a layout choice. Written here so it reflects a
   // real, Supabase-verified login; cleared on sign-out and for every other user.
   try { if (uname === 'Jake') localStorage.setItem('jjDashUser', 'Jake'); else localStorage.removeItem('jjDashUser'); } catch(e){}
+  // Jeff's account is locked to his mobile app: any dashboard landing (fresh
+  // sign-in or remembered session) goes straight to jeff.html. Unlike Darrin,
+  // his session must survive the hop — jeff.html reads it. He never gets
+  // jjDashUser (cleared above), so the switch back to this layout never
+  // appears for him.
+  if (uname === 'Jeff') {
+    try { localStorage.removeItem('jjReturn'); } catch(e){}
+    location.replace('jeff.html');
+    return;
+  }
   // Jeff's mobile app has no login of its own — it sends people here and marks where it
   // wants them back. Honoured only on a real sign-in, so a session that won't stick lands
   // on the dashboard rather than looping between the two pages.
