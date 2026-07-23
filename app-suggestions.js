@@ -1,7 +1,7 @@
 // ── SUGGESTION BOX (sticky-note wall) ─────────────────────────────────────
 // Anyone signed in can stick a note on the board — a suggestion, an idea, or
-// something that needs fixing. Admins (canAccessAnalytics) can mark notes done
-// or take them down. Table: suggestions (RLS: any authenticated user).
+// something that needs fixing. Only Jake can mark notes done or take them
+// down. Table: suggestions (RLS: any authenticated user).
 (function(){
   'use strict';
 
@@ -10,7 +10,7 @@
 
   function host(){ return document.getElementById('suggestions-page'); }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  function isAdmin(){ return typeof canAccessAnalytics==='function' && canAccessAnalytics(); }
+  function isJake(){ return typeof currentUser!=='undefined' && currentUser && currentUser.displayName==='Jake'; }
   function me(){ return (typeof currentUser!=='undefined' && currentUser) ? (currentUser.displayName || String(currentUser.email||'').split('@')[0]) : 'Unknown'; }
 
   var _notes = [];
@@ -29,13 +29,13 @@
     var rot = STICKY_TILT[i % STICKY_TILT.length];
     var done = n.status === 'done';
     var when = new Date(n.created_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
-    var adm = isAdmin();
+    var boss = isJake();
     return '<div class="sugg-note" style="background:'+col+';--tilt:'+rot+'deg'+(done?';opacity:.55':'')+'">'
       + '<div class="sugg-body"'+(done?' style="text-decoration:line-through"':'')+'>'+esc(n.body)+'</div>'
       + '<div class="sugg-foot">'
       +   '<span style="flex:1">'+esc(n.author)+' · '+when+(done&&n.done_by?' · ✅ '+esc(n.done_by):'')+'</span>'
-      +   (!done && adm ? '<button class="sugg-btn" onclick="SuggestBox.markDone(\''+n.id+'\')" title="Mark done">✓ Done</button>' : '')
-      +   (adm ? '<button class="sugg-btn" onclick="SuggestBox.remove(\''+n.id+'\')" title="Take the note down">✕</button>' : '')
+      +   (!done && boss ? '<button class="sugg-btn" onclick="SuggestBox.markDone(\''+n.id+'\')" title="Mark done">✓ Done</button>' : '')
+      +   (boss ? '<button class="sugg-btn" onclick="SuggestBox.remove(\''+n.id+'\')" title="Take the note down">✕</button>' : '')
       + '</div></div>';
   }
 
@@ -73,13 +73,14 @@
   }
 
   async function markDone(id){
-    if(!isAdmin()){ toast('⚠ Only admins can mark a note done.'); return; }
+    if(!isJake()){ toast('⚠ Only Jake can mark a note done.'); return; }
     var r = await db.from('suggestions').update({status:'done', done_by:me(), done_at:new Date().toISOString()}).eq('id', id);
     if(r.error){ toast('Failed: '+r.error.message, 'error'); return; }
     renderSuggestions();
   }
 
   async function remove(id){
+    if(!isJake()){ toast('⚠ Only Jake can take notes down.'); return; }
     if(!confirm('Take this note down for good?')) return;
     var r = await db.from('suggestions').delete().eq('id', id);
     if(r.error){ toast('Failed: '+r.error.message, 'error'); return; }
