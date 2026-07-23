@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '437';
+var APP_VERSION = '438';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9007,6 +9007,27 @@ async function saveJob(e){
   }
 
   var cid    = document.getElementById('f-client-select').value;
+
+  // Wrong-client guard: if the typed name isn't on the linked client's file,
+  // this is almost always a booking being saved onto the wrong client (a
+  // lingering selection). Make it a deliberate choice instead of a silent merge.
+  if(cid && name){
+    var _linkedCl = clients.find(function(c){return c.cid===cid;});
+    if(_linkedCl){
+      var _clNames = (_linkedCl.names&&_linkedCl.names.length?_linkedCl.names:[]).concat(_linkedCl.name?[_linkedCl.name]:[]);
+      var _nameKnown = _clNames.some(function(n){return String(n).trim().toLowerCase()===name.trim().toLowerCase();});
+      if(!_nameKnown){
+        if(confirm('⚠ This booking is linked to client "'+(_linkedCl.name||cid)+'" but the name on it is "'+name+'".\n\nOK — create a NEW client for '+name+'\nCancel — more options')){
+          cid='';
+          document.getElementById('f-client-select').value='';
+          _selectedClientObj=null;
+        } else if(!confirm('Add "'+name+'" as another contact on "'+(_linkedCl.name||cid)+'"?\n(Same household, company staff, site contact…)\n\nOK — yes, same client\nCancel — go back to the form')){
+          _saveJobLock=false; return;
+        }
+      }
+    }
+  }
+
   var street = document.getElementById('f-addr').value.trim();
   // Auto-extract city: prefer city field (set by autofill/client picker), fall back to parsing address
   var city = toTitleCase((document.getElementById('f-city').value || '').trim()) || extractCity(street, '');
@@ -9207,10 +9228,11 @@ async function saveJob(e){
       if(!cl.names||!cl.names.length) cl.names=[cl.name||''];
       names.forEach(function(n){if(!cl.names.find(function(x){return x.toLowerCase()===n.toLowerCase();})){cl.names.push(n);}});
       cl.name=cl.names[0]||'';
-      // Update phones if new ones added
+      // Update phones if new ones added — append only; the client's main number
+      // is changed on the client page, not as a side effect of saving a booking
       if(!cl.phones||!cl.phones.length) cl.phones=cl.phone?[{num:cl.phone,ext:'',type:'cell'}]:[];
       phones.forEach(function(p){if(!cl.phones.find(function(x){return x.num===p.num;})){cl.phones.push(p);}});
-      cl.phone=primaryPhone;
+      if(!cl.phone&&primaryPhone) cl.phone=primaryPhone;
       // Update emails if new ones added
       if(!cl.emails||!cl.emails.length) cl.emails=cl.email?[cl.email]:[];
       emails.forEach(function(e){if(!cl.emails.find(function(x){return x===e;})){cl.emails.push(e);}});
