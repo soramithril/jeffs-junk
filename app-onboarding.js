@@ -28,9 +28,6 @@ var PAGE_TOURS = [
     { sel:'#jsort-toggle', title:'Sort toggle', body:'One click flips the list between sorting By Date and Recently Added, so you can see either the schedule order or the newest bookings first.' },
     { sel:'#jobs-bin-count', title:'Service sections', body:'Each service has its own collapsible table with a live count pill showing how many jobs match your filters — Bin Rentals, Junk Removal, Quotes, Furniture and Landscaping. Click any row to open the full job.' }
   ]},
-  { view:'calendar', label:'Calendar', icon:'📅', section:'Daily', summary:'A month-grid view of every booked job.', steps:[
-    { sel:'#cal-grid', title:'Calendar', body:'Your month at a glance — every job, colour-coded by service. Click any job to open it, or drag it to another day to reschedule (the new date saves automatically). Use the arrows up top to change month.' }
-  ]},
   { view:'clients', label:'Clients', icon:'👥', section:'Daily', summary:'Your searchable address book of every customer.', steps:[
     { sel:'#view-clients button.btn-primary[onclick="openAddClient()"]', title:'Add Client button', body:'Opens a form to create a brand-new client record with their name, phone, address and other details. Use this for any customer not in the system yet.' },
     { sel:'#atabs-csort', title:'Sort', body:'Reorders the list by A–Z, Most Jobs, or Recent — handy for surfacing your busiest accounts or the newest bookings.' },

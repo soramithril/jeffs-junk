@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '438';
+var APP_VERSION = '442';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -741,7 +741,6 @@ var geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){}
 
 var editId = null, editBinId = null;
-var calDate = new Date();
 var svcF = 'all', searchF = '', invF = 'all', jobStatusF = 'all', jobDateF = 'all', binDropF = 'all';
 var jobShowF = 'active', jobSvcF = 'all'; // 4A: All Jobs "Show" (status) + "Service" controls, mapped onto svcF
 var jobSort = 'date', jobSortDir = -1; // -1 = newest first
@@ -2177,8 +2176,11 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','team'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','team','usage'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
+    toast('⚠ You don\'t have access to this page.');return;
+  }
+  if(name==='usage' && !(currentUser&&currentUser.displayName==='Jake')){
     toast('⚠ You don\'t have access to this page.');return;
   }
   // Maintenance is now a tab on the Vehicles page — route there with that tab active.
@@ -2198,6 +2200,7 @@ function go(name){
   // a body class collapses .main's padding so they get the whole viewport.
   document.body.classList.toggle('pv-full', ['pricing','ourprices','pricingconsole'].indexOf(name)!==-1);
   if(typeof mSyncTab==='function') mSyncTab(name);
+  trackPageView(name);
 }
 // Open the JWG scheduler at a specific internal tab (sidebar deep-links).
 function goJwg(tab){
@@ -2216,7 +2219,7 @@ function render(name, bg){
   else if(name==='livejobs') renderLiveJobs();
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='landscaping') renderLandscapingPage();
-  else if(name==='calendar') renderCal();
+  else if(name==='usage') renderUsage();
   else if(name==='suggestions') renderSuggestions();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
   else if(name==='analytics'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
@@ -2601,7 +2604,7 @@ function markVehicleNotOperational(vid){
   var today=todayStr();
   if(!vehBlocks[vid])vehBlocks[vid]={};
   vehBlocks[vid][today]={reason:'Service / Repair',notes:'Marked not operational from dashboard',openEnded:true,openFrom:today};
-  saveVehBlocks(vid);renderDashVehicleStatus();renderCal();
+  saveVehBlocks(vid);renderDashVehicleStatus();
   toast('Vehicle marked not operational (ongoing until you mark it operational).');
 }
 function markVehicleOperational(vid){
@@ -2613,7 +2616,7 @@ function markVehicleOperational(vid){
   // Also clear today even if not open-ended
   var today=todayStr();
   if(vehBlocks[vid][today])delete vehBlocks[vid][today];
-  saveVehBlocks(vid);renderDashVehicleStatus();renderCal();
+  saveVehBlocks(vid);renderDashVehicleStatus();
   toast('Vehicle marked operational.');
 }
 function toggleVehMenu(menuId){
@@ -2842,8 +2845,6 @@ function changeVehicleStatus(vid,newStatus){
     if(r.error)console.warn('Update vehicle status failed:',r.error.message);
   });
   renderDashVehicleStatus();
-  // Re-render calendar so blocks show/hide immediately
-  renderCal();
 }
 
 // LEADERBOARD (Driver / Crew) lives in app-leaderboard.js
@@ -3049,6 +3050,7 @@ async function refreshDashJobs(){
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
 }
+var dragJobId=null; // week-strip chip being dragged
 async function renderWeekCal(){
   if(!document.getElementById('week-cal-grid')) return;
   var ws=getWeekStart(weekOffset),we=new Date(ws);we.setDate(we.getDate()+6);
@@ -3164,7 +3166,7 @@ async function renderWeekCal(){
       if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
       else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'||dragJob.service==='Landscaping'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
       else{patch={date:newDate};dragJob.date=newDate;}
-      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderCal();renderDash(true);
+      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderWeekCal();renderDash(true);
     });
   });
 }
@@ -4954,230 +4956,6 @@ function renderJobs(){
     if(tbody) handleJobTableClick(e);
   });
 })();
-
-// ─── CALENDAR ───
-var dragJobId=null;
-async function renderCal(){
-  var y=calDate.getFullYear(),mo=calDate.getMonth();
-  document.getElementById('cal-lbl').textContent=new Date(y,mo,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  var first=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
-  var today=new Date();
-  var todayISO=today.toISOString().split('T')[0];
-  var clsMap={'Bin Rental':'svc-bin','Junk Removal':'svc-junk','Junk Quote':'svc-quote','Furniture Pickup':'svc-furn','Furniture Delivery':'svc-furn-del','Landscaping':'svc-landscaping'};
-  var g=document.getElementById('cal-grid');
-  var h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return'<div class="cal-day-header">'+d+'</div>';}).join('');
-  var c=Array(first).fill('<div class="cal-day empty"></div>').join('');
-
-  // Load jobs for this month from DB so calendar shows ALL jobs
-  var monthStart=y+'-'+String(mo+1).padStart(2,'0')+'-01';
-  var monthEnd=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(days).padStart(2,'0');
-  var calJobsList=[];
-  try{
-    // Get all jobs with date, bin_dropoff, bin_pickup, fb_date, or junk_date in this month
-    var [rDate, rDrop, rPick, rFbDate, rJunkDate] = await Promise.all([
-      db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').gte('date',monthStart).lte('date',monthEnd),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_dropoff',monthStart).lte('bin_dropoff',monthEnd),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').gte('bin_pickup',monthStart).lte('bin_pickup',monthEnd),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').neq('status','Cancelled').gte('fb_date',monthStart).lte('fb_date',monthEnd),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').gte('junk_date',monthStart).lte('junk_date',monthEnd)
-    ]);
-    var seen={};
-    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFbDate.data||[]),(rJunkDate.data||[])].forEach(function(arr){
-      arr.forEach(function(row){
-        if(!seen[row.id||row.job_id]){seen[row.id||row.job_id]=true;calJobsList.push(dbToJob(row));}
-      });
-    });
-  }catch(e){console.warn('Calendar load error:',e);calJobsList=jobs;}
-
-  // Build a lookup: date string -> array of cal events
-  // Each event has { job, type } where type = 'dropoff' | 'pickup' | 'job'
-  var calEvents = {}; // ds -> [{j, type, label}]
-  calJobsList.forEach(function(j){
-    if(j.status==='Cancelled') return;
-    if(j.service==='Bin Rental'){
-      // Drop-off event: use binDropoff date, fall back to j.date
-      var dropDs = j.binDropoff || j.date;
-      if(dropDs){
-        if(!calEvents[dropDs]) calEvents[dropDs]=[];
-        calEvents[dropDs].push({j:j, type:'dropoff'});
-      }
-      // Pickup event: use binPickup date (separate from drop-off)
-      if(j.binPickup && j.binPickup !== dropDs){
-        if(!calEvents[j.binPickup]) calEvents[j.binPickup]=[];
-        calEvents[j.binPickup].push({j:j, type:'pickup'});
-      }
-    } else {
-      // Non-bin jobs use scheduled date (fb_date for furniture, junk_date for junk, fallback to date)
-      var schedDs = jobSchedDate(j);
-      if(schedDs){
-        if(!calEvents[schedDs]) calEvents[schedDs]=[];
-        calEvents[schedDs].push({j:j, type:'job'});
-      }
-    }
-  });
-
-  for(var d=1;d<=days;d++){
-    var ds=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    var evs=calEvents[ds]||[];
-    var isT=today.getDate()===d&&today.getMonth()===mo&&today.getFullYear()===y;
-
-    var dots=evs.map(function(ev){
-      var j=ev.j;
-      var cls=clsMap[j.service]||'svc-junk';
-      var icon, label, titleStr;
-      if(ev.type==='pickup'){
-        icon='🚚'; label=j.name; titleStr='Bin Pickup · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
-        cls='svc-pickup';
-      } else if(ev.type==='dropoff'){
-        icon='🚛'; label=j.name; titleStr='Bin Drop-off · '+j.name+(j.binSize?' · '+j.binSize:'')+(j.materialType?' · '+j.materialType:'');
-      } else {
-        var iconMap={'Junk Removal':'🗑️','Junk Quote':'📋','Furniture Pickup':'🛋️','Furniture Delivery':'📦','Landscaping':'🌿'};
-        icon=iconMap[j.service]||''; label=j.name; titleStr=j.service+' · '+j.name+(j.toolsNeeded?' · 🔧 '+j.toolsNeeded:'');
-      }
-      var evT = ev.type==='dropoff' ? (j.binDropoffTime||'') : ev.type==='pickup' ? (j.binPickupTime||'') : (j.time||'');
-      var timeStr=evT?ft(evT)+' ':'';
-      return '<div class="cal-dot '+cls+'" draggable="true" data-jid="'+j.id+'" data-evtype="'+ev.type+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="Drag to reschedule · '+titleStr+'">'+icon+' '+timeStr+label+(j.address?' · '+(j.address||'').split(',')[0].substring(0,18):'')+'</div>';
-    }).join('');
-
-    // Vehicle blocks for this day (from blocking days system only)
-    var vehDots='';
-    vehicles.forEach(function(v){
-      var b=(vehBlocks[v.vid]||{})[ds];
-      if(b){vehDots+='<div style="font-size:9px;padding:1px 5px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:'+v.color+'22;color:'+v.color+';border:1px solid '+v.color+'33" title="'+v.name+': '+(b.reason||'Blocked')+(b.notes?' — '+b.notes:'')+'" onclick="event.stopPropagation()">🚫 '+v.name+'</div>';}
-    });
-
-    var countBadge=evs.length>0?'<span style="float:right;font-size:10px;font-weight:700;background:var(--accent);color:#fff;border-radius:99px;padding:0 5px;line-height:16px;margin-top:1px">'+evs.length+'</span>':'';
-    c+='<div class="cal-day'+(isT?' today':'')+'" data-date="'+ds+'" onclick="openCalDayPreview(\''+ds+'\')">'
-      +'<div class="cal-day-num">'+d+countBadge+'</div>'
-      +dots+vehDots+'</div>';
-  }
-  g.innerHTML=h+c;
-  // Attach drag events
-  g.querySelectorAll('.cal-dot[draggable]').forEach(function(dot){
-    dot.addEventListener('dragstart',function(e){dragJobId=dot.getAttribute('data-jid');dot.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-    dot.addEventListener('dragend',function(){dot.classList.remove('dragging');dragJobId=null;});
-  });
-  g.querySelectorAll('.cal-day:not(.empty)').forEach(function(cell){
-    cell.addEventListener('dragover',function(e){if(dragJobId){e.preventDefault();cell.classList.add('drag-over');}});
-    cell.addEventListener('dragleave',function(){cell.classList.remove('drag-over');});
-    cell.addEventListener('drop',function(e){
-      e.preventDefault();cell.classList.remove('drag-over');
-      var newDate=cell.getAttribute('data-date');
-      if(!dragJobId||!newDate)return;
-      var dragJob=jobs.find(function(j){return j.id===dragJobId;});
-      if(!dragJob)return;
-      var patch={};
-      if(dragJob.service==='Furniture Pickup'||dragJob.service==='Furniture Delivery'){patch={fb_date:newDate};dragJob.fbDate=newDate;}
-      else if(dragJob.service==='Junk Removal'||dragJob.service==='Junk Quote'||dragJob.service==='Landscaping'){patch={junk_date:newDate};dragJob.junkDate=newDate;}
-      else{patch={date:newDate};dragJob.date=newDate;}
-      patchJob(dragJobId,patch);toast('Job rescheduled to '+fd(newDate)+'!');renderCal();renderWeekCal();renderDash(true);
-    });
-  });
-}
-function shiftMonth(d){calDate.setMonth(calDate.getMonth()+d);renderCal();}
-function calToday(){calDate=new Date();renderCal();}
-
-// ── Calendar day preview modal ──────────────────────────────
-async function openCalDayPreview(ds){
-  if(dragJobId) return; // don't open while dragging
-
-  // Load jobs for this day from DB so we show ALL jobs
-  var evs=[];
-  try{
-    var [rDate,rDrop,rPick,rFb,rJk]=await Promise.all([
-      db.from('jobs').select(JOB_LIST_COLS).neq('status','Cancelled').eq('date',ds),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_dropoff',ds),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Bin Rental').neq('status','Cancelled').eq('bin_pickup',ds),
-      db.from('jobs').select(JOB_LIST_COLS).eq('service','Furniture Pickup').neq('status','Cancelled').or('fb_date.eq.'+ds+',and(fb_date.is.null,date.eq.'+ds+')'),
-      db.from('jobs').select(JOB_LIST_COLS).in('service',['Junk Removal','Junk Quote','Landscaping']).neq('status','Cancelled').or('junk_date.eq.'+ds+',and(junk_date.is.null,date.eq.'+ds+')')
-    ]);
-    var seen={};var dayJobs=[];
-    [(rDate.data||[]),(rDrop.data||[]),(rPick.data||[]),(rFb.data||[]),(rJk.data||[])].forEach(function(arr){
-      arr.forEach(function(row){if(!seen[row.id||row.job_id]){seen[row.id||row.job_id]=true;dayJobs.push(dbToJob(row));}});
-    });
-    dayJobs.forEach(function(j){
-      if(j.status==='Cancelled')return;
-      if(j.service==='Bin Rental'){
-        var dropDs=j.binDropoff||j.date;
-        if(dropDs===ds) evs.push({j:j,type:'dropoff'});
-        if(j.binPickup===ds&&j.binPickup!==dropDs) evs.push({j:j,type:'pickup'});
-      }else{
-        if(jobSchedDate(j)===ds) evs.push({j:j,type:'job'});
-      }
-    });
-  }catch(e){console.warn('Day preview load error:',e);}
-
-  var dateLabel=new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-
-  var body;
-  if(!evs.length){
-    body='<div style="text-align:center;padding:32px 16px;color:var(--muted)">'
-      +'<div style="font-size:36px;margin-bottom:10px">📅</div>'
-      +'<div style="font-size:14px">No jobs on this day</div>'
-      +'<button class="btn btn-primary" style="margin-top:16px" onclick="closeM(\'cal-day-modal\');newJob()">+ Book a Job</button>'
-      +'</div>';
-  } else {
-    // Group into sections: Bin Drop-offs, Bin Pickups, then other services
-    var sections=[
-      {key:'dropoff', label:'Bin Drop-offs',  col:'#0891b2', ic:iconTile('binDrop',{size:15}), evs:evs.filter(function(e){return e.type==='dropoff';})},
-      {key:'pickup',  label:'Bin Pickups',    col:'#ec4899', ic:iconTile('binPickup',{size:15}), evs:evs.filter(function(e){return e.type==='pickup';})},
-      {key:'junk',    label:'Junk Removal',   col:'#eab308', ic:iconTile('junk',{size:15,color:'yellow'}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Removal';})},
-      {key:'quote',   label:'Junk Quotes',    col:'#0d6efd', ic:iconTile('junkQuote',{size:15}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Junk Quote';})},
-      {key:'landscaping', label:'Landscaping', col:'#65a30d', ic:iconTile('landscaping',{size:15}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Landscaping';})},
-      {key:'furnp',   label:'Furniture Pickup',col:'#8b5cf6', ic:iconTile('furniture',{size:15}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Pickup';})},
-      {key:'furnd',   label:'Furniture Delivery',col:'#f97316', ic:iconTile('furniture',{size:15,color:'orange'}), evs:evs.filter(function(e){return e.type==='job'&&e.j.service==='Furniture Delivery';})},
-    ].filter(function(s){return s.evs.length>0;});
-
-    body=sections.map(function(sec){
-      var rows=sec.evs.map(function(ev){
-        var j=ev.j;
-        var binBadge=j.binSize?'<span style="font-size:11px;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:5px;padding:1px 7px;font-weight:600;margin-left:6px">'+j.binSize+'</span>':'';
-        var evT2 = ev.type==='dropoff' ? (j.binDropoffTime||'') : ev.type==='pickup' ? (j.binPickupTime||'') : (j.time||'');
-        var timeBadge=evT2?'<span style="font-size:11px;color:var(--muted);margin-left:6px">'+ft(evT2)+'</span>':'';
-        var priceBadge='';
-        var cfmBadge=(ev.type==='pickup'||ev.type==='dropoff'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')
-          ?(j.confirmed
-            ?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#22c55e;font-weight:600;background:rgba(34,197,94,.08);border-radius:4px;padding:1px 6px;margin-left:4px">'+iconTile('confirmed',{size:13})+'Confirmed</span>'
-            :'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#e67e22;font-weight:600;background:rgba(230,126,34,.08);border-radius:4px;padding:1px 6px;margin-left:4px">'+iconTile('call',{size:13})+'Unconfirmed</span>')
-          :'';
-        var extraInfo='';
-        if(ev.type==='dropoff') extraInfo='<span style="font-size:11px;color:var(--muted);margin-left:6px">Drop-off'+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</span>';
-        if(ev.type==='pickup')  extraInfo='<span style="font-size:11px;color:var(--muted);margin-left:6px">Pickup'+(j.binDropoff?' · Was dropped: '+fd(j.binDropoff):'')+'</span>';
-        return '<div onclick="closeM(\'cal-day-modal\');openDetail(\''+j.id+'\')" '
-          +'style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+sec.col+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer;transition:background .12s" '
-          +'onmouseover="this.style.background=\'var(--surface)\'" onmouseout="this.style.background=\'var(--surface2)\'">'
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'
-              +'<strong style="font-size:14px">'+j.name+'</strong>'+binBadge+cfmBadge+timeBadge+priceBadge
-            +'</div>'
-            +'<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-              +j.id+extraInfo+(j.address?' · '+j.address.split(',')[0]:'')+(j.phone?' · '+j.phone:'')
-            +'</div>'
-          +'</div>'
-          +'</div>';
-      }).join('');
-      return '<div style="margin-bottom:14px">'
-        +'<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+sec.col+';margin-bottom:6px">'+(sec.ic||'')+'<span>'+sec.label+' ('+sec.evs.length+')</span></div>'
-        +rows+'</div>';
-    }).join('');
-    body+='<div style="padding-top:12px;border-top:1px solid var(--border)">'
-      +'<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeM(\'cal-day-modal\');newJob()">+ New Job</button>'
-      +'</div>';
-  }
-
-  // Inject modal into DOM once, reuse on subsequent clicks
-  if(!document.getElementById('cal-day-modal')){
-    var div=document.createElement('div');
-    div.className='modal-overlay';
-    div.id='cal-day-modal';
-    div.innerHTML='<div class="modal" style="max-width:520px"><div class="modal-header"><div class="modal-title" id="cal-day-modal-title"></div><button class="modal-close" onclick="closeM(\'cal-day-modal\')">&#x2715;</button></div><div id="cal-day-modal-body" style="max-height:65vh;overflow-y:auto;padding-right:2px"></div></div>';
-    div.addEventListener('click',function(e){if(e.target===div)closeM('cal-day-modal');});
-    document.body.appendChild(div);
-  }
-  document.getElementById('cal-day-modal-title').textContent=dateLabel;
-  document.getElementById('cal-day-modal-body').innerHTML=body;
-  document.getElementById('cal-day-modal').classList.add('open');
-}
 
 
 function getLastName(name){var parts=(name||'').trim().split(/\s+/);return parts.length>1?parts[parts.length-1]:name;}
@@ -9369,7 +9147,7 @@ async function reopenLandscapeJob(id){
   refresh();
 }
 async function postponeJob(id){
-  if(!confirm('Postpone this job? It comes off the calendar and moves to All Jobs → Postponed until you reopen it.'))return;
+  if(!confirm('Postpone this job? It comes off the schedule and moves to All Jobs → Postponed until you reopen it.'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.status='Postponed';
@@ -10487,7 +10265,7 @@ function paintSvcTabIcons(){
 var NAV_ICO={
   "newJob()":'newJob', "go('dashboard')":'dashboard', "go('jobs')":'allJobs',
   "goJwg('schedule')":'schedule', "go('clients')":'clients', "go('landscaping')":'landscaping',
-  "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('calendar')":'schedule',
+  "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('usage')":'analytics',
   "go('livejobs')":'liveJobs', "go('dispatch')":'dispatch', "go('vehicles')":'vehicles',
   "go('crew')":'clients', "go('damage')":'damage', "go('bininventory')":'junk',
   "go('binmap')":'binMap', "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
@@ -10504,7 +10282,7 @@ var NAV_COLOR={
   "newJob()":'green', "go('dashboard')":'blue', "go('jobs')":'amber',
   "goJwg('schedule')":'violet', "go('clients')":'teal', "go('landscaping')":'olive',
   "goJwg('summer')":'yellow',
-  "go('documents')":'slate', "go('calendar')":'blue', "go('livejobs')":'cyan',
+  "go('documents')":'slate', "go('usage')":'violet', "go('livejobs')":'cyan',
   "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
   "go('damage')":'red', "go('bininventory')":'teal', "go('binmap')":'olive',
   "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('bookings')":'pink',
@@ -10976,6 +10754,7 @@ async function onLoginSuccess() {
   setUserCardSignedIn(uname, role);
   applyDeleteVisibility();
   applySettingsVisibility();
+  trackPageView('dashboard');
   document.getElementById('login-screen').style.display = 'none';
   document.body.classList.add('signed-in');
   // Keep the push service worker registered/updated on devices that enabled it
@@ -11000,6 +10779,107 @@ function applySettingsVisibility(){
   document.querySelectorAll('.admin-only').forEach(function(el){
     el.style.display=show?'':'none';
   });
+  // Usage tracker page is Jake-only
+  var navUsage=document.getElementById('nav-usage');
+  if(navUsage)navUsage.style.display=(currentUser&&currentUser.displayName==='Jake')?'':'none';
+}
+
+// ─── PAGE USAGE TRACKER (temporary — Jake wants to see which pages get used;
+// remove this section + the page_views table + the nav-usage button when done) ───
+var _lastPv='';
+function trackPageView(page){
+  if(!currentUser||!currentUser.displayName)return;
+  if(page==='usage')return; // don't let checking the report inflate the numbers
+  if(page===_lastPv)return; // ignore re-clicks of the page you're already on
+  _lastPv=page;
+  db.from('page_views').insert({page:page,username:currentUser.displayName}).then(function(r){
+    if(r.error)console.warn('Page view log failed:',r.error.message);
+  });
+}
+var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landscaping:'Extra Jobs',
+  jwgscheduler:'JWG Scheduler',documents:'Documents',suggestions:'Suggestions',livejobs:'Live Jobs',
+  dispatch:'Dispatch',vehicles:'Vehicles & Maintenance',crew:'Crew Schedule',damage:'Damage Reports',
+  bininventory:'Bin Fleet',binmap:'Bin Map',drdcalc:'Furniture Quote',pricing:'Pricing',
+  bookings:'Bookings',analytics:'Analytics',leaderboard:'Driver Leaderboard',utilization:'Bin Utilization',
+  advisor:'AI Advisor',ourprices:'Bin & Junk Prices',team:'Team',staffcheckin:'Staff Check-In',
+  pricingconsole:'Pricing Console'};
+async function renderUsage(){
+  var box=document.getElementById('usage-body');
+  if(!box)return;
+  box.innerHTML='<div style="padding:28px;color:var(--muted);font-size:13px">Loading usage data…</div>';
+  var r=await db.rpc('page_usage_rollup');
+  if(r.error){box.innerHTML='<div style="padding:28px;color:#dc3545;font-size:13px">Couldn\'t load usage data: '+r.error.message+'</div>';return;}
+  var rows=r.data||[];
+  if(!rows.length){box.innerHTML='<div style="padding:28px;color:var(--muted);font-size:13px">Nothing recorded yet — counts start the moment people use the app.</div>';return;}
+
+  var total=0,byPage={},userTotals={},minDay=null;
+  var now=new Date();
+  function daysAgo(n){var d=new Date(now);d.setDate(d.getDate()-n);return d;}
+  var d7=daysAgo(7),d14=daysAgo(14);
+  rows.forEach(function(x){
+    total+=x.views;
+    if(!minDay||x.day<minDay)minDay=x.day;
+    var p=byPage[x.page]||(byPage[x.page]={views:0,last:null,users:{},v7:0,vPrior7:0});
+    p.views+=x.views;
+    if(!p.last||x.last_at>p.last)p.last=x.last_at;
+    p.users[x.username]=(p.users[x.username]||0)+x.views;
+    userTotals[x.username]=(userTotals[x.username]||0)+x.views;
+    var dd=new Date(x.day+'T12:00:00');
+    if(dd>=d7)p.v7+=x.views; else if(dd>=d14)p.vPrior7+=x.views;
+  });
+  var ranked=Object.keys(byPage).sort(function(a,b){return byPage[b].views-byPage[a].views;});
+  var maxViews=byPage[ranked[0]].views;
+  var userList=Object.keys(userTotals).sort(function(a,b){return userTotals[b]-userTotals[a];});
+
+  function label(p){return PAGE_LABELS[p]||p;}
+  function agoStr(iso){
+    var days=Math.floor((now-new Date(iso))/86400000);
+    return days<=0?'Today':days===1?'Yesterday':days+' days ago';
+  }
+  function topUser(p){
+    var u=byPage[p].users,best=null;
+    Object.keys(u).forEach(function(n){if(!best||u[n]>u[best])best=n;});
+    return best?best+' ('+u[best]+')':'—';
+  }
+
+  var startLabel=new Date(minDay+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var html='<div style="font-size:13px;color:var(--muted);margin-bottom:18px">Tracking since <b style="color:var(--text)">'+startLabel+'</b> · <b style="color:var(--text)">'+total+'</b> page opens · <b style="color:var(--text)">'+userList.length+'</b> people</div>';
+
+  // Ranked list with share-of-total bars
+  html+='<div class="table-wrap" style="overflow-x:auto;margin-bottom:24px"><table><thead><tr>'
+    +'<th>#</th><th>Page</th><th>Opens</th><th style="min-width:220px">Share of all opens</th><th>Last 7 days</th><th>Prior 7</th><th>Last opened</th><th>Most by</th>'
+    +'</tr></thead><tbody>';
+  ranked.forEach(function(p,i){
+    var d=byPage[p];
+    var pct=Math.round(d.views/total*1000)/10;
+    var w=Math.max(2,Math.round(d.views/maxViews*100));
+    html+='<tr><td style="color:var(--muted)">'+(i+1)+'</td>'
+      +'<td><strong>'+label(p)+'</strong></td>'
+      +'<td>'+d.views+'</td>'
+      +'<td><div style="display:flex;align-items:center;gap:10px"><div class="bar-track" style="height:14px"><div class="bar-fill" style="width:'+w+'%;background:var(--accent)"></div></div><span style="font-size:12px;font-weight:600;min-width:44px">'+pct+'%</span></div></td>'
+      +'<td>'+d.v7+'</td><td>'+d.vPrior7+'</td>'
+      +'<td>'+agoStr(d.last)+'</td>'
+      +'<td style="font-size:12px;color:var(--muted)">'+topUser(p)+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+
+  // Pages nobody has opened at all
+  var never=Object.keys(PAGE_LABELS).filter(function(p){return !byPage[p];});
+  if(never.length){
+    html+='<div style="background:rgba(220,53,69,.07);border:1px solid rgba(220,53,69,.25);border-radius:10px;padding:12px 16px;margin-bottom:24px;font-size:13px">'
+      +'<b style="color:#dc3545">Never opened since tracking began:</b> '+never.map(label).join(' · ')+'</div>';
+  }
+
+  // Who uses what
+  html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Who uses what</div>';
+  html+='<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>Page</th>'
+    +userList.map(function(u){return '<th>'+u+'</th>';}).join('')+'</tr></thead><tbody>';
+  ranked.forEach(function(p){
+    html+='<tr><td><strong>'+label(p)+'</strong></td>'
+      +userList.map(function(u){var v=byPage[p].users[u]||0;return '<td style="'+(v?'':'color:var(--border)')+'">'+(v||'·')+'</td>';}).join('')+'</tr>';
+  });
+  html+='</tbody></table></div>';
+  box.innerHTML=html;
 }
 
 function handleAdminBtn() {
