@@ -42,7 +42,7 @@
     var s=String(service||"").toLowerCase();
     if(s.indexOf("bin")>=0)return "bins";
     if(s.indexOf("furniture")>=0)return "furniture";
-    if(s.indexOf("landscap")>=0)return "landscaping";
+    if(s.indexOf("landscap")>=0||s.indexOf("extra")>=0)return "landscaping";
     return "junk";                                   // Junk Removal, Junk Quote, anything else
   }
   // The day/time a job actually happens on — junk/landscaping reschedule via junk_date,
@@ -50,17 +50,17 @@
   function effDate(j){
     var s=j.service;
     if(s==="Furniture Pickup"||s==="Furniture Delivery")return j.fb_date||j.date;
-    if(s==="Junk Removal"||s==="Junk Quote"||s==="Landscaping")return j.junk_date||j.date;
+    if(s==="Junk Removal"||s==="Junk Quote"||s==="Extra Jobs")return j.junk_date||j.date;
     return j.date;
   }
   function effTime(j){
     var s=j.service;
     if(s==="Furniture Pickup"||s==="Furniture Delivery")return j.fb_time||j.time;
-    if(s==="Junk Removal"||s==="Junk Quote"||s==="Landscaping")return j.junk_time||j.time;
+    if(s==="Junk Removal"||s==="Junk Quote"||s==="Extra Jobs")return j.junk_time||j.time;
     return j.time;
   }
   // Which real-shift labels "cover" a ghost of this kind (per-entry hiding).
-  var FAMILY={bins:["bin"],junk:["junk"],furniture:["furniture"],landscaping:["landscap"]};
+  var FAMILY={bins:["bin"],junk:["junk"],furniture:["furniture"],landscaping:["landscap","extra"]};
   function coveredBy(labels,taskKey){
     var keys=FAMILY[taskKey]||[];
     return labels.some(function(l){return keys.some(function(k){return l.indexOf(k)>=0;});});

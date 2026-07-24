@@ -133,7 +133,7 @@
   <div class="msheet" role="dialog" aria-label="Create new">
     <div class="msheet-grip"></div>
     <div class="msheet-title">Create</div>
-    <button class="btn btn-ghost msheet-item" onclick="mCreateLandscaping()">🌿 New landscaping job</button>
+    <button class="btn btn-ghost msheet-item" onclick="mCreateLandscaping()">🌿 New extra job</button>
     <button class="btn btn-ghost msheet-item" onclick="mCreateJunkQuote()">🗑️ Junk quote</button>
     <button class="btn btn-ghost msheet-item" onclick="mCreateFurnitureQuote()">🛋️ Furniture quote</button>
     <button class="btn btn-ghost msheet-cancel" onclick="mCloseCreate()">Cancel</button>
@@ -335,7 +335,7 @@
               <div class="card-head" style="margin:0;font-size:16px">Possible Jobs</div>
               <span id="possible-jobs-count" style="display:inline-flex;align-items:center;background:#65a30d;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;line-height:1;padding:2px 10px;border-radius:99px;letter-spacing:.5px">0</span>
             </div>
-            <div id="possible-jobs-peek" style="font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Landscaping jobs with no date yet</div>
+            <div id="possible-jobs-peek" style="font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Extra jobs with no date yet</div>
           </div>
           <span style="color:#65a30d;font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0">View all →</span>
         </div>
@@ -452,7 +452,7 @@
 <div id="view-landscaping" class="view">
   <div class="page-header">
     <div><div class="page-title" style="display:flex;align-items:center;gap:12px"><img src="assets/jwg-logo.png" alt="Jeff White Group" style="height:44px;width:44px;object-fit:contain">Extra Jobs</div><div class="page-sub">Possible, scheduled &amp; completed extra jobs — all in one place</div></div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="newJob();setFormSvc('Landscaping')">+ New Job</button></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn btn-primary" onclick="newJob();setFormSvc('Extra Jobs')">+ New Job</button></div>
   </div>
   <div id="ls-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
     <button class="lb-period-btn active" style="font-size:13px;padding:8px 16px" onclick="setLsTab('possible',this)">📋 Possible <span id="ls-possible-count" style="display:inline-block;min-width:18px;background:var(--surface2);color:var(--muted);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">0</span></button>
@@ -506,7 +506,7 @@
             <button class="atab"        data-group="svc" data-val="Junk Removal" onclick="setJobSvc('Junk Removal',this)">🧹 Junk</button>
             <button class="atab"        data-group="svc" data-val="Junk Quote"  onclick="setJobSvc('Junk Quote',this)">📋 Quote</button>
             <button class="atab"        data-group="svc" data-val="Furniture Pickup" onclick="setJobSvc('Furniture Pickup',this)">🛋️ Pickup</button>
-            <button class="atab"        data-group="svc" data-val="Landscaping" onclick="setJobSvc('Landscaping',this)">🌿 Landscaping</button>
+            <button class="atab"        data-group="svc" data-val="Extra Jobs" onclick="setJobSvc('Extra Jobs',this)">🌿 Extra Jobs</button>
           </div>
         </div>
       </div>
@@ -563,7 +563,7 @@
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th class="sortable-th" onclick="toggleJobSort('service')">Service</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th></th><th>Email</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-furn-tbody"></tbody></table></div>
     </div>
     <div class="cat-section">
-      <div class="cat-section-header landscaping" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🌿 Landscaping</div><span class="cat-count" id="jobs-landscaping-count">0 jobs</span></div>
+      <div class="cat-section-header landscaping" onclick="toggleCatSection(this)"><span class="collapse-arrow">▼</span><div class="cat-title">🌿 Extra Jobs</div><span class="cat-count" id="jobs-landscaping-count">0 jobs</span></div>
       <div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th class="sortable-th" onclick="toggleJobSort('id')">ID</th><th>Job Name</th><th class="sortable-th" onclick="toggleJobSort('name')">Customer</th><th style="text-align:center">👷 Guys</th><th class="sortable-th" onclick="toggleJobSort('date')">Date</th><th class="sortable-th" onclick="toggleJobSort('address')">Address</th><th><span style="font-size:11px;color:var(--muted);font-weight:500">🚫&nbsp;Cancel &nbsp;·&nbsp; ✏️&nbsp;Edit &nbsp;·&nbsp; 🗑️&nbsp;Delete</span></th></tr></thead><tbody id="jobs-landscaping-tbody"></tbody></table></div>
     </div>
     <div id="jobs-cancelled-section" style="display:none">
@@ -1667,7 +1667,7 @@
           <button type="button" data-svc="Junk Removal" data-color="#eab308" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#eab308;border-color:rgba(234,179,8,.4);text-align:center;line-height:1.25">🗑️ Junk Removal</button>
           <button type="button" data-svc="Junk Quote" data-color="#0d6efd" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#0d6efd;border-color:rgba(13,110,253,.4);text-align:center;line-height:1.25">📋 Junk Quote</button>
           <button type="button" data-svc="Furniture Pickup" data-color="#8b5cf6" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#8b5cf6;border-color:rgba(139,92,246,.4);text-align:center;line-height:1.25">🛋️ Furniture Pickup</button>
-          <button type="button" data-svc="Landscaping" data-color="#65a30d" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#65a30d;border-color:rgba(101,163,13,.4);text-align:center;line-height:1.25">🌿 Landscaping</button>
+          <button type="button" data-svc="Extra Jobs" data-color="#65a30d" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#65a30d;border-color:rgba(101,163,13,.4);text-align:center;line-height:1.25">🌿 Extra Jobs</button>
         </div>
         <input type="hidden" id="f-svc" value="">
         <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
@@ -1818,6 +1818,7 @@
         <div id="landscape-fields-wrap" style="display:none;margin-bottom:10px">
           <div class="form-group" style="margin-bottom:10px"><label>🌿 Job Name <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— what the job's called, e.g. "Backyard cleanup"</span></label><input id="f-job-name" type="text" placeholder="Backyard cleanup, hedge trim, sod install…"></div>
           <div class="form-group"><label>👷 People Needed</label><input id="f-crew-size" type="number" min="0" step="1" placeholder="How many guys?" style="width:160px"></div>
+          <div class="form-group" style="margin-top:10px"><label>✅ Tasks <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— one per line; prints as a checklist on the work order</span></label><textarea id="f-tasks" rows="4" placeholder="Mow front lawn&#10;Trim hedges&#10;Haul away branches"></textarea></div>
         </div>
         <div id="junk-datetime-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
@@ -2591,14 +2592,14 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=443"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=444"></script>
-<script src="app-jwg-scheduler.js?v=441"></script>
-<script src="app-jwg-feed.js?v=369"></script>
+<script src="app.js?v=445"></script>
+<script src="app-jwg-scheduler.js?v=445"></script>
+<script src="app-jwg-feed.js?v=445"></script>
 <script src="app-ratings.js?v=396"></script>
 <script src="app-team.js?v=395"></script>
 <script src="app-suggestions.js?v=437"></script>
 <script src="liquid-nav.js?v=416"></script>
-<script src="app-onboarding.js?v=442"></script>
+<script src="app-onboarding.js?v=445"></script>
 </body>
 </html>
                                                                                                                                                          

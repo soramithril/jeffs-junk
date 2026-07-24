@@ -262,7 +262,7 @@ a:hover{color:#15803d}
     var list=(state.jobs||[]).filter(function(j){
       if(j.service==='Bin Rental') return false;
       if(f==='Quote') return j.service==='Junk Quote';
-      if(f==='Landscaping') return j.service==='Landscaping';
+      if(f==='Extra Jobs') return j.service==='Extra Jobs';
       return true;
     });
     list.sort(function(a,b){ return String(a.fb_date||a.junk_date||a.date||'').localeCompare(String(b.fb_date||b.junk_date||b.date||'')); });
@@ -337,7 +337,7 @@ a:hover{color:#15803d}
   var ACTS = {
     goHome:function(){ nav('home'); }, goJobs:function(){ nav('jobs'); }, goTrucks:function(){ nav('trucks'); },
     openAlert:openAlert, onPrev:prevDay, onNext:nextDay, onPick:openDate,
-    setAll:function(){ setFilter('all'); }, setQuote:function(){ setFilter('Quote'); }, setLand:function(){ setFilter('Landscaping'); },
+    setAll:function(){ setFilter('all'); }, setQuote:function(){ setFilter('Quote'); }, setLand:function(){ setFilter('Extra Jobs'); },
     pickTruck:function(arg){ pickTruck(arg); }, onLoc:refreshFleet,
     setAngle:function(arg){ setAngle(arg); }, nextAngle:nextAngle,
     addPhoto:function(arg){ addPhoto(arg); },
@@ -563,7 +563,7 @@ a:hover{color:#15803d}
       '<div style="display:flex;gap:7px;background:#e9ede9;border-radius:14px;padding:5px">'+
         '<div data-act="setAll" style="'+(f==='all'?segOn:segOff)+'">All</div>'+
         '<div data-act="setQuote" style="'+(f==='Quote'?segOn:segOff)+'">Quotes</div>'+
-        '<div data-act="setLand" style="'+(f==='Landscaping'?segOn:segOff)+'">Landscaping</div>'+
+        '<div data-act="setLand" style="'+(f==='Extra Jobs'?segOn:segOff)+'">Extra Jobs</div>'+
       '</div>'+
       cards+
     '</div>';

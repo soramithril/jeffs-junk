@@ -23,10 +23,10 @@ var PAGE_TOURS = [
   ]},
   { view:'jobs', label:'All Jobs', icon:'📋', section:'Daily', summary:'The master list of every service order.', steps:[
     { sel:'[data-tour="jobs-email-presets"]', title:'Email Presets button', body:'Opens the editor for your saved email templates, so the canned messages you send to customers (confirmations, reminders) stay consistent.' },
-    { sel:'#jobs-show-seg', title:'Show: status views', body:'Switch what the list shows: Active (open jobs), Completed (landscaping), Cancelled (scrapped jobs you can restore), Bins out (every bin currently deployed), or Recurring (repeat customers).' },
-    { sel:'#jobs-filters-btn', title:'Filters', body:'Open this for the advanced filters — Service (Bin, Junk, Quote, Pickup, Landscaping), Date, and Bin Drop. Anything you pick shows as a removable chip below.' },
+    { sel:'#jobs-show-seg', title:'Show: status views', body:'Switch what the list shows: Active (open jobs), Completed (extra jobs), Cancelled (scrapped jobs you can restore), Bins out (every bin currently deployed), or Recurring (repeat customers).' },
+    { sel:'#jobs-filters-btn', title:'Filters', body:'Open this for the advanced filters — Service (Bin, Junk, Quote, Pickup, Extra Jobs), Date, and Bin Drop. Anything you pick shows as a removable chip below.' },
     { sel:'#jsort-toggle', title:'Sort toggle', body:'One click flips the list between sorting By Date and Recently Added, so you can see either the schedule order or the newest bookings first.' },
-    { sel:'#jobs-bin-count', title:'Service sections', body:'Each service has its own collapsible table with a live count pill showing how many jobs match your filters — Bin Rentals, Junk Removal, Quotes, Furniture and Landscaping. Click any row to open the full job.' }
+    { sel:'#jobs-bin-count', title:'Service sections', body:'Each service has its own collapsible table with a live count pill showing how many jobs match your filters — Bin Rentals, Junk Removal, Quotes, Furniture and Extra Jobs. Click any row to open the full job.' }
   ]},
   { view:'clients', label:'Clients', icon:'👥', section:'Daily', summary:'Your searchable address book of every customer.', steps:[
     { sel:'#view-clients button.btn-primary[onclick="openAddClient()"]', title:'Add Client button', body:'Opens a form to create a brand-new client record with their name, phone, address and other details. Use this for any customer not in the system yet.' },
@@ -165,8 +165,8 @@ var JOB_GUIDES = [
     { sel:'#drd-inline-wrap', title:'Donate / dispose', body:'Work out what gets donated versus dumped, and the disposal cost.' },
     { sel:'#save-btn', title:'Save the job', body:'Save and it lands on the board and the calendar.' }
   ]},
-  { id:'job-land', label:'Create a landscaping job', icon:'🌿', service:'Landscaping', steps:[
-    { sel:'#f-svc-picker', title:'Pick the service', body:'Open New Job and choose Landscaping.' },
+  { id:'job-land', label:'Create an extra job', icon:'🌿', service:'Extra Jobs', steps:[
+    { sel:'#f-svc-picker', title:'Pick the service', body:'Open New Job and choose Extra Jobs.' },
     { sel:'#f-client-search', title:'Existing customer?', body:'If they have booked before, search their name or phone here and pick them to autofill their details.' },
     { sel:'#f-names-wrap', title:'New customer', body:"Otherwise type the customer's name and contact details here." },
     { sel:'#f-addr', title:'Address', body:'Enter the job address and city.' },

@@ -1983,7 +1983,7 @@ function renderSummerPage(){
   if(!root)return;
   const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",""];
   let h=`<div class="si-header">
-    <div><div class="si-title">Landscaping locations</div></div>
+    <div><div class="si-title">Extra Jobs locations</div></div>
     <div class="si-actions">
       <button class="si-action-btn" onclick="JWG.openAddSummerLocation()">Add location</button>
       <button class="si-action-btn secondary" onclick="JWG.SUM.filtersOpen=!JWG.SUM.filtersOpen;var b=document.getElementById('sum-filter-bar');if(b)b.style.display=JWG.SUM.filtersOpen?'':'none'">🔍 Filters</button>
@@ -2034,7 +2034,7 @@ function renderSummerPage(){
   });
 
   if(!filtered.length){
-    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track landscaping clients and service schedules</div></div></div>`;
+    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track extra-job clients and service schedules</div></div></div>`;
   }else{
     h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${SUM.locations.length} location${SUM.locations.length!==1?"s":""}</div>`;
     h+=`<table class="sum-table">

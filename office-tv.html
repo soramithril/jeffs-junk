@@ -577,7 +577,7 @@
     function jobTime(j){
       var s=j.service;
       if(s==='Furniture Pickup'||s==='Furniture Delivery') return j.fb_time || j.time || '';
-      if(s==='Junk Removal'||s==='Junk Quote'||s==='Landscaping') return j.junk_time || j.time || '';
+      if(s==='Junk Removal'||s==='Junk Quote'||s==='Extra Jobs') return j.junk_time || j.time || '';
       return j.time || j.junk_time || j.fb_time || '';
     }
     function timeMins(t){ if(!t) return 99999; var p=String(t).split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); }
@@ -585,7 +585,7 @@
     function effDay(j){
       var s=j.service;
       if(s==='Furniture Pickup'||s==='Furniture Delivery') return j.fb_date || j.date;
-      if(s==='Junk Removal'||s==='Junk Quote'||s==='Landscaping') return j.junk_date || j.date;
+      if(s==='Junk Removal'||s==='Junk Quote'||s==='Extra Jobs') return j.junk_date || j.date;
       return j.date;
     }
     // today's board entries — bins split into their drop-off / pick-up legs on the LEG day
@@ -594,7 +594,7 @@
       rows.forEach(function(j){
         if(j.status==='Cancelled') return;
         // Not real Jeff's Junk jobs: quotes aren't jobs, landscaping is the JWG side.
-        if(j.service==='Junk Quote' || j.service==='Landscaping') return;
+        if(j.service==='Junk Quote' || j.service==='Extra Jobs') return;
         function mk(label, time, crewIds){
           out.push({ service:label, time:time||'', name:j.name, business_name:j.business_name,
                      address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean),
@@ -665,7 +665,7 @@
         } else {
           var lbl = j.service==='Junk Removal' ? 'Junk'
                   : j.service==='Junk Quote' ? 'Quote'
-                  : j.service==='Landscaping' ? 'Landscaping'
+                  : j.service==='Extra Jobs' ? 'Extra Jobs'
                   : String(j.service||'').indexOf('Furniture')===0 ? 'Furniture' : 'Junk';
           var ds = effDay(j);
           (j.assigned_crew_ids||[]).forEach(function(cid){ add(cid, ds, lbl); });
@@ -721,9 +721,9 @@
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled'),
         // jobs this week (Mon–Sun) — NOT counting quotes (a quote isn't a job) or
         // landscaping (the JWG side, not Jeff's Junk).
-        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',monday).lt('date',wkEnd).neq('status','Cancelled').neq('service','Junk Quote').neq('service','Landscaping'),
+        db.from('jobs').select('*',{count:'exact',head:true}).gte('date',monday).lt('date',wkEnd).neq('status','Cancelled').neq('service','Junk Quote').neq('service','Extra Jobs'),
         // completed today (hero done/to-go) — same exclusions
-        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',dayStartIso).lt('completed_at',dayEndIso).neq('service','Junk Quote').neq('service','Landscaping'),
+        db.from('jobs').select('completed_at').eq('completed',true).gte('completed_at',dayStartIso).lt('completed_at',dayEndIso).neq('service','Junk Quote').neq('service','Extra Jobs'),
         // junk-side work across the schedule week (for the crew-schedule ghosts)
         db.from('jobs').select('service,status,date,junk_date,fb_date,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_pickup')
           .or('and(date.gte.'+monday+',date.lte.'+satEnd+'),and(junk_date.gte.'+monday+',junk_date.lte.'+satEnd+'),and(fb_date.gte.'+monday+',fb_date.lte.'+satEnd+'),and(bin_dropoff.gte.'+monday+',bin_dropoff.lte.'+satEnd+'),and(bin_pickup.gte.'+monday+',bin_pickup.lte.'+satEnd+')'),
