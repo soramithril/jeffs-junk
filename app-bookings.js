@@ -25,14 +25,6 @@ function _bkInitial(name){
   return s ? s.charAt(0).toUpperCase() : '?';
 }
 
-function _bkRelTime(d){
-  var diff = (Date.now() - d.getTime()) / 1000;
-  if(diff < 60) return 'just now';
-  if(diff < 3600) return Math.floor(diff/60) + 'm ago';
-  if(diff < 86400) return Math.floor(diff/3600) + 'h ago';
-  return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-}
-
 function _bookingsRange(mode){
   var now = new Date();
   var s, e;
@@ -295,7 +287,7 @@ async function renderTodayBookings(){
     var cancelled=(j.status==='Cancelled');
     var svcColor=_bkSvcColor(j.service);
     var ts=j.created_at?new Date(j.created_at):null;
-    var tsStr=ts?_bkRelTime(ts):'';
+    var tsStr=ts?ts.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     var emailed=(j.email_sent||j.email_confirmed);
     var emailBtn=emailed
       ? '<button class="djj-btn done" title="Confirmation email sent — view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">✓ Emailed</button>'
@@ -306,7 +298,7 @@ async function renderTodayBookings(){
       +'<span style="flex:none;width:9px;height:9px;border-radius:50%;background:'+svcColor+'"></span>'
       +'<div class="djj-main"><div class="djj-name" style="'+nameStyle+'">'+_bkEsc(j.name||'—')+'</div><div class="djj-sub">'+_bkEsc(j.service||'')+(j.created_by?' · by '+_bkEsc(j.created_by):'')+'</div></div>'
       +emailBtn
-      +'<span style="flex:none;color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;width:54px;text-align:right">'+tsStr+'</span>'
+      +'<span style="flex:none;color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;width:60px;text-align:right">'+tsStr+'</span>'
     +'</div>';
   }).join('');
 }
