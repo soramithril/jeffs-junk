@@ -36,6 +36,7 @@
       return (!isNaN(n) && n >= 1 && n <= 104) ? n : 12; })(),
     pal:   PALETTES[localStorage.getItem('sc_pal')] ? localStorage.getItem('sc_pal') : 'classic',
     open:  null,           // employee id whose rating popover is open (grid view)
+    noteFor: null,         // employee id whose note editor is open (after rating a 1 or 3)
     manage: false          // manage mode: show Hide/Show controls
   };
 
@@ -209,7 +210,7 @@
     // header
     h += '<div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">'
       +  '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;letter-spacing:1.5px;line-height:1;color:#1a1a2e">STAFF CHECK-IN</div>'
-      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · Monday–Saturday · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved</div></div>'
+      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · Monday–Saturday · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved · click a name for their 12-month summary</div></div>'
       +  '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[2]+'">'+teamToday+'</span></span>'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[2]+'"></span>'+goods+' good · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[1]+'"></span>'+okays+' okay · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'
@@ -266,7 +267,7 @@
         h += '<div style="display:flex;align-items:center;gap:14px;padding:5px 0;position:relative">'
           +  '<div style="width:150px;flex:none;display:flex;align-items:center;gap:9px">'
           +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 26) : '<span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:12px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
-          +  '<span style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
+          +  '<span onclick="StaffRatings.summary(\''+emp.id+'\')" title="View 12-month summary" style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">'+escHtml(emp.name)+'</span>'
           +  '</div>'
           +  '<div style="display:flex;gap:2px;position:relative">';
         emp.cells.forEach(function(cl, i3){
@@ -278,6 +279,9 @@
         if(st.open === emp.id){
           h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
             +  chipsHtml(emp, false) + '</div>';
+        } else if(st.noteFor === emp.id){
+          h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center;width:300px">'
+            +  noteEditorHtml(emp) + '</div>';
         }
         h += '</div>'
           +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=2.34?PC[2]:(emp.avg<=1.66?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
@@ -295,11 +299,12 @@
         h += '<div class="sc-crew-card" style="background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">'
           +  '<div style="display:flex;align-items:center;gap:9px">'
           +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 30) : '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
-          +  '<span style="font-size:13.5px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(emp.name)+'</span>'
+          +  '<span onclick="StaffRatings.summary(\''+emp.id+'\')" title="View 12-month summary" style="font-size:13.5px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">'+escHtml(emp.name)+'</span>'
           +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[2]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>'
           +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
+          +  (st.noteFor === emp.id ? '<div style="display:flex;gap:6px;align-items:center">'+noteEditorHtml(emp)+'</div>' : '')
           +  '<div style="display:grid;grid-template-rows:repeat(5,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
         emp.cells.forEach(function(cl, i3){
           h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" style="width:'+miniCell+'px;height:'+miniCell+'px;border-radius:2.5px;background:'+COLORS[cl.v]+'"></span>';
@@ -338,6 +343,22 @@
 
     h += '</div>';
     el.innerHTML = h;
+    if(st.noteFor){
+      var ni = document.getElementById('sc-note-' + st.noteFor);
+      if(ni){ ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); }
+    }
+  }
+
+  // Inline note editor shown right after rating a 1 or a 3 (also reopens when
+  // today's 1/3 chip is clicked again, so a comment can be added or fixed later).
+  function noteEditorHtml(emp){
+    var rec = _ratings[emp.id + '|' + todayStr()];
+    var val = rec ? (rec.note || '') : '';
+    return '<input id="sc-note-'+emp.id+'" type="text" maxlength="200" placeholder="Add a comment — what happened? (optional)" value="'+escHtml(val).replace(/"/g,'&quot;')+'" '
+      +  'onkeydown="if(event.key===\'Enter\')StaffRatings.saveNote(\''+emp.id+'\');if(event.key===\'Escape\')StaffRatings.closeNote()" '
+      +  'style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1.5px solid #1a1a2e;background:#fff;color:#1a1a2e;font-family:\'Inter\',sans-serif;font-size:12px;outline:none">'
+      +  '<button onclick="StaffRatings.saveNote(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid #1a1a2e;background:#1a1a2e;color:#fff">Save</button>'
+      +  '<button onclick="StaffRatings.closeNote()" title="Skip" style="flex:none;cursor:pointer;font-size:12px;font-weight:700;padding:7px 9px;border-radius:8px;border:1px solid #e9ecef;background:#fff;color:#868e96">&#x2715;</button>';
   }
 
   // ── handlers ──
@@ -395,6 +416,8 @@
         _ratings[key] = { rating: v, note: note };
         if(!_minDate || today < _minDate) _minDate = today;
       }
+      // A 1 or a 3 is worth a word — open the comment box (2 = normal, no ask)
+      st.noteFor = (v === 1 || v === 3) ? empId : null;
       paint();
     } catch(e){
       toast('Save failed: ' + ((e && e.message) || e), 'error');
@@ -402,11 +425,113 @@
     }
   }
 
+  async function saveNote(empId){
+    var inp = document.getElementById('sc-note-' + empId);
+    if(!inp) return;
+    var note = inp.value.trim();
+    var today = todayStr();
+    var key = empId + '|' + today;
+    var rating = _ratings[key] ? _ratings[key].rating : 2;
+    st.noteFor = null;
+    try {
+      if(rating === 2 && !note){
+        var rD = await db.from('employee_ratings').delete()
+          .eq('employee_id', empId).eq('rating_date', today);
+        if(rD.error) throw rD.error;
+        delete _ratings[key];
+      } else {
+        var rU = await db.from('employee_ratings').upsert(
+          {employee_id: empId, rating_date: today, rating: rating, note: note || null, updated_at: new Date().toISOString()},
+          {onConflict: 'employee_id,rating_date'});
+        if(rU.error) throw rU.error;
+        _ratings[key] = { rating: rating, note: note };
+      }
+      paint();
+    } catch(e){
+      toast('Save failed: ' + ((e && e.message) || e), 'error');
+      paint();
+    }
+  }
+  function closeNote(){ st.noteFor = null; paint(); }
+
+  // ── 12-month summary modal: every saved 1 and 3 (and noted 2s), grouped ──
+  function fmtDate(ds){
+    var d = parseLocalDate(ds);
+    return MONTHS[d.getMonth()] + ' ' + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? ', ' + d.getFullYear() : '');
+  }
+  async function summary(empId){
+    var emp = _emps && _emps.find(function(e){ return e.id === empId; });
+    if(!emp) return;
+    var startD = new Date(parseLocalDate(todayStr())); startD.setFullYear(startD.getFullYear() - 1);
+    var r = await db.from('employee_ratings').select('rating_date,rating,note')
+      .eq('employee_id', empId).gte('rating_date', ymdLocal(startD))
+      .order('rating_date', {ascending:false});
+    if(r.error){ toast('Summary load failed: ' + r.error.message, 'error'); return; }
+    var rows = (r.data || []).map(function(x){ return { d: x.rating_date, v: Math.min(3, x.rating), note: x.note || '' }; });
+    var goods = rows.filter(function(x){ return x.v === 3; });
+    var bads  = rows.filter(function(x){ return x.v === 1; });
+    var noted2 = rows.filter(function(x){ return x.v === 2 && x.note; });
+
+    // per-month counts, newest month first (only months that have entries)
+    var monthsSeen = [], byMonth = {};
+    rows.forEach(function(x){
+      var mk = x.d.slice(0,7);
+      if(!byMonth[mk]){ byMonth[mk] = {g:0, b:0}; monthsSeen.push(mk); }
+      if(x.v === 3) byMonth[mk].g++;
+      if(x.v === 1) byMonth[mk].b++;
+    });
+    var PC = PALETTES[st.pal].c;
+
+    function entryList(list, color, emptyText){
+      var withNote = list.filter(function(x){ return x.note; });
+      var plain = list.length - withNote.length;
+      if(!list.length) return '<div style="font-size:12.5px;color:#adb5bd;padding:4px 0">'+emptyText+'</div>';
+      return withNote.map(function(x){
+          return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f1f3f5;font-size:13px">'
+            + '<span style="flex:none;width:64px;color:#868e96;font-weight:600">'+fmtDate(x.d)+'</span>'
+            + '<span style="color:#1a1a2e">'+escHtml(x.note)+'</span></div>';
+        }).join('')
+        + (plain ? '<div style="font-size:12px;color:#adb5bd;padding-top:7px">+ '+plain+' more without a comment</div>' : '');
+    }
+
+    var body =
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+      + '<span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12.5px;font-weight:700;color:#495057"><span style="width:9px;height:9px;border-radius:50%;background:'+PC[2]+'"></span>'+goods.length+' good day'+(goods.length===1?'':'s')+'</span>'
+      + '<span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12.5px;font-weight:700;color:#495057"><span style="width:9px;height:9px;border-radius:50%;background:'+PC[0]+'"></span>'+bads.length+' rough day'+(bads.length===1?'':'s')+'</span>'
+      + '</div>'
+      + (monthsSeen.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'
+        + monthsSeen.map(function(mk){
+            var m = byMonth[mk]; var p = mk.split('-');
+            return '<span style="font-size:11.5px;font-weight:600;color:#868e96;background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:5px 9px">'
+              + MONTHS[+p[1]-1] + ' ' + p[0].slice(2)
+              + (m.g ? ' <b style="color:'+PC[2]+'">'+m.g+'↑</b>' : '')
+              + (m.b ? ' <b style="color:'+PC[0]+'">'+m.b+'↓</b>' : '') + '</span>';
+          }).join('') + '</div>' : '')
+      + '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:'+PC[2]+';text-transform:uppercase;margin-bottom:2px">Positives</div>'
+      + entryList(goods, PC[2], 'No good days recorded in the last 12 months.')
+      + '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:'+PC[0]+';text-transform:uppercase;margin:16px 0 2px">Negatives</div>'
+      + entryList(bads, PC[0], 'No rough days recorded in the last 12 months. 🎉')
+      + (noted2.length ? '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#868e96;text-transform:uppercase;margin:16px 0 2px">Other notes (average days)</div>' + entryList(noted2, '#868e96', '') : '');
+
+    if(!document.getElementById('sc-sum-modal')){
+      var div = document.createElement('div');
+      div.className = 'modal-overlay';
+      div.id = 'sc-sum-modal';
+      div.innerHTML = '<div class="modal" style="max-width:560px"><div class="modal-header"><div class="modal-title" id="sc-sum-title"></div><button class="modal-close" onclick="closeM(\'sc-sum-modal\')">&#x2715;</button></div><div id="sc-sum-body" style="max-height:65vh;overflow-y:auto;padding-right:2px"></div></div>';
+      div.addEventListener('click', function(e){ if(e.target === div) closeM('sc-sum-modal'); });
+      document.body.appendChild(div);
+    }
+    document.getElementById('sc-sum-title').textContent = emp.name + ' — last 12 months';
+    document.getElementById('sc-sum-body').innerHTML = body;
+    document.getElementById('sc-sum-modal').classList.add('open');
+  }
+
   window.renderStaffCheckin = renderStaffCheckin;
   window.StaffRatings = {
     rate: rate, setView: setView, setPal: setPal, setWeeks: setWeeks,
     weeksKey: weeksKey, weeksBlur: weeksBlur, togglePop: togglePop,
     toggleManage: toggleManage,
+    saveNote: saveNote, closeNote: closeNote, summary: summary,
     hide: function(id){ setHidden(id, true); },
     show: function(id){ setHidden(id, false); }
   };

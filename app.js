@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '445';
+var APP_VERSION = '446';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2178,7 +2178,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','team','usage'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','ourpriceseditor','team','usage'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2197,7 +2197,8 @@ function go(name){
   else if(name==='advisor'){ _anaTab='advisor'; name='analytics'; }
   else if(name==='analytics'){ _anaTab='overview'; }
   else if(name==='pricingconsole'){ _opTab='console'; name='ourprices'; }
-  else if(name==='ourprices'){ _opTab='prices'; }
+  else if(name==='ourpriceseditor'){ _opTab='prices'; name='ourprices'; }
+  else if(name==='ourprices'){ _opTab='console'; }
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var el=document.getElementById('view-'+name);
@@ -10814,7 +10815,7 @@ var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landsca
   bininventory:'Bin Fleet',binmap:'Bin Fleet · Map tab',
   analytics:'Analytics · Overview',utilization:'Analytics · Bin Utilization',
   leaderboard:'Analytics · Leaderboard',advisor:'Analytics · AI Advisor',
-  ourprices:'Bin & Junk Prices',pricingconsole:'Prices · Margin Console',
+  ourprices:'Prices · Editor',pricingconsole:'Prices · Margin Console',
   drdcalc:'Furniture Quote',pricing:'Pricing',
   bookings:'Bookings',team:'Team',staffcheckin:'Staff Check-In'};
 async function renderUsage(){
@@ -14344,7 +14345,7 @@ var RC_CITIES = [
 // with no sideways scroll.
 var RC_LADDER = [195]; (function(){ for(var p=200;p<=475;p+=25) RC_LADDER.push(p); })();
 var RC_CURVE_PRICES = [195,210,225,245,265,290,320,360,410,460,500];   // margin-curve sample points
-var _rc = {trips:2, tab:'map', scrub:300, bench:100, A:{}, mapMode:'price',
+var _rc = {trips:2, tab:'heat', scrub:300, bench:100, A:{}, mapMode:'price',
            sel:{ci:RC_CITIES.findIndex(function(c){return c.name==='Wasaga Beach';}), pi:RC_LADDER.indexOf(300)}};
 
 function _rcKmStr(c){ return (c.kmMax&&c.kmMax!==c.km) ? c.km+'–'+c.kmMax : String(c.km); }
