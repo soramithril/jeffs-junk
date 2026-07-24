@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '447';
+var APP_VERSION = '448';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8054,6 +8054,71 @@ function _getUnassignedBinJobs(){
   });
 }
 
+// ── MORNING BRIEF ──
+// First dashboard sign-in of the day (per browser) gets one popup with exactly
+// two lists (per Jake 2026-07-24): bins needing assignment, and yesterday's
+// bookings whose confirmation email never went out. Nothing outstanding = no popup.
+async function maybeShowMorningBrief(){
+  var today = todayStr();
+  if(localStorage.getItem('jjBriefDay') === today) return;
+  await _loadUnassignedBinAlertJobs(true);
+  var bins = _getUnassignedBinJobs();
+  var yd = new Date(); yd.setDate(yd.getDate()-1);
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  var ys = yd.getFullYear()+'-'+pad(yd.getMonth()+1)+'-'+pad(yd.getDate());
+  var unemailed = [];
+  try {
+    var r = await db.from('jobs')
+      .select('job_id,name,service,created_at,status,email_sent,email_confirmed')
+      .gte('created_at', ys+'T00:00:00').lt('created_at', today+'T00:00:00')
+      .neq('status','Cancelled').order('created_at');
+    if(r.error) throw r.error;
+    unemailed = (r.data||[]).filter(function(j){
+      return j.service !== 'Extra Jobs' && !(j.email_sent || j.email_confirmed);
+    });
+  } catch(e){ console.warn('Morning brief email check failed:', e); }
+  localStorage.setItem('jjBriefDay', today);
+  if(!bins.length && !unemailed.length) return;
+
+  function mbRow(main, sub, rowClick, btnLabel, btnClick){
+    return '<div onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;background:var(--surface2);cursor:pointer">'
+      + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+main+'</div>'
+      + '<div style="font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sub+'</div></div>'
+      + '<button class="btn btn-ghost btn-sm" style="flex:none" onclick="event.stopPropagation();'+btnClick+'">'+btnLabel+'</button></div>';
+  }
+  function mbHead(txt, color){ return '<div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:14px 0 8px">'+txt+'</div>'; }
+  var body = '<div style="font-size:12.5px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>';
+  body += mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22');
+  body += bins.length ? bins.map(function(j){
+      return mbRow(escHtml(j.name||j.id)+' — dropped '+fd(j.binDropoff),
+        j.id+(j.binSize?' · '+j.binSize:'')+(j.address?' · '+escHtml((j.address||'').split(',')[0]):'')+(j.city?' · '+escHtml(j.city):''),
+        'closeM(\'morning-brief-modal\');openDetail(\''+j.id+'\')',
+        '📦 Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
+    }).join('') : '<div style="font-size:12.5px;color:#22c55e">All bins assigned ✓</div>';
+  body += mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd');
+  body += unemailed.length ? unemailed.map(function(j){
+      var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+      return mbRow(escHtml(j.name||j.job_id),
+        j.job_id+' · '+escHtml(j.service||'')+(t?' · booked '+t:''),
+        'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
+        '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
+    }).join('') : '<div style="font-size:12.5px;color:#22c55e">Everyone got their confirmation ✓</div>';
+
+  if(!document.getElementById('morning-brief-modal')){
+    var div = document.createElement('div');
+    div.className = 'modal-overlay';
+    div.id = 'morning-brief-modal';
+    div.innerHTML = '<div class="modal" style="max-width:540px"><div class="modal-header"><div class="modal-title" id="mb-title"></div><button class="modal-close" onclick="closeM(\'morning-brief-modal\')">&#x2715;</button></div>'
+      + '<div id="mb-body" style="max-height:62vh;overflow-y:auto;padding-right:2px"></div>'
+      + '<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px" onclick="closeM(\'morning-brief-modal\')">Got it</button></div>';
+    div.addEventListener('click', function(e){ if(e.target === div) closeM('morning-brief-modal'); });
+    document.body.appendChild(div);
+  }
+  document.getElementById('mb-title').textContent = '☀️ Morning brief — ' + new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('mb-body').innerHTML = body;
+  document.getElementById('morning-brief-modal').classList.add('open');
+}
+
 function _removeBinChip(){
   var c = document.getElementById('bin-alert-chip'); if(c) c.remove();
   var sw = document.getElementById('global-search-wrap'); if(sw) sw.style.marginLeft = 'auto';
@@ -10766,6 +10831,7 @@ async function onLoginSuccess() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
   resetInactivityTimer();
   loadAllFromSupabase();
+  setTimeout(maybeShowMorningBrief, 2000);
 }
 
 function applyDeleteVisibility() {
