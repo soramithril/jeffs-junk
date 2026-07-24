@@ -257,7 +257,7 @@
         +  [1,2,3].map(function(v){
              return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#868e96"><span style="width:11px;height:11px;border-radius:3px;background:'+COLORS[v]+';border:1px solid rgba(0,0,0,.06)"></span>'+v+' '+LABELS[v]+'</span>';
            }).join('')
-        +  '<span style="margin-left:auto;font-size:11.5px;color:#adb5bd">hover a square for the note · click today\'s square to rate</span>'
+        +  '<span style="margin-left:auto;font-size:11.5px;color:#adb5bd">hover a square for the note · click any square to rate or comment that day</span>'
         +  '</div>'
         +  '<div style="padding:10px 30px 4px;display:flex"><div style="width:164px;flex:none"></div><div style="position:relative;height:15px;flex:1">'
         +  monthLabels.map(function(m){ return '<span style="position:absolute;top:0;left:'+m.x+'px;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">'+m.n+'</span>'; }).join('')
@@ -273,15 +273,19 @@
         emp.cells.forEach(function(cl, i3){
           var isToday = i3 === N-1;
           h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" '
-            +  (isToday ? 'onclick="StaffRatings.togglePop(\''+emp.id+'\')" ' : '')
-            +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px #1a1a2e':'none')+';cursor:'+(isToday?'pointer':'default')+'"></span>';
+            +  'onclick="StaffRatings.togglePop(\''+emp.id+'\',\''+dates[i3]+'\')" '
+            +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px #1a1a2e':'none')+';cursor:pointer"></span>';
         });
-        if(st.open === emp.id){
+        var openP=(st.open||'').split('|'), noteP=(st.noteFor||'').split('|');
+        if(openP[0] === emp.id){
+          var opRec = _ratings[emp.id+'|'+openP[1]];
           h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
-            +  chipsHtml(emp, false) + '</div>';
-        } else if(st.noteFor === emp.id){
-          h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center;width:300px">'
-            +  noteEditorHtml(emp) + '</div>';
+            +  '<span style="font-size:11px;font-weight:700;color:#868e96;padding:0 3px;white-space:nowrap">'+fmtDate(openP[1])+'</span>'
+            +  chipsForDay(emp.id, openP[1], opRec ? Math.min(3, opRec.rating) : 2, COLORS) + '</div>';
+        } else if(noteP[0] === emp.id){
+          h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center;width:330px">'
+            +  '<span style="font-size:11px;font-weight:700;color:#868e96;white-space:nowrap">'+fmtDate(noteP[1])+'</span>'
+            +  noteEditorHtml(emp, noteP[1]) + '</div>';
         }
         h += '</div>'
           +  '<div style="width:40px;flex:none;text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:19px;letter-spacing:.5px;color:'+(emp.avg>=2.34?PC[2]:(emp.avg<=1.66?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</div>'
@@ -304,7 +308,7 @@
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>'
           +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
-          +  (st.noteFor === emp.id ? '<div style="display:flex;gap:6px;align-items:center">'+noteEditorHtml(emp)+'</div>' : '')
+          +  (st.noteFor === emp.id+'|'+today ? '<div style="display:flex;gap:6px;align-items:center">'+noteEditorHtml(emp, today)+'</div>' : '')
           +  '<div style="display:grid;grid-template-rows:repeat(5,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
         emp.cells.forEach(function(cl, i3){
           h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" style="width:'+miniCell+'px;height:'+miniCell+'px;border-radius:2.5px;background:'+COLORS[cl.v]+'"></span>';
@@ -344,20 +348,32 @@
     h += '</div>';
     el.innerHTML = h;
     if(st.noteFor){
-      var ni = document.getElementById('sc-note-' + st.noteFor);
+      var ni = document.getElementById('sc-note-' + st.noteFor.split('|')[0]);
       if(ni){ ni.focus(); ni.setSelectionRange(ni.value.length, ni.value.length); }
     }
   }
 
+  // Chip row for a specific day (grid popover) — any visible day is rateable,
+  // so a forgotten entry or comment can be added after the fact.
+  function chipsForDay(empId, ds, curV, COLORS){
+    return [1,2,3].map(function(v){
+      var sel = v === curV;
+      return '<button onclick="StaffRatings.rate(\''+empId+'\','+v+',\''+ds+'\')" title="'+v+' — '+LABELS[v]+'" '
+        + 'style="width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;'
+        + 'font-family:\'Inter\',sans-serif;font-size:13px;font-weight:800;cursor:pointer;'
+        + 'background:'+(sel?COLORS[v]:'#f8f9fa')+';color:'+(sel?FG_SEL[v]:'#868e96')+';border:1.5px solid '+(sel?COLORS[v]:'#e9ecef')+'">'+v+'</button>';
+    }).join('');
+  }
+
   // Inline note editor shown right after rating a 1 or a 3 (also reopens when
-  // today's 1/3 chip is clicked again, so a comment can be added or fixed later).
-  function noteEditorHtml(emp){
-    var rec = _ratings[emp.id + '|' + todayStr()];
+  // the day's 1/3 square or chip is clicked again, so comments can be fixed later).
+  function noteEditorHtml(emp, ds){
+    var rec = _ratings[emp.id + '|' + ds];
     var val = rec ? (rec.note || '') : '';
     return '<input id="sc-note-'+emp.id+'" type="text" maxlength="200" placeholder="Add a comment — what happened? (optional)" value="'+escHtml(val).replace(/"/g,'&quot;')+'" '
-      +  'onkeydown="if(event.key===\'Enter\')StaffRatings.saveNote(\''+emp.id+'\');if(event.key===\'Escape\')StaffRatings.closeNote()" '
+      +  'onkeydown="if(event.key===\'Enter\')StaffRatings.saveNote(\''+emp.id+'\',\''+ds+'\');if(event.key===\'Escape\')StaffRatings.closeNote()" '
       +  'style="flex:1;min-width:0;padding:7px 10px;border-radius:8px;border:1.5px solid #1a1a2e;background:#fff;color:#1a1a2e;font-family:\'Inter\',sans-serif;font-size:12px;outline:none">'
-      +  '<button onclick="StaffRatings.saveNote(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid #1a1a2e;background:#1a1a2e;color:#fff">Save</button>'
+      +  '<button onclick="StaffRatings.saveNote(\''+emp.id+'\',\''+ds+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:8px;border:1px solid #1a1a2e;background:#1a1a2e;color:#fff">Save</button>'
       +  '<button onclick="StaffRatings.closeNote()" title="Skip" style="flex:none;cursor:pointer;font-size:12px;font-weight:700;padding:7px 9px;border-radius:8px;border:1px solid #e9ecef;background:#fff;color:#868e96">&#x2715;</button>';
   }
 
@@ -375,7 +391,12 @@
     var n = parseInt(inp.value, 10);
     if(!isNaN(n) && n >= 1) setWeeks(Math.min(104, n));
   }
-  function togglePop(empId){ st.open = (st.open === empId) ? null : empId; paint(); }
+  function togglePop(empId, ds){
+    var k = empId + '|' + (ds || todayStr());
+    st.open = (st.open === k) ? null : k;
+    st.noteFor = null;
+    paint();
+  }
   function toggleManage(){ st.manage = !st.manage; st.open = null; paint(); }
 
   async function setHidden(empId, hide){
@@ -394,9 +415,9 @@
     }
   }
 
-  async function rate(empId, v){
-    var today = todayStr();
-    var key = empId + '|' + today;
+  async function rate(empId, v, ds){
+    ds = ds || todayStr();
+    var key = empId + '|' + ds;
     var prev = _ratings[key];
     var note = prev ? (prev.note || '') : '';
     st.open = null;
@@ -405,19 +426,19 @@
       // "no row", so the table only ever holds deviations (1s and 3s) and notes.
       if(v === 2 && !note){
         var rD = await db.from('employee_ratings').delete()
-          .eq('employee_id', empId).eq('rating_date', today);
+          .eq('employee_id', empId).eq('rating_date', ds);
         if(rD.error) throw rD.error;
         delete _ratings[key];
       } else {
         var rU = await db.from('employee_ratings').upsert(
-          {employee_id: empId, rating_date: today, rating: v, note: note || null, updated_at: new Date().toISOString()},
+          {employee_id: empId, rating_date: ds, rating: v, note: note || null, updated_at: new Date().toISOString()},
           {onConflict: 'employee_id,rating_date'});
         if(rU.error) throw rU.error;
         _ratings[key] = { rating: v, note: note };
-        if(!_minDate || today < _minDate) _minDate = today;
+        if(!_minDate || ds < _minDate) _minDate = ds;
       }
       // A 1 or a 3 is worth a word — open the comment box (2 = normal, no ask)
-      st.noteFor = (v === 1 || v === 3) ? empId : null;
+      st.noteFor = (v === 1 || v === 3) ? empId + '|' + ds : null;
       paint();
     } catch(e){
       toast('Save failed: ' + ((e && e.message) || e), 'error');
@@ -425,23 +446,23 @@
     }
   }
 
-  async function saveNote(empId){
+  async function saveNote(empId, ds){
     var inp = document.getElementById('sc-note-' + empId);
     if(!inp) return;
+    ds = ds || todayStr();
     var note = inp.value.trim();
-    var today = todayStr();
-    var key = empId + '|' + today;
+    var key = empId + '|' + ds;
     var rating = _ratings[key] ? _ratings[key].rating : 2;
     st.noteFor = null;
     try {
       if(rating === 2 && !note){
         var rD = await db.from('employee_ratings').delete()
-          .eq('employee_id', empId).eq('rating_date', today);
+          .eq('employee_id', empId).eq('rating_date', ds);
         if(rD.error) throw rD.error;
         delete _ratings[key];
       } else {
         var rU = await db.from('employee_ratings').upsert(
-          {employee_id: empId, rating_date: today, rating: rating, note: note || null, updated_at: new Date().toISOString()},
+          {employee_id: empId, rating_date: ds, rating: rating, note: note || null, updated_at: new Date().toISOString()},
           {onConflict: 'employee_id,rating_date'});
         if(rU.error) throw rU.error;
         _ratings[key] = { rating: rating, note: note };

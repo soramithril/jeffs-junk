@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '446';
+var APP_VERSION = '447';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -387,53 +387,43 @@ db.channel('bin-status-notify')
   })
   .subscribe();
 
-var _binNotifyQueue=[];
-var _binNotifyShowing=false;
+// Scrolling ticker across the top: every drop/pickup joins the crawl and rides
+// for 5 minutes (or until ✕ clears the lot). Visual only — never touches jobs.
+var _binTickerItems=[];
 var _binNotifyTimer=null;
 function showBinNotify(status, name, binBid, addr, city, jobId){
-  _binNotifyQueue.push({status:status,name:name,binBid:binBid,addr:addr,city:city,jobId:jobId});
-  if(!_binNotifyShowing) _showNextBinNotify();
+  _binTickerItems.push({status:status,name:name,binBid:binBid,addr:addr,city:city,jobId:jobId,expires:Date.now()+300000});
+  _renderBinTicker();
 }
-function _showNextBinNotify(){
-  if(!_binNotifyQueue.length){_binNotifyShowing=false;return;}
-  _binNotifyShowing=true;
-  var n=_binNotifyQueue.shift();
-  var overlay=document.getElementById('bin-notify-overlay');
-  var modal=document.getElementById('bin-notify-modal');
-  var icon=document.getElementById('bn-icon');
-  var title=document.getElementById('bn-title');
-  var sub=document.getElementById('bn-sub');
-  if(!overlay)return;
-  var isDropped=n.status==='dropped';
-  modal.className='bin-notify-modal '+(isDropped?'dropped':'pickedup');
-  icon.textContent=isDropped?'📦':'🚛';
-  var binLabel=n.binBid||'Bin';
-  var binObj=binItems.find(function(b){return b.bid===n.binBid;});
-  if(binObj) binLabel=binObj.num+(binObj.size?' · '+binObj.size:'');
-  title.textContent=isDropped?'Bin Dropped Off — '+binLabel:'Bin Picked Up — '+binLabel;
-  var location=(n.addr||'').split(',')[0];
-  if(n.city&&location) location+=' · '+n.city;
-  sub.textContent=n.name+(location?' — '+location:'');
-  overlay.dataset.jobId=n.jobId||'';
-  // Show assign bin button on all drops
-  var assignBtn=document.getElementById('bn-assign');
-  if(assignBtn){
-    if(isDropped&&n.jobId){assignBtn.style.display='';assignBtn.onclick=function(){dismissBinNotify();openAssignBinPicker(n.jobId);};}
-    else{assignBtn.style.display='none';}
-  }
-  overlay.classList.add('show');
-  // Auto-dismiss after 5 min so a drop/pickup banner never lingers if nobody
-  // clicks it (and never blocks the queue). Visual only — never touches the job.
-  // A manual dismiss clears this first.
+function _renderBinTicker(){
+  var bar=document.getElementById('bin-ticker'), track=document.getElementById('bin-ticker-track');
+  if(!bar||!track)return;
+  var now=Date.now();
+  _binTickerItems=_binTickerItems.filter(function(n){return n.expires>now;});
+  if(!_binTickerItems.length){bar.classList.remove('show');track.innerHTML='';return;}
+  track.innerHTML=_binTickerItems.map(function(n){
+    var isDropped=n.status==='dropped';
+    var binLabel=n.binBid||'Bin';
+    var binObj=binItems.find(function(b){return b.bid===n.binBid;});
+    if(binObj) binLabel=binObj.num+(binObj.size?' · '+binObj.size:'');
+    var loc=(n.addr||'').split(',')[0];
+    if(n.city&&loc) loc+=' · '+n.city;
+    var click=isDropped&&n.jobId ? ' onclick="openAssignBinPicker(\''+n.jobId+'\')" title="Assign a bin to this job"'
+            : (n.jobId ? ' onclick="openDetail(\''+n.jobId+'\')" title="Open the job"' : '');
+    return '<span class="bin-ticker-item '+(isDropped?'dropped':'pickedup')+'"'+click+'>'
+      +(isDropped?'📦 BIN DROPPED':'🚛 BIN PICKED UP')+' — '+escHtml(binLabel)+' · '+escHtml(n.name)
+      +(loc?' — '+escHtml(loc):'')+(isDropped&&n.jobId?' · click to assign':'')+'</span>';
+  }).join('<span class="bin-ticker-sep">•</span>');
+  bar.classList.add('show');
+  // Crawl speed follows content length (~90px/s) so long lists don't blur past
+  track.style.animationDuration=Math.max(14,Math.round((track.scrollWidth||600)/90))+'s';
   clearTimeout(_binNotifyTimer);
-  _binNotifyTimer=setTimeout(dismissBinNotify,300000);
+  _binNotifyTimer=setTimeout(_renderBinTicker,60000); // sweep expired riders each minute
 }
-function dismissBinNotify(){
+function dismissBinTicker(){
   clearTimeout(_binNotifyTimer);
-  var overlay=document.getElementById('bin-notify-overlay');
-  if(!overlay)return;
-  overlay.classList.remove('show');
-  setTimeout(function(){_showNextBinNotify();},300);
+  _binTickerItems=[];
+  _renderBinTicker();
 }
 
 // ── Notification History Panel ──
@@ -10724,6 +10714,9 @@ async function onLoginSuccess() {
   appLoaded = true;
   // Await profile so displayName is set before any job saves can happen
   var r = await db.from('user_profiles').select('role,can_delete,username').eq('id', currentUser.id).single();
+  // A failed profile load silently demotes an admin (name falls back to the email
+  // prefix, so every access check fails) — say so instead of leaving them confused.
+  if (r.error) toast('⚠ Couldn\'t load your profile ('+r.error.message+') — refresh the page.', 'error');
   if (r.data && r.data.can_delete) {
     canDelete = true;
   }
