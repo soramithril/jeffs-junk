@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '448';
+var APP_VERSION = '449';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2423,7 +2423,7 @@ async function refreshDashBinStats(){
   var totalEl=document.getElementById('s-bins-total');if(totalEl)animCount(totalEl,totalBins,'','',700);
   var mbEl=document.getElementById('m-bins');if(mbEl)mbEl.textContent=binsOut;
   var fdLbl=document.getElementById('dash-fleet-deployed-lbl');
-  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span style="color:#dc3545;font-weight:800">'+outPct+'%</span>';
+  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span style="color:var(--accent);font-weight:800">'+outPct+'%</span>';
   setTimeout(function(){
     var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
     var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% deployed';
@@ -2440,31 +2440,32 @@ async function refreshDashBinStats(){
     if(!j.binPickup||j.binPickup>=today)return;
     if(sizeOverdue.hasOwnProperty(j.binSize))sizeOverdue[j.binSize]++;
   });
-  var binAccent={'4 yard':'#16a34a','7 yard':'#f0932b','14 yard':'#0891b2','20 yard':'#dc3545'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
     var isFull=(tot>0&&inY===0);
-    var ac=binAccent[s]||'#16a34a';
-    var lbl=s.replace(/\s*yard/i,' YD').toUpperCase();
-    var numColor=isFull?'#dc3545':'#16a34a';
-    var odPill=od>0?'<span style="font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
+    var availPct=tot?Math.round(inY/tot*100):0;
+    var numColor=isFull?'#dc3545':'var(--accent)';
+    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;right:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
-    var bgImg=imgKey?'<div style="position:absolute;inset:0;background-image:url(assets/'+imgKey+'.png?v=398);background-repeat:no-repeat;background-position:center 12px;background-size:auto 115px;z-index:0;pointer-events:none'+(isFull?';opacity:.3;filter:grayscale(.4)':';opacity:.95')+'"></div>':'';
-    return '<div style="position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-top:3px solid '+ac+';border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center">'
-      +bgImg
-      +'<div style="position:relative;z-index:1">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;min-height:16px;margin-bottom:2px">'
-          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:1px;color:'+ac+'">'+lbl+'</span>'+odPill
-        +'</div>'
-        +'<div style="height:76px"></div>'
-        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:46px;line-height:.9;color:'+numColor+';font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #fff,0 0 7px #fff,0 0 12px #fff">'+inY+'</div>'
-        +'<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700">of '+tot+' &middot; '+out+' out</div>'
-        +'<button onclick="bookBin(\''+s+'\')" class="djj-book">&#128197; Book</button>'
-      +'</div>'
+    return '<div class="jj-bin jj-card-lift">'
+      +'<div class="jj-bin-breathe"></div>'
+      +'<div class="jj-bin-sheen"></div>'
+      +odPill
+      +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;height:64px;object-fit:contain;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
+      +'<div style="position:relative;font-family:\'Bebas Neue\',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);line-height:1">'+s.replace(/\s*yard/i,' yd')+'</div>'
+      +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
+      +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:var(--muted);margin-top:5px">of '+tot+'</div>'
+      +'<div style="position:relative;width:100%;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+(isFull?'#dc3545':'var(--accent)')+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
+      +'<div style="position:relative;width:100%"><button onclick="bookBin(\''+s+'\')" class="djj-book">Book</button></div>'
     +'</div>';
   }).join('');
-  var sc=document.getElementById('dash-bin-by-size');if(sc)sc.innerHTML=sizeHtml;
+  var sc=document.getElementById('dash-bin-by-size');
+  if(sc){
+    sc.innerHTML=sizeHtml;
+    sc.querySelectorAll('[data-bincount]').forEach(function(el){ animCount(el,parseInt(el.getAttribute('data-bincount'),10)||0,'','',950); });
+    requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){ el.style.width=el.getAttribute('data-binbar')+'%'; }); });
+  }
   renderNeedsYou();
 }
 
@@ -3265,8 +3266,88 @@ async function renderBinsAttention(){
     +'</div>';
   }).join('');
 }
-// Dashboard greeting — "<date> · Good morning, <name>" + a fun time-of-day
-// headline that rotates daily (v418; replaced the static "Here's your day").
+// ── MORNING BRIEF HERO — vibe engine (v449 design refresh) ─────────────────
+// Ten animated looks for the hero card. The day's vibe is picked from the date
+// (same hash the whole day, new one tomorrow); clicking a pill switches it for
+// this visit. Each vibe = greeting colour + wash gradient + floating blobs +
+// entrance animation, plus shimmer/confetti extras on the flashy ones.
+var JJ_VIBE_ORDER=['sunrise','springy','party','sunset','ocean','forest','midnight','aurora','ember','gold'];
+var JJ_VIBES={
+  sunrise:{label:'Sunrise',color:'#ea6a12',k:'heroFade',e:'cubic-bezier(.16,1,.3,1)',d:640,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(251,191,36,.22),rgba(249,115,22,.10) 52%,transparent 82%)',
+    blobs:[{bg:'rgba(251,191,36,.55)',top:'-48%',left:'-5%',sz:440,anim:'jjDrift 13s ease-in-out infinite'},{bg:'rgba(249,115,22,.22)',bottom:'-42%',right:'6%',sz:300,anim:'jjFloatB 11s ease-in-out infinite'}]},
+  springy:{label:'Springy',color:'#15803d',k:'heroSpring',e:'cubic-bezier(.34,1.56,.64,1)',d:640,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(34,197,94,.20),rgba(6,182,212,.09) 58%,transparent 82%)',
+    blobs:[{bg:'rgba(34,197,94,.38)',bottom:'-54%',left:'10%',sz:400,anim:'jjFloatA 6s ease-in-out infinite'},{bg:'rgba(6,182,212,.28)',top:'-42%',right:'5%',sz:320,anim:'jjFloatB 7.5s ease-in-out infinite'}]},
+  party:{label:'Party',color:'#7c3aed',k:'heroPop',e:'cubic-bezier(.34,1.56,.64,1)',d:680,shimmer:true,confetti:true,
+    wash:'linear-gradient(118deg,rgba(139,92,246,.18),rgba(236,72,153,.13) 45%,rgba(34,197,94,.12) 100%)',
+    blobs:[{bg:'rgba(236,72,153,.48)',top:'-36%',left:'5%',sz:360,anim:'jjFloatA 5.5s ease-in-out infinite'},{bg:'rgba(99,102,241,.46)',bottom:'-44%',right:'7%',sz:380,anim:'jjFloatB 7s ease-in-out infinite'},{bg:'rgba(34,197,94,.34)',top:'-32%',right:'33%',sz:250,anim:'jjFloatA 6.5s ease-in-out infinite'}]},
+  sunset:{label:'Sunset',color:'#db2777',k:'heroFade',e:'cubic-bezier(.16,1,.3,1)',d:720,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(244,114,182,.20),rgba(249,115,22,.12) 50%,rgba(124,58,237,.12) 100%)',
+    blobs:[{bg:'rgba(244,114,182,.42)',top:'-40%',right:'8%',sz:360,anim:'jjFloatB 9s ease-in-out infinite'},{bg:'rgba(249,115,22,.30)',bottom:'-46%',left:'6%',sz:340,anim:'jjFloatA 8s ease-in-out infinite'},{bg:'rgba(124,58,237,.26)',top:'-30%',left:'34%',sz:240,anim:'jjDrift 14s ease-in-out infinite'}]},
+  ocean:{label:'Ocean',color:'#0e7490',k:'heroSpring',e:'cubic-bezier(.22,1,.36,1)',d:720,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(6,182,212,.20),rgba(37,99,235,.12) 55%,rgba(20,184,166,.10) 100%)',
+    blobs:[{bg:'rgba(6,182,212,.40)',bottom:'-50%',left:'8%',sz:380,anim:'jjFloatA 8.5s ease-in-out infinite'},{bg:'rgba(37,99,235,.28)',top:'-40%',right:'6%',sz:320,anim:'jjFloatB 10s ease-in-out infinite'}]},
+  forest:{label:'Forest',color:'#3f6212',k:'heroFade',e:'cubic-bezier(.16,1,.3,1)',d:640,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(101,163,13,.20),rgba(21,128,61,.12) 55%,rgba(20,184,166,.08) 100%)',
+    blobs:[{bg:'rgba(101,163,13,.38)',bottom:'-50%',left:'12%',sz:380,anim:'jjFloatA 7.5s ease-in-out infinite'},{bg:'rgba(21,128,61,.30)',top:'-42%',right:'8%',sz:320,anim:'jjFloatB 9s ease-in-out infinite'}]},
+  midnight:{label:'Midnight',color:'#4338ca',k:'heroFade',e:'cubic-bezier(.16,1,.3,1)',d:700,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(49,46,129,.20),rgba(30,58,138,.12) 55%,rgba(15,23,42,.10) 100%)',
+    blobs:[{bg:'rgba(79,70,229,.42)',top:'-42%',left:'6%',sz:380,anim:'jjFloatA 9s ease-in-out infinite'},{bg:'rgba(30,64,175,.30)',bottom:'-48%',right:'8%',sz:340,anim:'jjFloatB 11s ease-in-out infinite'}]},
+  aurora:{label:'Aurora',color:'#0d9488',k:'heroSpring',e:'cubic-bezier(.22,1,.36,1)',d:720,shimmer:true,confetti:false,
+    wash:'linear-gradient(118deg,rgba(20,184,166,.20),rgba(34,197,94,.12) 45%,rgba(139,92,246,.12) 100%)',
+    blobs:[{bg:'rgba(20,184,166,.42)',bottom:'-50%',left:'8%',sz:380,anim:'jjFloatA 8s ease-in-out infinite'},{bg:'rgba(139,92,246,.30)',top:'-40%',right:'7%',sz:340,anim:'jjFloatB 10s ease-in-out infinite'},{bg:'rgba(34,197,94,.28)',top:'-30%',left:'36%',sz:240,anim:'jjDrift 14s ease-in-out infinite'}]},
+  ember:{label:'Ember',color:'#dc2626',k:'heroSpring',e:'cubic-bezier(.34,1.56,.64,1)',d:640,shimmer:false,confetti:false,
+    wash:'linear-gradient(118deg,rgba(239,68,68,.18),rgba(249,115,22,.12) 50%,rgba(234,179,8,.10) 100%)',
+    blobs:[{bg:'rgba(239,68,68,.42)',bottom:'-48%',left:'8%',sz:380,anim:'jjFloatA 6.5s ease-in-out infinite'},{bg:'rgba(249,115,22,.32)',top:'-40%',right:'7%',sz:320,anim:'jjFloatB 8s ease-in-out infinite'}]},
+  gold:{label:'Gold',color:'#b45309',k:'heroFade',e:'cubic-bezier(.16,1,.3,1)',d:640,shimmer:true,confetti:false,
+    wash:'linear-gradient(118deg,rgba(234,179,8,.22),rgba(217,119,6,.12) 55%,transparent 82%)',
+    blobs:[{bg:'rgba(234,179,8,.48)',top:'-46%',right:'10%',sz:400,anim:'jjDrift 13s ease-in-out infinite'},{bg:'rgba(217,119,6,.26)',bottom:'-42%',left:'8%',sz:300,anim:'jjFloatA 9s ease-in-out infinite'}]}
+};
+var jjVibeMode=(function(){
+  var key=new Date().toDateString().split('').reduce(function(a,c){return a+c.charCodeAt(0);},0);
+  return JJ_VIBE_ORDER[key%JJ_VIBE_ORDER.length];
+})();
+var _jjPartyTimer=null;
+function jjSetVibe(mode){ jjVibeMode=mode; jjApplyVibe(); }
+function jjApplyVibe(){
+  var hero=document.getElementById('dash-hero'); if(!hero) return;
+  var v=JJ_VIBES[jjVibeMode];
+  document.getElementById('jj-vibe-wash').style.background=v.wash;
+  document.getElementById('jj-vibe-blobs').innerHTML=v.blobs.map(function(b){
+    var s='width:'+b.sz+'px;height:'+b.sz+'px;background:radial-gradient(circle,'+b.bg+',transparent 68%);animation:'+b.anim+';';
+    ['top','bottom','left','right'].forEach(function(k){ if(b[k]!=null)s+=k+':'+b[k]+';'; });
+    return '<div style="'+s+'"></div>';
+  }).join('');
+  document.getElementById('jj-vibe-shimmer').style.display=v.shimmer?'':'none';
+  document.getElementById('jj-vibe-btns').innerHTML=JJ_VIBE_ORDER.map(function(k){
+    return '<button class="jj-vibe-btn'+(k===jjVibeMode?' on':'')+'" onclick="jjSetVibe(\''+k+'\')">'+JJ_VIBES[k].label+'</button>';
+  }).join('');
+  hero.querySelectorAll('[data-anim]').forEach(function(el,i){
+    el.style.animation='none';
+    void el.offsetWidth;
+    el.style.animation=v.k+' '+v.d+'ms '+v.e+' '+(i*70)+'ms both';
+  });
+  renderGreeting();
+  clearInterval(_jjPartyTimer);
+  if(v.confetti){ setTimeout(jjBurst,200); _jjPartyTimer=setInterval(jjBurst,3200); }
+  else { var host=document.getElementById('jj-confetti'); if(host)host.innerHTML=''; }
+}
+function jjBurst(){
+  var host=document.getElementById('jj-confetti'); if(!host) return;
+  host.innerHTML='';
+  var colors=['#22c55e','#16a34a','#eab308','#0891b2','#f97316','#ec4899','#7c3aed','#ff1e56'];
+  for(var i=0;i<30;i++){
+    var s=document.createElement('span');
+    var size=6+Math.random()*6;
+    var dur=1+Math.random()*0.9;
+    s.style.cssText='position:absolute;top:-14px;left:'+(Math.random()*100)+'%;width:'+size+'px;height:'+(size*0.5)+'px;background:'+colors[i%colors.length]+';border-radius:1px;opacity:0;transform:rotate('+(Math.random()*360)+'deg);animation:jjConfetti '+dur+'s cubic-bezier(.4,.2,.2,1) '+(Math.random()*0.25)+'s forwards;';
+    host.appendChild(s);
+  }
+  setTimeout(function(){ var h=document.getElementById('jj-confetti'); if(h)h.innerHTML=''; },2400);
+}
+// Dashboard greeting — big vibe-coloured "Good morning, <name>" + a summary
+// line: jobs on the board, the daily fun phrase, and loose ends to clear.
 var GREET_FUN={
   morning:["Rise and shine","Coffee first, junk second","Fresh day, empty bins","Let's get rolling","Up and at 'em"],
   afternoon:["Keep on truckin'","Rolling right along","Full swing ahead","Keep it moving"],
@@ -3275,23 +3356,32 @@ var GREET_FUN={
 function renderGreeting(){
   var subEl=document.getElementById('dash-greeting-sub');
   var headEl=document.getElementById('dash-greeting-head');
-  if(!subEl||!headEl) return;
+  var sumEl=document.getElementById('dash-greeting-summary');
+  if(!subEl||!headEl||!sumEl) return;
   var now=new Date();
   var h=now.getHours();
   var part=h<12?'Good morning':(h<18?'Good afternoon':'Good evening');
-  var dateStr=now.toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric'});
+  subEl.textContent=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   var nameEl=document.getElementById('logged-in-username');
   var raw=nameEl?(nameEl.textContent||'').trim():'';
   var nm=(raw && raw!=='—')?raw.split(' ')[0]:'';
-  subEl.textContent=dateStr+' · '+part+(nm?', '+nm:'');
+  headEl.textContent=part+(nm?', '+nm:'');
+  headEl.style.color=JJ_VIBES[jjVibeMode].color;
   var list=h<12?GREET_FUN.morning:(h<18?GREET_FUN.afternoon:GREET_FUN.evening);
   var phrase=list[now.getDate()%list.length]; // same phrase all day, new one tomorrow
+  var bits=[];
+  var jc=window._dashTodayCount;
+  if(typeof jc==='number') bits.push(jc>0?(jc+' job'+(jc===1?'':'s')+' on the board today'):'Nothing on the board today');
+  bits.push(phrase);
   var ny=document.getElementById('dash-needs-you');
-  if(!ny || !ny.hasAttribute('data-count')){ headEl.textContent=phrase; return; }
-  var n=parseInt(ny.getAttribute('data-count')||'0',10);
-  headEl.innerHTML = n>0
-    ? phrase+" — <span style=\"color:var(--accent)\">"+n+" loose end"+(n===1?'':'s')+"</span> to clear"
-    : phrase+" — <span style=\"color:var(--accent)\">you're all caught up</span> 🎉";
+  var tail='';
+  if(ny && ny.hasAttribute('data-count')){
+    var n=parseInt(ny.getAttribute('data-count')||'0',10);
+    tail=n>0
+      ? ' <span style="color:var(--accent);font-weight:700">'+n+' loose end'+(n===1?'':'s')+' to clear.</span>'
+      : ' <span style="color:var(--accent);font-weight:700">You\'re all caught up</span> 🎉';
+  }
+  sumEl.innerHTML=bits.join(' — ')+'.'+tail;
 }
 async function renderDash(bg){
   // bg=true → background data refresh (realtime): swap content in place only.
@@ -3318,6 +3408,7 @@ async function renderDash(bg){
     el.style.animation='none'; el.style.opacity='0';
     requestAnimationFrame(function(){ el.style.animation=''; });
   });
+  jjApplyVibe(); // hero: wash/blobs/pills + entrance replay for today's vibe
 
   // Scroll to top so dashboard content is visible after loading screen
   var mainEl=document.getElementById('main');if(mainEl)mainEl.scrollTop=0;
@@ -3427,6 +3518,7 @@ async function renderDash(bg){
 
   var allToday = dedup(todayBinDropoffs.concat(todayBinPickups).concat(todayJunkRemovals).concat(todayJunkQuotes).concat(todayLandscaping).concat(todayFurnPickups).concat(todayFurnDelivs));
   var totalTodayCount = allToday.length;
+  window._dashTodayCount = totalTodayCount; renderGreeting(); // hero summary line
   var unconfirmedToday = allToday.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
 
   // ── TOMORROW PILL in header ───────────────────────────────

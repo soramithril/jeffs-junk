@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=447">
+<link rel="stylesheet" href="style.css?v=449">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -227,32 +227,41 @@
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <div id="view-dashboard" class="view active">
 
-  <!-- PAGE HEADER with inline Fleet Status -->
-  <div class="page-header" style="align-items:center">
-    <div style="min-width:0">
-      <div id="dash-greeting-sub" style="color:var(--accent);text-transform:uppercase;letter-spacing:1px;font-weight:600;font-size:12px;margin-bottom:2px"></div>
-      <div id="dash-greeting-head" style="font-size:23px;font-weight:800;letter-spacing:-0.6px;color:var(--text)">Here&#39;s your day</div>
+  <!-- MORNING BRIEF HERO — animated greeting card with vibe switcher (v449) -->
+  <section id="dash-hero" class="jj-hero">
+    <div class="jj-hero-base"></div>
+    <div id="jj-vibe-wash"></div>
+    <div id="jj-vibe-blobs"></div>
+    <div id="jj-vibe-shimmer" style="display:none"></div>
+    <div id="jj-confetti"></div>
+    <div class="jj-hero-content">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px">
+        <div id="global-search-wrap" style="position:relative;z-index:1001;flex:0 1 300px;min-width:200px;max-width:380px;">
+          <input id="global-search-input" class="search-icon" type="text" placeholder="Search jobs, clients, or address…" autocomplete="off" oninput="globalSearchDebounce(this.value)" onfocus="if(this.value.length>=2)globalSearchLive(this.value)" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('global-search-results').style.display='none';this.blur();}" style="width:100%;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:3000;"></div>
+        </div>
+        <div id="jj-vibe-btns" data-anim class="jj-vibe-wrap"></div>
+      </div>
+      <div id="dash-greeting-sub" data-anim style="color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;font-size:11px;margin-bottom:6px"></div>
+      <div id="dash-greeting-head" data-anim style="font-family:'Bebas Neue',Impact,sans-serif;font-size:52px;line-height:.95;letter-spacing:1px;margin-bottom:6px;color:var(--text)">Here&#39;s your day</div>
+      <div id="dash-greeting-summary" data-anim style="font-size:16px;color:var(--text-secondary);max-width:620px"></div>
+      <div id="dash-tomorrow-pill" data-anim style="display:none;margin-top:12px;padding:6px 14px;border-radius:20px;background:var(--surface);border:1px solid var(--border);font-size:13px;color:var(--muted);width:fit-content"></div>
     </div>
-    <div id="dash-tomorrow-pill" style="display:none;padding:6px 14px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:13px;color:var(--muted)"></div>
-    <div id="global-search-wrap" style="position:relative;z-index:1001;flex:0 0 280px;min-width:200px;max-width:380px;margin-left:auto;">
-      <input id="global-search-input" class="search-icon" type="text" placeholder="Search jobs, clients, or address…" autocomplete="off" oninput="globalSearchDebounce(this.value)" onfocus="if(this.value.length>=2)globalSearchLive(this.value)" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('global-search-results').style.display='none';this.blur();}" style="width:100%;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:3000;"></div>
-    </div>
-  </div>
+  </section>
 
   <!-- BINS AVAILABLE NOW (full-width, top priority) -->
-  <div class="chart-card" style="margin-bottom:16px;padding:14px 16px 16px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+  <div class="chart-card jj-card-lift" style="margin-bottom:16px;padding:16px 18px 18px;border-radius:14px">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
       <span style="font-size:16px">🚛</span>
       <span style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text)">Bins available now</span>
       <span onclick="go('bininventory')" style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent);cursor:pointer">Fleet →</span>
     </div>
-    <div style="margin-bottom:13px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Fleet deployed</span>
-        <span id="dash-fleet-deployed-lbl" style="font-size:11px;color:var(--text-secondary);font-weight:600">0 of 0 out · <span style="color:#dc3545;font-weight:800">0%</span></span>
+        <span id="dash-fleet-deployed-lbl" style="font-size:11px;color:var(--text-secondary);font-weight:600">0 of 0 out · <span style="color:var(--accent);font-weight:800">0%</span></span>
       </div>
-      <div style="height:7px;background:var(--surface2);border-radius:5px;overflow:hidden"><div id="dash-fleet-deployed-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#dc3545,#f97316);border-radius:5px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div></div>
+      <div style="height:8px;background:var(--surface2);border-radius:6px;overflow:hidden"><div id="dash-fleet-deployed-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:6px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>
     </div>
     <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div>
   </div>
@@ -2587,7 +2596,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=443"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=448"></script>
+<script src="app.js?v=449"></script>
 <script src="app-jwg-scheduler.js?v=445"></script>
 <script src="app-jwg-feed.js?v=445"></script>
 <script src="app-ratings.js?v=447"></script>
