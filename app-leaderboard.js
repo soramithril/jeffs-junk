@@ -17,9 +17,9 @@ function switchLeaderboard(tab){
   var pcBtn=document.getElementById('lb-page-tab-crew');
   if(pvBtn) pvBtn.style.cssText='font-size:12px;padding:5px 14px;border-radius:8px;font-weight:600;'+(tab==='vehicles'?'background:rgba(34,197,94,.12);color:#15803d;':'');
   if(pcBtn) pcBtn.style.cssText='font-size:12px;padding:5px 14px;border-radius:8px;font-weight:600;'+(tab==='crew'?'background:rgba(34,197,94,.12);color:#15803d;':'');
-  // Use full page render if on leaderboard page, otherwise simple dashboard render
+  // Use full page render if the leaderboard tab is visible, otherwise simple dashboard render
   var pageView=document.getElementById('view-leaderboard');
-  if(pageView&&pageView.classList.contains('active')) renderLeaderboardPage();
+  if(pageView&&pageView.offsetParent) renderLeaderboardPage();
   else renderActiveLeaderboard();
 }
 function getLeaderboardTargets(){

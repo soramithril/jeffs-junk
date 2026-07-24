@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '443';
+var APP_VERSION = '444';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1621,7 +1621,7 @@ async function loadBinJobsThenRender() {
   } catch(e) {
     console.error('Error loading bin jobs:', e);
   }
-  renderBinInventory();
+  switchBinTab(_binTab||'fleet');
 }
 // Days a bin has sat idle in the yard (since its last return, or creation if never out).
 // Returns 0 for bins that are out on a job.
@@ -2183,9 +2183,19 @@ function go(name){
   if(name==='usage' && !(currentUser&&currentUser.displayName==='Jake')){
     toast('⚠ You don\'t have access to this page.');return;
   }
-  // Maintenance is now a tab on the Vehicles page — route there with that tab active.
+  // Tab-merged pages: old page names route to their host page with that tab active
+  // (Maintenance→Vehicles was first; v444 added Map→Bin Fleet, the three reports→Analytics,
+  // and Margin Console→Bin & Junk Prices). Deep links and tours keep working unchanged.
   if(name==='maintenance'){ _fleetTab='maintenance'; name='vehicles'; }
   else if(name==='vehicles'){ _fleetTab='vehicles'; }
+  else if(name==='binmap'){ _binTab='map'; name='bininventory'; }
+  else if(name==='bininventory'){ _binTab='fleet'; }
+  else if(name==='utilization'){ _anaTab='utilization'; name='analytics'; }
+  else if(name==='leaderboard'){ _anaTab='leaderboard'; name='analytics'; }
+  else if(name==='advisor'){ _anaTab='advisor'; name='analytics'; }
+  else if(name==='analytics'){ _anaTab='overview'; }
+  else if(name==='pricingconsole'){ _opTab='console'; name='ourprices'; }
+  else if(name==='ourprices'){ _opTab='prices'; }
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var el=document.getElementById('view-'+name);
@@ -2198,7 +2208,7 @@ function go(name){
   closeSidebar();
   // The pricing family (sheet, editor, margin console) are full-screen pages:
   // a body class collapses .main's padding so they get the whole viewport.
-  document.body.classList.toggle('pv-full', ['pricing','ourprices','pricingconsole'].indexOf(name)!==-1);
+  document.body.classList.toggle('pv-full', ['pricing','ourprices'].indexOf(name)!==-1);
   if(typeof mSyncTab==='function') mSyncTab(name);
   trackPageView(name);
 }
@@ -2222,19 +2232,14 @@ function render(name, bg){
   else if(name==='usage') renderUsage();
   else if(name==='suggestions') renderSuggestions();
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
-  else if(name==='analytics'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
-  else if(name==='utilization') renderUtilization();
-  else if(name==='leaderboard') renderLeaderboardPage();
+  else if(name==='analytics') switchAnalyticsTab(_anaTab||'overview');
   else if(name==='pricing') renderPricing();
-  else if(name==='pricingconsole') renderRouteConsole();
-  else if(name==='ourprices') renderOurPrices();
+  else if(name==='ourprices') switchOurPricesTab(_opTab||'prices');
   else if(name==='drdcalc') renderDrdCalc();
   else if(name==='dispatch') renderDispatch();
-  else if(name==='binmap') renderMap();
-  else if(name==='advisor') renderAdvisor();
   else if(name==='bookings') renderBookings();
   else if(name==='staffcheckin') renderStaffCheckin();
-  else if(name==='bininventory') renderBinInventory();
+  else if(name==='bininventory') switchBinTab(_binTab||'fleet');
   else if(name==='damage') renderDamageReports();
   else if(name==='vehicles'){ switchFleetTab(_fleetTab||'vehicles'); }
   else if(name==='crew') renderCrew();
@@ -6626,9 +6631,9 @@ function quickToggleStatus(bid){
   saveBins();
   renderBinInventory();
   refreshDashBinStats();
-  // Also refresh utilization page if currently visible
+  // Also refresh the utilization tab if currently visible
   var activeView=document.querySelector('.view.active');
-  if(activeView&&activeView.id==='view-utilization') renderUtilization();
+  if(activeView&&activeView.id==='view-analytics'&&_anaTab==='utilization') renderUtilization();
 }
 function shiftTimeline(n){tlOffset+=n;renderTimeline();}
 async function renderTimeline(){
@@ -10268,9 +10273,8 @@ var NAV_ICO={
   "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('usage')":'analytics',
   "go('livejobs')":'liveJobs', "go('dispatch')":'dispatch', "go('vehicles')":'vehicles',
   "go('crew')":'clients', "go('damage')":'damage', "go('bininventory')":'junk',
-  "go('binmap')":'binMap', "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
-  "go('bookings')":'schedule', "go('analytics')":'analytics', "go('leaderboard')":'leaderboard',
-  "go('utilization')":'utilization', "go('advisor')":'advisor', "go('ourprices')":'pricing',
+  "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
+  "go('bookings')":'schedule', "go('analytics')":'analytics', "go('ourprices')":'pricing',
   "openFurniturePrices()":'furniture', "go('team')":'clients', "openUserManager()":'clients',
   "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
   "goJwg('clothing')":'clothing', "go('suggestions')":'advisor', "openPushSettings()":'bell'
@@ -10284,10 +10288,10 @@ var NAV_COLOR={
   "goJwg('summer')":'yellow',
   "go('documents')":'slate', "go('usage')":'violet', "go('livejobs')":'cyan',
   "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
-  "go('damage')":'red', "go('bininventory')":'teal', "go('binmap')":'olive',
+  "go('damage')":'red', "go('bininventory')":'teal',
   "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('bookings')":'pink',
-  "go('analytics')":'blue', "go('leaderboard')":'amber', "go('utilization')":'cyan',
-  "go('advisor')":'violet', "go('ourprices')":'green', "openFurniturePrices()":'pink',
+  "go('analytics')":'blue',
+  "go('ourprices')":'green', "openFurniturePrices()":'pink',
   "go('team')":'indigo', "openUserManager()":'blue', "go('staffcheckin')":'teal',
   "openEditPresets()":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red',
   "go('suggestions')":'yellow', "openPushSettings()":'orange'
@@ -10799,10 +10803,9 @@ function trackPageView(page){
 var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landscaping:'Extra Jobs',
   jwgscheduler:'JWG Scheduler',documents:'Documents',suggestions:'Suggestions',livejobs:'Live Jobs',
   dispatch:'Dispatch',vehicles:'Vehicles & Maintenance',crew:'Crew Schedule',damage:'Damage Reports',
-  bininventory:'Bin Fleet',binmap:'Bin Map',drdcalc:'Furniture Quote',pricing:'Pricing',
-  bookings:'Bookings',analytics:'Analytics',leaderboard:'Driver Leaderboard',utilization:'Bin Utilization',
-  advisor:'AI Advisor',ourprices:'Bin & Junk Prices',team:'Team',staffcheckin:'Staff Check-In',
-  pricingconsole:'Pricing Console'};
+  bininventory:'Bin Fleet & Map',drdcalc:'Furniture Quote',pricing:'Pricing',
+  bookings:'Bookings',analytics:'Analytics & Reports',
+  ourprices:'Bin & Junk Prices',team:'Team',staffcheckin:'Staff Check-In'};
 async function renderUsage(){
   var box=document.getElementById('usage-body');
   if(!box)return;
@@ -12522,6 +12525,7 @@ function makeVehicleListRow(v,ov){
 
 // Vehicles + Maintenance live on one page as two tabs (see #view-vehicles).
 var _fleetTab = 'vehicles';
+var _binTab = 'fleet', _anaTab = 'overview', _opTab = 'prices';
 function switchFleetTab(tab){
   var isVeh = tab !== 'maintenance';
   _fleetTab = isVeh ? 'vehicles' : 'maintenance';
@@ -12534,6 +12538,45 @@ function switchFleetTab(tab){
   var add=document.getElementById('fleet-add-vehicle-btn'); if(add) add.style.display = isVeh ? '' : 'none';
   if(isVeh){ renderVehicles(); if(typeof loadMaintenanceForVehicles==='function') loadMaintenanceForVehicles().then(renderVehicles); }
   else { renderMaintenance(); }
+}
+// Bin Fleet page: Fleet | Map tabs (Bin Map merged in v444)
+function switchBinTab(tab){
+  var isFleet = tab !== 'map';
+  _binTab = isFleet ? 'fleet' : 'map';
+  var pf=document.getElementById('bin-tab-fleet'), pm=document.getElementById('view-binmap');
+  if(pf) pf.style.display = isFleet ? '' : 'none';
+  if(pm) pm.style.display = isFleet ? 'none' : '';
+  var bf=document.getElementById('bin-tab-btn-fleet'), bm=document.getElementById('bin-tab-btn-map');
+  if(bf) bf.classList.toggle('active', isFleet);
+  if(bm) bm.classList.toggle('active', !isFleet);
+  var acts=document.getElementById('bininv-actions'); if(acts) acts.style.display = isFleet ? '' : 'none';
+  var sub=document.getElementById('fleet-sub'); if(sub) sub.textContent = isFleet ? 'Manage your physical bin inventory' : 'Currently rented bins only';
+  if(isFleet) renderBinInventory(); else renderMap();
+}
+// Analytics page: Overview | Bin Utilization | Driver Leaderboard | AI Advisor tabs (merged in v444)
+function switchAnalyticsTab(tab){
+  _anaTab = tab;
+  var panes={overview:'ana-tab-overview',utilization:'view-utilization',leaderboard:'view-leaderboard',advisor:'view-advisor'};
+  Object.keys(panes).forEach(function(k){
+    var el=document.getElementById(panes[k]); if(el) el.style.display = (k===tab)?'':'none';
+    var b=document.getElementById('ana-tab-btn-'+k); if(b) b.classList.toggle('active', k===tab);
+  });
+  if(tab==='overview'){ initAnalytics(); setTimeout(function(){ atabsSync('analytics'); }, 60); }
+  else if(tab==='utilization') renderUtilization();
+  else if(tab==='leaderboard') renderLeaderboardPage();
+  else renderAdvisor();
+}
+// Bin & Junk Prices page: Prices | Margin Console tabs (console merged in v444)
+function switchOurPricesTab(tab){
+  var isPrices = tab !== 'console';
+  _opTab = isPrices ? 'prices' : 'console';
+  var pp=document.getElementById('op-tab-prices'), pc=document.getElementById('view-pricingconsole');
+  if(pp) pp.style.display = isPrices ? '' : 'none';
+  if(pc) pc.style.display = isPrices ? 'none' : '';
+  var bp=document.getElementById('op-tab-btn-prices'), bc=document.getElementById('op-tab-btn-console');
+  if(bp) bp.classList.toggle('active', isPrices);
+  if(bc) bc.classList.toggle('active', !isPrices);
+  if(isPrices) renderOurPrices(); else renderRouteConsole();
 }
 // Re-render whichever fleet tab is active so maintenance actions reflect instantly.
 function _rerenderFleet(){
