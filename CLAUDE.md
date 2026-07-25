@@ -40,18 +40,15 @@ Live site: **https://soramithril.github.io/jeffs-junk/** — GitHub Pages auto-d
 
 Edit files in place — no temp clones, no copying around. Then:
 
-1. Local verification is TIERED — `node` isn't installed, and a JS syntax error blanks the
-   whole live site (including sign-in) for all staff, so never push app.js changes blind.
-   Match the effort to the change (policy agreed with Jake 2026-07-11):
-   - **Any app.js change**: quick load-check — serve the repo statically (in-app browser,
-     port 8767), open index.html, confirm the sign-in screen renders and the console has no
-     SyntaxError. Seconds, cheap, catches the blank-site disaster.
-   - **New features / math-heavy changes**: full local walkthrough — inject mock data via
-     the browser JS console (set `ourPricesV2`/`currentUser`/etc., call the render fns) and
-     check output, math, and access gates before pushing.
-   - **HTML- or text-only tweaks**: no local pass needed.
-   Note: screenshots hang in the automation browser on this machine — verify via DOM/JS
-   evals instead. Kill the intro `<video>` first if the renderer acts up.
+1. **No local test servers** (Jake, 2026-07-25 — replaces the tiered local-check policy of
+   2026-07-11). Don't spin up `python -m http.server` or any local preview before pushing.
+   Push, then verify the LIVE site immediately — it deploys in ~25s and that check is now the
+   only safety net against a JS syntax error blanking the whole site (`node` isn't installed,
+   so there's no offline syntax check). Never end a deploy without step 4, and fix-forward
+   fast if it's broken.
+   Note for live checks: screenshots hang in the automation browser on this machine — verify
+   via DOM/JS evals instead. The console always shows benign intro-video autoplay errors
+   (AbortError/DOMException from `intro-bg.mp4`) — ignore those; a SyntaxError is the killer.
 2. If you changed `app.js`, bump THREE things to the same number, in lockstep:
    - `<script src="app.js?v=N">` in `index.html` (near the bottom)
    - `var APP_VERSION = 'N';` near the top of `app.js`
@@ -87,4 +84,13 @@ Also: don't put `style="display:none"` inline on the modal element in HTML. It o
 
 ## Database
 
-Supabase. The main tables are `jobs`, `bin_items`, `clients`, `vehicles`, `job_changes`. Job IDs come from a per-service Supabase sequence (`next_job_id` RPC) — don't hand-mint IDs.
+Supabase. The main tables are `jobs`, `bin_items`, `clients`, `vehicles`, `job_changes`.
+
+**IDs (post-collision-disaster rules, 2026-07-24/25):** job numbers come from ONE shared
+sequence via the `next_job_id` RPC for every service (Extra Jobs keeps its own LAND- sequence);
+client numbers come from the `next_client_cid` RPC. Never hand-mint IDs, never compute
+"max + 1", and never add a per-service sequence again — overlapping counters plus
+upsert-on-save silently destroyed 88 jobs between April and July 2026 (all restored as jobs
+39546–39633 from the `job_changes` log). Brand-new records INSERT (fail loudly on a duplicate);
+upsert is only for updating records that already exist. `saveJob` also self-heals: quiet
+retries on connection blips, fresh number on a taken one (v454).
