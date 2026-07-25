@@ -2253,7 +2253,9 @@ input[type=date],input[type=time]{position:relative;}
 /* Truck and the running quote in a pinned column on the left; the furniture list
    alongside on the right. The column scrolls inside itself if a big load makes it
    taller than the window — a pinned column taller than the screen cannot pin. */
-.drdc-layout{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:20px;align-items:start;}
+/* Column width scales with the monitor, so the 27" in the office gets a big truck
+   while a laptop still keeps a usable item list. */
+.drdc-layout{display:grid;grid-template-columns:clamp(360px,30vw,760px) 1fr;gap:20px;align-items:start;}
 .drdc-side{position:sticky;top:0;z-index:20;align-self:start;display:flex;flex-direction:column;gap:12px;
   max-height:calc(100vh - 12px);overflow-y:auto;padding:4px 2px 8px 0;}
 /* The photo is 48% empty sky and road, so the frame crops to the truck itself
