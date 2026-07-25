@@ -97,8 +97,8 @@ function renderDrdCalc(){
       if(S.sub) html+='<div class="drd-hdr" style="grid-column:1/-1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">'+S.sub+'</div>';
       S.idxs.forEach(function(i){
         var item=DRD_ITEMS[i];
-        var sid='drdc-qty-'+i;
         var art=drdcArt(item);
+        var c=drdcQtyOf(i);   // quantities survive leaving and re-entering the page
         var thumb=art
           ?'<img src="assets/furniture/thumbs/'+art+'.png" alt="" draggable="false" style="width:40px;height:40px;flex:none;object-fit:contain">'
           :'<span style="width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted)">'+JWGIcons.svg('furniture',{size:20})+'</span>';
@@ -106,7 +106,11 @@ function renderDrdCalc(){
           +thumb
           +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
-          +'<input type="number" id="'+sid+'" min="0" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdcRecalc()">'
+          +'<div style="display:flex;align-items:center;gap:6px;flex:none">'
+          +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdcStep('+i+',-1)" aria-label="Remove one"'+(c?'':' disabled')+'>&minus;</button>'
+          +'<span class="drdc-count'+(c?' on':'')+'" id="drdc-qty-'+i+'">'+c+'</span>'
+          +'<button type="button" class="drdc-step drdc-step-inc" onclick="drdcStep('+i+',1)" aria-label="Add one">+</button>'
+          +'</div>'
           +'</div>';
       });
     });
@@ -125,14 +129,31 @@ function drdcPaintTileIcons(){
    ['drdc-tl-ico-load','schedule','#26311f'],
    ['drdc-tl-ico-runs','vehicles','#fdf6e6']].forEach(function(t){
     var el=document.getElementById(t[0]);
-    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:23,stroke:t[2]});
+    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:16,stroke:t[2]});
   });
+}
+// Quantities live here, keyed by DRD_ITEMS index — the +/- steppers are the only
+// way to change them, so there is no input value to read back.
+var drdcQty={};
+function drdcQtyOf(i){ return drdcQty[i]||0; }
+// One step on an item's stepper. Repaints just that row, then the totals.
+function drdcStep(i,delta){
+  var n=Math.max(0,drdcQtyOf(i)+delta);
+  if(n===0) delete drdcQty[i]; else drdcQty[i]=n;
+  var count=document.getElementById('drdc-qty-'+i);
+  count.textContent=n;
+  count.classList.toggle('on',n>0);
+  count.parentElement.querySelector('.drdc-step-dec').disabled=(n===0);
+  // Restart the pop animation even on a repeated click.
+  count.classList.remove('bump');
+  void count.offsetWidth;
+  if(delta>0) count.classList.add('bump');
+  drdcRecalc();
 }
 function drdcRecalc(){
   var totalItems=0,totalFee=0,totalVal=0;
   DRD_ITEMS.forEach(function(item,i){
-    var el=document.getElementById('drdc-qty-'+i);
-    var qty=el?(parseInt(el.value)||0):0;
+    var qty=drdcQtyOf(i);
     totalItems+=qty; totalFee+=qty*item.fee; totalVal+=qty*item.val;
   });
   // Custom rows carry their own pays + receipt values, entered by the user
@@ -157,8 +178,7 @@ function drdcRecalc(){
 function drdcPicked(){
   var out=[];
   DRD_ITEMS.forEach(function(item,i){
-    var el=document.getElementById('drdc-qty-'+i);
-    var qty=el?(parseInt(el.value)||0):0;
+    var qty=drdcQtyOf(i);
     if(qty>0) out.push({item:item,qty:qty});
   });
   return out;
@@ -189,7 +209,6 @@ function drdcRenderTruck(){
   var runsLabel=document.getElementById('drdc-tl-runslabel');
   runsLabel.textContent=many?'trips — ouch':'trip, one and done';
   runsLabel.style.color=many?'#a8701a':'#7a7c5f';
-  document.getElementById('drdc-tl-runscard').style.background=many?'#fbeee7':'#fffbf0';
   document.getElementById('drdc-tl-ico-runs').style.background=many?'#d9532b':'#17402a';
 
   var over=document.getElementById('drdc-over');
@@ -289,7 +308,14 @@ function drdcAddOtherRow(){
 }
 function drdcClear(){
   if(!confirm('Clear all items?'))return;
-  DRD_ITEMS.forEach(function(_,i){var el=document.getElementById('drdc-qty-'+i);if(el)el.value='';});
+  drdcQty={};
+  DRD_ITEMS.forEach(function(_,i){
+    var count=document.getElementById('drdc-qty-'+i);
+    if(!count) return;
+    count.textContent='0';
+    count.classList.remove('on','bump');
+    count.parentElement.querySelector('.drdc-step-dec').disabled=true;
+  });
   document.getElementById('drdc-other-rows').innerHTML='';
   drdcAddOtherRow();drdcRecalc();
   var s=document.getElementById('drdc-search');if(s)s.value='';
@@ -320,8 +346,7 @@ function drdcStartJob(){
   // Capture current quantities from the calculator
   var qtys={};
   DRD_ITEMS.forEach(function(_,i){
-    var el=document.getElementById('drdc-qty-'+i);
-    var q=el?(parseInt(el.value)||0):0;
+    var q=drdcQtyOf(i);
     if(q>0) qtys[i]=q;
   });
   newJob();
