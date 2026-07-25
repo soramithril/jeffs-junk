@@ -204,11 +204,8 @@ body{
 #nav-more.more-flyout .nav-item.active{background:rgba(255,255,255,.18);color:#fff;width:auto;margin-right:0;border-radius:11px;}
 #nav-more.more-flyout .nav-item.active::before,#nav-more.more-flyout .nav-item.active::after{display:none;}
 #nav-more.more-flyout .nav-item.active .icon{background:rgba(255,255,255,.28);color:#fff;}
-/* Bin Fleet wears the bins' own green (sampled off bin-4/7/14/20yd.png), so the
-   one bin entry reads as the bin colour instead of blending into the rail.
-   Placed after the :hover rule above so it wins on equal specificity. */
-#nav-more.more-flyout .nav-item-bin .icon{background:var(--bin-green);color:#fff;}
-#nav-more.more-flyout .nav-item-bin:hover .icon{background:#00b958;}
+/* Bin Fleet's tile green lives in jwg-icons.js COLORS.bin, not here — paintNavIcons
+   sets .icon's background inline, which would beat any rule at this level. */
 @media(max-width:900px){#nav-more.more-flyout{left:0;width:min(86vw,336px);z-index:260;}#more-flyout-backdrop{z-index:255;}}
 
 /* Sidebar overlay for mobile */
@@ -2737,3 +2734,33 @@ body.signed-in .help-fab{display:flex;}
 .op-chip.active .op-dot{background:#fff}
 .op-chip-tool{opacity:.5;font-size:11px;padding:0 1px;line-height:1}
 .op-chip:hover .op-chip-tool{opacity:.85}
+
+/* ═══════════════ EMAIL TEMPLATES PAGE (v465) ═══════════════
+   Was a 680px modal. Full page now: template list pinned left, editor centre,
+   live preview right so staff can see what the customer actually receives. */
+.etpl-layout{display:grid;grid-template-columns:230px 1fr;gap:18px;align-items:start}
+.etpl-side{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;position:sticky;top:16px;display:flex;flex-direction:column;gap:3px}
+.etpl-side-h{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:800;padding:6px 10px 8px}
+.etpl-tab{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:10px 11px;border:1px solid transparent;background:none;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:background .14s,color .14s}
+.etpl-tab:hover{background:var(--surface2)}
+.etpl-tab.on{background:var(--accent-light);color:#15803d;border-color:rgba(34,197,94,.3);font-weight:700}
+.etpl-tab-ico{font-size:15px;line-height:1}
+.etpl-main{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}
+.etpl-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px;box-shadow:var(--shadow-sm)}
+.etpl-lbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:7px}
+.etpl-lbl-sp{margin-top:20px}
+.etpl-hint{font-size:12.5px;color:var(--muted);margin:-2px 0 10px;line-height:1.45}
+.etpl-input,.etpl-area{width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:10px 13px;font-family:inherit;font-size:14px;transition:border-color .15s,box-shadow .15s}
+.etpl-area{font-size:13.5px;line-height:1.6;resize:vertical;min-height:260px}
+.etpl-input:focus,.etpl-area:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(34,197,94,.12)}
+.etpl-chips{display:flex;flex-wrap:wrap;gap:7px}
+.etpl-chip{border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.07);color:#15803d;border-radius:999px;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .14s,color .14s,transform .12s,box-shadow .14s}
+.etpl-chip:hover{background:var(--accent);color:#fff;transform:translateY(-2px);box-shadow:0 6px 14px rgba(34,197,94,.3)}
+.etpl-chip:active{transform:translateY(0)}
+.etpl-prev{position:sticky;top:16px;background:var(--surface2)}
+.etpl-prev-h{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:12px}
+.etpl-prev-h span{text-transform:none;letter-spacing:0;font-weight:600}
+.etpl-prev-subj{font-size:14px;font-weight:700;color:var(--text);padding-bottom:11px;margin-bottom:11px;border-bottom:1px solid var(--border)}
+.etpl-prev-body{font-size:13px;line-height:1.65;color:var(--text-secondary);white-space:pre-wrap}
+@media(max-width:1200px){.etpl-main{grid-template-columns:1fr}.etpl-prev{position:static}}
+@media(max-width:900px){.etpl-layout{grid-template-columns:1fr}.etpl-side{position:static;flex-direction:row;overflow-x:auto}}

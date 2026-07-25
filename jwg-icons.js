@@ -84,6 +84,7 @@
     cyan:   ['#06b6d4', '#0e7490'], // Bin drop-off
     pink:   ['#ec4899', '#be185d'], // Bin pickup
     teal:   ['#14b8a6', '#0d9488'], // Email
+    bin:    ['#00a04e', '#00713a'], // Bin Fleet — sampled off the bin artwork itself
     yellow: ['#eab308', '#a16207'], // Junk removal (app's amber scheme)
     indigo: ['#6366f1', '#4338ca'], // Junk quote
     amber:  ['#d97706', '#b45309'], // Shop / maintenance

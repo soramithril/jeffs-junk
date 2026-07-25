@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '464';
+var APP_VERSION = '465';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2162,7 +2162,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','ourpriceseditor','team','usage'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','ourpriceseditor','team','usage','emailtemplates'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2234,6 +2234,7 @@ function render(name, bg){
   else if(name==='team') renderTeamPage();
   else if(name==='maintenance'){ switchFleetTab('maintenance'); }
   else if(name==='documents') renderDocuments();
+  else if(name==='emailtemplates') renderEmailTemplates();
   else if(name==='jwgscheduler') renderJwgScheduler();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
   if(typeof _renderUnassignedBinBanner === 'function') _renderUnassignedBinBanner();
@@ -10456,7 +10457,7 @@ var NAV_ICO={
   "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
   "go('bookings')":'schedule', "go('analytics')":'analytics', "go('ourprices')":'pricing',
   "openFurniturePrices()":'furniture', "go('team')":'clients', "openUserManager()":'clients',
-  "go('staffcheckin')":'confirmed', "openEditPresets()":'email', "goJwg('inventory')":'allJobs',
+  "go('staffcheckin')":'confirmed', "go('emailtemplates')":'email', "goJwg('inventory')":'allJobs',
   "goJwg('clothing')":'clothing', "go('suggestions')":'advisor', "openPushSettings()":'bell'
 };
 // Distinct tile colour per nav item so the flyout — and, since v416, the main
@@ -10468,12 +10469,12 @@ var NAV_COLOR={
   "goJwg('summer')":'yellow',
   "go('documents')":'slate', "go('usage')":'violet', "go('livejobs')":'cyan',
   "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
-  "go('damage')":'red', "go('bininventory')":'teal',
+  "go('damage')":'red', "go('bininventory')":'bin',
   "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('bookings')":'pink',
   "go('analytics')":'blue',
   "go('ourprices')":'green', "openFurniturePrices()":'pink',
   "go('team')":'indigo', "openUserManager()":'blue', "go('staffcheckin')":'teal',
-  "openEditPresets()":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red',
+  "go('emailtemplates')":'amber', "goJwg('inventory')":'olive', "goJwg('clothing')":'red',
   "go('suggestions')":'yellow', "openPushSettings()":'orange'
 };
 function paintNavIcons(){
@@ -11236,39 +11237,106 @@ function sendEmail() {
   }
 }
 
-function openEditPresets() {
-  var keys = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
-  var labels = {bin_dropoff:'🚛 Bin Drop-off',bin_pickup:'🚚 Bin Pick-up',bin_extension:'🗓️ Bin Extension',junk_removal:'Junk Removal',furniture_bank:'🛋️ Furniture Bank',junk_quote:'📋 Junk Quote',bin_cancelled:'🚫 Bin Cancelled'};
-  var html = '';
-  keys.forEach(function(k) {
-    var p = getPreset(k);
-    html += '<div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)">'
-      + '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">' + labels[k] + '</div>'
-      + '<div class="form-group" style="margin-bottom:8px"><label>Subject</label><input id="preset-subj-' + k + '" type="text" value="' + (p.subject||'').replace(/"/g,'&quot;') + '"></div>'
-      + '<div class="form-group"><label>Body (use {name}, {date}, {time}, {address}, {binSize}, {side}, {price})</label><textarea id="preset-body-' + k + '" rows="5">' + (p.body||'') + '</textarea></div>'
-      + '</div>';
-  });
-  document.getElementById('presets-editor').innerHTML = html;
-  closeM('email-modal');
-  setTimeout(function(){document.getElementById('presets-modal').classList.add('open');}, 150);
-}
+// ═══════════════════════════════════════
+// EMAIL TEMPLATES — full page (was a modal until v465)
+// ═══════════════════════════════════════
+var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
+var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled'};
+var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫'};
+/* Exactly the tokens fillEmailTemplate() substitutes — no more, no less. The old
+   modal's hint advertised {time}, which nothing replaces, so staff were mailing
+   customers a literal "{time}"; it also never mentioned {dropoffDate},
+   {pickupDate} or {duration}, which do work. Buttons end that whole class of
+   mistake: you can only insert something real. */
+var ETPL_FIELDS = [
+  {t:'{name}',        label:'Customer name'},
+  {t:'{address}',     label:'Address'},
+  {t:'{binSize}',     label:'Bin size'},
+  {t:'{side}',        label:'Driveway side'},
+  {t:'{date}',        label:'Job date'},
+  {t:'{dropoffDate}', label:'Drop-off date'},
+  {t:'{pickupDate}',  label:'Pick-up date'},
+  {t:'{duration}',    label:'Rental length'},
+  {t:'{price}',       label:'Price'}
+];
+var _etplKey = 'bin_dropoff';
+var _etplFocus = 'etpl-body';
 
-function savePresets() {
-  var keys = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
-  keys.forEach(function(k) {
-    var s = document.getElementById('preset-subj-' + k);
-    var b = document.getElementById('preset-body-' + k);
-    if (s && b) emailPresets[k] = {subject: s.value, body: b.value};
-  });
-  // Sync to Supabase
-  var rows = keys.map(function(k){
-    return {preset_key:k, subject:emailPresets[k]?emailPresets[k].subject:'', body:emailPresets[k]?emailPresets[k].body:''};
+/* One sample job runs through the real fillEmailTemplate(), so the preview is
+   the same code path a customer's email takes — not a lookalike. */
+function _etplSample(){
+  return {service:'Bin Rental', name:'Sarah Thompson', address:'142 Bayfield St', city:'Barrie',
+          binSize:'14 yard', binSide:'left', binDuration:'7 days',
+          date:'2026-08-03', binDropoff:'2026-08-03', binPickup:'2026-08-10', price:485};
+}
+/* Keep whatever's on screen before we navigate away from it. */
+function etplStash(){
+  var s = document.getElementById('etpl-subj'), b = document.getElementById('etpl-body');
+  if(s && b) emailPresets[_etplKey] = {subject:s.value, body:b.value};
+}
+function etplSelect(k){ etplStash(); _etplKey = k; renderEmailTemplates(); }
+function etplFocus(id){ _etplFocus = id; }
+function etplInsert(token){
+  var el = document.getElementById(_etplFocus) || document.getElementById('etpl-body');
+  var s = el.selectionStart, e = el.selectionEnd;
+  el.value = el.value.slice(0,s) + token + el.value.slice(e);
+  el.selectionStart = el.selectionEnd = s + token.length;
+  el.focus();
+  etplPreview();
+}
+function etplPreview(){
+  var j = _etplSample();
+  var s = document.getElementById('etpl-subj'), b = document.getElementById('etpl-body');
+  if(!s || !b) return;
+  document.getElementById('etpl-prev-subj').textContent = fillEmailTemplate(s.value, j);
+  document.getElementById('etpl-prev-body').textContent = fillEmailTemplate(b.value, j);
+}
+function etplSave(){
+  etplStash();
+  var rows = ETPL_KEYS.map(function(k){
+    var p = getPreset(k);
+    return {preset_key:k, subject:p.subject||'', body:p.body||''};
   });
   db.from('email_presets').upsert(rows, {onConflict:'preset_key'}).then(function(r){
-    if(r.error) console.warn('Email presets sync failed:', r.error.message);
+    if(r.error){ toast('⚠ Could not save templates: ' + r.error.message); return; }
+    toast('Email templates saved!');
   });
-  closeM('presets-modal');
-  toast('Email presets saved!');
+}
+function renderEmailTemplates(){
+  var host = document.getElementById('etpl-page');
+  if(!host) return;
+  var p = getPreset(_etplKey);
+  var list = ETPL_KEYS.map(function(k){
+    return '<button class="etpl-tab' + (k===_etplKey?' on':'') + '" onclick="etplSelect(\'' + k + '\')">'
+      + '<span class="etpl-tab-ico">' + ETPL_ICONS[k] + '</span>' + ETPL_LABELS[k] + '</button>';
+  }).join('');
+  var chips = ETPL_FIELDS.map(function(f){
+    return '<button type="button" class="etpl-chip" onclick="etplInsert(\'' + f.t + '\')">+ ' + f.label + '</button>';
+  }).join('');
+  host.innerHTML =
+    '<div class="etpl-layout">'
+      + '<aside class="etpl-side"><div class="etpl-side-h">Templates</div>' + list + '</aside>'
+      + '<section class="etpl-main">'
+        + '<div class="etpl-card">'
+          + '<div class="etpl-lbl">Subject line</div>'
+          + '<input id="etpl-subj" class="etpl-input" type="text" onfocus="etplFocus(\'etpl-subj\')" oninput="etplPreview()">'
+          + '<div class="etpl-lbl etpl-lbl-sp">Add a customer detail</div>'
+          + '<div class="etpl-hint">Click one and it drops in where your cursor is — in the subject or the message. Each one fills itself in with the real customer\'s details when the email goes out.</div>'
+          + '<div class="etpl-chips">' + chips + '</div>'
+          + '<div class="etpl-lbl etpl-lbl-sp">Message</div>'
+          + '<textarea id="etpl-body" class="etpl-area" rows="15" onfocus="etplFocus(\'etpl-body\')" oninput="etplPreview()"></textarea>'
+        + '</div>'
+        + '<div class="etpl-card etpl-prev">'
+          + '<div class="etpl-prev-h">Preview<span> — a sample customer, so you can see it filled in</span></div>'
+          + '<div class="etpl-prev-subj" id="etpl-prev-subj"></div>'
+          + '<div class="etpl-prev-body" id="etpl-prev-body"></div>'
+        + '</div>'
+      + '</section>'
+    + '</div>';
+  /* Set values as properties, not markup — no escaping to get wrong. */
+  document.getElementById('etpl-subj').value = p.subject || '';
+  document.getElementById('etpl-body').value = p.body || '';
+  etplPreview();
 }
 
 // ═══════════════════════════════════════
