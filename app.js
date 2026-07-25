@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '450';
+var APP_VERSION = '451';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10948,6 +10948,7 @@ function applySettingsVisibility(){
 var _lastPv='';
 function trackPageView(page){
   if(!currentUser||!currentUser.displayName)return;
+  if(currentUser.displayName==='Jake')return; // Jake reads the report — his own clicks don't count
   if(page==='usage')return; // don't let checking the report inflate the numbers
   if(page===_lastPv)return; // ignore re-clicks of the page you're already on
   _lastPv=page;
