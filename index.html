@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=460">
+<link rel="stylesheet" href="style.css?v=461">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1394,63 +1394,50 @@
     </div>
   </div>
 
-  <!-- Everything that must stay on screen lives in ONE band at the top: the truck, the gauge,
-       the readouts, the running totals, the buttons and the search box. No card around it and
-       no bar along the bottom — the item grid below gets the full width and the rest of the height. -->
-  <div class="drdc-band">
-    <div class="drdc-band__truck" id="drdc-truck-frame">
-      <div class="drdc-truck-stage">
-      <div id="drdc-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
-        <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
-        <div id="drdc-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
+  <!-- Truck and the running quote live in a pinned column on the left; the furniture list
+       runs alongside it on the right. The truck photo is cropped to the truck itself, so it
+       stays wide and short instead of eating the column. -->
+  <div class="drdc-layout">
+    <aside class="drdc-side">
+      <div class="drdc-side__truck" id="drdc-truck-frame">
+        <div class="drdc-truck-stage">
+          <div id="drdc-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
+            <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
+            <div id="drdc-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
+          </div>
+        </div>
       </div>
-      </div>
-    </div>
 
-    <div class="drdc-band__right">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="position:relative;width:88px;height:88px;flex:none">
-          <svg viewBox="0 0 120 120" width="88" height="88" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface2)" stroke-width="12"></circle><circle id="drdc-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="position:relative;width:84px;height:84px;flex:none">
+          <svg viewBox="0 0 120 120" width="84" height="84" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface2)" stroke-width="12"></circle><circle id="drdc-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
           <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <div id="drdc-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:29px;line-height:.82;color:#22c55e"><span id="drdc-gauge-pct-num">0</span><span style="font-size:13px">%</span></div>
-            <div style="font-size:7.5px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-top:1px">FULL</div>
-            <div style="font-size:9.5px;color:var(--muted);margin-top:3px;white-space:nowrap"><span id="drdc-vol">0</span>/800 ft³</div>
+            <div id="drdc-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:27px;line-height:.82;color:#22c55e"><span id="drdc-gauge-pct-num">0</span><span style="font-size:12px">%</span></div>
+            <div style="font-size:7px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-top:1px">FULL</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap"><span id="drdc-vol">0</span>/800 ft³</div>
           </div>
         </div>
         <div class="drdc-readouts">
-          <div style="display:flex;align-items:center;gap:9px">
-            <span id="drdc-tl-ico-items" style="flex:none;width:28px;height:28px;border-radius:9px;background:#17402a;display:flex;align-items:center;justify-content:center"></span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="drdc-tl-ico-items" style="flex:none;width:26px;height:26px;border-radius:8px;background:#17402a;display:flex;align-items:center;justify-content:center"></span>
             <div style="line-height:1">
-              <div id="drdc-tl-items" style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:20px;line-height:.85;color:#17402a;font-variant-numeric:tabular-nums">0</div>
-              <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:10.5px;line-height:1.1;color:#7a7c5f;margin-top:3px;white-space:nowrap">things on board</div>
+              <div id="drdc-tl-items" style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:19px;line-height:.85;color:#17402a;font-variant-numeric:tabular-nums">0</div>
+              <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:10px;line-height:1.1;color:#7a7c5f;margin-top:3px;white-space:nowrap">on board</div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:9px">
-            <span id="drdc-tl-ico-load" style="flex:none;width:28px;height:28px;border-radius:9px;background:#e8b34a;display:flex;align-items:center;justify-content:center"></span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="drdc-tl-ico-load" style="flex:none;width:26px;height:26px;border-radius:8px;background:#e8b34a;display:flex;align-items:center;justify-content:center"></span>
             <div style="line-height:1">
-              <div style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:20px;line-height:.85;color:#17402a;font-variant-numeric:tabular-nums"><span id="drdc-tl-load">0</span><span style="font-size:11px;margin-left:2px">min</span></div>
-              <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:10.5px;line-height:1.1;color:#7a7c5f;margin-top:3px;white-space:nowrap">sweating to load</div>
+              <div style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:19px;line-height:.85;color:#17402a;font-variant-numeric:tabular-nums"><span id="drdc-tl-load">0</span><span style="font-size:11px;margin-left:2px">min</span></div>
+              <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:10px;line-height:1.1;color:#7a7c5f;margin-top:3px;white-space:nowrap">to load</div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:9px">
-            <span id="drdc-tl-ico-runs" style="flex:none;width:28px;height:28px;border-radius:9px;background:#17402a;display:flex;align-items:center;justify-content:center"></span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="drdc-tl-ico-runs" style="flex:none;width:26px;height:26px;border-radius:8px;background:#17402a;display:flex;align-items:center;justify-content:center"></span>
             <div style="line-height:1">
-              <div id="drdc-tl-trucks" style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:20px;line-height:.85;color:#17402a;font-variant-numeric:tabular-nums">1</div>
-              <div id="drdc-tl-runslabel" style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:10.5px;line-height:1.1;color:#7a7c5f;margin-top:3px;white-space:nowrap">trip, one and done</div>
+              <div id="drdc-tl-trucks" style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:19px;line-height:.85;color:#17402a;font-variant-numeric:tabular-nums">1</div>
+              <div id="drdc-tl-runslabel" style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:10px;line-height:1.1;color:#7a7c5f;margin-top:3px;white-space:nowrap">trip</div>
             </div>
-          </div>
-        </div>
-
-        <!-- Running total + the job hand-off, right beside the truck instead of in a bottom bar -->
-        <div style="flex:1;min-width:250px;display:flex;flex-direction:column;gap:10px">
-          <div class="drdc-money">
-            <div><div class="drdc-money__k">Items</div><div class="drdc-money__v" style="color:var(--text);font-family:inherit;font-size:21px" id="drdc-total-items">0</div></div>
-            <div><div class="drdc-money__k">Customer Pays</div><div class="drdc-money__v" style="color:#22c55e">$<span id="drdc-total-pay">0.00</span></div></div>
-            <div><div class="drdc-money__k">Tax Receipt</div><div class="drdc-money__v" style="color:#0d6efd">$<span id="drdc-total-receipt">0.00</span></div></div>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-ghost" onclick="drdcCopy()">📋 Copy Total</button>
-            <button class="btn btn-primary" onclick="drdcStartJob()">Start a Job</button>
           </div>
         </div>
       </div>
@@ -1460,24 +1447,38 @@
         <span style="font-size:12.5px;color:#b02a37;font-weight:600">Over by <span id="drdc-over-vol">0</span> ft³ — won&rsquo;t fit one box truck. You&rsquo;ll need <span id="drdc-over-trips">2</span> trips.</span>
       </div>
 
-      <input id="drdc-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
+      <div class="drdc-quote">
+        <div class="drdc-money">
+          <div><div class="drdc-money__k">Items</div><div class="drdc-money__v" style="color:var(--text);font-family:inherit;font-size:20px" id="drdc-total-items">0</div></div>
+          <div><div class="drdc-money__k">Customer Pays</div><div class="drdc-money__v" style="color:#22c55e">$<span id="drdc-total-pay">0.00</span></div></div>
+          <div><div class="drdc-money__k">Tax Receipt</div><div class="drdc-money__v" style="color:#0d6efd">$<span id="drdc-total-receipt">0.00</span></div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn btn-ghost btn-sm" onclick="drdcCopy()">📋 Copy</button>
+          <button class="btn btn-primary" onclick="drdcStartJob()">Start a Job</button>
+        </div>
+      </div>
+
+      <div id="drdc-loaded-wrap" style="display:none">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px">On the truck</div>
+        <div id="drdc-loaded" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+    </aside>
+
+    <div class="drdc-main">
+      <div class="drdc-searchbar">
+        <input id="drdc-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div id="drdc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:8px"></div>
+
+      <div style="margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Custom items</div>
+          <button class="btn btn-ghost btn-sm" onclick="drdcAddOtherRow()">+ Add custom</button>
+        </div>
+        <div id="drdc-other-rows"></div>
+      </div>
     </div>
-  </div>
-
-  <div id="drdc-loaded-wrap" style="display:none;margin:12px 0">
-    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px">On the truck</div>
-    <div id="drdc-loaded" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-  </div>
-
-  <div style="font-size:12px;color:var(--muted);margin:10px 0">Use the + and &minus; buttons to build a quote.</div>
-  <div id="drdc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
-
-  <div style="margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Custom items</div>
-      <button class="btn btn-ghost btn-sm" onclick="drdcAddOtherRow()">+ Add custom</button>
-    </div>
-    <div id="drdc-other-rows"></div>
   </div>
 </div>
 
@@ -2645,7 +2646,7 @@
   </div>
 </div>
 <script src="app-documents.js?v=388"></script>
-<script src="app-drdcalc.js?v=460"></script>
+<script src="app-drdcalc.js?v=461"></script>
 <script src="app-dispatch.js?v=411"></script>
 <script src="app-leaderboard.js?v=444"></script>
 <script src="app-analytics.js?v=364"></script>
@@ -2654,7 +2655,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=443"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=460"></script>
+<script src="app.js?v=461"></script>
 <script src="app-jwg-scheduler.js?v=445"></script>
 <script src="app-jwg-feed.js?v=445"></script>
 <script src="app-ratings.js?v=447"></script>
