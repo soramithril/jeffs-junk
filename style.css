@@ -2764,3 +2764,8 @@ body.signed-in .help-fab{display:flex;}
 .etpl-prev-body{font-size:13px;line-height:1.65;color:var(--text-secondary);white-space:pre-wrap}
 @media(max-width:1200px){.etpl-main{grid-template-columns:1fr}.etpl-prev{position:static}}
 @media(max-width:900px){.etpl-layout{grid-template-columns:1fr}.etpl-side{position:static;flex-direction:row;overflow-x:auto}}
+
+/* Stamp standing in for a row button (jwg-stamp.css owns the stamp itself).
+   Keeps the click target the button had — a sent email is still viewable and
+   resendable — while the stamp, not a toast, is what says it happened. */
+.djj-stamp-btn{flex:none;display:inline-flex;align-items:center;padding:0;border:none;background:none;cursor:pointer}

@@ -289,9 +289,15 @@ async function renderTodayBookings(){
     var ts=j.created_at?new Date(j.created_at):null;
     var tsStr=ts?ts.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     var emailed=(j.email_sent||j.email_confirmed);
+    /* Sent -> the stamp IS the receipt, in the button's place (no toast). Wrapped
+       so it stays clickable for view/resend. fresh:false is essential here: this
+       list repaints on every refresh, and without it every already-sent stamp
+       re-lands each time. The landing animation belongs to the click, not the
+       repaint - see stampEmailBtn(). */
     var emailBtn=emailed
-      ? '<button class="djj-btn done" title="Confirmation email sent — view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">✓ Emailed</button>'
-      : '<button class="djj-btn email" title="Send confirmation email" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">📧 Email</button>';
+      ? '<span class="djj-stamp-btn" title="Confirmation email sent — view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">'
+          + JWGStamp.emailed({size:'sm', fresh:false}) + '</span>'
+      : '<button class="djj-btn email" data-email-job="'+_bkEsc(j.job_id)+'" title="Send confirmation email" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">📧 Email</button>';
     var nameStyle=cancelled?'text-decoration:line-through;':'';
     var rowOp=cancelled?';opacity:.55':'';
     return '<div class="djj-row" style="cursor:pointer'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'

@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '465';
+var APP_VERSION = '466';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11203,6 +11203,22 @@ function loadEmailPreset(key) {
   document.getElementById('email-body').value = j ? fillEmailTemplate(preset.body, j) : preset.body;
 }
 
+/* The Booked Today row that fired this is still sitting behind the modal. Swap
+   its button for a freshly-landing stamp rather than firing a toast — the stamp
+   IS the receipt, and it stays on the record instead of vanishing in 3s.
+   No-op when the email was opened from somewhere without that row on screen;
+   the next repaint renders the stamp anyway, just without the animation. */
+function stampEmailBtn(jobId){
+  var btn = document.querySelector('.djj-btn[data-email-job="' + jobId + '"]');
+  if(!btn) return;
+  var wrap = document.createElement('span');
+  wrap.className = 'djj-stamp-btn';
+  wrap.title = 'Confirmation email sent — view or resend';
+  wrap.onclick = function(e){ e.stopPropagation(); openEmailModal(jobId); };
+  wrap.innerHTML = JWGStamp.emailed({size:'sm'});
+  btn.parentNode.replaceChild(wrap, btn);
+}
+
 function sendEmail() {
   var to = document.getElementById('email-to').value.trim();
   var subject = document.getElementById('email-subject').value.trim();
@@ -11218,7 +11234,7 @@ function sendEmail() {
     jobs.forEach(function(j){if(j.id===emailJobId){j.emailSent=true;j.emailConfirmed=true;}});
     patchJob(emailJobId,{emailSent:true,emailConfirmed:true});
     document.getElementById('email-sent-note').style.display = 'block';
-    toast('Email client opened & marked as sent!');
+    stampEmailBtn(emailJobId);
   }
   if (clientIdForRecord) {
     var sentBy = (currentUser && currentUser.displayName) ? currentUser.displayName : (currentUser && currentUser.email ? currentUser.email : 'unknown');

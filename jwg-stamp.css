@@ -1,0 +1,93 @@
+/* ============================================================================
+   Jeff's Junk — Work-order STAMPS  (companion to jwg-stamp.js)
+   Load once:  <link rel="stylesheet" href="jwg-stamp.css">
+
+   A stamp is the receipt for a completed step. It replaces the button that
+   fired the action, in place — no toast, no modal.
+   Ink colours are the deep halves of the jwg-icons.js COLORS tokens.
+   ========================================================================== */
+
+.jwg-stamp{
+  display:inline-block; flex:none;
+  font-family:'Bebas Neue',Impact,sans-serif;
+  border:3px solid currentColor; border-radius:10px;
+  padding:8px 14px 5px; background:#fff;
+  letter-spacing:2px; text-align:center; line-height:1;
+  transform:rotate(-4deg);
+  color:var(--ink,#15803d);
+}
+/* Two-line stamp: small caption over a big number (JOB 39718 / BIN 214) */
+.jwg-stamp .jwg-stamp-cap{ display:block; font-size:9.5px; letter-spacing:1.5px; }
+.jwg-stamp .jwg-stamp-num{ display:block; font-size:32px; line-height:.9; }
+.jwg-stamp .jwg-stamp-sub{ display:block; font-size:8.5px; letter-spacing:1.3px; }
+/* One-line stamp: the word is the stamp (EMAILED / CONFIRMED) */
+.jwg-stamp .jwg-stamp-word{ display:block; font-size:24px; line-height:.9; letter-spacing:2.4px; }
+
+/* Row-sized variant — fits a 50px .djj-row without changing its height. */
+.jwg-stamp.sm{ border-width:2px; border-radius:6px; padding:3px 9px 1px; transform:rotate(-4deg); }
+.jwg-stamp.sm .jwg-stamp-cap{ font-size:8px; letter-spacing:1.2px; line-height:1.3; }
+.jwg-stamp.sm .jwg-stamp-num{ font-size:17px; line-height:.95; margin-top:-1px; }
+.jwg-stamp.sm .jwg-stamp-word{ font-size:15px; letter-spacing:1.6px; }
+.jwg-stamp.sm .jwg-stamp-sub{ font-size:7.5px; }
+
+/* Ink colours — deep halves of the jwg-icons COLORS tokens. */
+.jwg-stamp.green {--ink:#15803d;}  /* booked        (green  #22c55e/#15803d) */
+.jwg-stamp.cyan  {--ink:#0e7490;}  /* bin assigned  (cyan   #06b6d4/#0e7490) */
+.jwg-stamp.indigo{--ink:#4338ca;}  /* emailed       (indigo #6366f1/#4338ca) */
+.jwg-stamp.amber {--ink:#b45309;}  /* confirmed     (amber  #d97706/#b45309) */
+.jwg-stamp.slate {--ink:#475569;}  /* neutral / voided */
+.jwg-stamp.red   {--ink:#b91c1c;}  /* cancelled */
+
+/* THE LANDING — 420ms, overshoots once, settles at -4deg. Add class "ink". */
+@keyframes jwg-stamp-land{
+  0%  { transform:scale(2.2) rotate(-16deg); opacity:0; }
+  60% { transform:scale(.94) rotate(-4deg);  opacity:1; }
+  100%{ transform:scale(1)   rotate(-4deg);  opacity:1; }
+}
+.jwg-stamp.ink{ animation:jwg-stamp-land .42s cubic-bezier(.22,1,.36,1) both; }
+
+/* PAGE STAMP — the whole work order gets stamped. One per save, not per field.
+   Put .jwg-stamp-page on a positioned container; the stamp centres over it. */
+.jwg-stamp-page{
+  position:absolute; inset:0; display:grid; place-items:center;
+  pointer-events:none; z-index:5;
+}
+.jwg-stamp.page{
+  border-width:14px; border-radius:26px; padding:34px 62px 24px;
+  letter-spacing:9px; opacity:.9; transform:rotate(-8deg);
+}
+.jwg-stamp.page .jwg-stamp-cap { font-size:38px;  letter-spacing:14px; line-height:1; }
+.jwg-stamp.page .jwg-stamp-num { font-size:186px; letter-spacing:6px;  line-height:.82; }
+.jwg-stamp.page .jwg-stamp-word{ font-size:120px; letter-spacing:12px; line-height:.9; }
+.jwg-stamp.page .jwg-stamp-sub { font-size:44px;  letter-spacing:13px; line-height:1.05; }
+.jwg-stamp.page .jwg-stamp-meta{
+  display:block; font-size:20px; letter-spacing:5px; line-height:1.4; margin-top:8px;
+}
+@keyframes jwg-stamp-page-land{
+  0%  { transform:scale(3.4) rotate(-20deg);  opacity:0; }
+  55% { transform:scale(.96) rotate(-7deg);   opacity:.9; }
+  72% { transform:scale(1.05) rotate(-8.5deg);opacity:.9; }
+  100%{ transform:scale(1) rotate(-8deg);     opacity:.9; }
+}
+.jwg-stamp.page.ink{ animation:jwg-stamp-page-land .52s cubic-bezier(.22,1,.36,1) both; }
+
+/* IMPACT — the thing being stamped takes the hit. Add to the card, 300ms. */
+@keyframes jwg-stamp-jolt{
+  0%,100%{ transform:translate(0,0); }
+  18%    { transform:translate(-4px,3px); }
+  36%    { transform:translate(3px,-2px); }
+  54%    { transform:translate(-2px,1px); }
+}
+.jwg-stamp-jolt{ animation:jwg-stamp-jolt .3s ease-out both; }
+
+/* Ghost slot — where a stamp is still owed. Optional. */
+.jwg-stamp-slot{
+  display:inline-block; flex:none;
+  border:2px dashed #e2e8e4; border-radius:10px;
+  width:96px; height:74px;
+}
+.jwg-stamp-slot.sm{ border-width:1.5px; border-radius:6px; width:48px; height:34px; }
+
+@media (prefers-reduced-motion: reduce){
+  .jwg-stamp.ink, .jwg-stamp.page.ink, .jwg-stamp-jolt{ animation:none; }
+}
