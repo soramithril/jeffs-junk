@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '452';
+var APP_VERSION = '453';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1086,6 +1086,21 @@ async function delClient(cid) {
   loadClientsPage();
 }
 
+function _binRow(bin) {
+  return {
+    bid: bin.bid,
+    num: bin.num,
+    type: bin.type || 'regular',
+    size: bin.size || '14 yard',
+    color: bin.color || 'green',
+    damage: bin.damage || 'good',
+    status: bin.status || 'in',
+    notes: bin.notes || '',
+    show_bin: bin.show_bin || false,
+    decals: bin.decals || false,
+    repaint: bin.repaint || false
+  };
+}
 function saveBins() {
   if (!binItems.length) {
     if (!confirm('This will delete ALL bins from the database. Are you sure?')) return;
@@ -1096,19 +1111,7 @@ function saveBins() {
   // Save each bin individually so one bad row can't block the rest
   var saved = 0, errors = 0;
   binItems.forEach(function(bin) {
-    var row = {
-      bid: bin.bid,
-      num: bin.num,
-      type: bin.type || 'regular',
-      size: bin.size || '14 yard',
-      color: bin.color || 'green',
-      damage: bin.damage || 'good',
-      status: bin.status || 'in',
-      notes: bin.notes || '',
-      show_bin: bin.show_bin || false,
-      decals: bin.decals || false,
-      repaint: bin.repaint || false
-    };
+    var row = _binRow(bin);
     db.from('bin_items').upsert(row, {onConflict:'bid'}).then(function(r){
       if (r.error) {
         errors++;
@@ -1636,7 +1639,6 @@ async function nextIdFromDb(svc) {
 }
 
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
-function nextClientId(){var n=clients.map(function(c){return parseInt((c.cid||'').replace('CL-',''))||0;});return 'CL-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
 
 // ─── CLIENT MODAL HELPERS ───
 var editClientId = null;
@@ -1846,13 +1848,13 @@ async function saveClient(e){
   var primaryAddr=addresses[0];
   var fullAddr=primaryAddr.street?(primaryAddr.street+', '+primaryAddr.city+', ON, Canada'):(primaryAddr.city+', ON, Canada');
 
-  // Generate CID from DB max if adding new
+  // New clients take their number from the same DB counter the booking form uses —
+  // one minting authority, so two paths can never hand out the same CL number.
   var cid=editClientId;
   if(!cid){
-    var maxR=await db.from('clients').select('cid').order('cid',{ascending:false}).limit(1);
-    var maxCid=maxR.data&&maxR.data.length?maxR.data[0].cid:'CL-0000';
-    var maxNum=parseInt((maxCid||'').replace('CL-',''))||0;
-    cid='CL-'+String(maxNum+1).padStart(4,'0');
+    var cidR=await db.rpc('next_client_cid');
+    if(cidR.error||!cidR.data){alert('Could not get a client number: '+(cidR.error?cidR.error.message:'no data'));return;}
+    cid=cidR.data;
   }
 
   var cl={
@@ -1870,7 +1872,10 @@ async function saveClient(e){
     contractor:document.getElementById('c-contractor')?document.getElementById('c-contractor').checked:false
   };
   var dbRow=clientToDb(cl);
-  var saveR=await db.from('clients').upsert(dbRow,{onConflict:'cid'});
+  // New clients INSERT: a duplicate number fails loudly instead of replacing that client.
+  var saveR=editClientId
+    ? await db.from('clients').upsert(dbRow,{onConflict:'cid'})
+    : await db.from('clients').insert(dbRow);
   if(saveR.error){alert('Save error: '+saveR.error.message);console.error(saveR.error);return;}
   if(editClientId){
     var idx=clients.findIndex(function(c){return c.cid===editClientId;});
@@ -7461,7 +7466,7 @@ function editBinItem(bid){
   document.getElementById('bi-repaint').checked=!!b.repaint;document.getElementById('bi-decals').checked=!!b.decals;
   document.getElementById('bin-modal').classList.add('open');
 }
-function saveBinItem(e){
+async function saveBinItem(e){
   e.preventDefault();
   if(!canDelete){ toast('⚠ You don\'t have permission to add or edit bins.','error'); return; }
   var num=document.getElementById('bi-num').value.trim();
@@ -7471,8 +7476,17 @@ function saveBinItem(e){
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
   var oorVal=document.getElementById('bi-oor').value==='oor';
   var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
-  if(editBinId){var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);toast('Bin updated!');}else{binItems.push(bin);toast('Bin added!');}
-  editBinId=null;saveBins();closeM('bin-modal');renderBinInventory();renderDash(true);
+  if(editBinId){
+    var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);
+    toast('Bin updated!');editBinId=null;saveBins();
+  }else{
+    // New bins INSERT: a duplicate id (e.g. two tabs adding at once) fails loudly
+    // instead of replacing the other bin.
+    var insR=await db.from('bin_items').insert(_binRow(bin));
+    if(insR.error){alert('Error adding bin: '+insR.error.message);return;}
+    binItems.push(bin);toast('Bin added!');
+  }
+  closeM('bin-modal');renderBinInventory();renderDash(true);
 }
 function delBinItem(bid){
   if(!mGuard())return;
@@ -7573,19 +7587,28 @@ async function doBinHistoryImport(){
   closeM('bin-history-import-modal');
 }
 
-function doBinCsvImport(){
+async function doBinCsvImport(){
   var raw=document.getElementById('bin-csv-text').value;
   var rows=parseBinCsv(raw);
   if(rows===null){toast('⚠ CSV must have a "num" column.');return;}
   if(!rows||!rows.length){toast('⚠ No valid rows to import.');return;}
-  var added=0,skipped=0;
+  var added=0,skipped=0,newBins=[];
   rows.forEach(function(r){
     var isDupe=binItems.some(function(b){return b.num.toLowerCase()===r.num.toLowerCase();});
     if(isDupe){skipped++;return;}
-    binItems.push({bid:nextBinItemId(),num:r.num,type:r.type,size:r.size,color:r.color,damage:r.damage,status:r.status,notes:r.notes});
+    var nb={bid:nextBinItemId(),num:r.num,type:r.type,size:r.size,color:r.color,damage:r.damage,status:r.status,notes:r.notes};
+    binItems.push(nb);newBins.push(nb);
     added++;
   });
-  saveBins();renderBinInventory();renderDash(true);
+  if(newBins.length){
+    // Imported bins INSERT: a duplicate id fails loudly instead of replacing a bin.
+    var insR=await db.from('bin_items').insert(newBins.map(_binRow));
+    if(insR.error){
+      binItems=binItems.filter(function(b){return newBins.indexOf(b)===-1;});
+      alert('Error importing bins: '+insR.error.message);return;
+    }
+  }
+  renderBinInventory();renderDash(true);
   closeM('bin-import-modal');
   toast('✅ Imported '+added+' bin'+(added!==1?'s':'')+(skipped?' ('+skipped+' duplicates skipped)':'')+'.');
 }
