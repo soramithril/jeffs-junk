@@ -1973,7 +1973,31 @@
           <div class="form-group" style="margin:0"><label style="font-size:11px">Donation Date</label><input type="date" id="drd-m-date" class="form-input" style="font-size:12px;padding:6px 8px"></div>
         </div>
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px">📦 Donated Items</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:10px" id="drd-m-items-grid"></div>
+        <!-- Same truck as the Furniture Quote page, filling up as items are added -->
+        <div class="drd-m-truckrow">
+          <div class="drdc-side__truck" id="drd-m-truck">
+            <div class="drdc-truck-stage">
+              <div id="drd-m-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
+                <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
+                <div id="drd-m-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex:none">
+            <div style="position:relative;width:72px;height:72px;flex:none">
+              <svg viewBox="0 0 120 120" width="72" height="72" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="13"></circle><circle id="drd-m-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="13" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+                <div id="drd-m-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:23px;line-height:1;color:#22c55e"><span id="drd-m-gauge-num">0</span><span style="font-size:11px">%</span></div>
+              </div>
+            </div>
+            <div style="line-height:1.35;white-space:nowrap">
+              <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Truck load</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)"><span id="drd-m-vol">0</span> / 800 ft³</div>
+              <div style="font-size:11px;color:var(--muted)"><span id="drd-m-trips">1</span> trip</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px;margin-bottom:10px" id="drd-m-items-grid"></div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>
           <div id="drd-m-other-rows"></div>
@@ -2646,7 +2670,7 @@
   </div>
 </div>
 <script src="app-documents.js?v=388"></script>
-<script src="app-drdcalc.js?v=462"></script>
+<script src="app-drdcalc.js?v=463"></script>
 <script src="app-dispatch.js?v=463"></script>
 <script src="app-leaderboard.js?v=444"></script>
 <script src="app-analytics.js?v=364"></script>

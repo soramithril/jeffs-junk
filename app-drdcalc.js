@@ -186,6 +186,38 @@ function drdcPicked(){
 }
 // Take an item off the load entirely, from the "On the truck" list.
 function drdcRemove(i){ drdcStep(i,-drdcQtyOf(i)); }
+// Gauge maths, shared by the quote page and the job form: green under 70% full,
+// amber to 100%, red over. Returns the arc offset ready for the SVG.
+function drdcGaugeVals(vol){
+  var raw=vol/DRDC_CAP*100;
+  return {raw:raw,pct:Math.round(raw),
+          color:raw<70?'#22c55e':(raw<100?'#eab308':'#dc3545'),
+          dash:(DRDC_CIRC*(1-Math.min(raw,100)/100)).toFixed(1)};
+}
+// The job form's truck. Same photo, crop and crate packing as the quote page, with a
+// small gauge and no readout tiles — it sits inside a form, not on its own page.
+// Quantities are read from the form's own inputs, which stay the single store.
+function drdcRenderModalTruck(){
+  var frame=document.getElementById('drd-m-crates');
+  if(!frame) return;
+  var picked=[],vol=0;
+  DRD_ITEMS.forEach(function(item,i){
+    var el=document.getElementById('drd-m-qty-'+i);
+    var q=el?(parseInt(el.value)||0):0;
+    if(q>0){ picked.push({item:item,qty:q,idx:i}); vol+=(item.vol||0)*q; }
+  });
+  var gv=drdcGaugeVals(vol);
+  var arc=document.getElementById('drd-m-gauge-arc');
+  arc.setAttribute('stroke',gv.color);
+  arc.setAttribute('stroke-dashoffset',gv.dash);
+  var num=document.getElementById('drd-m-gauge-pct');
+  num.style.color=gv.color;
+  document.getElementById('drd-m-gauge-num').textContent=gv.pct;
+  document.getElementById('drd-m-vol').textContent=Math.round(vol);
+  document.getElementById('drd-m-trips').textContent=(vol<=0?1:Math.max(1,Math.ceil(vol/DRDC_CAP)));
+  document.getElementById('drd-m-truck-dip').style.transform='translateY('+Math.min(6,gv.raw/100*6).toFixed(1)+'px)';
+  drdcRenderCrates(frame,picked);
+}
 // Redraws the whole truck panel: gauge, readout tiles, crate stack, item chips.
 function drdcRenderTruck(){
   var frame=document.getElementById('drdc-crates');
@@ -194,11 +226,10 @@ function drdcRenderTruck(){
   var vol=0,items=0;
   picked.forEach(function(p){ vol+=(p.item.vol||0)*p.qty; items+=p.qty; });
 
-  var pctRaw=vol/DRDC_CAP*100;
-  var color=pctRaw<70?'#22c55e':(pctRaw<100?'#eab308':'#dc3545');
+  var gv=drdcGaugeVals(vol), pctRaw=gv.raw, color=gv.color;
   var arc=document.getElementById('drdc-gauge-arc');
   arc.setAttribute('stroke',color);
-  arc.setAttribute('stroke-dashoffset',(DRDC_CIRC*(1-Math.min(pctRaw,100)/100)).toFixed(1));
+  arc.setAttribute('stroke-dashoffset',gv.dash);
   document.getElementById('drdc-gauge-pct').style.color=color;
   document.getElementById('drdc-gauge-pct-num').textContent=Math.round(pctRaw);
   document.getElementById('drdc-vol').textContent=Math.round(vol);

@@ -2290,6 +2290,18 @@ input[type=date],input[type=time]{position:relative;}
   .drdc-searchbar{position:static;}
 }
 
+/* Truck row inside the Furniture Pickup job form. Reuses .drdc-side__truck and
+   .drdc-truck-stage so the crop geometry is defined in exactly one place. */
+.drd-m-truckrow{display:flex;gap:14px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+.drd-m-truckrow .drdc-side__truck{width:min(420px,58%);min-width:260px;}
+/* The quantity input doubles as the count between the +/- buttons */
+.drd-m-qty{width:34px;border:none;background:none;color:#adb5bd;text-align:center;
+  font-weight:800;font-size:13.5px;font-family:inherit;font-variant-numeric:tabular-nums;
+  padding:0;appearance:textfield;-moz-appearance:textfield;transition:color .18s;}
+.drd-m-qty::-webkit-outer-spin-button,.drd-m-qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.drd-m-qty:focus{outline:none;color:#16a34a;}
+.drd-m-qty.on{color:#16a34a;}
+
 /* Quantity stepper on each item row */
 .drdc-step{width:26px;height:26px;border-radius:50%;font-size:17px;font-weight:700;line-height:1;cursor:pointer;
   display:flex;align-items:center;justify-content:center;padding:0;flex:none;

@@ -11606,11 +11606,22 @@ function renderDrdModalGrid(){
       if(S.sub) mhtml+='<div style="grid-column:1/-1;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">'+S.sub+'</div>';
       S.idxs.forEach(function(i){
         var item=DRD_ITEMS[i];
-        mhtml+='<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);gap:6px">'
-          +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-          +'<div style="font-size:9px;color:var(--muted)">$'+item.val+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
-          +'<input type="number" id="drd-m-qty-'+i+'" min="0" placeholder="0" style="width:46px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 4px;border-radius:6px;font-size:12px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdModalRecalc()">'
-          +'</div>';
+        // Same picture-and-stepper row as the Furniture Quote page. The quantity still
+        // lives in #drd-m-qty-<i>, so the positional save/load path is untouched — the
+        // buttons write to it and drdModalRecalc paints the count back out of it.
+        var art=drdcArt(item);
+        var thumb=art
+          ?'<img src="assets/furniture/thumbs/'+art+'.png" alt="" draggable="false" style="width:34px;height:34px;flex:none;object-fit:contain">'
+          :'<span style="width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)">'+JWGIcons.svg('furniture',{size:17})+'</span>';
+        mhtml+='<div style="display:flex;align-items:center;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:8px">'
+          +thumb
+          +'<div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+          +'<div style="font-size:9.5px;color:var(--muted)">$'+item.val+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
+          +'<div style="display:flex;align-items:center;gap:5px;flex:none">'
+          +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdModalStep('+i+',-1)" aria-label="Remove one">&minus;</button>'
+          +'<input type="number" class="drd-m-qty" id="drd-m-qty-'+i+'" min="0" placeholder="0" oninput="drdModalRecalc()">'
+          +'<button type="button" class="drdc-step drdc-step-inc" onclick="drdModalStep('+i+',1)" aria-label="Add one">+</button>'
+          +'</div></div>';
       });
     });
   });
@@ -11619,11 +11630,21 @@ function renderDrdModalGrid(){
   if(otherRows&&!otherRows.children.length) drdModalAddOtherRow();
   drdModalRecalc();
 }
+// One step on an item's +/- buttons in the job form. The input stays the single
+// store of the quantity, so the positional save path is untouched.
+function drdModalStep(i,delta){
+  var el=document.getElementById('drd-m-qty-'+i);
+  if(!el) return;
+  var n=Math.max(0,(parseInt(el.value)||0)+delta);
+  el.value=n?n:'';
+  drdModalRecalc();
+}
 function drdModalRecalc(){
   var totalItems=0,totalFee=0,totalVal=0;
   DRD_ITEMS.forEach(function(item,i){
     var el=document.getElementById('drd-m-qty-'+i);
     var q=el?(parseInt(el.value)||0):0;
+    if(el) el.classList.toggle('on',q>0);
     totalItems+=q;totalFee+=q*item.fee;totalVal+=q*item.val;
   });
   var otherQtys=document.querySelectorAll('.drd-m-other-qty');
@@ -11639,6 +11660,7 @@ function drdModalRecalc(){
   var tf=document.getElementById('drd-m-total-pay');if(tf)tf.textContent='$'+totalFee.toFixed(2);
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
   _syncDrdToJobItems();
+  drdcRenderModalTruck();
 }
 function _syncDrdToJobItems(){
   var lines=[];
@@ -11712,6 +11734,9 @@ function _clearDrdModal(){
   _drdModalPreserve={postal:'',email:'',contact:'',contactInfo:''};
   var g=document.getElementById('drd-m-items-grid');if(g)g.innerHTML='';
   var o=document.getElementById('drd-m-other-rows');if(o)o.innerHTML='';
+  // Crates too, or the previous job's load is still sitting on the truck when the
+  // next job opens (the grid rebuild alone does not clear them).
+  var cr=document.getElementById('drd-m-crates');if(cr)cr.innerHTML='';
   var dn=document.getElementById('drd-m-donor-name');if(dn)dn.value='';
   var fb=document.getElementById('drd-m-src-fb');if(fb)fb.checked=true;
   var jj=document.getElementById('drd-m-src-jj');if(jj)jj.checked=false;
