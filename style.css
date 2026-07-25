@@ -2228,18 +2228,6 @@ input[type=date],input[type=time]{position:relative;}
 #jj-vibe-shimmer{position:absolute;top:0;bottom:0;left:0;width:150px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.62),transparent);transform:skewX(-16deg);animation:jjShimmer 2.8s ease-in-out infinite;pointer-events:none;}
 #jj-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3;}
 .jj-hero-content{position:relative;z-index:2;padding:26px 30px 24px;}
-.jj-vibe-wrap{
-  display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px;padding:3px;
-  border-radius:99px;background:#16a34a;box-shadow:inset 0 1px 3px rgba(0,0,0,.18);
-  margin-left:auto;
-}
-.jj-vibe-btn{
-  border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;
-  padding:6px 13px;border-radius:99px;background:transparent;color:rgba(255,255,255,.9);
-  transition:background .18s ease,color .18s ease,box-shadow .18s ease;
-}
-.jj-vibe-btn.on{background:#fff;color:#15803d;box-shadow:0 1px 3px rgba(0,0,0,.16);}
-
 /* Hover-lift cards + bin tiles */
 .jj-card-lift{transition:transform .28s cubic-bezier(.22,1,.36,1),box-shadow .28s cubic-bezier(.22,1,.36,1);}
 .jj-card-lift:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.12);}

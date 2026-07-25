@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '449';
+var APP_VERSION = '450';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3268,9 +3268,9 @@ async function renderBinsAttention(){
 }
 // ── MORNING BRIEF HERO — vibe engine (v449 design refresh) ─────────────────
 // Ten animated looks for the hero card. The day's vibe is picked from the date
-// (same hash the whole day, new one tomorrow); clicking a pill switches it for
-// this visit. Each vibe = greeting colour + wash gradient + floating blobs +
-// entrance animation, plus shimmer/confetti extras on the flashy ones.
+// (same hash the whole day, a different look tomorrow — no manual switcher).
+// Each vibe = greeting colour + wash gradient + floating blobs + entrance
+// animation, plus shimmer/confetti extras on the flashy ones.
 var JJ_VIBE_ORDER=['sunrise','springy','party','sunset','ocean','forest','midnight','aurora','ember','gold'];
 var JJ_VIBES={
   sunrise:{label:'Sunrise',color:'#ea6a12',k:'heroFade',e:'cubic-bezier(.16,1,.3,1)',d:640,shimmer:false,confetti:false,
@@ -3309,7 +3309,6 @@ var jjVibeMode=(function(){
   return JJ_VIBE_ORDER[key%JJ_VIBE_ORDER.length];
 })();
 var _jjPartyTimer=null;
-function jjSetVibe(mode){ jjVibeMode=mode; jjApplyVibe(); }
 function jjApplyVibe(){
   var hero=document.getElementById('dash-hero'); if(!hero) return;
   var v=JJ_VIBES[jjVibeMode];
@@ -3320,9 +3319,6 @@ function jjApplyVibe(){
     return '<div style="'+s+'"></div>';
   }).join('');
   document.getElementById('jj-vibe-shimmer').style.display=v.shimmer?'':'none';
-  document.getElementById('jj-vibe-btns').innerHTML=JJ_VIBE_ORDER.map(function(k){
-    return '<button class="jj-vibe-btn'+(k===jjVibeMode?' on':'')+'" onclick="jjSetVibe(\''+k+'\')">'+JJ_VIBES[k].label+'</button>';
-  }).join('');
   hero.querySelectorAll('[data-anim]').forEach(function(el,i){
     el.style.animation='none';
     void el.offsetWidth;
