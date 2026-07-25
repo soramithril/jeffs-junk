@@ -17,14 +17,14 @@
 </script>
 <link rel="icon" type="image/png" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
 <link rel="apple-touch-icon" href="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Baloo+2:wght@800&family=Hanken+Grotesk:wght@700&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json?v=397">
 <link rel="apple-touch-icon" href="assets/app-icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=450">
+<link rel="stylesheet" href="style.css?v=455">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1394,6 +1394,59 @@
     </div>
   </div>
 
+  <!-- Truck load panel — the 16 ft box truck fills up as quantities change (design: Truck Load Panel) -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:18px">
+    <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+      <div id="drdc-truck-frame" style="position:relative;flex:1;min-width:340px;max-width:600px;aspect-ratio:842/561;border-radius:12px;overflow:hidden;background:radial-gradient(130% 100% at 50% 15%,#ffffff,#e9edf1 85%)">
+        <div id="drdc-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
+          <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
+          <div id="drdc-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
+        </div>
+      </div>
+      <div style="flex:none;width:210px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="position:relative;width:110px;height:110px;flex:none">
+            <svg viewBox="0 0 120 120" width="110" height="110" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface2)" stroke-width="12"></circle><circle id="drdc-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><div id="drdc-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:.82;color:#22c55e"><span id="drdc-gauge-pct-num">0</span><span style="font-size:16px">%</span></div><div style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-top:1px">FULL</div></div>
+          </div>
+          <div style="line-height:1.3"><div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Loaded</div><div style="font-size:15px;color:var(--text);font-weight:700;margin-top:4px"><span id="drdc-vol">0</span> ft³</div><div style="font-size:11px;color:var(--muted);margin-top:1px">of 800 ft³</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px">
+      <div style="background:#fffbf0;border-radius:20px;box-shadow:0 8px 0 rgba(23,64,42,.13);padding:15px 18px;display:flex;align-items:center;gap:14px">
+        <span id="drdc-tl-ico-items" style="flex:none;width:44px;height:44px;border-radius:14px;background:#17402a;display:flex;align-items:center;justify-content:center"></span>
+        <div style="line-height:1;min-width:0">
+          <div id="drdc-tl-items" style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:38px;line-height:.82;color:#17402a;font-variant-numeric:tabular-nums">0</div>
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:14px;line-height:1.15;color:#7a7c5f;margin-top:7px;white-space:nowrap">things on board</div>
+        </div>
+      </div>
+      <div style="background:#fffbf0;border-radius:20px;box-shadow:0 8px 0 rgba(23,64,42,.13);padding:15px 18px;display:flex;align-items:center;gap:14px">
+        <span id="drdc-tl-ico-load" style="flex:none;width:44px;height:44px;border-radius:14px;background:#e8b34a;display:flex;align-items:center;justify-content:center"></span>
+        <div style="line-height:1;min-width:0">
+          <div style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:38px;line-height:.82;color:#17402a;font-variant-numeric:tabular-nums"><span id="drdc-tl-load">0</span><span style="font-size:19px;margin-left:3px">min</span></div>
+          <div style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:14px;line-height:1.15;color:#7a7c5f;margin-top:7px;white-space:nowrap">sweating to load</div>
+        </div>
+      </div>
+      <div id="drdc-tl-runscard" style="background:#fffbf0;border-radius:20px;box-shadow:0 8px 0 rgba(23,64,42,.13);padding:15px 18px;display:flex;align-items:center;gap:14px">
+        <span id="drdc-tl-ico-runs" style="flex:none;width:44px;height:44px;border-radius:14px;background:#17402a;display:flex;align-items:center;justify-content:center"></span>
+        <div style="line-height:1;min-width:0">
+          <div id="drdc-tl-trucks" style="font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:38px;line-height:.82;color:#17402a;font-variant-numeric:tabular-nums">1</div>
+          <div id="drdc-tl-runslabel" style="font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;font-size:14px;line-height:1.15;color:#7a7c5f;margin-top:7px;white-space:nowrap">trip, one and done</div>
+        </div>
+      </div>
+    </div>
+    <div id="drdc-over" style="display:none;margin-top:14px;align-items:center;gap:10px;background:rgba(220,53,69,.06);border:1px solid rgba(220,53,69,.25);border-radius:8px;padding:9px 12px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <span style="font-size:12.5px;color:#b02a37;font-weight:600">Over by <span id="drdc-over-vol">0</span> ft³ — won&rsquo;t fit one box truck. You&rsquo;ll need <span id="drdc-over-trips">2</span> trips.</span>
+    </div>
+  </div>
+
+  <div id="drdc-loaded-wrap" style="display:none;margin-bottom:18px">
+    <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">On the truck</div>
+    <div id="drdc-loaded" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+  </div>
+
   <div style="margin-bottom:14px">
     <input id="drdc-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
   </div>
@@ -2586,7 +2639,7 @@
   </div>
 </div>
 <script src="app-documents.js?v=388"></script>
-<script src="app-drdcalc.js?v=388"></script>
+<script src="app-drdcalc.js?v=455"></script>
 <script src="app-dispatch.js?v=411"></script>
 <script src="app-leaderboard.js?v=444"></script>
 <script src="app-analytics.js?v=364"></script>
@@ -2595,7 +2648,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=443"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=454"></script>
+<script src="app.js?v=455"></script>
 <script src="app-jwg-scheduler.js?v=445"></script>
 <script src="app-jwg-feed.js?v=445"></script>
 <script src="app-ratings.js?v=447"></script>

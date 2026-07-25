@@ -1,6 +1,92 @@
 // ─── FURNITURE QUOTE CALCULATOR (standalone quote tool) ───
 // Depends on app.js globals: DRD_ITEMS, DRD_ORDER, drdGroupedOrder, toast, newJob, drdModalRecalc
+// Also uses JWGIcons (jwg-icons.js) for the truck-panel readout tiles.
 // Called by render('drdcalc') in app.js.
+
+// ── Truck load panel data ──
+var DRDC_CAP = 800;               // usable ft³ in the 16 ft box truck
+var DRDC_CIRC = 2 * Math.PI * 52; // gauge arc circumference (r=52 in the svg)
+var drdcLastVol = 0;              // previous total ft³ — drives the "+N ft³" float chip
+// Crate art lives at assets/furniture/mid/<slug>.png (truck visual) and
+// assets/furniture/thumbs/<slug>.png (item list / chips), slug = drdcSlug(item.name).
+// DRDC_BB is each image's content bounding box [left,top,width,height] as fractions
+// of the square canvas, computed from the PNG alpha channel. Items with no entry
+// render as the generic moving box on the truck and get an icon tile in the list.
+var DRDC_BB = {
+'air-conditioner':[0.2292,0.0938,0.5521,0.7917],
+'air-fryer':[0.2292,0.1562,0.5417,0.6667],
+'armchair':[0.1354,0.1667,0.7396,0.6354],
+'armoire':[0.2604,0.0833,0.4896,0.8021],
+'artificial-plant-christmas-tree':[0.2917,0.0625,0.4375,0.8646],
+'bar-fridge':[0.2188,0.1146,0.5625,0.7604],
+'bench':[0.1354,0.3333,0.7292,0.3438],
+'blender':[0.3125,0.0833,0.4062,0.8125],
+'box-assorted-home-goods':[0.1458,0.1771,0.7083,0.6562],
+'box-cookware':[0.1146,0.1667,0.7708,0.6771],
+'box-dishware':[0.1354,0.1458,0.7396,0.6875],
+'boxspring-double':[0.0417,0.2812,0.9271,0.4062],
+'boxspring-queen':[0.0417,0.3021,0.9271,0.3958],
+'boxspring-twin':[0.0729,0.3021,0.8646,0.3958],
+'buffet-and-hutch':[0.1979,0.0625,0.6146,0.8438],
+'cd-stand':[0.3438,0.0521,0.3229,0.8958],
+'chair-dining-kitchen-occasional':[0.2292,0.0833,0.5625,0.8021],
+'chest':[0.0625,0.2292,0.875,0.5208],
+'coat-rack':[0.3854,0.0625,0.2396,0.8646],
+'coffee-maker':[0.2188,0.0833,0.5729,0.8125],
+'complete-bed-frame-double':[0.0729,0.1979,0.875,0.5729],
+'complete-bed-frame-queen':[0.0625,0.1875,0.8854,0.5729],
+'complete-bed-frame-twin':[0.1042,0.1875,0.8021,0.6042],
+'countertop-dishwasher':[0.1354,0.2083,0.75,0.5938],
+'credenza':[0.0312,0.3125,0.9375,0.4167],
+'desk':[0.0729,0.2292,0.8646,0.5312],
+'dresser':[0.0938,0.1979,0.8229,0.5938],
+'dvd-vcr-player':[0.0625,0.3125,0.875,0.3438],
+'entertainment-unit-large':[0.0833,0.1458,0.8333,0.6979],
+'fan':[0.3333,0.0417,0.3438,0.9167],
+'filing-cabinet-small':[0.3021,0.2292,0.4688,0.5417],
+'folding-chair':[0.25,0.25,0.5417,0.5312],
+'folding-table':[0.1771,0.3229,0.7083,0.4583],
+'freezer':[0.25,0.2812,0.5729,0.4479],
+'futon-complete':[0.1562,0.3229,0.7083,0.4583],
+'garment-rack':[0.1875,0.25,0.6458,0.5938],
+'headboard':[0.25,0.2604,0.5104,0.5208],
+'humidifier-dehumidifier':[0.3229,0.25,0.4271,0.5104],
+'indoor-grill':[0.2708,0.2917,0.5208,0.3958],
+'ironing-board':[0.1354,0.3438,0.7083,0.4479],
+'juicer':[0.3333,0.1146,0.4896,0.5833],
+'kitchen-cart-tea-cart-bar-cart':[0.2083,0.2083,0.5938,0.5833],
+'lamp':[0.3438,0.125,0.3125,0.6667],
+'large-cabinet':[0.2917,0.1562,0.4896,0.5938],
+'laundry-hamper':[0.3229,0.2188,0.3542,0.5312],
+'linens-per-bag':[0.3333,0.1458,0.3438,0.5833],
+'loveseat':[0.1562,0.3229,0.6979,0.4479],
+'mattress-double':[0.2188,0.3229,0.5833,0.3333],
+'mattress-queen':[0.2083,0.3125,0.6042,0.3438],
+'mattress-twin':[0.2396,0.3229,0.5417,0.3333],
+'metal-bed-frame-double':[0.1979,0.2396,0.625,0.5312],
+'metal-bed-frame-queen':[0.1979,0.2396,0.625,0.5312],
+'metal-bed-frame-twin':[0.2812,0.2396,0.4583,0.5312],
+'microwave':[0.25,0.2917,0.5417,0.375],
+'microwave-stand':[0.2396,0.2604,0.5729,0.4896],
+'mirror':[0.3438,0.1354,0.3229,0.6146],
+'office-chair':[0.2083,0.25,0.5729,0.6042],
+'ottoman':[0.2917,0.3542,0.4167,0.4062],
+'patio-chair-side-table':[0.1771,0.2812,0.6771,0.4896],
+'patio-table':[0.1771,0.2917,0.6458,0.5],
+'picture-art':[0.3125,0.1771,0.375,0.5417],
+'plastic-storage-unit':[0.3229,0.1771,0.3542,0.5833],
+'recliner':[0.1562,0.2604,0.6875,0.5312],
+'recliner-sofa':[0.0833,0.2917,0.8438,0.4167],
+'rocking-chair':[0.2083,0.25,0.5833,0.5521],
+'room-divider':[0.2083,0.1771,0.5938,0.5729],
+'rug':[0.1458,0.4271,0.6979,0.2396],
+'sewing-machine':[0.2396,0.2917,0.5312,0.4062],
+'shelf-large':[0.2917,0.1458,0.4896,0.6042],
+'shelf-small':[0.3542,0.2917,0.3542,0.4479]
+};
+function drdcSlug(name){ return name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+// Returns the art slug for an item, or null when it has no image of its own.
+function drdcArt(item){ var s=drdcSlug(item.name); return DRDC_BB[s]?s:null; }
 function renderDrdCalc(){
   var g=document.getElementById('drdc-grid');
   if(!g) return;
@@ -12,7 +98,12 @@ function renderDrdCalc(){
       S.idxs.forEach(function(i){
         var item=DRD_ITEMS[i];
         var sid='drdc-qty-'+i;
+        var art=drdcArt(item);
+        var thumb=art
+          ?'<img src="assets/furniture/thumbs/'+art+'.png" alt="" draggable="false" style="width:40px;height:40px;flex:none;object-fit:contain">'
+          :'<span style="width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted)">'+JWGIcons.svg('furniture',{size:20})+'</span>';
         html+='<div class="drdc-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
+          +thumb
           +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<input type="number" id="'+sid+'" min="0" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdcRecalc()">'
@@ -23,8 +114,19 @@ function renderDrdCalc(){
   g.innerHTML=html;
   var otherRows=document.getElementById('drdc-other-rows');
   if(otherRows&&!otherRows.children.length) drdcAddOtherRow();
+  drdcPaintTileIcons();
   drdcRecalc();
   drdcFilter();
+}
+// Glyphs for the three truck-panel readout tiles. Cream on the dark spruce/clay
+// tiles, dark ink on the gold one.
+function drdcPaintTileIcons(){
+  [['drdc-tl-ico-items','furniture','#fdf6e6'],
+   ['drdc-tl-ico-load','schedule','#26311f'],
+   ['drdc-tl-ico-runs','vehicles','#fdf6e6']].forEach(function(t){
+    var el=document.getElementById(t[0]);
+    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:23,stroke:t[2]});
+  });
 }
 function drdcRecalc(){
   var totalItems=0,totalFee=0,totalVal=0;
@@ -49,6 +151,130 @@ function drdcRecalc(){
   if(ti)ti.textContent=totalItems;
   if(tf)tf.textContent=totalFee.toFixed(2);
   if(tv)tv.textContent=totalVal.toFixed(2);
+  drdcRenderTruck();
+}
+// Current quantities as [{item, qty}], catalogue order, quantity > 0 only.
+function drdcPicked(){
+  var out=[];
+  DRD_ITEMS.forEach(function(item,i){
+    var el=document.getElementById('drdc-qty-'+i);
+    var qty=el?(parseInt(el.value)||0):0;
+    if(qty>0) out.push({item:item,qty:qty});
+  });
+  return out;
+}
+// Redraws the whole truck panel: gauge, readout tiles, crate stack, item chips.
+function drdcRenderTruck(){
+  var frame=document.getElementById('drdc-crates');
+  if(!frame) return;
+  var picked=drdcPicked();
+  var vol=0,items=0;
+  picked.forEach(function(p){ vol+=(p.item.vol||0)*p.qty; items+=p.qty; });
+
+  var pctRaw=vol/DRDC_CAP*100;
+  var color=pctRaw<70?'#22c55e':(pctRaw<100?'#eab308':'#dc3545');
+  var arc=document.getElementById('drdc-gauge-arc');
+  arc.setAttribute('stroke',color);
+  arc.setAttribute('stroke-dashoffset',(DRDC_CIRC*(1-Math.min(pctRaw,100)/100)).toFixed(1));
+  document.getElementById('drdc-gauge-pct').style.color=color;
+  document.getElementById('drdc-gauge-pct-num').textContent=Math.round(pctRaw);
+  document.getElementById('drdc-vol').textContent=Math.round(vol);
+
+  var trucks=vol<=0?1:Math.max(1,Math.ceil(vol/DRDC_CAP));
+  var many=trucks>1;
+  document.getElementById('drdc-tl-items').textContent=items;
+  document.getElementById('drdc-tl-load').textContent=Math.max(0,Math.round(items*2.5)+(trucks-1)*15);
+  document.getElementById('drdc-tl-trucks').textContent=trucks;
+  document.getElementById('drdc-tl-trucks').style.color=many?'#a8701a':'#17402a';
+  var runsLabel=document.getElementById('drdc-tl-runslabel');
+  runsLabel.textContent=many?'trips — ouch':'trip, one and done';
+  runsLabel.style.color=many?'#a8701a':'#7a7c5f';
+  document.getElementById('drdc-tl-runscard').style.background=many?'#fbeee7':'#fffbf0';
+  document.getElementById('drdc-tl-ico-runs').style.background=many?'#d9532b':'#17402a';
+
+  var over=document.getElementById('drdc-over');
+  over.style.display=vol>DRDC_CAP?'flex':'none';
+  if(vol>DRDC_CAP){
+    document.getElementById('drdc-over-vol').textContent=Math.round(vol-DRDC_CAP);
+    document.getElementById('drdc-over-trips').textContent=trucks;
+  }
+  // Loaded suspension dip — the box settles as weight goes on.
+  document.getElementById('drdc-truck-dip').style.transform='translateY('+Math.min(6,pctRaw/100*6).toFixed(1)+'px)';
+
+  drdcRenderCrates(frame,picked);
+  drdcRenderChips(picked);
+  if(vol>drdcLastVol) drdcFloatChip(vol-drdcLastVol);
+  drdcLastVol=vol;
+}
+// Shelf-packs one crate per unit into the cargo box, largest-volume first so the
+// big pieces land at the bottom. Sizes come from each item's ft³ against capacity.
+// Crates are matched to existing nodes by key so only genuinely new ones play the
+// drop animation — the rest slide to their new spot on the CSS transition.
+function drdcRenderCrates(frame,picked){
+  var units=[];
+  picked.slice().sort(function(a,b){ return (b.item.vol||0)-(a.item.vol||0); })
+    .forEach(function(p){
+      var art=drdcArt(p.item);
+      for(var k=0;k<p.qty;k++) units.push({key:drdcSlug(p.item.name)+'#'+k,art:art,vol:p.item.vol||0});
+    });
+  var keep={};
+  var x=0,y=0,shelfH=0;
+  units.forEach(function(u){
+    var bb=u.art?DRDC_BB[u.art]:[0.1458,0.1771,0.7083,0.6562]; // generic box footprint
+    var asp=Math.min(3.2,Math.max(.3,bb[2]/bb[3]));
+    var h=Math.min(62,Math.sqrt(Math.max(24,u.vol/DRDC_CAP*1.12*10000)/asp));
+    var w=Math.min(94,h*asp);
+    if(x+w>100&&x>0){ y+=shelfH; x=0; shelfH=0; }
+    keep[u.key]=1;
+    var el=frame.querySelector('[data-crate="'+u.key+'"]');
+    if(!el){
+      el=document.createElement('div');
+      el.setAttribute('data-crate',u.key);
+      el.style.cssText='position:absolute;transition:left .42s cubic-bezier(.22,1,.36,1),bottom .42s cubic-bezier(.22,1,.36,1);animation:drdcCrateDrop .6s cubic-bezier(.34,1.56,.64,1)';
+      el.innerHTML='<img src="assets/furniture/mid/'+(u.art||'box-assorted-home-goods')+'.png" alt="" draggable="false" '
+        +'style="position:absolute;left:'+(-bb[0]/bb[2]*100)+'%;top:'+(-bb[1]/bb[3]*100)+'%;'
+        +'width:'+(100/bb[2])+'%;height:'+(100/bb[3])+'%;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.22))">';
+      frame.appendChild(el);
+    }
+    el.style.left=x+'%';
+    el.style.bottom=Math.min(y,112)+'%';
+    el.style.width=w+'%';
+    el.style.height=h+'%';
+    x+=w+0.8; if(h+1.2>shelfH) shelfH=h+1.2;
+  });
+  Array.prototype.slice.call(frame.children).forEach(function(el){
+    if(!keep[el.getAttribute('data-crate')]) el.remove();
+  });
+}
+// "On the truck" chip row under the panel.
+function drdcRenderChips(picked){
+  var wrap=document.getElementById('drdc-loaded-wrap');
+  var list=document.getElementById('drdc-loaded');
+  wrap.style.display=picked.length?'':'none';
+  var html='';
+  picked.forEach(function(p){
+    var art=drdcArt(p.item);
+    var thumb=art
+      ?'<img src="assets/furniture/thumbs/'+art+'.png" alt="" draggable="false" style="width:32px;height:32px;flex:none;object-fit:contain">'
+      :'<span style="width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)">'+JWGIcons.svg('furniture',{size:18})+'</span>';
+    html+='<div style="display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5px 14px 5px 6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
+      +thumb
+      +'<div style="line-height:1.25;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap">'+p.item.name+'</div>'
+      +'<div style="font-size:10.5px;color:var(--muted);white-space:nowrap">'+p.qty+' × '+(p.item.vol||0)+' ft³</div></div>'
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;color:#22c55e;letter-spacing:.5px;margin-left:6px;white-space:nowrap">'+((p.item.vol||0)*p.qty)+'</span></div>';
+  });
+  list.innerHTML=html;
+}
+// "+N ft³" bubble that floats up off the truck when volume goes on.
+function drdcFloatChip(delta){
+  var frame=document.getElementById('drdc-truck-frame');
+  var chip=document.createElement('div');
+  chip.textContent='+'+Math.round(delta)+' ft³';
+  chip.style.cssText='position:absolute;top:10%;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;font-size:12px;'
+    +'font-weight:700;padding:3px 11px;border-radius:99px;box-shadow:0 4px 12px rgba(22,163,74,.45);pointer-events:none;'
+    +'animation:drdcFloatUp 1.15s cubic-bezier(.22,1,.36,1) forwards;white-space:nowrap';
+  chip.addEventListener('animationend',function(){ chip.remove(); });
+  frame.appendChild(chip);
 }
 function drdcAddOtherRow(){
   var wrap=document.getElementById('drdc-other-rows');if(!wrap)return;
