@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '466';
+var APP_VERSION = '467';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9242,7 +9242,10 @@ async function saveJob(e){
     }
     editId = null;
     _clientStatsCache = null;
-    toast('\u2705 ' + job.id + (wasEdit ? ' updated!' : ' saved!'));
+    /* A new booking gets the page stamp instead of a toast \u2014 never both.
+       An edit has no stamp, so it keeps its toast. */
+    if(wasEdit) toast('\u2705 ' + job.id + ' updated!');
+    else _stampBookedOnDetail = job.id;
     if(startRun){
       try { await bookRecurringRun(job); }
       catch(ex){ alert('\u274c ' + job.id + ' saved, but booking its repeat visits failed:\n\n' + ex.message + '\n\nUse the \u267b\ufe0f Next Visit button to book them by hand.'); }
@@ -9524,6 +9527,7 @@ async function openDetail(id, returnCid){
 
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
+  stampBookedIfJustSaved(j);
   // Render embedded DRD form for Furniture Pickup only
   if(j.service==='Furniture Pickup'){
     setTimeout(function(){ renderDrdInDetail(j); },50);
@@ -11201,6 +11205,57 @@ function loadEmailPreset(key) {
   var preset = getPreset(key);
   document.getElementById('email-subject').value = j ? fillEmailTemplate(preset.subject, j) : preset.subject;
   document.getElementById('email-body').value = j ? fillEmailTemplate(preset.body, j) : preset.body;
+}
+
+/* ── PAGE STAMP ON BOOKING ────────────────────────────────────────────────
+   Set by saveJob for a brand-new booking, consumed by openDetail. saveJob
+   already reopens the saved job as a detail 400ms later, and that detail IS the
+   work order — so the stamp lands there and the booking flow itself is
+   untouched. Edits deliberately don't stamp: re-stamping BOOKED on an edit
+   would be a lie, and the handoff is explicit that it's one page stamp per
+   save, booking only. */
+var _stampBookedOnDetail = null;
+
+/* Two triangle notes, 147Hz then 294Hz 50ms apart — the octave is the "thunk".
+   Saving is a click, so the AudioContext always has its user gesture. */
+function stampSound(){
+  if(localStorage.getItem('jjStampSound') === 'off') return;
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) return;
+  var ctx = new AC();
+  [[147, 0], [294, 0.05]].forEach(function(n){
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = n[0];
+    gain.gain.setValueAtTime(0.14, ctx.currentTime + n[1]);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n[1] + 0.3);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(ctx.currentTime + n[1]);
+    osc.stop(ctx.currentTime + n[1] + 0.3);
+  });
+  setTimeout(function(){ ctx.close(); }, 800);
+}
+
+function stampBookedIfJustSaved(job){
+  if(!job || _stampBookedOnDetail !== job.id) return;
+  _stampBookedOnDetail = null;
+  var host = document.getElementById('detail-modal');
+  if(!host) return;
+  var now = new Date();
+  var who = (currentUser && currentUser.displayName) ? currentUser.displayName : '';
+  var meta = now.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase()
+    + ' · ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}).replace(/\s/g,'')
+    + (who ? ' · ' + who.toUpperCase() : '');
+  var overlay = JWGStamp.stampPage(host, 'booked', {num: job.id, meta: meta});
+  if(!overlay) return;
+  stampSound();
+  /* Hold the arrival, then clear — the work order underneath has to stay
+     readable. The lasting receipts are the row stamps; this one is the moment. */
+  setTimeout(function(){
+    overlay.style.transition = 'opacity .4s ease';
+    overlay.style.opacity = '0';
+    setTimeout(function(){ overlay.remove(); }, 420);
+  }, 2200);
 }
 
 /* The Booked Today row that fired this is still sitting behind the modal. Swap
