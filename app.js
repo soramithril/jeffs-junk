@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '453';
+var APP_VERSION = '454';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9202,42 +9202,52 @@ async function saveJob(e){
   var startRun = svc==='Junk Removal' && job.recurring
               && !(editId && (jobs.find(function(x){return x.id===editId;})||{}).recurring);
 
-  // Replace local job in memory (DB-side change history is handled by the
-  // `log_job_changes` Postgres trigger — do NOT insert into job_changes here).
-  if(editId){
-    var idx = jobs.findIndex(function(j){return j.id===editId;});
-    if(idx >= 0) jobs[idx] = job; else jobs.push(job);
-    toast('Job updated!');
-  } else {
-    jobs.push(job);
-    toast('Job created!');
-  }
-
+  // editId and the on-screen job list stay untouched until the DB write confirms, so a
+  // failed edit retried is still an edit (never a duplicate job) and no success message
+  // shows for a save that didn't happen. Change history: log_job_changes trigger, DB-side.
   var wasEdit = !!editId;
-  editId = null;
   try {
     var dbRow = jobToDb(job);
     console.log('Saving job:', dbRow.job_id, dbRow);
-    // New bookings must INSERT: a duplicate job number fails loudly here instead of
-    // silently replacing the job that already owns it.
-    var dbRes = wasEdit
-      ? await db.from('jobs').upsert(dbRow, {onConflict:'job_id'})
-      : await db.from('jobs').insert(dbRow);
+    // New bookings must INSERT: a duplicate job number fails here instead of silently
+    // replacing the job that owns it. Auto-recovery before bothering anyone: a taken
+    // number gets a fresh one minted and retried; a connection blip gets two quiet retries.
+    var dbRes = null;
+    for(var attempt = 1; attempt <= 3; attempt++){
+      dbRes = wasEdit
+        ? await db.from('jobs').upsert(dbRow, {onConflict:'job_id'})
+        : await db.from('jobs').insert(dbRow);
+      if(!dbRes.error) break;
+      console.warn('saveJob attempt ' + attempt + ' failed:', dbRes.error.message);
+      var isDup = dbRes.error.code === '23505' || /duplicate key/i.test(dbRes.error.message || '');
+      if(!wasEdit && isDup){
+        job.id = await nextIdFromDb(svc);
+        dbRow = jobToDb(job);
+      } else if(attempt < 3){
+        await new Promise(function(r){ setTimeout(r, 1200); });
+      }
+    }
     if(dbRes.error){
-      alert('\u274c Error saving job: ' + dbRes.error.message);
+      alert('\u274c Error saving job: ' + dbRes.error.message + '\n\nNothing was saved \u2014 the form still has everything you typed. Check the internet connection and hit Save again.');
       console.error('saveJob error:', dbRes.error);
       _saveJobLock = false; return;
     }
-    // Field-level change history is written by the log_job_changes Postgres
-    // trigger \u2014 no client-side insert needed.
+    // DB write confirmed \u2014 only now touch what the user sees.
+    if(wasEdit){
+      var idx = jobs.findIndex(function(j){return j.id===editId;});
+      if(idx >= 0) jobs[idx] = job; else jobs.push(job);
+    } else {
+      jobs.push(job);
+    }
+    editId = null;
     _clientStatsCache = null;
-    toast('\u2705 ' + job.id + ' saved!');
+    toast('\u2705 ' + job.id + (wasEdit ? ' updated!' : ' saved!'));
     if(startRun){
       try { await bookRecurringRun(job); }
       catch(ex){ alert('\u274c ' + job.id + ' saved, but booking its repeat visits failed:\n\n' + ex.message + '\n\nUse the \u267b\ufe0f Next Visit button to book them by hand.'); }
     }
   } catch(ex){
-    alert('\u274c Exception: ' + ex.message);
+    alert('\u274c Exception: ' + ex.message + '\n\nNothing was saved \u2014 the form still has everything you typed.');
     console.error(ex);
     _saveJobLock = false; return;
   }
