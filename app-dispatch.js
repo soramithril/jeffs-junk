@@ -794,7 +794,10 @@ function dcvMount(){
   if(!document.getElementById('dcv-style')){
     var st = document.createElement('style');
     st.id = 'dcv-style';
-    st.textContent = '#dcv-shell{position:fixed;top:0;right:0;bottom:0;left:var(--sidebar-w,0px);z-index:140;display:flex;flex-direction:column}'
+    // --sidebar-rail (the resting width), not --sidebar-w (the hover width):
+    // the rail expands OVER the page, so laying out against 240px left a dead
+    // 158px gap down the left of the board whenever the nav was resting.
+    st.textContent = '#dcv-shell{position:fixed;top:0;right:0;bottom:0;left:var(--sidebar-rail,0px);z-index:140;display:flex;flex-direction:column}'
       + '@media(max-width:900px){#dcv-shell{top:56px}}';
     document.head.appendChild(st);
   }

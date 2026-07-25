@@ -45,11 +45,24 @@
   /* live rail width — the sidebar collapses/expands on hover (v416) */
   function railW() { return sidebar.getBoundingClientRect().width; }
 
+  /* .nav scrolls (overflow-y:auto) but this SVG is mounted on .sidebar, outside
+     that scrolling box — so it neither scrolls nor clips with it. With the rail
+     scrolled, a target's button would be half cut off by the nav's scroll edge
+     while its tab kept drawing at full height, spilling over the footer. Clip
+     the tab to the nav's visible box so it tracks what you can actually see. */
+  function navBox() {
+    var sr = sidebar.getBoundingClientRect(), nr = nav.getBoundingClientRect();
+    return { top: nr.top - sr.top, bottom: nr.bottom - sr.top };
+  }
+
   function draw(g) {
     if (!path) return;
     if (g.hidden) { path.style.opacity = '0'; return; }
+    var nb = navBox();
+    var t = Math.max(g.t, nb.top), b = Math.min(g.b, nb.bottom);
+    if (b - t < 6) { path.style.opacity = '0'; return; }
     path.style.opacity = '1';
-    path.setAttribute('d', notchPath(g.t, g.b, g.lx, railW()));
+    path.setAttribute('d', notchPath(t, b, g.lx, railW()));
   }
 
   /* the active Daily item = a direct child .nav-item.active (not the action button) */

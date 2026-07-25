@@ -698,7 +698,9 @@ textarea{resize:vertical;min-height:80px;}
 
 /* ── MAP ── */
 .map-layout{display:grid;grid-template-columns:1fr 300px;gap:20px;}
-#map-container{height:520px;border-radius:12px;border:1px solid var(--border);overflow:hidden;position:relative;background:#0a0a0a;}
+/* z-index:0 for the same reason as #lj-map-wrap — keeps Leaflet's panes and
+   controls from painting over the sidebar. */
+#map-container{height:520px;border-radius:12px;border:1px solid var(--border);overflow:hidden;position:relative;z-index:0;background:#0a0a0a;}
 #the-map{width:100%;height:100%;}
 .map-spinner-wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:14px;background:#0a0a0a;z-index:999;pointer-events:none;border-radius:12px;}
 .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
@@ -1219,7 +1221,10 @@ input[type=date],input[type=time]{position:relative;}
 .toast{transition:transform .3s ease,opacity .3s ease;}
 
 /* ── Live Jobs Page ── */
-#lj-map-wrap{margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);}
+/* z-index:0 boxes Leaflet in. Leaflet stamps its own panes at 400-700 and its
+   controls at 800-1000; with no stacking context here those numbers land in the
+   page's root stack and paint straight over the sidebar (z-index:150). */
+#lj-map-wrap{margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);position:relative;z-index:0;}
 #lj-map{height:380px;width:100%;background:#e9eef3;}
 .lj-map-banner{display:none;padding:8px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border);background:#fff7e0;color:#7c5800;}
 .lj-map-banner.show{display:block;}
