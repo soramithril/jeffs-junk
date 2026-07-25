@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '463';
+var APP_VERSION = '464';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12690,11 +12690,22 @@ function _vehShopPanel(vid){
     +'<div style="display:flex;gap:7px">'+(canSend?'<button onclick="vehConfirmShop(\''+vid+'\')"':'<button disabled')+' style="'+sendStyle+'">🔧 Send to shop</button><button onclick="closeVehShop()" style="min-height:38px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button></div>'
   +'</div>';
 }
+/* Same matching rule as the mobile app (jeff.html) so both surfaces show the
+   same truck for the same vehicle. The PNGs are cut-outs composited for a dark
+   backdrop, which is why the band below is dark rather than card-coloured. */
+function _vehPhoto(v){
+  var n=String(v.name||''), t=String(v.type||'');
+  if(/L7/i.test(n)) return 'assets/truck-l7-1.png';
+  if(/hino|bin/i.test(n+' '+t)) return 'assets/truck-bin-1.png';
+  return '';
+}
 function makeVehicleCard(v,ov){
   var m=_VEH_META[ov], o=_vehOilStatus(v), s=_vehStickerStatus(v);
   var pillStyle='font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
   var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:15px 16px;'+(ov==='shop'?'border-left:3px solid #e67e22':(ov==='due'?'border-left:3px solid #dc3545':''));
+  var photo=_vehPhoto(v);
   var h='<div style="'+cardStyle+'">'
+    +(photo?'<div style="height:120px;margin:-15px -16px 12px;background:linear-gradient(160deg,#1c2b23,#0f1a14);border-radius:14px 14px 0 0;overflow:hidden"><img src="'+photo+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"></div>':'')
     +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px">'
       +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+m.dot+'"></span>'
       +'<span style="font-weight:700;font-size:14.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</span>'
