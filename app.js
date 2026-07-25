@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '451';
+var APP_VERSION = '452';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1627,23 +1627,12 @@ function binIdleDays(b){
 
 var _saveJobLock = false;
 async function nextIdFromDb(svc) {
-  try {
-    // Use per-service database sequence for atomic, collision-free IDs
-    var r = await db.rpc('next_job_id', { service_type: svc || 'Bin Rental' });
-    if (!r.error && r.data) {
-      console.log('[nextIdFromDb] sequence (' + svc + ') → ' + r.data);
-      // Landscaping IDs carry a visible LAND- prefix, zero-padded to 4 digits (LAND-0001).
-      // Its own DB sequence starts at 1.
-      return (svc === 'Extra Jobs' ? 'LAND-' + String(r.data).padStart(4, '0') : String(r.data));
-    }
-    console.warn('[nextIdFromDb] rpc failed, falling back:', r.error);
-  } catch(ex) {
-    console.warn('[nextIdFromDb] error:', ex);
-  }
-  // Fallback: local cache only (unlikely to be needed)
-  var maxNum = 0;
-  jobs.forEach(function(j) { var n = parseInt(j.id, 10); if (!isNaN(n) && n > maxNum) maxNum = n; });
-  return (svc === 'Extra Jobs' ? 'LAND-' + String(maxNum + 1).padStart(4, '0') : String(maxNum + 1));
+  // One shared database counter for every service; Extra Jobs has its own, carrying a
+  // visible LAND- prefix zero-padded to 4 digits (LAND-0001). No local fallback — a
+  // guessed number can land on an existing job, so a counter failure must stop the save.
+  var r = await db.rpc('next_job_id', { service_type: svc || 'Bin Rental' });
+  if (r.error || !r.data) throw new Error('Could not get a job number: ' + (r.error ? r.error.message : 'no data'));
+  return (svc === 'Extra Jobs' ? 'LAND-' + String(r.data).padStart(4, '0') : String(r.data));
 }
 
 function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
@@ -9201,11 +9190,16 @@ async function saveJob(e){
     toast('Job created!');
   }
 
+  var wasEdit = !!editId;
   editId = null;
   try {
     var dbRow = jobToDb(job);
     console.log('Saving job:', dbRow.job_id, dbRow);
-    var dbRes = await db.from('jobs').upsert(dbRow, {onConflict:'job_id'});
+    // New bookings must INSERT: a duplicate job number fails loudly here instead of
+    // silently replacing the job that already owns it.
+    var dbRes = wasEdit
+      ? await db.from('jobs').upsert(dbRow, {onConflict:'job_id'})
+      : await db.from('jobs').insert(dbRow);
     if(dbRes.error){
       alert('\u274c Error saving job: ' + dbRes.error.message);
       console.error('saveJob error:', dbRes.error);
@@ -9920,7 +9914,9 @@ async function _doSwapOutBin(){
     emailConfirmed:false, swapCount:0
   };
   jobs.push(newJob);
-  await saveSingleJob(newJob);
+  var resNew=await db.from('jobs').insert(jobToDb(newJob));
+  if(resNew.error){alert('Error creating swap drop job: '+resNew.error.message);return;}
+  _clientStatsCache = null;
   toast('Swap booked: bin scheduled for pickup '+fd(swapDate)+', new drop job '+newId+' created.');
   closeM('detail-modal');
   await loadJobsPage(jobsPage);
@@ -10153,7 +10149,7 @@ async function scheduleNextSwap(id){
   jobs.push(swapJob);
   try{
     var dbRow=jobToDb(swapJob);
-    var res=await db.from('jobs').upsert(dbRow,{onConflict:'job_id'});
+    var res=await db.from('jobs').insert(dbRow);
     if(res.error){alert('Error creating swap job: '+res.error.message);return;}
   }catch(ex){alert('Error: '+ex.message);return;}
   toast('✅ Next swap booked for '+fd(nextDateStr)+'!');
@@ -10268,7 +10264,7 @@ async function bookRecurringRun(job){
       recurring:true, recurInterval:job.recurInterval,
       createdBy:'system', createdByEmail:'system', editedBy:'', editedByEmail:''
     };
-    var res = await db.from('jobs').upsert(jobToDb(v), {onConflict:'job_id'});
+    var res = await db.from('jobs').insert(jobToDb(v));
     if(res.error) throw new Error('Failed to book the visit on '+fd(visit)+': '+res.error.message);
   }
   toast('♻️ Booked '+toBook.length+' more visit'+(toBook.length===1?'':'s')+' — through '+fd(toBook[toBook.length-1]));
@@ -10298,7 +10294,7 @@ async function scheduleNextRecurringJob(id){
   };
   try{
     var dbRow=jobToDb(newJob);
-    var res=await db.from('jobs').upsert(dbRow,{onConflict:'job_id'});
+    var res=await db.from('jobs').insert(dbRow);
     if(res.error){alert('Error creating recurring job: '+res.error.message);return;}
     await loadRecurRuns();
   }catch(ex){alert('Error: '+ex.message);return;}
