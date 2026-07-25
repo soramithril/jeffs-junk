@@ -1,5 +1,6 @@
 // ─── FURNITURE QUOTE CALCULATOR (standalone quote tool) ───
-// Depends on app.js globals: DRD_ITEMS, DRD_ORDER, drdGroupedOrder, toast, newJob, drdModalRecalc
+// Depends on app.js globals: DRD_ITEMS, DRD_ORDER, drdGroupedOrder, toast, newJob,
+//   and for the Start-a-Job handoff: renderDrdModalGrid, drdModalAddOtherRow, drdModalRecalc
 // Also uses JWGIcons (jwg-icons.js) for the truck-panel readout tiles.
 // Called by render('drdcalc') in app.js.
 
@@ -129,7 +130,7 @@ function drdcPaintTileIcons(){
    ['drdc-tl-ico-load','schedule','#26311f'],
    ['drdc-tl-ico-runs','vehicles','#fdf6e6']].forEach(function(t){
     var el=document.getElementById(t[0]);
-    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:16,stroke:t[2]});
+    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:15,stroke:t[2]});
   });
 }
 // Quantities live here, keyed by DRD_ITEMS index — the +/- steppers are the only
@@ -179,10 +180,12 @@ function drdcPicked(){
   var out=[];
   DRD_ITEMS.forEach(function(item,i){
     var qty=drdcQtyOf(i);
-    if(qty>0) out.push({item:item,qty:qty});
+    if(qty>0) out.push({item:item,qty:qty,idx:i});
   });
   return out;
 }
+// Take an item off the load entirely, from the "On the truck" list.
+function drdcRemove(i){ drdcStep(i,-drdcQtyOf(i)); }
 // Redraws the whole truck panel: gauge, readout tiles, crate stack, item chips.
 function drdcRenderTruck(){
   var frame=document.getElementById('drdc-crates');
@@ -280,7 +283,8 @@ function drdcRenderChips(picked){
       +thumb
       +'<div style="line-height:1.25;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap">'+p.item.name+'</div>'
       +'<div style="font-size:10.5px;color:var(--muted);white-space:nowrap">'+p.qty+' × '+(p.item.vol||0)+' ft³</div></div>'
-      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;color:#22c55e;letter-spacing:.5px;margin-left:6px;white-space:nowrap">'+((p.item.vol||0)*p.qty)+'</span></div>';
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;color:#22c55e;letter-spacing:.5px;margin-left:6px;white-space:nowrap">'+((p.item.vol||0)*p.qty)+'</span>'
+      +'<button type="button" class="drdc-chip-x" onclick="drdcRemove('+p.idx+')" title="Take '+p.item.name.replace(/"/g,'&quot;')+' off the truck" aria-label="Remove '+p.item.name.replace(/"/g,'&quot;')+'">&times;</button></div>';
   });
   list.innerHTML=html;
 }
@@ -342,23 +346,66 @@ function drdcFilter(){
     el.style.display=q?'none':'';
   });
 }
+// Custom rows the user typed in, as {name,qty,fee,val} — only rows with a quantity.
+function drdcCustomRows(){
+  var out=[];
+  var names=document.querySelectorAll('#drdc-other-rows .drdc-other-name');
+  var qtys=document.querySelectorAll('#drdc-other-rows .drdc-other-qty');
+  var fees=document.querySelectorAll('#drdc-other-rows .drdc-other-fee');
+  var vals=document.querySelectorAll('#drdc-other-rows .drdc-other-val');
+  qtys.forEach(function(el,i){
+    var q=parseInt(el.value)||0;
+    if(q<=0) return;
+    out.push({
+      name:(names[i]?names[i].value:'').trim()||'Custom item',
+      qty:q,
+      fee:parseFloat(fees[i]?fees[i].value:0)||0,
+      val:parseFloat(vals[i]?vals[i].value:0)||0
+    });
+  });
+  return out;
+}
+// Runs fn once the booking form's furniture grid actually exists. The form opens
+// asynchronously, so waiting on the element beats guessing a delay — a slow open
+// used to drop the quantities silently.
+function drdcWhenFormReady(fn){
+  var deadline=Date.now()+5000;
+  (function poll(){
+    if(document.getElementById('drd-m-items-grid')&&document.getElementById('drd-m-other-rows')){ fn(); return; }
+    if(Date.now()>deadline){ toast('Could not open the job form — nothing was carried over.'); return; }
+    requestAnimationFrame(poll);
+  })();
+}
 function drdcStartJob(){
-  // Capture current quantities from the calculator
+  // Capture everything the quote is made of BEFORE opening the form
   var qtys={};
   DRD_ITEMS.forEach(function(_,i){
     var q=drdcQtyOf(i);
     if(q>0) qtys[i]=q;
   });
+  var custom=drdcCustomRows();
   newJob();
-  setTimeout(function(){
+  drdcWhenFormReady(function(){
     var svc=document.getElementById('f-svc');
-    if(svc){ svc.value='Furniture Pickup'; svc.dispatchEvent(new Event('change')); }
-    setTimeout(function(){
-      Object.keys(qtys).forEach(function(i){
-        var el=document.getElementById('drd-m-qty-'+i);
-        if(el){el.value=qtys[i];}
-      });
-      if(typeof drdModalRecalc==='function') drdModalRecalc();
-    },300);
-  },100);
+    svc.value='Furniture Pickup';
+    svc.dispatchEvent(new Event('change'));
+    renderDrdModalGrid();
+    Object.keys(qtys).forEach(function(i){
+      document.getElementById('drd-m-qty-'+i).value=qtys[i];
+    });
+    // Custom items carry across too — they count toward the quoted price, so a job
+    // filed without them would be cheaper than what the customer was told.
+    var wrap=document.getElementById('drd-m-other-rows');
+    wrap.innerHTML='';
+    custom.forEach(function(c){
+      drdModalAddOtherRow();
+      var rows=wrap.children, row=rows[rows.length-1];
+      row.querySelector('.drd-m-other-name').value=c.name;
+      row.querySelector('.drd-m-other-qty').value=c.qty;
+      row.querySelector('.drd-m-other-fee').value=c.fee;
+      row.querySelector('.drd-m-other-val').value=c.val;
+    });
+    if(!custom.length) drdModalAddOtherRow();
+    drdModalRecalc();
+  });
 }
