@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '458';
+var APP_VERSION = '459';
 
 // â”€â”€ Emboss icon tiles (JWGIcons, loaded in index.html before app.js) â”€â”€
 // One helper for every service/status emboss tile on a white surface, so sizing
