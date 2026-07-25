@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=456">
+<link rel="stylesheet" href="style.css?v=457">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1394,11 +1394,15 @@
     </div>
   </div>
 
-  <!-- Truck load panel — the 16 ft box truck fills up as quantities change (design: Truck Load Panel).
-       Sticks to the top of the view so the truck stays visible while scrolling the item list. -->
-  <div id="drdc-truck-panel" style="position:sticky;top:0;z-index:20;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px;box-shadow:0 6px 18px rgba(0,0,0,.07)">
-    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-      <div id="drdc-truck-frame" style="position:relative;flex:1;min-width:260px;max-width:430px;aspect-ratio:842/561;border-radius:10px;overflow:hidden;background:radial-gradient(130% 100% at 50% 15%,#ffffff,#e9edf1 85%)">
+  <!-- Two columns: the truck stays pinned on the left, the item list scrolls on the right.
+       Collapses to a single stacked column on narrow screens (see .drdc-layout in style.css). -->
+  <div class="drdc-layout">
+  <div class="drdc-left">
+
+  <!-- Truck load panel — the 16 ft box truck fills up as quantities change (design: Truck Load Panel) -->
+  <div id="drdc-truck-panel" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 6px 18px rgba(0,0,0,.07)">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div id="drdc-truck-frame" style="position:relative;width:100%;aspect-ratio:842/561;border-radius:10px;overflow:hidden;background:radial-gradient(130% 100% at 50% 15%,#ffffff,#e9edf1 85%)">
         <div id="drdc-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
           <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
           <div id="drdc-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
@@ -1444,16 +1448,19 @@
     </div>
   </div>
 
-  <div id="drdc-loaded-wrap" style="display:none;margin-bottom:18px">
+  <div id="drdc-loaded-wrap" style="display:none;margin-top:14px">
     <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">On the truck</div>
-    <div id="drdc-loaded" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    <div id="drdc-loaded" style="display:flex;flex-wrap:wrap;gap:8px;max-height:210px;overflow-y:auto"></div>
   </div>
+
+  </div><!-- /.drdc-left -->
+  <div class="drdc-right">
 
   <div style="margin-bottom:14px">
     <input id="drdc-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
   </div>
 
-  <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Enter a quantity next to each item to build a quote.</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Use the + and &minus; buttons to build a quote.</div>
   <div id="drdc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
 
   <div style="margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)">
@@ -1464,7 +1471,10 @@
     <div id="drdc-other-rows"></div>
   </div>
 
-  <div style="position:sticky;bottom:0;background:var(--surface);border:1px solid var(--border);border-top:2px solid #22c55e;padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">
+  </div><!-- /.drdc-right -->
+  </div><!-- /.drdc-layout -->
+
+  <div style="position:sticky;bottom:0;background:var(--surface);border:1px solid var(--border);border-top:2px solid #22c55e;padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px;z-index:21">
     <div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">
       <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Items</div><div style="font-size:22px;font-weight:800" id="drdc-total-items">0</div></div>
       <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:#22c55e;font-family:'Bebas Neue',sans-serif">$<span id="drdc-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div></div>
@@ -2641,7 +2651,7 @@
   </div>
 </div>
 <script src="app-documents.js?v=388"></script>
-<script src="app-drdcalc.js?v=456"></script>
+<script src="app-drdcalc.js?v=457"></script>
 <script src="app-dispatch.js?v=411"></script>
 <script src="app-leaderboard.js?v=444"></script>
 <script src="app-analytics.js?v=364"></script>
@@ -2650,7 +2660,7 @@
 <script src="app-damage.js?v=207"></script>
 <script src="app-bookings.js?v=443"></script>
 <script src="jwg-icons.js?v=397"></script>
-<script src="app.js?v=456"></script>
+<script src="app.js?v=457"></script>
 <script src="app-jwg-scheduler.js?v=445"></script>
 <script src="app-jwg-feed.js?v=445"></script>
 <script src="app-ratings.js?v=447"></script>
