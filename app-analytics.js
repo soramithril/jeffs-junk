@@ -111,9 +111,9 @@ function getFilteredJobs(start,end){
 }
 function delta(curr,prev){
   if(prev===null||prev===undefined)return'';
-  if(prev===0)return curr===0?'':'<span style="font-size:12px;font-weight:700;color:#22c55e;margin-left:6px">▲ NEW</span>';
+  if(prev===0)return curr===0?'':'<span style="font-size:12px;font-weight:700;color:var(--accent);margin-left:6px">▲ NEW</span>';
   var pct=Math.round((curr-prev)/prev*100),up=pct>=0;
-  return'<span style="font-size:12px;font-weight:700;color:'+(up?'#22c55e':'#dc3545')+';margin-left:6px">'+(up?'▲':'▼')+' '+(up?'+':'')+pct+'%</span>';
+  return'<span style="font-size:12px;font-weight:700;color:'+(up?'var(--accent)':'#dc3545')+';margin-left:6px">'+(up?'▲':'▼')+' '+(up?'+':'')+pct+'%</span>';
 }
 async function renderYoyTracker(){
   var wrap=document.getElementById('yoy-tracker');
@@ -134,7 +134,7 @@ async function renderYoyTracker(){
 
   function count(arr,svc){return arr.filter(function(j){return j.service===svc;}).length;}
   var services=[
-    {key:'Bin Rental',label:'Bins',icon:'🚛',color:'#22c55e'},
+    {key:'Bin Rental',label:'Bins',icon:'🚛',color:'var(--accent)'},
     {key:'Junk Removal',label:'Junk',icon:'🗑️',color:'#eab308'},
     {key:'Furniture Pickup',label:'Furniture Pickups',icon:'🛋️',color:'#8b5cf6'}
   ];
@@ -145,12 +145,12 @@ async function renderYoyTracker(){
     var pct=target>0?Math.min(Math.round(cur/target*100),100):((cur>0)?100:0);
     var beat=cur>=target&&target>0;
     var diff=cur-target;
-    var diffLabel=target===0?(cur>0?cur+' booked':'No data last year'):(diff>=0?'<span style="color:#22c55e;font-weight:700">+'+diff+' ahead</span>':'<span style="color:#dc3545;font-weight:700">'+Math.abs(diff)+' to go</span>');
-    var barColor=beat?'#22c55e':s.color;
+    var diffLabel=target===0?(cur>0?cur+' booked':'No data last year'):(diff>=0?'<span style="color:var(--accent);font-weight:700">+'+diff+' ahead</span>':'<span style="color:#dc3545;font-weight:700">'+Math.abs(diff)+' to go</span>');
+    var barColor=beat?'var(--accent)':s.color;
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:160px;flex:1;max-width:220px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
         +'<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">'+s.icon+' '+s.label+'</span>'
-        +(beat?'<span style="font-size:10px;background:rgba(34,197,94,.15);color:#22c55e;border-radius:4px;padding:1px 6px;font-weight:700">BEAT!</span>':'')
+        +(beat?'<span style="font-size:10px;background:rgba(34,197,94,.15);color:var(--accent);border-radius:4px;padding:1px 6px;font-weight:700">BEAT!</span>':'')
       +'</div>'
       +'<div style="display:flex;align-items:baseline;gap:4px;margin-bottom:4px">'
         +'<span style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--text);line-height:1">'+cur+'</span>'
@@ -222,7 +222,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   }
   document.getElementById('analytics-metrics').innerHTML=
     mbox('am-jobs',aJobs.length,bJobs.length,'var(--accent)','Total Jobs')
-    +mbox('am-bins',aBin,bBin,'#22c55e','Bin Rentals')
+    +mbox('am-bins',aBin,bBin,'var(--accent)','Bin Rentals')
     +mbox('am-junk',aJunk,bJunk,'#eab308','Junk Removal')
     +mbox('am-furnp',aFP,bFP,'#8b5cf6','Furniture Pickup')
     +mbox('am-furnd',aFD,bFD,'#f97316','Furniture Delivery');
@@ -241,7 +241,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     function arrowColor(p,higherIsBetter){
       if(p===0) return 'var(--muted)';
       var positive = higherIsBetter ? p>0 : p<0;
-      return positive ? '#22c55e' : '#dc3545';
+      return positive ? 'var(--accent)' : '#dc3545';
     }
 
     function momCard(label, aVal, bVal, fmt, higherIsBetter){
@@ -299,7 +299,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     var data=dayShort.map(function(n,i){return{key:n,val:counts[i]};});
     return{html:makeBarChart(data,function(k,i){return i===bIdx?color:'rgba(34,197,94,.2)';}),busiestDay:dayNames[bIdx],busiestCount:counts[bIdx]};
   }
-  var cA=buildDayChart(aJobs,'#22c55e');
+  var cA=buildDayChart(aJobs,'var(--accent)');
   document.getElementById('busiest-a-lbl').innerHTML='<span style="color:var(--accent)">● Showing: '+dates.a.label+'</span>';
   document.getElementById('chart-busiest-a').innerHTML=cA.html;
   document.getElementById('busiest-insight-a').innerHTML='🏆 Busiest: <strong>'+cA.busiestDay+'</strong> ('+cA.busiestCount+' jobs)';
@@ -329,13 +329,13 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   var cityMap={};
   aJobs.forEach(function(j){var c=extractCity(j.address,j.city);cityMap[c]=(cityMap[c]||0)+1;});
   var cityData=Object.keys(cityMap).sort(function(a,b){return cityMap[b]-cityMap[a];}).map(function(k){return{key:k,val:cityMap[k]};});
-  var cityColors=['#22c55e','#4ade80','#7cc9a0','#c8e6d5','#e6f4ed','#a7f3d0','#6ee7b7','#34d399'];
-  document.getElementById('chart-city').innerHTML=makeBarChart(cityData,function(k,i){return cityColors[cityData.findIndex(function(d){return d.key===k;})]||'#22c55e';});
+  var cityColors=['var(--accent)','#4ade80','#7cc9a0','#c8e6d5','#e6f4ed','#a7f3d0','#6ee7b7','#34d399'];
+  document.getElementById('chart-city').innerHTML=makeBarChart(cityData,function(k,i){return cityColors[cityData.findIndex(function(d){return d.key===k;})]||'var(--accent)';});
 
   // Referral
   var refMap={};
   aJobs.forEach(function(j){var r=j.referral||'Unknown';refMap[r]=(refMap[r]||0)+1;});
-  var refColors={Google:'#4285f4','Word of Mouth':'#22c55e',Facebook:'#1877f2',Instagram:'#e1306c',Kijiji:'#ff6b00','Repeat Customer':'#a78bfa',Other:'#888888',Unknown:'#555555'};
+  var refColors={Google:'#4285f4','Word of Mouth':'var(--accent)',Facebook:'#1877f2',Instagram:'#e1306c',Kijiji:'#ff6b00','Repeat Customer':'#a78bfa',Other:'#888888',Unknown:'#555555'};
   var refData=Object.keys(refMap).sort(function(a,b){return refMap[b]-refMap[a];}).map(function(k){return{key:k,val:refMap[k]};});
   document.getElementById('chart-referral').innerHTML=makeBarChart(refData,function(k){return refColors[k]||'#888';});
 
@@ -351,13 +351,13 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     '<div class="pie-legend">'
     +'<div class="pie-legend-item"><div class="pie-dot" style="background:#4ade80"></div><span class="pie-legend-label">🆕 New (1 job)</span><span class="pie-legend-val">'+newC+' <span style="color:var(--muted);font-size:11px">('+Math.round(newC/lt*100)+'%)</span></span></div>'
     +'<div class="pie-legend-item"><div class="pie-dot" style="background:#f0932b"></div><span class="pie-legend-label">🔁 Repeat (2–3)</span><span class="pie-legend-val">'+repeatC+' <span style="color:var(--muted);font-size:11px">('+Math.round(repeatC/lt*100)+'%)</span></span></div>'
-    +'<div class="pie-legend-item"><div class="pie-dot" style="background:#22c55e"></div><span class="pie-legend-label">⭐ Frequent (4+)</span><span class="pie-legend-val">'+frequentC+' <span style="color:var(--muted);font-size:11px">('+Math.round(frequentC/lt*100)+'%)</span></span></div>'
+    +'<div class="pie-legend-item"><div class="pie-dot" style="background:var(--accent)"></div><span class="pie-legend-label">⭐ Frequent (4+)</span><span class="pie-legend-val">'+frequentC+' <span style="color:var(--muted);font-size:11px">('+Math.round(frequentC/lt*100)+'%)</span></span></div>'
     +'</div>'
     +'<div style="display:flex;gap:4px;margin-top:16px;height:28px;border-radius:8px;overflow:hidden">'
     +'<div style="width:'+Math.round(newC/lt*100)+'%;background:#4ade80" title="New: '+newC+'"></div>'
     +'<div style="width:'+Math.round(repeatC/lt*100)+'%;background:#f0932b" title="Repeat: '+repeatC+'"></div>'
-    +'<div style="width:'+Math.round(frequentC/lt*100)+'%;background:#22c55e" title="Frequent: '+frequentC+'"></div>'
-    +'</div><div style="display:flex;gap:16px;font-size:10px;color:var(--muted);margin-top:6px"><span style="color:#4ade80">■ New</span><span style="color:#f0932b">■ Repeat</span><span style="color:#22c55e">■ Frequent</span></div>';
+    +'<div style="width:'+Math.round(frequentC/lt*100)+'%;background:var(--accent)" title="Frequent: '+frequentC+'"></div>'
+    +'</div><div style="display:flex;gap:16px;font-size:10px;color:var(--muted);margin-top:6px"><span style="color:#4ade80">■ New</span><span style="color:#f0932b">■ Repeat</span><span style="color:var(--accent)">■ Frequent</span></div>';
 
   // Jobs over time
   var now2=new Date(),months=[];
@@ -370,7 +370,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
     function seg(h,col,cnt,r){if(!cnt)return'';return'<div class="vbar-seg" data-h="'+h+'" style="width:100%;height:0;background:'+col+';border-radius:'+r+';overflow:hidden;display:flex;align-items:center;justify-content:center;transition:height 2.45s cubic-bezier(.22,.68,0,1.2);transition-delay:'+(mi*30)+'ms"><span style="font-size:9px;font-weight:700;color:#fff;user-select:none">'+cnt+'</span></div>';}
     return'<div style="flex:1;display:flex;flex-direction:column;align-items:center">'
       +'<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px;min-height:16px">'+(tot>0?tot:'')+'</div>'
-      +'<div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:110px;gap:1px">'+seg(fH,'#dc3545',m.furn,'2px 2px 0 0')+seg(jH,'#e67e22',m.junk,'0')+seg(bH,'#22c55e',m.bins,'0')+(tot===0?'<div style="width:100%;height:2px;background:var(--border)"></div>':'')+'</div></div>';
+      +'<div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:110px;gap:1px">'+seg(fH,'#dc3545',m.furn,'2px 2px 0 0')+seg(jH,'#e67e22',m.junk,'0')+seg(bH,'var(--accent)',m.bins,'0')+(tot===0?'<div style="width:100%;height:2px;background:var(--border)"></div>':'')+'</div></div>';
   }).join('');
   labelsEl.innerHTML=months.map(function(m){return'<div style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+m.label+'</div>';}).join('');
   requestAnimationFrame(function(){document.querySelectorAll('#chart-time .vbar-seg').forEach(function(seg){var h=seg.getAttribute('data-h');setTimeout(function(){seg.style.height=h+'px';},10);});});
@@ -400,13 +400,13 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
           +'<span style="font-size:13px;font-weight:700;color:var(--text);">'+yr+'</span>'
           +'<span style="font-size:11px;color:var(--muted);">'+d.total.toLocaleString()+' jobs</span></div>'
           +'<div style="height:22px;border-radius:6px;overflow:hidden;display:flex;gap:1px;">'
-          +(binPct?'<div style="width:'+binPct+'%;background:#22c55e;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+binPct+'%</span></div>':'')
+          +(binPct?'<div style="width:'+binPct+'%;background:var(--accent);display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+binPct+'%</span></div>':'')
           +(junkPct?'<div style="width:'+junkPct+'%;background:#e67e22;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+junkPct+'%</span></div>':'')
           +(otherPct>2?'<div style="width:'+otherPct+'%;background:#94a3b8;display:flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;color:#fff;">'+otherPct+'%</span></div>':'')
           +'</div></div>';
       }).join('')
       +'<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">'
-      +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:#22c55e;flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Bin Rental</span></div>'
+      +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:var(--accent);flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Bin Rental</span></div>'
       +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:#e67e22;flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Junk Removal</span></div>'
       +'<div style="display:flex;align-items:center;gap:5px;"><div style="width:10px;height:10px;border-radius:2px;background:#94a3b8;flex-shrink:0;"></div><span style="font-size:11px;color:var(--muted);">Other</span></div>'
       +'</div>';

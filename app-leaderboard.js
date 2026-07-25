@@ -92,9 +92,9 @@ async function renderDriverLeaderboard(){
 
   var medals=['🥇','🥈','🥉'];
   el.innerHTML=drivers.map(function(d,i){
-    var v=vehMap[d.vid]||{name:d.name,color:'#22c55e'};
+    var v=vehMap[d.vid]||{name:d.name,color:'var(--accent)'};
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var safeColor=d.avgSafety>=90?'#22c55e':d.avgSafety>=70?'#e67e22':'#dc3545';
+    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#e67e22':'#dc3545';
 
     var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
       +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
@@ -170,7 +170,7 @@ async function renderCrewLeaderboard(){
   var medals=['🥇','🥈','🥉'];
   el.innerHTML=crew.map(function(d,i){
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var safeColor=d.avgSafety>=90?'#22c55e':d.avgSafety>=70?'#e67e22':'#dc3545';
+    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#e67e22':'#dc3545';
 
     var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
       +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
@@ -473,7 +473,7 @@ function renderLbWinnerBanner(rows,range,isCrewMode){
       +'<div style="font-size:13px;color:var(--muted);margin-top:2px;">'+Math.round(winner.distance)+' km driven · '+winner.days+' day'+(winner.days!==1?'s':'')+' active · '+winner.totalEvents+' event'+(winner.totalEvents!==1?'s':'')+'</div>'
     +'</div>'
     +'<div style="text-align:center;">'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:56px;color:'+(winner.avgSafety>=90?'#22c55e':winner.avgSafety>=70?'#e67e22':'#dc3545')+';line-height:1;">'+winner.avgSafety+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:56px;color:'+(winner.avgSafety>=90?'var(--accent)':winner.avgSafety>=70?'#e67e22':'#dc3545')+';line-height:1;">'+winner.avgSafety+'</div>'
       +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Avg Safety Score</div>'
     +'</div>'
   +'</div>';
@@ -496,9 +496,9 @@ function renderLbStatCards(rows,range,isCrewMode){
   agg.forEach(function(d){totalDriveHrs+=d.driveMin;});
   var driveDisplay=totalDriveHrs>=60?Math.round(totalDriveHrs/60)+'h':Math.round(totalDriveHrs)+'m';
 
-  el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'#22c55e':fleetAvg>=70?'#e67e22':'#dc3545','analytics',fleetAvg>=90?'green':fleetAvg>=70?'amber':'red')
-    +lbStatCard('Total Events',totalEvents,totalEvents===0?'#22c55e':'#dc3545','damage',totalEvents===0?'green':'red')
-    +lbStatCard('Clean Records',cleanCount+'/'+agg.length,'#22c55e','confirmed','green')
+  el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'var(--accent)':fleetAvg>=70?'#e67e22':'#dc3545','analytics',fleetAvg>=90?'green':fleetAvg>=70?'amber':'red')
+    +lbStatCard('Total Events',totalEvents,totalEvents===0?'var(--accent)':'#dc3545','damage',totalEvents===0?'green':'red')
+    +lbStatCard('Clean Records',cleanCount+'/'+agg.length,'var(--accent)','confirmed','green')
     +lbStatCard('Total Distance',Math.round(totalDist)+' km','var(--text)','directions','blue')
     +lbStatCard('Drive Time',driveDisplay,'var(--text)','liveJobs','indigo');
 }
@@ -800,8 +800,8 @@ function renderLbImprovement(rows,range,isCrewMode){
 
   // ── Cards: detailed breakdown per person ──
   cardsEl.innerHTML=improvements.map(function(d){
-    var safeColor=d.safetyDelta>0?'#22c55e':d.safetyDelta<0?'#dc3545':'var(--muted)';
-    var evtColor=d.eventsDelta<0?'#22c55e':d.eventsDelta>0?'#dc3545':'var(--muted)';
+    var safeColor=d.safetyDelta>0?'var(--accent)':d.safetyDelta<0?'#dc3545':'var(--muted)';
+    var evtColor=d.eventsDelta<0?'var(--accent)':d.eventsDelta>0?'#dc3545':'var(--muted)';
     var safeArrow=d.safetyDelta>0?'▲':d.safetyDelta<0?'▼':'—';
     var evtArrow=d.eventsDelta<0?'▼':d.eventsDelta>0?'▲':'—';
 
@@ -822,7 +822,7 @@ function renderLbImprovement(rows,range,isCrewMode){
         +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">'
           +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;">'+firstLabel+'</div>'
           +'<div style="display:flex;align-items:baseline;gap:8px;">'
-            +'<span style="font-size:24px;font-weight:800;color:'+(d.firstSafety>=90?'#22c55e':d.firstSafety>=70?'#e67e22':'#dc3545')+'">'+d.firstSafety+'</span>'
+            +'<span style="font-size:24px;font-weight:800;color:'+(d.firstSafety>=90?'var(--accent)':d.firstSafety>=70?'#e67e22':'#dc3545')+'">'+d.firstSafety+'</span>'
             +'<span style="font-size:11px;color:var(--muted)">safety avg</span>'
           +'</div>'
           +'<div style="height:4px;background:rgba(0,0,0,.06);border-radius:2px;margin-top:6px;"><div style="height:100%;width:'+firstW+'%;background:rgba(59,130,246,.5);border-radius:2px;"></div></div>'
@@ -831,7 +831,7 @@ function renderLbImprovement(rows,range,isCrewMode){
         +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">'
           +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;">'+secondLabel+'</div>'
           +'<div style="display:flex;align-items:baseline;gap:8px;">'
-            +'<span style="font-size:24px;font-weight:800;color:'+(d.secondSafety>=90?'#22c55e':d.secondSafety>=70?'#e67e22':'#dc3545')+'">'+d.secondSafety+'</span>'
+            +'<span style="font-size:24px;font-weight:800;color:'+(d.secondSafety>=90?'var(--accent)':d.secondSafety>=70?'#e67e22':'#dc3545')+'">'+d.secondSafety+'</span>'
             +'<span style="font-size:11px;color:var(--muted)">safety avg</span>'
           +'</div>'
           +'<div style="height:4px;background:rgba(0,0,0,.06);border-radius:2px;margin-top:6px;"><div style="height:100%;width:'+secondW+'%;background:rgba(34,197,94,.6);border-radius:2px;"></div></div>'
@@ -867,7 +867,7 @@ function renderLbRankings(rows,range,isCrewMode){
 
   el.innerHTML=agg.map(function(d,i){
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var safeColor=d.avgSafety>=90?'#22c55e':d.avgSafety>=70?'#e67e22':'#dc3545';
+    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#e67e22':'#dc3545';
     var v=isCrewMode?null:vehMap[d.id];
     var dotHtml=v?'<span style="width:9px;height:9px;border-radius:50%;background:'+(v.color||'#22c55e')+'"></span>':'';
 

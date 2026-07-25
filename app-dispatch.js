@@ -363,7 +363,7 @@ function dispatchRenderCard(j, clockStartMins){
   var leg = isPickup ? 'pickup' : 'dropoff';
   var legLabel = isPickup ? 'PICKUP' : 'DROP';
   var legBg = isPickup ? '#0d6efd' : '#eab308';
-  var comboCol = j._comboColor || '#22c55e';
+  var comboCol = j._comboColor || 'var(--accent)';
   var working = dispatchGetWorkingIds();
   var assigned = isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
   var key = j.id + ':' + leg;
@@ -450,7 +450,7 @@ async function renderDispatch(){
     j._estMinutes = dispatchEstimateMinutes(j, kind);
   });
   // Give each combo pair a shared color so the two linked cards are obvious.
-  var comboPalette = ['#22c55e','#0ea5e9','#a855f7','#f97316','#ec4899','#14b8a6','#eab308'];
+  var comboPalette = ['var(--accent)','#0ea5e9','#a855f7','#f97316','#ec4899','#14b8a6','#eab308'];
   var _ci = 0, _seenPair = {};
   todayJobs.forEach(function(j){
     if(j._partnerId && !_seenPair[j.id]){
@@ -501,7 +501,7 @@ async function renderDispatch(){
   html += '</div>';
   // Balance routes (primary action, icon, pushed to right via margin-left:auto)
   html += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  html += '<button data-tour="dispatch-fill" onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
+  html += '<button data-tour="dispatch-fill" onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:var(--accent);color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
   html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>';
   html += 'Fill unassigned';
   html += '</button>';
@@ -518,9 +518,9 @@ async function renderDispatch(){
   html += '<span style="margin-left:6px"><span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(13,110,253,.18);color:#0d6efd;font-size:10px;font-weight:700;align-items:center;justify-content:center;vertical-align:-3px">P</span> = pickup &nbsp; <span style="display:inline-flex;width:16px;height:16px;border-radius:4px;background:rgba(234,179,8,.18);color:#eab308;font-size:10px;font-weight:700;align-items:center;justify-content:center;vertical-align:-3px">D</span> = delivery &nbsp;&middot;&nbsp; times are rough estimates</span>';
   html += '</div>';
   html += '<div data-tour="dispatch-combo-info" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
-  html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
+  html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
   html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
-  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">PAIRED</span>';
+  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:var(--accent);background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">PAIRED</span>';
   html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
   html += '</div></div>';
   html += '<div data-tour="dispatch-working" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
@@ -566,7 +566,7 @@ async function renderDispatch(){
       var ord = laneJobs.length ? dispatchOrderLaneJobs(laneJobs) : null;
       var routeUrl = ord ? dispatchMapsRouteUrl(ord.jobs) : null;
       var _pct = Math.min(Math.round(laneTotal/480*100),100);
-      var _barCol = _pct<60?'#22c55e':(_pct<90?'#f59e0b':'#dc3545');
+      var _barCol = _pct<60?'var(--accent)':(_pct<90?'#f59e0b':'#dc3545');
       var _noteCol = _pct>=90?'#dc3545':(_pct>=60?'#c2410c':'#15803d');
       var _note = laneTotal ? (_pct+'% of an 8-hr day') : 'Empty &mdash; add stops';
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
@@ -635,7 +635,7 @@ function dispatchSetViewMode(m){
 var DCV_JOB_W = 250, DCV_CREW_W = 228;
 var DCV_THEMES = {
   forest:  {name:'Forest',  canvas:'#0b1710', surface:'#12241a', border:'#1e3a29', ink:'#e6f3ea', sub:'#8bab97', chip:'#12241a', chipbd:'#20402d', track:'#183021', dot:'rgba(52,209,127,.11)',  stub:'linear-gradient(160deg,#34d17f,#0b6b34)', stubtext:'#04160c', accent:'#34d17f'},
-  steel:   {name:'Steel',   canvas:'#141a23', surface:'#1d2431', border:'#2b3547', ink:'#e5ebf3', sub:'#93a1b5', chip:'#1a2130', chipbd:'#2f3b4f', track:'#212a3a', dot:'rgba(160,180,210,.10)', stub:'linear-gradient(160deg,#22c55e,#12833f)', stubtext:'#ffffff', accent:'#22c55e'},
+  steel:   {name:'Steel',   canvas:'#141a23', surface:'#1d2431', border:'#2b3547', ink:'#e5ebf3', sub:'#93a1b5', chip:'#1a2130', chipbd:'#2f3b4f', track:'#212a3a', dot:'rgba(160,180,210,.10)', stub:'linear-gradient(160deg,var(--accent),#12833f)', stubtext:'#ffffff', accent:'var(--accent)'},
   obsidian:{name:'Obsidian',canvas:'#08090b', surface:'#131417', border:'#23252b', ink:'#f4f5f7', sub:'#8d9096', chip:'#141519', chipbd:'#26282f', track:'#1b1d22', dot:'rgba(47,229,127,.08)',  stub:'linear-gradient(160deg,#2fe57f,#0f9a4f)', stubtext:'#04160c', accent:'#2fe57f'}
 };
 var _dcv = {
@@ -657,7 +657,7 @@ function dcvSetTheme(key){
   renderDispatch();
 }
 function dcvRgba(hex, a){
-  var h = (hex||'#22c55e').replace('#','');
+  var h = (hex||'var(--accent)').replace('#','');
   if(h.length === 3) h = h.split('').map(function(c){return c+c;}).join('');
   var n = parseInt(h, 16);
   return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
@@ -747,7 +747,7 @@ function dcvCrewCardHtml(c, T, p, selected){
   var laneJobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
   var total = laneJobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
   var pct = Math.min(Math.round(total/480*100), 100);
-  var barCol = pct < 60 ? '#22c55e' : (pct < 90 ? '#f59e0b' : '#dc3545');
+  var barCol = pct < 60 ? 'var(--accent)' : (pct < 90 ? '#f59e0b' : '#dc3545');
   var startMins = dispatchParseClock(dispatchGetLaneStart(c.id)) || 480;
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
   var h = '<div data-node="c:'+c.id+'" style="position:absolute;top:0;left:0;width:'+DCV_CREW_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
@@ -820,7 +820,7 @@ function dcvMount(){
   h += '<button onclick="dispatchSetViewMode(\'list\')" style="border:0;border-left:1px solid '+T.border+';padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:transparent;color:'+T.ink+'">List</button>';
   h += '</div>';
   h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:#22c55e;color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill unassigned</button>';
+  h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:var(--accent);color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill unassigned</button>';
   h += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid '+T.border+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
   h += '</div>';
   h += '</div>';

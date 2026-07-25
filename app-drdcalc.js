@@ -106,7 +106,7 @@ function renderDrdCalc(){
         html+='<div class="drdc-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
           +thumb
           +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-          +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
+          +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:6px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdcStep('+i+',-1)" aria-label="Remove one"'+(c?'':' disabled')+'>&minus;</button>'
           +'<span class="drdc-count'+(c?' on':'')+'" id="drdc-qty-'+i+'">'+c+'</span>'
@@ -191,7 +191,7 @@ function drdcRemove(i){ drdcStep(i,-drdcQtyOf(i)); }
 function drdcGaugeVals(vol){
   var raw=vol/DRDC_CAP*100;
   return {raw:raw,pct:Math.round(raw),
-          color:raw<70?'#22c55e':(raw<100?'#eab308':'#dc3545'),
+          color:raw<70?'var(--accent)':(raw<100?'#eab308':'#dc3545'),
           dash:(DRDC_CIRC*(1-Math.min(raw,100)/100)).toFixed(1)};
 }
 // The job form's truck. Same photo, crop and crate packing as the quote page, with a
@@ -314,7 +314,7 @@ function drdcRenderChips(picked){
       +thumb
       +'<div style="line-height:1.25;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap">'+p.item.name+'</div>'
       +'<div style="font-size:10.5px;color:var(--muted);white-space:nowrap">'+p.qty+' × '+(p.item.vol||0)+' ft³</div></div>'
-      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;color:#22c55e;letter-spacing:.5px;margin-left:6px;white-space:nowrap">'+((p.item.vol||0)*p.qty)+'</span>'
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;color:var(--accent);letter-spacing:.5px;margin-left:6px;white-space:nowrap">'+((p.item.vol||0)*p.qty)+'</span>'
       +'<button type="button" class="drdc-chip-x" onclick="drdcRemove('+p.idx+')" title="Take '+p.item.name.replace(/"/g,'&quot;')+' off the truck" aria-label="Remove '+p.item.name.replace(/"/g,'&quot;')+'">&times;</button></div>';
   });
   list.innerHTML=html;

@@ -58,7 +58,7 @@ function damageCardHtml(d){
     ? '<img src="'+_cloudinaryDeliveryUrl(photos[0],{width:200})+'" alt="" style="width:74px;height:74px;object-fit:cover;border-radius:10px;flex-shrink:0">'
     : '<div style="width:74px;height:74px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">⚠️</div>';
   var statusBadge = d.status==='resolved'
-    ? '<span style="font-size:11px;font-weight:700;background:rgba(34,197,94,.13);color:#22c55e;border-radius:6px;padding:2px 9px">✓ Resolved</span>'
+    ? '<span style="font-size:11px;font-weight:700;background:rgba(34,197,94,.13);color:var(--accent);border-radius:6px;padding:2px 9px">✓ Resolved</span>'
     : '<span style="font-size:11px;font-weight:700;background:rgba(220,53,69,.12);color:#dc3545;border-radius:6px;padding:2px 9px">● Open</span>';
   var morePhotos = photos.length>1 ? '<span style="font-size:10px;color:var(--muted)">+'+(photos.length-1)+' photo'+(photos.length-1>1?'s':'')+'</span>' : '';
   var costStr = (d.cost!=null && d.cost!=='') ? fm(d.cost) : '';
@@ -126,7 +126,7 @@ function renderDamageBinPicker(selectedBid){
   var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
   var bins=[].concat(binItems||[]).sort(function(a,b){return (a.num||'').localeCompare(b.num||'');});
   var noneSel=!selectedBid;
-  var html='<div onclick="selectDamageBin(\'\')" style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:2px solid '+(noneSel?'#22c55e':'rgba(255,255,255,.1)')+';background:'+(noneSel?'rgba(34,197,94,.12)':'var(--surface)')+'">'
+  var html='<div onclick="selectDamageBin(\'\')" style="border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:2px solid '+(noneSel?'var(--accent)':'rgba(255,255,255,.1)')+';background:'+(noneSel?'rgba(34,197,94,.12)':'var(--surface)')+'">'
     +'<div style="font-size:18px;margin-bottom:4px">—</div><div style="font-size:13px;font-weight:700;color:var(--text)">None</div><div style="font-size:10px;color:var(--muted);margin-top:2px">no bin</div></div>';
   html+=bins.map(function(b){
     var isSel=b.bid===selectedBid;
@@ -137,7 +137,7 @@ function renderDamageBinPicker(selectedBid){
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+_dEsc(b.num||b.bid)+'</div>'
       +'<div style="font-size:10px;color:'+col+';margin-top:2px">'+_dEsc(b.size||'')+'</div>'
-      +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'#22c55e')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
       +'</div>';
   }).join('');
   grid.innerHTML=html;

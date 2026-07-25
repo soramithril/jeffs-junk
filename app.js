@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '468';
+var APP_VERSION = '469';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -89,7 +89,7 @@ function _showUpdateBanner(){
   card.innerHTML = '<div style="font-size:48px;margin-bottom:16px">🔄</div>'+
     '<div style="font-size:22px;font-weight:800;margin-bottom:10px">New version available</div>'+
     '<div style="font-size:14px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:28px">A newer version of the dashboard is ready. Update now to get the latest features and fixes.</div>'+
-    '<button style="background:#22c55e;color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Update now</button>';
+    '<button style="background:var(--accent-hero);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Update now</button>';
   o.appendChild(card);
   o.onclick = function(){ location.reload(); };
   document.body.appendChild(o);
@@ -2555,7 +2555,7 @@ function renderDashVehicleStatus(){
       status=todayBlock.reason||'Blocked';
       statusCol='#dc3545';statusIcon='🔧';statusTip=status+(todayBlock.notes?' — '+todayBlock.notes:'')+' · click to manage';
     } else {
-      status='Available';statusCol='#22c55e';statusIcon='';statusTip='Available · click to manage';
+      status='Available';statusCol='var(--accent)';statusIcon='';statusTip='Available · click to manage';
     }
     var dotColor=statusCol;
     var menuId='veh-menu-'+v.vid;
@@ -2879,7 +2879,7 @@ async function renderDashMaintAlert(){
 function _cityColor(city){
   if(!city) return null;
   var palette=[
-    {bg:'rgba(34,197,94,.15)',  fg:'#4ade80', bd:'rgba(34,197,94,.4)',  ac:'#22c55e'},
+    {bg:'rgba(34,197,94,.15)',  fg:'#4ade80', bd:'rgba(34,197,94,.4)',  ac:'var(--accent)'},
     {bg:'rgba(168,85,247,.15)', fg:'#c084fc', bd:'rgba(168,85,247,.4)', ac:'#a855f7'},
     {bg:'rgba(245,158,11,.15)', fg:'#fbbf24', bd:'rgba(245,158,11,.4)', ac:'#f59e0b'},
     {bg:'rgba(236,72,153,.15)', fg:'#f472b6', bd:'rgba(236,72,153,.4)', ac:'#ec4899'},
@@ -3224,7 +3224,7 @@ async function renderBinsAttention(){
   }
 
   if(!att.length){
-    host.innerHTML=emptyStateHTML('<span style="color:#22c55e">'+_svgIcon('check',40)+'</span>','All Clear','No bins are overdue or out longer than expected. Nice work.');
+    host.innerHTML=emptyStateHTML('<span style="color:var(--accent)">'+_svgIcon('check',40)+'</span>','All Clear','No bins are overdue or out longer than expected. Nice work.');
     return;
   }
 
@@ -3248,7 +3248,7 @@ async function renderBinsAttention(){
     detailBits.push(pickInfo);
     var daysPill='<span style="font-size:11px;font-weight:700;background:'+c.pBg+';color:'+c.pFg+';border:1px solid '+c.pBd+';border-radius:5px;padding:2px 9px;white-space:nowrap;justify-self:end">'+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var actionBtn=hasBin
-      ? '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35);justify-self:end">'+_svgIcon('check',12,'margin-right:4px')+'Picked Up</button>'
+      ? '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:var(--accent);border-color:rgba(34,197,94,.35);justify-self:end">'+_svgIcon('check',12,'margin-right:4px')+'Picked Up</button>'
       : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:#e67e22;border-color:rgba(230,126,34,.4);justify-self:end">'+_svgIcon('box',12,'margin-right:4px')+'Assign Bin</button>';
     return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:12.5px" onclick="openDetail(\''+j.id+'\')">'
       +binPill
@@ -3665,7 +3665,7 @@ async function renderDash(bg){
               +'<div style="font-size:11px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+j.id+(j.service?'<span style="margin-left:6px">'+j.service+'</span>':'')+'</div>'
             +'</div>'
             +'<div class="jdd-wrap" style="flex-shrink:0" onclick="event.stopPropagation()">'
-              +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.3);color:#22c55e;font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07)" onclick="toggleJdd(this.parentElement)">Confirm '+cfmLabel+' ▾</button>'
+              +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.3);color:var(--accent);font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07)" onclick="toggleJdd(this.parentElement)">Confirm '+cfmLabel+' ▾</button>'
               +'<div class="jdd-menu">'
                 +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Mark Confirmed</div>'
                 +'<div class="jdd-divider"></div>'
@@ -3896,7 +3896,7 @@ async function renderDashBinsOut(){
   var sub=document.getElementById('dash-bins-out-sub');
   if(sub) sub.innerHTML = nOut+' out · grouped by size'+(nAttn?' · <span style="color:#dc3545;font-weight:700">⚠ '+nAttn+' need attention</span>':'');
   if(!nOut){
-    el.innerHTML=emptyStateHTML('<span style="color:#22c55e">'+_svgIcon('home',40)+'</span>','All Bins Home','Every bin is back in the yard. Ready for the next job.');
+    el.innerHTML=emptyStateHTML('<span style="color:var(--accent)">'+_svgIcon('home',40)+'</span>','All Bins Home','Every bin is back in the yard. Ready for the next job.');
     return;
   }
   var grouped={};
@@ -4227,7 +4227,7 @@ function binDropBtn(j){
   // Read-only status display — drop/pickup actions live on the dashboard
   var label, color, dot, bg, border;
   if(st==='pickedup'){  label='✔ Picked Up';   color='rgba(107,117,133,.8)'; dot='#94a3b8'; bg='rgba(107,117,133,.08)'; border='rgba(107,117,133,.3)'; }
-  else if(st==='dropped'){ label='🚛 Dropped';  color='#22c55e';              dot='#22c55e'; bg='rgba(34,197,94,.07)';   border='rgba(34,197,94,.3)';   }
+  else if(st==='dropped'){ label='🚛 Dropped';  color='var(--accent)';              dot='var(--accent)'; bg='rgba(34,197,94,.07)';   border='rgba(34,197,94,.3)';   }
   else {                   label='⏳ Not Dropped'; color='#e67e22';            dot='#e67e22'; bg='rgba(230,126,34,.08)';  border='rgba(230,126,34,.4)';  }
   return '<td class="jcell-drop" style="padding:8px 12px">'
     +'<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+border+';background:'+bg+';color:'+color+'">'
@@ -4246,14 +4246,14 @@ function confirmedHtml(id, confirmed, service, status, binInstatus){
   var html = '<td class="jcell-confirm" onclick="event.stopPropagation()" style="padding:8px 12px">'
     +'<div class="jdd-wrap">'
     +'<button class="jdd-btn" onclick="jddToggle(event,\''+id+'\',\'confirm\')" '
-    +' style="border-color:'+(isConf?'rgba(34,197,94,.3)':'rgba(230,126,34,.4)')+';color:'+(isConf?'#22c55e':'#e67e22')+';background:'+(isConf?'rgba(34,197,94,.07)':'rgba(230,126,34,.06)')+';">'
-    +'<span style="width:7px;height:7px;border-radius:50%;background:'+(isConf?'#22c55e':'#e67e22')+';flex-shrink:0;display:inline-block"></span>'
+    +' style="border-color:'+(isConf?'rgba(34,197,94,.3)':'rgba(230,126,34,.4)')+';color:'+(isConf?'var(--accent)':'#e67e22')+';background:'+(isConf?'rgba(34,197,94,.07)':'rgba(230,126,34,.06)')+';">'
+    +'<span style="width:7px;height:7px;border-radius:50%;background:'+(isConf?'var(--accent)':'#e67e22')+';flex-shrink:0;display:inline-block"></span>'
     +(isConf?'✅ '+label+' Confirmed':'📞 Confirm '+label)+' <span class="jdd-caret">▼</span></button>'
     +'<div class="jdd-menu">'
     +'<button class="jdd-item'+(isConf?'':' active-item')+'" data-action="confirm" data-jid="'+id+'">'
     +'<span class="jdd-dot" style="background:#e67e22"></span>📞 Needs Confirming</button>'
     +'<button class="jdd-item'+(isConf?' active-item':'')+'" data-action="unconfirm" data-jid="'+id+'">'
-    +'<span class="jdd-dot" style="background:#22c55e"></span>✅ '+label+' Confirmed</button>'
+    +'<span class="jdd-dot" style="background:var(--accent)"></span>✅ '+label+' Confirmed</button>'
     +'</div></div></td>';
   return html;
 }
@@ -4338,7 +4338,7 @@ function makeCancelledRow(j){
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
-    +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:var(--accent);border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('edit',15)+'</button>'
     +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('del',15)+'</button>'
     +'</div></td></tr>';
@@ -4351,7 +4351,7 @@ function makeCancelledRowWithSvc(j){
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
-    +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:var(--accent);border-color:rgba(34,197,94,.25)" title="Restore job">↩ Restore</button>'
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('edit',15)+'</button>'
     +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('del',15)+'</button>'
     +'</div></td></tr>';
@@ -4367,7 +4367,7 @@ function makeCompletedRow(j){
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td></td><td></td><td></td>'
     +'<td><div style="display:flex;gap:8px">'
-    +'<button class="btn btn-ghost btn-sm" data-action="reopen-complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:#22c55e;border-color:rgba(34,197,94,.3)" title="Reopen job">↩ Reopen</button>'
+    +'<button class="btn btn-ghost btn-sm" data-action="reopen-complete" data-jid="'+j.id+'" style="font-size:11px;padding:6px 10px;color:var(--accent);border-color:rgba(34,197,94,.3)" title="Reopen job">↩ Reopen</button>'
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('edit',15)+'</button>'
     +'<button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:13px;padding:7px 11px">'+lineIcon('del',15)+'</button>'
     +'</div></td></tr>';
@@ -5720,7 +5720,7 @@ async function openClientDetail(cid){
     var binInfo=j.service==='Bin Rental'&&j.binSize?' <span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'';
     var dropInfo='';
     if(j.service==='Bin Rental'){
-      dropInfo=j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:#22c55e">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
+      dropInfo=j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:var(--accent)">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
     }
     return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\',\''+cid+'\')" style="cursor:pointer">'
       +'<td>'+jid(j.id,j.service)+'</td>'
@@ -5828,7 +5828,7 @@ function makeBarChart(data, colorFn, displayFn){
   return data.map(function(d){
     var pct = Math.round((d.val||0)/max*100);
     var display = displayFn ? displayFn(d.val) : (d.display!==undefined ? d.display : d.val);
-    var color = colorFn ? colorFn(d.key, data.indexOf(d)) : '#22c55e';
+    var color = colorFn ? colorFn(d.key, data.indexOf(d)) : 'var(--accent)';
     return '<div class="bar-row">'
       +'<div class="bar-label" title="'+d.key+'">'+d.key+'</div>'
       +'<div class="bar-track"><div class="bar-fill bar-anim" data-w="'+pct+'%" style="background:'+color+'"></div></div>'
@@ -5933,7 +5933,7 @@ function renderPricingGrids(){
     if(!ourVal) return '<td style="padding:10px 14px;text-align:center"><div style="font-weight:700">'+pretax+'</div><div style="font-size:11px;color:var(--muted)">'+withtax+' w/tax</div></td>';
     var diff = parseFloat(val)-parseFloat(ourVal);
     var pct = parseFloat(ourVal) ? Math.round(diff/parseFloat(ourVal)*100) : 0;
-    var color = diff>0?'#22c55e':diff<0?'#dc3545':'var(--muted)';
+    var color = diff>0?'var(--accent)':diff<0?'#dc3545':'var(--muted)';
     var arrow = diff>0?'▲':diff<0?'▼':'=';
     return '<td style="padding:10px 14px;text-align:center">'
       +'<div style="font-weight:700">'+pretax+'</div>'
@@ -6122,10 +6122,10 @@ function renderOurPrices(){
   +'<button class="btn btn-ghost" onclick="addOurPricingArea()" style="padding:8px 16px;border-radius:24px;border:1.5px dashed var(--border);font-size:13px;margin-top:12px">+ Add Town</button>';
 
   // Bin Rental card — GREEN theme
-  var binCard = '<div style="background:var(--surface);border:1px solid var(--border);border-top:5px solid #22c55e;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.04)">'
+  var binCard = '<div style="background:var(--surface);border:1px solid var(--border);border-top:5px solid var(--accent);border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.04)">'
     +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">'
     +'<div style="width:36px;height:36px;border-radius:10px;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;font-size:20px">🟢</div>'
-    +'<div><div style="font-size:18px;font-weight:700;color:#22c55e">Bin Rental</div>'
+    +'<div><div style="font-size:18px;font-weight:700;color:var(--accent)">Bin Rental</div>'
     +'<div style="font-size:12px;color:var(--muted)">Per-delivery price for each bin size</div></div>'
     +'</div>'
 
@@ -6178,7 +6178,7 @@ function renderOurPrices(){
 
   var areaBadge = '<div style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;margin-bottom:20px">'
     +'<span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Editing prices for</span>'
-    +'<span style="font-size:15px;font-weight:700;color:#22c55e">📍 '+_pvEsc(activeOurArea)+'</span>'
+    +'<span style="font-size:15px;font-weight:700;color:var(--accent)">📍 '+_pvEsc(activeOurArea)+'</span>'
     +(ap.zone?'<span class="pv-lg-chip '+_pvZoneClass(ap.zone)+'">'+_pvZoneEmoji(ap.zone)+' '+_pvEsc(_pvZoneLabel(ap.zone))+'</span>':'')
     +(ap.driveTime?'<span style="font-size:12px;color:var(--muted)">~'+_pvEsc(ap.driveTime)+' drive</span>':'')
     +'</div>';
@@ -6389,7 +6389,7 @@ function geocode(addr,cb){
     .catch(function(){cb(null);});
 }
 function pinIcon(status){
-  var c=status==='Cancelled'?'#666666':'#22c55e';
+  var c=status==='Cancelled'?'#666666':'var(--accent)';
   var html='<div style="position:relative;width:30px;height:40px"><svg viewBox="0 0 30 40" width="30" height="40" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))"><path d="M15 0C6.7 0 0 6.7 0 15 0 25.5 15 40 15 40S30 25.5 30 15C30 6.7 23.3 0 15 0z" fill="'+c+'"/><circle cx="15" cy="15" r="7" fill="rgba(0,0,0,.2)"/></svg><div style="position:absolute;top:7px;left:7px;font-size:13px">🚛</div></div>';
   return L.divIcon({html:html,iconSize:[30,40],iconAnchor:[15,40],popupAnchor:[0,-42],className:''});
 }
@@ -6525,12 +6525,12 @@ function renderBinInventory(){
   var needDecals=fleetCount('decals'), needRepaint=fleetCount('repaint'), idle90=fleetCount('idle90');
   var bar=function(lbl,right,pct,grad){return '<div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">'+lbl+'</span><span style="font-size:12px;color:var(--text-secondary);font-weight:600">'+right+'</span></div><div style="height:9px;border-radius:6px;background:var(--surface2);overflow:hidden"><div style="height:100%;border-radius:6px;background:'+grad+';width:'+pct+'%"></div></div></div>';};
   var tileBase='text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 13px;cursor:pointer;font-family:inherit;';
-  var mkTile=function(f,n,lbl,danger){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+tileBase+'border-top:3px solid '+(danger?'#dc3545':'#eab308')+';'+(on?'box-shadow:0 0 0 2px #22c55e inset':'')+'"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:27px;line-height:1;color:var(--text)">'+n+'</div><div style="font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:3px;line-height:1.2">'+lbl+'</div></button>';};
+  var mkTile=function(f,n,lbl,danger){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+tileBase+'border-top:3px solid '+(danger?'#dc3545':'#eab308')+';'+(on?'box-shadow:0 0 0 2px var(--accent) inset':'')+'"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:27px;line-height:1;color:var(--text)">'+n+'</div><div style="font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:3px;line-height:1.2">'+lbl+'</div></button>';};
   var sumEl=document.getElementById('fleet-summary');
   if(sumEl) sumEl.innerHTML=
     '<div class="fleet-summary-bars">'
       +bar('Fleet deployed', out+' of '+total+' out · '+deployedPct+'%', deployedPct, 'linear-gradient(90deg,#dc3545,#f97316)')
-      +bar('🖌️ All-green conversion', greens+' of '+total+' green · '+blacks+' still black', greenPct, '#22c55e')
+      +bar('🖌️ All-green conversion', greens+' of '+total+' green · '+blacks+' still black', greenPct, 'var(--accent)')
     +'</div><div class="fleet-tiles">'
       +mkTile('decals',needDecals,'Needs decals',false)
       +mkTile('repaint',needRepaint,'Needs repaint',false)
@@ -6560,7 +6560,7 @@ function renderFleet(){
   var chipBase='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mkChip=function(f,lbl,dot){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+chipBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+fleetCount(f)+'</span></button>';};
   var chipsEl=document.getElementById('fleet-chips');
-  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','#22c55e'),mkChip('out','Out','#dc3545'),mkChip('oos','Out of service'),mkChip('nfr','Not for rent'),mkChip('green','Green','#22c55e'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
+  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','#dc3545'),mkChip('oos','Out of service'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
   // sort chips
   var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mkSort=function(k,lbl){var on=fleetSort===k;return '<button onclick="setFleetSort(\''+k+'\')" style="'+sortBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(on?lbl+(fleetSortDir===1?'  ↑':'  ↓'):lbl)+'</button>';};
@@ -6623,7 +6623,7 @@ function binMetaHtml(b){
   var d=binIdleDays(b), band=d>=90?'#b02633':(d>=30?'#a16207':'#15803d');
   return '<span style="font-weight:600;color:'+band+'">Idle '+d+'d</span>';
 }
-function _binColorHex(b){return b.color==='green'?'#22c55e':'#34373b';}
+function _binColorHex(b){return b.color==='green'?'var(--accent)':'#34373b';}
 function _binIsLow(b){return b.type==='low'||b.type==='wide';}
 function makeBinCard(b){
   var isIn=b.status==='in';
@@ -6919,10 +6919,10 @@ function renderLinkBinJobs(list){
     return '<div style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface2);display:flex;align-items:center;gap:10px;cursor:pointer" onclick="linkBinToJob(\''+_linkBinBid+'\',\''+j.id+'\')">'
       +'<div style="flex:1">'
         +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-          +'<span style="font-size:11px;color:#22c55e;font-weight:700">'+j.id+'</span>'
+          +'<span style="font-size:11px;color:var(--accent);font-weight:700">'+j.id+'</span>'
           +'<strong style="font-size:13px">'+j.name+'</strong>'
           +'<span style="font-size:11px;color:var(--muted)">'+fd(j.date)+'</span>'
-          +(j.binSize?'<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,.08);color:#22c55e">'+j.binSize+'</span>':'')
+          +(j.binSize?'<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,.08);color:var(--accent)">'+j.binSize+'</span>':'')
           +(hasOtherBin?'<span style="font-size:10px;color:#e67e22">Already has bin</span>':'')
         +'</div>'
         +(j.address?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+'</div>':'')
@@ -6949,7 +6949,7 @@ function openLinkBinFromJob(jobId){
   function cardHtml(b,isAvail){
     var col=sizeColors[b.size]||'#22c55e';
     var statusLbl=isAvail?'In Yard':'Out (other job)';
-    var statusCol=isAvail?'#22c55e':'#dc3545';
+    var statusCol=isAvail?'var(--accent)':'#dc3545';
     var clickHandler=isAvail
       ?"linkBinFromJob('"+b.bid+"')"
       :"_confirmReassignBinFromJob('"+b.bid+"','"+jobId+"')";
@@ -7135,10 +7135,10 @@ async function renderBinHistoryInto(bid, bodyEl, closeModalId){
   var closeJs=closeModalId?"closeM('"+closeModalId+"');":'';
   var html='<div style="font-size:12px;color:var(--muted);margin-bottom:12px">'+totalCount+' record'+(totalCount!==1?'s':'')+' found</div>';
   html+=histJobs.map(function(j){
-    var statusCol=j.status==='Cancelled'?'#dc3545':'#22c55e';
+    var statusCol=j.status==='Cancelled'?'#dc3545':'var(--accent)';
     return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="'+closeJs+'openDetail(\''+j.id+'\')">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:#22c55e;border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
+        +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:var(--accent);border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
         +'<strong style="font-size:13px">'+j.name+'</strong>'
         +'<span style="font-size:11px;color:var(--muted)">'+fd(j.date)+'</span>'
         +'<span style="font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;background:'+statusCol+'22;color:'+statusCol+'">'+j.status+'</span>'
@@ -7191,10 +7191,10 @@ async function openAssignBinPicker(jobId){
   } else {
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">';
     availBins.forEach(function(b){
-      html+='<div style="padding:10px;border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\'" onclick="doAssignBin(\''+jobId+'\',\''+b.bid+'\')">'
+      html+='<div style="padding:10px;border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .15s" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'" onclick="doAssignBin(\''+jobId+'\',\''+b.bid+'\')">'
         +'<div style="font-weight:700;font-size:14px">#'+b.num+'</div>'
         +'<div style="font-size:11px;color:var(--muted)">'+b.size+'</div>'
-        +'<div style="font-size:10px;color:'+(b.color==='green'?'#22c55e':'#888')+'">'+b.color+'</div>'
+        +'<div style="font-size:10px;color:'+(b.color==='green'?'var(--accent)':'#888')+'">'+b.color+'</div>'
         +'</div>';
     });
     html+='</div>';
@@ -7381,7 +7381,7 @@ async function openAssignCrewPicker(jobId, leg){
         +teamAvatar(c.name, crewAvatarColor(c.id), 32)
         +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+c.name+'</span>'
         +warn
-        +(on?'<span style="margin-left:auto;color:#22c55e;font-size:16px">✓</span>':'')
+        +(on?'<span style="margin-left:auto;color:var(--accent);font-size:16px">✓</span>':'')
         +'</div>';
     });
     html+='</div>';
@@ -8195,7 +8195,7 @@ async function maybeShowMorningBrief(){
         j.id+(j.binSize?' · '+j.binSize:'')+(j.address?' · '+escHtml((j.address||'').split(',')[0]):'')+(j.city?' · '+escHtml(j.city):''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.id+'\')',
         '📦 Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
-    }).join('') : '<div style="font-size:12.5px;color:#22c55e">All bins assigned ✓</div>';
+    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>';
   body += mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd');
   body += unemailed.length ? unemailed.map(function(j){
       var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
@@ -8203,7 +8203,7 @@ async function maybeShowMorningBrief(){
         j.job_id+' · '+escHtml(j.service||'')+(t?' · booked '+t:''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
         '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
-    }).join('') : '<div style="font-size:12.5px;color:#22c55e">Everyone got their confirmation ✓</div>';
+    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>';
 
   if(!document.getElementById('morning-brief-modal')){
     var div = document.createElement('div');
@@ -8482,7 +8482,7 @@ function renderBinPicker(selectedBid){
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:'+(isOut?'var(--muted)':'var(--text)')+'">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+(isOut?'var(--muted)':col)+';margin-top:2px">'+b.size+'</div>'
-      +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'#22c55e')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
       +'</div>';
   }).join('');
 }
@@ -8517,7 +8517,7 @@ function selectBinSize(sz, el){
   document.getElementById('f-bsize').value = sz;
   // Highlight the selected size button
   document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';b.style.opacity='';});
-  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='#22c55e';el.style.opacity='';}
+  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='var(--accent)';el.style.opacity='';}
   // Filter the bin grid to this size
   binPickerSzFilter = sz;
   var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
@@ -8529,7 +8529,7 @@ function selectBinSize(sz, el){
 function filterBinPicker(sz, el){
   binPickerSzFilter = sz;
   document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
-  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='#22c55e';}
+  if(el){el.classList.add('active');el.style.background='rgba(34,197,94,.12)';el.style.color='var(--accent)';}
   var currentBid = (document.getElementById('bin-picker-selected')||{}).dataset && document.getElementById('bin-picker-selected').dataset.bid;
   renderBinPicker(currentBid||'');
 }
@@ -8543,7 +8543,7 @@ function selectMaterial(val, btn){
   document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   btn.classList.add('active');
   btn.style.background='rgba(34,197,94,.12)';
-  btn.style.color='#22c55e';
+  btn.style.color='var(--accent)';
   document.getElementById('f-material-type').value=val;
 }
 function showMaterialType(){
@@ -8627,7 +8627,7 @@ function initBinPicker(existingBid, existingSize){
     var match = b.dataset.sz === binPickerSzFilter;
     b.classList.toggle('active', match);
     b.style.background = match ? 'rgba(34,197,94,.12)' : '';
-    b.style.color = match ? '#22c55e' : '';
+    b.style.color = match ? 'var(--accent)' : '';
   });
   // Set f-bsize so the job can save with just a size selected
   if(existingSize) document.getElementById('f-bsize').value = existingSize;
@@ -8819,7 +8819,7 @@ async function openEdit(id){
       initBinPicker(j.binBid||'', j.binSize||'');
       var matEl=document.getElementById('f-material-type');
       if(matEl)matEl.value=j.materialType||'';
-      document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';if(b.getAttribute('data-mat')===j.materialType){b.classList.add('active');b.style.background='rgba(34,197,94,.12)';b.style.color='#22c55e';}});
+      document.querySelectorAll('.mat-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';if(b.getAttribute('data-mat')===j.materialType){b.classList.add('active');b.style.background='rgba(34,197,94,.12)';b.style.color='var(--accent)';}});
       showMaterialType();
     }
     var ft2=document.getElementById('f-tools');if(ft2)ft2.value=j.toolsNeeded||'';
@@ -9376,7 +9376,7 @@ async function openDetail(id, returnCid){
   var bin='';
   if(j.service==='Bin Rental'){
     var sideLabel=j.binSide?(' · 🚗 '+binSideLabel(j.binSide)):'';
-    var bsStatus=j.binInstatus==='dropped'?'<span style="display:inline-flex;align-items:center;gap:5px;color:#22c55e;font-weight:700">'+iconTile('confirmed',{size:15})+'Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="display:inline-flex;align-items:center;gap:5px;color:#22c55e;font-weight:700">'+iconTile('confirmed',{size:15})+'Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
+    var bsStatus=j.binInstatus==='dropped'?'<span style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700">'+iconTile('confirmed',{size:15})+'Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700">'+iconTile('confirmed',{size:15})+'Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
     bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid">'
@@ -9397,7 +9397,7 @@ async function openDetail(id, returnCid){
         return '<div class="detail-item"><label>🚛 Dropped by</label><span>'+dropTxt+'</span></div>'
              + '<div class="detail-item"><label>🚚 Picked up by</label><span>'+pickTxt+'</span></div>';
       })()
-      +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.3);color:#22c55e;width:100%">'+lineIcon('binDrop',14)+' Assign Bin</button></div>')+'</div>';
+      +'</div>'+(j.binBid?'':'<div style="margin-top:8px"><button class="btn btn-ghost" onclick="openAssignBinPicker(\''+j.id+'\')" style="border-color:rgba(34,197,94,.3);color:var(--accent);width:100%">'+lineIcon('binDrop',14)+' Assign Bin</button></div>')+'</div>';
   }
   // Show recurring badge for non-bin services. The run's last booked visit is the
   // thing worth surfacing — nothing extends a run, so it needs to be seen running out.
@@ -9420,10 +9420,10 @@ async function openDetail(id, returnCid){
   var etransferNote='';
   if(j.payMethod==='E-Transfer'&&j.binInstatus==='pickedup'){
     etransferNote='<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(230,126,34,.07);border:1px solid rgba(230,126,34,.3);font-size:13px">'
-      +(j.etransferRefundSent?'<span style="display:inline-flex;align-items:center;gap:4px;color:#22c55e">'+iconTile('confirmed',{size:13})+'E-Transfer refund sent to customer</span>':'<span style="color:#e67e22">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
+      +(j.etransferRefundSent?'<span style="display:inline-flex;align-items:center;gap:4px;color:var(--accent)">'+iconTile('confirmed',{size:13})+'E-Transfer refund sent to customer</span>':'<span style="color:#e67e22">⏳ E-Transfer refund not yet sent</span> <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="markEtransferSent(\''+j.id+'\')">✅ Mark Refund Sent</button>')
       +'</div>';
   }
-  var confirmedBadge=j.confirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(34,197,94,.12);color:#22c55e">'+iconTile('confirmed',{size:13})+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
+  var confirmedBadge=j.confirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(34,197,94,.12);color:var(--accent)">'+iconTile('confirmed',{size:13})+(j.service==='Furniture Delivery'?'Drop-Off':'Pickup')+' Confirmed</span>':'';
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(13,110,253,.15);color:#0d6efd">'+lineIcon('email',13)+' Email Confirmed</span>':'';
   var detAddr=((j.address||'')+(j.city?', '+j.city:'')).trim();
   var detAddrCell=detAddr
@@ -9441,7 +9441,7 @@ async function openDetail(id, returnCid){
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
-    +(j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Extra Jobs'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):(isPossibleJob(j)?'<span style="color:#65a30d;font-style:italic">No date specified yet</span>':'—'))+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:#22c55e">'+fm(j.price)+'</span></div>':'')+((j.service==='Junk Removal'||j.service==='Extra Jobs')?_renderJunkRemovalPricing(j):'')+((j.service==='Junk Removal'||j.service==='Extra Jobs')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
+    +(j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Extra Jobs'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):(isPossibleJob(j)?'<span style="color:#65a30d;font-style:italic">No date specified yet</span>':'—'))+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:var(--accent)">'+fm(j.price)+'</span></div>':'')+((j.service==='Junk Removal'||j.service==='Extra Jobs')?_renderJunkRemovalPricing(j):'')+((j.service==='Junk Removal'||j.service==='Extra Jobs')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
     +((j.service==='Furniture Delivery'||j.service==='Furniture Pickup')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':'')
     +'</div></div>':'')
     +_renderItemsDetail(j)
@@ -9466,9 +9466,9 @@ async function openDetail(id, returnCid){
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'
     +'<button class="btn btn-primary det-full" onclick="openEdit(\''+j.id+'\')" style="padding:14px 20px;font-size:15px;justify-content:center">'+lineIcon('edit',14)+' Edit Job</button>'
     +(j.service==='Extra Jobs' ? '' : ((j.emailSent||j.emailConfirmed)
-      ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#22c55e;background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
+      ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
       :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
-    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="openQuoteInvite(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📅 Calendar Invite</button>':'')
@@ -9490,7 +9490,7 @@ async function openDetail(id, returnCid){
       var cbtns=[];
       if((j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed){
         var confirmLabel=j.service==='Furniture Delivery'?'Confirm Drop-Off':'Confirm Pickup';
-        cbtns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">📞 '+confirmLabel+'</button>');
+        cbtns.push('<button class="btn btn-ghost" onclick="markConfirmed(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">📞 '+confirmLabel+'</button>');
       }
       return cbtns.length ? '<div class="det-action-group"><div class="det-group-label">Confirmation</div><div class="det-btn-grid">'+cbtns.join('')+'</div></div>' : '';
     }())
@@ -9498,13 +9498,13 @@ async function openDetail(id, returnCid){
     // ── Group 3: Bin / Job Actions ──
     +(function(){
       var btns=[];
-      if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e;font-weight:700">⚡ Convert to Job</button>');
+      if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent);font-weight:700">⚡ Convert to Job</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22;position:relative">📅 Extend Pickup</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openRelocate(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🚚 Relocate</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚛 Mark Dropped</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:#22c55e">🚚 Mark Picked Up</button>');
+      if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚚 Mark Picked Up</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
       if(j.service==='Bin Rental'&&!j.binBid) btns.push('<button class="btn btn-ghost" onclick="openLinkBinFromJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🔗 Link a Bin</button>');
       if(j.service==='Bin Rental'){
@@ -9603,11 +9603,11 @@ function _renderJunkRemovalPricing(j){
       var d=parseFloat(actual)-parseFloat(quoted);
       if(Math.abs(d)>0.005){
         var s=d>0?'+':'−';
-        var c=d>0?'#22c55e':'#dc3545';
+        var c=d>0?'var(--accent)':'#dc3545';
         delta=' <span style="font-size:11px;font-weight:700;color:'+c+'">('+s+'$'+Math.abs(d).toFixed(2)+')</span>';
       }
     }
-    html+='<div class="detail-item"><label>💵 Actual Paid</label><span style="font-weight:700;color:#22c55e">'+fm(actual)+delta+'</span></div>';
+    html+='<div class="detail-item"><label>💵 Actual Paid</label><span style="font-weight:700;color:var(--accent)">'+fm(actual)+delta+'</span></div>';
   }
   return html;
 }
@@ -9698,7 +9698,7 @@ function renderDrdInDetail(j){
         var qty=qtys[i]||0;
         html+='<div class="drd-d-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
           +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-          +'<div style="font-size:11px;color:var(--muted)"><span style="color:#22c55e;font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
+          +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<input type="number" id="drd-d-qty-'+i+'" min="0" value="'+(qty||'')+'" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdDetailRecalc()">'
           +'</div>';
       });
@@ -9715,10 +9715,10 @@ function renderDrdInDetail(j){
     +'</div>';
 
   // Totals — mirrors the quote calculator (Items / Customer Pays / Tax Receipt Value)
-  html+='<div style="background:var(--surface);border:1px solid var(--border);border-top:2px solid #22c55e;padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">'
+  html+='<div style="background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">'
     +'<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Items</div><div style="font-size:22px;font-weight:800" id="drd-d-total-items">0</div></div>'
-    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:#22c55e;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:var(--accent);font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div></div>'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Tax Receipt Value</div><div style="font-size:28px;font-weight:800;color:#0d6efd;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-value">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Donation receipt total</div></div>'
     +'</div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-d-emailed" class="form-input" value="'+_esc(emailedDate)+'" style="font-size:12px;padding:4px 8px"></div>'
@@ -10712,7 +10712,7 @@ async function doLogin() {
     errEl.style.fontWeight = '600';
     errEl.style.fontSize = '14px';
     btn.textContent = 'Sign In';
-    btn.style.background = '#22c55e';
+    btn.style.background = 'var(--accent)';
     btn.disabled = false;
     document.getElementById('login-password').value = '';
     document.getElementById('login-password').focus();
@@ -12042,7 +12042,7 @@ function _furnPriceRow(idx, name, fee, val, hidden, isNew){
     +'<div style="flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+name+'">'+name+(vol?' <span style="color:var(--muted);font-size:11px">· '+vol+' ft³</span>':'')+'</div>'
     +'<input type="number" class="furn-fee" min="0" step="0.01" value="'+fee+'" style="width:80px;'+inpCss+'">'
     +'<input type="number" class="furn-val" min="0" step="0.01" value="'+val+'" style="width:80px;'+inpCss+'">'
-    +'<button title="'+(hidden?'Restore':'Hide')+'" onclick="furnToggleHide(this)" style="background:none;border:none;color:'+(hidden?'#22c55e':'#dc3545')+';cursor:pointer;font-size:15px;padding:0 4px;width:24px">'+(hidden?'↺':'×')+'</button>'
+    +'<button title="'+(hidden?'Restore':'Hide')+'" onclick="furnToggleHide(this)" style="background:none;border:none;color:'+(hidden?'var(--accent)':'#dc3545')+';cursor:pointer;font-size:15px;padding:0 4px;width:24px">'+(hidden?'↺':'×')+'</button>'
     +'</div>';
 }
 function furnToggleHide(btn){
@@ -12051,7 +12051,7 @@ function furnToggleHide(btn){
   row.setAttribute('data-hidden', hidden?'1':'0');
   row.style.opacity=hidden?'.5':'';
   btn.textContent=hidden?'↺':'×';
-  btn.style.color=hidden?'#22c55e':'#dc3545';
+  btn.style.color=hidden?'var(--accent)':'#dc3545';
   btn.title=hidden?'Restore':'Hide';
 }
 function furnAddNewRow(){
@@ -12678,7 +12678,7 @@ var _vehFilter = 'all';                                                 // all |
 var _vehView = (function(){ try { return localStorage.getItem('vehView') || 'cards'; } catch(e){ return 'cards'; } })();
 var _vehShop = {vid:null, reason:'', note:'', backBy:''};               // inline send-to-shop draft
 var _VEH_META = {
-  good:{dot:'#22c55e',pill:'✅ All good',pc:'#15803d',pb:'rgba(34,197,94,.12)'},
+  good:{dot:'var(--accent)',pill:'✅ All good',pc:'#15803d',pb:'rgba(34,197,94,.12)'},
   soon:{dot:'#eab308',pill:'🟡 Attention soon',pc:'#a16207',pb:'rgba(234,179,8,.14)'},
   due :{dot:'#dc3545',pill:'🔴 Service due',pc:'#b4232f',pb:'rgba(220,53,69,.1)'},
   shop:{dot:'#e67e22',pill:'🔧 In the shop',pc:'#c2410c',pb:'rgba(230,126,34,.13)'}
@@ -12769,7 +12769,7 @@ function renderVehicles(){
   if(inboxEl) inboxEl.innerHTML = _renderVehAttention(rows);
   if(filtersEl) filtersEl.innerHTML = _renderVehToolbar(rows.length, good, needs, shop);
   var legend = '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:0 2px 14px">'
-    +_vehLegend('#22c55e','All good')+_vehLegend('#eab308','Attention soon')+_vehLegend('#dc3545','Service due now')+_vehLegend('#e67e22','In the shop')+'</div>';
+    +_vehLegend('var(--accent)','All good')+_vehLegend('#eab308','Attention soon')+_vehLegend('#dc3545','Service due now')+_vehLegend('#e67e22','In the shop')+'</div>';
   var filtered = rows.filter(function(x){return vehFilterPass(x.ov,_vehFilter);});
   var body;
   if(!filtered.length){
@@ -12806,7 +12806,7 @@ function _renderVehToolbar(total,good,needs,shop){
   var cb='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mk=function(f,lbl,n,dot){var on=_vehFilter===f;return '<button onclick="setVehFilter(\''+f+'\')" style="'+cb+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+n+'</span></button>';};
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<div class="bf-scroll" style="display:flex;gap:7px;overflow-x:auto;flex:1;min-width:0">'+mk('all','All',total)+mk('good','Good',good,'#22c55e')+mk('needs','Needs service',needs,'#dc3545')+mk('shop','In the shop',shop,'#e67e22')+'</div>'
+    +'<div class="bf-scroll" style="display:flex;gap:7px;overflow-x:auto;flex:1;min-width:0">'+mk('all','All',total)+mk('good','Good',good,'var(--accent)')+mk('needs','Needs service',needs,'#dc3545')+mk('shop','In the shop',shop,'#e67e22')+'</div>'
     +'<div class="fleet-view-toggle" style="display:inline-flex;gap:3px;background:var(--surface2);border-radius:10px;padding:3px"><button onclick="setVehView(\'cards\')" class="'+(_vehView==='cards'?'on':'')+'">▦ Cards</button><button onclick="setVehView(\'table\')" class="'+(_vehView==='table'?'on':'')+'">≡ List</button></div>'
   +'</div>';
 }
@@ -13009,7 +13009,7 @@ async function renderMaintenance(){
       schedEl.innerHTML='<div class="chart-card" style="padding:0;overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--border)"><div class="card-head" style="margin:0">🔧 Service Schedules</div></div>'+emptyStateHTML('🔧','No schedules yet','Add km-based service schedules on the Vehicles page.')+'</div>';
     } else {
       rows.sort(function(a,b){ var ak=a.kmLeft==null?1e12:a.kmLeft, bk=b.kmLeft==null?1e12:b.kmLeft; return ak-bk; });
-      var SC={overdue:{bd:'#dc3545',bg:'rgba(220,53,69,.15)',fg:'#dc3545',pbd:'rgba(220,53,69,.4)'},due:{bd:'#e67e22',bg:'rgba(230,126,34,.15)',fg:'#e67e22',pbd:'rgba(230,126,34,.4)'},ok:{bd:'#22c55e',bg:'rgba(34,197,94,.12)',fg:'#16a34a',pbd:'rgba(34,197,94,.35)'}};
+      var SC={overdue:{bd:'#dc3545',bg:'rgba(220,53,69,.15)',fg:'#dc3545',pbd:'rgba(220,53,69,.4)'},due:{bd:'#e67e22',bg:'rgba(230,126,34,.15)',fg:'#e67e22',pbd:'rgba(230,126,34,.4)'},ok:{bd:'var(--accent)',bg:'rgba(34,197,94,.12)',fg:'#16a34a',pbd:'rgba(34,197,94,.35)'}};
       var body=rows.map(function(r,idx){
         var c=SC[r.sev];
         var zebra=idx%2?'rgba(0,0,0,.018)':'transparent';
@@ -13023,7 +13023,7 @@ async function renderMaintenance(){
           +'<td style="padding:9px 12px;color:var(--muted)">'+last+'</td>'
           +'<td style="padding:9px 12px">'+(r.s.next_due_km!=null?r.s.next_due_km.toLocaleString()+' km':'—')+'</td>'
           +'<td style="padding:9px 12px">'+pill+'</td>'
-          +'<td style="padding:9px 12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+r.s.id+'\',\''+r.v.vid+'\')" style="font-size:11px;white-space:nowrap;color:#22c55e;border-color:rgba(34,197,94,.35)">✅ Mark serviced</button></td>'
+          +'<td style="padding:9px 12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+r.s.id+'\',\''+r.v.vid+'\')" style="font-size:11px;white-space:nowrap;color:var(--accent);border-color:rgba(34,197,94,.35)">✅ Mark serviced</button></td>'
         +'</tr>';
       }).join('');
       schedEl.innerHTML='<div class="chart-card" style="padding:0;overflow:hidden">'
@@ -13209,7 +13209,7 @@ function renderBinSizeAvailability(){
       badge.textContent='Fully Booked';
       if(btn && !btn.classList.contains('active')) btn.style.opacity='0.7';
     } else {
-      badge.style.color='#22c55e';
+      badge.style.color='var(--accent)';
       badge.textContent=r.available+' left';
     }
   });
@@ -15263,7 +15263,7 @@ function renderDashCrewStatus(){
   var ds=dashSelectedDate();
   el.innerHTML=crewMembers.map(function(c){
     var st=crewStatusForDate(c.id, ds);
-    var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'#22c55e';
+    var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'var(--accent)';
     var icon=st.state==='off'?'🚫':st.state==='partial'?'⏱':'';
     var tip=(st.state==='free'?'Available':st.label)+' · click to manage';
     var menuId='crew-menu-'+c.id;
