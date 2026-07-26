@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '488';
+var APP_VERSION = '489';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3016,7 +3016,7 @@ async function refreshDashJobs(){
         var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
         var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
-        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+j.businessName+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
@@ -3682,7 +3682,7 @@ async function renderDash(bg){
         var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
         var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
-        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+j.businessName+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
@@ -3968,7 +3968,7 @@ async function renderWillCallCard(){
     var dropD=j.binDropoff||j.date;
     var days=dropD?Math.max(0,Math.floor((Date.now()-new Date(dropD+'T12:00:00'))/86400000)):0;
     var daysPill='<span class="djj-days'+(days>=14?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
-    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+j.businessName+'</span>':'';
+    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>':'';
     var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+j.phone+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
     return '<div class="djj-row" style="--djj-c:#e67e22" onclick="openDetail(\''+j.id+'\')">'
@@ -4014,7 +4014,7 @@ async function renderDashBinsOut(){
     var bidColor=attn?'#dc3545':(hasBin?'#9aa39b':'#0d6efd');
     var cc=(typeof _cityColor==='function')?_cityColor(j.city):null;
     var cityChip=(j.city&&cc)?'<span class="djj-city" style="background:'+cc.bg+';color:'+cc.fg+'">'+_esc(j.city)+'</span>':'';
-    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+_esc(j.businessName)+'</span>':'';
+    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+_esc(j.businessName)+'</span>':'';
     var addr=j.address?_esc(j.address.split(',')[0]):'';
     var subLine = attn
       ? lineIcon('damage',12,'currentColor')+' '+(j._overdue?('overdue — pickup was '+fd(j.binPickup)):('out '+j._days+' days'))
