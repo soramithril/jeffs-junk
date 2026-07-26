@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '479';
+var APP_VERSION = '480';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8237,6 +8237,7 @@ function _getUnassignedBinJobs(){
 // greeting (Jake 2026-07-25, replacing the earlier nothing-outstanding-no-popup
 // rule). Called at the end of the dashboard data load so the greeting's job
 // count and loose-end count are already in when the entrance animation plays.
+var _jjBriefTimer=null;
 async function maybeShowMorningBrief(){
   var today = todayStr();
   if(localStorage.getItem('jjBriefDay') === today) return;
@@ -8286,6 +8287,15 @@ async function maybeShowMorningBrief(){
   document.getElementById('mb-body').innerHTML = body;
   document.getElementById('morning-brief-modal').classList.add('open');
   jjApplyVibe(); // paints today's vibe AND replays the greeting entrance, now that it's visible
+  // Shows itself out after 4s (Jake 2026-07-25). Checks it is still open first:
+  // clicking Assign or Email closes this modal and opens another, and closeM
+  // clears body.modal-open, so firing blind would reach under whatever the
+  // click opened and unlock page scroll behind it.
+  clearTimeout(_jjBriefTimer);
+  _jjBriefTimer = setTimeout(function(){
+    var el = document.getElementById('morning-brief-modal');
+    if(el.classList.contains('open')) closeM('morning-brief-modal');
+  }, 4000);
 }
 
 function _removeBinChip(){

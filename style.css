@@ -2264,7 +2264,7 @@ input[type=date],input[type=time]{position:relative;}
 /* Both panes ride above the vibe layers, which span the whole card. */
 #mb-greet,#mb-body{position:relative;z-index:2;}
 #mb-greet{flex:0 0 34%;display:flex;flex-direction:column;padding:34px 30px 26px;}
-#mb-gotit{margin-top:auto;align-self:stretch;}
+#mb-gotit{margin-top:auto;align-self:center;min-width:220px;}
 #mb-body{flex:1;min-width:0;overflow-y:auto;padding:34px 36px 26px;}
 .mb-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
 @media (max-width:900px){
