@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=468">
+<link rel="stylesheet" href="style.css?v=470">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=399">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -69,7 +69,7 @@
       </div>
       <div id="login-error" style="color:#dc3545;font-size:14px;font-weight:600;min-height:20px;margin-bottom:14px;padding:0 2px;line-height:1.4;"></div>
       <button onclick="doLogin()" id="login-btn"
-        style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .15s;letter-spacing:.5px;box-shadow:0 4px 16px rgba(34,197,94,.3);"
+        style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#16a34a);color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .15s;letter-spacing:.5px;box-shadow:0 4px 16px rgba(34,197,94,.3);"
         onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
         Sign In
       </button>
@@ -92,7 +92,7 @@
        alt="Jeff's Junk"
        style="width:200px;max-width:70%;animation:logoFadeIn 0.9s cubic-bezier(0.16,1,0.3,1) both;position:relative;z-index:1;">
   <div style="width:280px;height:6px;background:rgba(34,197,94,.12);border-radius:99px;overflow:hidden;border:1px solid rgba(34,197,94,.15);position:relative;z-index:1;">
-    <div id="load-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:99px;transition:width .4s ease;"></div>
+    <div id="load-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#16a34a);border-radius:99px;transition:width .4s ease;"></div>
   </div>
   <p id="sb-loading-msg" style="color:#9ca3af;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;min-height:20px;position:relative;z-index:1;"></p>
 </div>
@@ -261,7 +261,7 @@
         <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Fleet deployed</span>
         <span id="dash-fleet-deployed-lbl" style="font-size:11px;color:var(--text-secondary);font-weight:600">0 of 0 out · <span style="color:var(--accent);font-weight:800">0%</span></span>
       </div>
-      <div style="height:8px;background:var(--surface2);border-radius:6px;overflow:hidden"><div id="dash-fleet-deployed-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:6px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>
+      <div style="height:8px;background:var(--surface2);border-radius:6px;overflow:hidden"><div id="dash-fleet-deployed-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--green-s2),var(--green-s4));border-radius:6px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>
     </div>
     <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div>
   </div>
@@ -326,7 +326,7 @@
         </div>
       </div>
       <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;background:#16a34a;border-radius:11px 11px 0 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;background:linear-gradient(135deg,var(--green-s3),var(--green-s4));border-radius:11px 11px 0 0;">
           <div style="display:flex;align-items:center;gap:11px">
             <div id="workload-header" class="card-head" style="color:#fff">Today's Jobs</div>
             <span id="dash-today-jobcount" style="display:none;align-items:center;background:rgba(255,255,255,.22);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:21px;line-height:1;padding:3px 13px;border-radius:99px;letter-spacing:1px;white-space:nowrap"></span>
@@ -663,7 +663,7 @@
         <div style="display:flex;align-items:center;gap:8px;">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="color:var(--accent);flex-shrink:0"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           <span style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)">Filter by Job Count</span>
-          <span id="client-range-active-badge" style="display:none;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px">ACTIVE</span>
+          <span id="client-range-active-badge" style="display:none;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--accent);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px">ACTIVE</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();clearClientRangeFilters()" id="client-range-clear-btn" style="font-size:11px;padding:4px 10px;opacity:0;pointer-events:none;transition:opacity .2s;">✕ Clear All</button>
@@ -676,8 +676,8 @@
           <!-- Bins -->
           <div class="crange-card" data-color="#22c55e" data-color-dim="rgba(34,197,94,.1)">
             <div class="crange-card-header">
-              <span class="crange-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.5)"></span>
-              <span class="crange-label" style="color:#22c55e">Bin Rentals</span>
+              <span class="crange-dot" style="background:var(--accent);box-shadow:0 0 6px rgba(34,197,94,.5)"></span>
+              <span class="crange-label" style="color:var(--accent)">Bin Rentals</span>
             </div>
             <div class="crange-inputs">
               <div class="crange-field">
@@ -1065,7 +1065,7 @@
 
   <!-- Ranked driver/crew cards -->
   <div style="font-weight:700;font-size:16px;margin-bottom:4px;" id="lb-rankings-title">Rankings</div>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Safety score: <span style="color:#22c55e;font-weight:600">90+ great</span> · <span style="color:#e67e22;font-weight:600">70–89 okay</span> · <span style="color:#dc3545;font-weight:600">under 70 needs attention</span></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Safety score: <span style="color:var(--accent);font-weight:600">90+ great</span> · <span style="color:#e67e22;font-weight:600">70–89 okay</span> · <span style="color:#dc3545;font-weight:600">under 70 needs attention</span></div>
   <div id="page-leaderboard"></div>
 
   <!-- Crew Assignments (admin task — kept below the rankings) -->
@@ -1419,9 +1419,9 @@
 
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div style="position:relative;width:84px;height:84px;flex:none">
-          <svg viewBox="0 0 120 120" width="84" height="84" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface2)" stroke-width="12"></circle><circle id="drdc-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
+          <svg viewBox="0 0 120 120" width="84" height="84" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface2)" stroke-width="12"></circle><circle id="drdc-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
           <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <div id="drdc-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:27px;line-height:.82;color:#22c55e"><span id="drdc-gauge-pct-num">0</span><span style="font-size:12px">%</span></div>
+            <div id="drdc-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:27px;line-height:.82;color:var(--accent)"><span id="drdc-gauge-pct-num">0</span><span style="font-size:12px">%</span></div>
             <div style="font-size:7px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-top:1px">FULL</div>
             <div style="font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap"><span id="drdc-vol">0</span>/800 ft³</div>
           </div>
@@ -1459,7 +1459,7 @@
       <div class="drdc-quote">
         <div class="drdc-money">
           <div><div class="drdc-money__k">Items</div><div class="drdc-money__v" style="color:var(--text);font-family:inherit;font-size:20px" id="drdc-total-items">0</div></div>
-          <div><div class="drdc-money__k">Customer Pays</div><div class="drdc-money__v" style="color:#22c55e">$<span id="drdc-total-pay">0.00</span></div></div>
+          <div><div class="drdc-money__k">Customer Pays</div><div class="drdc-money__v" style="color:var(--accent)">$<span id="drdc-total-pay">0.00</span></div></div>
           <div><div class="drdc-money__k">Tax Receipt</div><div class="drdc-money__v" style="color:#0d6efd">$<span id="drdc-total-receipt">0.00</span></div></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -1830,7 +1830,7 @@
             <div style="display:flex;flex-direction:column;align-items:stretch"><button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="14 yard" onclick="selectBinSize('14 yard',this)">14 yd</button><span class="bsz-avail-badge" data-sz="14 yard" style="font-size:10px;font-weight:600;text-align:center;margin-top:3px;min-height:14px;line-height:1"></span></div>
             <div style="display:flex;flex-direction:column;align-items:stretch"><button type="button" class="btn btn-ghost btn-sm bsz-btn" data-sz="20 yard" onclick="selectBinSize('20 yard',this)">20 yd</button><span class="bsz-avail-badge" data-sz="20 yard" style="font-size:10px;font-weight:600;text-align:center;margin-top:3px;min-height:14px;line-height:1"></span></div>
           </div>
-          <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:#22c55e;font-weight:600"></div>
+          <div id="bin-picker-selected" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:13px;color:var(--accent);font-weight:600"></div>
           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:6px" onclick="var c=document.getElementById('bin-picker-collapse');var a=document.getElementById('bin-picker-arrow');if(c.style.display==='none'){c.style.display='block';a.style.transform='rotate(90deg)';}else{c.style.display='none';a.style.transform='rotate(0deg)';}">
             <span id="bin-picker-arrow" style="font-size:10px;transition:transform .2s;transform:rotate(0deg);color:var(--accent)">▶</span>
             <label style="cursor:pointer;margin:0;color:var(--accent)">Assign Specific Bin</label>
@@ -1964,7 +1964,7 @@
       </div>
 
       <!-- Items / Tools Needed -->
-      <div id="items-wrap" class="form-group full" style="display:none;margin-bottom:14px"><label>ITEMS / TOOLS NEEDED</label><div id="f-items-wrap"></div><button type="button" onclick="addJobItem()" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px">+ Add Item</button></div>
+      <div id="items-wrap" class="form-group full" style="display:none;margin-bottom:14px"><label>ITEMS / TOOLS NEEDED</label><div id="f-items-wrap"></div><button type="button" onclick="addJobItem()" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--accent);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px">+ Add Item</button></div>
 
       <!-- DRD Inline Section (Furniture Pickup only) -->
       <div id="drd-inline-wrap" class="form-group full" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface2)">
@@ -1994,9 +1994,9 @@
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex:none">
             <div style="position:relative;width:72px;height:72px;flex:none">
-              <svg viewBox="0 0 120 120" width="72" height="72" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="13"></circle><circle id="drd-m-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="#22c55e" stroke-width="13" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
+              <svg viewBox="0 0 120 120" width="72" height="72" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="13"></circle><circle id="drd-m-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
               <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
-                <div id="drd-m-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:23px;line-height:1;color:#22c55e"><span id="drd-m-gauge-num">0</span><span style="font-size:11px">%</span></div>
+                <div id="drd-m-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:23px;line-height:1;color:var(--accent)"><span id="drd-m-gauge-num">0</span><span style="font-size:11px">%</span></div>
               </div>
             </div>
             <div style="line-height:1.35;white-space:nowrap">
@@ -2014,7 +2014,7 @@
         </div>
         <div style="display:flex;gap:30px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);align-items:center">
           <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Items: </span><strong id="drd-m-total-items">0</strong></div>
-          <div><span style="font-size:11px;text-transform:uppercase;color:#22c55e">Customer Pays: </span><strong id="drd-m-total-pay" style="color:#22c55e">$0.00</strong></div>
+          <div><span style="font-size:11px;text-transform:uppercase;color:var(--accent)">Customer Pays: </span><strong id="drd-m-total-pay" style="color:var(--accent)">$0.00</strong></div>
           <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Tax Receipt: </span><strong id="drd-m-total-value">$0.00</strong></div>
           <div class="form-group" style="margin:0;margin-left:auto"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-m-emailed" class="form-input" style="font-size:12px;padding:6px 8px;width:150px"></div>
         </div>
@@ -2439,7 +2439,7 @@
       <label>Message</label>
       <textarea id="email-body" rows="10" placeholder="Email message..."></textarea>
     </div>
-    <div id="email-sent-note" style="display:none;padding:8px 12px;border-radius:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#22c55e;font-size:13px;margin-bottom:12px">✅ Email previously sent for this job</div>
+    <div id="email-sent-note" style="display:none;padding:8px 12px;border-radius:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:var(--accent);font-size:13px;margin-bottom:12px">✅ Email previously sent for this job</div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeM('email-modal')">Cancel</button>
       <button class="btn btn-ghost" onclick="closeM('email-modal');go('emailtemplates')">⚙️ Edit Templates</button>
@@ -2570,7 +2570,7 @@
       <div id="maint-popup-body"></div>
     </div>
     <div style="padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
-      <button onclick="closeM('maint-popup-modal')" style="background:#22c55e;color:#fff;border:0;padding:9px 20px;border-radius:9px;font-weight:700;cursor:pointer;font-family:inherit">Got it</button>
+      <button onclick="closeM('maint-popup-modal')" style="background:var(--accent);color:#fff;border:0;padding:9px 20px;border-radius:9px;font-weight:700;cursor:pointer;font-family:inherit">Got it</button>
     </div>
   </div>
 </div>
@@ -2604,7 +2604,7 @@
         <div><label class="dmg-lbl">Status</label><select id="dmg-status" class="dmg-in"><option value="open">Open</option><option value="resolved">Resolved</option></select></div>
       </div>
       <label class="dmg-lbl">Bin involved (optional)</label>
-      <div id="dmg-bin-selected" style="display:none;font-size:13px;margin-bottom:8px;color:#22c55e"></div>
+      <div id="dmg-bin-selected" style="display:none;font-size:13px;margin-bottom:8px;color:var(--accent)"></div>
       <div id="dmg-bin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-bottom:14px"></div>
       <div><label class="dmg-lbl">Vehicle involved (optional)</label><select id="dmg-vehicle" class="dmg-in"></select></div>
       <label class="dmg-lbl">Photos</label>
@@ -2674,7 +2674,7 @@
 <script src="app-bookings.js?v=466"></script>
 <script src="jwg-icons.js?v=465"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=469"></script>
+<script src="app.js?v=470"></script>
 <script src="app-jwg-scheduler.js?v=445"></script>
 <script src="app-jwg-feed.js?v=445"></script>
 <script src="app-ratings.js?v=447"></script>

@@ -17,6 +17,11 @@
      everything else uses. Demoting most text green also fixes contrast:
      #22c55e on white is ~2.3:1, #16a34a ~3.4:1, #15803d ~4.9:1. */
   --accent-hero:#22c55e;--accent:#16a34a;--accent-light:#f0fdf4;--accent-hover:#15803d;
+  /* Shade ramp, light -> deep. For telling apart items in a GROUP (the four bin
+     sizes, stacked bars) that would otherwise be one flat block of green.
+     Every step stays legible on white — 2.3, 3.3, 4.9, 10:1 — so it can carry
+     large numbers, not just bar fills. */
+  --green-s1:#22c55e;--green-s2:#16a34a;--green-s3:#15803d;--green-s4:#14532d;
   --text:#1a1a2e;--text-secondary:#495057;--muted:#868e96;
   --green:#22c55e;--yellow:#eab308;--red:#dc3545;--blue:#0d6efd;--orange:#f97316;--purple:#8b5cf6;
   --c-bin:#0891b2;--c-junk:#eab308;--c-furn:#8b5cf6;--c-furn-del:#f97316;--c-landscaping:#65a30d;

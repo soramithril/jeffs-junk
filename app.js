@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '469';
+var APP_VERSION = '470';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2435,12 +2435,17 @@ async function refreshDashBinStats(){
     if(!j.binPickup||j.binPickup>=today)return;
     if(sizeOverdue.hasOwnProperty(j.binSize))sizeOverdue[j.binSize]++;
   });
+  /* One shade per size, ascending size -> deeper green, so the four cards read
+     as four things instead of one green block. Applies to both the number and
+     its bar so a card is a single colour idea. */
+  var BIN_SHADE={'4 yard':'var(--green-s1)','7 yard':'var(--green-s2)','14 yard':'var(--green-s3)','20 yard':'var(--green-s4)'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
     var isFull=(tot>0&&inY===0);
     var availPct=tot?Math.round(inY/tot*100):0;
-    var numColor=isFull?'#dc3545':'var(--accent)';
+    var shade=BIN_SHADE[s]||'var(--accent)';
+    var numColor=isFull?'#dc3545':shade;
     var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;right:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
     return '<div class="jj-bin jj-card-lift">'
@@ -2451,7 +2456,7 @@ async function refreshDashBinStats(){
       +'<div style="position:relative;font-family:\'Bebas Neue\',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);line-height:1">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:var(--muted);margin-top:5px">of '+tot+'</div>'
-      +'<div style="position:relative;width:100%;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+(isFull?'#dc3545':'var(--accent)')+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
+      +'<div style="position:relative;width:100%;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+(isFull?'#dc3545':shade)+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
       +'<div style="position:relative;width:100%"><button onclick="bookBin(\''+s+'\')" class="djj-book">Book</button></div>'
     +'</div>';
   }).join('');
