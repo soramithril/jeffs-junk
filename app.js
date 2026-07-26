@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '483';
+var APP_VERSION = '484';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2444,8 +2444,11 @@ async function refreshDashBinStats(){
   // 4px bar can, and the bar is what you see across the room.
   var BIN_BAR={'4 yard':'var(--green-b1)','7 yard':'var(--green-b2)','14 yard':'var(--green-b3)','20 yard':'var(--green-b4)'};
   // Glow tint per size, matching that card's bar. Kept as rgba rather than the
-  // token because it needs an alpha the ramp doesn't carry.
-  var BIN_GLOW={'4 yard':'rgba(74,222,128,.22)','7 yard':'rgba(34,197,94,.20)','14 yard':'rgba(22,163,74,.18)','20 yard':'rgba(21,128,61,.16)'};
+  // token because it needs an alpha the ramp doesn't carry. Alphas pulled back
+  // roughly by half in v484 — with the top edge gone the glow is the only thing
+  // washing the card, and at .22 it was adding to the green pile-up rather than
+  // just hinting at the size.
+  var BIN_GLOW={'4 yard':'rgba(74,222,128,.13)','7 yard':'rgba(34,197,94,.11)','14 yard':'rgba(22,163,74,.10)','20 yard':'rgba(21,128,61,.09)'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
@@ -2463,7 +2466,6 @@ async function refreshDashBinStats(){
     var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
     return '<div class="jj-bin jj-card-lift" style="--binGlow:'+(BIN_GLOW[s]||'rgba(34,197,94,.10)')+'">'
-      +'<div class="jj-bin-edge" style="background:'+barColor+'"></div>'
       +'<div class="jj-bin-breathe"></div>'
       +'<div class="jj-bin-sheen"></div>'
       +odPill

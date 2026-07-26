@@ -2322,11 +2322,14 @@ input[type=date],input[type=time]{position:relative;}
 .jj-card-lift:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.12);}
 .jj-bin{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:12px 12px 14px;text-align:center;display:flex;flex-direction:column;align-items:center;}
 /* Glow is tinted per card (--binGlow, set inline per size) so the colour
-   identity carries even when you're not reading the number. */
+   identity carries even when you're not reading the number. Tints are gentle
+   on purpose — see the v484 note on the top edge. */
 .jj-bin-breathe{position:absolute;inset:0;background:radial-gradient(120px 90px at 50% 8%,var(--binGlow,rgba(34,197,94,.10)),transparent 70%);animation:jjBreathe 6s ease-in-out infinite;pointer-events:none;}
-/* The card's colour, stated once at the top edge — pure colour, no text to
-   keep legible, so it can take the bright ramp at full strength. */
-.jj-bin-edge{position:absolute;top:0;left:0;right:0;height:3px;pointer-events:none;z-index:2;}
+/* NO .jj-bin-edge (added v483, removed v484). It put a third green horizontal
+   line into one block — fleet-deployed bar above, card top edge, availability
+   bar below — and v482 had just brightened the other two. The card's identity
+   is already carried by its number, its bar and its glow; the edge was the one
+   that was only decoration, so it went rather than the two that mean something. */
 .jj-bin-sheen{position:absolute;top:0;bottom:0;left:0;width:54px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-160%) skewX(-18deg);transition:transform .7s cubic-bezier(.22,1,.36,1);pointer-events:none;}
 .jj-bin:hover .jj-bin-sheen{transform:translateX(220%) skewX(-18deg);}
 
