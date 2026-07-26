@@ -251,7 +251,7 @@ async function renderTodayBookings(){
   var endD = new Date(t + 'T00:00:00'); endD.setDate(endD.getDate()+1);
   var endISO = ymdLocal(endD) + 'T00:00:00';
   var r = await db.from('jobs')
-    .select('job_id,name,service,address,city,bin_size,date,created_by,created_at,status,email_sent,email_confirmed')
+    .select('job_id,name,service,address,city,bin_size,date,created_by,created_at,status,email_sent,email_confirmed,no_email')
     .gte('created_at', startISO).lt('created_at', endISO)
     .order('created_at', { ascending: false });
   if(r.error){ host.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 16px">Could not load bookings.</div>'; return; }
@@ -266,7 +266,7 @@ async function renderTodayBookings(){
   if(chipEl) chipEl.textContent = n;
   // Email-still-to-send badge on the Booked Today pill — counts bookings whose
   // confirmation email hasn't gone out yet (same rule as each row's 📧 Send chip).
-  var emailsNeeded = list.filter(function(j){ return j.status!=='Cancelled' && !(j.email_sent||j.email_confirmed); }).length;
+  var emailsNeeded = list.filter(function(j){ return j.status!=='Cancelled' && !(j.email_sent||j.email_confirmed||j.no_email); }).length;
   var emChipEl = document.getElementById('dash-tab-n-booking-emails');
   if(emChipEl){
     if(emailsNeeded>0){ emChipEl.textContent = '📧 ' + emailsNeeded; emChipEl.style.display = 'inline-flex'; }
@@ -294,10 +294,18 @@ async function renderTodayBookings(){
        list repaints on every refresh, and without it every already-sent stamp
        re-lands each time. The landing animation belongs to the click, not the
        repaint - see stampEmailBtn(). */
+    /* no_email -> a slate stamp where the button was. Deliberately a STAMP and not
+       a blank space: the next person needs to see this was a decision (a swap-out,
+       or a customer taking two bins today) rather than an oversight, or they send
+       the email that was being avoided. Still clickable, because "normally no
+       email" and "never, under any circumstances" aren't the same thing. */
     var emailBtn=emailed
       ? '<span class="djj-stamp-btn" title="Confirmation email sent — view or resend" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">'
           + JWGStamp.emailed({size:'sm', fresh:false}) + '</span>'
-      : '<button class="djj-btn email" data-email-job="'+_bkEsc(j.job_id)+'" title="Send confirmation email" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">📧 Email</button>';
+      : (j.no_email
+        ? '<span class="djj-stamp-btn" title="No confirmation email needed for this one — click to send anyway" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">'
+            + JWGStamp.stamp('voided',{size:'sm', word:'NO EMAIL', fresh:false}) + '</span>'
+        : '<button class="djj-btn email" data-email-job="'+_bkEsc(j.job_id)+'" title="Send confirmation email" onclick="event.stopPropagation();openEmailModal(\''+_bkEsc(j.job_id)+'\')">Email</button>');
     var nameStyle=cancelled?'text-decoration:line-through;':'';
     var rowOp=cancelled?';opacity:.55':'';
     return '<div class="djj-row" style="cursor:pointer'+rowOp+'" onclick="openDetail(\''+_bkEsc(j.job_id)+'\')">'

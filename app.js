@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '484';
+var APP_VERSION = '485';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -59,6 +59,7 @@ var _formPhotos = [];           // photo URLs being assembled in the open job/qu
 //   5. The CASE map inside the `log_job_changes` Postgres trigger if you want a
 //      pretty label for that column in the edit-history view.
 var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
+  noEmail:'no_email',
   status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
   binDropoff:'bin_dropoff', paid:'paid', etransferRefundSent:'etransfer_refund_sent',
   binBid:'bin_bid', binSide:'bin_side', price:'price', notes:'notes', phone:'phone',
@@ -743,7 +744,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns (excludes heavy jsonb addresses)
@@ -774,6 +775,7 @@ function dbToJob(r) {
     referral:   r.referral   || '',
     confirmed:  r.confirmed  || false,
     emailSent:  r.email_sent || false,
+    noEmail:    r.no_email || false,
     binSize:    r.bin_size   || '',
     binDuration:r.bin_duration || '',
     binDropoff: r.bin_dropoff || '',
@@ -920,6 +922,7 @@ function jobToDb(j) {
     referral:    j.referral    || '',
     confirmed:   j.confirmed   || false,
     email_sent:  j.emailSent   || false,
+    no_email:    j.noEmail     || false,
     bin_size:    j.binSize     || '',
     bin_duration:j.binDuration || '',
     bin_dropoff: j.binDropoff  || null,
@@ -2488,6 +2491,25 @@ async function refreshDashBinStats(){
   renderNeedsYou();
 }
 
+// ── "NO EMAIL NEEDED" ──────────────────────────────────────────────────────
+// Marks a job as deliberately not getting a confirmation email (Jake 2026-07-26:
+// swap-outs, and customers taking more than one bin in a day who'd otherwise get
+// an email each time). Per JOB, not per client — a regular who normally does want
+// confirmations can still have one quiet job.
+// Sends nothing. Only sets the flag, which drops the job out of this list and out
+// of the morning brief, and puts a stamp where the Email button was so the next
+// person can see it was a decision rather than an oversight.
+function markNoEmail(jobId){
+  var j = jobs.find(function(x){ return x.id===jobId; });
+  if(!j) throw new Error('markNoEmail: job '+jobId+' not in memory');
+  j.noEmail = true;                       // local first so the list redraws immediately
+  renderNeedsYou();
+  patchJob(jobId, {noEmail:true}).then(function(r){
+    if(r.error){ j.noEmail=false; renderNeedsYou(); return; }   // patchJob already toasted
+    toast('Marked — no confirmation email needed for '+(j.name||jobId));
+  });
+}
+
 // ── NEEDS YOU BEFORE END OF DAY — bin-rental loose ends for today ──────────
 // Bin rentals only, two concerns: (a) confirmation email not yet sent;
 // (b) day-before pickup confirm call (pickup is tomorrow and not confirmed).
@@ -2507,7 +2529,10 @@ function renderNeedsYou(){
   active.forEach(function(j){
     var dropD=j.binDropoff||j.date;
     var upcoming=dropD && dropD<=sevenOut;            // due within the next 7 days (or already due) — skip far-future bookings
-    if(upcoming && !(j.emailSent||j.emailConfirmed)) items.push({j:j,kind:'email'});
+    // noEmail jobs are a deliberate decision, not an outstanding task — a swap-out,
+    // or a customer taking two bins in a day who doesn't want two emails. Leaving
+    // them here made the list permanently dirty, which is how real misses get missed.
+    if(upcoming && !(j.emailSent||j.emailConfirmed||j.noEmail)) items.push({j:j,kind:'email'});
     if(j.binPickup===tomorrow && !j.confirmed) items.push({j:j,kind:'call'});
   });
   var doneToday=active.filter(function(j){
@@ -2544,7 +2569,8 @@ function renderNeedsYou(){
     var action=isCall
       ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">'+lineIcon('call',13)+' '+j.phone+'</a>':'')
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
-      : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>';
+      : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
+        +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
     return '<div style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
       +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title+'</div><div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
@@ -8281,12 +8307,13 @@ async function maybeShowMorningBrief(){
   var unemailed = [];
   try {
     var r = await db.from('jobs')
-      .select('job_id,name,service,created_at,status,email_sent,email_confirmed')
+      .select('job_id,name,service,created_at,status,email_sent,email_confirmed,no_email')
       .gte('created_at', ys+'T00:00:00').lt('created_at', today+'T00:00:00')
       .neq('status','Cancelled').order('created_at');
     if(r.error) throw r.error;
     unemailed = (r.data||[]).filter(function(j){
-      return j.service !== 'Extra Jobs' && !(j.email_sent || j.email_confirmed);
+      // no_email is a decision, not an outstanding task — same rule as Needs You.
+      return j.service !== 'Extra Jobs' && !(j.email_sent || j.email_confirmed || j.no_email);
     });
   } catch(e){ console.warn('Morning brief email check failed:', e); }
   localStorage.setItem('jjBriefDay', today);
