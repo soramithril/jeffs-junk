@@ -2252,7 +2252,7 @@ input[type=date],input[type=time]{position:relative;}
    pinned at the top, the lists scrolling in the middle, "Got it" pinned at the
    bottom, so the greeting never scrolls out of its own popup. */
 #mb-card{
-  width:1180px;max-width:94vw;height:88vh;max-height:88vh;
+  width:94vw;max-width:1600px;height:88vh;max-height:88vh;
   padding:0;overflow:hidden;display:flex;flex-direction:column;
 }
 #mb-hero{flex:none;}
