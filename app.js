@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '473';
+var APP_VERSION = '474';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8207,22 +8207,23 @@ async function maybeShowMorningBrief(){
       + '<button class="btn btn-ghost btn-sm" style="flex:none" onclick="event.stopPropagation();'+btnClick+'">'+btnLabel+'</button></div>';
   }
   function mbHead(txt, color){ return '<div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:14px 0 8px">'+txt+'</div>'; }
-  var body = '<div style="font-size:12.5px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>';
-  body += mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22');
-  body += bins.length ? bins.map(function(j){
+  var colBins = mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22')
+    + (bins.length ? bins.map(function(j){
       return mbRow(escHtml(j.name||j.id)+' — dropped '+fd(j.binDropoff),
         j.id+(j.binSize?' · '+j.binSize:'')+(j.address?' · '+escHtml((j.address||'').split(',')[0]):'')+(j.city?' · '+escHtml(j.city):''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.id+'\')',
         '📦 Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
-    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>';
-  body += mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd');
-  body += unemailed.length ? unemailed.map(function(j){
+    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>');
+  var colMail = mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd')
+    + (unemailed.length ? unemailed.map(function(j){
       var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
       return mbRow(escHtml(j.name||j.job_id),
         j.job_id+' · '+escHtml(j.service||'')+(t?' · booked '+t:''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
         '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
-    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>';
+    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
+  var body = '<div style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
+    + '<div class="mb-cols"><div>'+colBins+'</div><div>'+colMail+'</div></div>';
 
   document.getElementById('mb-body').innerHTML = body;
   document.getElementById('morning-brief-modal').classList.add('open');
