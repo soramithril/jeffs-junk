@@ -419,7 +419,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs,hasB){
   if(turnoverEl){
     var fleetCounts={'14 yard':54,'20 yard':20,'4 yard':8,'7 yard':4};
     var sizeColors2={'14 yard':'#22c55e','20 yard':'#3b82f6','4 yard':'#e67e22','7 yard':'#f97316'};
-    db.from('jobs').select('bin_size').eq('service','Bin Rental').neq('status','cancelled').not('bin_size','is',null)
+    db.from('jobs').select('bin_size').eq('service','Bin Rental').neq('status','Cancelled').not('bin_size','is',null)
       .then(function(res){
         if(res.error||!res.data)return;
         var binBySize={};

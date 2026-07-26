@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '487';
+var APP_VERSION = '488';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -671,35 +671,8 @@ function _initStaticAddressAutocomplete() {
   }
 }
 // ── Title Case helper ──────────────────────────────────────────────────────
-// ── Background job phone backfill (runs once on startup) ──────────────────
-async function backfillJobPhones() {
-  try {
-    // Fetch all unlinked jobs in one go
-    var allUnlinked = [];
-    var pg = 0;
-    while (true) {
-      var r = await db.from('jobs').select('job_id,name').is('client_cid',null).not('name','is',null).range(pg*1000, pg*1000+999);
-      if (!r.data || !r.data.length) break;
-      allUnlinked = allUnlinked.concat(r.data);
-      if (r.data.length < 1000) break;
-      pg++;
-    }
-    if (!allUnlinked.length) return;
-    var fixed = 0;
-    for (var i = 0; i < allUnlinked.length; i++) {
-      var j = allUnlinked[i];
-      if (!j.name) continue;
-      var rc = await db.from('clients').select('cid,phone').ilike('name', j.name.trim()).limit(1);
-      if (!rc.error && rc.data && rc.data[0]) {
-        var upd = { client_cid: rc.data[0].cid };
-        if (rc.data[0].phone) upd.phone = rc.data[0].phone;
-        await db.from('jobs').update(upd).eq('job_id', j.job_id);
-        fixed++;
-      }
-    }
-    if (fixed > 0) console.log('[backfill] Fixed ' + fixed + ' jobs with missing phone/client_cid');
-  } catch(e) { console.warn('[backfill] error:', e); }
-}
+// backfillJobPhones() lived here: it matched jobs to clients by name and wrote the first hit's
+// cid onto the job. Removed with the copy in loadJobsPage — a customer link is never guessed.
 
 function toTitleCase(str) {
   if (!str) return str;
@@ -747,8 +720,9 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
-// Client columns (excludes heavy jsonb addresses)
-var CLIENT_LIST_COLS = 'cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor';
+// Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
+// address text when it's absent, and any save writes that derivation back over the real list.
+var CLIENT_LIST_COLS ='cid,name,business_name,names,phone,phones,email,emails,address,addresses,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor';
 
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
@@ -875,6 +849,11 @@ async function addReferralSource(selectId){
 // ── Map Supabase DB row → local client object ──────────────
 function dbToClient(r) {
   var street=(r.address||'').split(',')[0].trim();
+  // addresses is the stored list, not something to rebuild from the address text. Deriving it
+  // here meant every client save wrote the derivation back and flattened multi-address clients.
+  var addrList = Array.isArray(r.addresses) && r.addresses.length
+    ? r.addresses
+    : (street?[{street:street,city:r.city||''}]:[]);
   return {
     cid:      r.cid,
     name:     r.name    || '',
@@ -885,7 +864,7 @@ function dbToClient(r) {
     email:    r.email   || '',
     emails:   r.emails  || [],
     address:  r.address || '',
-    addresses:street?[{street:street,city:r.city||''}]:[],
+    addresses:addrList,
     city:     r.city    || '',
     referral: r.referral || '',
     notes:    r.notes   || '',
@@ -1048,13 +1027,9 @@ function deleteJobFromDb(jobId) {
   });
 }
 
-function saveClients() {
-  if (!clients.length) return;
-  var batch = clients.map(clientToDb);
-  db.from('clients').upsert(batch, {onConflict:'cid'}).then(function(r){
-    if(r.error) console.error('Save clients error:', r.error.message);
-  });
-}
+// saveClients() used to bulk-upsert the whole in-memory clients array. Merging two customers
+// therefore rewrote every client row in the business from browser memory — on 2026-07-23 that
+// wrote 11,408 rows in one second. Save the one client that changed; never the array.
 
 function saveSingleClient(c) {
   db.from('clients').upsert(clientToDb(c), {onConflict:'cid'}).then(function(r){
@@ -1331,7 +1306,7 @@ async function loadAllFromSupabase() {
     try {
       var pageSize = 1000, from = 0, keepGoing = true;
       while (keepGoing) {
-        var rcAll = await db.from('clients').select('cid,name,business_name,names,phone,phones,email,emails,address,city,referral,notes,created_at,blacklisted,contractor').order('name').range(from, from + pageSize - 1);
+        var rcAll = await db.from('clients').select(CLIENT_LIST_COLS).order('name').range(from, from + pageSize - 1);
         if (rcAll.data && rcAll.data.length) {
           rcAll.data.forEach(function(c){ clients.push(dbToClient(c)); });
           from += rcAll.data.length;
@@ -1508,19 +1483,15 @@ async function loadJobsPage(page) {
     jobs = (r.data || []).map(dbToJob);
     jobsTotal = (r.count != null) ? r.count : jobsTotal; // 0 is a valid count (e.g. empty Completed view)
 
-    // Fill missing phones using ilike client name match, then backfill DB
-    var noPhone = jobs.filter(function(j){ return !j.phone && j.name; });
-    if (noPhone.length) {
-      for (var i = 0; i < noPhone.length; i++) {
-        var j = noPhone[i];
-        var rc = await db.from('clients').select('cid,phone').ilike('name', j.name.trim()).limit(1);
-        if (!rc.error && rc.data && rc.data[0] && rc.data[0].phone) {
-          j.phone = rc.data[0].phone;
-          // Backfill DB silently so next load is instant
-          db.from('jobs').update({ phone: rc.data[0].phone, client_cid: rc.data[0].cid }).eq('job_id', j.id);
-        }
-      }
-    }
+    // Show a missing phone from the client the job is ALREADY linked to. Display only — the
+    // customer link is set by a person, never guessed. This used to match clients by name with
+    // .ilike(...).limit(1) and write the winner's cid onto the job, which silently re-assigned
+    // jobs to the wrong customer wherever two customers share a name (326 such names today).
+    jobs.forEach(function(j){
+      if (j.phone || !j.clientId) return;
+      var cl = clients.find(function(c){ return c.cid === j.clientId; });
+      if (cl && cl.phone) j.phone = cl.phone;
+    });
   }
   await loadRecurRuns();
   jobsLoading = false;
@@ -11785,7 +11756,7 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function doMergeClients() {
+async function doMergeClients() {
   var btn = document.getElementById('merge-confirm-btn');
   if (btn && btn.style.cursor === 'not-allowed') return;
   var pid = document.getElementById('merge-primary').value;
@@ -11795,28 +11766,32 @@ function doMergeClients() {
   var sc = clients.find(function(c){return c.cid===sid;});
   if (!pc || !sc) return;
 
+  // Merge into a copy, not into the live client. If any write below fails we return early, and
+  // the on-screen client must still be exactly what the database holds.
+  var merged = JSON.parse(JSON.stringify(pc));
+
   // ── Merge scalar fields (phone, email, address, city, notes, referral) ──
   var scalarFields = ['phone','email','address','city','notes','referral'];
   scalarFields.forEach(function(f){
-    var pVal = (pc[f]||'').trim();
+    var pVal = (merged[f]||'').trim();
     var sVal = (sc[f]||'').trim();
     if (sVal && pVal.toLowerCase().indexOf(sVal.toLowerCase()) === -1) {
-      pc[f] = pVal ? pVal + '\n' + sVal : sVal;
+      merged[f] = pVal ? pVal + '\n' + sVal : sVal;
     }
   });
 
   // ── Merge names[] — all unique contact names ──
-  var pNames = pc.names || [pc.name];
+  var pNames = merged.names || [merged.name];
   var sNames = sc.names || [sc.name];
   sNames.forEach(function(n){
     if (n && !pNames.some(function(p){ return p.toLowerCase() === n.toLowerCase(); })) {
       pNames.push(n);
     }
   });
-  pc.names = pNames;
+  merged.names = pNames;
 
   // ── Merge phones[] — dedupe by number ──
-  var pPhones = pc.phones || (pc.phone ? [{num:pc.phone,label:''}] : []);
+  var pPhones = merged.phones || (merged.phone ? [{num:merged.phone,label:''}] : []);
   var sPhones = sc.phones || (sc.phone ? [{num:sc.phone,label:''}] : []);
   sPhones.forEach(function(sp){
     var spNum = (sp.num||sp||'').toString().replace(/\D/g,'');
@@ -11824,10 +11799,10 @@ function doMergeClients() {
       return ((pp.num||pp||'').toString().replace(/\D/g,'')) === spNum;
     })) { pPhones.push(sp); }
   });
-  pc.phones = pPhones;
+  merged.phones = pPhones;
 
   // ── Merge emails[] — dedupe by address ──
-  var pEmails = pc.emails || (pc.email ? [pc.email] : []);
+  var pEmails = merged.emails || (merged.email ? [merged.email] : []);
   var sEmails = sc.emails || (sc.email ? [sc.email] : []);
   sEmails.forEach(function(se){
     var seAddr = (se.email||se||'').toLowerCase();
@@ -11835,10 +11810,10 @@ function doMergeClients() {
       return (pe.email||pe||'').toLowerCase() === seAddr;
     })) { pEmails.push(se); }
   });
-  pc.emails = pEmails;
+  merged.emails = pEmails;
 
   // ── Merge addresses[] — dedupe by street ──
-  var pAddrs = pc.addresses || (pc.address ? [{street:pc.address,city:pc.city||''}] : []);
+  var pAddrs = merged.addresses || (merged.address ? [{street:merged.address,city:merged.city||''}] : []);
   var sAddrs = sc.addresses || (sc.address ? [{street:sc.address,city:sc.city||''}] : []);
   sAddrs.forEach(function(sa){
     var saStreet = (sa.street||'').toLowerCase().trim();
@@ -11846,34 +11821,51 @@ function doMergeClients() {
       return (pa.street||'').toLowerCase().trim() === saStreet;
     })) { pAddrs.push(sa); }
   });
-  pc.addresses = pAddrs;
+  merged.addresses = pAddrs;
 
-  // ── Update local jobs (partial array — keep consistent) ──
-  // Propagate identity fields from primary so linked jobs stop showing secondary's name/phone
+  // ── Move everything off the secondary, THEN delete it ──
+  // Order matters and every step is checked. Nothing on screen changes until the DB agrees:
+  // a half-finished merge that reported success is what left a duplicate client behind on
+  // 2026-05-12 (its jobs moved, the delete failed, nobody was told).
+  var rJobs = await db.from('jobs')
+    .update({ client_cid: pid, name: merged.name, phone: merged.phone })
+    .eq('client_cid', sid);
+  if (rJobs.error) {
+    toast('⚠ Merge failed moving jobs: ' + rJobs.error.message + ' — nothing was changed','error');
+    return;
+  }
+
+  // quote_correspondence.client_id → clients(cid) is ON DELETE CASCADE, so the email history
+  // has to be re-pointed at the surviving client before the delete or it goes with it.
+  var rMail = await db.from('quote_correspondence').update({ client_id: pid }).eq('client_id', sid);
+  if (rMail.error) {
+    toast('⚠ Merge failed moving email history: ' + rMail.error.message + ' — jobs moved, client kept','error');
+    return;
+  }
+
+  var rSave = await db.from('clients').upsert(clientToDb(merged), {onConflict:'cid'});
+  if (rSave.error) {
+    toast('⚠ Merge failed saving ' + merged.name + ': ' + rSave.error.message + ' — client kept','error');
+    return;
+  }
+
+  var rDel = await db.from('clients').delete().eq('cid', sid);
+  if (rDel.error) {
+    toast('⚠ Jobs and email moved to ' + merged.name + ', but the duplicate could not be removed: ' + rDel.error.message,'error');
+    return;
+  }
+
+  // ── DB confirmed — only now touch what the user sees ──
+  Object.assign(pc, merged);
   jobs.forEach(function(j){
-    if (j.clientId === sid) {
-      j.clientId = pid;
-      j.name = pc.name;
-      j.phone = pc.phone;
-    }
+    if (j.clientId === sid) { j.clientId = pid; j.name = pc.name; j.phone = pc.phone; }
   });
-
-  // ── Update ALL jobs in Supabase (local array is incomplete) ──
-  // After jobs are re-linked, delete the secondary client so it doesn't reappear on refresh
-  db.from('jobs').update({ client_cid: pid, name: pc.name, phone: pc.phone }).eq('client_cid', sid).then(function(r){
-    if (r.error) console.warn('Merge jobs update error:', r.error.message);
-    db.from('clients').delete().eq('cid', sid).then(function(d){
-      if (d.error) console.warn('Merge secondary delete error:', d.error.message);
-    });
-  });
-
-  // ── Remove secondary client from local cache ──
   clients = clients.filter(function(c){return c.cid !== sid;});
 
   _clientStatsCache = null;
   _clientStatsCacheTime = 0;
 
-  updateSidebarStats(); saveClients(); renderClients(); renderClientSelectOptions();
+  updateSidebarStats(); renderClients(); renderClientSelectOptions();
   closeM('merge-modal');
   toast('✓ Merged ' + sc.name + ' → ' + pc.name);
 }
@@ -13278,7 +13270,7 @@ function _binsCommittedOnDate(size, dateStr){
   var todayLocal=todayStr();
   var count=0;
   jobs.forEach(function(j){
-    if(j.service!=='Bin Rental'||j.binSize!==size) return;
+    if(j.service!=='Bin Rental'||j.binSize!==size||j.status==='Cancelled') return;
     var drop=j.binDropoff||j.date;
     var pick=j.binPickup;
     var active=false;
