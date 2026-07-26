@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '480';
+var APP_VERSION = '481';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2446,14 +2446,18 @@ async function refreshDashBinStats(){
     var availPct=tot?Math.round(inY/tot*100):0;
     var shade=BIN_SHADE[s]||'var(--accent)';
     var numColor=isFull?'#dc3545':shade;
-    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;right:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
+    // Overdue pill moves to the top-LEFT: the size label took the top-right
+    // corner when it came out of the card's flow (v481).
+    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
     return '<div class="jj-bin jj-card-lift">'
       +'<div class="jj-bin-breathe"></div>'
       +'<div class="jj-bin-sheen"></div>'
       +odPill
+      // Size sits in the corner rather than in the column, so the card gets
+      // shorter by a whole line without the photo giving up any of its 180px.
+      +'<div style="position:absolute;top:7px;right:10px;z-index:1;font-family:\'Bebas Neue\',sans-serif;font-size:20px;letter-spacing:1px;line-height:1;color:var(--muted)">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
-      +'<div style="position:relative;font-family:\'Bebas Neue\',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);line-height:1">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:var(--muted);margin-top:5px">of '+tot+'</div>'
       +'<div style="position:relative;width:100%;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+(isFull?'#dc3545':shade)+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
@@ -3323,6 +3327,11 @@ var jjVibeMode=(function(){
   return JJ_VIBE_ORDER[i];
 })();
 var _jjPartyTimer=null;
+// Rotated across the list rows so neighbours never arrive the same way — one
+// pops, the next slides in from the left, the next rises. Same 520ms and same
+// overshoot curve for all three, so it reads as variety rather than as three
+// unrelated animations.
+var JJ_ROW_ANIMS=['jjPop','jjSlide','jjRise'];
 function jjApplyVibe(){
   var card=document.getElementById('mb-card'); if(!card) return;
   var v=JJ_VIBES[jjVibeMode];
@@ -3351,12 +3360,17 @@ function jjApplyVibe(){
   // three seconds — everything past that arrives on the same beat.
   // data-anim="pop" gets the springy pop (the bins and emails); the greeting
   // band gets today's vibe keyframe, whichever of the ten it is.
+  var popN=0;
   card.querySelectorAll('[data-anim]').forEach(function(el,i){
-    var pop=el.getAttribute('data-anim')==='pop';
+    var k,dur,ease;
+    if(el.getAttribute('data-anim')==='pop'){
+      k=JJ_ROW_ANIMS[popN++%JJ_ROW_ANIMS.length]; dur=520; ease='cubic-bezier(.34,1.56,.64,1)';
+    } else {
+      k=v.k; dur=v.d; ease=v.e;
+    }
     el.style.animation='none';
     void el.offsetWidth;
-    el.style.animation=(pop?'jjPop 520ms cubic-bezier(.34,1.56,.64,1) ':v.k+' '+v.d+'ms '+v.e+' ')
-      +(Math.min(i,14)*70)+'ms both';
+    el.style.animation=k+' '+dur+'ms '+ease+' '+(Math.min(i,14)*70)+'ms both';
   });
   renderGreeting();
   // The greeting types itself in. Called synchronously so the line is blanked
@@ -8287,15 +8301,26 @@ async function maybeShowMorningBrief(){
   document.getElementById('mb-body').innerHTML = body;
   document.getElementById('morning-brief-modal').classList.add('open');
   jjApplyVibe(); // paints today's vibe AND replays the greeting entrance, now that it's visible
-  // Shows itself out after 4s (Jake 2026-07-25). Checks it is still open first:
-  // clicking Assign or Email closes this modal and opens another, and closeM
-  // clears body.modal-open, so firing blind would reach under whatever the
-  // click opened and unlock page scroll behind it.
+  // Shows itself out after 10s (Jake 2026-07-25 — 4s was too short to act on
+  // the Assign/Email buttons, and he capped the replacement at ten).
   clearTimeout(_jjBriefTimer);
-  _jjBriefTimer = setTimeout(function(){
-    var el = document.getElementById('morning-brief-modal');
-    if(el.classList.contains('open')) closeM('morning-brief-modal');
-  }, 4000);
+  _jjBriefTimer = setTimeout(closeBrief, 10000);
+}
+
+// The brief leaves on an animation rather than blinking out. Everything that
+// dismisses it deliberately — the ✕, the backdrop, Got it, the timer — comes
+// through here. The row buttons still call closeM directly: they are on their
+// way to another modal, and 420ms of farewell in front of it reads as lag.
+function closeBrief(){
+  var overlay = document.getElementById('morning-brief-modal');
+  if(!overlay.classList.contains('open')) return;   // already gone; don't reach
+  clearTimeout(_jjBriefTimer);                      // under whatever replaced it
+  var card = document.getElementById('mb-card');
+  card.style.animation = 'jjCardOut .42s cubic-bezier(.55,0,.85,.3) both';
+  setTimeout(function(){
+    card.style.animation = '';
+    closeM('morning-brief-modal');
+  }, 420);
 }
 
 function _removeBinChip(){
