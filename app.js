@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '471';
+var APP_VERSION = '472';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2452,7 +2452,7 @@ async function refreshDashBinStats(){
       +'<div class="jj-bin-breathe"></div>'
       +'<div class="jj-bin-sheen"></div>'
       +odPill
-      +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;height:96px;object-fit:contain;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
+      +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
       +'<div style="position:relative;font-family:\'Bebas Neue\',sans-serif;font-size:23px;letter-spacing:1px;color:var(--text);line-height:1">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:var(--muted);margin-top:5px">of '+tot+'</div>'
