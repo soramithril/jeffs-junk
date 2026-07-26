@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '475';
+var APP_VERSION = '476';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3310,7 +3310,7 @@ var jjVibeMode=(function(){
 })();
 var _jjPartyTimer=null;
 function jjApplyVibe(){
-  var hero=document.getElementById('mb-hero'); if(!hero) return;
+  var card=document.getElementById('mb-card'); if(!card) return;
   var v=JJ_VIBES[jjVibeMode];
   document.getElementById('jj-vibe-wash').style.background=v.wash;
   document.getElementById('jj-vibe-blobs').innerHTML=v.blobs.map(function(b){
@@ -3319,10 +3319,14 @@ function jjApplyVibe(){
     return '<div style="'+s+'"></div>';
   }).join('');
   document.getElementById('jj-vibe-shimmer').style.display=v.shimmer?'':'none';
-  hero.querySelectorAll('[data-anim]').forEach(function(el,i){
+  // The whole card cascades in, not just the greeting: the four greeting lines,
+  // then each list heading and row in DOM order, then the button. The delay
+  // stops climbing after 14 items so a busy morning doesn't crawl in for
+  // three seconds — everything past that arrives on the same beat.
+  card.querySelectorAll('[data-anim]').forEach(function(el,i){
     el.style.animation='none';
     void el.offsetWidth;
-    el.style.animation=v.k+' '+v.d+'ms '+v.e+' '+(i*70)+'ms both';
+    el.style.animation=v.k+' '+v.d+'ms '+v.e+' '+(Math.min(i,14)*70)+'ms both';
   });
   renderGreeting();
   clearInterval(_jjPartyTimer);
@@ -8201,19 +8205,19 @@ async function maybeShowMorningBrief(){
   localStorage.setItem('jjBriefDay', today);
 
   function mbRow(main, sub, rowClick, btnLabel, btnClick){
-    return '<div onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;background:var(--surface2);cursor:pointer">'
+    return '<div data-anim onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;background:var(--surface2);cursor:pointer">'
       + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+main+'</div>'
       + '<div style="font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sub+'</div></div>'
       + '<button class="btn btn-ghost btn-sm" style="flex:none" onclick="event.stopPropagation();'+btnClick+'">'+btnLabel+'</button></div>';
   }
-  function mbHead(txt, color){ return '<div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:14px 0 8px">'+txt+'</div>'; }
+  function mbHead(txt, color){ return '<div data-anim style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:14px 0 8px">'+txt+'</div>'; }
   var colBins = mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22')
     + (bins.length ? bins.map(function(j){
       return mbRow(escHtml(j.name||j.id)+' — dropped '+fd(j.binDropoff),
         j.id+(j.binSize?' · '+j.binSize:'')+(j.address?' · '+escHtml((j.address||'').split(',')[0]):'')+(j.city?' · '+escHtml(j.city):''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.id+'\')',
         '📦 Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
-    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>');
+    }).join('') : '<div data-anim style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>');
   var colMail = mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd')
     + (unemailed.length ? unemailed.map(function(j){
       var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
@@ -8221,8 +8225,8 @@ async function maybeShowMorningBrief(){
         j.job_id+' · '+escHtml(j.service||'')+(t?' · booked '+t:''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
         '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
-    }).join('') : '<div style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
-  var body = '<div style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
+    }).join('') : '<div data-anim style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
+  var body = '<div data-anim style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
     + '<div class="mb-cols"><div>'+colBins+'</div><div>'+colMail+'</div></div>';
 
   document.getElementById('mb-body').innerHTML = body;
