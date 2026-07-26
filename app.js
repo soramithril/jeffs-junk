@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '481';
+var APP_VERSION = '482';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2439,12 +2439,17 @@ async function refreshDashBinStats(){
      as four things instead of one green block. Applies to both the number and
      its bar so a card is a single colour idea. */
   var BIN_SHADE={'4 yard':'var(--green-s1)','7 yard':'var(--green-s2)','14 yard':'var(--green-s3)','20 yard':'var(--green-s4)'};
+  // The bar takes the bright ramp, the number the readable one — same step,
+  // one notch apart. A 40px number can't wear #4ade80 (1.7:1 on white) but a
+  // 4px bar can, and the bar is what you see across the room.
+  var BIN_BAR={'4 yard':'var(--green-b1)','7 yard':'var(--green-b2)','14 yard':'var(--green-b3)','20 yard':'var(--green-b4)'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
     var isFull=(tot>0&&inY===0);
     var availPct=tot?Math.round(inY/tot*100):0;
     var shade=BIN_SHADE[s]||'var(--accent)';
+    var barColor=isFull?'#dc3545':(BIN_BAR[s]||'var(--accent-hero)');
     var numColor=isFull?'#dc3545':shade;
     // Overdue pill moves to the top-LEFT: the size label took the top-right
     // corner when it came out of the card's flow (v481).
@@ -2456,11 +2461,11 @@ async function refreshDashBinStats(){
       +odPill
       // Size sits in the corner rather than in the column, so the card gets
       // shorter by a whole line without the photo giving up any of its 180px.
-      +'<div style="position:absolute;top:7px;right:10px;z-index:1;font-family:\'Bebas Neue\',sans-serif;font-size:20px;letter-spacing:1px;line-height:1;color:var(--muted)">'+s.replace(/\s*yard/i,' yd')+'</div>'
+      +'<div style="position:absolute;top:7px;right:10px;z-index:1;font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:1px;line-height:1;color:var(--accent-warm)">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:var(--muted);margin-top:5px">of '+tot+'</div>'
-      +'<div style="position:relative;width:100%;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+(isFull?'#dc3545':shade)+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
+      +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
       +'<div style="position:relative;width:100%"><button onclick="bookBin(\''+s+'\')" class="djj-book">Book</button></div>'
     +'</div>';
   }).join('');

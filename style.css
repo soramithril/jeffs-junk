@@ -21,7 +21,19 @@
      sizes, stacked bars) that would otherwise be one flat block of green.
      Every step stays legible on white — 2.3, 3.3, 4.9, 10:1 — so it can carry
      large numbers, not just bar fills. */
-  --green-s1:#22c55e;--green-s2:#16a34a;--green-s3:#15803d;--green-s4:#14532d;
+  --green-s1:#22c55e;--green-s2:#16a34a;--green-s3:#15803d;--green-s4:#166534;
+  /* BAR ramp (v482) — the same four steps, one notch brighter. Bars are
+     graphics, not text: nothing has to be read off them, so they can take the
+     bright greens that a 40px number can't. This is what carries the "brighter
+     dashboard" — green text is capped at #16a34a (3.4:1) before it stops being
+     legible on white, so the energy has to come from the fills. */
+  --green-b1:#4ade80;--green-b2:#22c55e;--green-b3:#16a34a;--green-b4:#15803d;
+  /* WARM ACCENT (v482). The counterweight to all that green — orange sits
+     opposite it, so it separates instantly instead of blending like a cyan or
+     a lime would. Deliberately not --orange (#f97316): that's ~2.9:1 on white
+     and dissolves at label sizes. #c2410c is 5.4:1, which clears AA for normal
+     text at any size, and still reads as hot orange rather than brown. */
+  --accent-warm:#c2410c;
   --text:#1a1a2e;--text-secondary:#495057;--muted:#868e96;
   --green:#22c55e;--yellow:#eab308;--red:#dc3545;--blue:#0d6efd;--orange:#f97316;--purple:#8b5cf6;
   --c-bin:#0891b2;--c-junk:#eab308;--c-furn:#8b5cf6;--c-furn-del:#f97316;--c-landscaping:#65a30d;
