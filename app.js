@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '476';
+var APP_VERSION = '477';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8205,12 +8205,12 @@ async function maybeShowMorningBrief(){
   localStorage.setItem('jjBriefDay', today);
 
   function mbRow(main, sub, rowClick, btnLabel, btnClick){
-    return '<div data-anim onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;background:var(--surface2);cursor:pointer">'
+    return '<div data-anim onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:7px 11px;border:1px solid var(--border);border-radius:9px;margin-bottom:5px;background:var(--surface2);cursor:pointer">'
       + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+main+'</div>'
       + '<div style="font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sub+'</div></div>'
       + '<button class="btn btn-ghost btn-sm" style="flex:none" onclick="event.stopPropagation();'+btnClick+'">'+btnLabel+'</button></div>';
   }
-  function mbHead(txt, color){ return '<div data-anim style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:14px 0 8px">'+txt+'</div>'; }
+  function mbHead(txt, color){ return '<div data-anim style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:10px 0 6px">'+txt+'</div>'; }
   var colBins = mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22')
     + (bins.length ? bins.map(function(j){
       return mbRow(escHtml(j.name||j.id)+' — dropped '+fd(j.binDropoff),
