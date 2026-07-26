@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '482';
+var APP_VERSION = '483';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2443,6 +2443,9 @@ async function refreshDashBinStats(){
   // one notch apart. A 40px number can't wear #4ade80 (1.7:1 on white) but a
   // 4px bar can, and the bar is what you see across the room.
   var BIN_BAR={'4 yard':'var(--green-b1)','7 yard':'var(--green-b2)','14 yard':'var(--green-b3)','20 yard':'var(--green-b4)'};
+  // Glow tint per size, matching that card's bar. Kept as rgba rather than the
+  // token because it needs an alpha the ramp doesn't carry.
+  var BIN_GLOW={'4 yard':'rgba(74,222,128,.22)','7 yard':'rgba(34,197,94,.20)','14 yard':'rgba(22,163,74,.18)','20 yard':'rgba(21,128,61,.16)'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
@@ -2450,12 +2453,17 @@ async function refreshDashBinStats(){
     var availPct=tot?Math.round(inY/tot*100):0;
     var shade=BIN_SHADE[s]||'var(--accent)';
     var barColor=isFull?'#dc3545':(BIN_BAR[s]||'var(--accent-hero)');
-    var numColor=isFull?'#dc3545':shade;
+    // Colour by meaning, not by category: none left reads red, running low
+    // reads amber, healthy keeps its green. A worrying number and a fine one
+    // used to look identical.
+    var isLow=(!isFull && tot>0 && availPct<=25);
+    var numColor=isFull?'#dc3545':(isLow?'#b45309':shade);
     // Overdue pill moves to the top-LEFT: the size label took the top-right
     // corner when it came out of the card's flow (v481).
     var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
-    return '<div class="jj-bin jj-card-lift">'
+    return '<div class="jj-bin jj-card-lift" style="--binGlow:'+(BIN_GLOW[s]||'rgba(34,197,94,.10)')+'">'
+      +'<div class="jj-bin-edge" style="background:'+barColor+'"></div>'
       +'<div class="jj-bin-breathe"></div>'
       +'<div class="jj-bin-sheen"></div>'
       +odPill
@@ -2464,7 +2472,7 @@ async function refreshDashBinStats(){
       +'<div style="position:absolute;top:7px;right:10px;z-index:1;font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:1px;line-height:1;color:var(--accent-warm)">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
-      +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:var(--muted);margin-top:5px">of '+tot+'</div>'
+      +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:'+(isLow?'#b45309':'var(--muted)')+';margin-top:5px">'+(isFull?'all out':(isLow?'of '+tot+' — low':'of '+tot))+'</div>'
       +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
       +'<div style="position:relative;width:100%"><button onclick="bookBin(\''+s+'\')" class="djj-book">Book</button></div>'
     +'</div>';
@@ -2507,9 +2515,9 @@ function renderNeedsYou(){
   el.setAttribute('data-count', items.length);
   renderGreeting();
   if(!items.length){
-    el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid #16a34a;background:linear-gradient(135deg,rgba(34,197,94,.08),var(--surface))">'
-      +'<span style="font-size:30px;line-height:1">🎉</span>'
-      +'<div><div style="font-size:16px;font-weight:800;color:#14532d">All caught up</div>'
+    el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid var(--accent-hero);background:linear-gradient(135deg,rgba(34,197,94,.14),var(--surface) 70%)">'
+      +'<span style="width:6px;height:38px;border-radius:99px;background:var(--accent-hero);flex:none"></span>'
+      +'<div><div style="font-size:16px;font-weight:800;color:var(--accent-hover)">All caught up</div>'
       +'<div style="font-size:13px;color:var(--muted)">Every bin-rental confirmation email is sent and every day-before pickup call is made.</div></div>'
     +'</div>';
     return;
@@ -2544,9 +2552,12 @@ function renderNeedsYou(){
   }).join('');
   el.innerHTML='<div class="chart-card" style="padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
     +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;padding:0 4px">'
-      +'<span style="width:9px;height:9px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.14)"></span>'
-      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#14532d">Needs you before end of day</span>'
-      +'<span style="margin-left:auto;font-size:12px;color:#4d8a64;font-weight:600">'+items.length+' left &middot; '+doneToday+' done</span>'
+      // Amber, not green. This is the attention list — it was wearing the same
+      // colour as the good news, so nothing about it said "look at me". Amber
+      // does that without red's implication that something is already broken.
+      +'<span class="jj-sec-chip warm"></span>'
+      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Needs you before end of day</span>'
+      +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'+items.length+' left &middot; '+doneToday+' done</span>'
     +'</div>'
     +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
     +rowsHtml
@@ -3450,14 +3461,14 @@ function renderGreeting(){
   var jc=window._dashTodayCount;
   if(typeof jc==='number') bits.push(jc>0?(jc+' job'+(jc===1?'':'s')+' today'):'Nothing on today');
   var ny=document.getElementById('dash-needs-you');
-  var caughtUp=false;
   if(ny && ny.hasAttribute('data-count')){
     var n=parseInt(ny.getAttribute('data-count')||'0',10);
-    caughtUp=(n===0);
-    bits.push('<span style="color:var(--accent);font-weight:700">'
+    // Loose ends read amber to match the card they refer to; caught up reads
+    // the hero green, because that is the one genuinely good outcome here.
+    bits.push('<span style="color:'+(n>0?'var(--accent-warm)':'var(--accent-hover)')+';font-weight:800">'
       +(n>0 ? n+' loose end'+(n===1?'':'s') : 'All caught up')+'</span>');
   }
-  sumEl.innerHTML=bits.join('. ')+'.'+(caughtUp?' 🎉':'');
+  sumEl.innerHTML=bits.join('. ')+'.';
 }
 async function renderDash(bg){
   // bg=true → background data refresh (realtime): swap content in place only.
@@ -8285,20 +8296,20 @@ async function maybeShowMorningBrief(){
       + '<button class="btn btn-ghost btn-sm" style="flex:none" onclick="event.stopPropagation();'+btnClick+'">'+btnLabel+'</button></div>';
   }
   function mbHead(txt, color){ return '<div data-anim="pop" style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:8px 0 5px">'+txt+'</div>'; }
-  var colBins = mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22')
+  var colBins = mbHead('Bins to assign ('+bins.length+')', '#e67e22')
     + (bins.length ? bins.map(function(j){
       return mbRow(escHtml(j.name||j.id)+' — dropped '+fd(j.binDropoff),
         j.id+(j.binSize?' · '+j.binSize:'')+(j.address?' · '+escHtml((j.address||'').split(',')[0]):'')+(j.city?' · '+escHtml(j.city):''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.id+'\')',
-        '📦 Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
+        'Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
     }).join('') : '<div data-anim="pop" style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>');
-  var colMail = mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd')
+  var colMail = mbHead('Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd')
     + (unemailed.length ? unemailed.map(function(j){
       var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
       return mbRow(escHtml(j.name||j.job_id),
         j.job_id+' · '+escHtml(j.service||'')+(t?' · booked '+t:''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
-        '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
+        'Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
     }).join('') : '<div data-anim="pop" style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
   var body = '<div data-anim="pop" style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
     + '<div class="mb-cols"><div>'+colBins+'</div><div>'+colMail+'</div></div>';
