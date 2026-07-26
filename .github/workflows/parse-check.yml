@@ -14,5 +14,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Syntax-check all app*.js files
-        run: for f in app*.js; do echo "Checking $f"; node --check "$f"; done
+      # Every .js at the repo root, not just app*.js — that glob missed liquid-nav.js,
+      # jwg-icons.js, jwg-stamp.js and sw.js, any of which can blank the page too.
+      - name: Syntax-check every JavaScript file
+        run: for f in *.js; do echo "Checking $f"; node --check "$f"; done
+
+      # The three-in-lockstep rule from CLAUDE.md. Miss one and users keep running cached code,
+      # or the update banner misfires forever.
+      - name: Cache-busters must agree with version.txt
+        run: |
+          V=$(tr -d ' \t\r\n' < version.txt)
+          echo "version.txt = $V"
+          grep -aqF "app.js?v=$V" index.html || { echo "::error::index.html does not request app.js?v=$V"; exit 1; }
+          grep -qF "var APP_VERSION = '$V';" app.js || { echo "::error::APP_VERSION in app.js does not match version.txt ($V)"; exit 1; }
