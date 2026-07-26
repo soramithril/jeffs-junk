@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '485';
+var APP_VERSION = '486';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2554,7 +2554,9 @@ function renderNeedsYou(){
     var ac=isCall?'#e67e22':'#2563eb';
     var bg=isCall?'#fffaf5':'#f9fbfd';
     var iconBg=isCall?'#fff2e6':'#eaf2ff';
-    var icon=isCall?'📞':'✉️';
+    // Line icons from JWGIcons, not emoji — same set the sidebar and the call
+    // button below already use, so the row reads as one visual language.
+    var icon=isCall?lineIcon('call',17,'#e67e22'):lineIcon('email',17,'#2563eb');
     var title=isCall?('Confirm pickup — '+j.name):('Send confirmation email — '+j.name);
     var szClean=j.binSize?(j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):'';
     var dropD2=j.binDropoff||j.date;
@@ -2564,7 +2566,7 @@ function renderNeedsYou(){
     if(!isCall && dropD2 && daysUntil!=null){
       var cdc=daysUntil<=0?{bg:'#fdecee',fg:'#dc3545'}:daysUntil===1?{bg:'#fff2e6',fg:'#c2410c'}:daysUntil<=3?{bg:'#fffbeb',fg:'#b45309'}:{bg:'#f0fdf4',fg:'#16a34a'};
       var cdTxt=daysUntil<=0?'out today':daysUntil===1?'out tomorrow':(new Date(dropD2+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+daysUntil+'d');
-      cdChip='<span style="flex:none;font-size:11.5px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">📅 '+cdTxt+'</span>';
+      cdChip='<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:11.5px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">'+lineIcon('schedule',12,cdc.fg)+cdTxt+'</span>';
     }
     var action=isCall
       ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">'+lineIcon('call',13)+' '+j.phone+'</a>':'')
@@ -3043,7 +3045,7 @@ async function refreshDashJobs(){
         var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
         var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
-        var bizChip  = j.businessName ? '<span class="djj-biz">🏢 '+j.businessName+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
@@ -3709,7 +3711,7 @@ async function renderDash(bg){
         var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
         var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
-        var bizChip  = j.businessName ? '<span class="djj-biz">🏢 '+j.businessName+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
@@ -3995,11 +3997,11 @@ async function renderWillCallCard(){
     var dropD=j.binDropoff||j.date;
     var days=dropD?Math.max(0,Math.floor((Date.now()-new Date(dropD+'T12:00:00'))/86400000)):0;
     var daysPill='<span class="djj-days'+(days>=14?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
-    var bizChip=j.businessName?'<span class="djj-biz">🏢 '+j.businessName+'</span>':'';
+    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+j.businessName+'</span>':'';
     var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+j.phone+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
     return '<div class="djj-row" style="--djj-c:#e67e22" onclick="openDetail(\''+j.id+'\')">'
-      +'<span style="flex:none;width:30px;height:30px;border-radius:8px;background:#f3f0fb;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:14px">🏢</span>'
+      +'<span style="flex:none;width:30px;height:30px;border-radius:8px;background:#f3f0fb;color:#7c3aed;display:flex;align-items:center;justify-content:center">'+lineIcon('clients',15,'#7c3aed')+'</span>'
       +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+bizChip+'</div>'+(detail?'<div class="djj-sub">'+detail+'</div>':'')+'</div>'
       +daysPill
       +phoneBtn
@@ -4026,7 +4028,7 @@ async function renderDashBinsOut(){
   var nAttn=droppedJobs.filter(function(j){return j._attn;}).length;
   el.setAttribute('data-attn', nAttn);
   var sub=document.getElementById('dash-bins-out-sub');
-  if(sub) sub.innerHTML = nOut+' out · grouped by size'+(nAttn?' · <span style="color:#dc3545;font-weight:700">⚠ '+nAttn+' need attention</span>':'');
+  if(sub) sub.innerHTML = nOut+' out · grouped by size'+(nAttn?' · <span style="color:#dc3545;font-weight:700;display:inline-flex;align-items:center;gap:4px">'+lineIcon('damage',12,'#dc3545')+nAttn+' need attention</span>':'');
   if(!nOut){
     el.innerHTML=emptyStateHTML('<span style="color:var(--accent)">'+_svgIcon('home',40)+'</span>','All Bins Home','Every bin is back in the yard. Ready for the next job.');
     return;
@@ -4041,13 +4043,13 @@ async function renderDashBinsOut(){
     var bidColor=attn?'#dc3545':(hasBin?'#9aa39b':'#0d6efd');
     var cc=(typeof _cityColor==='function')?_cityColor(j.city):null;
     var cityChip=(j.city&&cc)?'<span class="djj-city" style="background:'+cc.bg+';color:'+cc.fg+'">'+_esc(j.city)+'</span>':'';
-    var bizChip=j.businessName?'<span class="djj-biz">🏢 '+_esc(j.businessName)+'</span>':'';
+    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+'+_esc(j.businessName)+'</span>':'';
     var addr=j.address?_esc(j.address.split(',')[0]):'';
     var subLine = attn
-      ? '⚠ '+(j._overdue?('overdue — pickup was '+fd(j.binPickup)):('out '+j._days+' days'))
+      ? lineIcon('damage',12,'currentColor')+' '+(j._overdue?('overdue — pickup was '+fd(j.binPickup)):('out '+j._days+' days'))
       : [addr,(j.binPickup?'pickup '+fd(j.binPickup):'')].filter(Boolean).join(' · ');
     var daysPill='<span class="djj-days'+(j._days>=14?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
-    var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">📞 '+_esc(j.phone)+'</a>':'';
+    var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+lineIcon('call',13)+_esc(j.phone)+'</a>':'';
     var callBtn=attn?'<button class="djj-btn danger" onclick="event.stopPropagation();'+(j.phone?('window.location.href=\''+'tel:'+_esc(j.phone)+'\''):('openDetail(\''+j.id+'\')'))+'">'+lineIcon('call',14)+' Call customer</button>':'';
     return '<div class="djj-row'+(attn?' attn':'')+'" onclick="openDetail(\''+j.id+'\')">'
       +'<span style="flex:none;font-family:\'Bebas Neue\',sans-serif;font-size:15px;letter-spacing:.5px;color:'+bidColor+';width:46px">'+bidTxt+'</span>'
