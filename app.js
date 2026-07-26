@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '478';
+var APP_VERSION = '479';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3304,18 +3304,44 @@ var JJ_VIBES={
     wash:'linear-gradient(118deg,rgba(234,179,8,.22),rgba(217,119,6,.12) 55%,transparent 82%)',
     blobs:[{bg:'rgba(234,179,8,.48)',top:'-46%',right:'10%',sz:400,anim:'jjDrift 13s ease-in-out infinite'},{bg:'rgba(217,119,6,.26)',bottom:'-42%',left:'8%',sz:300,anim:'jjFloatA 9s ease-in-out infinite'}]}
 };
+// Sequential dates must NOT give sequential vibes. The old pick summed the
+// character codes of the date string, and one day to the next moves that sum by
+// exactly 1 — so `sum % 10` walked the list in order and the "random" vibe was
+// really just the next one down. Scramble the day number instead: still fixed
+// for a given day (it must not change on reload), but unrelated to yesterday's.
+// Nudged off yesterday's pick when they'd collide, which drops repeats to ~9 a
+// year (true randomness would give ~36).
 var jjVibeMode=(function(){
-  var key=new Date().toDateString().split('').reduce(function(a,c){return a+c.charCodeAt(0);},0);
-  return JJ_VIBE_ORDER[key%JJ_VIBE_ORDER.length];
+  var t=new Date();
+  var day=Math.floor(Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())/86400000);
+  function idx(n){
+    n=(n^61)^(n>>>16); n=n+(n<<3); n=n^(n>>>4); n=Math.imul(n,0x27d4eb2d); n=n^(n>>>15);
+    return Math.abs(n)%JJ_VIBE_ORDER.length;
+  }
+  var i=idx(day);
+  if(i===idx(day-1)) i=(i+1)%JJ_VIBE_ORDER.length;
+  return JJ_VIBE_ORDER[i];
 })();
 var _jjPartyTimer=null;
 function jjApplyVibe(){
   var card=document.getElementById('mb-card'); if(!card) return;
   var v=JJ_VIBES[jjVibeMode];
   document.getElementById('jj-vibe-wash').style.background=v.wash;
+  // The blobs are the moving part of the background, and they were parked
+  // off-screen. Their offsets are percentages, and the container went from a
+  // ~220px greeting band to the whole ~790px card — so top:-42% grew from -92px
+  // to -330px and pushed a 380px blob almost entirely above the card.
+  // Vertical offsets now resolve against the BLOB's own size, which is what
+  // "hangs 42% off the edge" always meant. Horizontal ones stay percentages of
+  // the card, because spreading across 1600px of width is still what we want.
+  // Sizes scale up too: a 380px glow was generous on the old band and lost on
+  // a card this size.
+  var BLOB_SCALE=1.7;
   document.getElementById('jj-vibe-blobs').innerHTML=v.blobs.map(function(b){
-    var s='width:'+b.sz+'px;height:'+b.sz+'px;background:radial-gradient(circle,'+b.bg+',transparent 68%);animation:'+b.anim+';';
-    ['top','bottom','left','right'].forEach(function(k){ if(b[k]!=null)s+=k+':'+b[k]+';'; });
+    var sz=Math.round(b.sz*BLOB_SCALE);
+    var s='width:'+sz+'px;height:'+sz+'px;background:radial-gradient(circle,'+b.bg+',transparent 68%);animation:'+b.anim+';';
+    ['left','right'].forEach(function(k){ if(b[k]!=null)s+=k+':'+b[k]+';'; });
+    ['top','bottom'].forEach(function(k){ if(b[k]!=null)s+=k+':'+Math.round(parseFloat(b[k])/100*sz)+'px;'; });
     return '<div style="'+s+'"></div>';
   }).join('');
   document.getElementById('jj-vibe-shimmer').style.display=v.shimmer?'':'none';
@@ -3333,10 +3359,12 @@ function jjApplyVibe(){
       +(Math.min(i,14)*70)+'ms both';
   });
   renderGreeting();
-  // The greeting types itself in. It keeps its data-anim fade too, so it is
-  // still invisible until its slot in the cascade — no flash of the finished
-  // line before the typing blanks it.
-  setTimeout(function(){ jjTypeIn(document.getElementById('dash-greeting-head'), 42); }, 150);
+  // The greeting types itself in. Called synchronously so the line is blanked
+  // in this same tick — renderGreeting() just filled it, and its data-anim fade
+  // is only ~11% opaque by the time typing starts, which is faint but not
+  // nothing. The 150ms is the wait before the first character, not before the
+  // blanking.
+  jjTypeIn(document.getElementById('dash-greeting-head'), 42, 150);
   clearInterval(_jjPartyTimer);
   if(v.confetti){ setTimeout(jjBurst,200); _jjPartyTimer=setInterval(jjBurst,3200); }
   else { var host=document.getElementById('jj-confetti'); if(host)host.innerHTML=''; }
@@ -3345,16 +3373,18 @@ function jjApplyVibe(){
 // while it runs. Reads the element's own text, so renderGreeting() stays the
 // single place that decides WHAT the greeting says — this only replays it.
 var _jjTypeTimer=null;
-function jjTypeIn(el, ms){
+function jjTypeIn(el, ms, delay){
   var text=el.textContent;
   clearInterval(_jjTypeTimer);
-  el.textContent='';
-  el.classList.add('jj-typing');
-  var i=0;
-  _jjTypeTimer=setInterval(function(){
-    el.textContent=text.slice(0,++i);
-    if(i>=text.length){ clearInterval(_jjTypeTimer); el.classList.remove('jj-typing'); }
-  }, ms);
+  el.textContent='';            // blanked in the same tick as the caller, so the
+  el.classList.add('jj-typing'); // finished line is never on screen at all
+  setTimeout(function(){
+    var i=0;
+    _jjTypeTimer=setInterval(function(){
+      el.textContent=text.slice(0,++i);
+      if(i>=text.length){ clearInterval(_jjTypeTimer); el.classList.remove('jj-typing'); }
+    }, ms);
+  }, delay);
 }
 function jjBurst(){
   var host=document.getElementById('jj-confetti'); if(!host) return;
@@ -3369,12 +3399,14 @@ function jjBurst(){
   }
   setTimeout(function(){ var h=document.getElementById('jj-confetti'); if(h)h.innerHTML=''; },2400);
 }
-// Dashboard greeting — big vibe-coloured "Good morning, <name>" + a summary
-// line: jobs on the board, the daily fun phrase, and loose ends to clear.
+// Greeting — big vibe-coloured "Good morning, <name>" and one short summary
+// line: the daily phrase, the job count, the loose ends. Three clauses, full
+// stops between them, no dashes (Jake 2026-07-25: short and punchy). The
+// phrases are deliberately two or three words for the same reason.
 var GREET_FUN={
-  morning:["Rise and shine","Coffee first, junk second","Fresh day, empty bins","Let's get rolling","Up and at 'em"],
-  afternoon:["Keep on truckin'","Rolling right along","Full swing ahead","Keep it moving"],
-  evening:["Home stretch","Wrapping up the day","Finish strong","Almost quitting time"]
+  morning:["Rise and shine","Coffee first","Fresh day","Let's roll","Up and at 'em"],
+  afternoon:["Keep truckin'","Rolling along","Full swing","Keep it moving"],
+  evening:["Home stretch","Wrapping up","Finish strong","Nearly quitting time"]
 };
 function renderGreeting(){
   var subEl=document.getElementById('dash-greeting-sub');
@@ -3395,19 +3427,18 @@ function renderGreeting(){
   headEl.style.color=JJ_VIBES[jjVibeMode].color;
   var list=h<12?GREET_FUN.morning:(h<18?GREET_FUN.afternoon:GREET_FUN.evening);
   var phrase=list[now.getDate()%list.length]; // same phrase all day, new one tomorrow
-  var bits=[];
+  var bits=[phrase];
   var jc=window._dashTodayCount;
-  if(typeof jc==='number') bits.push(jc>0?(jc+' job'+(jc===1?'':'s')+' on the board today'):'Nothing on the board today');
-  bits.push(phrase);
+  if(typeof jc==='number') bits.push(jc>0?(jc+' job'+(jc===1?'':'s')+' today'):'Nothing on today');
   var ny=document.getElementById('dash-needs-you');
-  var tail='';
+  var caughtUp=false;
   if(ny && ny.hasAttribute('data-count')){
     var n=parseInt(ny.getAttribute('data-count')||'0',10);
-    tail=n>0
-      ? ' <span style="color:var(--accent);font-weight:700">'+n+' loose end'+(n===1?'':'s')+' to clear.</span>'
-      : ' <span style="color:var(--accent);font-weight:700">You\'re all caught up</span> 🎉';
+    caughtUp=(n===0);
+    bits.push('<span style="color:var(--accent);font-weight:700">'
+      +(n>0 ? n+' loose end'+(n===1?'':'s') : 'All caught up')+'</span>');
   }
-  sumEl.innerHTML=bits.join(' — ')+'.'+tail;
+  sumEl.innerHTML=bits.join('. ')+'.'+(caughtUp?' 🎉':'');
 }
 async function renderDash(bg){
   // bg=true → background data refresh (realtime): swap content in place only.
