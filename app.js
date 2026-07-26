@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '477';
+var APP_VERSION = '478';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3323,15 +3323,38 @@ function jjApplyVibe(){
   // then each list heading and row in DOM order, then the button. The delay
   // stops climbing after 14 items so a busy morning doesn't crawl in for
   // three seconds — everything past that arrives on the same beat.
+  // data-anim="pop" gets the springy pop (the bins and emails); the greeting
+  // band gets today's vibe keyframe, whichever of the ten it is.
   card.querySelectorAll('[data-anim]').forEach(function(el,i){
+    var pop=el.getAttribute('data-anim')==='pop';
     el.style.animation='none';
     void el.offsetWidth;
-    el.style.animation=v.k+' '+v.d+'ms '+v.e+' '+(Math.min(i,14)*70)+'ms both';
+    el.style.animation=(pop?'jjPop 520ms cubic-bezier(.34,1.56,.64,1) ':v.k+' '+v.d+'ms '+v.e+' ')
+      +(Math.min(i,14)*70)+'ms both';
   });
   renderGreeting();
+  // The greeting types itself in. It keeps its data-anim fade too, so it is
+  // still invisible until its slot in the cascade — no flash of the finished
+  // line before the typing blanks it.
+  setTimeout(function(){ jjTypeIn(document.getElementById('dash-greeting-head'), 42); }, 150);
   clearInterval(_jjPartyTimer);
   if(v.confetti){ setTimeout(jjBurst,200); _jjPartyTimer=setInterval(jjBurst,3200); }
   else { var host=document.getElementById('jj-confetti'); if(host)host.innerHTML=''; }
+}
+// Types text into an element one character at a time, with a blinking caret
+// while it runs. Reads the element's own text, so renderGreeting() stays the
+// single place that decides WHAT the greeting says — this only replays it.
+var _jjTypeTimer=null;
+function jjTypeIn(el, ms){
+  var text=el.textContent;
+  clearInterval(_jjTypeTimer);
+  el.textContent='';
+  el.classList.add('jj-typing');
+  var i=0;
+  _jjTypeTimer=setInterval(function(){
+    el.textContent=text.slice(0,++i);
+    if(i>=text.length){ clearInterval(_jjTypeTimer); el.classList.remove('jj-typing'); }
+  }, ms);
 }
 function jjBurst(){
   var host=document.getElementById('jj-confetti'); if(!host) return;
@@ -8205,19 +8228,19 @@ async function maybeShowMorningBrief(){
   localStorage.setItem('jjBriefDay', today);
 
   function mbRow(main, sub, rowClick, btnLabel, btnClick){
-    return '<div data-anim onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:7px 11px;border:1px solid var(--border);border-radius:9px;margin-bottom:5px;background:var(--surface2);cursor:pointer">'
+    return '<div data-anim="pop" onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:6px 11px;border:1px solid var(--border);border-radius:9px;margin-bottom:4px;background:var(--surface2);cursor:pointer">'
       + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+main+'</div>'
       + '<div style="font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sub+'</div></div>'
       + '<button class="btn btn-ghost btn-sm" style="flex:none" onclick="event.stopPropagation();'+btnClick+'">'+btnLabel+'</button></div>';
   }
-  function mbHead(txt, color){ return '<div data-anim style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:10px 0 6px">'+txt+'</div>'; }
+  function mbHead(txt, color){ return '<div data-anim="pop" style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+color+';margin:8px 0 5px">'+txt+'</div>'; }
   var colBins = mbHead('📦 Bins to assign ('+bins.length+')', '#e67e22')
     + (bins.length ? bins.map(function(j){
       return mbRow(escHtml(j.name||j.id)+' — dropped '+fd(j.binDropoff),
         j.id+(j.binSize?' · '+j.binSize:'')+(j.address?' · '+escHtml((j.address||'').split(',')[0]):'')+(j.city?' · '+escHtml(j.city):''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.id+'\')',
         '📦 Assign', 'closeM(\'morning-brief-modal\');openAssignBinPicker(\''+j.id+'\')');
-    }).join('') : '<div data-anim style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>');
+    }).join('') : '<div data-anim="pop" style="font-size:12.5px;color:var(--accent)">All bins assigned ✓</div>');
   var colMail = mbHead('📧 Booked yesterday, never emailed ('+unemailed.length+')', '#0d6efd')
     + (unemailed.length ? unemailed.map(function(j){
       var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
@@ -8225,8 +8248,8 @@ async function maybeShowMorningBrief(){
         j.job_id+' · '+escHtml(j.service||'')+(t?' · booked '+t:''),
         'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
         '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
-    }).join('') : '<div data-anim style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
-  var body = '<div data-anim style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
+    }).join('') : '<div data-anim="pop" style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
+  var body = '<div data-anim="pop" style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
     + '<div class="mb-cols"><div>'+colBins+'</div><div>'+colMail+'</div></div>';
 
   document.getElementById('mb-body').innerHTML = body;
