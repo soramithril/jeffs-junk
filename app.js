@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '472';
+var APP_VERSION = '473';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3310,7 +3310,7 @@ var jjVibeMode=(function(){
 })();
 var _jjPartyTimer=null;
 function jjApplyVibe(){
-  var hero=document.getElementById('dash-hero'); if(!hero) return;
+  var hero=document.getElementById('mb-hero'); if(!hero) return;
   var v=JJ_VIBES[jjVibeMode];
   document.getElementById('jj-vibe-wash').style.background=v.wash;
   document.getElementById('jj-vibe-blobs').innerHTML=v.blobs.map(function(b){
@@ -3357,7 +3357,10 @@ function renderGreeting(){
   var now=new Date();
   var h=now.getHours();
   var part=h<12?'Good morning':(h<18?'Good afternoon':'Good evening');
-  subEl.textContent=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  var dateTxt=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  subEl.textContent=dateTxt;
+  var stripDate=document.getElementById('dash-strip-date');
+  if(stripDate) stripDate.textContent=dateTxt;
   var nameEl=document.getElementById('logged-in-username');
   var raw=nameEl?(nameEl.textContent||'').trim():'';
   var nm=(raw && raw!=='—')?raw.split(' ')[0]:'';
@@ -3404,7 +3407,8 @@ async function renderDash(bg){
     el.style.animation='none'; el.style.opacity='0';
     requestAnimationFrame(function(){ el.style.animation=''; });
   });
-  jjApplyVibe(); // hero: wash/blobs/pills + entrance replay for today's vibe
+  // The vibe hero is no longer on this page — jjApplyVibe now runs when the
+  // morning-brief popup opens, so the entrance plays on finished text.
 
   // Scroll to top so dashboard content is visible after loading screen
   var mainEl=document.getElementById('main');if(mainEl)mainEl.scrollTop=0;
@@ -3477,8 +3481,10 @@ async function renderDash(bg){
   var weekJobs = rWeekJobs.count||0;
   document.getElementById('m-active').textContent=weekJobs;
 
-  // Bin stats (delegated)
-  refreshDashBinStats();
+  // Bin stats (delegated). Awaited: it ends in renderNeedsYou(), which stamps
+  // the loose-end count the greeting reads, and the morning brief at the end of
+  // this function needs that number before it animates the greeting in.
+  await refreshDashBinStats();
   renderDashVehicleStatus();
   renderDashCrewStatus();
   renderDashMaintAlert();
@@ -3697,6 +3703,11 @@ async function renderDash(bg){
   if(datePicker.value && datePicker.value !== todayS){
     refreshDashJobs();
   }
+
+  // Morning brief last, on the arrival render only: by here the job count and
+  // the loose-end count are both in, so the greeting animates on finished text
+  // instead of on a placeholder (the bug that made it look static).
+  if(!bg) maybeShowMorningBrief();
 }
 
 // ─── POSSIBLE JOBS (undated Landscaping backlog) ───────────────────────────
@@ -8161,9 +8172,13 @@ function _getUnassignedBinJobs(){
 }
 
 // ── MORNING BRIEF ──
-// First dashboard sign-in of the day (per browser) gets one popup with exactly
-// two lists (per Jake 2026-07-24): bins needing assignment, and yesterday's
-// bookings whose confirmation email never went out. Nothing outstanding = no popup.
+// First dashboard sign-in of the day (per browser) gets one popup: the day's
+// greeting on top, then exactly two lists (per Jake 2026-07-24) — bins needing
+// assignment, and yesterday's bookings whose confirmation email never went out.
+// Since v473 it opens every morning, clean or not, because it now carries the
+// greeting (Jake 2026-07-25, replacing the earlier nothing-outstanding-no-popup
+// rule). Called at the end of the dashboard data load so the greeting's job
+// count and loose-end count are already in when the entrance animation plays.
 async function maybeShowMorningBrief(){
   var today = todayStr();
   if(localStorage.getItem('jjBriefDay') === today) return;
@@ -8184,7 +8199,6 @@ async function maybeShowMorningBrief(){
     });
   } catch(e){ console.warn('Morning brief email check failed:', e); }
   localStorage.setItem('jjBriefDay', today);
-  if(!bins.length && !unemailed.length) return;
 
   function mbRow(main, sub, rowClick, btnLabel, btnClick){
     return '<div onclick="'+rowClick+'" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;background:var(--surface2);cursor:pointer">'
@@ -8210,19 +8224,9 @@ async function maybeShowMorningBrief(){
         '📧 Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
     }).join('') : '<div style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>';
 
-  if(!document.getElementById('morning-brief-modal')){
-    var div = document.createElement('div');
-    div.className = 'modal-overlay';
-    div.id = 'morning-brief-modal';
-    div.innerHTML = '<div class="modal" style="max-width:540px"><div class="modal-header"><div class="modal-title" id="mb-title"></div><button class="modal-close" onclick="closeM(\'morning-brief-modal\')">&#x2715;</button></div>'
-      + '<div id="mb-body" style="max-height:62vh;overflow-y:auto;padding-right:2px"></div>'
-      + '<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px" onclick="closeM(\'morning-brief-modal\')">Got it</button></div>';
-    div.addEventListener('click', function(e){ if(e.target === div) closeM('morning-brief-modal'); });
-    document.body.appendChild(div);
-  }
-  document.getElementById('mb-title').textContent = '☀️ Morning brief — ' + new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   document.getElementById('mb-body').innerHTML = body;
   document.getElementById('morning-brief-modal').classList.add('open');
+  jjApplyVibe(); // paints today's vibe AND replays the greeting entrance, now that it's visible
 }
 
 function _removeBinChip(){
@@ -10958,7 +10962,6 @@ async function onLoginSuccess() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
   resetInactivityTimer();
   loadAllFromSupabase();
-  setTimeout(maybeShowMorningBrief, 2000);
 }
 
 function applyDeleteVisibility() {
