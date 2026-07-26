@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '486';
+var APP_VERSION = '487';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8348,10 +8348,10 @@ async function maybeShowMorningBrief(){
   document.getElementById('mb-body').innerHTML = body;
   document.getElementById('morning-brief-modal').classList.add('open');
   jjApplyVibe(); // paints today's vibe AND replays the greeting entrance, now that it's visible
-  // Shows itself out after 10s (Jake 2026-07-25 — 4s was too short to act on
-  // the Assign/Email buttons, and he capped the replacement at ten).
+  // Shows itself out after 9s (4s -> 10s -> 9s; 4 was too short to act on the
+  // Assign/Email buttons at all, and Jake trimmed a second back off ten).
   clearTimeout(_jjBriefTimer);
-  _jjBriefTimer = setTimeout(closeBrief, 10000);
+  _jjBriefTimer = setTimeout(closeBrief, 9000);
 }
 
 // The brief leaves on an animation rather than blinking out. Everything that
