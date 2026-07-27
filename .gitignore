@@ -9,3 +9,8 @@ Thumbs.db
 # Audit notes - local only. They name staff and map the permission model;
 # this repo is public.
 audit/
+
+# Cut Times raw pull - local only, same reasoning as audit/. It is customer
+# addresses plus one employee's two-month movement history. The dashboard reads
+# the snapshot from Supabase (jwg_cut_locations / jwg_cut_visits) instead.
+docs/cut-times/

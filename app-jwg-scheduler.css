@@ -1489,3 +1489,52 @@
 #view-jwgscheduler .moverlay.fullpage .modal {width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;border:none;box-shadow:none;margin:0;padding:38px clamp(20px,7vw,110px) 56px;overflow-y:auto;animation:jwg-mUp .25s var(--ease-out);background:var(--bg-elevated);}
 #view-jwgscheduler .mfp-close {position:fixed;top:16px;right:20px;z-index:20;width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg-deep);color:var(--fg-muted);font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.10);}
 #view-jwgscheduler .mfp-close:hover {color:var(--fg);border-color:var(--border-h);}
+
+/* ── Summer page view switch (Extra Jobs locations / Cut Times) ── */
+#view-jwgscheduler .sum-view-switch {display:flex;gap:4px;padding:4px;margin:0 0 16px;background:var(--surface);border-radius:var(--radius);width:fit-content;}
+#view-jwgscheduler .sum-view-btn {border:none;background:none;color:var(--fg-muted);font-size:13px;font-weight:700;padding:7px 16px;border-radius:var(--radius-sm);cursor:pointer;transition:background .15s,color .15s;}
+#view-jwgscheduler .sum-view-btn:hover {color:var(--fg);}
+#view-jwgscheduler .sum-view-btn.active {background:var(--bg-base);color:var(--accent-text);box-shadow:var(--shadow-card);}
+
+/* ── Cut Times (app-cuttimes.js) ── */
+#view-jwgscheduler .ctm-loading {padding:28px;text-align:center;color:var(--fg-muted);font-size:13px;}
+#view-jwgscheduler .ctm-head {margin:0 0 14px;}
+#view-jwgscheduler .ctm-title {font-size:19px;font-weight:800;color:var(--fg);letter-spacing:-.2px;}
+#view-jwgscheduler .ctm-sub {font-size:12px;color:var(--fg-muted);margin-top:3px;}
+
+#view-jwgscheduler .ctm-tiles {display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px;}
+#view-jwgscheduler .ctm-tile {flex:1 1 140px;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-card);}
+#view-jwgscheduler .ctm-tile .v {font-size:24px;font-weight:800;color:var(--accent-text);line-height:1.1;}
+#view-jwgscheduler .ctm-tile .l {font-size:11.5px;color:var(--fg-muted);margin-top:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+#view-jwgscheduler .ctm-tile.warn .v {color:#dc2626;}
+
+#view-jwgscheduler .ctm-grid {display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+#view-jwgscheduler .ctm-panel {background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-card);min-width:0;}
+#view-jwgscheduler .ctm-panel-wide {margin-top:14px;}
+#view-jwgscheduler .ctm-h2 {font-size:14px;font-weight:800;color:var(--fg);margin:0 0 10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+#view-jwgscheduler .ctm-hint {font-size:11.5px;font-weight:400;color:var(--fg-muted);}
+#view-jwgscheduler #ctm-map {height:430px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);}
+#view-jwgscheduler .ctm-legend {display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--fg-muted);}
+#view-jwgscheduler .ctm-legend span::before {content:"";display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+#view-jwgscheduler .ctm-l1::before {background:#057334;}
+#view-jwgscheduler .ctm-l2::before {background:#dc2626;}
+#view-jwgscheduler .ctm-l3::before {background:#555555;}
+
+#view-jwgscheduler .ctm-scroll {max-height:430px;overflow:auto;}
+#view-jwgscheduler .ctm-scroll-sm {max-height:260px;}
+#view-jwgscheduler .ctm-table {width:100%;border-collapse:collapse;font-size:12.5px;}
+#view-jwgscheduler .ctm-table th {position:sticky;top:0;z-index:1;background:var(--bg-deep);color:var(--fg-muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;}
+#view-jwgscheduler .ctm-table th.num, #view-jwgscheduler .ctm-table td.num {text-align:right;}
+#view-jwgscheduler .ctm-table td {padding:7px 10px;border-bottom:1px solid var(--border);color:var(--fg);}
+#view-jwgscheduler .ctm-table tbody tr {cursor:pointer;}
+#view-jwgscheduler .ctm-table tbody tr:hover td {background:var(--surface-sm);}
+#view-jwgscheduler .ctm-table tr.hasflag td {background:rgba(220,38,38,.05);}
+#view-jwgscheduler .ctm-table tr.hasflag:hover td {background:rgba(220,38,38,.09);}
+#view-jwgscheduler .ctm-flagrow b {color:#dc2626;}
+#view-jwgscheduler .ctm-badge {display:inline-block;background:#dc2626;color:#fff;border-radius:10px;font-size:11px;font-weight:800;padding:1px 8px;}
+#view-jwgscheduler .ctm-note {font-size:12px;color:var(--fg-muted);line-height:1.6;margin-top:14px;max-width:900px;}
+
+@media (max-width:900px){
+  #view-jwgscheduler .ctm-grid {grid-template-columns:1fr;}
+  #view-jwgscheduler #ctm-map {height:320px;}
+}
