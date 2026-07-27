@@ -5,3 +5,7 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# Audit notes - local only. They name staff and map the permission model;
+# this repo is public.
+audit/
