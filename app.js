@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '491';
+var APP_VERSION = '492';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1116,15 +1116,15 @@ function _binRow(bin) {
     repaint: bin.repaint || false
   };
 }
+// Writes the bins this tab is holding. It does NOT delete anything: deleting is delBinItem's
+// job, explicitly, one bin at a time.
+//   - It used to treat an empty list as "delete every bin in the database", behind one confirm.
+//   - It used to delete any bin in the database that wasn't on this tab's screen, ignoring the
+//     result — so a bin Darrin added on the kiosk vanished when someone with an older tab saved.
 function saveBins() {
-  if (!binItems.length) {
-    if (!confirm('This will delete ALL bins from the database. Are you sure?')) return;
-    db.from('bin_items').delete().neq('bid','__none__')
-      .then(function(r){ if(r.error) { console.error('Clear bins error:', r.error.message); toast('⚠ Error clearing bins: ' + r.error.message); } });
-    return;
-  }
+  if (!binItems.length) return;
   // Save each bin individually so one bad row can't block the rest
-  var saved = 0, errors = 0;
+  var errors = 0;
   binItems.forEach(function(bin) {
     var row = _binRow(bin);
     db.from('bin_items').upsert(row, {onConflict:'bid'}).then(function(r){
@@ -1132,18 +1132,6 @@ function saveBins() {
         errors++;
         console.error('Save bin error ('+bin.bid+'):', r.error.message);
         if (errors === 1) toast('⚠ DB error saving bin: ' + r.error.message);
-      } else {
-        saved++;
-      }
-    });
-  });
-  // Clean up deleted bins
-  var keepIds = binItems.map(function(b){ return b.bid; });
-  db.from('bin_items').select('bid').then(function(r){
-    if (r.error || !r.data) return;
-    r.data.forEach(function(row){
-      if (keepIds.indexOf(row.bid) === -1) {
-        db.from('bin_items').delete().eq('bid', row.bid).then(function(){});
       }
     });
   });
@@ -1649,7 +1637,36 @@ async function nextIdFromDb(svc) {
   return (svc === 'Extra Jobs' ? 'LAND-' + String(r.data).padStart(4, '0') : String(r.data));
 }
 
-function nextBinItemId(){var n=binItems.map(function(b){return parseInt((b.bid||'').replace('BI-',''))||0;});return 'BI-'+String((n.length?Math.max.apply(null,n):0)+1).padStart(4,'0');}
+// Bin codes are meaningful to the crew and are read off the side of the bin: 14R-29, 14LW-25,
+// 20-20, 7-04. The number runs within a size+type group, so a new bin continues ITS group's run.
+// This used to return 'BI-' + (highest number this tab happened to have loaded) + 1, which was
+// both the wrong shape entirely — no bin in the fleet is named BI-anything — and the same
+// max-from-memory pattern that let two tabs mint the same id. The run now comes from the
+// database, and the caller inserts, so a clash fails and retries instead of overwriting.
+async function nextBinItemId(size, type){
+  var r = await db.from('bin_items').select('bid').eq('size', size).eq('type', type);
+  if(r.error) throw new Error('Could not work out the next bin number: ' + r.error.message);
+  var known = (r.data||[]).map(function(x){ return x.bid; });
+  // Bins added in this batch aren't saved yet — count them too, or a CSV import gives them
+  // all the same number.
+  binItems.forEach(function(b){
+    if(b.size===size && b.type===type && known.indexOf(b.bid)===-1) known.push(b.bid);
+  });
+  var prefix='', highest=0;
+  known.forEach(function(bid){
+    var m = String(bid||'').match(/^(.*)-(\d+)$/);
+    if(!m) return;
+    prefix = m[1];
+    var n = parseInt(m[2], 10);
+    if(n > highest) highest = n;
+  });
+  if(!prefix){
+    // First bin of this size and type — build the code the way the fleet already reads.
+    var sizeNum = String(size||'').replace(/[^0-9]/g,'') || '0';
+    prefix = sizeNum + (type==='low' ? 'LW' : (sizeNum==='14' ? 'R' : ''));
+  }
+  return prefix + '-' + String(highest+1).padStart(2,'0');
+}
 
 // ─── CLIENT MODAL HELPERS ───
 var editClientId = null;
@@ -7618,27 +7635,45 @@ async function saveBinItem(e){
   var isDupe=binItems.some(function(b){return b.num.toLowerCase()===num.toLowerCase()&&b.bid!==editBinId;});
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
   var oorVal=document.getElementById('bi-oor').value==='oor';
-  var bin={bid:editBinId||nextBinItemId(),num:num,type:document.getElementById('bi-type').value,size:document.getElementById('bi-size').value,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
+  var binType=document.getElementById('bi-type').value;
+  var binSize=document.getElementById('bi-size').value;
+  var newBid=editBinId;
+  if(!newBid){
+    try{ newBid=await nextBinItemId(binSize,binType); }
+    catch(ex){ alert('Could not add the bin: '+ex.message); return; }
+  }
+  var bin={bid:newBid,num:num,type:binType,size:binSize,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
   if(editBinId){
     var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);
     toast('Bin updated!');editBinId=null;saveBins();
   }else{
     // New bins INSERT: a duplicate id (e.g. two tabs adding at once) fails loudly
-    // instead of replacing the other bin.
+    // instead of replacing the other bin. If someone else took this code in the moment
+    // between working it out and saving, get a fresh one and try once more.
     var insR=await db.from('bin_items').insert(_binRow(bin));
+    if(insR.error && (insR.error.code==='23505' || /duplicate key/i.test(insR.error.message||''))){
+      try{ bin.bid=await nextBinItemId(binSize,binType); }
+      catch(ex){ alert('Could not add the bin: '+ex.message); return; }
+      insR=await db.from('bin_items').insert(_binRow(bin));
+    }
     if(insR.error){alert('Error adding bin: '+insR.error.message);return;}
-    binItems.push(bin);toast('Bin added!');
+    binItems.push(bin);toast('Bin added — '+bin.bid+'.');
   }
   closeM('bin-modal');renderBinInventory();renderDash(true);
 }
-function delBinItem(bid){
+async function delBinItem(bid){
   if(!mGuard())return;
   if(!canDelete){ toast('⚠ You don\'t have permission to delete bins.','error'); return; }
   var assigned=jobs.find(function(j){return j.binBid===bid;});
   if(assigned){toast('⚠ Bin is assigned to job '+assigned.id+' — unassign it first.','error');return;}
   if(!confirm('Delete this bin?'))return;
+  // Delete this one bin, by name, and check it worked. This used to drop the bin from the local
+  // list and let saveBins() notice it was missing and delete it — which is also what made
+  // saveBins delete bins other people had added.
+  var r=await db.from('bin_items').delete().eq('bid',bid);
+  if(r.error){ toast('⚠ Delete failed: '+r.error.message,'error'); return; }
   binItems=binItems.filter(function(b){return b.bid!==bid;});
-  saveBins();toast('Bin deleted.');renderBinInventory();
+  toast('Bin deleted.');renderBinInventory();
 }
 
 // ─── BIN CSV IMPORT ───
@@ -7736,13 +7771,21 @@ async function doBinCsvImport(){
   if(rows===null){toast('⚠ CSV must have a "num" column.');return;}
   if(!rows||!rows.length){toast('⚠ No valid rows to import.');return;}
   var added=0,skipped=0,newBins=[];
-  rows.forEach(function(r){
-    var isDupe=binItems.some(function(b){return b.num.toLowerCase()===r.num.toLowerCase();});
-    if(isDupe){skipped++;return;}
-    var nb={bid:nextBinItemId(),num:r.num,type:r.type,size:r.size,color:r.color,damage:r.damage,status:r.status,notes:r.notes};
+  // A plain loop, not forEach — each code is worked out against the database, which needs await.
+  for(var _bi=0; _bi<rows.length; _bi++){
+    var _row=rows[_bi];
+    var isDupe=binItems.some(function(b){return b.num.toLowerCase()===_row.num.toLowerCase();});
+    if(isDupe){skipped++;continue;}
+    var _newBid;
+    try{ _newBid=await nextBinItemId(_row.size,_row.type); }
+    catch(ex){
+      binItems=binItems.filter(function(b){return newBins.indexOf(b)===-1;});
+      alert('Import stopped: '+ex.message+'\n\nNothing was imported.');return;
+    }
+    var nb={bid:_newBid,num:_row.num,type:_row.type,size:_row.size,color:_row.color,damage:_row.damage,status:_row.status,notes:_row.notes};
     binItems.push(nb);newBins.push(nb);
     added++;
-  });
+  }
   if(newBins.length){
     // Imported bins INSERT: a duplicate id fails loudly instead of replacing a bin.
     var insR=await db.from('bin_items').insert(newBins.map(_binRow));
