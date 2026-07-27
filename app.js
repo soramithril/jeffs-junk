@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '492';
+var APP_VERSION = '493';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1116,24 +1116,26 @@ function _binRow(bin) {
     repaint: bin.repaint || false
   };
 }
-// Writes the bins this tab is holding. It does NOT delete anything: deleting is delBinItem's
-// job, explicitly, one bin at a time.
-//   - It used to treat an empty list as "delete every bin in the database", behind one confirm.
-//   - It used to delete any bin in the database that wasn't on this tab's screen, ignoring the
-//     result — so a bin Darrin added on the kiosk vanished when someone with an older tab saved.
-function saveBins() {
-  if (!binItems.length) return;
-  // Save each bin individually so one bad row can't block the rest
-  var errors = 0;
-  binItems.forEach(function(bin) {
-    var row = _binRow(bin);
-    db.from('bin_items').upsert(row, {onConflict:'bid'}).then(function(r){
-      if (r.error) {
-        errors++;
-        console.error('Save bin error ('+bin.bid+'):', r.error.message);
-        if (errors === 1) toast('⚠ DB error saving bin: ' + r.error.message);
-      }
-    });
+// Writes named fields for ONE bin. The bin equivalent of patchJob.
+//
+// This replaces saveBins(), which rewrote all 86 bin records from this tab's memory every time a
+// single bin was called in or out. That is the same whole-record-write pattern behind the client
+// merge overwriting every customer and cancel blanking a job's notes: it pushes whatever this tab
+// happens to be holding over everyone else's work. Calling a bin in or out now writes one field,
+// for one bin.
+//
+// saveBins() also used to be how bins got DELETED — it removed any bin in the database that
+// wasn't on this tab's screen — which is why a bin Darrin added on the kiosk could vanish when
+// someone with an older tab saved. Deleting is delBinItem's job now, one bin, by name.
+function patchBin(bid, fields) {
+  if (!bid) return Promise.resolve({ error: null });
+  binItems.forEach(function(b){ if (b.bid === bid) Object.assign(b, fields); });
+  return db.from('bin_items').update(fields).eq('bid', bid).then(function(r){
+    if (r.error) {
+      console.error('patchBin error (' + bid + '):', r.error.message);
+      toast('⚠ Bin ' + bid + ' didn\'t save: ' + r.error.message, 'error');
+    }
+    return r;
   });
 }
 
@@ -2168,8 +2170,39 @@ function animateView(viewEl){
 }
 
 var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
+// Jake-only preview: see the dashboard the way office staff see it. Purely a view of the SCREEN —
+// the database still knows who is signed in, so an action attempted while previewing would still
+// be allowed. It answers "what do they see", not "what can they do"; the banner says so.
+var _staffView = false;
+var _canDeleteReal = false;
+
 function canAccessAnalytics(){
+  if(_staffView) return false;
   return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
+}
+
+function toggleStaffView(){
+  if(!currentUser || currentUser.displayName !== 'Jake') return;
+  _staffView = !_staffView;
+  canDelete = _staffView ? false : _canDeleteReal;
+  var bar = document.getElementById('staff-view-bar');
+  if(_staffView && !bar){
+    bar = document.createElement('div');
+    bar.id = 'staff-view-bar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10002;background:#b45309;color:#fff;'
+      + 'font-size:13px;font-weight:600;padding:7px 16px;display:flex;align-items:center;justify-content:center;gap:14px;'
+      + 'box-shadow:0 2px 10px rgba(0,0,0,.25)';
+    bar.innerHTML = 'Viewing as office staff — this changes what you see, not what you can do.'
+      + '<button onclick="toggleStaffView()" style="background:#fff;color:#b45309;border:none;border-radius:6px;'
+      + 'padding:3px 12px;font-weight:700;font-size:12px;cursor:pointer">Back to admin</button>';
+    document.body.appendChild(bar);
+  } else if(!_staffView && bar){
+    bar.remove();
+  }
+  // Repaint the menu and the page so hidden sections and delete buttons follow the flag.
+  if(typeof applySettingsVisibility === 'function') applySettingsVisibility();
+  go('dashboard');
+  toast(_staffView ? 'Now showing the office-staff view.' : 'Back to your admin view.');
 }
 // "More tools" opens as a flyout panel beside the sidebar (no inline scroll).
 function toggleMoreFlyout(){
@@ -4429,8 +4462,7 @@ function cycleBinDrop(id,e){
   else j.binInstatus='';
   if(j.binBid){
     var newStatus=j.binInstatus==='dropped'?'out':'in';
-    binItems.forEach(function(b){if(b.bid===j.binBid)b.status=newStatus;});
-    saveBins();
+    patchBin(j.binBid,{status:newStatus});
   }
   if(j.binInstatus==='pickedup')writeBinHistory(j);
   patchJob(id,{binInstatus:j.binInstatus});refresh();
@@ -5167,7 +5199,7 @@ function renderJobs(){
           var jc=jobs.find(function(x){return x.id===id;});
           if(jc){
             jc.status='Cancelled';
-            if(jc.binBid){binItems.forEach(function(b){if(b.bid===jc.binBid)b.status='in';});saveBins();}
+            if(jc.binBid){patchBin(jc.binBid,{status:'in'});}
             patchJob(jc.id,{status:'Cancelled'});
             toast('Job cancelled.');
             loadJobsPage(jobsPage);
@@ -5178,8 +5210,7 @@ function renderJobs(){
         if(ju){
           ju.status='';
           if(ju.binBid && ju.binInstatus==='dropped'){
-            binItems.forEach(function(b){if(b.bid===ju.binBid)b.status='out';});
-            saveBins();
+            patchBin(ju.binBid,{status:'out'});
           }
           patchJob(ju.id,{status:''});
           toast('Job restored.');
@@ -6846,8 +6877,7 @@ function openBinNote(bid){
 function saveBinNote(){
   var b=binItems.find(function(x){return x.bid===_binNoteBid;});
   if(!b)return;
-  b.notes=document.getElementById('bin-note-text').value.trim();
-  saveBins();
+  patchBin(b.bid,{notes:document.getElementById('bin-note-text').value.trim()});
   closeM('bin-note-modal');
   renderBinInventory();
   toast('Note saved for bin '+b.num+'.');
@@ -6864,7 +6894,7 @@ function quickToggleStatus(bid){
   }
   b.status=b.status==='in'?'out':'in';
   if(b.status==='in') binLastReturn[b.bid]=todayStr(); // reset idle clock when manually returned to the yard
-  saveBins();
+  patchBin(b.bid,{status:b.status});
   renderBinInventory();
   refreshDashBinStats();
   // Also refresh the utilization tab if currently visible
@@ -7214,8 +7244,7 @@ async function _doReassignBin(bid, fromJobId, toJobId){
   newJob.binInstatus = 'dropped';
 
   // 3. Bin status stays 'out' (never returned to yard)
-  bin.status = 'out';
-  saveBins();
+  patchBin(bin.bid,{status:'out'});
 
   // 4. Persist both job updates
   var r = await Promise.all([
@@ -7244,8 +7273,7 @@ async function linkBinFromJob(bid){
   j.binSize=b.size;
   // Only flip the picked bin to 'out' if this job is currently dropped AND the bin is in the yard.
   // If the bin is already out (on another job), leave it alone — retroactive link only.
-  if(j.binInstatus==='dropped' && b.status==='in') b.status='out';
-  saveBins();
+  if(j.binInstatus==='dropped' && b.status==='in') patchBin(b.bid,{status:'out'});
   var res=await db.from('jobs').update({bin_bid:bid,bin_size:b.size}).eq('job_id',jobId);
   if(res.error){toast('Error linking bin: '+res.error.message,'error');return;}
   closeM('link-bin-from-job-modal');
@@ -7264,8 +7292,7 @@ async function linkBinToJob(bid,jobId){
   j.binBid=bid;
   j.binSize=b.size;
   // Only flip new bin to 'out' when the job is actually dropped
-  if(j.binInstatus==='dropped')b.status='out';
-  saveBins();
+  if(j.binInstatus==='dropped')patchBin(b.bid,{status:'out'});
   var res=await db.from('jobs').update({bin_bid:bid,bin_size:b.size}).eq('job_id',jobId);
   if(res.error){toast('Error linking bin: '+res.error.message,'error');return;}
   closeM('link-bin-modal');
@@ -7389,8 +7416,7 @@ async function doAssignBin(jobId,bid){
   j.binBid=bid;
   j.binSize=b.size;
   // Only flip new bin to 'out' when the job is actually dropped
-  if(j.binInstatus==='dropped')b.status='out';
-  saveBins();
+  if(j.binInstatus==='dropped')patchBin(b.bid,{status:'out'});
   patchJob(j.id,{binBid:bid,binSize:b.size});
   closeM('assign-bin-modal');
   toast('Bin #'+b.num+' assigned to '+jobId+'!');
@@ -7645,7 +7671,7 @@ async function saveBinItem(e){
   var bin={bid:newBid,num:num,type:binType,size:binSize,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
   if(editBinId){
     var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);
-    toast('Bin updated!');editBinId=null;saveBins();
+    toast('Bin updated!');editBinId=null;patchBin(bin.bid,_binRow(bin));
   }else{
     // New bins INSERT: a duplicate id (e.g. two tabs adding at once) fails loudly
     // instead of replacing the other bin. If someone else took this code in the moment
@@ -9269,8 +9295,7 @@ async function saveJob(e){
     if(oldJob && oldJob.binBid){
       var newBid = (svc==='Bin Rental') ? getPickedBinBid() : '';
       if(oldJob.binBid !== newBid){
-        binItems.forEach(function(b){if(b.bid===oldJob.binBid) b.status='in';});
-        saveBins();
+        patchBin(oldJob.binBid,{status:'in'});
       }
     }
   }
@@ -9311,7 +9336,7 @@ async function saveJob(e){
          && _oldJobForDrop.binDropoff !== job.binDropoff
          && job.binDropoff && job.binDropoff > _today){
         job.binInstatus = '';
-        if(pickedBin){ pickedBin.status='in'; saveBins(); }
+        if(pickedBin){ patchBin(pickedBin.bid,{status:'in'}); }
       }
     }
     // Guard against double-dropping: if this bin is still dropped on another live
@@ -9325,13 +9350,11 @@ async function saveJob(e){
     }
     // Mark the newly picked bin as out only when the job is actually dropped
     if(pickedBin && job.binInstatus === 'dropped'){
-      pickedBin.status = 'out';
-      saveBins();
+      patchBin(pickedBin.bid,{status:'out'});
     }
     // If status is picked up, mark bin back in
     if(job.binInstatus === 'pickedup' && pickedBin){
-      pickedBin.status = 'in';
-      saveBins();
+      patchBin(pickedBin.bid,{status:'in'});
     }
   }
 
@@ -9475,8 +9498,8 @@ async function delJob(id){
   // Snapshot bin state so we can restore if the DB delete fails
   var binStatusBefore = {};
   if(j.binBid){
-    binItems.forEach(function(b){if(b.bid===j.binBid){binStatusBefore[b.bid]=b.status;b.status='in';}});
-    saveBins();
+    binItems.forEach(function(b){if(b.bid===j.binBid){binStatusBefore[b.bid]=b.status;}});
+    patchBin(j.binBid,{status:'in'});
   }
   jobs=jobs.filter(function(jj){return jj.id!==id;});
   closeM('detail-modal');refresh();
@@ -9486,10 +9509,7 @@ async function delJob(id){
     console.error('Delete job error:', r.error.message);
     toast('⚠ Delete failed: '+r.error.message+' — restoring','error');
     jobs.push(j);
-    Object.keys(binStatusBefore).forEach(function(bid){
-      binItems.forEach(function(b){if(b.bid===bid) b.status=binStatusBefore[bid];});
-    });
-    saveBins();
+    Object.keys(binStatusBefore).forEach(function(bid){ patchBin(bid,{status:binStatusBefore[bid]}); });
     refresh();
     return;
   }
@@ -9508,8 +9528,7 @@ async function cancelJob(id){
   j.status='Cancelled';
   // Release bin back to yard if one was assigned
   if(j.binBid){
-    binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});
-    saveBins();
+    patchBin(j.binBid,{status:'in'});
   }
   toast('Job cancelled.');
   closeM('detail-modal');
@@ -10342,7 +10361,7 @@ function markDropped(id){
     if(!confirm('⚠ Bin '+_bn+' is still marked dropped at job '+_other.id+' ('+_other.name+').\n\nPick it up there first to avoid double-booking the same bin. Drop it here anyway?')) return;
   }
   j.binInstatus='dropped';
-  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
+  if(j.binBid){patchBin(j.binBid,{status:'out'});}
   patchJob(id,{binInstatus:'dropped'});
   toast('Bin marked as dropped off!');openDetail(id);refresh();
 }
@@ -10351,7 +10370,7 @@ function markNotDropped(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.binInstatus='';
-  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
+  if(j.binBid){patchBin(j.binBid,{status:'in'});}
   patchJob(id,{binInstatus:''});
   toast('Bin marked as not dropped yet.');openDetail(id);refresh();
 }
@@ -10359,7 +10378,7 @@ function markBinPickedUp2(id){
   if(!mGuard())return;
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   j.binInstatus='pickedup';
-  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
+  if(j.binBid){patchBin(j.binBid,{status:'in'});}
   writeBinHistory(j);
   patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
 }
@@ -10373,7 +10392,7 @@ function revertPickedUp(id){
     if(!confirm('⚠ Bin '+_bnR+' is still marked dropped at job '+_otherR.id+' ('+_otherR.name+').\n\nReverting this pickup would double-book the bin. Continue anyway?')) return;
   }
   j.binInstatus='dropped';
-  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='out';});saveBins();}
+  if(j.binBid){patchBin(j.binBid,{status:'out'});}
   patchJob(id,{binInstatus:'dropped'});
   toast('Pickup reverted — bin back out');openDetail(id);refresh();
 }
@@ -10559,7 +10578,7 @@ function markPickedUp(id,e){
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j)return;
   j.binInstatus='pickedup';
-  if(j.binBid){binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});saveBins();}
+  if(j.binBid){patchBin(j.binBid,{status:'in'});}
   writeBinHistory(j);
   // Picked up = job done, so it's no longer "will call" either
   var patch={binInstatus:'pickedup'};
@@ -10573,7 +10592,7 @@ function dashMarkPickedUp(jobId,bid){
   var patch={binInstatus:'pickedup'};
   if(j){j.binInstatus='pickedup';if(j.binWillCall){j.binWillCall=false;patch.binWillCall=false;}writeBinHistory(j);}
   binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
-  patchJob(jobId,patch);saveBins();toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
+  patchJob(jobId,patch);patchBin(j.binBid,{status:'in'});toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
 }
 function toggleWillCall(id,e){
   if(e)e.stopPropagation();
@@ -11013,6 +11032,8 @@ function setUserCardSignedIn(username, role){
   if(signoutBtn) signoutBtn.style.display='';
   var jeffBtn = document.getElementById('jeff-view-btn');
   if(jeffBtn) jeffBtn.style.display = (username === 'Jake') ? '' : 'none';
+  var staffBtn = document.getElementById('staff-view-btn');
+  if(staffBtn) staffBtn.style.display = (username === 'Jake') ? '' : 'none';
 }
 function setUserCardSignedOut(){
   var card = document.getElementById('user-card');
@@ -11031,6 +11052,8 @@ function setUserCardSignedOut(){
   if(signoutBtn) signoutBtn.style.display='none';
   var jeffBtn = document.getElementById('jeff-view-btn');
   if(jeffBtn) jeffBtn.style.display='none';
+  var staffBtn = document.getElementById('staff-view-btn');
+  if(staffBtn) staffBtn.style.display='none';
 }
 
 // Switch to Jeff's simplified mobile layout (Jake only — button is Jake-gated).
@@ -11119,6 +11142,7 @@ async function onLoginSuccess() {
   if (r.data && r.data.can_delete) {
     canDelete = true;
   }
+  _canDeleteReal = canDelete;   // remembered so the staff-view preview can be switched back off
   var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
   var role  = (r.data && r.data.role) ? r.data.role : 'User';
   currentUser.displayName = uname;
