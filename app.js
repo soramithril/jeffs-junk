@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '489';
+var APP_VERSION = '490';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1004,21 +1004,37 @@ function patchJob(jobId, fields) {
   return db.from('jobs').update(dbFields).eq('job_id', jobId).then(function(r){
     if(r.error){
       console.error('patchJob error ('+jobId+'):', r.error.message);
-      toast('⚠ Save failed: '+r.error.message+' — refresh and retry','error');
+      toast('⚠ Save failed: '+r.error.message+' — putting the screen back to what is stored','error');
+      _resyncJob(jobId);
     }
     return r;
   });
 }
 
-function saveSingleJob(j) {
-  _clientStatsCache = null; // invalidate client stats cache
-  db.from('jobs').upsert(jobToDb(j), {onConflict:'job_id'}).then(function(r){
-    if(r.error){
-      console.error('Save job error:', r.error.message);
-      toast('⚠ Save failed: '+r.error.message+' — refresh and retry','error');
-    }
+// Around thirty quick-action buttons (confirm, dropped, picked up, paid, extend, will-call…) set
+// the job in memory and announce success without waiting for the write. On a dropped connection
+// that left a green tick standing over a change the database never received, and it stayed wrong
+// until the next full reload. Rather than make thirty buttons pause, the failure is handled once,
+// here: pull the row back from the database and repaint, so a failed save always corrects itself
+// on screen instead of lying.
+function _resyncJob(jobId){
+  db.from('jobs').select('*').eq('job_id', jobId).single().then(function(r){
+    if(r.error || !r.data) return;   // row gone or unreachable — leave the error toast standing
+    var fresh = dbToJob(r.data);
+    var i = -1;
+    jobs.forEach(function(j, n){ if(j.id === jobId) i = n; });
+    if(i >= 0) jobs[i] = fresh; else jobs.push(fresh);
+    _clientStatsCache = null;
+    updateSidebarStats();
+    refresh();
+    var det = document.getElementById('detail-modal');
+    if(det && det.classList.contains('open')) openDetail(jobId);
   });
 }
+
+// saveSingleJob() used to live here: it upserted a whole job object from memory. cancelJob was
+// its last caller, and a job opened from a list has no notes, items or photos in memory — so it
+// wrote blanks over them. Every job write now goes through patchJob (named fields only).
 
 function deleteJobFromDb(jobId) {
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
@@ -1049,15 +1065,36 @@ function deleteClientFromDb(cid) {
 
 async function delClient(cid) {
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
-  // Refuse if any jobs still link to this client
+  // Refuse if any jobs still link to this client. If the CHECK ITSELF fails we must stop —
+  // it used to only look at r.data, so a failed query left r.data null, the guard fell through,
+  // and a client with live jobs got deleted.
   var r = await db.from('jobs').select('job_id').eq('client_cid',cid).limit(1);
+  if(r.error){
+    toast('⚠ Could not check this client for linked jobs: '+r.error.message+' — nothing deleted','error');
+    return;
+  }
   if(r.data && r.data.length){
     toast('⚠ Client has linked job '+r.data[0].job_id+' — delete or reassign jobs first.','error');
     return;
   }
-  if(!confirm('Delete this client? This cannot be undone.')) return;
+  // Their email archive goes too: quote_correspondence is removed with the client by the
+  // database (ON DELETE CASCADE). Say so, with the number, instead of "cannot be undone".
+  var rMail = await db.from('quote_correspondence').select('id', {count:'exact', head:true}).eq('client_id', cid);
+  if(rMail.error){
+    toast('⚠ Could not check this client\'s email history: '+rMail.error.message+' — nothing deleted','error');
+    return;
+  }
+  var mailCount = rMail.count || 0;
+  var warning = mailCount
+    ? 'Delete this client?\n\nThis also permanently deletes their '+mailCount+' saved email'+(mailCount===1?'':'s')+' (quotes and confirmations, including the message text).\n\nThis cannot be undone.'
+    : 'Delete this client? This cannot be undone.';
+  if(!confirm(warning)) return;
+  var rDel = await db.from('clients').delete().eq('cid', cid);
+  if(rDel.error){
+    toast('⚠ Delete failed: '+rDel.error.message,'error');
+    return;
+  }
   clients = clients.filter(function(c){ return c.cid !== cid; });
-  deleteClientFromDb(cid);
   _clientStatsCache = null;
   closeM('client-detail-modal');
   toast('Client deleted.');
@@ -9415,18 +9452,22 @@ async function delJob(id){
   }
   toast('Deleted.');
 }
-function cancelJob(id){
+async function cancelJob(id){
   if(!mGuard())return;
   if(!confirm('Mark this job as Cancelled?'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  // Write ONLY the status. This used to call saveSingleJob, which upserts the whole job object
+  // from memory — and a job opened from a list has no notes, items, internal notes or photos in
+  // memory, so cancelling blanked them. See the rule at JOB_LIST_COLS.
+  var r = await patchJob(id, {status:'Cancelled'});
+  if(r.error) return;   // patchJob toasts the failure and puts the screen back
   j.status='Cancelled';
   // Release bin back to yard if one was assigned
   if(j.binBid){
     binItems.forEach(function(b){if(b.bid===j.binBid)b.status='in';});
     saveBins();
   }
-  saveSingleJob(j);
   toast('Job cancelled.');
   closeM('detail-modal');
   refresh();
@@ -9436,9 +9477,11 @@ async function completeLandscapeJob(id){
   if(!confirm('Mark this job as completed?'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  var completedAt=new Date().toISOString();
+  var r = await db.from('jobs').update({completed:true, completed_at:completedAt}).eq('job_id',id);
+  if(r.error){ toast('⚠ Could not mark completed: '+r.error.message,'error'); return; }
   j.completed=true;
-  j.completedAt=new Date().toISOString();
-  await db.from('jobs').update({completed:true, completed_at:j.completedAt}).eq('job_id',id);
+  j.completedAt=completedAt;
   toast('✅ Job marked completed.');
   closeM('detail-modal');
   refresh();
@@ -9446,9 +9489,10 @@ async function completeLandscapeJob(id){
 async function reopenLandscapeJob(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  var r = await db.from('jobs').update({completed:false, completed_at:null}).eq('job_id',id);
+  if(r.error){ toast('⚠ Could not reopen: '+r.error.message,'error'); return; }
   j.completed=false;
   j.completedAt='';
-  await db.from('jobs').update({completed:false, completed_at:null}).eq('job_id',id);
   toast('Job reopened.');
   closeM('detail-modal');
   refresh();
@@ -9457,10 +9501,13 @@ async function postponeJob(id){
   if(!confirm('Postpone this job? It comes off the schedule and moves to All Jobs → Postponed until you reopen it.'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  // Old dates stay visible in the job's Edit History (log_job_changes trigger).
+  // Clear the schedule in the database FIRST — a failure here used to leave the job still
+  // scheduled while the screen claimed it was postponed.
+  var r = await db.from('jobs').update({status:'Postponed', date:null, time:null, junk_date:null, junk_time:null, fb_date:null, fb_time:null, bin_dropoff:null, bin_pickup:null}).eq('job_id',id);
+  if(r.error){ toast('⚠ Could not postpone: '+r.error.message+' — the job is unchanged','error'); return; }
   j.status='Postponed';
   j.date='';j.time='';j.junkDate='';j.junkTime='';j.fbDate='';j.fbTime='';j.binDropoff='';j.binPickup='';
-  // Old dates stay visible in the job's Edit History (log_job_changes trigger)
-  await db.from('jobs').update({status:'Postponed', date:null, time:null, junk_date:null, junk_time:null, fb_date:null, fb_time:null, bin_dropoff:null, bin_pickup:null}).eq('job_id',id);
   toast('⏸ Job postponed — find it under All Jobs → Postponed.');
   closeM('detail-modal');
   refresh();
@@ -9468,8 +9515,9 @@ async function postponeJob(id){
 async function reopenPostponedJob(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  var r = await db.from('jobs').update({status:''}).eq('job_id',id);
+  if(r.error){ toast('⚠ Could not reopen: '+r.error.message,'error'); return; }
   j.status='';
-  await db.from('jobs').update({status:''}).eq('job_id',id);
   toast('Job reopened — give it a new date.');
   closeM('detail-modal');
   refresh();
