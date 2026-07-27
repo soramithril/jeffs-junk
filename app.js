@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '496';
+var APP_VERSION = '497';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1158,22 +1158,26 @@ function saveVehicles() {
   } catch(e){ console.warn('Vehicle sync error:',e); }
 }
 
-function saveVehBlocks(vid) {
-  // Sync all blocks for a vehicle to Supabase vehicle_blocks
-  try {
-    var blocks = vehBlocks[vid] || {};
-    var dates = Object.keys(blocks);
-    db.from('vehicle_blocks').delete().eq('vid', vid).then(function(r){
-      if(r.error){ console.warn('vehBlocks delete failed:', r.error.message); return; }
-      if(!dates.length) return;
-      var rows = dates.map(function(d){
-        return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null, cost:blocks[d].cost!=null?blocks[d].cost:null};
-      });
-      db.from('vehicle_blocks').insert(rows).then(function(r2){
-        if(r2.error) console.warn('vehBlocks insert failed:', r2.error.message);
-      });
-    });
-  } catch(e){ console.warn('vehBlocks sync error:',e); }
+// Replaces a truck's blocked dates: delete them all, then put the current set back. There is no
+// transaction here, so a failure between the two steps loses that truck's blocked dates entirely.
+// Both steps are now checked and reported — it used to fail to the console only, where nobody
+// would ever see it, and the screen would keep showing blocks that no longer existed.
+async function saveVehBlocks(vid) {
+  var blocks = vehBlocks[vid] || {};
+  var dates = Object.keys(blocks);
+  var rDel = await db.from('vehicle_blocks').delete().eq('vid', vid);
+  if(rDel.error){
+    toast('⚠ Couldn\'t update blocked dates for this truck: '+rDel.error.message,'error');
+    return;
+  }
+  if(!dates.length) return;
+  var rows = dates.map(function(d){
+    return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null, cost:blocks[d].cost!=null?blocks[d].cost:null};
+  });
+  var rIns = await db.from('vehicle_blocks').insert(rows);
+  if(rIns.error){
+    toast('⚠ This truck\'s blocked dates were cleared but couldn\'t be saved back: '+rIns.error.message+' — refresh before changing them again','error');
+  }
 }
 
 /** Extend open-ended vehicle blocks to include today. Called on data load. */

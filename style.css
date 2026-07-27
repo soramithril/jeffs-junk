@@ -690,6 +690,10 @@ tbody td{padding:14px 18px;font-size:14px;vertical-align:middle;color:var(--text
 body.modal-open,body:has(.modal-overlay.open){overflow:hidden;}
 /* Hide the dashboard global search while any modal is open — its z-index (1001) otherwise paints over and click-blocks modal close (X) buttons in the top-right. */
 body:has(.modal-overlay.open) #global-search-wrap{display:none;}
+/* Same reason, one layer up: the bin ticker is fixed to the top of the screen at z-index 10000,
+   which is above every modal (500). When it appeared over a full-page modal it covered the
+   header row — which is exactly where the close button is. */
+body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);width:820px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:32px;transform:translateY(12px);transition:transform .2s;box-shadow:var(--shadow-lg);}
 .modal-overlay.open .modal{transform:translateY(0);}
 .modal-overlay.fullpage .modal{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;padding:40px 60px;background:transparent;overflow-y:auto;border:none;box-shadow:none;}
