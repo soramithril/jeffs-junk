@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '495';
+var APP_VERSION = '496';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -846,6 +846,11 @@ async function addReferralSource(selectId){
   toast('Referral source "'+name+'" added!');
 }
 
+// Supabase reads .or() as a comma-separated list with parentheses for grouping, so a customer
+// typed as "Smith, John" or "A & B (Ltd)" broke the filter and the search errored instead of
+// finding anyone. Take the characters that change the grammar out of the search text.
+function _orSafe(s){ return String(s==null?'':s).replace(/[,()%*\\]/g,' ').replace(/\s+/g,' ').trim(); }
+
 // ── Map Supabase DB row → local client object ──────────────
 function dbToClient(r) {
   var street=(r.address||'').split(',')[0].trim();
@@ -1413,14 +1418,22 @@ async function loadAllFromSupabase() {
         var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
         // Use auto_drop_bins RPC so the log_job_changes trigger attributes the
         // bulk update to "System" instead of whoever happens to be logged in.
-        await db.rpc('auto_drop_bins', { drop_ids: dropIds });
-        var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
-        if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
-        binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
-        jobs.forEach(function(j){
-          if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
-            { j.binInstatus='dropped'; }
-        });
+        // The result is checked: this used to run and then mark the bins dropped on screen
+        // regardless, so a failed call left the dashboard showing bins on site that the
+        // database still had in the yard, until the next reload.
+        var rDrop = await db.rpc('auto_drop_bins', { drop_ids: dropIds });
+        if(rDrop.error){
+          console.error('auto_drop_bins failed:', rDrop.error.message);
+          toast('⚠ Couldn\'t auto-drop today\'s bins: '+rDrop.error.message+' — refresh to try again','error');
+        } else {
+          var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
+          if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
+          binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
+          jobs.forEach(function(j){
+            if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
+              { j.binInstatus='dropped'; }
+          });
+        }
       }
       // Auto-pickup removed — bin pickup status is user-controlled only
 
@@ -1466,7 +1479,8 @@ async function loadJobsPage(page) {
   // call, so when both are active they're nested under a single and().
   var searchOr = '';
   if (searchF && searchF.trim()) {
-    searchOr = 'name.ilike.%' + searchF + '%,address.ilike.%' + searchF + '%,job_id.ilike.%' + searchF + '%,phone.ilike.%' + searchF + '%,city.ilike.%' + searchF + '%';
+    var _sf = _orSafe(searchF);
+    searchOr = 'name.ilike.%' + _sf + '%,address.ilike.%' + _sf + '%,job_id.ilike.%' + _sf + '%,phone.ilike.%' + _sf + '%,city.ilike.%' + _sf + '%';
   }
   // A job matches the date filter if ANY of its dates falls in the range
   // (booking, junk, furniture, bin drop-off, bin pickup) — same as the calendar
@@ -5257,7 +5271,7 @@ async function clientSearchLive(q){
   box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
   try{
     var r=await db.from('clients').select(CLIENT_LIST_COLS)
-      .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%')
+      .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%')
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Search error: '+r.error.message+'</div>';return;}
     if(!r.data||!r.data.length){box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found for "'+q+'"</div>';return;}
@@ -5287,7 +5301,7 @@ async function globalSearchLive(q){
   box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching…</div>';
   try {
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
-      .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,email.ilike.%'+q+'%,address.ilike.%'+q+'%,city.ilike.%'+q+'%')
+      .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%')
       .order('name').limit(6);
     var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid,address,city')
       .or('job_id.ilike.%'+q+'%,name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,address.ilike.%'+q+'%,city.ilike.%'+q+'%')
@@ -5696,7 +5710,7 @@ async function loadClientsPage() {
     if(q) {
       // Search: single query, no batching (avoids running the same search N times)
       var cqSearch = db.from('clients').select(CLIENT_LIST_COLS).order('name',{ascending:true})
-        .or('name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,phone.ilike.%'+q+'%,city.ilike.%'+q+'%,email.ilike.%'+q+'%,address.ilike.%'+q+'%');
+        .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%');
       var rSearch = await cqSearch;
       allClientRows = rSearch.data || [];
     } else {
@@ -10163,13 +10177,29 @@ async function _doSwapOutBin(){
   var swapDate=dateEl.value||todayStr();
   closeM('swap-out-modal');
 
+  // A swap is two writes that only make sense together. The old rental used to be closed off
+  // without waiting, then the new job's number was fetched OUTSIDE any try — so a failure there
+  // was a silent unhandled rejection that left the bin scheduled for pickup and no replacement
+  // job booked. Now the pickup is confirmed first, and anything after it that fails says so and
+  // tells you the exact state to fix by hand.
+  var oldPickupBefore=oldJob.binPickup, oldSwapCountBefore=oldJob.swapCount;
+
   // 1. Schedule the existing bin for pickup on the swap date + bump swap count
+  var rOld=await patchJob(oldJob.id,{binPickup:swapDate,swapCount:(oldJob.swapCount||0)+1});
+  if(rOld.error) return;   // patchJob has already reported it and put the screen back
   oldJob.binPickup=swapDate;
   oldJob.swapCount=(oldJob.swapCount||0)+1;
-  patchJob(oldJob.id,{binPickup:swapDate,swapCount:oldJob.swapCount});
 
   // 2. Create the new drop job for the same day (fresh bin, assigned later)
-  var newId=await nextIdFromDb('Bin Rental');
+  var newId;
+  try {
+    newId=await nextIdFromDb('Bin Rental');
+  } catch(ex){
+    oldJob.binPickup=oldPickupBefore; oldJob.swapCount=oldSwapCountBefore;
+    await patchJob(oldJob.id,{binPickup:oldPickupBefore||null,swapCount:oldSwapCountBefore||0});
+    alert('Couldn\'t get a job number for the new drop: '+ex.message+'\n\nThe swap was undone — job '+oldJob.id+' is back as it was.');
+    return;
+  }
   var newJob={
     id:newId, service:'Bin Rental', status:'',
     name:oldJob.name, phone:oldJob.phone, address:oldJob.address, city:oldJob.city,
@@ -10184,9 +10214,15 @@ async function _doSwapOutBin(){
     materialType:oldJob.materialType, toolsNeeded:oldJob.toolsNeeded,
     emailConfirmed:false, swapCount:0
   };
-  jobs.push(newJob);
   var resNew=await db.from('jobs').insert(jobToDb(newJob));
-  if(resNew.error){alert('Error creating swap drop job: '+resNew.error.message);return;}
+  if(resNew.error){
+    // Don't leave a job on screen that was never saved, and don't leave the swap half-done
+    // silently — say exactly what happened so it can be finished by hand.
+    alert('The bin on job '+oldJob.id+' is scheduled for pickup on '+fd(swapDate)+', but the new drop job could not be created:\n\n'
+      +resNew.error.message+'\n\nBook the replacement drop by hand, or undo the pickup date on '+oldJob.id+'.');
+    return;
+  }
+  jobs.push(newJob);
   _clientStatsCache = null;
   toast('Swap booked: bin scheduled for pickup '+fd(swapDate)+', new drop job '+newId+' created.');
   closeM('detail-modal');
@@ -10513,6 +10549,9 @@ async function bookRecurringRun(job){
   var dates = [];
   for(var d = recurAddDays(base, step); d <= horizon; d = recurAddDays(d, step)) dates.push(d);
 
+  // Without a customer this filter becomes client_cid = '', which matches every other
+  // customerless job of the same service and reads their dates as "already taken".
+  if(!job.clientId) throw new Error('Job ' + job.id + ' has no customer, so its repeat visits can\'t be worked out. Link a customer first.');
   var rEx = await db.from('jobs').select('date,junk_date')
     .eq('client_cid', job.clientId).eq('service', job.service).neq('status', 'Cancelled');
   if(rEx.error) throw new Error('Failed to check existing visits: ' + rEx.error.message);
@@ -10813,7 +10852,9 @@ function renderToday(){
   var todayS=todayStr();
   document.getElementById('today-view-lbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   var todayJobs=jobs.filter(function(j){return jobSchedDate(j)===todayS&&j.status!=='Cancelled';});
-  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<todayS;});
+  // Cancelled rentals were never excluded here, unlike every other list on this screen, so a
+  // rental cancelled after the bin went out showed as an overdue pickup forever.
+  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<todayS;});
   var threshold=parseInt(document.getElementById('today-days-threshold')&&document.getElementById('today-days-threshold').value)||7;
   var longBins=jobs.filter(function(j){
     if(j.service!=='Bin Rental'||j.status==='Cancelled')return false;
@@ -11736,7 +11777,7 @@ async function filterMergeList(which) {
 
   try {
     var r = await db.from('clients').select(CLIENT_LIST_COLS)
-      .or('name.ilike.%' + q + '%,phone.ilike.%' + q + '%')
+      .or('name.ilike.%' + _orSafe(q) + '%,phone.ilike.%' + _orSafe(q) + '%')
       .order('name').limit(15);
 
     if (!r.data || !r.data.length) {
@@ -12408,7 +12449,18 @@ function saveFurniturePrices(){
 
 // ─── VEHICLES ───
 var editVehicleId=null;
-function nextVid(){return 'VEH-'+String(Math.floor(Math.random()*90000)+10000);}
+// A truck id has to be unique — vehicles.vid is the key that vehicle_blocks, assignments and
+// odometer readings all hang off. This used to be a bare random number checked against nothing,
+// so a collision would quietly attach a new truck to another truck's blocks and history. Keep
+// drawing until we find one nothing is using; give up loudly rather than return a clash.
+function nextVid(){
+  for(var attempt=0; attempt<50; attempt++){
+    var candidate='VEH-'+String(Math.floor(Math.random()*90000)+10000);
+    var taken=vehicles.some(function(v){return v.vid===candidate;});
+    if(!taken) return candidate;
+  }
+  throw new Error('Could not find an unused truck number after 50 tries');
+}
 
 function openAddVehicle(){
   editVehicleId=null;
@@ -12452,8 +12504,13 @@ function selectVehColor(c,el){
 function saveVehicle(){
   var name=document.getElementById('v-name').value.trim();
   if(!name){showErr('v-name');return;}
-  var v={vid:editVehicleId||nextVid(),name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),oilDate:document.getElementById('v-oil-date').value||'',oilKm:document.getElementById('v-oil-km').value.trim()||'',oilInterval:document.getElementById('v-oil-interval').value.trim()||'',active:true};
-  if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?v:x;});}
+  var newVid;
+  try { newVid = editVehicleId || nextVid(); }
+  catch(ex){ toast('⚠ '+ex.message,'error'); return; }
+  var v={vid:newVid,name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),oilDate:document.getElementById('v-oil-date').value||'',oilKm:document.getElementById('v-oil-km').value.trim()||'',oilInterval:document.getElementById('v-oil-interval').value.trim()||'',active:true};
+  // Editing MERGES onto the existing truck. Replacing it wholesale dropped every field the modal
+  // doesn't render — leaderboardOnly among them — and forced active back to true.
+  if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?Object.assign({},x,v,{active:x.active!==false}):x;});}
   else{vehicles.push(v);if(!vehBlocks[v.vid])vehBlocks[v.vid]={};}
   saveVehicles();renderVehicles();
   closeM('vehicle-modal');
@@ -12461,8 +12518,13 @@ function saveVehicle(){
 }
 async function delVehicle(vid){
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
-  // Refuse if any jobs still reference this vehicle
+  // Refuse if any jobs still reference this vehicle. If the CHECK ITSELF fails we stop — it used
+  // to look only at r.data, so a failed query left r.data null and the truck got deleted anyway.
   var r = await db.from('jobs').select('job_id').eq('completed_by_vehicle',vid).limit(1);
+  if(r.error){
+    toast('⚠ Couldn\'t check whether this truck is still on a job: '+r.error.message+' — nothing deleted','error');
+    return;
+  }
   if(r.data && r.data.length){
     toast('⚠ Vehicle is on job '+r.data[0].job_id+' — unassign it first.','error');
     return;
@@ -13343,11 +13405,23 @@ async function addMaintSchedule(vid){
 }
 
 async function markMaintDone(schedId,vid){
+  // The schedule has to exist before we can work out the next due reading — this used to chain
+  // .find(...).interval_km with no guard and would throw on a stale id.
+  var sched=(_maintCache[vid]||[]).find(function(s){return s.id===schedId;});
+  if(!sched){toast('⚠ Couldn\'t find that service schedule — refresh and try again','error');return;}
   var odo=window._odometerCache&&window._odometerCache[vid];
   var currentKm=odo?odo.odometer_km:0;
-  if(!currentKm){var input=prompt('Enter current odometer reading (km):');if(!input)return;currentKm=parseInt(input)||0;}
+  if(!currentKm){
+    var input=prompt('Enter current odometer reading (km):');
+    if(input===null)return;
+    // "abc" used to become 0 and record the service at zero km, which made the next service
+    // look overdue by the whole interval.
+    currentKm=parseInt(input,10);
+    if(!currentKm||isNaN(currentKm)||currentKm<0){toast('⚠ That odometer reading isn\'t a number — nothing recorded','error');return;}
+  }
   var today=todayStr();
-  await db.from('maintenance_schedules').update({last_service_km:currentKm,last_service_date:today,next_due_km:currentKm+(_maintCache[vid]||[]).find(function(s){return s.id===schedId;}).interval_km,status:'ok',updated_at:new Date().toISOString()}).eq('id',schedId);
+  var r=await db.from('maintenance_schedules').update({last_service_km:currentKm,last_service_date:today,next_due_km:currentKm+sched.interval_km,status:'ok',updated_at:new Date().toISOString()}).eq('id',schedId);
+  if(r.error){toast('⚠ Couldn\'t record the service: '+r.error.message,'error');return;}
   // Update local cache
   (_maintCache[vid]||[]).forEach(function(s){if(s.id===schedId){s.last_service_km=currentKm;s.last_service_date=today;s.status='ok';s.next_due_km=currentKm+s.interval_km;}});
   renderMaintSections();
