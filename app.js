@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '498';
+var APP_VERSION = '499';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3938,7 +3938,7 @@ function renderPossibleJobsList(){
   var body=document.getElementById('possible-jobs-body');
   if(!body) return;
   var list=_possibleJobs||[];
-  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:14px;padding:24px;text-align:center">No possible jobs right now — every landscaping job has a date. 🎉</div>'; return; }
+  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:14px;padding:24px;text-align:center">No possible jobs right now — every extra job has a date. 🎉</div>'; return; }
   body.innerHTML=list.map(function(j){
     var addr=((j.address||'')+(j.city?', '+j.city:'')).trim();
     var phone=(j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext.'+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'');
@@ -4004,7 +4004,7 @@ function setLsTab(kind, btn){
 function _renderLsSection(prefix, list, kind){
   var countEl=document.getElementById(prefix+'-count'); if(countEl) countEl.textContent=list.length;
   var body=document.getElementById(prefix+'-body'); if(!body) return;
-  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 4px;font-style:italic">'+(kind==='possible'?'No undated jobs — every landscaping job has a date. 🎉':kind==='scheduled'?'No scheduled landscaping jobs.':'No completed jobs yet.')+'</div>'; return; }
+  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 4px;font-style:italic">'+(kind==='possible'?'No undated jobs — every extra job has a date. 🎉':kind==='scheduled'?'No scheduled extra jobs.':'No completed jobs yet.')+'</div>'; return; }
   body.innerHTML=list.map(function(j){ return _landscapeCardHTML(j, kind); }).join('');
 }
 function _landscapeCardHTML(j, kind){

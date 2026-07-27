@@ -1978,11 +1978,12 @@ async function initSummerPage(){
   renderSummerPage();
 }
 
-// The Summer page carries two views: the Extra Jobs location list and the Cut
-// Times tracker (app-cuttimes.js).
+// The Summer page carries two views: the lawn & grounds location list and the
+// Cut Times tracker (app-cuttimes.js). This is the JWG landscaping side — not
+// to be confused with the junk-side Extra Jobs page.
 function summerViewSwitch(){
   return`<div class="sum-view-switch">
-    <button class="sum-view-btn ${SUM.view==="locations"?"active":""}" onclick="JWG.setSummerView('locations')">Extra Jobs locations</button>
+    <button class="sum-view-btn ${SUM.view==="locations"?"active":""}" onclick="JWG.setSummerView('locations')">Lawn &amp; grounds locations</button>
     <button class="sum-view-btn ${SUM.view==="cuts"?"active":""}" onclick="JWG.setSummerView('cuts')">Cut Times</button>
   </div>`;
 }
@@ -1999,7 +2000,7 @@ function renderSummerPage(){
   }
   const DAY_ORDER=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",""];
   let h=summerViewSwitch()+`<div class="si-header">
-    <div><div class="si-title">Extra Jobs locations</div></div>
+    <div><div class="si-title">Lawn &amp; grounds locations</div></div>
     <div class="si-actions">
       <button class="si-action-btn" onclick="JWG.openAddSummerLocation()">Add location</button>
       <button class="si-action-btn secondary" onclick="JWG.SUM.filtersOpen=!JWG.SUM.filtersOpen;var b=document.getElementById('sum-filter-bar');if(b)b.style.display=JWG.SUM.filtersOpen?'':'none'">🔍 Filters</button>
@@ -2050,7 +2051,7 @@ function renderSummerPage(){
   });
 
   if(!filtered.length){
-    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track extra-job clients and service schedules</div></div></div>`;
+    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track lawn &amp; grounds clients and service schedules</div></div></div>`;
   }else{
     h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${SUM.locations.length} location${SUM.locations.length!==1?"s":""}</div>`;
     h+=`<table class="sum-table">

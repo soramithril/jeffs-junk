@@ -119,6 +119,9 @@ function renderTiles(){
 function buildMap(){
   var bounds=[];
   markers={};
+  // Switching away from Cut Times and back builds a fresh container, so drop the
+  // old map first rather than leaving it listening on a detached element.
+  if(map)map.remove();
   map=L.map("ctm-map",{scrollWheelZoom:true});
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,
     attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
