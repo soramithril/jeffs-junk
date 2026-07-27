@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '494';
+var APP_VERSION = '495';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2201,6 +2201,7 @@ function toggleStaffView(){
   }
   // Repaint the menu and the page so hidden sections and delete buttons follow the flag.
   if(typeof applySettingsVisibility === 'function') applySettingsVisibility();
+  if(typeof applyDeleteVisibility === 'function') applyDeleteVisibility();
   go('dashboard');
   toast(_staffView ? 'Now showing the office-staff view.' : 'Back to your admin view.');
 }
