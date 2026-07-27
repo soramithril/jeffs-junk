@@ -56,7 +56,7 @@ BEGIN
     url := 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geofence-sync'::text,
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY0NjI3MSwiZXhwIjoyMDg4MjIyMjcxfQ.Yllfty1DTqwAAfLlP_svB0rPfLoHXH7GwECBS-SUQq0'
+      'Authorization', 'Bearer <<SERVICE_ROLE_KEY_REMOVED_2026-07-27>>'
     ),
     body := payload
   );
@@ -82,7 +82,7 @@ SELECT cron.schedule(
     url := 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geofence-sync',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY0NjI3MSwiZXhwIjoyMDg4MjIyMjcxfQ.Yllfty1DTqwAAfLlP_svB0rPfLoHXH7GwECBS-SUQq0'
+      'Authorization', 'Bearer <<SERVICE_ROLE_KEY_REMOVED_2026-07-27>>'
     ),
     body := '{"action": "morning-sync"}'
   );
@@ -108,7 +108,7 @@ SELECT cron.schedule(
     url := 'https://okoqzbdyfjfgcdgmcamq.supabase.co/functions/v1/geofence-events'::text,
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY0NjI3MSwiZXhwIjoyMDg4MjIyMjcxfQ.Yllfty1DTqwAAfLlP_svB0rPfLoHXH7GwECBS-SUQq0'
+      'Authorization', 'Bearer <<SERVICE_ROLE_KEY_REMOVED_2026-07-27>>'
     ),
     body := '{"poll": true}'::jsonb
   );
