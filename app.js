@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '490';
+var APP_VERSION = '491';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11449,6 +11449,14 @@ function sendEmail() {
   if (!to) { showErr('email-to'); document.getElementById('err-email-to').textContent='Please enter an email address to send to.'; return; }
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(to)) { showErr('email-to'); document.getElementById('err-email-to').textContent='That doesn\'t look like a valid email address (e.g. name@example.com).'; return; }
+  // One click, one send. The button stayed live while the mail window opened, so a second click
+  // opened another draft AND filed another copy in the customer's email history.
+  var _sendBtn = document.getElementById('email-send-btn');
+  if (_sendBtn) {
+    if (_sendBtn.disabled) return;
+    _sendBtn.disabled = true;
+    setTimeout(function(){ _sendBtn.disabled = false; }, 4000);
+  }
   var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.open(mailto, '_blank');
   var clientIdForRecord = null, serviceForRecord = null;
