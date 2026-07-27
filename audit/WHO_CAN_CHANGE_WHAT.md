@@ -77,6 +77,87 @@ Only four things remain open without signing in, all for the public booking form
 create a job, create a customer, and read/add referral sources. As of tonight, nine internal tables
 that were previously wide open now require a sign-in — including the customer email archive.
 
+---
+
+# UPDATE — locked down 2026-07-26 (v492)
+
+Three changes applied since the above was written.
+
+**1. Pricing and email templates are now admin-only to change.** `our_prices`, `furniture_prices`
+and `email_presets` require `role = 'admin'` (Jake, Barbara, Sam) to add or edit. Everyone can still
+*read* them — staff need prices to quote a job and templates to send an email.
+
+**2. Nine internal tables now require signing in** (were open to anyone on the internet), including
+the customer email archive.
+
+**3. Profiles are read-only from the browser.** The old policy let every user UPDATE THEIR OWN ROW
+— including setting `role = 'admin'`, which would have walked straight through change 1, or setting
+`username` to a name on the code's admin list to unlock the admin menu. The browser only ever reads
+a profile at sign-in, so writing is now closed entirely. Changing someone's role is a Supabase
+dashboard action.
+
+## What a regular user (Kelly, Rachel, Josh) can still change
+
+Confirmed against the live policies after the lockdown. They can add and edit:
+
+**Customer and job data** — jobs (any field: price, dates, status, customer link, notes), clients,
+quote_correspondence, damage_reports, bin_history, referral_sources (add only), suggestions.
+
+**Fleet and yard** — bin_items, vehicles, vehicle_blocks, vehicle_odometers, maintenance_schedules,
+geofences and geofence_notifications.
+
+**People and scheduling** — crew_members, crew_blocks, vehicle_assignments, driver_scores,
+crew_driver_scores, safety_events, employee_ratings, employee_incentives, jwg_employees and
+jwg_employee_clothing.
+
+**Landscaping side** — every `jwg_*` table (schedules, service locations, service types, inventory,
+workshop tasks, salt bins, app settings).
+
+**Reference data** — competitors, city_drive_times.
+
+They **cannot**: change any price or email template; delete anything at all (only Jake, Barbara and
+Sam can, via `can_delete`); see revenue figures (only Jake and Barbara); or alter their own
+permissions.
+
+The single biggest remaining item is **jobs** — any signed-in user can change a job's price, date,
+status or which customer it belongs to. That is probably correct for office staff doing the work,
+but it is worth a deliberate decision rather than an accident.
+
+---
+
+# UPDATE 2 — Jake's rules applied (v493, 2026-07-26)
+
+**Bins.** Office staff call bins in and out and record condition — colour, damage, decals, repaint,
+notes. They cannot create or delete a bin (admin only, in the database now, not just hidden on
+screen) and cannot rename one: a trigger refuses any change to `bid`, `num`, `size` or `type` from
+a non-admin, because the code on the side of the bin is its identity and size/type are what that
+code encodes.
+
+**Landscaping.** The schedule is theirs to build — `jwg_schedules`, `jwg_workshop_tasks` and
+`crew_blocks` stay fully editable including delete. The people and the places are reference data,
+readable by all and changeable only by an admin: `jwg_employees`, `jwg_service_locations`,
+`jwg_service_types`, `jwg_location_services`, and `crew_members` on the junk side. Extra Jobs are
+rows in `jobs`, which already required an admin to delete.
+
+**Whole-record writes removed.** Calling a bin in or out used to rewrite all 86 bin records from
+that tab's memory (23 places did it). It now writes one field for one bin via `patchBin`. This was
+the third instance of the same pattern, after the client merge rewriting every customer and cancel
+blanking a job's notes.
+
+**Admin preview.** Jake has an eye button beside the phone one that shows the dashboard as office
+staff see it, with a banner to switch back. It changes what is on screen, not what the database
+allows — it answers "what do they see", not "what can they do".
+
+## Still deletable by a non-admin
+
+Deliberate, per Jake: `crew_blocks`, `jwg_schedules`, `jwg_workshop_tasks`.
+
+Not yet decided: `bin_history`, `city_drive_times`, `driver_scores`, `crew_driver_scores`,
+`safety_events`, `geofences`, `geofence_notifications`, `geofence_poll_state`, `suggestions`,
+`jwg_inventory_items`, `jwg_inventory_categories`, `jwg_app_settings`, `jwg_salt_bins`,
+`jwg_employee_clothing`. Inventory is left open on purpose — Darrin's kiosk needs to update stock,
+and locking it would break him.
+
 ## Recommendations (your call)
 
 1. **Lock pricing to admins.** `our_prices` and `furniture_prices` should require an admin, not just
