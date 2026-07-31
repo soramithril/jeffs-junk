@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '503';
+var APP_VERSION = '504';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1118,7 +1118,8 @@ function _binRow(bin) {
     notes: bin.notes || '',
     show_bin: bin.show_bin || false,
     decals: bin.decals || false,
-    repaint: bin.repaint || false
+    repaint: bin.repaint || false,
+    painted_date: bin.painted_date || null
   };
 }
 // Writes named fields for ONE bin. The bin equivalent of patchJob.
@@ -6770,6 +6771,7 @@ function binFlags(b){
   if(b.show_bin)out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">🔧 Not for rent</span>');
   if(b.repaint)out.push('<span style="'+fb+'background:rgba(249,115,22,.14);color:#c2410c">🖌️ Repaint</span>');
   if(b.decals)out.push('<span style="'+fb+'background:rgba(8,145,178,.12);color:#0e7490">🏷️ Decals</span>');
+  if(b.painted_date)out.push('<span title="Last painted" style="'+fb+'background:rgba(34,197,94,.12);color:#15803d">🎨 '+fd(b.painted_date)+'</span>');
   return out;
 }
 // Meta line: idle band for in-yard bins, location/link for out bins.
@@ -7606,6 +7608,7 @@ function openAddBin(){
   document.getElementById('bi-color').value='green';document.getElementById('bi-dmg').value='good';document.getElementById('bi-status').value='in';document.getElementById('bi-notes').value='';
   document.getElementById('bi-show').checked=false;
   document.getElementById('bi-repaint').checked=false;document.getElementById('bi-decals').checked=false;
+  document.getElementById('bi-painted').value='';
   document.getElementById('err-bi-num').textContent='Bin number or name is required.';
   clearErr('bi-num');
   document.getElementById('bin-modal').classList.add('open');
@@ -7619,6 +7622,7 @@ function editBinItem(bid){
   document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage==='oor'?'good':b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-oor').value=b.damage==='oor'?'oor':'active';document.getElementById('bi-notes').value=b.notes||'';
   document.getElementById('bi-show').checked=!!b.show_bin;
   document.getElementById('bi-repaint').checked=!!b.repaint;document.getElementById('bi-decals').checked=!!b.decals;
+  document.getElementById('bi-painted').value=b.painted_date||'';
   document.getElementById('bin-modal').classList.add('open');
 }
 async function saveBinItem(e){
@@ -7637,7 +7641,13 @@ async function saveBinItem(e){
     try{ newBid=await nextBinItemId(binSize,binType); }
     catch(ex){ alert('Could not add the bin: '+ex.message); return; }
   }
-  var bin={bid:newBid,num:num,type:binType,size:binSize,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked};
+  // Painting the bin is what resolves a repaint flag, so entering a NEW painted
+  // date ticks it off. Only when it changes — a bin painted years ago can still
+  // be flagged for repaint again, so an unchanged date leaves the checkbox alone.
+  var painted=document.getElementById('bi-painted').value||null;
+  var prevPainted=editBinId?((binItems.find(function(x){return x.bid===editBinId;})||{}).painted_date||null):null;
+  var justPainted=!!painted && painted!==prevPainted;
+  var bin={bid:newBid,num:num,type:binType,size:binSize,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:justPainted?false:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked,painted_date:painted};
   if(editBinId){
     var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);
     toast('Bin updated!');editBinId=null;patchBin(bin.bid,_binRow(bin));
