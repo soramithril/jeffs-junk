@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '501';
+var APP_VERSION = '502';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2399,14 +2399,16 @@ function updateDashDateLabel(){
 }
 
 // Dashboard bin stats — loads all bin jobs into jobs[] exactly like loadBinJobsThenRender,
-// then uses the same binsOutOnDate() + per-size loop that renderUtilization uses.
+// then counts through checkBinWindow, the same counter the booking form uses.
 async function refreshDashBinStats(){
   var dp=document.getElementById('dash-bin-date');
   var dateStr=dp&&dp.value?dp.value:todayStr();
   var today=todayStr();
-  var activeBins=binItems.filter(function(b){return b.damage!=='oor';});
+  // Rentable stock only: out-of-rotation and display bins are excluded, a damaged
+  // bin still rents (Jake 2026-07-31). Same rule the booking form uses, so the
+  // two can't quote different fleets.
+  var activeBins=binItems.filter(function(b){return b.damage!=='oor'&&!b.show_bin;});
   var totalBins=activeBins.length;
-  var oorCount=binItems.length-totalBins;
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
 
@@ -2446,49 +2448,19 @@ async function refreshDashBinStats(){
     });
   } catch(e){ console.error('refreshDashBinStats load error',e); }
 
-  // ── Count bins out: every active dropped job = 1 bin deployed ──────────────
+  // ── Count bins out ─────────────────────────────────────────────────────────
+  // One counter for every surface. This is the same checkBinWindow the booking
+  // form uses, so a card can't read "all out" while the form offers you six.
   // A job without a bin_bid assigned is still a bin physically out there.
-  var binsOut=0, binsIn=0;
-  var sizeTotal={};
-  sizes.forEach(function(s){sizeTotal[s]=activeBins.filter(function(b){return b.size===s;}).length;});
-  var sizeOut={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
-
-  if(dateStr===today){
-    // Count from loaded jobs: every dropped, non-cancelled bin rental = out
-    var droppedJobs=jobs.filter(function(j){
-      return j.service==='Bin Rental'&&j.binInstatus==='dropped'&&j.status!=='Cancelled';
-    });
-    binsOut=droppedJobs.length;
-    binsIn=Math.max(0,totalBins-binsOut);
-    droppedJobs.forEach(function(j){ if(j.binSize&&sizeOut.hasOwnProperty(j.binSize))sizeOut[j.binSize]++; });
-  } else {
-    // Forecast for other dates using job date ranges
-    jobs.forEach(function(j){
-      if(j.service!=='Bin Rental')return;
-      if(j.status==='Cancelled')return;
-      if(j.binInstatus==='pickedup')return;
-      var drop=j.binDropoff||j.date;
-      var pick=j.binPickup;
-      var active=false;
-      if(j.binInstatus==='dropped'&&dateStr>=today){
-        // Physically out right now — ignore binDropoff (may be a future swap date).
-        // Out from today through the day before pickup; pickup day = bin returns to yard.
-        if(!pick||pick<today) active=true;          // overdue or no pickup scheduled
-        else active=dateStr<pick;                    // available again on pickup day
-      } else if(!drop){
-        return;
-      } else if(pick){
-        active=dateStr>=drop&&dateStr<pick;
-      } else {
-        var dropD=new Date(drop+'T12:00:00');
-        var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
-        active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
-      }
-      if(active&&sizeOut.hasOwnProperty(j.binSize))sizeOut[j.binSize]++;
-    });
-    binsOut=sizes.reduce(function(sum,s){return sum+sizeOut[s];},0);
-    binsIn=Math.max(0,totalBins-binsOut);
-  }
+  var sizeTotal={}, sizeOut={};
+  var binsOut=0;
+  sizes.forEach(function(s){
+    var r=checkBinWindow(s,dateStr,dateStr,null);
+    sizeTotal[s]=r.total;
+    sizeOut[s]=r.committed;
+    binsOut+=r.committed;
+  });
+  var binsIn=Math.max(0,totalBins-binsOut);
   var outPct=totalBins?Math.round(binsOut/totalBins*100):0;
 
   // Update both the quick-stat pill AND the fleet card bin count
@@ -6694,33 +6666,11 @@ function setFleetView(v){ fleetView=v; try{localStorage.setItem('fleetView',v);}
 function sizePill(s){var cls=s==='4 yard'?'sp-4':s==='7 yard'?'sp-7':s==='14 yard'?'sp-14':'sp-20';return '<span class="sp '+cls+'">'+s+'</span>';}
 function typePill(t){var cls=t==='wide'||t==='low'?'tc-low':'tc-reg';var lbl=t==='wide'||t==='low'?'Low-Wide':'Regular';return '<span class="tc '+cls+'">'+lbl+'</span>';}
 function binsOutOnDate(dateStr){
-  var count=0;
-  var today=todayStr();
-  jobs.forEach(function(j){
-    if(j.service!=='Bin Rental')return;
-    if(j.status==='Cancelled')return;
-    if(j.binInstatus==='pickedup')return;
-    if(j.binInstatus==='dropped'&&dateStr>=today){
-      // Physically out right now — ignore binDropoff (may be a future swap date).
-      var pk=j.binPickup;
-      if(!pk||pk<today){ count++; return; }   // overdue or no pickup scheduled
-      if(dateStr<=pk){ count++; return; }     // out until pickup day inclusive
-      return;
-    }
-    var drop=j.binDropoff||j.date;
-    var pick=j.binPickup;
-    if(!drop)return;
-    if(pick){
-      // Has a scheduled pickup — count only in the dropoff→pickup window
-      if(dateStr>=drop&&dateStr<=pick) count++;
-    } else {
-      // No pickup date set — count from dropoff up to 30 days
-      var dropD=new Date(drop+'T12:00:00');
-      var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
-      var maxPickStr=maxPick.toISOString().split('T')[0];
-      if(dateStr>=drop&&dateStr<=maxPickStr) count++;
-    }
-  });
+  // Delegates to the one availability counter, so the fleet timeline, the
+  // dashboard cards and the booking form can't disagree about the same day.
+  var count=['4 yard','7 yard','14 yard','20 yard'].reduce(function(sum,s){
+    return sum+checkBinWindow(s,dateStr,dateStr,null).committed;
+  },0);
   return Math.min(count, binItems.length);
 }
 function renderBinInventory(){
@@ -6753,7 +6703,7 @@ function fleetPass(b,f){
   if(f==='all')return true;
   if(f==='in')return b.status==='in';
   if(f==='out')return b.status==='out';
-  if(f==='oos')return b.damage==='damage'||b.damage==='oor';   // not in normal service (damaged or retired)
+  if(f==='oos')return b.damage==='damage'||b.damage==='oor';   // damaged or out of rotation
   if(f==='nfr')return !!b.show_bin;                            // show/display bin — not for rent
   if(f==='green'||f==='black')return b.color===f;
   if(f==='4 yard'||f==='7 yard'||f==='14 yard'||f==='20 yard')return b.size===f;
@@ -7149,7 +7099,7 @@ function openLinkBinFromJob(jobId){
   var byNum=function(a,b){return (a.num||'').localeCompare(b.num||'');};
   var available=[],unavailable=[];
   binItems.forEach(function(b){
-    if(b.damage==='oor')return; // skip out-of-repair
+    if(b.damage==='oor')return; // skip out of rotation
     if(b.status==='in')available.push(b);
     else unavailable.push(b);
   });
@@ -13505,7 +13455,9 @@ function _binsCommittedOverWindow(size, d0, d1, exceptJobId){
     var start=_dayNum(drop), end;
     if(!j.binPickup) end=start+30;                         // will-call, or no pickup booked yet
     else if(j.binInstatus==='dropped'&&_dayNum(j.binPickup)<todayNum) end=d1;  // out past its pickup day, still gone
-    else end=_dayNum(j.binPickup);
+    // Free again ON pickup day — the pickup is confirmed the day before, so the
+    // bin can be collected and dropped at the next job the same day.
+    else end=Math.max(start,_dayNum(j.binPickup)-1);
     var a=Math.max(start,d0), b=Math.min(end,d1);
     for(var k=a;k<=b;k++) counts[k-d0]++;
   });
@@ -13515,21 +13467,23 @@ function _binsCommittedOverWindow(size, d0, d1, exceptJobId){
 // Availability across a whole rental window. Reports the tightest day in it —
 // that's the day that decides whether the booking fits.
 function checkBinWindow(size, dropStr, pickStr, exceptJobId){
-  if(!size||!dropStr) return {ok:true,available:0,total:0,date:dropStr||''};
-  // Damaged, retired and display bins aren't rentable stock.
+  if(!size||!dropStr) return {ok:true,available:0,committed:0,total:0,date:dropStr||''};
+  // Out-of-rotation and display bins aren't rentable stock. A damaged bin still
+  // rents out (Jake 2026-07-31).
   var fleet=binItems.filter(function(b){
-    return b.size===size&&b.damage!=='damage'&&b.damage!=='oor'&&!b.show_bin;
+    return b.size===size&&b.damage!=='oor'&&!b.show_bin;
   }).length;
-  if(!fleet) return {ok:true,available:0,total:0,date:dropStr};
+  if(!fleet) return {ok:true,available:0,committed:0,total:0,date:dropStr};
   var d0=_dayNum(dropStr);
-  var d1=pickStr?_dayNum(pickStr):d0+30;                   // no pickup yet — hold it for 30 days
-  if(d1<d0) d1=d0;                                         // pickup before drop-off — judge the drop day
+  // Pickup day is the next customer's to use, so this rental needs the bin up to
+  // the day before. No pickup booked yet holds it for 30 days.
+  var d1=pickStr?Math.max(d0,_dayNum(pickStr)-1):d0+30;
   var counts=_binsCommittedOverWindow(size,d0,d1,exceptJobId);
   var worst=0;
   for(var i=1;i<counts.length;i++){ if(counts[i]>counts[worst]) worst=i; }
   var wd=new Date(dropStr+'T12:00:00');wd.setDate(wd.getDate()+worst);
   return {ok:fleet-counts[worst]>0, available:Math.max(0,fleet-counts[worst]),
-          total:fleet, date:wd.toISOString().split('T')[0]};
+          committed:counts[worst], total:fleet, date:wd.toISOString().split('T')[0]};
 }
 
 // Update the small badge under each size button with live availability for the chosen date
