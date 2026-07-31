@@ -20,8 +20,12 @@
  * the raw pull is customer addresses plus one employee's movements and the repo
  * is public. The rules are restated here so this file stands alone.
  *
- * Sanity check for any change to this file — over May 25 to Jul 24 2026 it must
- * still produce 333 cuts, 50 locations, 44 min average, 243.9 h, 6 flagged.
+ * Sanity check for any change to this file — over May 25 to Jul 24 2026 it should
+ * produce 50 locations, 44 min average and 6 flagged, matching the original
+ * analysis. Compare those three and not the raw counts: Geotab's toDate is
+ * date-only and UTC, so a Jul 24 cutoff really stops at 8pm Eastern on Jul 23,
+ * and weekend stops are now dropped (see WEEKEND), which the original 333-cut
+ * figure still included.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -75,6 +79,13 @@ const FLAG_RATIO = 1.5;       // "ran long" = over 1.5x the location average...
 const FLAG_MIN_OVER = 30;     // ...AND at least this many minutes over it...
 const FLAG_MIN_VISITS = 3;    // ...at locations with at least this many visits
 const TZ = "America/Toronto"; // times are shown in Eastern
+
+/** The crew cuts Monday to Friday (Jake, 2026-07-31). Anything the truck does on
+ *  a weekend is Darrin on other business, not a cut, so weekend stops are left
+ *  out of the pull entirely rather than counted and then explained away. A stop
+ *  belongs to the day it STARTED, so a Friday evening park that runs into
+ *  Saturday still counts as Friday. */
+const WEEKEND = new Set(["Sat", "Sun"]);
 
 /** The truck parks overnight at the Ottaway Ave yard. */
 const HOME_BASE = [
@@ -160,10 +171,12 @@ async function fetchStops(deviceId: string, toDate: string): Promise<Stop[]> {
   const stops: Stop[] = [];
   for (const t of trips) {
     if (!t.stopPoint || !t.stop || !t.nextTripStart) continue;
+    const arrive = new Date(t.stop);
+    if (WEEKEND.has(easternParts(arrive).day)) continue;
     stops.push({
       lat: t.stopPoint.y,
       lon: t.stopPoint.x,
-      arrive: new Date(t.stop),
+      arrive,
       depart: new Date(t.nextTripStart),
     });
   }
