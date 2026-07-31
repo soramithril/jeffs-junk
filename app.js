@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '502';
+var APP_VERSION = '503';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13453,8 +13453,11 @@ function _binsCommittedOverWindow(size, d0, d1, exceptJobId){
     var drop=j.binDropoff||j.date;
     if(!drop) return;
     var start=_dayNum(drop), end;
-    if(!j.binPickup) end=start+30;                         // will-call, or no pickup booked yet
-    else if(j.binInstatus==='dropped'&&_dayNum(j.binPickup)<todayNum) end=d1;  // out past its pickup day, still gone
+    // Already dropped with no pickup booked (a will-call), or past its pickup
+    // day: it's physically out until someone marks it back in, however long that
+    // takes. Never time this out — a will-call sitting 60 days is still gone.
+    if(j.binInstatus==='dropped'&&(!j.binPickup||_dayNum(j.binPickup)<todayNum)) end=d1;
+    else if(!j.binPickup) end=start+30;                    // booked but not dropped yet
     // Free again ON pickup day — the pickup is confirmed the day before, so the
     // bin can be collected and dropped at the next job the same day.
     else end=Math.max(start,_dayNum(j.binPickup)-1);
