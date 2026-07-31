@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '500';
+var APP_VERSION = '501';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8684,6 +8684,9 @@ function newJob(){
   var bdtEl=document.getElementById('f-bdrop-time');if(bdtEl)bdtEl.value='';
   var bptEl=document.getElementById('f-bpick-time');if(bptEl)bptEl.value='';
   var wcEl=document.getElementById('f-bwillcall');if(wcEl){wcEl.checked=false;toggleWillCallForm(false);}
+  // Same stale-field trap as the dates above: this is only ever written when an
+  // existing job is opened, so without clearing it a new booking is born "dropped".
+  var bstEl=document.getElementById('f-binstatus');if(bstEl)bstEl.value='';
   document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.bsz-btn').forEach(function(b){b.classList.remove('active');b.style.background='';b.style.color='';});
   document.getElementById('f-bsize').value='';
@@ -8835,6 +8838,7 @@ function setBinDuration(days){
     document.getElementById('f-bdur').value='';
     document.getElementById('f-bpick').value='';
     document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
+    renderBinSizeAvailability();
     return;
   }
   var bdrop=document.getElementById('f-bdrop');
@@ -8853,6 +8857,7 @@ function setBinDuration(days){
     b.classList.toggle('active',isActive);
     if(isActive){b.style.animation='durPop .3s ease';setTimeout(function(){b.style.animation='';},300);}
   });
+  renderBinSizeAvailability();
 }
 function applyBinPresetDuration(){
   var days=window._binPresetDays;if(!days)return;
@@ -8860,6 +8865,7 @@ function applyBinPresetDuration(){
   var d=new Date(drop+'T12:00:00');
   d.setDate(d.getDate()+days);
   document.getElementById('f-bpick').value=_avoidSundayPickup(d.toISOString().split('T')[0]);
+  renderBinSizeAvailability();
 }
 
 function initBinPicker(existingBid, existingSize){
@@ -8879,9 +8885,12 @@ function initBinPicker(existingBid, existingSize){
   // Set f-bsize so the job can save with just a size selected
   if(existingSize) document.getElementById('f-bsize').value = existingSize;
   renderBinPicker(existingBid||'');
-  // Attach date change listener (once) so badges refresh when date changes
-  var _df=document.getElementById('f-date');
-  if(_df && !_df._binAvailHooked){ _df._binAvailHooked=true; _df.addEventListener('change', renderBinSizeAvailability); }
+  // Refresh the badges when either end of the rental window moves — availability
+  // is judged on the drop-off/pickup dates, not on the job's booking date.
+  ['f-bdrop','f-bpick'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el && !el._binAvailHooked){ el._binAvailHooked=true; el.addEventListener('change', renderBinSizeAvailability); }
+  });
   renderBinSizeAvailability();
   var sel = document.getElementById('bin-picker-selected');
   if(sel){
@@ -9186,13 +9195,15 @@ async function saveJob(e){
     if(!avail.ok&&!confirm(avail.msg)){_saveJobLock=false;return;}
   }
 
-  // Bin availability warning (overbooking prevention)
+  // Bin availability warning (overbooking prevention). Judged on the drop-off →
+  // pickup window, because the bin is unavailable to anyone else for all of it.
   if(svc==='Bin Rental'){
     var _bsize=document.getElementById('f-bsize').value;
-    if(_bsize){
-      var _binAvail=checkBinAvailability(_bsize,date);
-      if(_binAvail.total>0 && _binAvail.available===0){
-        var _proceed=await showBinAvailWarning(_bsize,date);
+    var _bdrop=document.getElementById('f-bdrop').value;
+    if(_bsize&&_bdrop){
+      var _binAvail=checkBinWindow(_bsize,_bdrop,document.getElementById('f-bpick').value,editId||null);
+      if(_binAvail.total>0 && !_binAvail.ok){
+        var _proceed=await showBinAvailWarning(_bsize,_binAvail.date);
         if(!_proceed){ _saveJobLock=false; return; }
       }
     }
@@ -10260,20 +10271,28 @@ function openExtendPopup(jobId, e){
   if(btn){btn.style.position='relative';btn.appendChild(pop);}
   setTimeout(function(){document.addEventListener('click',function closeExtend(){pop.classList.remove('open');setTimeout(function(){if(pop.parentNode)pop.parentNode.removeChild(pop);},200);document.removeEventListener('click',closeExtend);});},10);
 }
-function extendBin(jobId, days){
+async function extendBin(jobId, days){
   var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
   var cur=j.binPickup?new Date(j.binPickup+'T12:00:00'):new Date();
   cur.setDate(cur.getDate()+days);
-  j.binPickup=cur.toISOString().split('T')[0];
-  patchJob(jobId,{binPickup:j.binPickup});toast('Pickup extended to '+fd(j.binPickup));
-  var pop=document.querySelector('.extend-popup.open');if(pop)pop.classList.remove('open');
-  refresh();
+  await _applyBinExtension(j,cur.toISOString().split('T')[0]);
 }
-function extendBinToDate(jobId){
+async function extendBinToDate(jobId){
   var inp=document.getElementById('extend-date-'+jobId);if(!inp||!inp.value)return;
   var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
-  j.binPickup=inp.value;
-  patchJob(jobId,{binPickup:j.binPickup});toast('Pickup extended to '+fd(j.binPickup));
+  await _applyBinExtension(j,inp.value);
+}
+// Keeping a bin longer takes days that may already be promised to the next
+// customer, so the extra days face the same check a new booking does.
+async function _applyBinExtension(j, newPickup){
+  var from=j.binPickup||todayStr();
+  if(newPickup>from){
+    var s=new Date(from+'T12:00:00');s.setDate(s.getDate()+1);
+    var r=checkBinWindow(j.binSize,s.toISOString().split('T')[0],newPickup,j.id);
+    if(r.total>0 && !r.ok && !await showBinAvailWarning(j.binSize,r.date)) return;
+  }
+  j.binPickup=newPickup;
+  patchJob(j.id,{binPickup:newPickup});toast('Pickup extended to '+fd(newPickup));
   var pop=document.querySelector('.extend-popup.open');if(pop)pop.classList.remove('open');
   refresh();
 }
@@ -13466,70 +13485,57 @@ function checkVehicleAvailability(serviceType, dateStr){
 }
 
 // ─── BIN AVAILABILITY (overbooking prevention) ───
-// Count how many bins of `size` are committed (out or scheduled out) on `dateStr`.
-// Mirrors the logic in the inventory timeline (renderBinTimeline) so all surfaces agree.
-function _binsCommittedOnDate(size, dateStr){
-  if(!size||!dateStr) return 0;
-  var todayLocal=todayStr();
-  var count=0;
+// A rental holds its bin every single day from drop-off to pickup, so "is one
+// free?" is a question about a window, not about one day. Days are compared as
+// whole-day numbers to keep the window walk cheap.
+function _dayNum(dateStr){ return Math.round(new Date(dateStr+'T12:00:00').getTime()/86400000); }
+
+// Bins of `size` committed on each day of the window [d0,d1] (day numbers).
+// `exceptJobId` leaves one job out — used when editing or extending that job so
+// it doesn't compete with itself.
+function _binsCommittedOverWindow(size, d0, d1, exceptJobId){
+  var counts=[];for(var i=0;i<=d1-d0;i++)counts.push(0);
+  var todayNum=_dayNum(todayStr());
   jobs.forEach(function(j){
     if(j.service!=='Bin Rental'||j.binSize!==size||j.status==='Cancelled') return;
+    if(j.binInstatus==='pickedup') return;                 // bin is back in the yard
+    if(exceptJobId&&j.id===exceptJobId) return;
     var drop=j.binDropoff||j.date;
-    var pick=j.binPickup;
-    var active=false;
-    if(j.binInstatus==='dropped'&&dateStr>=todayLocal){
-      if(!pick||pick<todayLocal) active=true;
-      else active=dateStr<=pick;
-    } else if(!drop){
-      return;
-    } else if(pick){
-      active=dateStr>=drop&&dateStr<=pick;
-    } else {
-      var dropD=new Date(drop+'T12:00:00');
-      var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
-      active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
-    }
-    if(active) count++;
+    if(!drop) return;
+    var start=_dayNum(drop), end;
+    if(!j.binPickup) end=start+30;                         // will-call, or no pickup booked yet
+    else if(j.binInstatus==='dropped'&&_dayNum(j.binPickup)<todayNum) end=d1;  // out past its pickup day, still gone
+    else end=_dayNum(j.binPickup);
+    var a=Math.max(start,d0), b=Math.min(end,d1);
+    for(var k=a;k<=b;k++) counts[k-d0]++;
   });
-  return count;
+  return counts;
 }
 
-function checkBinAvailability(size, dateStr){
-  if(!size||!dateStr) return {ok:true,available:0,total:0};
-  var fleet=binItems.filter(function(b){return b.size===size;}).length;
-  if(!fleet) return {ok:true,available:0,total:0};
-  var committed=_binsCommittedOnDate(size,dateStr);
-  // If editing, exclude this job's own contribution so we don't double-count
-  if(editId){
-    var thisJob=jobs.find(function(j){return j.id===editId;});
-    if(thisJob && thisJob.service==='Bin Rental' && thisJob.binSize===size){
-      var drop=thisJob.binDropoff||thisJob.date;
-      var pick=thisJob.binPickup;
-      var todayLocal=todayStr();
-      var active=false;
-      if(thisJob.binInstatus==='dropped'&&dateStr>=todayLocal){
-        if(!pick||pick<todayLocal) active=true;
-        else active=dateStr<=pick;
-      } else if(drop){
-        if(pick) active=dateStr>=drop&&dateStr<=pick;
-        else {
-          var dropD=new Date(drop+'T12:00:00');
-          var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
-          active=dateStr>=drop&&dateStr<=maxPick.toISOString().split('T')[0];
-        }
-      }
-      if(active) committed--;
-    }
-  }
-  var avail=Math.max(0, fleet-committed);
-  return {ok:avail>0,available:avail,total:fleet};
+// Availability across a whole rental window. Reports the tightest day in it —
+// that's the day that decides whether the booking fits.
+function checkBinWindow(size, dropStr, pickStr, exceptJobId){
+  if(!size||!dropStr) return {ok:true,available:0,total:0,date:dropStr||''};
+  // Damaged, retired and display bins aren't rentable stock.
+  var fleet=binItems.filter(function(b){
+    return b.size===size&&b.damage!=='damage'&&b.damage!=='oor'&&!b.show_bin;
+  }).length;
+  if(!fleet) return {ok:true,available:0,total:0,date:dropStr};
+  var d0=_dayNum(dropStr);
+  var d1=pickStr?_dayNum(pickStr):d0+30;                   // no pickup yet — hold it for 30 days
+  if(d1<d0) d1=d0;                                         // pickup before drop-off — judge the drop day
+  var counts=_binsCommittedOverWindow(size,d0,d1,exceptJobId);
+  var worst=0;
+  for(var i=1;i<counts.length;i++){ if(counts[i]>counts[worst]) worst=i; }
+  var wd=new Date(dropStr+'T12:00:00');wd.setDate(wd.getDate()+worst);
+  return {ok:fleet-counts[worst]>0, available:Math.max(0,fleet-counts[worst]),
+          total:fleet, date:wd.toISOString().split('T')[0]};
 }
 
 // Update the small badge under each size button with live availability for the chosen date
 function renderBinSizeAvailability(){
-  var dateEl=document.getElementById('f-date');
+  var dropEl=document.getElementById('f-bdrop');
   var svc=document.getElementById('f-svc');
-  var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var badges=document.querySelectorAll('.bsz-avail-badge');
   // Clear all badges first and reset button styling
   badges.forEach(function(b){b.textContent='';b.style.color='';});
@@ -13537,12 +13543,13 @@ function renderBinSizeAvailability(){
     if(!btn.classList.contains('active')) btn.style.opacity='';
   });
   if(!svc||svc.value!=='Bin Rental') return;
-  if(!dateEl||!dateEl.value) return;
-  var ds=dateEl.value;
+  if(!dropEl||!dropEl.value) return;
+  var drop=dropEl.value;
+  var pick=(document.getElementById('f-bpick')||{value:''}).value;
   badges.forEach(function(badge){
     var sz=badge.dataset.sz;
     if(!sz) return;
-    var r=checkBinAvailability(sz,ds);
+    var r=checkBinWindow(sz,drop,pick,editId||null);
     var btn=document.querySelector('.bsz-btn[data-sz="'+sz+'"]');
     if(r.total===0){
       badge.style.color='var(--muted)';
