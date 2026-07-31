@@ -1,0 +1,29 @@
+-- Applied to the live project 2026-07-31. Per Jake.
+--
+-- Cut Times refreshes itself once a week. Monday 08:00 UTC — 4am Eastern in
+-- summer, 3am in winter, same one-hour drift every other cron here has.
+--
+-- The function rebuilds the whole season each run rather than appending, so a
+-- missed week costs nothing: the next run catches up on its own.
+--
+-- The Authorization header carries the same bearer token the other cron jobs
+-- use. It is NOT written here — the live job was created by copying it across
+-- inside the database, so the token never landed in this public repo:
+--
+--   select cron.schedule('cut-times-weekly', '0 8 * * 1',
+--     format(
+--       'SELECT net.http_post(url := %L, headers := jsonb_build_object(%L, %L, %L, %L), body := %L::jsonb, timeout_milliseconds := 180000);',
+--       'https://<project>.supabase.co/functions/v1/cut-times-sync',
+--       'Content-Type', 'application/json',
+--       'Authorization', (select substring(command from 'Bearer [A-Za-z0-9_.\-]+')
+--                         from cron.job where jobname = 'geofence-events-poll'),
+--       '{}'
+--     ));
+--
+-- To stop it:            select cron.unschedule('cut-times-weekly');
+-- To run it by hand:     same http_post as above, body '{}'
+-- To check without writing: body '{"dryRun": true}'
+--
+-- First live run, 2026-07-31: 55 locations, 653 visits, 371 cuts, 6 flagged,
+-- covering May 25 to Jul 30. Replaced the original Jul 24 snapshot of 50
+-- locations / 582 visits.
