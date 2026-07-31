@@ -1,7 +1,9 @@
 -- Applied to the live project 2026-07-31. Per Jake.
 --
--- Cut Times refreshes itself once a week. Monday 08:00 UTC — 4am Eastern in
--- summer, 3am in winter, same one-hour drift every other cron here has.
+-- Cut Times refreshes itself once a week. Sunday 08:00 UTC — 4am Eastern in
+-- summer, 3am in winter, same one-hour drift every other cron here has. So the
+-- week's cuts are in before Monday morning (Jake, 2026-07-31; it was Monday for
+-- the first few hours, moved with cron.alter_job).
 --
 -- The function rebuilds the whole season each run rather than appending, so a
 -- missed week costs nothing: the next run catches up on its own.
@@ -10,7 +12,7 @@
 -- use. It is NOT written here — the live job was created by copying it across
 -- inside the database, so the token never landed in this public repo:
 --
---   select cron.schedule('cut-times-weekly', '0 8 * * 1',
+--   select cron.schedule('cut-times-weekly', '0 8 * * 0',
 --     format(
 --       'SELECT net.http_post(url := %L, headers := jsonb_build_object(%L, %L, %L, %L), body := %L::jsonb, timeout_milliseconds := 180000);',
 --       'https://<project>.supabase.co/functions/v1/cut-times-sync',
