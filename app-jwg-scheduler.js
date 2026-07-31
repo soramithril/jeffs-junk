@@ -183,7 +183,9 @@ function dismissToast(){
   setTimeout(()=>{el.className="";el.innerHTML="";},280);
 }
 
-function closeModal(){const o=document.getElementById("moverlay");if(o)o.remove();}
+// A full-page modal covers the viewport but the page underneath keeps its own
+// scrollbar, so you end up looking at two. Freeze the page while one is open.
+function closeModal(){const o=document.getElementById("moverlay");if(o)o.remove();document.body.classList.remove("jwg-modal-open");}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
 // fullpage=true renders the modal as a full page (day editor, assign/clear
 // multiple, usual weeks, locations) with a floating ✕; small dialogs stay cards.
@@ -207,6 +209,7 @@ function openModal(html,width,fullpage){
   const m=document.createElement("div");m.className="modal";
   if(width&&!fullpage)m.style.width=width;
   m.innerHTML=(fullpage?FP_CLOSE:"")+html;ov.appendChild(m);(document.getElementById("view-jwgscheduler")||document.body).appendChild(ov);
+  if(fullpage)document.body.classList.add("jwg-modal-open");
 }
 // Shared confirm dialog (branded, named target + consequence). Returns Promise<boolean>.
 function jwgConfirm(opts){
@@ -2050,11 +2053,14 @@ function renderSummerPage(){
     return countB-countA;
   });
 
+  // The weekly schedule sits above the site list (Jake, 2026-07-28), so the two
+  // are built separately and joined in that order at the end.
+  let tableHtml="";
   if(!filtered.length){
-    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track lawn &amp; grounds clients and service schedules</div></div></div>`;
+    tableHtml+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">🌱</div><div class="si-empty-text">No summer service locations</div><div class="si-empty-sub">Track lawn &amp; grounds clients and service schedules</div></div></div>`;
   }else{
-    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${SUM.locations.length} location${SUM.locations.length!==1?"s":""}</div>`;
-    h+=`<table class="sum-table">
+    tableHtml+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${SUM.locations.length} location${SUM.locations.length!==1?"s":""}</div>`;
+    tableHtml+=`<table class="sum-table">
       <thead><tr>
         <th class="sum-th">Day</th>
         <th class="sum-th">Client</th>
@@ -2069,7 +2075,7 @@ function renderSummerPage(){
       const dayShort=(loc.service_day||"—").substring(0,3);
       const dayFull=loc.service_day||"—";
       const dayClass=loc.service_day?`sum-day-${loc.service_day.toLowerCase()}`:"sum-day-none";
-      h+=`<tr class="sum-row">
+      tableHtml+=`<tr class="sum-row">
         <td class="sum-td" data-label="Day"><span class="sum-day-badge ${dayClass}">${esc(dayShort)}</span></td>
         <td class="sum-td sum-td-client">${esc(loc.client_name)}</td>
         <td class="sum-td" data-label="Address">${esc(loc.address)}</td>
@@ -2087,12 +2093,12 @@ function renderSummerPage(){
         </td>
       </tr>`;
     });
-    h+=`</tbody></table>`;
+    tableHtml+=`</tbody></table>`;
   }
 
   // Weekly calendar view
   const DAYS_WEEK=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  h+=`<div class="sum-cal-wrap">
+  let calHtml=`<div class="sum-cal-wrap">
     <div class="sum-cal-header">
       <h3 class="sum-cal-title">Weekly Schedule</h3>
       <span class="sum-cal-sub">Locations grouped by service day</span>
@@ -2101,15 +2107,15 @@ function renderSummerPage(){
   DAYS_WEEK.forEach(day=>{
     const dayLocs=filtered.filter(l=>l.service_day===day);
     const dayClass=`sum-cal-col sum-day-${day.toLowerCase()}`;
-    h+=`<div class="${dayClass}">
+    calHtml+=`<div class="${dayClass}">
       <div class="sum-cal-day-header">${day}<span class="sum-cal-count">${dayLocs.length}</span></div>
       <div class="sum-cal-day-body">`;
     if(!dayLocs.length){
-      h+=`<div class="sum-cal-empty">No sites</div>`;
+      calHtml+=`<div class="sum-cal-empty">No sites</div>`;
     }else{
       dayLocs.forEach(loc=>{
         const services=SUM.locationServices.filter(ls=>ls.location_id===loc.id);
-        h+=`<div class="sum-cal-item" onclick="JWG.editSummerLocation('${loc.id}')">
+        calHtml+=`<div class="sum-cal-item" onclick="JWG.editSummerLocation('${loc.id}')">
           <div class="sum-cal-item-name">${esc(loc.client_name)}</div>
           <div class="sum-cal-item-addr">${esc(loc.address)}</div>
           ${services.length?`<div class="sum-cal-item-svcs">${services.slice(0,3).map(s=>{
@@ -2120,10 +2126,11 @@ function renderSummerPage(){
         </div>`;
       });
     }
-    h+=`</div></div>`;
+    calHtml+=`</div></div>`;
   });
-  h+=`</div></div>`;
+  calHtml+=`</div></div>`;
 
+  h+=calHtml+tableHtml;
   h+=`</div></div>`;
   root.innerHTML=h;
 }
@@ -2132,7 +2139,7 @@ function filterAndSortSummer(){renderSummerPage();}
 
 function openAddSummerLocation(){
   let svcToggles=SUM.serviceTypes.map(t=>{
-    return`<div style="background:var(--bg-deep);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+    return`<div class="loc-svc-card">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
         <input type="checkbox" class="sum-svc-toggle-add" data-type="${t.id}" style="accent-color:var(--accent);width:16px;height:16px;">
         ${esc(t.name)}
@@ -2150,8 +2157,9 @@ function openAddSummerLocation(){
       </div>
     </div>`;
   }).join("");
-  const html=`<div style="flex-direction:column;margin-top:0;">
-    <h3 style="margin-bottom:14px;">Add Summer Service Location</h3>
+  const html=`<div class="loc-form">
+    <h3 class="loc-form-title">Add lawn &amp; grounds location</h3>
+    <div class="loc-form-col">
     <div class="si-form-group">
       <label class="si-form-label">Client Name</label>
       <input type="text" class="si-form-input" id="sum-name" placeholder="Client name">
@@ -2180,11 +2188,10 @@ function openAddSummerLocation(){
       <label class="si-form-label">Notes</label>
       <textarea class="si-form-textarea" id="sum-notes" placeholder="Optional notes…"></textarea>
     </div>
-    ${SUM.serviceTypes.length?`<div class="si-form-group">
-      <button type="button" class="collapse-toggle" onclick="const el=document.getElementById('sum-svc-toggles-add');const ic=document.getElementById('sum-svc-caret');const hidden=el.style.display==='none';el.style.display=hidden?'block':'none';ic.textContent=hidden?'▾':'▸';">
-        <span id="sum-svc-caret">▸</span> Services <span class="collapse-hint">(click to expand)</span>
-      </button>
-      <div id="sum-svc-toggles-add" style="display:none;margin-top:8px;">${svcToggles}</div>
+    </div>
+    ${SUM.serviceTypes.length?`<div class="loc-form-col">
+      <label class="si-form-label">Services</label>
+      <div class="loc-svc-grid" id="sum-svc-toggles-add">${svcToggles}</div>
     </div>`:""}
     <div class="si-modal-actions">
       <button class="modal-done" onclick="JWG.saveSummerLocation()">Save Location</button>
@@ -2241,7 +2248,7 @@ function editSummerLocation(locId){
     const checked=!!ls;
     const freq=ls?.frequency||'';
     const sNotes=ls?.notes||'';
-    return`<div style="background:var(--bg-deep);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+    return`<div class="loc-svc-card">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
         <input type="checkbox" class="sum-svc-toggle" data-type="${t.id}" ${checked?"checked":""} style="accent-color:var(--accent);width:16px;height:16px;">
         ${esc(t.name)}
@@ -2259,8 +2266,9 @@ function editSummerLocation(locId){
       </div>
     </div>`;
   }).join("");
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Edit Summer Service Location</h3>
+  const html=`<div class="loc-form">
+    <h3 class="loc-form-title">Edit lawn &amp; grounds location</h3>
+    <div class="loc-form-col">
     <div class="si-form-group">
       <label class="si-form-label">Client Name</label>
       <input type="text" class="si-form-input" id="sum-name" value="${esc(loc.client_name)}">
@@ -2289,9 +2297,10 @@ function editSummerLocation(locId){
       <label class="si-form-label">Notes</label>
       <textarea class="si-form-textarea" id="sum-notes">${esc(loc.notes||"")}</textarea>
     </div>
-    <div class="si-form-group">
+    </div>
+    <div class="loc-form-col">
       <label class="si-form-label">Services</label>
-      <div id="sum-svc-toggles">${svcToggles}</div>
+      <div class="loc-svc-grid" id="sum-svc-toggles">${svcToggles}</div>
     </div>
     <div class="si-modal-actions">
       <button class="modal-done" onclick="JWG.updateSummerLocation('${locId}')">Update</button>

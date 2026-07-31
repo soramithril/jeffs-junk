@@ -1538,3 +1538,20 @@
   #view-jwgscheduler .ctm-grid {grid-template-columns:1fr;}
   #view-jwgscheduler #ctm-map {height:320px;}
 }
+
+/* ── Add/edit location form: one screen, no scrolling (Jake, 2026-07-28) ──
+   Fields on the left, services on the right, actions across the bottom. The
+   page behind a full-page modal is frozen so you only ever see one scrollbar. */
+body.jwg-modal-open {overflow:hidden;}
+#view-jwgscheduler .loc-form {display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1.15fr);gap:0 30px;align-items:start;max-width:1100px;margin:0 auto;}
+#view-jwgscheduler .loc-form-title {grid-column:1/-1;margin:0 0 18px;font-size:19px;}
+#view-jwgscheduler .loc-form-col {min-width:0;}
+#view-jwgscheduler .loc-svc-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;margin-top:6px;}
+#view-jwgscheduler .loc-svc-card {background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;padding:9px 11px;}
+#view-jwgscheduler .loc-form .si-form-textarea {min-height:76px;}
+#view-jwgscheduler .loc-form .si-modal-actions {grid-column:1/-1;margin-top:22px;max-width:420px;}
+
+@media (max-width:840px){
+  #view-jwgscheduler .loc-form {grid-template-columns:1fr;gap:0;}
+  #view-jwgscheduler .loc-form .si-modal-actions {max-width:none;}
+}
