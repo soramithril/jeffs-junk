@@ -89,7 +89,14 @@ const supabase = createClient(
 
 interface Stop { lat: number; lon: number; arrive: Date; depart: Date }
 interface Visit extends Stop { cl: number; durMin: number; type: string }
-interface Cluster { cl: number; lat: number; lon: number; n: number; address: string }
+interface Cluster {
+  cl: number; lat: number; lon: number; n: number; address: string;
+  /** Set when this cluster came from a location already in the table. Those keep
+   *  their id and their centroid never moves, so the locations you have already
+   *  checked stay exactly as they are. */
+  knownCl: number | null;
+}
+interface KnownLoc { cl: number; address: string; lat: number; lon: number }
 
 // ── geometry ──
 
@@ -174,9 +181,20 @@ async function geocode(pts: { lat: number; lon: number }[]): Promise<string[]> {
 
 // ── analysis ──
 
-/** Greedy 120 m clustering, in time order, centroid updated as a running mean. */
-function clusterStops(stops: Stop[]): { clusters: Cluster[]; of: number[] } {
-  const clusters: Cluster[] = [];
+/** Greedy 120 m clustering in time order, seeded with the locations already in
+ *  the table.
+ *
+ *  Seeding matters: 660 Bayview Dr Unit 5 and 131 Saunders Rd are two real,
+ *  separate sites 103.6 m apart — inside the 120 m rule — so a from-scratch pass
+ *  merges them and the location count drops by one. Starting from the known
+ *  list keeps sites that have already been eyeballed exactly as they are, and
+ *  keeps their ids stable week to week. Only genuinely new ground makes a new
+ *  cluster. */
+function clusterStops(stops: Stop[], seeds: KnownLoc[]): { clusters: Cluster[]; of: number[] } {
+  const clusters: Cluster[] = seeds.map((s, i) => ({
+    cl: i, lat: Number(s.lat), lon: Number(s.lon), n: 1,
+    address: s.address, knownCl: s.cl,
+  }));
   const of: number[] = [];
   for (const s of stops) {
     let hit = -1, best = CLUSTER_M;
@@ -185,13 +203,18 @@ function clusterStops(stops: Stop[]): { clusters: Cluster[]; of: number[] } {
       if (d <= best) { best = d; hit = i; }
     }
     if (hit === -1) {
-      clusters.push({ cl: clusters.length, lat: s.lat, lon: s.lon, n: 1, address: "" });
+      clusters.push({
+        cl: clusters.length, lat: s.lat, lon: s.lon, n: 1, address: "", knownCl: null,
+      });
       hit = clusters.length - 1;
     } else {
       const c = clusters[hit];
-      c.lat = (c.lat * c.n + s.lat) / (c.n + 1);
-      c.lon = (c.lon * c.n + s.lon) / (c.n + 1);
-      c.n++;
+      // A known site sits where it sits; only new clusters drift to their mean.
+      if (c.knownCl === null) {
+        c.lat = (c.lat * c.n + s.lat) / (c.n + 1);
+        c.lon = (c.lon * c.n + s.lon) / (c.n + 1);
+        c.n++;
+      }
     }
     of.push(hit);
   }
@@ -283,30 +306,23 @@ async function run(dryRun: boolean, endDate?: string): Promise<Record<string, un
   const stops = await fetchStops(deviceId, today);
   if (!stops.length) throw new Error("Geotab returned no usable trips for the season");
 
-  const { clusters, of } = clusterStops(stops);
-  const visits = mergeVisits(stops, of);
-
-  // Resolve ids and addresses for EVERY cluster, not just the cut locations —
-  // the yard and the overnight stops need an address too. Locations we already
-  // know keep their id and address; only genuinely new ground costs a geocode.
   const { data: known, error: knownErr } = await supabase
     .from("jwg_cut_locations").select("cl,address,lat,lon");
   if (knownErr) throw new Error(`read jwg_cut_locations: ${knownErr.message}`);
+  const seeds = (known ?? []) as KnownLoc[];
 
+  const { clusters, of } = clusterStops(stops, seeds);
+  const visits = mergeVisits(stops, of);
+
+  // Known sites keep their id and address. Everything else — new ground, the
+  // yard, quick stops — gets a fresh id and one geocode so it has an address to
+  // show.
   const remap = new Map<number, number>();
   const needGeocode: Cluster[] = [];
-  const claimed = new Set<number>();
-  let nextId = Math.max(0, ...(known ?? []).map((k) => k.cl)) + 1;
+  let nextId = Math.max(0, ...seeds.map((k) => k.cl)) + 1;
   for (const c of clusters) {
-    // A known location can only be claimed once, or two clusters would collide
-    // on the same primary key.
-    const match = (known ?? []).find((k) =>
-      !claimed.has(k.cl) && metres(c.lat, c.lon, Number(k.lat), Number(k.lon)) <= CLUSTER_M
-    );
-    if (match) {
-      claimed.add(match.cl);
-      remap.set(c.cl, match.cl);
-      c.address = match.address;
+    if (c.knownCl !== null) {
+      remap.set(c.cl, c.knownCl);
     } else {
       remap.set(c.cl, nextId++);
       needGeocode.push(c);
