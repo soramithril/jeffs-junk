@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '513';
+var APP_VERSION = '514';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -302,8 +302,7 @@ function skeletonRows(n){
 // ── Session-expiry guard: signs out on auth errors ──
 function handleSupabaseError(r) {
   if (r.error && (r.error.message === 'JWT expired' || r.error.code === 'PGRST301' || r.error.message === 'Invalid Refresh Token: Refresh Token Not Found' || (r.error.status === 401))) {
-    toast('⚠ Session expired — please sign in again.');
-    db.auth.signOut();
+    signOutWithReason('⚠ Session expired — please sign in again.');
     return true;
   }
   return false;
@@ -11087,6 +11086,13 @@ renderClientSelectOptions();
 var currentUser = null;
 var canDelete = false;
 var appLoaded = false;
+var _redirecting = false;   // set when we're leaving this page on purpose (see the SIGNED_OUT handler)
+
+// Signing out reloads the page, so the reason has to outlive the reload to be read.
+function signOutWithReason(reason) {
+  try { sessionStorage.setItem('jjSignOutReason', reason); } catch(e) {}
+  db.auth.signOut();
+}
 
 // Check if already logged in on page load
 db.auth.getSession().then(function(r) {
@@ -11095,6 +11101,9 @@ db.auth.getSession().then(function(r) {
     onLoginSuccess();
   } else {
     document.getElementById('login-screen').style.display = 'flex';
+    var reason = null;
+    try { reason = sessionStorage.getItem('jjSignOutReason'); sessionStorage.removeItem('jjSignOutReason'); } catch(e) {}
+    if (reason) document.getElementById('login-error').textContent = reason;
     setTimeout(function(){ document.getElementById('login-username').focus(); }, 100);
   }
 });
@@ -11104,8 +11113,7 @@ setInterval(function() {
   if (!currentUser) return;
   db.auth.getSession().then(function(r) {
     if (!r.data || !r.data.session) {
-      toast('⚠ Session expired — please sign in again.');
-      db.auth.signOut();
+      signOutWithReason('⚠ Session expired — please sign in again.');
     }
   });
 }, 60000); // check every 60 seconds
@@ -11122,24 +11130,33 @@ db.auth.onAuthStateChange(function(event, session) {
     return;
   }
   if (event === 'TOKEN_REFRESHED' && !session) {
-    toast('⚠ Session expired — please sign in again.');
-    db.auth.signOut();
+    signOutWithReason('⚠ Session expired — please sign in again.');
     return;
   }
   if (event === 'SIGNED_OUT') {
-    clearTimeout(_inactivityTimer);
+    if (_redirecting) return;   // Darrin's kiosk signs out on its way to inventory.html
+    // Reload instead of handing the login screen back inside this page. A window that
+    // has sat open holds a stale connection, and signing in again on it is what leaves
+    // the button hung on "Signing in..." — a fresh page starts a fresh one.
     try { localStorage.removeItem('jjDashUser'); } catch(e){}
-    currentUser = null;
-    canDelete = false;
-    appLoaded = false;
-    document.body.classList.remove('signed-in');
-    endTour();
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('login-username').focus();
-    setUserCardSignedOut();
-    applyDeleteVisibility();
+    location.reload();
   }
 });
+
+// Hands the login screen back to the user. Lives out here because onLoginSuccess()
+// needs it too — if the sign-in load fails there's nobody else left to un-freeze the button.
+function loginFail(msg) {
+  var errEl = document.getElementById('login-error');
+  var btn   = document.getElementById('login-btn');
+  errEl.textContent = msg;
+  errEl.style.fontWeight = '600';
+  errEl.style.fontSize = '14px';
+  btn.textContent = 'Sign In';
+  btn.style.background = 'var(--accent)';
+  btn.disabled = false;
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-password').focus();
+}
 
 async function doLogin() {
   var username = document.getElementById('login-username').value.trim();
@@ -11151,17 +11168,6 @@ async function doLogin() {
   btn.textContent = 'Signing in...';
   btn.style.background = '#16a34a';
   btn.disabled = true;
-
-  function loginFail(msg) {
-    errEl.textContent = msg;
-    errEl.style.fontWeight = '600';
-    errEl.style.fontSize = '14px';
-    btn.textContent = 'Sign In';
-    btn.style.background = 'var(--accent)';
-    btn.disabled = false;
-    document.getElementById('login-password').value = '';
-    document.getElementById('login-password').focus();
-  }
 
   // Check Supabase client exists
   if (!db || !db.auth) {
@@ -11222,7 +11228,7 @@ async function doLogin() {
   }
 
   currentUser = r.data.user;
-  onLoginSuccess();
+  await onLoginSuccess();
 }
 
 function setUserCardSignedIn(username, role){
@@ -11345,9 +11351,23 @@ async function enablePush(){
   } catch(e){ console.error('enablePush:', e); toast('Couldn\'t enable notifications: ' + (e.message || e), 'error'); }
 }
 
+// Called by doLogin(), the page-load session check and the auth-state listener. If the
+// load below fails partway — a hung profile lookup, say — appLoaded has to go back to
+// false: while it's true this function is a no-op, so every retry would do nothing and
+// the login screen would sit frozen on "Signing in..." until a hard refresh.
 async function onLoginSuccess() {
   if (appLoaded) return; // prevent double-load
   appLoaded = true;
+  try {
+    await loadSignedInApp();
+  } catch (ex) {
+    appLoaded = false;
+    console.error('Sign-in load failed:', ex);
+    loginFail('⚠ Couldn\'t finish signing in: ' + ex.message + ' — try again.');
+  }
+}
+
+async function loadSignedInApp() {
   // Await profile so displayName is set before any job saves can happen
   var r = await db.from('user_profiles').select('role,can_delete,username').eq('id', currentUser.id).single();
   // A failed profile load silently demotes an admin (name falls back to the email
@@ -11365,6 +11385,7 @@ async function onLoginSuccess() {
   // first: his login must never stay remembered anywhere (Jake's rule), and a
   // stored session here would bounce this browser's dashboard forever.
   if (uname === 'Darrin') {
+    _redirecting = true;   // so the sign-out below doesn't reload this page out from under the hop
     try { await db.auth.signOut(); } catch(e) {}
     location.replace('inventory.html');
     return;
@@ -11545,8 +11566,7 @@ function resetInactivityTimer() {
   if (!currentUser) return;
   _inactivityTimer = setTimeout(function() {
     if (!currentUser) return;
-    toast('⚠ Signed out due to inactivity.');
-    db.auth.signOut();
+    signOutWithReason('⚠ Signed out due to inactivity.');
   }, INACTIVITY_LIMIT);
 }
 
