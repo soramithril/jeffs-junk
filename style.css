@@ -2207,6 +2207,18 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
+/* Bin deliveries | pickups side by side. A full-fidelity row needs ~700px
+   (132px bin slot + 200px actions + name/time/avatars), and .main is the
+   viewport minus the 82px rail and 80px padding — so two of them only fit
+   from 1600px up. Below that it stays a single column, exactly as today.
+   :only-child spans the full width when just one of the two legs has jobs,
+   so an empty half never sits there. */
+.tj-cols{display:grid;grid-template-columns:1fr;gap:0}
+@media(min-width:1600px){
+  .tj-cols{grid-template-columns:1fr 1fr;column-gap:14px}
+  .tj-cols>:only-child{grid-column:1/-1}
+}
+
 /* Sticky jump-to bar (dashboard) — status-pill row (v449 design refresh):
    surface tray, rounded pills, active pill goes solid green with a white
    translucent badge; inactive pills keep a soft per-section badge colour. */

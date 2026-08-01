@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '508';
+var APP_VERSION = '509';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3256,12 +3256,17 @@ async function refreshDashJobs(){
       }).join('')+'</div>';
   }
 
-  var html = makeCat('Bin Deliveries','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}))
-    +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}))
-    +makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
+  // Bins are ~88% of the day and split evenly between the two legs, so they take
+  // the side-by-side columns; everything else runs a median of 3 rows and reads
+  // better as one strip underneath. Wrapper only when there ARE bins, so an
+  // empty day still falls through to the empty state below.
+  var binCols = makeCat('Bin Deliveries','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}))
+    +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}));
+  var restCats = makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
     +makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24}))
     +makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24}))
     +makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}));
+  var html = (binCols ? '<div class="tj-cols">'+binCols+'</div>' : '') + restCats;
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -3922,12 +3927,16 @@ async function renderDash(bg){
         +'</div>';
       }).join('')+'</div>';
   }
-  var todayHtml = makeTodayCat('Bin Deliveries','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}))
-    +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}))
-    +makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
+  // Same split as refreshDashJobs: bins in the two columns, the rest as one
+  // strip below. Both paths must match or the layout would jump when the date
+  // picker moves off today.
+  var todayBinCols = makeTodayCat('Bin Deliveries','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}))
+    +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}));
+  var todayRestCats = makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
     +makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24}))
     +makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24}))
     +makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24}));
+  var todayHtml = (todayBinCols ? '<div class="tj-cols">'+todayBinCols+'</div>' : '') + todayRestCats;
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
