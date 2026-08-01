@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '511';
+var APP_VERSION = '512';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2781,17 +2781,9 @@ function renderDashVehicleStatus(){
     var dotColor=statusCol;
     var menuId='veh-menu-'+v.vid;
 
-    // Assigned crew for today, drawn as avatars inside the truck chip — crew ride
-    // in trucks, so the Crew row beside this one only lists whoever isn't on one.
+    // Today's assignments only drive the ticks in the Assign Crew dropdown below.
+    // The crew themselves are not drawn in the truck chip — they have their own row.
     var assigned=vehicleAssignments[v.vid]||[];
-    var activeCrew=assigned.filter(function(a){return !a.endedAt;});
-    var crewNames=activeCrew.map(function(a){return a.name;}).join(', ');
-    var crewAvatars=activeCrew.length
-      ? '<span class="job-avatar-stack" style="display:inline-flex;align-items:center;margin-left:2px">'
-        +activeCrew.map(function(a){ return teamAvatar(a.name, crewAvatarColor(a.crewMemberId), 20, a.name); }).join('')
-        +'</span>'
-      : '';
-    if(crewNames) statusTip=crewNames+' · '+statusTip;
 
     // Build crew assignment options for the dropdown
     var crewOpts=crewMembers.map(function(c){
@@ -2816,7 +2808,6 @@ function renderDashVehicleStatus(){
     return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="event.stopPropagation();toggleVehMenu(\''+menuId+'\')">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
       +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
-      +crewAvatars
       +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
       +menuHtml
       +'</div>';
@@ -15838,31 +15829,17 @@ function renderDashCrewStatus(){
   var el=document.getElementById('dash-crew-status'); if(!el) return;
   if(!crewMembers.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
   var ds=dashSelectedDate();
-  // Anyone already drawn as an avatar inside a truck chip is left out here, so
-  // this row is just "who isn't on a truck". vehicleAssignments only ever holds
-  // today, so on any other date nobody is filtered and the full roster shows.
-  // Only count trucks the panel actually draws — renderDashVehicleStatus hides
-  // leaderboardOnly vehicles, and crew on one of those (Max, Darrin) would
-  // otherwise be filtered out here with no chip anywhere to stand in for them.
-  var onTruck={};
-  if(ds===todayStr()){
-    var shownVids={};
-    vehicles.filter(function(v){return !v.leaderboardOnly;}).forEach(function(v){ shownVids[v.vid]=true; });
-    Object.keys(vehicleAssignments).forEach(function(vid){
-      if(!shownVids[vid]) return;
-      (vehicleAssignments[vid]||[]).forEach(function(a){ if(!a.endedAt) onTruck[a.crewMemberId]=true; });
-    });
-  }
-  var offTruck=crewMembers.filter(function(c){ return !onTruck[c.id]; });
-  if(!offTruck.length){
-    el.innerHTML='<span style="font-size:11px;color:var(--muted)">Everyone is on a truck today</span>';
-    return;
-  }
-  el.innerHTML=offTruck.map(function(c){
+  // Everyone shows, as a bare initials avatar — the whole roster has to fit one
+  // line, so the name lives in the hover tooltip and the ring carries the status:
+  // green available, amber part-day, red off.
+  el.innerHTML=crewMembers.map(function(c){
     var st=crewStatusForDate(c.id, ds);
-    var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'var(--accent)';
+    // Ring goes straight into `border`, so the free case can stay a CSS var; the
+    // tint is string-concatenated and therefore only ever built from a real hex.
+    var ring=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'var(--accent)';
+    var tint=st.state==='free'?'transparent':(st.state==='off'?'#dc3545':'#e67e22')+'1f';
     var icon=st.state==='off'?'🚫':st.state==='partial'?'⏱':'';
-    var tip=(st.state==='free'?'Available':st.label)+' · click to manage';
+    var tip=c.name+' · '+(st.state==='free'?'Available':st.label)+' · click to manage';
     var menuId='crew-menu-'+c.id;
     var booked=crewDayBlocks(c.id, ds).length>0;
     var menu='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;min-width:210px;overflow:hidden">'
@@ -15871,11 +15848,11 @@ function renderDashCrewStatus(){
         :'<div style="padding:8px 14px;font-size:12px;cursor:pointer" onmouseover="this.style.background=\'rgba(220,53,69,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();bookCrewOffDate(\''+c.id+'\',\''+ds+'\')">🚫 Book off all day ('+fd(ds)+')</div>')
       +'<div style="padding:8px 14px;font-size:12px;cursor:pointer;border-top:1px solid var(--border)" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();go(\'crew\')">📋 Manage availability</div>'
       +'</div>';
-    return '<div style="position:relative;display:inline-flex;align-items:center;gap:7px;padding:4px 11px 4px 5px;border-radius:20px;background:'+col+'14;border:1px solid '+col+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
-      +teamAvatar(c.name, crewAvatarColor(c.id), 22)
-      +'<span style="font-weight:600;color:var(--text)">'+c.name+'</span>'
-      +(st.state!=='free'?'<span style="font-size:10px;color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis">'+st.label+'</span>':'')
-      +(icon?'<span style="font-size:10px">'+icon+'</span>':'')
+    return '<div style="position:relative;display:inline-flex;align-items:center;cursor:pointer" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
+      +'<span style="display:inline-flex;border-radius:50%;padding:2px;border:2px solid '+ring+';background:'+tint+'">'
+        +teamAvatar(c.name, crewAvatarColor(c.id), 26)
+      +'</span>'
+      +(icon?'<span style="position:absolute;right:-3px;bottom:-3px;font-size:9px;line-height:1;background:var(--surface2);border-radius:50%;padding:1px 1px 0">'+icon+'</span>':'')
       +menu
     +'</div>';
   }).join('');
