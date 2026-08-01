@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '504';
+var APP_VERSION = '505';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -59,7 +59,7 @@ var _formPhotos = [];           // photo URLs being assembled in the open job/qu
 //   5. The CASE map inside the `log_job_changes` Postgres trigger if you want a
 //      pretty label for that column in the edit-history view.
 var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed:'email_confirmed',
-  noEmail:'no_email',
+  noEmail:'no_email', reviewAsk:'review_ask', reviewAskedAt:'review_asked_at',
   status:'status', binInstatus:'bin_instatus', date:'date', binPickup:'bin_pickup',
   binDropoff:'bin_dropoff', paid:'paid', etransferRefundSent:'etransfer_refund_sent',
   binBid:'bin_bid', binSide:'bin_side', price:'price', notes:'notes', phone:'phone',
@@ -717,7 +717,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size,review_ask,review_asked_at';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
@@ -750,6 +750,8 @@ function dbToJob(r) {
     confirmed:  r.confirmed  || false,
     emailSent:  r.email_sent || false,
     noEmail:    r.no_email || false,
+    reviewAsk:  r.review_ask || false,
+    reviewAskedAt: r.review_asked_at || '',
     binSize:    r.bin_size   || '',
     binDuration:r.bin_duration || '',
     binDropoff: r.bin_dropoff || '',
@@ -907,6 +909,8 @@ function jobToDb(j) {
     confirmed:   j.confirmed   || false,
     email_sent:  j.emailSent   || false,
     no_email:    j.noEmail     || false,
+    review_ask:  j.reviewAsk   || false,
+    review_asked_at: j.reviewAskedAt || null,
     bin_size:    j.binSize     || '',
     bin_duration:j.binDuration || '',
     bin_dropoff: j.binDropoff  || null,
@@ -2643,6 +2647,88 @@ function renderNeedsYou(){
     +rowsHtml
   +'</div>';
 }
+// ── REVIEW FOLLOW-UPS ──────────────────────────────────────────────────────
+// The person who dealt with the customer ticks "Ask for a review" on the work
+// order; this card surfaces that job REVIEW_DELAY_DAYS after the work actually
+// finished — late enough that the job is done, early enough that the customer
+// still remembers us. Sending the request stamps review_asked_at, and that is
+// what drops the row: one ask per job, never two.
+// Its own query rather than the in-memory `jobs` array, which holds the current
+// week — by the time a job is due for a review ask it has long since dropped out.
+var REVIEW_DELAY_DAYS = 2;
+
+function toggleReviewAsk(jobId){
+  var j = jobs.find(function(x){ return x.id===jobId; });
+  if(!j) throw new Error('toggleReviewAsk: job '+jobId+' not in memory');
+  var next = !j.reviewAsk;
+  j.reviewAsk = next;                     // local first so the button redraws immediately
+  openDetail(jobId);
+  patchJob(jobId, {reviewAsk:next}).then(function(r){
+    if(r.error){ j.reviewAsk = !next; openDetail(jobId); return; }   // patchJob already toasted
+    toast(next ? '⭐ Flagged — we\'ll remind you to ask '+(j.name||jobId)+' in '+REVIEW_DELAY_DAYS+' days'
+               : 'Review flag removed for '+(j.name||jobId));
+    renderReviewFollowups();
+  });
+}
+
+// Skipped from the list itself — same decision as unticking it on the work order.
+function skipReviewAsk(jobId){
+  db.from('jobs').update({review_ask:false}).eq('job_id',jobId).then(function(r){
+    if(r.error){ toast('⚠ Could not skip: '+r.error.message,'error'); return; }
+    jobs.forEach(function(j){ if(j.id===jobId) j.reviewAsk=false; });
+    renderReviewFollowups();
+  });
+}
+
+/* The date the work actually finished. Bin rentals deliberately have no
+   fall-back to the drop-off date: no pickup date means the bin is still in the
+   driveway, so the job isn't finished and there is nothing to review yet. */
+function reviewDoneDate(r){
+  if(r.service==='Bin Rental') return r.bin_pickup;
+  if(r.service==='Furniture Delivery' || r.service==='Furniture Pickup') return r.fb_date || r.date;
+  if(r.service==='Junk Removal' || r.service==='Junk Quote') return r.junk_date || r.date;
+  return r.date;
+}
+
+async function renderReviewFollowups(){
+  var el=document.getElementById('dash-review-followups');
+  if(!el) return;
+  var r = await db.from('jobs')
+    .select('job_id,name,service,date,bin_pickup,fb_date,junk_date')
+    .eq('review_ask',true).is('review_asked_at',null).neq('status','Cancelled');
+  if(r.error) throw new Error('Review follow-ups query failed: '+r.error.message);
+  var today=todayStr();
+  var cd=new Date(today+'T12:00:00'); cd.setDate(cd.getDate()-REVIEW_DELAY_DAYS);
+  var cutoff=ymdLocal(cd);
+  var due=(r.data||[]).map(function(row){
+    return {id:row.job_id, name:row.name||row.job_id, service:row.service||'', done:reviewDoneDate(row)};
+  }).filter(function(x){
+    return x.done && x.done<=cutoff;
+  }).sort(function(a,b){ return a.done<b.done?-1:a.done>b.done?1:0; });   // longest-waiting first
+  // Nothing due is the normal state — an empty card every day is just noise.
+  if(!due.length){ el.innerHTML=''; return; }
+  var rowsHtml=due.map(function(x){
+    var days=Math.round((new Date(today+'T12:00:00').getTime()-new Date(x.done+'T12:00:00').getTime())/86400000);
+    var meta=[x.service, 'finished '+fd(x.done)+' · '+days+(days===1?' day ago':' days ago')].filter(Boolean).join(' · ');
+    return '<div style="display:flex;align-items:center;gap:14px;background:#fffdf5;border:1px solid var(--border);border-left:3px solid #eab308;border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+      +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#fef9e7">⭐</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask for a review — '+x.name+'</div>'
+      +'<div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +'<button class="djj-btn green" onclick="openEmailModal(\''+x.id+'\',\'review_request\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send request</button>'
+      +'<button title="Changed your mind — take this one off the list" onclick="skipReviewAsk(\''+x.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">Skip</button>'
+    +'</div>';
+  }).join('');
+  el.innerHTML='<div class="chart-card" style="padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
+    +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;padding:0 4px">'
+      +'<span class="jj-sec-chip warm"></span>'
+      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#b45309">Review follow-ups</span>'
+      +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'+due.length+' to ask</span>'
+    +'</div>'
+    +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Customers someone flagged as happy, '+REVIEW_DELAY_DAYS+'+ days after the job was finished.</div>'
+    +rowsHtml
+  +'</div>';
+}
+
 // Legacy aliases — any old calls route to the new Supabase-powered function
 function updateDashBinStats(){refreshDashBinStats();}
 function updateDashBinStatsDirect(){refreshDashBinStats();}
@@ -3653,6 +3739,7 @@ async function renderDash(bg){
   // the loose-end count the greeting reads, and the morning brief at the end of
   // this function needs that number before it animates the greeting in.
   await refreshDashBinStats();
+  renderReviewFollowups();
   renderDashVehicleStatus();
   renderDashCrewStatus();
   renderDashMaintAlert();
@@ -9690,6 +9777,13 @@ async function openDetail(id, returnCid){
     +(j.service==='Extra Jobs' ? '' : ((j.emailSent||j.emailConfirmed)
       ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
       :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
+    // Review follow-up: the person who dealt with the customer decides whether
+    // they're worth asking. Flagged jobs surface on the dashboard 2 days later.
+    +(j.service==='Extra Jobs' ? '' : (j.reviewAskedAt
+      ?'<button class="btn btn-ghost" title="Review request already sent — click to send it again" onclick="openEmailModal(\''+j.id+'\',\'review_request\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">⭐ Review Asked '+fd(String(j.reviewAskedAt).slice(0,10))+'</button>'
+      : (j.reviewAsk
+        ?'<button class="btn btn-ghost" title="Flagged as a likely good review — click to unflag" onclick="toggleReviewAsk(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.55);color:#b45309;background:rgba(234,179,8,.1);font-weight:700">⭐ Will Ask For Review</button>'
+        :'<button class="btn btn-ghost" title="Happy customer? Flag them and the dashboard will remind you to ask 2 days after the job" onclick="toggleReviewAsk(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#b45309">☆ Ask For A Review</button>')))
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
@@ -11370,6 +11464,7 @@ function resetInactivityTimer() {
 // EMAIL SYSTEM
 // ═══════════════════════════════════════
 var emailJobId = null;
+var emailPresetKey = '';   // which template is loaded in the modal right now
 var emailPresets = {};
 var quoteCorrespondence = [];
 
@@ -11397,6 +11492,14 @@ var defaultPresets = {
   bin_cancelled: {
     subject: 'Your Bin Rental – Cancellation Confirmation',
     body: 'Hi {name},\n\nThis confirms that your bin rental scheduled for drop-off on {dropoffDate} has been cancelled.\n\nIf this was a mistake, or you\'d like to rebook for another date, just give us a call or reply to this email.\n\nThank you for considering Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+  },
+  /* The link is deliberately a placeholder, not a guess. Paste the real Google
+     review URL once on the Email Templates page and it sticks for everyone —
+     sendEmail() refuses to send while the placeholder is still in the body, so
+     no customer ever receives a literal "[REVIEW LINK]". */
+  review_request: {
+    subject: 'How did we do?',
+    body: 'Hi {name},\n\nThanks again for choosing Jeff\'s Junk — we hope everything went smoothly.\n\nIf you have a minute, we\'d really appreciate a quick Google review. It makes a genuine difference to a small local business like ours:\n\n[REVIEW LINK]\n\nAnd if anything wasn\'t right, reply to this email and we\'ll make it right.\n\nThanks so much,\nJeff\'s Junk'
   },
   bin_extension: {
     subject: 'Your Bin Rental – Extension Confirmation',
@@ -11438,7 +11541,9 @@ function guessPresetKey(j) {
   return 'furniture_bank';
 }
 
-async function openEmailModal(id) {
+/* presetKey overrides the guess — the review follow-up passes 'review_request'
+   so the modal opens on the right template instead of the confirmation one. */
+async function openEmailModal(id, presetKey) {
   var j = null; jobs.forEach(function(jj){if(jj.id===id)j=jj;});
   if (!j) {
     // Not in memory (e.g. opened from the Booked Today widget) — fetch it
@@ -11452,18 +11557,22 @@ async function openEmailModal(id) {
   var cl = null; if (j.clientId) clients.forEach(function(c){if(c.cid===j.clientId)cl=c;});
   var email = (cl && cl.email) || '';
   document.getElementById('email-to').value = email;
-  var key = guessPresetKey(j);
+  var key = presetKey || guessPresetKey(j);
   var preset = getPreset(key);
+  emailPresetKey = key;
   document.getElementById('email-subject').value = fillEmailTemplate(preset.subject, j);
   document.getElementById('email-body').value = fillEmailTemplate(preset.body, j);
   var sentNote = document.getElementById('email-sent-note');
-  sentNote.style.display = j.emailSent ? 'block' : 'none';
+  /* The review request isn't a confirmation — "previously sent" would be about
+     the wrong email entirely, so it only speaks for confirmation templates. */
+  sentNote.style.display = (key !== 'review_request' && j.emailSent) ? 'block' : 'none';
   setTimeout(function(){document.getElementById('email-modal').classList.add('open');}, 150);
 }
 
 function loadEmailPreset(key) {
   var j = null; if (emailJobId) jobs.forEach(function(jj){if(jj.id===emailJobId)j=jj;});
   var preset = getPreset(key);
+  emailPresetKey = key;
   document.getElementById('email-subject').value = j ? fillEmailTemplate(preset.subject, j) : preset.subject;
   document.getElementById('email-body').value = j ? fillEmailTemplate(preset.body, j) : preset.body;
 }
@@ -11542,6 +11651,13 @@ function sendEmail() {
   if (!to) { showErr('email-to'); document.getElementById('err-email-to').textContent='Please enter an email address to send to.'; return; }
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(to)) { showErr('email-to'); document.getElementById('err-email-to').textContent='That doesn\'t look like a valid email address (e.g. name@example.com).'; return; }
+  /* Same class of mistake as the old {time} token that got mailed out literally:
+     the review template ships with a placeholder instead of a guessed URL, so
+     refuse to send until someone pastes the real link on the Templates page. */
+  if (body.indexOf('[REVIEW LINK]') !== -1) {
+    toast('⚠ Paste your Google review link into the Review Request template first (Jobs → Email Templates).');
+    return;
+  }
   // One click, one send. The button stayed live while the mail window opened, so a second click
   // opened another draft AND filed another copy in the customer's email history.
   var _sendBtn = document.getElementById('email-send-btn');
@@ -11555,10 +11671,21 @@ function sendEmail() {
   var clientIdForRecord = null, serviceForRecord = null;
   if (emailJobId) {
     jobs.forEach(function(j){if(j.id===emailJobId){clientIdForRecord=j.clientId||null;serviceForRecord=j.service||null;}});
-    jobs.forEach(function(j){if(j.id===emailJobId){j.emailSent=true;j.emailConfirmed=true;}});
-    patchJob(emailJobId,{emailSent:true,emailConfirmed:true});
-    document.getElementById('email-sent-note').style.display = 'block';
-    stampEmailBtn(emailJobId);
+    /* A review request is NOT a confirmation. Marking emailSent here would tell
+       the dashboard the confirmation went out when it didn't, so the two
+       receipts stay separate: review_asked_at drops the job off the follow-up
+       list, and nothing else moves. */
+    if (emailPresetKey === 'review_request') {
+      var askedAt = new Date().toISOString();
+      jobs.forEach(function(j){if(j.id===emailJobId)j.reviewAskedAt=askedAt;});
+      patchJob(emailJobId,{reviewAskedAt:askedAt});
+      renderReviewFollowups();
+    } else {
+      jobs.forEach(function(j){if(j.id===emailJobId){j.emailSent=true;j.emailConfirmed=true;}});
+      patchJob(emailJobId,{emailSent:true,emailConfirmed:true});
+      document.getElementById('email-sent-note').style.display = 'block';
+      stampEmailBtn(emailJobId);
+    }
   }
   if (clientIdForRecord) {
     var sentBy = (currentUser && currentUser.displayName) ? currentUser.displayName : (currentUser && currentUser.email ? currentUser.email : 'unknown');
@@ -11580,9 +11707,9 @@ function sendEmail() {
 // ═══════════════════════════════════════
 // EMAIL TEMPLATES — full page (was a modal until v465)
 // ═══════════════════════════════════════
-var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled'];
-var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled'};
-var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫'};
+var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled','review_request'];
+var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled',review_request:'Review Request'};
+var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫',review_request:'⭐'};
 /* Exactly the tokens fillEmailTemplate() substitutes — no more, no less. The old
    modal's hint advertised {time}, which nothing replaces, so staff were mailing
    customers a literal "{time}"; it also never mentioned {dropoffDate},
