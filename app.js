@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '510';
+var APP_VERSION = '511';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -15841,9 +15841,15 @@ function renderDashCrewStatus(){
   // Anyone already drawn as an avatar inside a truck chip is left out here, so
   // this row is just "who isn't on a truck". vehicleAssignments only ever holds
   // today, so on any other date nobody is filtered and the full roster shows.
+  // Only count trucks the panel actually draws — renderDashVehicleStatus hides
+  // leaderboardOnly vehicles, and crew on one of those (Max, Darrin) would
+  // otherwise be filtered out here with no chip anywhere to stand in for them.
   var onTruck={};
   if(ds===todayStr()){
+    var shownVids={};
+    vehicles.filter(function(v){return !v.leaderboardOnly;}).forEach(function(v){ shownVids[v.vid]=true; });
     Object.keys(vehicleAssignments).forEach(function(vid){
+      if(!shownVids[vid]) return;
       (vehicleAssignments[vid]||[]).forEach(function(a){ if(!a.endedAt) onTruck[a.crewMemberId]=true; });
     });
   }
