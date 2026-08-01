@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '516';
+var APP_VERSION = '517';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9916,16 +9916,96 @@ async function postponeJob(id){
   closeM('detail-modal');
   refresh();
 }
+// ─── REOPEN A POSTPONED JOB ────────────────────────────────────────────────
+// Postponing clears the schedule, so a job that came back out with no date landed
+// nowhere: not in Postponed, not on any date-driven screen. The date is now asked
+// for up front and written in the SAME update as the status — the job can never be
+// live and dateless. (Two bin rentals were lost this way before 2026-08-01.)
+var _reopenJobId = null;
+
 async function reopenPostponedJob(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
-  var r = await db.from('jobs').update({status:''}).eq('job_id',id);
-  if(r.error){ toast('⚠ Could not reopen: '+r.error.message,'error'); return; }
-  j.status='';
-  toast('Job reopened — give it a new date.');
+  _reopenJobId = id;
+  document.getElementById('reopen-body').innerHTML = '<div style="padding:26px;text-align:center;color:var(--muted);font-size:13px">Loading…</div>';
+  openM('reopen-modal');
+
+  // The dates the postpone cleared are in the job's own history — offer them back
+  // so the everyday case is one click.
+  var prev = {};
+  var r = await db.from('job_changes').select('field_name,old_value,changed_at')
+    .eq('job_id', id).in('field_name',['Date','Time','Drop-off','Pickup'])
+    .not('old_value','is',null).order('changed_at',{ascending:false});
+  (r.data||[]).forEach(function(row){ if(!prev[row.field_name]) prev[row.field_name]=row.old_value; });
+  renderReopenModal(j, prev);
+}
+
+function renderReopenModal(j, prev){
+  var isBin = j.service==='Bin Rental';
+  var field = function(id,label,val,req){
+    return '<div style="margin-bottom:12px">'
+      + '<label style="display:block;font-size:12px;font-weight:700;color:var(--text);margin-bottom:5px">'+label
+      + (req?' <span style="color:#dc3545">*</span>':'<span style="color:var(--muted);font-weight:500"> — optional</span>')+'</label>'
+      + '<input type="date" id="'+id+'" value="'+(val||'')+'" oninput="syncReopenBtn()"'
+      + ' style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px">'
+    + '</div>';
+  };
+  document.getElementById('reopen-body').innerHTML =
+     '<div style="padding:2px 0 4px">'
+    + '<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">'
+      + escHtml(j.id + ' · ' + (j.name||'') ) + '<br>'
+      + 'This job comes off Postponed once it has a date, so it lands back on the schedule instead of disappearing.'
+    + '</div>'
+    + (isBin
+        ? field('reopen-date','Drop-off date', prev['Drop-off'], true) + field('reopen-pickup','Pickup date', prev['Pickup'], false)
+        : field('reopen-date','Job date', prev['Date'], true))
+    + '<div id="reopen-err" style="display:none;font-size:12.5px;color:#dc3545;font-weight:600;margin-bottom:10px"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:6px">'
+      + '<button class="btn btn-ghost" onclick="closeM(\'reopen-modal\')" style="flex:1">Keep Postponed</button>'
+      + '<button class="btn btn-primary" id="reopen-go" onclick="confirmReopenJob()" style="flex:2">Reopen job</button>'
+    + '</div>'
+  + '</div>';
+  syncReopenBtn();
+}
+
+function syncReopenBtn(){
+  var d = document.getElementById('reopen-date'), btn = document.getElementById('reopen-go');
+  if(!d||!btn) return;
+  var ok = !!d.value;
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '' : '.5';
+}
+
+async function confirmReopenJob(){
+  var j = jobs.find(function(x){return x.id===_reopenJobId;});
+  if(!j) return;
+  var isBin = j.service==='Bin Rental';
+  var d = document.getElementById('reopen-date').value;
+  var err = document.getElementById('reopen-err');
+  if(!d){ err.textContent = 'Pick a date before reopening this job.'; err.style.display='block'; return; }
+  var pick = isBin ? document.getElementById('reopen-pickup').value : '';
+  if(pick && pick < d){ err.textContent = 'Pickup can\'t be before the drop-off.'; err.style.display='block'; return; }
+  err.style.display='none';
+
+  // Status and dates go in one update — a half-applied reopen is what caused the
+  // invisible jobs in the first place. The list views read `date`, so it is always set.
+  var patch = { status:'', date:d };
+  if(isBin){ patch.bin_dropoff = d; patch.bin_pickup = pick || null; }
+  var btn = document.getElementById('reopen-go');
+  btn.disabled = true; btn.textContent = 'Reopening…';
+  var r = await db.from('jobs').update(patch).eq('job_id', j.id);
+  if(r.error){
+    err.textContent = 'Could not reopen: '+r.error.message+' — the job is still Postponed.';
+    err.style.display='block';
+    btn.disabled=false; btn.textContent='Reopen job';
+    return;
+  }
+  j.status=''; j.date=d;
+  if(isBin){ j.binDropoff=d; j.binPickup=pick||''; }
+  closeM('reopen-modal');
   closeM('detail-modal');
   refresh();
-  openEdit(id);
+  toast('▶ Job reopened for '+fd(d)+'.');
 }
 async function openDetail(id, returnCid){
   var j=null;jobs.forEach(function(jj){if(jj.id===id)j=jj;});
