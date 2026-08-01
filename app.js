@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '505';
+var APP_VERSION = '506';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2657,14 +2657,44 @@ function renderNeedsYou(){
 // week — by the time a job is due for a review ask it has long since dropped out.
 var REVIEW_DELAY_DAYS = 2;
 
+/* The work-order button, in its three states: not flagged, flagged and waiting,
+   already asked. One function so the detail render and the in-place swap below
+   can never drift apart. Extra Jobs are internal work — nobody to ask. */
+function reviewBtnHtml(j){
+  if(j.service==='Extra Jobs') return '';
+  var open = '<button id="review-btn-'+j.id+'" class="btn btn-ghost" ';
+  if(j.reviewAskedAt) return open
+    +'title="Review request already sent — click to send it again" '
+    +'onclick="openEmailModal(\''+j.id+'\',\'review_request\')" '
+    +'style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">'
+    +'⭐ Review Asked '+fd(String(j.reviewAskedAt).slice(0,10))+'</button>';
+  if(j.reviewAsk) return open
+    +'title="Flagged as a likely good review — click to unflag" '
+    +'onclick="toggleReviewAsk(\''+j.id+'\')" '
+    +'style="justify-content:center;border-color:rgba(234,179,8,.55);color:#b45309;background:rgba(234,179,8,.1);font-weight:700">'
+    +'⭐ Will Ask For Review</button>';
+  return open
+    +'title="Happy customer? Flag them and the dashboard will remind you to ask '+REVIEW_DELAY_DAYS+' days after the job" '
+    +'onclick="toggleReviewAsk(\''+j.id+'\')" '
+    +'style="justify-content:center;border-color:rgba(234,179,8,.4);color:#b45309">'
+    +'☆ Ask For A Review</button>';
+}
+
+/* Swaps just the button, not the whole work order — re-rendering the detail
+   would throw you back to the top of a long modal to see a one-word change. */
+function redrawReviewBtn(j){
+  var btn = document.getElementById('review-btn-'+j.id);
+  if(btn) btn.outerHTML = reviewBtnHtml(j);
+}
+
 function toggleReviewAsk(jobId){
   var j = jobs.find(function(x){ return x.id===jobId; });
   if(!j) throw new Error('toggleReviewAsk: job '+jobId+' not in memory');
   var next = !j.reviewAsk;
   j.reviewAsk = next;                     // local first so the button redraws immediately
-  openDetail(jobId);
+  redrawReviewBtn(j);
   patchJob(jobId, {reviewAsk:next}).then(function(r){
-    if(r.error){ j.reviewAsk = !next; openDetail(jobId); return; }   // patchJob already toasted
+    if(r.error){ j.reviewAsk = !next; redrawReviewBtn(j); return; }   // patchJob already toasted
     toast(next ? '⭐ Flagged — we\'ll remind you to ask '+(j.name||jobId)+' in '+REVIEW_DELAY_DAYS+' days'
                : 'Review flag removed for '+(j.name||jobId));
     renderReviewFollowups();
@@ -9777,13 +9807,7 @@ async function openDetail(id, returnCid){
     +(j.service==='Extra Jobs' ? '' : ((j.emailSent||j.emailConfirmed)
       ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
       :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
-    // Review follow-up: the person who dealt with the customer decides whether
-    // they're worth asking. Flagged jobs surface on the dashboard 2 days later.
-    +(j.service==='Extra Jobs' ? '' : (j.reviewAskedAt
-      ?'<button class="btn btn-ghost" title="Review request already sent — click to send it again" onclick="openEmailModal(\''+j.id+'\',\'review_request\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">⭐ Review Asked '+fd(String(j.reviewAskedAt).slice(0,10))+'</button>'
-      : (j.reviewAsk
-        ?'<button class="btn btn-ghost" title="Flagged as a likely good review — click to unflag" onclick="toggleReviewAsk(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.55);color:#b45309;background:rgba(234,179,8,.1);font-weight:700">⭐ Will Ask For Review</button>'
-        :'<button class="btn btn-ghost" title="Happy customer? Flag them and the dashboard will remind you to ask 2 days after the job" onclick="toggleReviewAsk(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#b45309">☆ Ask For A Review</button>')))
+    +reviewBtnHtml(j)
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
