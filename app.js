@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '506';
+var APP_VERSION = '507';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10930,6 +10930,31 @@ function scheduleWillCallPickup(id,e){
   toast('Pickup scheduled for '+fd(d));
   refresh();
 }
+/* A toast you can take back. The mail app never tells us whether you actually
+   pressed send — mailto is a one-way handoff — so the "sent" mark lands
+   optimistically and this gives you 10 seconds to undo it if you closed the
+   draft instead. Deliberately separate from toast(), which is plain text on
+   purpose: one of these two has a button, and every other caller should carry
+   on not thinking about markup. Shares the #toast element, so the next plain
+   toast wipes this one — newest message wins, same as before. */
+function undoToast(msg, onUndo) {
+  var t = document.getElementById('toast');
+  clearTimeout(t._tid);
+  t.className = 'toast';
+  t.textContent = '✓ ' + msg;
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = 'Undo';
+  btn.style.cssText = 'margin-left:14px;background:transparent;border:1.5px solid currentColor;color:inherit;font-family:inherit;font-size:12.5px;font-weight:800;padding:4px 12px;border-radius:7px;cursor:pointer';
+  btn.onclick = function(){
+    clearTimeout(t._tid);
+    t.classList.remove('show');
+    onUndo();
+  };
+  t.appendChild(btn);
+  t.classList.add('show');
+  t._tid = setTimeout(function(){ t.classList.remove('show'); }, 10000);
+}
 function toast(msg, type) {
   var t = document.getElementById('toast');
   var isErr  = type === 'error'  || msg.indexOf('⚠') === 0 || msg.indexOf('⚠️') === 0 || msg.indexOf('Error') >= 0;
@@ -11656,7 +11681,9 @@ function stampBookedIfJustSaved(job){
    its button for a freshly-landing stamp rather than firing a toast — the stamp
    IS the receipt, and it stays on the record instead of vanishing in 3s.
    No-op when the email was opened from somewhere without that row on screen;
-   the next repaint renders the stamp anyway, just without the animation. */
+   the next repaint renders the stamp anyway, just without the animation.
+   (The undo toast that now accompanies this is not a competing receipt — it's
+   the handle for taking the stamp back, and it's meant to vanish.) */
 function stampEmailBtn(jobId){
   var btn = document.querySelector('.djj-btn[data-email-job="' + jobId + '"]');
   if(!btn) return;
@@ -11694,21 +11721,49 @@ function sendEmail() {
   window.open(mailto, '_blank');
   var clientIdForRecord = null, serviceForRecord = null;
   if (emailJobId) {
-    jobs.forEach(function(j){if(j.id===emailJobId){clientIdForRecord=j.clientId||null;serviceForRecord=j.service||null;}});
+    /* Captured now, not read inside the undo closure: the 10-second window
+       outlives this modal, and opening another job's email would otherwise make
+       Undo revert the wrong job. */
+    var sentJobId = emailJobId;
+    var sentName = '';
+    jobs.forEach(function(j){if(j.id===sentJobId){clientIdForRecord=j.clientId||null;serviceForRecord=j.service||null;sentName=j.name||'';}});
+    var who = sentName || sentJobId;
     /* A review request is NOT a confirmation. Marking emailSent here would tell
        the dashboard the confirmation went out when it didn't, so the two
        receipts stay separate: review_asked_at drops the job off the follow-up
        list, and nothing else moves. */
     if (emailPresetKey === 'review_request') {
       var askedAt = new Date().toISOString();
-      jobs.forEach(function(j){if(j.id===emailJobId)j.reviewAskedAt=askedAt;});
-      patchJob(emailJobId,{reviewAskedAt:askedAt});
-      renderReviewFollowups();
+      jobs.forEach(function(j){if(j.id===sentJobId)j.reviewAskedAt=askedAt;});
+      // Chained, not fired-and-forgotten: the list re-queries the database, so
+      // repainting before the write lands would just show the row again.
+      patchJob(sentJobId,{reviewAskedAt:askedAt}).then(renderReviewFollowups);
+      undoToast('Review request opened in your mail app for '+who+'.', function(){
+        jobs.forEach(function(j){if(j.id===sentJobId)j.reviewAskedAt='';});
+        patchJob(sentJobId,{reviewAskedAt:null}).then(function(){
+          renderReviewFollowups();
+          var j2 = jobs.find(function(x){return x.id===sentJobId;});
+          if(j2) redrawReviewBtn(j2);
+          toast('Put back on the review follow-up list.');
+        });
+      });
     } else {
-      jobs.forEach(function(j){if(j.id===emailJobId){j.emailSent=true;j.emailConfirmed=true;}});
-      patchJob(emailJobId,{emailSent:true,emailConfirmed:true});
+      jobs.forEach(function(j){if(j.id===sentJobId){j.emailSent=true;j.emailConfirmed=true;}});
+      patchJob(sentJobId,{emailSent:true,emailConfirmed:true});
       document.getElementById('email-sent-note').style.display = 'block';
-      stampEmailBtn(emailJobId);
+      stampEmailBtn(sentJobId);
+      undoToast('Confirmation email opened in your mail app for '+who+'.', function(){
+        jobs.forEach(function(j){if(j.id===sentJobId){j.emailSent=false;j.emailConfirmed=false;}});
+        // Both flags, not just emailSent — every "needs an email" list tests
+        // emailSent OR emailConfirmed, so clearing one alone leaves the job
+        // hidden and the undo does nothing visible.
+        patchJob(sentJobId,{emailSent:false,emailConfirmed:false}).then(function(){
+          var note = document.getElementById('email-sent-note');
+          if(note) note.style.display = 'none';
+          refresh();   // rebuilds Needs You, the jobs list and the bookings widget, stamp and all
+          toast('Marked as not sent — '+who+' is back on the list.');
+        });
+      });
     }
   }
   if (clientIdForRecord) {
