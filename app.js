@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '515';
+var APP_VERSION = '516';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -5786,17 +5786,159 @@ function setClientLastBin(v) {
   renderClients();
 }
 
-// Marketing win-back list: name + email for everyone currently shown, minus anyone with no email.
-function exportClientEmails() {
-  var rows = [['Name','Email','City','Last Bin']];
-  _allClientsFiltered.forEach(function(c) {
-    var email = (c.emails && c.emails[0]) ? c.emails[0] : (c.email || '');
-    if (!email) return;
-    rows.push([c.name || '', email, c.city || '', c._lastBin || '']);
+// ─── MARKETING WIN-BACK LIST ───────────────────────────────────────────────
+// One pull = one batch, and everyone in it is written to marketing_exports so the
+// next pull skips them for a year. The plain Export CSV button stays unlogged —
+// that one is for looking at the data, this one is for actually emailing people.
+var MKTG_SKIP_MONTHS = 12;
+var _mktgEligible = [];   // who this pull can draw from, longest-lapsed first
+
+function mktgEmail(c) { return (c.emails && c.emails[0]) ? c.emails[0] : (c.email || ''); }
+
+function mktgSkipCutoff() {
+  var d = new Date();
+  d.setMonth(d.getMonth() - MKTG_SKIP_MONTHS);
+  return d.toISOString().slice(0,10);
+}
+
+function mktgBatchId() {
+  var d = new Date(), p = function(n){ return (n<10?'0':'') + n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes());
+}
+
+// The skip list has to be complete — a short read would quietly double-email people,
+// so count first and page through, and throw rather than return a partial list.
+async function fetchMarketingLog() {
+  var cutoff = mktgSkipCutoff();
+  var rCount = await db.from('marketing_exports').select('id',{count:'exact',head:true}).gte('exported_on', cutoff);
+  if (rCount.error) throw rCount.error;
+  var PAGE = 1000, pages = [];
+  for (var i = 0; i < Math.max(Math.ceil((rCount.count||0)/PAGE), 1); i++) pages.push(i);
+  var res = await Promise.all(pages.map(function(i){
+    return db.from('marketing_exports').select('cid,batch,exported_on,exported_by')
+      .gte('exported_on', cutoff).order('id',{ascending:true}).range(i*PAGE, (i+1)*PAGE-1);
+  }));
+  var rows = [];
+  res.forEach(function(r){ if (r.error) throw r.error; rows = rows.concat(r.data||[]); });
+  return rows;
+}
+
+async function openEmailListModal() {
+  var body = document.getElementById('email-list-body');
+  body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Loading…</div>';
+  openM('email-list-modal');
+
+  var withEmail = _allClientsFiltered.filter(function(c){ return mktgEmail(c); });
+  var noEmail   = _allClientsFiltered.length - withEmail.length;
+  var log;
+  try {
+    log = await fetchMarketingLog();
+  } catch (err) {
+    body.innerHTML = '<div style="padding:24px;text-align:center"><div style="font-size:14px;font-weight:700;color:#dc3545;margin-bottom:6px">Couldn\'t read the send history</div>'
+      + '<div style="font-size:13px;color:var(--muted);line-height:1.6">Nothing was exported — without the history there\'s no way to tell who has already been emailed.<br>' + escHtml(err.message||String(err)) + '</div></div>';
+    return;
+  }
+
+  var sentAlready = {};
+  log.forEach(function(r){ sentAlready[r.cid] = true; });
+  var skipped = withEmail.filter(function(c){ return sentAlready[c.cid]; }).length;
+
+  // Coldest customers first, so repeat pulls march forward instead of re-treading names.
+  // Anyone with no bin history at all sorts to the very end.
+  _mktgEligible = withEmail.filter(function(c){ return !sentAlready[c.cid]; })
+    .sort(function(a,b){ return (a._lastBin||'9999').localeCompare(b._lastBin||'9999'); });
+
+  renderEmailListModal(skipped, noEmail, log);
+}
+
+function renderEmailListModal(skipped, noEmail, log) {
+  var avail = _mktgEligible.length;
+
+  // Past pulls, newest first — grouped from the same rows the skip list came from.
+  var batches = {};
+  log.forEach(function(r){
+    if (!batches[r.batch]) batches[r.batch] = { on:r.exported_on, by:r.exported_by||'', n:0 };
+    batches[r.batch].n++;
   });
-  if (rows.length === 1) { toast('Nobody in this list has an email address on file.'); return; }
-  downloadCsv(rows, 'email-list' + (clientLastBinF ? '-no-bin-' + clientLastBinF + 'mo' : '') + '.csv');
-  toast('Exported ' + (rows.length - 1) + ' emails.');
+  var batchKeys = Object.keys(batches).sort().reverse();
+  var history = batchKeys.length
+    ? batchKeys.map(function(k){
+        var b = batches[k];
+        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px">'
+          + '<span style="color:var(--text)"><strong>' + b.n + '</strong> ' + (b.n===1?'person':'people') + '</span>'
+          + '<span style="color:var(--muted)">' + fd(b.on) + (b.by ? ' · ' + escHtml(b.by) : '') + '</span></div>';
+      }).join('')
+    : '<div style="font-size:12.5px;color:var(--muted);padding:7px 0">No pulls yet.</div>';
+
+  var note = function(txt){ return '<div style="font-size:12.5px;color:var(--muted);line-height:1.7">' + txt + '</div>'; };
+
+  document.getElementById('email-list-body').innerHTML =
+     '<div style="padding:4px 0 16px">'
+    + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">'
+      + '<div style="font-size:30px;font-weight:800;color:var(--accent);line-height:1.1">' + avail.toLocaleString() + '</div>'
+      + '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">ready to email</div>'
+      + note((skipped ? '<div>' + skipped.toLocaleString() + ' skipped — already emailed in the last ' + MKTG_SKIP_MONTHS + ' months</div>' : '')
+           + (noEmail ? '<div>' + noEmail.toLocaleString() + ' skipped — no email address on file</div>' : '')
+           + (!skipped && !noEmail ? 'Everyone on screen is available.' : ''))
+    + '</div>'
+    + (avail
+      ? '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+          + '<label for="mktg-count" style="font-size:13px;font-weight:700;color:var(--text)">How many do you want?</label>'
+          + '<input id="mktg-count" type="number" min="1" max="' + avail + '" value="' + avail + '" oninput="syncEmailListCount()"'
+          + ' style="width:110px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;font-weight:700">'
+          + '<span style="font-size:12.5px;color:var(--muted)">of ' + avail.toLocaleString() + '</span>'
+        + '</div>'
+        + note('You get the customers who have gone longest without a bin first, so the next pull picks up where this one left off.')
+        + '<button class="btn btn-primary" id="mktg-go" onclick="confirmEmailListExport()" style="margin-top:14px;width:100%">Export ' + avail.toLocaleString() + ' and mark as sent</button>'
+      : '<div style="font-size:13px;color:var(--muted);padding:6px 0">Nobody here is available for a new pull. Widen the filter on the Clients page, or wait for the ' + MKTG_SKIP_MONTHS + '-month window to pass.</div>')
+    + '<div style="margin-top:22px">'
+      + '<div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Pulls in the last ' + MKTG_SKIP_MONTHS + ' months</div>'
+      + history
+    + '</div>'
+  + '</div>';
+}
+
+function syncEmailListCount() {
+  var el = document.getElementById('mktg-count'), btn = document.getElementById('mktg-go');
+  var n = parseInt(el.value, 10);
+  var ok = n > 0 && n <= _mktgEligible.length;
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '' : '.5';
+  btn.textContent = ok ? 'Export ' + n.toLocaleString() + ' and mark as sent' : 'Enter a number from 1 to ' + _mktgEligible.length.toLocaleString();
+}
+
+async function confirmEmailListExport() {
+  var n = parseInt(document.getElementById('mktg-count').value, 10);
+  if (!(n > 0 && n <= _mktgEligible.length)) { toast('Enter how many people you want.','warn'); return; }
+  var picked = _mktgEligible.slice(0, n);
+  var batch  = mktgBatchId();
+  var by     = currentUser ? (currentUser.displayName || (currentUser.email||'').split('@')[0]) : '';
+  var btn    = document.getElementById('mktg-go');
+  btn.disabled = true; btn.textContent = 'Recording ' + n.toLocaleString() + '…';
+
+  // Record first, download second — a file must never go out with people who
+  // aren't in the log, or the next pull emails them all over again.
+  var CHUNK = 1000, recorded = 0;
+  for (var i = 0; i < picked.length; i += CHUNK) {
+    var slice = picked.slice(i, i + CHUNK);
+    var ins = await db.from('marketing_exports').insert(slice.map(function(c){
+      return { cid:c.cid, email:mktgEmail(c), batch:batch, exported_by:by };
+    }));
+    if (ins.error) {
+      if (!recorded) { toast('Could not record the pull — nothing exported.','error'); btn.disabled=false; syncEmailListCount(); return; }
+      break;   // partial: export exactly what made it into the log, nothing more
+    }
+    recorded += slice.length;
+  }
+
+  var out = picked.slice(0, recorded);
+  var rows = [['Name','Email','City','Last Bin']];
+  out.forEach(function(c){ rows.push([c.name||'', mktgEmail(c), c.city||'', c._lastBin||'']); });
+  downloadCsv(rows, 'email-list-' + batch + '.csv');
+  closeM('email-list-modal');
+  toast(recorded < picked.length
+    ? 'Exported ' + recorded.toLocaleString() + ' of ' + picked.length.toLocaleString() + ' — the rest could not be recorded, so they were left out.'
+    : 'Exported ' + recorded.toLocaleString() + ' and marked them as sent.');
 }
 
 function exportClientList() {
@@ -6088,7 +6230,12 @@ async function openClientDetail(cid){
     cl = dbToClient(r.data); clients.push(cl);
   }
   // Fetch jobs strictly by client_cid — every job is linked, no name-fallback needed
-  var rjCid = await db.from('jobs').select('*').eq('client_cid', cid).order('date',{ascending:false});
+  var rBoth = await Promise.all([
+    db.from('jobs').select('*').eq('client_cid', cid).order('date',{ascending:false}),
+    db.from('marketing_exports').select('exported_on').eq('cid', cid).order('exported_on',{ascending:false}).limit(1)
+  ]);
+  var rjCid = rBoth[0];
+  var lastMktg = (rBoth[1].data && rBoth[1].data[0]) ? rBoth[1].data[0].exported_on : '';
   var clientJobs = (rjCid.data||[]).map(dbToJob);
   clientJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
@@ -6134,6 +6281,7 @@ async function openClientDetail(cid){
     +'<div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(cl.address||'—')+'</span></div>'
     +'<div class="detail-item"><label>City</label><span>'+(cl.city||'—')+'</span></div>'
     +'<div class="detail-item"><label>Referral</label><span>'+(cl.referral||'—')+'</span></div>'
+    +(lastMktg?'<div class="detail-item"><label>Marketing Email</label><span>✉ Sent '+fd(lastMktg)+'</span></div>':'')
     +'</div></div>'
     +'<div class="detail-section"><div class="detail-section-title">📊 Job History</div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
