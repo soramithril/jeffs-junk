@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '509';
+var APP_VERSION = '510';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2781,9 +2781,17 @@ function renderDashVehicleStatus(){
     var dotColor=statusCol;
     var menuId='veh-menu-'+v.vid;
 
-    // Assigned crew for today (only show actively assigned)
+    // Assigned crew for today, drawn as avatars inside the truck chip — crew ride
+    // in trucks, so the Crew row beside this one only lists whoever isn't on one.
     var assigned=vehicleAssignments[v.vid]||[];
-    var crewNames=assigned.filter(function(a){return !a.endedAt;}).map(function(a){return a.name;}).join(', ');
+    var activeCrew=assigned.filter(function(a){return !a.endedAt;});
+    var crewNames=activeCrew.map(function(a){return a.name;}).join(', ');
+    var crewAvatars=activeCrew.length
+      ? '<span class="job-avatar-stack" style="display:inline-flex;align-items:center;margin-left:2px">'
+        +activeCrew.map(function(a){ return teamAvatar(a.name, crewAvatarColor(a.crewMemberId), 20, a.name); }).join('')
+        +'</span>'
+      : '';
+    if(crewNames) statusTip=crewNames+' · '+statusTip;
 
     // Build crew assignment options for the dropdown
     var crewOpts=crewMembers.map(function(c){
@@ -2808,7 +2816,7 @@ function renderDashVehicleStatus(){
     return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="event.stopPropagation();toggleVehMenu(\''+menuId+'\')">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
       +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
-      +(crewNames?'<span style="font-size:10px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis">'+crewNames+'</span>':'')
+      +crewAvatars
       +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
       +menuHtml
       +'</div>';
@@ -4209,8 +4217,14 @@ async function renderDashBinsOut(){
     el.innerHTML=emptyStateHTML('<span style="color:var(--accent)">'+_svgIcon('home',40)+'</span>','All Bins Home','Every bin is back in the yard. Ready for the next job.');
     return;
   }
+  // Overdue / long-out bins are the only actionable thing in here, so they come
+  // out of their size groups and sit at the top, always open. The rest is
+  // reference — it collapses. (renderBinsAttention writes to #dash-attention-list,
+  // which isn't in index.html, so this list is the ONLY place these surface.)
+  var attn=droppedJobs.filter(function(j){return j._attn;});
+  attn.sort(function(a,b){ if(a._overdue!==b._overdue) return a._overdue?-1:1; return b._days-a._days; });
   var grouped={};
-  droppedJobs.forEach(function(j){ var sz=j.binSize||'Unknown'; (grouped[sz]=grouped[sz]||[]).push(j); });
+  droppedJobs.filter(function(j){return !j._attn;}).forEach(function(j){ var sz=j.binSize||'Unknown'; (grouped[sz]=grouped[sz]||[]).push(j); });
   var sizeOrder=['4 yard','7 yard','14 yard','20 yard','Unknown'];
   var sizeKeys=Object.keys(grouped).sort(function(a,b){return (sizeOrder.indexOf(a)===-1?99:sizeOrder.indexOf(a))-(sizeOrder.indexOf(b)===-1?99:sizeOrder.indexOf(b));});
   function binRow(j){
@@ -4235,13 +4249,41 @@ async function renderDashBinsOut(){
       +callBtn
     +'</div>';
   }
-  var html=sizeKeys.map(function(sz){
-    var label=sz==='Unknown'?'UNKNOWN':sz.replace(/\s*yard/i,' YD').toUpperCase();
-    var items=grouped[sz];
-    return '<div class="djj-section-h" style="color:#0891b2">'+label+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:#9aa39b">· '+items.length+' out</span></div>'
-      +items.map(binRow).join('');
-  }).join('');
+  var html='';
+  if(attn.length){
+    html+='<div class="djj-section-h" style="color:#dc3545;display:flex;align-items:center;gap:7px">'
+      +lineIcon('damage',13,'#dc3545')+'NEEDS ATTENTION'
+      +'<span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:#dc3545">· '+attn.length+'</span></div>'
+      +attn.map(binRow).join('');
+  }
+  if(sizeKeys.length){
+    var nRest=sizeKeys.reduce(function(t,sz){return t+grouped[sz].length;},0);
+    html+='<div class="djj-section-h" style="color:#9aa39b;font-size:14px;letter-spacing:.8px">STILL OUT · '+nRest
+      +' <span style="font-family:Inter,sans-serif;font-size:10.5px;font-weight:600;text-transform:none;letter-spacing:0">— tap a size to open</span></div>';
+    html+=sizeKeys.map(function(sz){
+      var label=sz==='Unknown'?'UNKNOWN':sz.replace(/\s*yard/i,' YD').toUpperCase();
+      var items=grouped[sz], slug=binsOutSlug(sz), open=!!_binsOutOpen[sz];
+      return '<div class="djj-section-h" style="color:#0891b2;cursor:pointer;display:flex;align-items:center;gap:7px;user-select:none" onclick="toggleBinsOutGroup(\''+sz+'\')">'
+          +'<span id="binsout-c-'+slug+'" style="font-family:Inter,sans-serif;font-size:11px;color:#9aa39b;width:9px">'+(open?'▾':'▸')+'</span>'
+          +label+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:#9aa39b">· '+items.length+'</span></div>'
+        +'<div id="binsout-g-'+slug+'"'+(open?'':' style="display:none"')+'>'+items.map(binRow).join('')+'</div>';
+    }).join('');
+  }
   el.innerHTML=html;
+}
+
+// Which size groups are open, kept across dashboard re-renders so a refresh
+// doesn't fold up a group you just opened.
+var _binsOutOpen={};
+function binsOutSlug(sz){ return String(sz).replace(/[^a-z0-9]+/gi,'-'); }
+function toggleBinsOutGroup(sz){
+  var slug=binsOutSlug(sz);
+  var body=document.getElementById('binsout-g-'+slug);
+  if(!body) throw new Error('toggleBinsOutGroup: no group body for "'+sz+'"');
+  _binsOutOpen[sz]=!_binsOutOpen[sz];
+  body.style.display=_binsOutOpen[sz]?'':'none';
+  var caret=document.getElementById('binsout-c-'+slug);
+  if(caret) caret.textContent=_binsOutOpen[sz]?'▾':'▸';
 }
 
 // ── CONFIRM JOB quick action ──────────────────────────────
@@ -15796,7 +15838,21 @@ function renderDashCrewStatus(){
   var el=document.getElementById('dash-crew-status'); if(!el) return;
   if(!crewMembers.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
   var ds=dashSelectedDate();
-  el.innerHTML=crewMembers.map(function(c){
+  // Anyone already drawn as an avatar inside a truck chip is left out here, so
+  // this row is just "who isn't on a truck". vehicleAssignments only ever holds
+  // today, so on any other date nobody is filtered and the full roster shows.
+  var onTruck={};
+  if(ds===todayStr()){
+    Object.keys(vehicleAssignments).forEach(function(vid){
+      (vehicleAssignments[vid]||[]).forEach(function(a){ if(!a.endedAt) onTruck[a.crewMemberId]=true; });
+    });
+  }
+  var offTruck=crewMembers.filter(function(c){ return !onTruck[c.id]; });
+  if(!offTruck.length){
+    el.innerHTML='<span style="font-size:11px;color:var(--muted)">Everyone is on a truck today</span>';
+    return;
+  }
+  el.innerHTML=offTruck.map(function(c){
     var st=crewStatusForDate(c.id, ds);
     var col=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'var(--accent)';
     var icon=st.state==='off'?'🚫':st.state==='partial'?'⏱':'';
