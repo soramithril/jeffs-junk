@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '507';
+var APP_VERSION = '508';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11542,13 +11542,13 @@ var defaultPresets = {
     subject: 'Your Bin Rental – Cancellation Confirmation',
     body: 'Hi {name},\n\nThis confirms that your bin rental scheduled for drop-off on {dropoffDate} has been cancelled.\n\nIf this was a mistake, or you\'d like to rebook for another date, just give us a call or reply to this email.\n\nThank you for considering Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   },
-  /* The link is deliberately a placeholder, not a guess. Paste the real Google
-     review URL once on the Email Templates page and it sticks for everyone —
-     sendEmail() refuses to send while the placeholder is still in the body, so
-     no customer ever receives a literal "[REVIEW LINK]". */
+  /* The link is Jeff's Junk Bin Rentals / Junk Removal on Google — place id
+     ChIJO526yTG9KogRwrEXa6bIjZA, verified against the Maps listing before it
+     went in here. It drops the customer straight onto the star-rating box.
+     Editable like any other template on the Email Templates page. */
   review_request: {
     subject: 'How did we do?',
-    body: 'Hi {name},\n\nThanks again for choosing Jeff\'s Junk — we hope everything went smoothly.\n\nIf you have a minute, we\'d really appreciate a quick Google review. It makes a genuine difference to a small local business like ours:\n\n[REVIEW LINK]\n\nAnd if anything wasn\'t right, reply to this email and we\'ll make it right.\n\nThanks so much,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThanks again for choosing Jeff\'s Junk — we hope everything went smoothly.\n\nIf you have a minute, we\'d really appreciate a quick Google review. It makes a genuine difference to a small local business like ours:\n\nhttps://search.google.com/local/writereview?placeid=ChIJO526yTG9KogRwrEXa6bIjZA\n\nAnd if anything wasn\'t right, reply to this email and we\'ll make it right.\n\nThanks so much,\nJeff\'s Junk'
   },
   bin_extension: {
     subject: 'Your Bin Rental – Extension Confirmation',
@@ -11702,11 +11702,13 @@ function sendEmail() {
   if (!to) { showErr('email-to'); document.getElementById('err-email-to').textContent='Please enter an email address to send to.'; return; }
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(to)) { showErr('email-to'); document.getElementById('err-email-to').textContent='That doesn\'t look like a valid email address (e.g. name@example.com).'; return; }
-  /* Same class of mistake as the old {time} token that got mailed out literally:
-     the review template ships with a placeholder instead of a guessed URL, so
-     refuse to send until someone pastes the real link on the Templates page. */
+  /* The shipped template carries the real review link now, so this normally
+     never fires. It stays because there's one way back into the bad state:
+     anyone still running cached JS from before the link landed would save the
+     placeholder into email_presets, and a saved row beats the code default
+     forever after. Cheaper to keep the check than to mail out a dead link. */
   if (body.indexOf('[REVIEW LINK]') !== -1) {
-    toast('⚠ Paste your Google review link into the Review Request template first (Jobs → Email Templates).');
+    toast('⚠ The Review Request template is missing its link — paste it in at Jobs → Email Templates.');
     return;
   }
   // One click, one send. The button stayed live while the mail window opened, so a second click
