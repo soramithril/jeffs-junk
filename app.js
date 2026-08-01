@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '514';
+var APP_VERSION = '515';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -5650,6 +5650,9 @@ var clientShow = 'everyone'; // everyone | contractors | dormant | blacklist —
 var clientSearchTimer = null;
 var _allClientsFiltered = [];  // holds last full filtered+sorted list for export
 var clientRangeFilter = { binMin:'', binMax:'', junkMin:'', junkMax:'', furnMin:'', furnMax:'', totalMin:'', totalMax:'' };
+// Months since a client's last bin booking — the marketing win-back list. '' = off.
+var clientLastBinF = '';
+var LAST_BIN_LABELS = {'6':'6+ months','12':'1+ year','24':'2+ years','36':'3+ years'};
 
 // Populate dropdowns with 0–N options once we know the max values
 function populateRangeDropdowns(allClients) {
@@ -5762,6 +5765,40 @@ function applyRangeToClients(allClients) {
   });
 }
 
+function downloadCsv(rows, filename) {
+  var csv = rows.map(function(r){ return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = filename;
+  a.click();
+}
+
+// Oldest last-bin date that still counts as "recent" for the current win-back filter.
+function lastBinCutoffDate() {
+  var d = new Date();
+  d.setMonth(d.getMonth() - parseInt(clientLastBinF, 10));
+  return d.toISOString().slice(0,10);
+}
+
+function setClientLastBin(v) {
+  clientLastBinF = v;
+  clientsPage = 0;
+  renderClients();
+}
+
+// Marketing win-back list: name + email for everyone currently shown, minus anyone with no email.
+function exportClientEmails() {
+  var rows = [['Name','Email','City','Last Bin']];
+  _allClientsFiltered.forEach(function(c) {
+    var email = (c.emails && c.emails[0]) ? c.emails[0] : (c.email || '');
+    if (!email) return;
+    rows.push([c.name || '', email, c.city || '', c._lastBin || '']);
+  });
+  if (rows.length === 1) { toast('Nobody in this list has an email address on file.'); return; }
+  downloadCsv(rows, 'email-list' + (clientLastBinF ? '-no-bin-' + clientLastBinF + 'mo' : '') + '.csv');
+  toast('Exported ' + (rows.length - 1) + ' emails.');
+}
+
 function exportClientList() {
   if (!_allClientsFiltered.length) { toast('No clients to export.'); return; }
   var rows = [['Name','Phone','City','Email','Contractor','Total Jobs','Bins','Junk','Furniture','Last Job']];
@@ -5779,18 +5816,14 @@ function exportClientList() {
       c._lastDate || ''
     ]);
   });
-  var csv = rows.map(function(r){ return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
-  var blob = new Blob([csv], {type:'text/csv'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
   var f = clientRangeFilter;
   var label = [];
   if (f.binMin||f.binMax)   label.push('bins'+(f.binMin||'0')+'-'+(f.binMax||'any'));
   if (f.junkMin||f.junkMax) label.push('junk'+(f.junkMin||'0')+'-'+(f.junkMax||'any'));
   if (f.furnMin||f.furnMax) label.push('furn'+(f.furnMin||'0')+'-'+(f.furnMax||'any'));
+  if (clientLastBinF)       label.push('no-bin-'+clientLastBinF+'mo');
   if (clientSearchF.trim()) label.push(clientSearchF.trim());
-  a.download = 'clients' + (label.length ? '-' + label.join('-') : '') + '.csv';
-  a.click();
+  downloadCsv(rows, 'clients' + (label.length ? '-' + label.join('-') : '') + '.csv');
   toast('Exported ' + _allClientsFiltered.length + ' clients.');
 }
 
@@ -5882,11 +5915,11 @@ async function loadClientsPage() {
     allJobRows.forEach(function(row){
       var cid = row.client_cid || (row.name ? nameToCid[row.name.trim().toLowerCase()] : null);
       if(!cid) return;
-      if(!statsMap[cid]) statsMap[cid]={total:0,lastDate:null,bins:0,junk:0,furn:0};
+      if(!statsMap[cid]) statsMap[cid]={total:0,lastDate:null,bins:0,junk:0,furn:0,lastBin:null};
       var s = statsMap[cid];
       s.total++;
       if(!s.lastDate||row.date>s.lastDate) s.lastDate=row.date;
-      if(row.service==='Bin Rental') s.bins++;
+      if(row.service==='Bin Rental'){ s.bins++; if(!s.lastBin||row.date>s.lastBin) s.lastBin=row.date; }
       else if(row.service==='Junk Removal') s.junk++;
       else if(row.service==='Furniture Pickup'||row.service==='Furniture Delivery') s.furn++;
     });
@@ -5901,9 +5934,10 @@ async function loadClientsPage() {
   // ── 5. Merge stats into client objects ─────────────────────────────────────
   var allClients = allClientRows.map(function(row){
     var c = dbToClient(row);
-    var s = statsMap[c.cid]||{total:0,lastDate:null,bins:0,junk:0,furn:0};
+    var s = statsMap[c.cid]||{total:0,lastDate:null,bins:0,junk:0,furn:0,lastBin:null};
     c._totalJobs = s.total;
     c._lastDate  = s.lastDate;
+    c._lastBin   = s.lastBin;
     c._bins = s.bins; c._junk = s.junk; c._furn = s.furn;
     return c;
   });
@@ -5950,6 +5984,13 @@ async function loadClientsPage() {
   else if(clientShow==='dormant')      allClients = allClients.filter(function(c){ return c._lastDate && c._lastDate < _dormCutoff && !c.blacklisted; });
   else                                 allClients = allClients.filter(function(c){ return !c.blacklisted; }); // everyone
 
+  // ── 7c. Win-back filter: past bin customers whose last bin is older than the cutoff.
+  // A bin booked for a future date reads as the last bin, so anyone with one on the books drops out.
+  if(clientLastBinF){
+    var binCutoff = lastBinCutoffDate();
+    allClients = allClients.filter(function(c){ return c._lastBin && c._lastBin < binCutoff; });
+  }
+
   // ── 8. Store filtered list for export, then paginate ──────────────────────
   _allClientsFiltered = allClients;
   clientsTotal = allClients.length;
@@ -5965,6 +6006,7 @@ async function loadClientsPage() {
   if (f.junkMin||f.junkMax) filterNote.push('junk '+(f.junkMin||'0')+'–'+(f.junkMax||'any'));
   if (f.furnMin||f.furnMax) filterNote.push('furn '+(f.furnMin||'0')+'–'+(f.furnMax||'any'));
   if (f.totalMin||f.totalMax) filterNote.push('total '+(f.totalMin||'0')+'–'+(f.totalMax||'any'));
+  if (clientLastBinF) filterNote.push('no bin in ' + LAST_BIN_LABELS[clientLastBinF]);
   if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients' + (filterNote.length ? ' · ' + filterNote.join(', ') : ' total');
 }
 
