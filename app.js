@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '512';
+var APP_VERSION = '513';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -7897,6 +7897,9 @@ function openBinHistoryImport(){
 }
 
 async function doBinHistoryImport(){
+  // The bin_history table accepts a write from anyone signed in, so hiding the button
+  // isn't enough on its own — this is the check that actually stops a non-admin.
+  if(!canDelete){ toast('⚠ You don\'t have permission to import bin history.','error'); return; }
   var csv=document.getElementById('bin-history-csv-text').value.trim();
   if(!csv){toast('Paste CSV data first','warn');return;}
   var lines=csv.split('\n').map(function(l){return l.trim();}).filter(Boolean);
