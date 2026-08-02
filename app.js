@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '519';
+var APP_VERSION = '520';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -714,7 +714,8 @@ var fleetF = 'all', fleetQ = '', fleetSort = 'num', fleetSortDir = 1;
 var fleetView = (function(){ try { return localStorage.getItem('fleetView') || 'cards'; } catch(e) { return 'cards'; } })(); // 'cards' | 'table'
 var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
-// Column list for list/calendar views — excludes heavy jsonb (names,phones,emails) and long text (notes,items)
+// Column list for list/calendar views. names/phones/emails ARE loaded — job lists show the
+// contact under the name, and the email screen reads emails off the job (see openEmailModal).
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
 var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size,review_ask,review_asked_at';
 // Minimal columns for building client stats (used by clients page aggregation only)
@@ -4622,7 +4623,8 @@ function emailHtml(id, sent){
     return '<button class="btn btn-sm" data-action="emailunsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;background:rgba(13,110,253,.15);border:1px solid rgba(13,110,253,.4);color:#0d6efd;white-space:nowrap">'+lineIcon('email',13)+' Sent</button>';
   return '<button class="btn btn-ghost btn-sm" data-action="emailsent" data-jid="'+id+'" style="font-size:13px;padding:8px 14px;border-color:rgba(13,110,253,.3);color:#0d6efd;white-space:nowrap">'+lineIcon('email',14)+' Email</button>';
 }
-function jobEmail(j){var cl=j.clientId?clients.find(function(c){return c.cid===j.clientId;}):null;if(!cl)return '';return (cl.emails&&cl.emails[0])?cl.emails[0]:(cl.email||'');}
+/* The address written on THIS booking — never the client's. See openEmailModal. */
+function jobEmail(j){return (j.emails&&j.emails[0])?j.emails[0]:'';}
 function makeJobRowNoSvc(j){
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
@@ -11927,19 +11929,6 @@ function guessPresetKey(j) {
 
 /* presetKey overrides the guess — the review follow-up passes 'review_request'
    so the modal opens on the right template instead of the confirmation one. */
-/* Two names are the same customer if they share a real word — "Ed  Lange" vs
-   "ED LANGE", "PDR CONTRACTING (KRAIG SCHWARTZ)" vs "KRAIG SCHWARTZ". Words under
-   4 letters don't count: "Ken McLeod" and "Ken Marks" are two different people. */
-function sameCustomer(jobName, clientName) {
-  var words = function(s){
-    return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').split(' ')
-      .filter(function(w){ return w.length >= 4; });
-  };
-  var a = words(jobName), b = words(clientName);
-  if (!a.length || !b.length) return false;   // can't verify it — treat as a mismatch
-  return a.some(function(w){ return b.indexOf(w) !== -1; });
-}
-
 async function openEmailModal(id, presetKey) {
   var j = null; jobs.forEach(function(jj){if(jj.id===id)j=jj;});
   if (!j) {
@@ -11951,24 +11940,17 @@ async function openEmailModal(id, presetKey) {
   }
   emailJobId = id;
   closeM('detail-modal');
-  var cl = null; if (j.clientId) clients.forEach(function(c){if(c.cid===j.clientId)cl=c;});
-  /* The client this job is filed under can drift away from the customer whose name is
-     ON the job — editing a job's name and phone doesn't re-point clientId. Prefilling
-     that client's address then mails one customer's booking to a different customer:
-     job 39440 was Trish Crossley's bin, still filed under Chris Fitzpatrick, and three
-     confirmations went to his inbox in July 2026. So the address is only trustworthy
-     while the two names still agree. When they don't, fill in nothing and say why —
-     a wrong address that looks pre-checked is worse than an empty box. */
-  var mismatch = !!cl && !sameCustomer(j.name, cl.name);
-  var note = document.getElementById('email-mismatch-note');
-  note.style.display = mismatch ? 'block' : 'none';
-  if (mismatch) {
-    note.textContent = '⚠ This job is for ' + (j.name || '(no name)') + ' but it is filed under client '
-      + (cl.name || '(no name)') + ' (' + cl.cid + '). Nothing has been filled in — check who this should '
-      + 'go to and type the address, then fix the customer on the job.';
-  }
-  var email = (cl && !mismatch && cl.email) || '';
+  /* The address comes off THE JOB and nowhere else. Never the client it's filed under:
+     a client can hold several addresses, and on a contractor's booking the client IS the
+     contractor while the bin — and so the confirmation — belongs to their customer. Reading
+     the client's address instead put ten bookings in a stranger's inbox between May and July
+     2026 (job 39440 was Trish Crossley's bin, addressed to Chris Fitzpatrick). Every one of
+     those ten had the right address sitting on the job the whole time.
+     No fallback to the client when the job has none: an empty box that says so is safe,
+     a plausible wrong address is exactly how this happened. */
+  var email = jobEmail(j);
   document.getElementById('email-to').value = email;
+  document.getElementById('email-no-address-note').style.display = email ? 'none' : 'block';
   var key = presetKey || guessPresetKey(j);
   var preset = getPreset(key);
   emailPresetKey = key;
