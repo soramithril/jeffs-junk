@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '521';
+var APP_VERSION = '522';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11345,12 +11345,8 @@ function renderToday(){
 // BIN UTILIZATION lives in app-utilization.js
 // ── Startup: auth check happens in the login script below ──
 renderClientSelectOptions();
-// Pre-seed analytics pickers with default values on load
-(function(){
-  var now=new Date();
-  var wa=document.getElementById('an-week-a'); if(wa){var pv=new Date(now);pv.setDate(pv.getDate()-7); wa.value=toWeekValue(now); document.getElementById('an-week-b').value=toWeekValue(pv);}
-  var ma=document.getElementById('an-month-a'); if(ma){ma.value=now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);var pm=new Date(now.getFullYear(),now.getMonth()-1,1);document.getElementById('an-month-b').value=pm.getFullYear()+'-'+(pm.getMonth()<9?'0':'')+(pm.getMonth()+1);}
-})();
+// (Analytics pickers are seeded by setAnalyticsPeriod / analyticsToggleCompare on demand —
+// pre-seeding the B pickers here would silently force custom-compare mode on every load.)
 
 // ═══════════════════════════════════════
 //  AUTH SYSTEM — Supabase Login

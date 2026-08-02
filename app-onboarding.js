@@ -91,9 +91,9 @@ var PAGE_TOURS = [
     { sel:'#atabs-analytics', title:'Period tabs', body:'The master control for the page — choose Week, Month, Year, or All Time and every stat and chart below recalculates for that window.' },
     { sel:'#yoy-tracker', title:'Year-over-year pills', body:'A quick scoreboard comparing this month bins, junk and furniture pickups against the same month last year, with a BEAT! badge when you are ahead.' },
     { sel:'.an-compare-btn', title:'Compare periods', body:'Adds a second date picker so you can put two periods side by side — for example this week versus last week — and the charts show both.' },
-    { sel:'#analytics-metrics', title:'Key metrics row', body:'The headline counters for the selected period: Total Jobs, Bin Rentals, Junk Removal, Furniture Pickup and Furniture Delivery.' },
+    { sel:'#ana-hero', title:'The verdict', body:'The headline for the selected period: total jobs with an automatic comparison to the previous period, a breakdown by service, and a mini trend line.' },
     { sel:'#busiest-grid', title:'Busiest Days chart', body:'Shows how many jobs land on each day of the week so you can spot your busiest days and staff accordingly.' },
-    { sel:'.analytics-grid', title:'Insight charts', body:'The deeper-dive charts: Bins by Size, Jobs by City, Referral Sources, Customer Loyalty, Jobs Over Time, Service Mix and Bin Turnover.' }
+    { sel:'.analytics-grid', title:'Insight charts', body:'The deeper-dive charts: Jobs Over Time, New vs Returning Customers, Records, Bins by Size, Jobs by City, Referral Sources, Service Mix and Bin Turnover.' }
   ]},
   { view:'leaderboard', label:'Driver Leaderboard', icon:'🏆', section:'Admin', restricted:true, summary:'Ranks drivers by safety and efficiency.', steps:[
     { sel:'#lb-page-tab-vehicles', title:'Vehicles / Crew toggle', body:'Switches the whole page between scoring individual trucks and scoring crews. Flip to Crew to see how each team is doing instead of each vehicle.' },

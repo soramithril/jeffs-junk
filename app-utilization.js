@@ -118,7 +118,7 @@ async function renderUtilization(){
     var idleBySize={};
     idleBins.forEach(function(b){idleBySize[b.size]=(idleBySize[b.size]||0)+1;});
     idleEl.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:10px">These bin sizes had no rentals in the last 30 days. Consider promotions or price adjustments.</div>'
-      +Object.keys(idleBySize).map(function(sz){return'<div style="padding:8px 12px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:6px;background:rgba(220,53,69,.05);display:flex;justify-content:space-between"><strong>'+sz+'</strong><span style="color:#dc3545;font-weight:700">'+idleBySize[sz]+' idle bins</span></div>';}).join('');
+      +Object.keys(idleBySize).map(function(sz){return'<div style="padding:8px 12px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:6px;background:rgba(220,53,69,.05);display:flex;justify-content:space-between"><strong>'+sz+'</strong><span style="color:var(--red);font-weight:700">no rentals in 30 days · '+idleBySize[sz]+' bins in fleet</span></div>';}).join('');
   }
 
   // Summary & planning
