@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '518';
+var APP_VERSION = '519';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11927,6 +11927,19 @@ function guessPresetKey(j) {
 
 /* presetKey overrides the guess — the review follow-up passes 'review_request'
    so the modal opens on the right template instead of the confirmation one. */
+/* Two names are the same customer if they share a real word — "Ed  Lange" vs
+   "ED LANGE", "PDR CONTRACTING (KRAIG SCHWARTZ)" vs "KRAIG SCHWARTZ". Words under
+   4 letters don't count: "Ken McLeod" and "Ken Marks" are two different people. */
+function sameCustomer(jobName, clientName) {
+  var words = function(s){
+    return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').split(' ')
+      .filter(function(w){ return w.length >= 4; });
+  };
+  var a = words(jobName), b = words(clientName);
+  if (!a.length || !b.length) return false;   // can't verify it — treat as a mismatch
+  return a.some(function(w){ return b.indexOf(w) !== -1; });
+}
+
 async function openEmailModal(id, presetKey) {
   var j = null; jobs.forEach(function(jj){if(jj.id===id)j=jj;});
   if (!j) {
@@ -11939,7 +11952,22 @@ async function openEmailModal(id, presetKey) {
   emailJobId = id;
   closeM('detail-modal');
   var cl = null; if (j.clientId) clients.forEach(function(c){if(c.cid===j.clientId)cl=c;});
-  var email = (cl && cl.email) || '';
+  /* The client this job is filed under can drift away from the customer whose name is
+     ON the job — editing a job's name and phone doesn't re-point clientId. Prefilling
+     that client's address then mails one customer's booking to a different customer:
+     job 39440 was Trish Crossley's bin, still filed under Chris Fitzpatrick, and three
+     confirmations went to his inbox in July 2026. So the address is only trustworthy
+     while the two names still agree. When they don't, fill in nothing and say why —
+     a wrong address that looks pre-checked is worse than an empty box. */
+  var mismatch = !!cl && !sameCustomer(j.name, cl.name);
+  var note = document.getElementById('email-mismatch-note');
+  note.style.display = mismatch ? 'block' : 'none';
+  if (mismatch) {
+    note.textContent = '⚠ This job is for ' + (j.name || '(no name)') + ' but it is filed under client '
+      + (cl.name || '(no name)') + ' (' + cl.cid + '). Nothing has been filled in — check who this should '
+      + 'go to and type the address, then fix the customer on the job.';
+  }
+  var email = (cl && !mismatch && cl.email) || '';
   document.getElementById('email-to').value = email;
   var key = presetKey || guessPresetKey(j);
   var preset = getPreset(key);
