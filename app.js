@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '520';
+var APP_VERSION = '521';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11940,17 +11940,31 @@ async function openEmailModal(id, presetKey) {
   }
   emailJobId = id;
   closeM('detail-modal');
-  /* The address comes off THE JOB and nowhere else. Never the client it's filed under:
-     a client can hold several addresses, and on a contractor's booking the client IS the
-     contractor while the bin — and so the confirmation — belongs to their customer. Reading
-     the client's address instead put ten bookings in a stranger's inbox between May and July
-     2026 (job 39440 was Trish Crossley's bin, addressed to Chris Fitzpatrick). Every one of
-     those ten had the right address sitting on the job the whole time.
-     No fallback to the client when the job has none: an empty box that says so is safe,
-     a plausible wrong address is exactly how this happened. */
-  var email = jobEmail(j);
+  /* The address comes off THE JOB first, always. A client can hold several addresses, and on
+     a contractor's booking the client IS the contractor while the bin — and so the
+     confirmation — belongs to their customer. Reading the client FIRST put ten bookings in a
+     stranger's inbox between May and July 2026 (job 39440 was Trish Crossley's bin, addressed
+     to Chris Fitzpatrick); every one of those ten had the right address on the job all along,
+     so job-first alone is what fixes them.
+     The client is a backstop only, for a job carrying no email of its own (Jake, 2026-08-02).
+     When it falls back the box says so — that address was never typed for this booking, so
+     it's worth a glance before it goes. */
+  var email = jobEmail(j), borrowedFrom = '';
+  if (!email && j.clientId) {
+    var cl = null; clients.forEach(function(c){ if(c.cid===j.clientId) cl=c; });
+    if (cl) {
+      email = (cl.emails && cl.emails[0]) ? cl.emails[0] : (cl.email || '');
+      if (email) borrowedFrom = cl.name || cl.cid;
+    }
+  }
   document.getElementById('email-to').value = email;
-  document.getElementById('email-no-address-note').style.display = email ? 'none' : 'block';
+  var addrNote = document.getElementById('email-no-address-note');
+  addrNote.style.display = (email && !borrowedFrom) ? 'none' : 'block';
+  addrNote.textContent = borrowedFrom
+    ? '⚠ No email on this booking — this is ' + borrowedFrom + '’s address from their client record. '
+      + 'Check it’s the right person, then add it to the booking so it’s saved next time.'
+    : '⚠ There’s no email address on this booking or on the client. Type it below, and add it to '
+      + 'the booking so it’s saved next time.';
   var key = presetKey || guessPresetKey(j);
   var preset = getPreset(key);
   emailPresetKey = key;
