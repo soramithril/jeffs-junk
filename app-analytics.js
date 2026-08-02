@@ -3,11 +3,17 @@
 // makeBarChart, animateBars, animCount, initReportSection, atabsSync.
 // Loaded via its own script tag before app.js.
 //
-// Data model (v522): one slim fetch of EVERY job (8 columns) cached for the
-// session in _anaAll. All periods/charts slice that cache in memory, so
-// switching periods is instant and costs zero extra egress. Total jobs and all
-// charts exclude Cancelled jobs and Junk Quotes; both are surfaced separately
-// in the hero so nothing is hidden.
+// Data model (v522): one slim fetch of EVERY job cached for the session in
+// _anaAll. All periods/charts slice that cache in memory, so switching periods
+// is instant and costs zero extra egress. Total jobs and all charts exclude
+// Cancelled jobs and Junk Quotes; both are surfaced separately in the hero.
+//
+// Counting day (v523, Jake's rule): a job counts on the day the WORK happens,
+// not the day it was booked. For bin rentals that's bin_dropoff (the written
+// `date` is usually just the day the order was taken); junk and furniture
+// already carry their service day in `date`, verified against the DB. The
+// work date is computed once at load into each row's `date`, so every chart
+// downstream shares one meaning.
 
 var _anaAll = null;          // slim rows for every job on record
 var _anaAllPromise = null;   // in-flight fetch guard
@@ -38,7 +44,7 @@ function anaLoadAll(){
     var rows=[], from=0, pageSize=1000;
     while(true){
       var r = await db.from('jobs')
-        .select('service,status,city,address,date,referral,bin_size,client_cid')
+        .select('service,status,city,address,date,bin_dropoff,referral,bin_size,client_cid')
         .order('date',{ascending:true})
         .order('id',{ascending:true})   // unique tiebreaker — keeps paging stable when many jobs share a date
         .range(from, from+pageSize-1);
@@ -46,7 +52,8 @@ function anaLoadAll(){
       if(!r.data || !r.data.length) break;
       r.data.forEach(function(row){
         rows.push({service:row.service||'', status:row.status||'',
-          city:row.city||'', address:row.address||'', date:row.date||'',
+          city:row.city||'', address:row.address||'',
+          date:(row.service==='Bin Rental'&&row.bin_dropoff)?row.bin_dropoff:(row.date||''),
           referral:row.referral||'', binSize:row.bin_size||'', cid:row.client_cid||''});
       });
       if(r.data.length<pageSize) break;
@@ -395,14 +402,16 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
   if(hero){
     var today=new Date(); today.setHours(0,0,0,0);
     var paceHtml='';
-    if((analyticsPeriod==='month'||analyticsPeriod==='year') && dates.a.start && today>=dates.a.start && today<dates.a.end){
+    if(analyticsPeriod!=='all' && dates.a.start && today>=dates.a.start && today<dates.a.end){
+      // A live period always holds future scheduled work now that jobs count on
+      // their work day — so show the real split, not a per-day projection.
       // Math.round absorbs both the 23:59:59 period end and the ±1h DST offset
       var elapsed=Math.round((today-dates.a.start)/86400000)+1;
       var total=Math.round((dates.a.end-dates.a.start)/86400000);
-      if(elapsed>=3 && elapsed<total){
-        var proj=Math.round(aWork.length/elapsed*total);
-        paceHtml='<div class="ana-pace">⏱ '+elapsed+' of '+total+' days in — on pace for ~'+anaFmtInt(proj)+' jobs</div>';
-      }
+      var todayS=anaYmd(today);
+      var doneN=aWork.filter(function(j){return j.date<=todayS;}).length;
+      var aheadN=aWork.length-doneN;
+      paceHtml='<div class="ana-pace">⏱ Day '+elapsed+' of '+total+' — '+anaFmtInt(doneN)+' done so far · '+anaFmtInt(aheadN)+' scheduled ahead</div>';
     }
     var subBits=[];
     if(hasB) subBits.push('vs '+dates.b.label+': '+anaFmtInt(bWork.length)+' jobs');
@@ -417,7 +426,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
           +'<div class="ana-hero-num" id="ana-hero-num">0</div>'
           +anaDeltaChip(aWork.length,bWork.length,hasB)
         +'</div>'
-        +'<div class="ana-hero-lbl">Jobs completed or booked</div>'
+        +'<div class="ana-hero-lbl">Jobs on the schedule — counted on the day the work happens</div>'
         +(subBits.length?'<div class="ana-note" style="margin-top:6px">'+subBits.join(' · ')+'</div>':'')
         +paceHtml
       +'</div>'
