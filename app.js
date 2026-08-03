@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '523';
+var APP_VERSION = '524';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8214,6 +8214,31 @@ document.addEventListener('keydown',function(e){
     }
   }
 });
+// The printed Extra Jobs work order fills "Job details / scope" from the shared Notes
+// field and "Tools / equipment / materials" from Items — but nothing on the booking form
+// said so, so those sections usually printed blank. For Extra Jobs the Notes box moves
+// up into the Extra Jobs section (relabelled Job Details / Scope) and the Items label
+// says what it prints as; every other service puts both back. One element either way —
+// there are never two notes inputs.
+function _placeScopeField(svc){
+  var grp=document.getElementById('notes-group'), lbl=document.getElementById('notes-group-label');
+  var slot=document.getElementById('ls-scope-slot'), home=document.getElementById('internal-notes-group');
+  var notesEl=document.getElementById('f-notes');
+  var itemsLbl=document.getElementById('items-wrap-label');
+  if(!grp||!lbl||!slot||!home||!notesEl) return;
+  if(svc==='Extra Jobs'){
+    slot.appendChild(grp);
+    lbl.innerHTML='📋 Job Details / Scope <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— prints on the work order</span>';
+    notesEl.placeholder='Describe the work to be done — prints on the crew work order';
+  } else {
+    home.parentNode.insertBefore(grp,home);
+    lbl.textContent='Notes';
+    notesEl.placeholder='';
+  }
+  if(itemsLbl) itemsLbl.innerHTML = svc==='Extra Jobs'
+    ? '🔧 Tools / Equipment / Materials <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— prints on the work order</span>'
+    : 'ITEMS / TOOLS NEEDED';
+}
 function toggleBin(){
   var svc=document.getElementById('f-svc').value;
   var isBin=svc==='Bin Rental';
@@ -8224,6 +8249,7 @@ function toggleBin(){
   var junkRecEl=document.getElementById('junk-recurring-extra');
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   var tnw=document.getElementById('tools-needed-wrap');if(tnw)tnw.style.display=(isJunk||svc==='Extra Jobs')?'block':'none';
+  _placeScopeField(svc);
   // Show junk schedule section for Junk Quote, Junk Removal, and Landscaping (Landscaping reuses junk_date)
   var junkSchedWrap=document.getElementById('junk-schedule-wrap');
   if(junkSchedWrap){
@@ -10103,7 +10129,7 @@ async function openDetail(id, returnCid){
     +bin
     +_renderJobPhotosDetail(j)
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
-    +(j.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
+    +(j.notes?'<div class="detail-section"><div class="detail-section-title">'+(j.service==='Extra Jobs'?'📋 Job Details / Scope':'📝 Notes')+'</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
     +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+j.internalNotes+'</p></div>':'')
     +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:#e67e22">'+j.toolsNeeded+'</p></div>':'')
     +(j.service==='Furniture Pickup'?'<div id="drd-detail-section"></div>':'')
@@ -10236,11 +10262,11 @@ function toggleJobHistory(jobId){
 
 // ── DRD embedded in Furniture Pickup job detail ──
 function _renderItemsDetail(j){
-  if(j.service!=='Furniture Delivery' && j.service!=='Junk Removal') return '';
+  if(j.service!=='Furniture Delivery' && j.service!=='Junk Removal' && j.service!=='Extra Jobs') return '';
   var lines=_notesToItems(j.items);
   if(!lines.length) return '';
-  var color=j.service==='Furniture Delivery'?'#f97316':'#eab308';
-  return '<div class="detail-section"><div class="detail-section-title" style="color:'+color+'">📦 Items <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px;color:var(--muted)">'+lines.length+'</span></div>'
+  var color=j.service==='Furniture Delivery'?'#f97316':j.service==='Extra Jobs'?'#65a30d':'#eab308';
+  return '<div class="detail-section"><div class="detail-section-title" style="color:'+color+'">'+(j.service==='Extra Jobs'?'🔧 Tools / Equipment / Materials':'📦 Items')+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px;color:var(--muted)">'+lines.length+'</span></div>'
     +'<ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.7">'
     +lines.map(function(s){return '<li>'+s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</li>';}).join('')
     +'</ul></div>';
