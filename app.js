@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '524';
+var APP_VERSION = '525';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14236,8 +14236,8 @@ async function printBinRental(jobId) {
     // ── RIGHT COLUMN: Bin Info ──
     drawText(binNum, 395, 70);          // Bin #
     drawText(binSize, 390, 110);        // Size
-    drawText(fmtDate(j.binDropoff), 440, 130);  // Drop Off Date
-    drawText(fmtDate(j.binPickup), 430, 150);   // Pick Up Date
+    drawText(fmtDate(j.binDropoff) + (j.binDropoff && j.binDropoffTime ? ' ' + _fmtTime(j.binDropoffTime) : ''), 440, 130);  // Drop Off Date + time
+    drawText(fmtDate(j.binPickup) + (j.binPickup && j.binPickupTime ? ' ' + _fmtTime(j.binPickupTime) : ''), 430, 150);   // Pick Up Date + time
 
     // ── TABLE: Line Items ──
     var price = parseFloat(j.price) || 0;
@@ -14257,7 +14257,14 @@ async function printBinRental(jobId) {
     drawText(j.payMethod || '', 130, 596);
 
     // ── BIN PLACEMENT (wrap text to stay on the lines) ──
-    var placementText = side ? (j.notes ? side + ' — ' + j.notes : side) : (j.notes || '');
+    // Placement line carries everything the crew needs at the curb: side, material,
+    // truck constraint, then the notes. 'See Notes' material is skipped like the side is.
+    var placementParts = [];
+    if (side) placementParts.push(side);
+    if (j.materialType && j.materialType.toLowerCase() !== 'see notes') placementParts.push(j.materialType + ' material');
+    if (j.truckSize) placementParts.push(j.truckSize + ' truck for pickup');
+    if (j.notes) placementParts.push(j.notes);
+    var placementText = placementParts.join(' — ');
     var maxWidth = 310; // stop before Subtotal/HST/Total labels on the right
     var lineHeight = 30;
     var placementY = 673;
@@ -14396,11 +14403,15 @@ function _drawItemsOnPage(page, font, H, items, startIdx, yOffset, rows) {
   var rowYs = rows || _FORM_ITEM_ROWS;
   for (var k = 0; k < rowYs.length && (startIdx + drawn) < items.length; k++) {
     var desc = items[startIdx + drawn];
-    // Truncate long descriptions to fit description column (~270pt wide)
+    // Truncate long descriptions to fit description column (~270pt wide), with a
+    // visible '...' so a cut-off line can't pass for the full text
     var maxW = 270;
-    while (desc.length > 0 && font.widthOfTextAtSize(desc, 10) > maxW) {
+    var cut = false;
+    while (desc.length > 0 && font.widthOfTextAtSize(desc + (cut ? '...' : ''), 10) > maxW) {
       desc = desc.slice(0, -1);
+      cut = true;
     }
+    if (cut) desc = desc.replace(/\s+$/, '') + '...';
     page.drawText(desc, { x: 127, y: H - (rowYs[k] + off), size: 10, font: font, color: black });
     drawn++;
   }
@@ -14455,8 +14466,8 @@ async function printJunkRemoval(jobId) {
       var newPage = pdfDoc.addPage(copied[0]);
       _drawCustomerInfo(newPage, font, fontBold, H, j, cd.clientPhones, cd.email);
       newPage.drawText(j.binSize || '', { x: 410, y: H - 154, size: 10, font: font, color: black });
-      newPage.drawText(_fmtDate(j.date), { x: 478, y: H - 174, size: 10, font: font, color: black });
-      newPage.drawText(_fmtTime(j.time), { x: 478, y: H - 192, size: 10, font: font, color: black });
+      newPage.drawText(_fmtDate(j.junkDate || j.date), { x: 478, y: H - 174, size: 10, font: font, color: black });
+      newPage.drawText(_fmtTime(j.junkTime || j.time), { x: 478, y: H - 192, size: 10, font: font, color: black });
       idx += _drawItemsOnPage(newPage, font, H, items, idx);
     }
 
