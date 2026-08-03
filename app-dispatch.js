@@ -236,6 +236,8 @@ function dispatchToggleWorking(crewId){
   var i = ids.indexOf(crewId);
   if(i>=0) ids.splice(i,1); else ids.push(crewId);
   dispatchSetWorkingIds(ids);
+  // Changing who's working invalidates any plan built from the old driver list.
+  if(_dispatchPreview){ _dispatchPreview = null; toast('Preview cleared — the driver list changed.'); }
   renderDispatch();
 }
 function dispatchGetLaneStart(crewId){
@@ -254,6 +256,8 @@ function dispatchShiftDate(days){
   renderDispatch();
 }
 async function dispatchAssignJob(jobId, crewId, leg){
+  // A preview is a mock-up: block every write path until it's applied or discarded.
+  if(_dispatchPreview){ toast('Apply or discard the preview first.'); return; }
   _dispatchMenu = null; // close any open Assign/Move menu on assignment
   var col = leg === 'pickup' ? 'pickup_crew_id' : 'dropoff_crew_id';
   var update = {}; update[col] = crewId || null;
@@ -274,10 +278,28 @@ async function dispatchAssignJob(jobId, crewId, leg){
   if(typeof renderLiveJobs==='function') renderLiveJobs();
   renderDispatch();
 }
-async function dispatchBalanceRoutes(mode){
-  mode = mode || 'fill';
+// ─── Balancing: plan, apply, preview ───
+// The planner is pure — it works out who would get what and writes nothing.
+// Fill / Re-balance commit a plan straight away; Preview holds one on screen
+// until you Apply or Discard it.
+var _dispatchPreview = null; // {date, byJob:{jobId:{leg,crewId}}, moved, before:{crewId:{stops,mins}}}
+
+// Stops + estimated minutes per driver for the leg that runs on this date.
+function dispatchLaneStats(jobs){
+  var st = {};
+  jobs.forEach(function(j){
+    var c = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
+    if(!c) return;
+    if(!st[c]) st[c] = {stops:0, mins:0};
+    st[c].stops++;
+    st[c].mins += (j._estMinutes||0);
+  });
+  return st;
+}
+// Longest-unit-first onto the lightest driver. Returns {assignments, working} or {error}.
+function dispatchPlanBalance(mode){
   var working = dispatchGetWorkingIds();
-  if(!working.length){ toast('Pick at least one driver first.'); return; }
+  if(!working.length) return {error:'Pick at least one driver first.'};
   function legAssigned(j){ return j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||''); }
   var partner = dispatchFindSwaps(_dispatchJobsCache);
   var seen = {};
@@ -297,13 +319,12 @@ async function dispatchBalanceRoutes(mode){
   var totals = {}; working.forEach(function(id){ totals[id]=0; });
   var unitsToAssign;
   if(mode === 'all'){
-    if(!confirm('Re-balance ALL bin jobs across '+working.length+' driver(s)? This REPLACES your current assignments.')) return;
     unitsToAssign = units;
   } else {
     // Fill only: keep existing assignments, seed lane loads from them, distribute only the unassigned jobs
     _dispatchJobsCache.forEach(function(j){ var c=legAssigned(j); if(c && totals[c]!=null) totals[c]+=(j._estMinutes||0); });
     unitsToAssign = units.filter(function(u){ return u.jobs.every(function(j){ return !legAssigned(j); }); });
-    if(!unitsToAssign.length){ toast('All jobs are already assigned — nothing to fill.'); return; }
+    if(!unitsToAssign.length) return {error:'All jobs are already assigned — nothing to fill.'};
   }
   unitsToAssign.sort(function(a,b){return b.total - a.total;});
   var assignments = [];
@@ -315,7 +336,10 @@ async function dispatchBalanceRoutes(mode){
     });
     totals[best] += u.total;
   });
-  // Build per-job aggregated update (covers swap pairs that touch both legs)
+  return {assignments: assignments, working: working};
+}
+// Writes a plan to the database. Per-job aggregated update covers swap pairs that touch both legs.
+async function dispatchApplyPlan(assignments){
   var perJob = {};
   assignments.forEach(function(a){
     if(!perJob[a.jobId]) perJob[a.jobId] = {};
@@ -323,7 +347,7 @@ async function dispatchBalanceRoutes(mode){
   });
   for(var jid in perJob){
     var u2 = perJob[jid];
-    var local = _dispatchJobsCache.find(function(j){return j.id===jid;});
+    var local = _dispatchJobsCache.find(function(j){return String(j.id)===String(jid);});
     var dropC = (u2.dropoff_crew_id !== undefined) ? u2.dropoff_crew_id : (local ? local.dropoffCrewId : null);
     var pickC = (u2.pickup_crew_id  !== undefined) ? u2.pickup_crew_id  : (local ? local.pickupCrewId  : null);
     var union = [];
@@ -334,8 +358,83 @@ async function dispatchBalanceRoutes(mode){
   }
   if(typeof refreshDashJobs==='function') refreshDashJobs();
   if(typeof renderLiveJobs==='function') renderLiveJobs();
-  toast((mode==='all'?'Re-balanced ':'Filled ')+assignments.length+' assignment(s) across '+working.length+' driver(s).');
+}
+async function dispatchBalanceRoutes(mode){
+  mode = mode || 'fill';
+  if(_dispatchPreview){ toast('Apply or discard the preview first.'); return; }
+  var plan = dispatchPlanBalance(mode);
+  if(plan.error){ toast(plan.error); return; }
+  if(mode === 'all' && !confirm('Re-balance ALL bin jobs across '+plan.working.length+' driver(s)? This REPLACES your current assignments.')) return;
+  await dispatchApplyPlan(plan.assignments);
+  toast((mode==='all'?'Re-balanced ':'Filled ')+plan.assignments.length+' assignment(s) across '+plan.working.length+' driver(s).');
   renderDispatch();
+}
+// Mock-up: shows what a full re-balance would look like. Nothing is written until Apply.
+function dispatchPreviewBalance(){
+  if(_dispatchPreview){ toast('Apply or discard the current preview first.'); return; }
+  var plan = dispatchPlanBalance('all');
+  if(plan.error){ toast(plan.error); return; }
+  var byJob = {}, moved = 0;
+  plan.assignments.forEach(function(a){
+    byJob[a.jobId] = {leg:a.leg, crewId:a.crewId};
+    var j = _dispatchJobsCache.find(function(x){ return String(x.id)===String(a.jobId); });
+    var cur = j ? (j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'')) : '';
+    if(cur !== a.crewId) moved++;
+  });
+  _dispatchPreview = {date:_dispatchDate, byJob:byJob, moved:moved, before:{}};
+  renderDispatch();
+}
+async function dispatchApplyPreview(){
+  var p = _dispatchPreview;
+  if(!p) return;
+  var assignments = Object.keys(p.byJob).map(function(id){
+    return {jobId:id, leg:p.byJob[id].leg, crewId:p.byJob[id].crewId};
+  });
+  _dispatchPreview = null;
+  await dispatchApplyPlan(assignments);
+  toast('Plan applied — '+assignments.length+' stop(s) assigned.');
+  renderDispatch();
+}
+function dispatchDiscardPreview(){
+  _dispatchPreview = null;
+  renderDispatch();
+}
+// Banner shown in both views while a preview is up: what moves, and before → after per driver.
+function dispatchPreviewBannerHtml(){
+  var p = _dispatchPreview;
+  if(!p) return '';
+  var after = dispatchLaneStats(_dispatchJobsCache);
+  var ids = Object.keys(after);
+  Object.keys(p.before).forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
+  var h = '<div style="background:#fff;border:1px solid #e9ecef;border-left:4px solid #f59e0b;border-radius:14px;padding:13px 16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(26,26,46,.10);color:#1a1a2e">';
+  h += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
+  h += '<div style="line-height:1.25"><div style="font-size:14px;font-weight:800;letter-spacing:-.2px">Preview &mdash; nothing saved yet</div>';
+  h += '<div style="font-size:11.5px;color:#868e96">'+p.moved+' stop'+(p.moved===1?'':'s')+' would move. Apply to write it, or discard to leave today alone.</div></div>';
+  h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
+  h += '<button onclick="dispatchDiscardPreview()" style="background:#f8f9fa;border:1px solid #e9ecef;color:#495057;padding:8px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Discard</button>';
+  h += '<button onclick="dispatchApplyPreview()" style="background:var(--accent);border:0;color:#fff;padding:8px 16px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Apply this plan</button>';
+  h += '</div></div>';
+  if(ids.length){
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px">';
+    ids.forEach(function(id){
+      var crew = crewMembers.find(function(c){ return c.id === id; });
+      if(!crew) return;
+      var col = crew.color || crewAvatarColor(crew.id);
+      var b = p.before[id] || {stops:0, mins:0};
+      var a = after[id] || {stops:0, mins:0};
+      var same = (b.stops === a.stops && b.mins === a.mins);
+      h += '<span style="display:inline-flex;align-items:center;gap:7px;background:#f8f9fa;border:1px solid #e9ecef;border-radius:99px;padding:5px 12px;font-size:11.5px">';
+      h += '<span style="width:8px;height:8px;border-radius:50%;background:'+col+'"></span>';
+      h += '<span style="font-weight:700;color:#343a40">'+escHtml(crew.name)+'</span>';
+      h += '<span style="color:#adb5bd;font-family:ui-monospace,monospace">'+b.stops+' &middot; '+dispatchFmtTotal(b.mins)+'</span>';
+      h += '<span style="color:#adb5bd">&rarr;</span>';
+      h += '<span style="font-weight:700;color:'+(same?'#adb5bd':'#1a1a2e')+';font-family:ui-monospace,monospace">'+a.stops+' &middot; '+dispatchFmtTotal(a.mins)+'</span>';
+      h += '</span>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
 }
 function dispatchOnDragStart(ev, jobId, leg){
   ev.dataTransfer.setData('text/plain', JSON.stringify({jobId:jobId, leg:leg}));
@@ -463,6 +562,20 @@ async function renderDispatch(){
       _seenPair[j.id] = true; _seenPair[j._partnerId] = true;
     }
   });
+  // Preview overlay: paint the proposed driver onto the in-memory jobs only. Every
+  // screen below reads this cache, so the whole board shows the plan — and because
+  // renderDispatch reloads from the database each pass, discarding is just a re-render.
+  if(_dispatchPreview && _dispatchPreview.date !== _dispatchDate) _dispatchPreview = null;
+  if(_dispatchPreview){
+    _dispatchPreview.before = dispatchLaneStats(todayJobs);
+    todayJobs.forEach(function(j){
+      var pv = _dispatchPreview.byJob[j.id];
+      if(!pv) return;
+      var cur = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
+      j._previewMoved = (cur !== pv.crewId);
+      if(j._isPickup) j.pickupCrewId = pv.crewId; else j.dropoffCrewId = pv.crewId;
+    });
+  }
   var laneSet = {};
   workingIds.forEach(function(id){ laneSet[id] = true; });
   todayJobs.forEach(function(j){ var c = j._isPickup ? j.pickupCrewId : j.dropoffCrewId; if(c) laneSet[c]=true; });
@@ -508,8 +621,10 @@ async function renderDispatch(){
   html += 'Fill unassigned';
   html += '</button>';
   html += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
+  html += '<button onclick="dispatchPreviewBalance()" title="Show what a full re-balance would look like — assigns nothing until you apply it" style="background:transparent;border:1px dashed #f59e0b;color:#c2410c;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Preview re-balance</button>';
   html += '</div>';
   html += '</div></div>';
+  html += dispatchPreviewBannerHtml();
   // Numbered steps + P/D legend
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted)">';
   html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">1.</strong> Pick a date</span>';
@@ -635,6 +750,13 @@ function dispatchSetViewMode(m){
 }
 
 var DCV_JOB_W = 250, DCV_CREW_W = 228;
+var DCV_JOB_H = 66;        // rendered height of a job card
+var DCV_CREW_H = 118;      // rendered height of a crew card
+var DCV_ROW_PITCH = 82;    // vertical pitch of stacked job cards
+var DCV_GROUP_GAP = 300;   // horizontal pitch between crew groups
+var DCV_POOL_PER_COL = 6;  // unassigned cards per column in the pool
+var DCV_PAD = 40;          // outer padding of the whole layout
+var DCV_HEAD_H = 34;       // title strip above a panel's first card
 var DCV_THEMES = {
   forest:  {name:'Forest',  canvas:'#0b1710', surface:'#12241a', border:'#1e3a29', ink:'#e6f3ea', sub:'#8bab97', chip:'#12241a', chipbd:'#20402d', track:'#183021', dot:'rgba(52,209,127,.11)',  stub:'linear-gradient(160deg,#34d17f,#0b6b34)', stubtext:'#04160c', accent:'#34d17f'},
   steel:   {name:'Steel',   canvas:'#141a23', surface:'#1d2431', border:'#2b3547', ink:'#e5ebf3', sub:'#93a1b5', chip:'#1a2130', chipbd:'#2f3b4f', track:'#212a3a', dot:'rgba(160,180,210,.10)', stub:'linear-gradient(160deg,var(--accent),#12833f)', stubtext:'#ffffff', accent:'var(--accent)'},
@@ -684,27 +806,61 @@ function dcvCrewNodes(){
   _dispatchJobsCache.forEach(function(j){ var c = dcvJobCrewId(j); if(c) set[c] = true; });
   return crewMembers.filter(function(c){ return set[c.id]; });
 }
-// Seed positions once per date (combo pairs placed adjacent), then leave them
-// alone so user drags survive every re-render. Missing nodes just get seeded.
+// One group per driver: their card on top, their stops stacked underneath in the
+// order they'd actually run them.
+function dcvGroups(){
+  return dcvCrewNodes().map(function(c){
+    var jobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
+    return {crew: c, jobs: jobs.length ? dispatchOrderLaneJobs(jobs).jobs : []};
+  });
+}
+// Everything with no driver — combo pairs kept adjacent. A job held by someone who
+// is no longer on the crew list has no group to sit in, so it belongs here too:
+// every job must land in exactly one place or it would render without a position.
+function dcvPoolJobs(){
+  var known = {};
+  dcvCrewNodes().forEach(function(c){ known[c.id] = true; });
+  return dispatchGroupCombos(_dispatchJobsCache.filter(function(j){
+    var c = dcvJobCrewId(j);
+    return !c || !known[c];
+  }));
+}
+function dcvPoolCols(){
+  return Math.max(1, Math.ceil(dcvPoolJobs().length/DCV_POOL_PER_COL));
+}
+// Layout is automatic so groups can never overlap: unassigned cards tile the pool
+// on the left, assigned cards stack under their driver. Only the crew card origins
+// are remembered per date — dragging a driver moves that whole group with it.
 function dcvPositions(){
   var key = _dispatchDate || 'd';
   if(!_dcv.posByDate[key]) _dcv.posByDate[key] = {};
   var pos = _dcv.posByDate[key];
-  var order = dispatchGroupCombos(_dispatchJobsCache.slice());
-  var perCol = 5;
-  var cols = Math.max(1, Math.ceil(order.length/perCol));
-  order.forEach(function(j, i){
-    var k = 'j:'+j.id;
-    if(pos[k]) return;
-    pos[k] = {x: 40 + Math.floor(i/perCol)*292, y: 40 + (i%perCol)*128};
+  var pool = dcvPoolJobs();
+  pool.forEach(function(j, i){
+    pos['j:'+j.id] = {
+      x: DCV_PAD + Math.floor(i/DCV_POOL_PER_COL)*(DCV_JOB_W+30),
+      y: DCV_PAD + DCV_HEAD_H + (i%DCV_POOL_PER_COL)*DCV_ROW_PITCH
+    };
   });
-  var crewX = 40 + cols*292 + 120;
-  dcvCrewNodes().forEach(function(c, i){
-    var k = 'c:'+c.id;
-    if(pos[k]) return;
-    pos[k] = {x: crewX, y: 40 + i*206};
+  var groupX = DCV_PAD + dcvPoolCols()*(DCV_JOB_W+30) + 110;
+  dcvGroups().forEach(function(g, gi){
+    var k = 'c:'+g.crew.id;
+    if(!pos[k]) pos[k] = {x: groupX + gi*DCV_GROUP_GAP, y: DCV_PAD + DCV_HEAD_H};
+    var o = pos[k];
+    g.jobs.forEach(function(j, i){
+      pos['j:'+j.id] = {x: o.x, y: o.y + DCV_CREW_H + 16 + i*DCV_ROW_PITCH};
+    });
   });
   return pos;
+}
+// Panel geometry for a group / the pool, derived from the origin of its first card.
+function dcvGroupBox(o, rows){
+  return {
+    x: o.x - 14,
+    y: o.y - DCV_HEAD_H,
+    w: DCV_JOB_W + 28,
+    h: DCV_HEAD_H + DCV_CREW_H + 16 + (rows ? rows*DCV_ROW_PITCH - (DCV_ROW_PITCH-DCV_JOB_H) : 44) + 14
+  };
 }
 function dcvNodeEl(key){
   if(!_dcv.els || !_dcv.els.world) return null;
@@ -720,8 +876,9 @@ function dcvJobCardHtml(j, T, p, selected){
   var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
   var win = (!j._isPickup && dispatchParseClock(j.binDropoffTime)!=null) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
+  var bd = j._previewMoved ? '1px dashed #f59e0b' : '1px solid '+T.border;
   var h = '<div data-node="j:'+j.id+'" style="position:absolute;top:0;left:0;width:'+DCV_JOB_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
-  h += '<div data-card style="'+outline+'background:'+T.surface+';border:1px solid '+T.border+';border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,.4);overflow:hidden;display:flex;position:relative">';
+  h += '<div data-card style="'+outline+'background:'+T.surface+';border:'+bd+';border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,.4);overflow:hidden;display:flex;position:relative">';
   h += '<div style="width:62px;flex:0 0 auto;background:'+T.stub+';display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px">';
   h += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(isNaN(num)?'21':'30')+'px;line-height:.8;letter-spacing:.5px;color:'+T.stubtext+'">'+numTxt+'</div>';
   if(!isNaN(num)) h += '<div style="font-size:8px;font-weight:800;letter-spacing:2px;color:'+T.stubtext+';opacity:.9">YD</div>';
@@ -733,6 +890,7 @@ function dcvJobCardHtml(j, T, p, selected){
   h += '<span style="width:4px;height:4px;border-radius:50%;background:'+svcCol+';flex:0 0 auto"></span>';
   h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
   if(isCombo) h += '<span title="Paired — pickup + delivery on one trip" style="font-size:9px">🔗</span>';
+  if(j._previewMoved) h += '<span style="font-size:8px;font-weight:800;letter-spacing:.6px;color:#f59e0b;border:1px solid #f59e0b;border-radius:3px;padding:0 4px">MOVED</span>';
   h += '<span style="margin-left:auto;font-size:10px;color:'+T.sub+';font-family:ui-monospace,monospace">'+win+'</span>';
   h += '</div>';
   h += '<div style="font-size:16px;font-weight:800;letter-spacing:-.3px;color:'+T.ink+';line-height:1.06;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(j.city||'—')+'</div>';
@@ -740,7 +898,8 @@ function dcvJobCardHtml(j, T, p, selected){
   h += '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="'+T.sub+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;opacity:.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
   h += '<span style="font-size:11px;color:'+T.sub+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml((j.address||'—')+(j.name?' · '+j.name:''))+'</span>';
   h += '</div></div></div>';
-  h += '<div data-port="out" data-node="j:'+j.id+'" title="Drag onto a crew card to assign" style="position:absolute;right:-8px;top:38px;width:15px;height:15px;border-radius:50%;background:'+T.surface+';border:2.5px solid '+T.accent+';cursor:crosshair;box-shadow:0 0 0 3px '+dcvRgba(T.accent,0.16)+'"></div>';
+  // no assigning while a preview is up — the port would be a lie
+  if(!_dispatchPreview) h += '<div data-port="out" data-node="j:'+j.id+'" title="Drag onto a crew card to assign" style="position:absolute;right:-8px;top:38px;width:15px;height:15px;border-radius:50%;background:'+T.surface+';border:2.5px solid '+T.accent+';cursor:crosshair;box-shadow:0 0 0 3px '+dcvRgba(T.accent,0.16)+'"></div>';
   h += '</div>';
   return h;
 }
@@ -765,13 +924,48 @@ function dcvCrewCardHtml(c, T, p, selected){
   h += '</div>';
   h += '<div style="padding:0 14px 13px">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">';
-  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+T.sub+'">Today\'s load</span>';
+  var wasStat = _dispatchPreview && _dispatchPreview.before[c.id];
+  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+T.sub+'">'
+    + (_dispatchPreview ? 'Was '+((wasStat&&wasStat.stops)||0)+' &middot; '+dispatchFmtTotal((wasStat&&wasStat.mins)||0) : 'Today\'s load') + '</span>';
   h += '<span style="font-size:11px;color:'+T.sub+';font-family:ui-monospace,monospace"><span style="color:'+T.accent+';font-weight:800">'+laneJobs.length+'</span> stop'+(laneJobs.length===1?'':'s')+' · '+dispatchFmtTotal(total)+'</span>';
   h += '</div>';
   h += '<div style="height:8px;background:'+T.track+';border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;transition:width .4s cubic-bezier(.4,0,.2,1)"></div></div>';
   h += '</div></div>';
   h += '<div data-port="in" data-node="c:'+c.id+'" style="position:absolute;left:-8px;top:32px;width:15px;height:15px;border-radius:50%;background:'+T.surface+';border:2.5px solid '+T.accent+';box-shadow:0 0 0 3px '+dcvRgba(T.accent,0.14)+'"></div>';
   h += '</div>';
+  return h;
+}
+
+// Tinted panel behind a driver's stack — this is what makes the grouping read at a
+// glance. Sits under the cards, so dropping a job on it targets that driver.
+function dcvGroupPanelHtml(g, T, pos){
+  var o = pos['c:'+g.crew.id];
+  if(!o) return '';
+  var col = g.crew.color || crewAvatarColor(g.crew.id);
+  var box = dcvGroupBox(o, g.jobs.length);
+  var mins = g.jobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
+  var h = '<div data-panel="c:'+g.crew.id+'" data-group="'+g.crew.id+'" style="position:absolute;top:0;left:0;width:'+box.w+'px;height:'+box.h+'px;transform:translate('+box.x+'px,'+box.y+'px);border:1px solid '+dcvRgba(col,0.42)+';background:'+dcvRgba(col,0.07)+';border-radius:20px">';
+  h += '<div style="display:flex;align-items:center;gap:7px;padding:9px 14px 0;pointer-events:none">';
+  h += '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex:0 0 auto"></span>';
+  h += '<span style="font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:'+col+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(g.crew.name)+'</span>';
+  h += '<span style="margin-left:auto;font-size:10.5px;font-family:ui-monospace,monospace;color:'+T.sub+';flex:0 0 auto">'+g.jobs.length+' &middot; '+dispatchFmtTotal(mins)+'</span>';
+  h += '</div>';
+  if(!g.jobs.length) h += '<div style="position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:11.5px;color:'+T.sub+';font-style:italic;pointer-events:none">No stops &mdash; drag a job here</div>';
+  h += '</div>';
+  return h;
+}
+// The unassigned pool. Dropping an assigned card back on it clears its driver.
+function dcvPoolPanelHtml(pool, T){
+  var cols = dcvPoolCols();
+  var rows = Math.min(pool.length, DCV_POOL_PER_COL);
+  var w = cols*(DCV_JOB_W+30) - 30 + 28;
+  var hh = DCV_HEAD_H + (rows ? rows*DCV_ROW_PITCH - (DCV_ROW_PITCH-DCV_JOB_H) : 44) + 14;
+  var h = '<div data-pool="1" style="position:absolute;top:0;left:0;width:'+w+'px;height:'+hh+'px;transform:translate('+(DCV_PAD-14)+'px,'+DCV_PAD+'px);border:1px dashed '+T.chipbd+';background:rgba(255,255,255,.02);border-radius:20px">';
+  h += '<div style="display:flex;align-items:center;gap:7px;padding:9px 14px 0;pointer-events:none">';
+  h += '<span style="width:7px;height:7px;border-radius:50%;background:#f59e0b;flex:0 0 auto"></span>';
+  h += '<span style="font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:'+T.sub+'">Unassigned</span>';
+  h += '<span style="margin-left:auto;font-size:10.5px;font-family:ui-monospace,monospace;color:'+T.sub+'">'+pool.length+'</span>';
+  h += '</div></div>';
   return h;
 }
 
@@ -821,9 +1015,11 @@ function dcvMount(){
   h += '<button onclick="dispatchSetViewMode(\'canvas\')" style="border:0;padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;background:'+T.accent+';color:#04160c">Canvas</button>';
   h += '<button onclick="dispatchSetViewMode(\'list\')" style="border:0;border-left:1px solid '+T.border+';padding:7px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:transparent;color:'+T.ink+'">List</button>';
   h += '</div>';
+  var _dim = _dispatchPreview ? 'opacity:.4;' : '';
   h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:var(--accent);color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill unassigned</button>';
-  h += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="background:transparent;border:1px solid '+T.border+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
+  h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="'+_dim+'background:var(--accent);color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill unassigned</button>';
+  h += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Clear everything and re-balance all jobs from scratch" style="'+_dim+'background:transparent;border:1px solid '+T.border+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Re-balance all</button>';
+  h += '<button onclick="dispatchPreviewBalance()" title="Show what a full re-balance would look like — assigns nothing until you apply it" style="background:transparent;border:1px dashed #f59e0b;color:#f59e0b;padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Preview re-balance</button>';
   h += '</div>';
   h += '</div>';
   // crew strip — the old "Working today" toggles, themed and moved inside
@@ -843,12 +1039,19 @@ function dcvMount(){
     });
   }
   h += '</div>';
+  // preview banner — the mock-up's apply / discard controls
+  if(_dispatchPreview) h += '<div style="flex:0 0 auto;padding:12px 16px 0;background:'+T.canvas+'">'+dispatchPreviewBannerHtml()+'</div>';
   // stage
   h += '<div id="dcv-vp" style="position:relative;flex:1;min-height:0;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background-color:'+T.canvas+'">';
   h += '<div id="dcv-world" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">';
+  // panels first, then the spine lines, then the cards — so cards always sit on top
+  var groups = dcvGroups();
+  var pool = dcvPoolJobs();
+  if(pool.length) h += dcvPoolPanelHtml(pool, T);
+  groups.forEach(function(g){ h += dcvGroupPanelHtml(g, T, pos); });
   h += '<svg id="dcv-svg" style="position:absolute;top:0;left:0;overflow:visible;pointer-events:none"></svg>';
   _dispatchJobsCache.forEach(function(j){ h += dcvJobCardHtml(j, T, pos['j:'+j.id], _dcv.selId === 'j:'+j.id); });
-  crewNodes.forEach(function(c){ h += dcvCrewCardHtml(c, T, pos['c:'+c.id], _dcv.selId === 'c:'+c.id); });
+  groups.forEach(function(g){ h += dcvCrewCardHtml(g.crew, T, pos['c:'+g.crew.id], _dcv.selId === 'c:'+g.crew.id); });
   h += '</div>';
   // in-canvas header: date + legend chips
   function chip(inner){ return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:'+T.sub+';background:'+T.chip+';border:1px solid '+T.chipbd+';border-radius:99px;padding:3px 9px">'+inner+'</span>'; }
@@ -909,6 +1112,18 @@ function dcvMount(){
   if(!_dcv.played) dcvAnimateIn();
   else dcvDrawEdges();
 }
+// Snap every card back to its computed slot — used after a drag that didn't land
+// on a driver, so nothing is ever left stranded between groups.
+function dcvRelayout(){
+  var world = _dcv.els && _dcv.els.world;
+  if(!world) return;
+  var pos = dcvPositions();
+  Object.keys(pos).forEach(function(k){
+    var el = dcvNodeEl(k);
+    if(el) el.style.transform = 'translate('+pos[k].x+'px,'+pos[k].y+'px)';
+  });
+  dcvDrawEdges();
+}
 // ---------- view transform / edges ----------
 function dcvApplyView(){
   var e = _dcv.els;
@@ -931,19 +1146,30 @@ function dcvPathD(a, b){
   var dx = Math.max(40, Math.abs(b.x-a.x)*0.5);
   return 'M '+a.x+' '+a.y+' C '+(a.x+dx)+' '+a.y+', '+(b.x-dx)+' '+b.y+', '+b.x+' '+b.y;
 }
+// Each driver's stops hang off one short spine down their own group, so no line
+// ever crosses another. The only free-floating line is the one you're dragging.
 function dcvDrawEdges(){
   var svg = _dcv.els && _dcv.els.svg;
   if(!svg) return;
   if(_dcv.suppressEdges){ svg.innerHTML = ''; return; }
   var col = dcvTheme().accent;
+  var pos = _dcv.posByDate[_dispatchDate || 'd'] || {};
   var inner = '';
-  _dispatchJobsCache.forEach(function(j){
-    var cid = dcvJobCrewId(j);
-    if(!cid) return;
-    var a = dcvAnchor('j:'+j.id, 'out'), b = dcvAnchor('c:'+cid, 'in');
-    if(!a || !b) return;
-    inner += '<path d="'+dcvPathD(a,b)+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linecap="round" opacity="0.95"/>';
-    inner += '<circle cx="'+a.x+'" cy="'+a.y+'" r="3.4" fill="'+col+'"/><circle cx="'+b.x+'" cy="'+b.y+'" r="3.4" fill="'+col+'"/>';
+  dcvGroups().forEach(function(g){
+    var o = pos['c:'+g.crew.id];
+    if(!o || !g.jobs.length) return;
+    var gcol = g.crew.color || crewAvatarColor(g.crew.id);
+    var sx = o.x - 7;
+    var last = pos['j:'+g.jobs[g.jobs.length-1].id];
+    if(!last) return;
+    inner += '<path d="M '+sx+' '+(o.y+DCV_CREW_H)+' V '+(last.y+DCV_JOB_H/2)+'" fill="none" stroke="'+gcol+'" stroke-width="2" stroke-linecap="round" opacity=".6"/>';
+    g.jobs.forEach(function(j){
+      var p = pos['j:'+j.id];
+      if(!p) return;
+      var y = p.y + DCV_JOB_H/2;
+      inner += '<path d="M '+sx+' '+y+' H '+(p.x-1)+'" fill="none" stroke="'+gcol+'" stroke-width="2" stroke-linecap="round" opacity=".6"/>';
+      inner += '<circle cx="'+sx+'" cy="'+y+'" r="3" fill="'+gcol+'"/>';
+    });
   });
   if(_dcv.drag && _dcv.drag.type === 'conn'){
     var a2 = dcvAnchor(_dcv.drag.from, 'out'), b2 = _dcv.drag.cur;
@@ -966,8 +1192,18 @@ function dcvDown(e){
   if(port){
     _dcv.drag = {type:'conn', from:port.getAttribute('data-node'), cur:{x:(e.clientX-rect.left-v.tx)/v.scale, y:(e.clientY-rect.top-v.ty)/v.scale}, moved:0};
   } else if(nodeEl){
-    _dcv.drag = {type:'node', id:nodeEl.getAttribute('data-node'), el:nodeEl, lastX:e.clientX, lastY:e.clientY, moved:0};
+    var nid = nodeEl.getAttribute('data-node');
+    _dcv.drag = {type:'node', id:nid, el:nodeEl, lastX:e.clientX, lastY:e.clientY, moved:0};
     nodeEl.style.zIndex = '30';
+    if(nid.indexOf('c:') === 0){
+      // dragging a driver drags their whole group — panel and stacked stops together
+      var gid = nid.slice(2);
+      _dcv.drag.panel = _dcv.els.world.querySelector('[data-panel="'+nid+'"]');
+      _dcv.drag.kids = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === gid; })
+        .map(function(j){ return {id:'j:'+j.id, el:dcvNodeEl('j:'+j.id)}; });
+    } else {
+      nodeEl.style.pointerEvents = 'none'; // so the drop target under the cursor is findable
+    }
   } else {
     _dcv.drag = {type:'pan', lastX:e.clientX, lastY:e.clientY, moved:0};
     vp.style.cursor = 'grabbing';
@@ -993,6 +1229,13 @@ function dcvMove(e){
     if(p){
       p.x += ndx; p.y += ndy;
       if(d.el) d.el.style.transform = 'translate('+p.x+'px,'+p.y+'px)';
+      if(d.kids) d.kids.forEach(function(k){
+        var kp = pos[k.id];
+        if(!kp) return;
+        kp.x += ndx; kp.y += ndy;
+        if(k.el) k.el.style.transform = 'translate('+kp.x+'px,'+kp.y+'px)';
+      });
+      if(d.panel) d.panel.style.transform = 'translate('+(p.x-14)+'px,'+(p.y-DCV_HEAD_H)+'px)';
     }
     d.lastX = e.clientX; d.lastY = e.clientY;
     d.moved += Math.abs(ndx)+Math.abs(ndy);
@@ -1012,8 +1255,30 @@ function dcvUp(e){
   if(vp) vp.style.cursor = 'grab';
   if(!d) return;
   if(d.type === 'node'){
-    if(d.el) d.el.style.zIndex = '';
-    if(d.moved < 4) dcvSelect(d.id);
+    if(d.el){ d.el.style.zIndex = ''; d.el.style.pointerEvents = ''; }
+    if(d.moved < 4){ dcvSelect(d.id); return; }
+    // Dropping a job card on a driver (their card, their panel, or one of their
+    // stops) moves it into that group; dropping it back on the pool unassigns it.
+    if(d.id.indexOf('j:') === 0){
+      var jid = d.id.slice(2);
+      var hit = document.elementFromPoint(e.clientX, e.clientY);
+      var grp = hit && hit.closest('[data-group]');
+      var node = hit && hit.closest('[data-node]');
+      var target = grp ? grp.getAttribute('data-group') : null;
+      if(!target && node){
+        var nk = node.getAttribute('data-node');
+        if(nk.indexOf('c:') === 0) target = nk.slice(2);
+        else {
+          var other = dcvJobById(nk.slice(2));
+          if(other) target = dcvJobCrewId(other) || null;
+        }
+      }
+      var job = dcvJobById(jid);
+      var cur = job ? dcvJobCrewId(job) : '';
+      if(target && target !== cur) dispatchAssignJob(jid, target, dcvLegOf(jid));
+      else if(!target && cur && hit && hit.closest('[data-pool]')) dispatchAssignJob(jid, '', dcvLegOf(jid));
+      dcvRelayout();
+    }
   } else if(d.type === 'conn'){
     var t = document.elementFromPoint(e.clientX, e.clientY);
     var tn = t && t.closest('[data-node]');
