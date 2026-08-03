@@ -538,8 +538,8 @@ async function runAdvisor(){
         {label:'14yd Demand',val:demand14pct+'%'}
       ];
       snap.innerHTML = snapItems.map(function(s){
-        return '<div class="adv-metric"><div class="adv-metric-v">'+s.val+'</div>'
-          +'<div class="adv-metric-l">'+s.label+'</div></div>';
+        return '<div class="adv-metric"><div class="adv-metric-l">'+s.label+'</div>'
+          +'<div class="adv-metric-v">'+s.val+'</div></div>';
       }).join('');
     }
 
@@ -552,6 +552,7 @@ async function runAdvisor(){
       cards.innerHTML = recs.map(function(r,_ci){
         return '<div class="adv-card" data-status="'+r.status+'" data-idx="'+_ci+'">'
           +'<div class="adv-card-top">'
+          +'<span class="adv-idx">'+(_ci<9?'0':'')+(_ci+1)+'</span>'
           +'<span class="adv-card-t">'+r.title+'</span>'
           +'<span class="adv-tag" style="color:'+(tagColors[r.priority]||'var(--accent)')+'">'+r.priority+'</span>'
           +'<span class="adv-cat">'+r.category+'</span>'

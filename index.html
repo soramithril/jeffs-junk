@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=530">
+<link rel="stylesheet" href="style.css?v=531">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=500">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -487,7 +487,7 @@
     <input class="search-input search-icon" type="text" placeholder="Search name, phone, address, city, or job #…" oninput="doJobSearch(this.value)" style="width:100%;max-width:100%;height:46px;font-size:14.5px;margin:0 0 12px;border-radius:11px">
 
     <!-- AI search: the AI turns the question into filters; the search itself runs against Supabase locally -->
-    <div style="display:flex;gap:8px;margin:0 0 12px">
+    <div class="jobs-ai-search" style="display:flex;gap:8px;margin:0 0 12px">
       <input id="ai-search-q" type="text" placeholder='Ask the AI — e.g. "junk removals with a couch in Innisfil last summer"' style="flex:1;height:42px;font-size:14px;padding:0 14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')aiJobSearch()">
       <button class="ai-btn lead" onclick="aiJobSearch()" style="white-space:nowrap;padding:0 20px;border-radius:11px">AI Search</button>
     </div>
@@ -1083,52 +1083,54 @@
 
 <!-- ═══════════════ AI ADVISOR ═══════════════ -->
 <div id="view-advisor" style="display:none">
-  <div class="adv-head">
-    <div>
-      <div class="adv-eyebrow">Business Intelligence</div>
-      <div class="adv-title">ADVISOR</div>
-      <div class="adv-sub">Your live job data, read and interpreted</div>
+  <div class="adv-console">
+    <div class="adv-head">
+      <div>
+        <div class="adv-eyebrow"><span class="adv-dot"></span>Business Intelligence</div>
+        <div class="adv-title">ADVISOR</div>
+        <div class="adv-sub">Live job data — read, interpreted, actioned</div>
+      </div>
+      <button class="con-btn lead" id="advisor-run-btn" onclick="runAdvisor()">Run Analysis</button>
     </div>
-    <button class="btn btn-primary" id="advisor-run-btn" onclick="runAdvisor()">Run Analysis</button>
-  </div>
 
-  <div id="advisor-idle" class="adv-idle">
-    <div class="adv-mark"><i></i><i></i><i></i></div>
-    <div class="adv-idle-h">READY TO ANALYZE</div>
-    <div class="adv-idle-p">Reads your job history, bin fleet, city spread, seasonal patterns and customer behaviour — then tells you what it means and what to do about it.</div>
-    <div class="adv-caps">
-      <div class="adv-cap">Seasonal Timing</div>
-      <div class="adv-cap">Fleet Sizing</div>
-      <div class="adv-cap">City Targeting</div>
-      <div class="adv-cap">What To Promote</div>
-      <div class="adv-cap">Retention</div>
+    <div id="advisor-idle" class="adv-idle">
+      <div class="adv-mark"><i></i><i></i><i></i></div>
+      <div class="adv-idle-h">SYSTEM READY</div>
+      <div class="adv-idle-p">Reads your job history, bin fleet, city spread, seasonal patterns and customer behaviour — then tells you what it means and what to do about it.</div>
+      <div class="adv-caps">
+        <div class="adv-cap">Seasonal Timing</div>
+        <div class="adv-cap">Fleet Sizing</div>
+        <div class="adv-cap">City Targeting</div>
+        <div class="adv-cap">What To Promote</div>
+        <div class="adv-cap">Retention</div>
+      </div>
+      <button class="con-btn lead" onclick="runAdvisor()" style="padding:13px 38px">Run Analysis</button>
     </div>
-    <button class="btn btn-primary" onclick="runAdvisor()" style="font-size:14px;padding:12px 34px;letter-spacing:1px">Run Analysis</button>
-  </div>
 
-  <div id="advisor-loading" class="adv-load" style="display:none">
-    <div class="adv-mark"><i></i><i></i><i></i></div>
-    <div class="adv-load-h">ANALYZING</div>
-    <div id="advisor-loading-msg" style="color:var(--muted);font-size:12.5px;letter-spacing:.4px">Reading job history…</div>
-    <div class="adv-scan"><div id="advisor-progress-bar"></div></div>
-  </div>
-
-  <div id="advisor-results" style="display:none;">
-    <div id="advisor-ai"></div>
-    <div id="advisor-snapshot" class="adv-metrics"></div>
-    <div id="advisor-filter" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
-    <div id="advisor-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
-    <div id="advisor-showall" style="text-align:center;margin-top:16px;"></div>
-    <div class="adv-foot">
-      <div>LIVE DATA &middot; <span id="advisor-timestamp"></span></div>
-      <button class="btn btn-ghost btn-sm" onclick="runAdvisor()">Refresh</button>
+    <div id="advisor-loading" class="adv-load" style="display:none">
+      <div class="adv-mark"><i></i><i></i><i></i></div>
+      <div class="adv-load-h">ANALYZING</div>
+      <div id="advisor-loading-msg" style="font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:1.2px;color:#7f9d8d">Reading job history…</div>
+      <div class="adv-scan"><div id="advisor-progress-bar"></div></div>
     </div>
-  </div>
 
-  <div id="advisor-error" class="adv-idle" style="display:none">
-    <div class="adv-idle-h" style="color:var(--red)">ANALYSIS FAILED</div>
-    <div id="advisor-error-msg" class="adv-idle-p"></div>
-    <button class="btn btn-primary" onclick="runAdvisor()">Try Again</button>
+    <div id="advisor-results" style="display:none;">
+      <div id="advisor-ai"></div>
+      <div id="advisor-snapshot" class="adv-metrics"></div>
+      <div id="advisor-filter" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
+      <div id="advisor-cards" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <div id="advisor-showall" style="text-align:center;margin-top:16px;"></div>
+      <div class="adv-foot">
+        <div>Live data &middot; <span id="advisor-timestamp"></span></div>
+        <button class="con-btn" onclick="runAdvisor()" style="padding:7px 16px">Refresh</button>
+      </div>
+    </div>
+
+    <div id="advisor-error" class="adv-idle" style="display:none">
+      <div class="adv-idle-h" style="color:#ff8d98">ANALYSIS FAILED</div>
+      <div id="advisor-error-msg" class="adv-idle-p"></div>
+      <button class="con-btn lead" onclick="runAdvisor()">Try Again</button>
+    </div>
   </div>
 </div>
 
@@ -2746,12 +2748,12 @@
 </div>
 
 <script src="app-utilization.js?v=522"></script>
-<script src="app-advisor.js?v=530"></script>
+<script src="app-advisor.js?v=531"></script>
 <script src="app-damage.js?v=469"></script>
 <script src="app-bookings.js?v=485"></script>
 <script src="jwg-icons.js?v=465"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=530"></script>
+<script src="app.js?v=531"></script>
 <script src="app-jwg-scheduler.js?v=500"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=445"></script>
