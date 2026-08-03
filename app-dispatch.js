@@ -296,6 +296,30 @@ function dispatchLaneStats(jobs){
   });
   return st;
 }
+// What the plan proposes for a job — its real driver when the plan doesn't touch it.
+function dispatchProposedCrewId(j){
+  var pv = _dispatchPreview && _dispatchPreview.byJob[j.id];
+  if(pv) return pv.crewId;
+  return j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
+}
+// True when this stop would change hands under the plan — the only thing highlighted.
+function dispatchJobMoves(j){
+  if(!_dispatchPreview) return false;
+  var cur = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
+  return dispatchProposedCrewId(j) !== cur;
+}
+// Load per driver now vs under the plan — both read the real jobs, nothing is mutated.
+function dispatchPreviewStats(){
+  var after = {};
+  _dispatchJobsCache.forEach(function(j){
+    var c = dispatchProposedCrewId(j);
+    if(!c) return;
+    if(!after[c]) after[c] = {stops:0, mins:0};
+    after[c].stops++;
+    after[c].mins += (j._estMinutes||0);
+  });
+  return {before: dispatchLaneStats(_dispatchJobsCache), after: after};
+}
 // Longest-unit-first onto the lightest driver. Returns {assignments, working} or {error}.
 function dispatchPlanBalance(mode){
   var working = dispatchGetWorkingIds();
@@ -381,7 +405,7 @@ function dispatchPreviewBalance(){
     var cur = j ? (j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'')) : '';
     if(cur !== a.crewId) moved++;
   });
-  _dispatchPreview = {date:_dispatchDate, byJob:byJob, moved:moved, before:{}};
+  _dispatchPreview = {date:_dispatchDate, byJob:byJob, moved:moved};
   renderDispatch();
 }
 async function dispatchApplyPreview(){
@@ -403,13 +427,14 @@ function dispatchDiscardPreview(){
 function dispatchPreviewBannerHtml(){
   var p = _dispatchPreview;
   if(!p) return '';
-  var after = dispatchLaneStats(_dispatchJobsCache);
+  var st = dispatchPreviewStats();
+  var after = st.after;
   var ids = Object.keys(after);
-  Object.keys(p.before).forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
+  Object.keys(st.before).forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
   var h = '<div style="background:#fff;border:1px solid #e9ecef;border-left:4px solid #f59e0b;border-radius:14px;padding:13px 16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(26,26,46,.10);color:#1a1a2e">';
   h += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
   h += '<div style="line-height:1.25"><div style="font-size:14px;font-weight:800;letter-spacing:-.2px">Preview &mdash; nothing saved yet</div>';
-  h += '<div style="font-size:11.5px;color:#868e96">'+p.moved+' stop'+(p.moved===1?'':'s')+' would move. Apply to write it, or discard to leave today alone.</div></div>';
+  h += '<div style="font-size:11.5px;color:#868e96">'+p.moved+' stop'+(p.moved===1?'':'s')+' would move &mdash; each driver\'s proposed run is the faded column beside them. Apply to write it, or discard to leave today alone.</div></div>';
   h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
   h += '<button onclick="dispatchDiscardPreview()" style="background:#f8f9fa;border:1px solid #e9ecef;color:#495057;padding:8px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Discard</button>';
   h += '<button onclick="dispatchApplyPreview()" style="background:var(--accent);border:0;color:#fff;padding:8px 16px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Apply this plan</button>';
@@ -420,7 +445,7 @@ function dispatchPreviewBannerHtml(){
       var crew = crewMembers.find(function(c){ return c.id === id; });
       if(!crew) return;
       var col = crew.color || crewAvatarColor(crew.id);
-      var b = p.before[id] || {stops:0, mins:0};
+      var b = st.before[id] || {stops:0, mins:0};
       var a = after[id] || {stops:0, mins:0};
       var same = (b.stops === a.stops && b.mins === a.mins);
       h += '<span style="display:inline-flex;align-items:center;gap:7px;background:#f8f9fa;border:1px solid #e9ecef;border-radius:99px;padding:5px 12px;font-size:11.5px">';
@@ -562,20 +587,9 @@ async function renderDispatch(){
       _seenPair[j.id] = true; _seenPair[j._partnerId] = true;
     }
   });
-  // Preview overlay: paint the proposed driver onto the in-memory jobs only. Every
-  // screen below reads this cache, so the whole board shows the plan — and because
-  // renderDispatch reloads from the database each pass, discarding is just a re-render.
+  // A preview never touches the loaded jobs — the board keeps showing what's really
+  // assigned, and the plan is drawn beside it as a ghost column to compare against.
   if(_dispatchPreview && _dispatchPreview.date !== _dispatchDate) _dispatchPreview = null;
-  if(_dispatchPreview){
-    _dispatchPreview.before = dispatchLaneStats(todayJobs);
-    todayJobs.forEach(function(j){
-      var pv = _dispatchPreview.byJob[j.id];
-      if(!pv) return;
-      var cur = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
-      j._previewMoved = (cur !== pv.crewId);
-      if(j._isPickup) j.pickupCrewId = pv.crewId; else j.dropoffCrewId = pv.crewId;
-    });
-  }
   var laneSet = {};
   workingIds.forEach(function(id){ laneSet[id] = true; });
   todayJobs.forEach(function(j){ var c = j._isPickup ? j.pickupCrewId : j.dropoffCrewId; if(c) laneSet[c]=true; });
@@ -754,6 +768,8 @@ var DCV_JOB_H = 66;        // rendered height of a job card
 var DCV_CREW_H = 118;      // rendered height of a crew card
 var DCV_ROW_PITCH = 82;    // vertical pitch of stacked job cards
 var DCV_GROUP_GAP = 300;   // horizontal pitch between crew groups
+var DCV_GHOST_DX = 296;    // offset from a group to its proposed (ghost) column
+var DCV_GROUP_GAP_CMP = 620; // wider pitch while previewing, to fit the ghost column
 var DCV_POOL_PER_COL = 6;  // unassigned cards per column in the pool
 var DCV_PAD = 40;          // outer padding of the whole layout
 var DCV_HEAD_H = 34;       // title strip above a panel's first card
@@ -765,6 +781,7 @@ var DCV_THEMES = {
 var _dcv = {
   view: {tx:60, ty:40, scale:1},
   posByDate: {},
+  layout: null,   // positions from the last render — compare mode swaps this out
   fitByDate: {},
   theme: localStorage.getItem('dispatch_canvas_theme') || 'forest',
   selId: null,
@@ -814,6 +831,19 @@ function dcvGroups(){
     return {crew: c, jobs: jobs.length ? dispatchOrderLaneJobs(jobs).jobs : []};
   });
 }
+// The same groups as they'd look under the plan — drawn as the faded column beside
+// each driver, so the change reads as a difference instead of losing the "before".
+function dcvProposedGroups(){
+  if(!_dispatchPreview) return [];
+  return dcvCrewNodes().map(function(c){
+    var jobs = _dispatchJobsCache.filter(function(j){ return dispatchProposedCrewId(j) === c.id; });
+    return {crew: c, jobs: jobs.length ? dispatchOrderLaneJobs(jobs).jobs : []};
+  });
+}
+// Where a ghost card sits: one panel to the right, on the same row line as the real stack.
+function dcvGhostPos(o, i){
+  return {x: o.x + DCV_GHOST_DX, y: o.y + DCV_CREW_H + 16 + i*DCV_ROW_PITCH};
+}
 // Everything with no driver — combo pairs kept adjacent. A job held by someone who
 // is no longer on the crew list has no group to sit in, so it belongs here too:
 // every job must land in exactly one place or it would render without a position.
@@ -834,7 +864,9 @@ function dcvPoolCols(){
 function dcvPositions(){
   var key = _dispatchDate || 'd';
   if(!_dcv.posByDate[key]) _dcv.posByDate[key] = {};
-  var pos = _dcv.posByDate[key];
+  // While a preview is up the board auto-arranges into compare mode in a throwaway
+  // map, so your own arrangement comes back untouched the moment it's discarded.
+  var pos = _dispatchPreview ? {} : _dcv.posByDate[key];
   var pool = dcvPoolJobs();
   pool.forEach(function(j, i){
     pos['j:'+j.id] = {
@@ -843,14 +875,16 @@ function dcvPositions(){
     };
   });
   var groupX = DCV_PAD + dcvPoolCols()*(DCV_JOB_W+30) + 110;
+  var pitch = _dispatchPreview ? DCV_GROUP_GAP_CMP : DCV_GROUP_GAP;
   dcvGroups().forEach(function(g, gi){
     var k = 'c:'+g.crew.id;
-    if(!pos[k]) pos[k] = {x: groupX + gi*DCV_GROUP_GAP, y: DCV_PAD + DCV_HEAD_H};
+    if(!pos[k]) pos[k] = {x: groupX + gi*pitch, y: DCV_PAD + DCV_HEAD_H};
     var o = pos[k];
     g.jobs.forEach(function(j, i){
       pos['j:'+j.id] = {x: o.x, y: o.y + DCV_CREW_H + 16 + i*DCV_ROW_PITCH};
     });
   });
+  _dcv.layout = pos; // every other reader (edges, drag, focus) works off this
   return pos;
 }
 // Panel geometry for a group / the pool, derived from the origin of its first card.
@@ -868,16 +902,21 @@ function dcvNodeEl(key){
 }
 
 // ---------- card builders (theme colors baked in; rebuilt on every render) ----------
-function dcvJobCardHtml(j, T, p, selected){
+// opts.ghost = the faded proposed copy — no ports, not draggable, not a drop target.
+// opts.mark  = 'out' (this stop leaves under the plan) or 'in' (it arrives here).
+function dcvJobCardHtml(j, T, p, selected, opts){
+  opts = opts || {};
   var num = parseInt(j.binSize, 10);
   var numTxt = isNaN(num) ? 'BIN' : String(num);
   var isCombo = !!j._partnerId;
   var svc = j._isPickup ? 'Pickup' : 'Drop';
   var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
   var win = (!j._isPickup && dispatchParseClock(j.binDropoffTime)!=null) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
-  var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
-  var bd = j._previewMoved ? '1px dashed #f59e0b' : '1px solid '+T.border;
-  var h = '<div data-node="j:'+j.id+'" style="position:absolute;top:0;left:0;width:'+DCV_JOB_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
+  var markCol = opts.mark === 'in' ? '#22c55e' : (opts.mark === 'out' ? '#f59e0b' : '');
+  var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;'
+              : (markCol ? 'outline:2px dashed '+markCol+';outline-offset:2px;' : '');
+  var bd = markCol ? '1px solid '+markCol : '1px solid '+T.border;
+  var h = '<div '+(opts.ghost ? 'data-ghost="j:'+j.id+'"' : 'data-node="j:'+j.id+'"')+' style="position:absolute;top:0;left:0;width:'+DCV_JOB_W+'px;'+(opts.ghost?'opacity:.66;pointer-events:none;':'cursor:grab;')+'transform:translate('+p.x+'px,'+p.y+'px)">';
   h += '<div data-card style="'+outline+'background:'+T.surface+';border:'+bd+';border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,.4);overflow:hidden;display:flex;position:relative">';
   h += '<div style="width:62px;flex:0 0 auto;background:'+T.stub+';display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px">';
   h += '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(isNaN(num)?'21':'30')+'px;line-height:.8;letter-spacing:.5px;color:'+T.stubtext+'">'+numTxt+'</div>';
@@ -890,7 +929,13 @@ function dcvJobCardHtml(j, T, p, selected){
   h += '<span style="width:4px;height:4px;border-radius:50%;background:'+svcCol+';flex:0 0 auto"></span>';
   h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
   if(isCombo) h += '<span title="Paired — pickup + delivery on one trip" style="font-size:9px">🔗</span>';
-  if(j._previewMoved) h += '<span style="font-size:8px;font-weight:800;letter-spacing:.6px;color:#f59e0b;border:1px solid #f59e0b;border-radius:3px;padding:0 4px">MOVED</span>';
+  if(markCol){
+    // On the real card: where it goes. On the ghost: where it came from.
+    var mvId = opts.mark === 'in' ? (j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'')) : dispatchProposedCrewId(j);
+    var mvC = mvId && crewMembers.find(function(x){ return x.id === mvId; });
+    var mvTxt = (opts.mark === 'in' ? '&larr; ' : '&rarr; ') + (mvC ? escHtml(mvC.name) : 'unassigned');
+    h += '<span style="font-size:8px;font-weight:800;letter-spacing:.4px;color:'+markCol+';border:1px solid '+markCol+';border-radius:3px;padding:0 4px;white-space:nowrap">'+mvTxt+'</span>';
+  }
   h += '<span style="margin-left:auto;font-size:10px;color:'+T.sub+';font-family:ui-monospace,monospace">'+win+'</span>';
   h += '</div>';
   h += '<div style="font-size:16px;font-weight:800;letter-spacing:-.3px;color:'+T.ink+';line-height:1.06;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(j.city||'—')+'</div>';
@@ -951,6 +996,35 @@ function dcvGroupPanelHtml(g, T, pos){
   h += '<span style="margin-left:auto;font-size:10.5px;font-family:ui-monospace,monospace;color:'+T.sub+';flex:0 0 auto">'+g.jobs.length+' &middot; '+dispatchFmtTotal(mins)+'</span>';
   h += '</div>';
   if(!g.jobs.length) h += '<div style="position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:11.5px;color:'+T.sub+';font-style:italic;pointer-events:none">No stops &mdash; drag a job here</div>';
+  h += '</div>';
+  return h;
+}
+// The proposed column for one driver: same geometry as their real group, shifted one
+// panel right, with the load it would carry and how that differs from today.
+function dcvGhostPanelHtml(g, real, T, pos){
+  var o = pos['c:'+g.crew.id];
+  if(!o) return '';
+  var col = g.crew.color || crewAvatarColor(g.crew.id);
+  var box = dcvGroupBox(o, g.jobs.length);
+  var mins = g.jobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
+  var realMins = real ? real.jobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0) : 0;
+  var dStops = g.jobs.length - (real ? real.jobs.length : 0);
+  var dMins = mins - realMins;
+  var same = (dStops === 0 && dMins === 0);
+  var dCol = same ? T.sub : (dMins > 0 ? '#f59e0b' : '#22c55e');
+  function sgn(n){ return (n > 0 ? '+' : '') + n; }
+  var h = '<div style="position:absolute;top:0;left:0;width:'+box.w+'px;height:'+box.h+'px;transform:translate('+(box.x+DCV_GHOST_DX)+'px,'+box.y+'px);border:1px dashed '+dcvRgba(col,0.5)+';background:'+dcvRgba(col,0.04)+';border-radius:20px;pointer-events:none">';
+  h += '<div style="display:flex;align-items:center;gap:7px;padding:9px 14px 0">';
+  h += '<span style="font-size:11px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:'+T.sub+'">Proposed</span>';
+  h += '<span style="margin-left:auto;font-size:10.5px;font-family:ui-monospace,monospace;color:'+T.sub+'">'+g.jobs.length+' &middot; '+dispatchFmtTotal(mins)+'</span>';
+  h += '</div>';
+  // level with the real crew card, so the two loads compare straight across
+  h += '<div style="position:absolute;left:14px;right:14px;top:'+DCV_HEAD_H+'px;height:'+DCV_CREW_H+'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">';
+  h += '<div style="font-size:25px;font-weight:800;letter-spacing:-.5px;color:'+T.ink+';line-height:1">'+g.jobs.length+'<span style="font-size:12px;font-weight:700;color:'+T.sub+'"> stop'+(g.jobs.length===1?'':'s')+'</span></div>';
+  h += '<div style="font-size:12.5px;font-family:ui-monospace,monospace;color:'+T.sub+'">'+dispatchFmtTotal(mins)+'</div>';
+  h += '<div style="font-size:11px;font-weight:700;color:'+dCol+'">'+(same ? 'no change' : sgn(dStops)+' stop'+(Math.abs(dStops)===1?'':'s')+' &middot; '+sgn(dMins)+'m')+'</div>';
+  h += '</div>';
+  if(!g.jobs.length) h += '<div style="position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:11.5px;color:'+T.sub+';font-style:italic">Nothing assigned</div>';
   h += '</div>';
   return h;
 }
@@ -1047,10 +1121,24 @@ function dcvMount(){
   // panels first, then the spine lines, then the cards — so cards always sit on top
   var groups = dcvGroups();
   var pool = dcvPoolJobs();
+  var proposed = dcvProposedGroups();
+  var realById = {}; groups.forEach(function(g){ realById[g.crew.id] = g; });
   if(pool.length) h += dcvPoolPanelHtml(pool, T);
   groups.forEach(function(g){ h += dcvGroupPanelHtml(g, T, pos); });
+  proposed.forEach(function(g){ h += dcvGhostPanelHtml(g, realById[g.crew.id], T, pos); });
   h += '<svg id="dcv-svg" style="position:absolute;top:0;left:0;overflow:visible;pointer-events:none"></svg>';
-  _dispatchJobsCache.forEach(function(j){ h += dcvJobCardHtml(j, T, pos['j:'+j.id], _dcv.selId === 'j:'+j.id); });
+  // real cards — a stop that changes hands is outlined amber with where it goes
+  _dispatchJobsCache.forEach(function(j){
+    h += dcvJobCardHtml(j, T, pos['j:'+j.id], _dcv.selId === 'j:'+j.id, {mark: dispatchJobMoves(j) ? 'out' : null});
+  });
+  // ghost cards — the same stop again in its proposed slot, green where it's new
+  proposed.forEach(function(g){
+    var o = pos['c:'+g.crew.id];
+    if(!o) return;
+    g.jobs.forEach(function(j, i){
+      h += dcvJobCardHtml(j, T, dcvGhostPos(o, i), false, {ghost:true, mark: dispatchJobMoves(j) ? 'in' : null});
+    });
+  });
   groups.forEach(function(g){ h += dcvCrewCardHtml(g.crew, T, pos['c:'+g.crew.id], _dcv.selId === 'c:'+g.crew.id); });
   h += '</div>';
   // in-canvas header: date + legend chips
@@ -1061,7 +1149,13 @@ function dcvMount(){
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#eab308"></span>Drop');
   h += chip('<span style="font-size:10px">🔗</span>Paired = pickup + delivery on one trip');
   if(unassignedCount) h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>'+unassignedCount+' unassigned');
-  h += chip('drag ○ from a job onto a crew card to assign');
+  if(_dispatchPreview){
+    h += chip('<span style="width:9px;height:9px;border-radius:2px;border:1.5px dashed #f59e0b"></span>moves away');
+    h += chip('<span style="width:9px;height:9px;border-radius:2px;border:1.5px dashed #22c55e"></span>moves here');
+    h += chip('faded column = proposed');
+  } else {
+    h += chip('drag ○ from a job onto a crew card to assign');
+  }
   h += '</div></div>';
   // empty-state hint
   if(!_dispatchJobsCache.length || !crewNodes.length){
@@ -1101,7 +1195,12 @@ function dcvMount(){
   _dcv.els.vp.addEventListener('pointerdown', dcvDown);
   _dcv.els.vp.addEventListener('wheel', dcvWheel, {passive:false});
   var dateKey = _dispatchDate || 'd';
-  if(!_dcv.fitByDate[dateKey] && _dispatchJobsCache.length){
+  // Opening or closing a preview reshapes the board — re-fit so the comparison
+  // (or the board coming back) is fully in view without reaching for the zoom.
+  var previewing = !!_dispatchPreview;
+  var previewChanged = (_dcv.lastPreview !== previewing);
+  _dcv.lastPreview = previewing;
+  if((!_dcv.fitByDate[dateKey] || previewChanged) && _dispatchJobsCache.length){
     _dcv.fitByDate[dateKey] = true;
     dcvFit();
   } else {
@@ -1136,7 +1235,7 @@ function dcvApplyView(){
   e.vp.style.backgroundPosition = v.tx+'px '+v.ty+'px';
 }
 function dcvAnchor(key, side){
-  var pos = _dcv.posByDate[_dispatchDate || 'd'];
+  var pos = _dcv.layout;
   var p = pos && pos[key];
   if(!p) return null;
   if(side === 'out') return {x: p.x + DCV_JOB_W - 0.5, y: p.y + 45.5};
@@ -1153,7 +1252,7 @@ function dcvDrawEdges(){
   if(!svg) return;
   if(_dcv.suppressEdges){ svg.innerHTML = ''; return; }
   var col = dcvTheme().accent;
-  var pos = _dcv.posByDate[_dispatchDate || 'd'] || {};
+  var pos = _dcv.layout || {};
   var inner = '';
   dcvGroups().forEach(function(g){
     var o = pos['c:'+g.crew.id];
@@ -1169,6 +1268,19 @@ function dcvDrawEdges(){
       var y = p.y + DCV_JOB_H/2;
       inner += '<path d="M '+sx+' '+y+' H '+(p.x-1)+'" fill="none" stroke="'+gcol+'" stroke-width="2" stroke-linecap="round" opacity=".6"/>';
       inner += '<circle cx="'+sx+'" cy="'+y+'" r="3" fill="'+gcol+'"/>';
+    });
+  });
+  // the proposed column gets the same spine, dashed and faded
+  dcvProposedGroups().forEach(function(g){
+    var o = pos['c:'+g.crew.id];
+    if(!o || !g.jobs.length) return;
+    var gcol = g.crew.color || crewAvatarColor(g.crew.id);
+    var sx = o.x + DCV_GHOST_DX - 7;
+    inner += '<path d="M '+sx+' '+(o.y+DCV_CREW_H)+' V '+(dcvGhostPos(o, g.jobs.length-1).y + DCV_JOB_H/2)+'" fill="none" stroke="'+gcol+'" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round" opacity=".4"/>';
+    g.jobs.forEach(function(j, i){
+      var gp = dcvGhostPos(o, i), gy = gp.y + DCV_JOB_H/2;
+      inner += '<path d="M '+sx+' '+gy+' H '+(gp.x-1)+'" fill="none" stroke="'+gcol+'" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round" opacity=".4"/>';
+      inner += '<circle cx="'+sx+'" cy="'+gy+'" r="2.5" fill="'+gcol+'" opacity=".55"/>';
     });
   });
   if(_dcv.drag && _dcv.drag.type === 'conn'){
@@ -1193,9 +1305,11 @@ function dcvDown(e){
     _dcv.drag = {type:'conn', from:port.getAttribute('data-node'), cur:{x:(e.clientX-rect.left-v.tx)/v.scale, y:(e.clientY-rect.top-v.ty)/v.scale}, moved:0};
   } else if(nodeEl){
     var nid = nodeEl.getAttribute('data-node');
-    _dcv.drag = {type:'node', id:nid, el:nodeEl, lastX:e.clientX, lastY:e.clientY, moved:0};
+    // compare mode owns the layout while a preview is up — clicks still select, drags don't move
+    _dcv.drag = {type:'node', id:nid, el:nodeEl, lastX:e.clientX, lastY:e.clientY, moved:0, locked:!!_dispatchPreview};
     nodeEl.style.zIndex = '30';
-    if(nid.indexOf('c:') === 0){
+    if(_dcv.drag.locked){ /* no group or drop handling */ }
+    else if(nid.indexOf('c:') === 0){
       // dragging a driver drags their whole group — panel and stacked stops together
       var gid = nid.slice(2);
       _dcv.drag.panel = _dcv.els.world.querySelector('[data-panel="'+nid+'"]');
@@ -1224,9 +1338,9 @@ function dcvMove(e){
     dcvApplyView();
   } else if(d.type === 'node'){
     var ndx = (e.clientX-d.lastX)/v.scale, ndy = (e.clientY-d.lastY)/v.scale;
-    var pos = _dcv.posByDate[_dispatchDate || 'd'];
+    var pos = _dcv.layout;
     var p = pos && pos[d.id];
-    if(p){
+    if(p && !d.locked){
       p.x += ndx; p.y += ndy;
       if(d.el) d.el.style.transform = 'translate('+p.x+'px,'+p.y+'px)';
       if(d.kids) d.kids.forEach(function(k){
@@ -1257,6 +1371,7 @@ function dcvUp(e){
   if(d.type === 'node'){
     if(d.el){ d.el.style.zIndex = ''; d.el.style.pointerEvents = ''; }
     if(d.moved < 4){ dcvSelect(d.id); return; }
+    if(d.locked) return;
     // Dropping a job card on a driver (their card, their panel, or one of their
     // stops) moves it into that group; dropping it back on the pool unassigns it.
     if(d.id.indexOf('j:') === 0){
@@ -1334,6 +1449,8 @@ function dcvFit(){
     if(p.x+w > maxx) maxx = p.x+w;
     if(p.y+hh > maxy) maxy = p.y+hh;
   });
+  // ghost columns aren't nodes, so account for the width they add on the right
+  if(_dispatchPreview) maxx += DCV_GHOST_DX;
   var rect = e.vp.getBoundingClientRect(), pad = 70;
   var s = Math.max(0.4, Math.min(1.4, Math.min((rect.width-pad*2)/(maxx-minx), (rect.height-pad*2)/(maxy-miny))));
   var v = _dcv.view;
@@ -1381,7 +1498,7 @@ function dcvSyncInspector(){
 function dcvFocusSel(){
   var id = _dcv.selId;
   if(!id) return;
-  var pos = _dcv.posByDate[_dispatchDate || 'd'];
+  var pos = _dcv.layout;
   var p = pos && pos[id];
   var vp = _dcv.els && _dcv.els.vp;
   if(!p || !vp) return;
