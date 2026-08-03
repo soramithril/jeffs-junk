@@ -107,7 +107,9 @@ function dispatchOrderLaneJobs(jobs){
       emit(pick); emit(drop);
     } else emit(j);
   }
-  var fixed = jobs.filter(function(j){ return j._isDelivery && j.binDropoffTime; })
+  // dispatchParseClock is null for 'anytime' (and any non-clock text) — those drops
+  // are flexible, so they route with the loose drops below, not as timed stops.
+  var fixed = jobs.filter(function(j){ return j._isDelivery && dispatchParseClock(j.binDropoffTime)!=null; })
     .sort(function(a,b){ return dispatchParseClock(a.binDropoffTime) - dispatchParseClock(b.binDropoffTime); });
   for(var i=1;i<fixed.length;i++){
     if(fixed[i].binDropoffTime === fixed[i-1].binDropoffTime) warnings.push('Two timed drops at '+ft(fixed[i].binDropoffTime));
@@ -592,8 +594,8 @@ async function renderDispatch(){
         var warns = ord.warnings;
         var clock = startMins;
         ord.jobs.forEach(function(j){
-          if(j._isDelivery && j.binDropoffTime){
-            var ft2 = dispatchParseClock(j.binDropoffTime);
+          var ft2 = j._isDelivery ? dispatchParseClock(j.binDropoffTime) : null;
+          if(ft2 != null){
             if(clock > ft2 + 5) warns.push('May miss '+ft(j.binDropoffTime)+' drop');
             clock = Math.max(clock, ft2);
           }
@@ -716,7 +718,7 @@ function dcvJobCardHtml(j, T, p, selected){
   var isCombo = !!j._partnerId;
   var svc = j._isPickup ? 'Pickup' : 'Drop';
   var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
-  var win = (!j._isPickup && j.binDropoffTime) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
+  var win = (!j._isPickup && dispatchParseClock(j.binDropoffTime)!=null) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
   var h = '<div data-node="j:'+j.id+'" style="position:absolute;top:0;left:0;width:'+DCV_JOB_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
   h += '<div data-card style="'+outline+'background:'+T.surface+';border:1px solid '+T.border+';border-radius:12px;box-shadow:0 8px 22px rgba(0,0,0,.4);overflow:hidden;display:flex;position:relative">';
@@ -1163,7 +1165,7 @@ function dcvInspectorHtml(){
     h += '<div style="font-size:12.5px;color:#868e96;margin-bottom:16px">'+escHtml((j.address||'—')+(j.city?', '+j.city:''))+'</div>';
     h += row('Type', escHtml(svc));
     h += row('Bin size', escHtml(j.binSize||'—'));
-    h += row('Window', (!j._isPickup && j.binDropoffTime) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : 'Flexible');
+    h += row('Window', (!j._isPickup && dispatchParseClock(j.binDropoffTime)!=null) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : 'Flexible');
     h += row('Est. time', '~'+(j._estMinutes||0)+'m');
     if(partner) h += row('Paired with', escHtml(partner.name||('#'+partner.id)));
     h += row('Driver', cr ? escHtml(cr.name) : '<span style="color:#d97706">Unassigned — drag its ○ onto a crew card</span>');
@@ -1194,8 +1196,8 @@ function dcvInspectorHtml(){
     var warns = ord.warnings.slice();
     var clock = startMins;
     ord.jobs.forEach(function(x){
-      if(x._isDelivery && x.binDropoffTime){
-        var ft2 = dispatchParseClock(x.binDropoffTime);
+      var ft2 = x._isDelivery ? dispatchParseClock(x.binDropoffTime) : null;
+      if(ft2 != null){
         if(clock > ft2 + 5) warns.push('May miss '+ft(x.binDropoffTime)+' drop');
         clock = Math.max(clock, ft2);
       }

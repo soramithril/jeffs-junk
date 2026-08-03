@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '525';
+var APP_VERSION = '526';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1966,7 +1966,7 @@ function jobIdCls(id,svc){
   return 'job-id-bin';
 }
 function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[1]+'/'+p[2]+'/'+p[0]:d;}
-function ft(t){if(!t)return '';var p=t.split(':'),h=parseInt(p[0]);return (h%12||12)+':'+(p[1]||'00')+' '+(h>=12?'PM':'AM');}
+function ft(t){if(!t)return '';if(t==='anytime')return 'Anytime';var p=t.split(':'),h=parseInt(p[0]);return (h%12||12)+':'+(p[1]||'00')+' '+(h>=12?'PM':'AM');}
 function fm(v){var n=parseFloat(v);return isNaN(n)?'—':'$'+n.toFixed(2);}
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function ymdLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -3312,9 +3312,11 @@ async function renderWeekCal(){
   var hours=[];for(var h=8;h<=17;h++)hours.push(h);
 
   function evTime(ev){
-    if(ev.type==='dropoff') return ev.j.binDropoffTime||'';
-    if(ev.type==='pickup')  return ev.j.binPickupTime||'';
-    return ev.j.time||'';
+    var t;
+    if(ev.type==='dropoff') t=ev.j.binDropoffTime||'';
+    else if(ev.type==='pickup') t=ev.j.binPickupTime||'';
+    else t=ev.j.time||'';
+    return t==='anytime' ? '' : t;   // 'Anytime' jobs belong in the all-day row, not an hour slot
   }
   function chipHtml(ev){
     var j=ev.j;var cfmCls=j.confirmed?' confirmed':' unconfirmed';
@@ -5081,7 +5083,7 @@ async function renderLiveJobs(){
     if(!groups.has(key)) groups.set(key,[]);
     groups.get(key).push(l);
   });
-  function timeVal(t){ if(!t) return 24*60+1; var p=String(t).split(':'); return (+p[0])*60+(+p[1]||0); }
+  function timeVal(t){ if(!t||t==='anytime') return 24*60+1; var p=String(t).split(':'); return (+p[0])*60+(+p[1]||0); }
   groups.forEach(function(list){
     list.sort(function(a,b){
       var ta=timeVal(a.time), tb=timeVal(b.time);
@@ -8319,7 +8321,7 @@ function toggleLandscapeNoDate(){
   if(grid) grid.style.display=on?'none':'grid';
   if(on){
     var d=document.getElementById('f-junk-date');if(d)d.value='';
-    var t=document.getElementById('f-junk-time');if(t)t.value='';
+    _fillTimeField('f-junk-time','');
   }
 }
 // ── Photo upload helpers (Cloudinary) ──
@@ -8985,9 +8987,9 @@ function newJob(){
   var fedC=document.getElementById('f-est-duration');if(fedC)fedC.value='';
   var fbedC=document.getElementById('f-fb-est-duration');if(fbedC)fbedC.value='';
   document.getElementById('f-business-name').value='';
-  document.getElementById('f-fb-date').value='';document.getElementById('f-fb-time').value='';
+  document.getElementById('f-fb-date').value='';_fillTimeField('f-fb-time','');
   document.getElementById('fb-schedule-wrap').style.display='none';
-  document.getElementById('f-junk-date').value='';document.getElementById('f-junk-time').value='';
+  document.getElementById('f-junk-date').value='';_fillTimeField('f-junk-time','');
   document.getElementById('junk-schedule-wrap').style.display='none';
   var lndCbN=document.getElementById('f-landscape-nodate');if(lndCbN)lndCbN.checked=false;
   var lndWrapN=document.getElementById('landscape-nodate-wrap');if(lndWrapN)lndWrapN.style.display='none';
@@ -9020,8 +9022,8 @@ function newJob(){
   var bdEl=document.getElementById('f-bdrop');if(bdEl)bdEl.value='';
   var bpEl=document.getElementById('f-bpick');if(bpEl)bpEl.value='';
   var bdurEl=document.getElementById('f-bdur');if(bdurEl)bdurEl.value='';
-  var bdtEl=document.getElementById('f-bdrop-time');if(bdtEl)bdtEl.value='';
-  var bptEl=document.getElementById('f-bpick-time');if(bptEl)bptEl.value='';
+  _fillTimeField('f-bdrop-time','');
+  _fillTimeField('f-bpick-time','');
   var wcEl=document.getElementById('f-bwillcall');if(wcEl){wcEl.checked=false;toggleWillCallForm(false);}
   // Same stale-field trap as the dates above: this is only ever written when an
   // existing job is opened, so without clearing it a new booking is born "dropped".
@@ -9327,8 +9329,8 @@ async function openEdit(id){
     // If the saved referral doesn't match any dropdown option, add it so it's preserved
     if(refVal&&refSel.value!==refVal){var opt=document.createElement('option');opt.value=refVal;opt.textContent=refVal;refSel.appendChild(opt);refSel.value=refVal;}
     document.getElementById('f-business-name').value=j.businessName||'';
-    document.getElementById('f-fb-date').value=j.fbDate||'';document.getElementById('f-fb-time').value=j.fbTime||'';
-    document.getElementById('f-junk-date').value=j.junkDate||'';document.getElementById('f-junk-time').value=j.junkTime||'';
+    document.getElementById('f-fb-date').value=j.fbDate||'';_fillTimeField('f-fb-time',j.fbTime);
+    document.getElementById('f-junk-date').value=j.junkDate||'';_fillTimeField('f-junk-time',j.junkTime);
     var isJunkSchedEdit=j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Extra Jobs';
     document.getElementById('junk-schedule-wrap').style.display=isJunkSchedEdit?'block':'none';
     if(isJunkSchedEdit){
@@ -9400,9 +9402,9 @@ async function openEdit(id){
     if(j.service==='Bin Rental'){
       document.getElementById('f-bdur').value=j.binDuration||'';
       document.getElementById('f-bdrop').value=j.binDropoff||'';
-      document.getElementById('f-bdrop-time').value=j.binDropoffTime||'';
+      _fillTimeField('f-bdrop-time',j.binDropoffTime);
       document.getElementById('f-bpick').value=j.binPickup||'';
-      document.getElementById('f-bpick-time').value=j.binPickupTime||'';
+      _fillTimeField('f-bpick-time',j.binPickupTime);
       var wcEl2=document.getElementById('f-bwillcall');
       if(wcEl2){wcEl2.checked=!!j.binWillCall;toggleWillCallForm(!!j.binWillCall);}
       document.getElementById('f-bside').value=j.binSide||'';
@@ -9629,9 +9631,9 @@ async function saveJob(e){
     clientId:  cid || '',
     businessName: document.getElementById('f-business-name').value.trim(),
     fbDate: document.getElementById('f-fb-date').value,
-    fbTime: document.getElementById('f-fb-time').value,
+    fbTime: _timeFieldVal('f-fb-time'),
     junkDate: document.getElementById('f-junk-date').value,
-    junkTime: document.getElementById('f-junk-time').value,
+    junkTime: _timeFieldVal('f-junk-time'),
     jobName:  svc==='Extra Jobs' && document.getElementById('f-job-name') ? document.getElementById('f-job-name').value.trim() : '',
     crewSize: svc==='Extra Jobs' && document.getElementById('f-crew-size') ? document.getElementById('f-crew-size').value : '',
     tasks:    svc==='Extra Jobs' && document.getElementById('f-tasks') ? document.getElementById('f-tasks').value.trim() : '',
@@ -9677,9 +9679,9 @@ async function saveJob(e){
     job.binSize     = pickedBin ? pickedBin.size : (document.getElementById('f-bsize').value||'');
     job.binDuration = document.getElementById('f-bdur').value;
     job.binDropoff  = document.getElementById('f-bdrop').value;
-    job.binDropoffTime = document.getElementById('f-bdrop-time').value;
+    job.binDropoffTime = _timeFieldVal('f-bdrop-time');
     job.binPickup   = document.getElementById('f-bpick').value;
-    job.binPickupTime = document.getElementById('f-bpick-time').value;
+    job.binPickupTime = _timeFieldVal('f-bpick-time');
     job.binSide     = document.getElementById('f-bside').value;
     job.truckSize   = document.getElementById('f-trucksize').value;
     job.binInstatus = document.getElementById('f-binstatus').value;
@@ -11230,6 +11232,34 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 // the detail-view toggleWillCall(id,e) which patches an existing job by id).
 // Called with no arg from the button (toggles current state) OR with a boolean
 // from newJob/editJob to force a specific state.
+// ── 'Anytime' schedule time ──
+// Some jobs have no fixed clock time — the crew can go whenever (different from a
+// time nobody set yet). Stored as the literal string 'anytime' in the job's text
+// time columns; ft(), _fmtTime() and timeVal() translate it back out. The clock
+// parsers in Dispatch / the JWG feed return null for it, and their call sites
+// null-check (Dispatch's guards fixed in v526), so an Anytime job routes as
+// flexible — never as a 12:00am stop. Button id = time input id + '-any'.
+function toggleAnytime(inputId, btn){ _setAnytime(inputId, btn, !btn.classList.contains('active')); }
+function _setAnytime(inputId, btn, on){
+  var inp=document.getElementById(inputId); if(!inp||!btn) return;
+  btn.classList.toggle('active', on);
+  inp.disabled=on;
+  if(on) inp.value='';
+}
+function _timeFieldVal(inputId){
+  var btn=document.getElementById(inputId+'-any');
+  if(btn && btn.classList.contains('active')) return 'anytime';
+  var inp=document.getElementById(inputId);
+  return inp ? inp.value : '';
+}
+function _fillTimeField(inputId, val){
+  var inp=document.getElementById(inputId); if(!inp) return;
+  var btn=document.getElementById(inputId+'-any');
+  var any = val==='anytime';
+  if(btn) btn.classList.toggle('active', any);
+  inp.disabled=any;
+  inp.value=any ? '' : (val||'');
+}
 function toggleWillCallForm(forceState){
   var chk=document.getElementById('f-bwillcall');
   var btn=document.getElementById('f-bwillcall-btn');
@@ -11242,13 +11272,19 @@ function toggleWillCallForm(forceState){
     pick.value=''; pickTime.value='';
     pick.disabled=true; pickTime.disabled=true;
     pick.style.opacity='0.45'; pickTime.style.opacity='0.45';
+    // Will-call means no pickup at all yet — clear and lock the Anytime toggle too
+    var anyBtnWc=document.getElementById('f-bpick-time-any');
+    if(anyBtnWc){ anyBtnWc.classList.remove('active'); anyBtnWc.disabled=true; anyBtnWc.style.opacity='0.45'; }
     if(btn){
       btn.style.background='rgba(230,126,34,.18)';
       btn.style.borderColor='#e67e22';
       btn.innerHTML='📞 Waiting on customer call — click to turn off';
     }
   } else {
-    pick.disabled=false; pickTime.disabled=false;
+    var anyBtnWc2=document.getElementById('f-bpick-time-any');
+    if(anyBtnWc2){ anyBtnWc2.disabled=false; anyBtnWc2.style.opacity='1'; }
+    pick.disabled=false;
+    pickTime.disabled=!!(anyBtnWc2 && anyBtnWc2.classList.contains('active'));
     pick.style.opacity='1'; pickTime.style.opacity='1';
     if(btn){
       btn.style.background='';
@@ -14336,6 +14372,7 @@ function _fmtDate(d) {
 
 function _fmtTime(t) {
   if (!t) return '';
+  if (t === 'anytime') return 'Anytime';
   var parts = t.split(':');
   if (parts.length < 2) return t;
   var h = parseInt(parts[0],10);
@@ -14552,6 +14589,7 @@ async function downloadQuoteInvite(jobId){
   var d = j.junkDate || j.date;
   if (!d) { toast('Set a quote date on the job first'); return; }
   var t = j.junkTime || j.time || '09:00';
+  if (t === 'anytime') t = '09:00';   // no fixed time — calendar event defaults to 9am
   if (t.length === 5) t += ':00';
   var sd = new Date(d + 'T' + t);
   var ed = new Date(sd.getTime() + 60*60*1000);

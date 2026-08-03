@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=522">
+<link rel="stylesheet" href="style.css?v=526">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=500">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1860,10 +1860,10 @@
 
         <div class="job-form-subsection-label" style="margin-top:16px">📅 Scheduling</div>
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>Drop-off Date</label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div></div>
+          <div class="form-group"><label>Drop-off Date</label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"><button type="button" id="f-bdrop-time-any" class="anytime-btn" style="padding:8px 8px;font-size:11px" onclick="toggleAnytime('f-bdrop-time',this)">Anytime</button></div></div>
           <div class="form-group">
             <label>Pickup Date</label>
-            <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div>
+            <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"><button type="button" id="f-bpick-time-any" class="anytime-btn" style="padding:8px 8px;font-size:11px" onclick="toggleAnytime('f-bpick-time',this)">Anytime</button></div>
             <input type="checkbox" id="f-bwillcall" style="display:none">
             <button type="button" id="f-bwillcall-btn" onclick="toggleWillCallForm()" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:6px;font-size:12px;font-weight:700;color:#e67e22;border-color:rgba(230,126,34,.4);padding:7px 14px">📞 Waiting on call — no pickup date set</button>
           </div>
@@ -1908,7 +1908,7 @@
         </div>
         <div id="junk-datetime-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
-          <div class="form-group"><label id="junk-time-label">Job Time</label><input id="f-junk-time" type="time"></div>
+          <div class="form-group"><label id="junk-time-label">Job Time</label><div style="display:flex;gap:6px"><input id="f-junk-time" type="time" style="flex:1"><button type="button" id="f-junk-time-any" class="anytime-btn" onclick="toggleAnytime('f-junk-time',this)">🕐 Anytime</button></div></div>
         </div>
         <div id="quote-amount-wrap" style="display:none;margin-top:10px">
           <div class="form-group"><label>💰 Quoted Amount</label><input id="f-quote-amount" type="number" step="0.01" min="0" placeholder="0.00"></div>
@@ -1954,7 +1954,7 @@
         <div class="job-form-subsection-label"><span style="font-size:14px">🛋️</span> <span id="fb-schedule-label">Delivery Schedule</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="form-group"><label id="fb-date-label">Delivery Date</label><input id="f-fb-date" type="date"></div>
-          <div class="form-group"><label id="fb-time-label">Delivery Time</label><input id="f-fb-time" type="time"></div>
+          <div class="form-group"><label id="fb-time-label">Delivery Time</label><div style="display:flex;gap:6px"><input id="f-fb-time" type="time" style="flex:1"><button type="button" id="f-fb-time-any" class="anytime-btn" onclick="toggleAnytime('f-fb-time',this)">🕐 Anytime</button></div></div>
         </div>
         <div id="fb-duration-wrap" style="margin-top:10px">
           <div class="form-group"><label>⏱️ Estimated Duration</label>
@@ -2719,7 +2719,7 @@
 </div>
 <script src="app-documents.js?v=388"></script>
 <script src="app-drdcalc.js?v=469"></script>
-<script src="app-dispatch.js?v=469"></script>
+<script src="app-dispatch.js?v=526"></script>
 <script src="app-leaderboard.js?v=469"></script>
 <script src="app-analytics.js?v=523"></script>
 <script src="app-utilization.js?v=522"></script>
@@ -2728,7 +2728,7 @@
 <script src="app-bookings.js?v=485"></script>
 <script src="jwg-icons.js?v=465"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=525"></script>
+<script src="app.js?v=526"></script>
 <script src="app-jwg-scheduler.js?v=500"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=445"></script>

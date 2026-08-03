@@ -2970,3 +2970,8 @@ body.signed-in .help-fab{display:flex;}
 @media (max-width:600px){
   .ana-toolbar-hint{display:none;}
 }
+
+/* 'Anytime' toggle beside schedule time inputs (v526) */
+.anytime-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.anytime-btn.active{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.45);color:var(--accent)}
+.anytime-btn:disabled{cursor:not-allowed}

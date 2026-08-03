@@ -108,6 +108,7 @@ a:hover{color:#15803d}
   // Turn a stored "14:30" / "2:30 PM" style time into a short label; blank stays blank.
   function prettyTime(t){
     if(!t) return '';
+    if(String(t)==='anytime') return 'Anytime';
     var m = String(t).match(/^(\d{1,2}):(\d{2})/);
     if(!m) return String(t);
     var h=parseInt(m[1],10), mn=m[2], ap=h>=12?'PM':'AM'; h=h%12||12;

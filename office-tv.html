@@ -493,6 +493,7 @@
     }
     function fmt12(t){                                    // "7:00" -> "7a", "19:00" -> "7p"
       if(!t) return '';
+      if(String(t)==='anytime') return 'Anytime';
       var p = String(t).split(':'); var h = parseInt(p[0],10); if(isNaN(h)) return t;
       var ap = h>=12 ? 'p':'a'; var hh = h%12; if(hh===0) hh=12;
       var m = p[1] && p[1]!=='00' ? ':'+p[1] : '';
@@ -500,6 +501,7 @@
     }
     function fmt12ap(t){                                  // "7:00" -> "7am", "16:00" -> "4pm"
       if(!t) return '';
+      if(String(t)==='anytime') return 'Anytime';
       var p = String(t).split(':'); var h = parseInt(p[0],10); if(isNaN(h)) return t;
       var ap = h>=12 ? 'pm':'am'; var hh = h%12; if(hh===0) hh=12;
       var m = p[1] && p[1]!=='00' ? ':'+p[1] : '';
@@ -580,7 +582,7 @@
       if(s==='Junk Removal'||s==='Junk Quote'||s==='Extra Jobs') return j.junk_time || j.time || '';
       return j.time || j.junk_time || j.fb_time || '';
     }
-    function timeMins(t){ if(!t) return 99999; var p=String(t).split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); }
+    function timeMins(t){ if(!t||t==='anytime') return 99999; var p=String(t).split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); }
     // the day a job actually happens on (junk/landscaping reschedule via junk_date, furniture via fb_date)
     function effDay(j){
       var s=j.service;
