@@ -13,16 +13,22 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Model ids retire over time — and being listed by the API does NOT mean a new
+// key may call it (gemini-2.5-flash lists fine but 404s for new keys). When a
+// mode starts returning gemini_404, call mode 'models' to see what this key can
+// actually use, then update this map. That is the whole fix.
 const MODELS: Record<string, string> = {
-  analysis: 'gemini-2.5-flash',
-  digest: 'gemini-2.5-flash',
-  question: 'gemini-2.5-flash',
-  winback: 'gemini-2.5-flash-lite',
-  search: 'gemini-2.5-flash-lite',
+  analysis: 'gemini-3.5-flash',
+  digest: 'gemini-3.5-flash',
+  question: 'gemini-3.5-flash',
+  winback: 'gemini-3.5-flash-lite',
+  search: 'gemini-3.5-flash-lite',
 };
 
+// Gemini 3.x thinking is billed against this same ceiling, so these are sized
+// well above the visible answer or the reply gets starved and truncated.
 const MAX_TOKENS: Record<string, number> = {
-  analysis: 2500, digest: 600, question: 1200, winback: 900, search: 400,
+  analysis: 8000, digest: 3000, question: 5000, winback: 4000, search: 2000,
 };
 
 const BUSINESS = "Jeff's Junk is a junk removal and dumpster bin rental company serving Barrie, Innisfil and nearby towns in Ontario, Canada. Services: Bin Rental (4/7/14/20 yard bins), Junk Removal, Junk Quote (an estimate visit), Furniture Delivery and Furniture Pickup (charity furniture bank runs), and Extra Jobs (odd labour jobs). The reader is the owner and office staff — plain language, no jargon, no hedging boilerplate.";
@@ -95,6 +101,24 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const mode = String(body.mode ?? '');
+
+    // Diagnostic: ask Google which models THIS key may call. Model names change
+    // over time and get retired for new keys — this is how we pick correct ids
+    // without guessing. Returns names only; never the key.
+    if (mode === 'models') {
+      const listResp = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + key);
+      if (!listResp.ok) {
+        const t = await listResp.text();
+        return json({ error: 'list_' + listResp.status, detail: t.replace(/key=[\w-]+/g, 'key=***').slice(0, 400) }, 502);
+      }
+      const listed = await listResp.json();
+      const usable = (listed.models || [])
+        .filter((m: Record<string, unknown>) =>
+          ((m.supportedGenerationMethods as string[]) || []).indexOf('generateContent') > -1)
+        .map((m: Record<string, unknown>) => String(m.name).replace('models/', ''));
+      return json({ models: usable });
+    }
+
     if (!MODELS[mode]) return json({ error: 'bad_mode' }, 400);
 
     const generationConfig: Record<string, unknown> = {
@@ -126,8 +150,18 @@ serve(async (req) => {
     }
 
     const dataResp = await resp.json();
-    const text = dataResp?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    if (!text) return json({ error: 'empty_response', detail: JSON.stringify(dataResp).slice(0, 300) }, 502);
+    if (body.debug) return json({ raw: dataResp });
+    // Gemini 3.x returns thinking alongside the answer: content.parts can hold
+    // thought parts (thought:true) before the real text, and the answer itself
+    // can span several parts. Take every non-thought part, in order.
+    const parts = (dataResp?.candidates?.[0]?.content?.parts ?? []) as Array<Record<string, unknown>>;
+    const text = parts
+      .filter((p) => p.thought !== true && typeof p.text === 'string')
+      .map((p) => p.text as string)
+      .join('');
+    const finish = dataResp?.candidates?.[0]?.finishReason ?? '';
+    if (!text) return json({ error: 'empty_response', detail: 'finishReason=' + finish + ' parts=' + parts.length }, 502);
+    if (finish === 'MAX_TOKENS') return json({ error: 'truncated', detail: 'The answer hit the token ceiling.' }, 502);
 
     if (mode === 'search' || mode === 'winback') {
       try { return json({ result: JSON.parse(text) }); }
