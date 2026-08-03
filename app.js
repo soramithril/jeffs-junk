@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '528';
+var APP_VERSION = '529';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1580,6 +1580,117 @@ function doJobSearch(q) {
   searchF = q;
   jobsPage = 0;
   loadJobsPage(0);
+}
+
+// ═══ AI (Gemini) shared helpers ═══
+// All AI calls go through the ai-advisor edge function, which holds the Google
+// key server-side and only answers signed-in employees. Until the GEMINI_API_KEY
+// secret is set in Supabase, calls return not_configured and the UI shows setup steps.
+async function _aiCall(mode, payload){
+  var sess = await db.auth.getSession();
+  var token = sess && sess.data && sess.data.session && sess.data.session.access_token;
+  if(!token) throw new Error('Not signed in');
+  payload = payload || {};
+  payload.mode = mode;
+  payload.today = todayStr();
+  var r = await fetch(SUPABASE_URL + '/functions/v1/ai-advisor', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
+    body: JSON.stringify(payload)
+  });
+  var j = await r.json().catch(function(){ return {error: 'bad_response'}; });
+  if(j.error === 'not_configured'){ var e = new Error('not_configured'); e.notConfigured = true; throw e; }
+  if(!r.ok || j.error) throw new Error(j.error ? (j.error + (j.detail ? ' — ' + j.detail : '')) : ('HTTP ' + r.status));
+  return j;
+}
+// Shown wherever an AI feature is used before the Google key exists.
+function _aiSetupHtml(){
+  return '<div class="ai-setup"><b>🔌 AI not connected yet.</b> It needs a free Google AI key — a one-time, ~5 minute setup:'
+    + '<ol style="margin:8px 0 8px 20px;padding:0;line-height:1.7">'
+    + '<li>Go to <b>aistudio.google.com</b>, sign in with a Google account, click <b>Get API key</b>, and create a key.</li>'
+    + '<li>Open the <b>Supabase dashboard</b> → project <b>jeffs-junk</b> → <b>Edge Functions</b> → <b>Secrets</b>.</li>'
+    + '<li>Add a secret named <b>GEMINI_API_KEY</b>, paste the key as the value, and save.</li>'
+    + '</ol>Then press the button again — nothing else to set up.</div>';
+}
+// Render the AI's markdown-ish text safely: escape everything first, then apply
+// the few patterns the prompts allow (## headings, **bold**, "- " bullets).
+function _aiMd(t){
+  var esc = escHtml(String(t || ''));
+  var lines = esc.split(/\r?\n/), out = [], inList = false;
+  for(var i = 0; i < lines.length; i++){
+    var L = lines[i];
+    if(/^\s*[-*] /.test(L)){
+      if(!inList){ out.push('<ul style="margin:6px 0 10px 20px;padding:0">'); inList = true; }
+      out.push('<li>' + L.replace(/^\s*[-*] /, '') + '</li>');
+      continue;
+    }
+    if(inList){ out.push('</ul>'); inList = false; }
+    if(/^##+ /.test(L)){ out.push('<div class="ai-h">' + L.replace(/^##+ /, '') + '</div>'); continue; }
+    if(L.trim() === ''){ out.push('<div style="height:8px"></div>'); continue; }
+    out.push('<p style="margin:4px 0">' + L + '</p>');
+  }
+  if(inList) out.push('</ul>');
+  return out.join('').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+}
+
+// ═══ AI job search ═══
+// The AI only reads the typed question and turns it into search filters; the
+// actual searching runs here against Supabase, so job and customer records
+// never leave the database.
+async function aiJobSearch(){
+  var inp = document.getElementById('ai-search-q');
+  var q = (inp && inp.value || '').trim();
+  if(!q){ toast('Type a question first — e.g. "bin rentals in Innisfil last month"'); return; }
+  var body = document.getElementById('ai-search-body');
+  openM('ai-search-modal');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">🤖 Working out what to search…</div>';
+  var plan;
+  try {
+    var resp = await _aiCall('search', {question: q});
+    plan = resp.result || {};
+  } catch(e){
+    body.innerHTML = e.notConfigured ? _aiSetupHtml() : '<div style="padding:20px;color:#dc3545">⚠ ' + escHtml(e.message) + '</div>';
+    return;
+  }
+  var query = db.from('jobs').select(JOB_LIST_COLS).order('date', {ascending: false}).limit(50);
+  if(plan.service) query = query.eq('service', plan.service);
+  if(plan.name) query = query.ilike('name', '%' + plan.name + '%');
+  if(plan.city) query = query.ilike('city', '%' + plan.city + '%');
+  if(plan.address) query = query.ilike('address', '%' + plan.address + '%');
+  if(plan.item) query = query.ilike('items', '%' + plan.item + '%');
+  if(plan.status === 'Cancelled' || plan.status === 'Postponed') query = query.eq('status', plan.status);
+  else if(plan.status === 'Completed') query = query.eq('completed', true);
+  else if(plan.status === 'active') query = query.neq('status', 'Cancelled').neq('status', 'Postponed').eq('completed', false);
+  // Dates: a job matches if ANY of its dates falls in the range — same rule as the
+  // jobs page date filter. Only ISO dates from the plan are trusted into the query.
+  var dOk = /^\d{4}-\d{2}-\d{2}$/;
+  if(dOk.test(plan.date_from || '') && dOk.test(plan.date_to || '')){
+    query = query.or(['date', 'junk_date', 'fb_date', 'bin_dropoff', 'bin_pickup'].map(function(c){
+      return 'and(' + c + '.gte.' + plan.date_from + ',' + c + '.lte.' + plan.date_to + ')';
+    }).join(','));
+  }
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">🔍 Searching…</div>';
+  var res = await query;
+  if(res.error){ body.innerHTML = '<div style="padding:20px;color:#dc3545">⚠ Search failed: ' + escHtml(res.error.message) + '</div>'; return; }
+  var rows = (res.data || []).map(dbToJob);
+  var chips = '<div style="margin-bottom:12px"><span class="ai-chip">🤖 ' + escHtml(plan.summary || q) + '</span></div>';
+  if(!rows.length){
+    body.innerHTML = chips + '<div style="padding:20px;color:var(--muted)">No jobs matched. Try rewording — include the town, the item, or a date range.</div>';
+    return;
+  }
+  body.innerHTML = chips + rows.map(function(j){
+    var d = jobSchedDate(j) || j.date || '';
+    var itemsLine = (j.items && j.items.charAt(0) !== '{') ? String(j.items).split(/\r?\n/).join(', ').slice(0, 120) : '';
+    return '<div class="ai-row" onclick="closeM(\'ai-search-modal\');openDetail(\'' + j.id + '\')">'
+      + '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      + jid(j.id, j.service) + sb(j.service)
+      + '<b>' + escHtml(j.name || '—') + '</b>'
+      + '<span style="color:var(--muted);font-size:13px">' + (d ? fd(d) : 'no date') + (j.city ? ' · ' + escHtml(j.city) : '') + '</span>'
+      + (j.status === 'Cancelled' ? '<span style="color:#dc3545;font-size:12px;font-weight:700">Cancelled</span>' : '')
+      + '</div>'
+      + (itemsLine ? '<div style="font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(itemsLine) + '</div>' : '')
+      + '</div>';
+  }).join('') + (rows.length === 50 ? '<div style="text-align:center;padding:10px;color:var(--muted);font-size:12px">Showing first 50 matches</div>' : '');
 }
 
 // ── Load jobs when switching to jobs view ──────────────────

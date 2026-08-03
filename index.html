@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=526">
+<link rel="stylesheet" href="style.css?v=529">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=500">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -485,6 +485,12 @@
 
     <!-- 1. Search leads -->
     <input class="search-input search-icon" type="text" placeholder="Search name, phone, address, city, or job #…" oninput="doJobSearch(this.value)" style="width:100%;max-width:100%;height:46px;font-size:14.5px;margin:0 0 12px;border-radius:11px">
+
+    <!-- AI search: the AI turns the question into filters; the search itself runs against Supabase locally -->
+    <div style="display:flex;gap:8px;margin:0 0 12px">
+      <input id="ai-search-q" type="text" placeholder='✨ Ask the AI — e.g. "junk removals with a couch in Innisfil last summer"' style="flex:1;height:42px;font-size:14px;padding:0 14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')aiJobSearch()">
+      <button class="btn btn-blue-solid" onclick="aiJobSearch()" style="white-space:nowrap">✨ AI Search</button>
+    </div>
 
     <!-- 2. Show (status) + Sort + Filters -->
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1106,6 +1112,7 @@
     </div>
   </div>
   <div id="advisor-results" style="display:none;">
+    <div id="advisor-ai"></div>
     <div id="advisor-snapshot" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;padding:14px 16px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);"></div>
     <div id="advisor-filter" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
     <div id="advisor-cards" style="display:flex;flex-direction:column;gap:14px;"></div>
@@ -2725,13 +2732,24 @@
 <script src="app-dispatch.js?v=526"></script>
 <script src="app-leaderboard.js?v=469"></script>
 <script src="app-analytics.js?v=523"></script>
+<!-- AI job search results -->
+<div id="ai-search-modal" class="modal-overlay">
+  <div class="modal" style="max-width:760px;width:94vw;max-height:82vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0">✨ AI Job Search</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('ai-search-modal')">✕ Close</button>
+    </div>
+    <div id="ai-search-body" style="overflow-y:auto"></div>
+  </div>
+</div>
+
 <script src="app-utilization.js?v=522"></script>
-<script src="app-advisor.js?v=197"></script>
+<script src="app-advisor.js?v=529"></script>
 <script src="app-damage.js?v=469"></script>
 <script src="app-bookings.js?v=485"></script>
 <script src="jwg-icons.js?v=465"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=528"></script>
+<script src="app.js?v=529"></script>
 <script src="app-jwg-scheduler.js?v=500"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=445"></script>

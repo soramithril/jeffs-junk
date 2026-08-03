@@ -32,6 +32,7 @@ async function runAdvisor(){
     var rpcRes = await db.rpc('get_advisor_data');
     if(rpcRes.error) throw new Error('DB error: '+rpcRes.error.message);
     var d = rpcRes.data;
+    _advisorAiCapture(d);
 
     advisorProgress(60,'Crunching numbers...');
 
@@ -615,4 +616,88 @@ function advisorApplyFilterCap(){
 }
 function advisorSetFilter(f){ _advisorFilter=f; _advisorShowAll=false; advisorApplyFilterCap(); }
 function advisorShowAllRecs(){ _advisorShowAll=true; advisorApplyFilterCap(); }
+
+// ═══ AI (Gemini) analyst layer ═══
+// Real AI on top of the rule cards below it — served by the ai-advisor edge
+// function (see supabase/functions/ai-advisor). Only AGGREGATE numbers are sent;
+// customer names never leave the dashboard (win-back rows go out as row numbers
+// and counts, and get their names back client-side).
+var _advisorAiData=null, _advisorLapsed=[];
+function _advisorAiCapture(d){
+  _advisorLapsed = d.lapsed_customers || [];
+  _advisorAiData = {
+    monthly:d.monthly, yoy:d.yoy, quarterly:d.quarterly, cities:d.cities, city_growth:d.city_growth,
+    bin_demand:d.bin_demand, bin_duration:d.bin_duration, fleet:d.fleet, bin_swaps:d.bin_swaps,
+    overdue_bins:d.overdue_bins, repeat:d.repeat, total_jobs:d.total_jobs, yoy_growth:d.yoy_growth,
+    this_month:d.this_month, cancellations:d.cancellations, confirmation:d.confirmation,
+    new_customers_monthly:d.new_customers_monthly, service_mix:d.service_mix,
+    quote_conversion:d.quote_conversion, day_of_week:d.day_of_week, lead_time:d.lead_time,
+    peak_days:d.peak_days, commercial:d.commercial,
+    lapsed_repeat_customer_count:_advisorLapsed.length
+  };
+  renderAdvisorAi();
+}
+function renderAdvisorAi(){
+  var el=document.getElementById('advisor-ai'); if(!el) return;
+  el.innerHTML='<div class="ai-panel">'
+    +'<div class="ai-panel-title">🤖 AI Analyst <span>— reads every number on this page and tells you what they mean together</span></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<button class="btn btn-primary btn-sm" onclick="aiAnalysis()">📊 Full Analysis</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="aiDigest()">⚡ Quick Digest</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="aiWinback()">📞 Rank Win-back Calls</button>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:4px">'
+    +'<input id="ai-ask-q" type="text" placeholder=\'Ask anything — e.g. "why was July slower than last July?"\' style="flex:1;height:40px;font-size:13.5px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text)" onkeydown="if(event.key===\'Enter\')aiAsk()">'
+    +'<button class="btn btn-blue-solid btn-sm" onclick="aiAsk()">Ask</button>'
+    +'</div>'
+    +'<div id="ai-out" style="display:none;margin-top:10px"></div>'
+    +'</div>';
+}
+async function _aiRun(label, fn){
+  var out=document.getElementById('ai-out'); if(!out) return;
+  out.style.display='block';
+  out.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">🤖 '+label+'…</div>';
+  try{ await fn(out); }
+  catch(e){ out.innerHTML = e.notConfigured ? _aiSetupHtml() : '<div style="padding:14px;color:#dc3545">⚠ '+escHtml(e.message)+'</div>'; }
+}
+function aiAnalysis(){ _aiRun('Reading the numbers', async function(out){
+  var r=await _aiCall('analysis',{data:_advisorAiData});
+  out.innerHTML='<div class="ai-report">'+_aiMd(r.text)+'</div>';
+});}
+function aiDigest(){ _aiRun('Writing the digest', async function(out){
+  var r=await _aiCall('digest',{data:_advisorAiData});
+  out.innerHTML='<div class="ai-report">'+_aiMd(r.text)+'</div>';
+});}
+function aiAsk(){
+  var q=((document.getElementById('ai-ask-q')||{}).value||'').trim();
+  if(!q){ toast('Type a question first'); return; }
+  _aiRun('Working it out', async function(out){
+    var r=await _aiCall('question',{data:_advisorAiData,question:q});
+    out.innerHTML='<div class="ai-report"><div style="font-size:12px;color:var(--muted);margin-bottom:6px">Q: '+escHtml(q)+'</div>'+_aiMd(r.text)+'</div>';
+  });
+}
+function aiWinback(){ _aiRun('Ranking win-back calls', async function(out){
+  if(!_advisorLapsed.length){
+    out.innerHTML='<div style="padding:14px;color:var(--muted)">No lapsed repeat customers in the data right now. 🎉</div>';
+    return;
+  }
+  // Names stay here — the AI only sees row numbers and counts.
+  var anon=_advisorLapsed.slice(0,40).map(function(c,i){
+    return {n:i, jobs:c.total_jobs, monthsSince:Math.round((c.days_since||0)/30),
+            avgGapMonths:(c.avg_gap_days?Math.round(c.avg_gap_days/30):null)};
+  });
+  var r=await _aiCall('winback',{customers:anon});
+  var ranked=(r.result||[]).filter(function(x){return _advisorLapsed[x.n];});
+  if(!ranked.length){
+    out.innerHTML='<div style="padding:14px;color:var(--muted)">The AI could not rank the list — try again.</div>';
+    return;
+  }
+  out.innerHTML='<div class="ai-report"><div class="ai-h">Best win-back calls first</div>'
+    +ranked.map(function(x,idx){
+      var c=_advisorLapsed[x.n];
+      return '<div class="ai-row" style="cursor:default"><b>'+(idx+1)+'. '+escHtml(c.name)+'</b>'
+        +' <span style="color:var(--muted);font-size:12px">('+c.total_jobs+' jobs, last ~'+Math.round((c.days_since||0)/30)+' months ago)</span>'
+        +'<div style="font-size:13px;margin-top:2px">'+escHtml(x.reason)+'</div></div>';
+    }).join('')+'</div>';
+});}
 
