@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '526';
+var APP_VERSION = '527';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8252,6 +8252,11 @@ function toggleBin(){
   if(junkRecEl)junkRecEl.style.display=isJunk?'block':'none';
   var tnw=document.getElementById('tools-needed-wrap');if(tnw)tnw.style.display=(isJunk||svc==='Extra Jobs')?'block':'none';
   _placeScopeField(svc);
+  // Anytime is a Junk Removal-only designation (Jake 2026-08-02): rare and specific —
+  // "we told them we can come whenever" — NOT a substitute for leaving the time blank.
+  // The button hides (and clears) for every other service sharing this time input.
+  var jtAny=document.getElementById('f-junk-time-any');
+  if(jtAny){ var showAnytime=(svc==='Junk Removal'); jtAny.style.display=showAnytime?'':'none'; if(!showAnytime) _setAnytime('f-junk-time',jtAny,false); }
   // Show junk schedule section for Junk Quote, Junk Removal, and Landscaping (Landscaping reuses junk_date)
   var junkSchedWrap=document.getElementById('junk-schedule-wrap');
   if(junkSchedWrap){
@@ -11232,9 +11237,10 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 // the detail-view toggleWillCall(id,e) which patches an existing job by id).
 // Called with no arg from the button (toggles current state) OR with a boolean
 // from newJob/editJob to force a specific state.
-// ── 'Anytime' schedule time ──
-// Some jobs have no fixed clock time — the crew can go whenever (different from a
-// time nobody set yet). Stored as the literal string 'anytime' in the job's text
+// ── 'Anytime' schedule time (Junk Removal only) ──
+// A rare, specific promise — "we told the customer we can come whenever" — NOT the
+// same as leaving the time blank (most jobs simply have no set time). The button is
+// offered only for Junk Removal (toggleBin gates it). Stored as 'anytime' in the text
 // time columns; ft(), _fmtTime() and timeVal() translate it back out. The clock
 // parsers in Dispatch / the JWG feed return null for it, and their call sites
 // null-check (Dispatch's guards fixed in v526), so an Anytime job routes as
@@ -11255,10 +11261,12 @@ function _timeFieldVal(inputId){
 function _fillTimeField(inputId, val){
   var inp=document.getElementById(inputId); if(!inp) return;
   var btn=document.getElementById(inputId+'-any');
-  var any = val==='anytime';
+  // 'anytime' only counts where the button is offered for this service — anywhere
+  // else a legacy 'anytime' value degrades to a blank time instead of a stuck toggle.
+  var any = val==='anytime' && !!btn && btn.style.display!=='none';
   if(btn) btn.classList.toggle('active', any);
   inp.disabled=any;
-  inp.value=any ? '' : (val||'');
+  inp.value=any ? '' : (val==='anytime' ? '' : (val||''));
 }
 function toggleWillCallForm(forceState){
   var chk=document.getElementById('f-bwillcall');
@@ -11272,19 +11280,13 @@ function toggleWillCallForm(forceState){
     pick.value=''; pickTime.value='';
     pick.disabled=true; pickTime.disabled=true;
     pick.style.opacity='0.45'; pickTime.style.opacity='0.45';
-    // Will-call means no pickup at all yet — clear and lock the Anytime toggle too
-    var anyBtnWc=document.getElementById('f-bpick-time-any');
-    if(anyBtnWc){ anyBtnWc.classList.remove('active'); anyBtnWc.disabled=true; anyBtnWc.style.opacity='0.45'; }
     if(btn){
       btn.style.background='rgba(230,126,34,.18)';
       btn.style.borderColor='#e67e22';
       btn.innerHTML='📞 Waiting on customer call — click to turn off';
     }
   } else {
-    var anyBtnWc2=document.getElementById('f-bpick-time-any');
-    if(anyBtnWc2){ anyBtnWc2.disabled=false; anyBtnWc2.style.opacity='1'; }
-    pick.disabled=false;
-    pickTime.disabled=!!(anyBtnWc2 && anyBtnWc2.classList.contains('active'));
+    pick.disabled=false; pickTime.disabled=false;
     pick.style.opacity='1'; pickTime.style.opacity='1';
     if(btn){
       btn.style.background='';
