@@ -10129,8 +10129,8 @@ async function openDetail(id, returnCid){
     +bin
     +_renderJobPhotosDetail(j)
     +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
-    +(j.notes?'<div class="detail-section"><div class="detail-section-title">'+(j.service==='Extra Jobs'?'📋 Job Details / Scope':'📝 Notes')+'</div><p style="font-size:14px;line-height:1.6">'+j.notes+'</p></div>':'')
-    +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+j.internalNotes+'</p></div>':'')
+    +(j.notes?'<div class="detail-section"><div class="detail-section-title">'+(j.service==='Extra Jobs'?'📋 Job Details / Scope':'📝 Notes')+'</div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+escHtml(j.notes)+'</p></div>':'')
+    +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+escHtml(j.internalNotes)+'</p></div>':'')
     +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:#e67e22">'+j.toolsNeeded+'</p></div>':'')
     +(j.service==='Furniture Pickup'?'<div id="drd-detail-section"></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
