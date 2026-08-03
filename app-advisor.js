@@ -16,7 +16,7 @@ function advisorShowState(state){
     if(el) el.style.display=(s===state)?'block':'none';
   });
   var rb=document.getElementById('advisor-run-btn');
-  if(rb) rb.innerHTML=(state==='results')?'&#128260; Refresh':'&#9654; Run Analysis';
+  if(rb) rb.textContent=(state==='results')?'Refresh':'Run Analysis';
 }
 function advisorProgress(pct,msg){
   var bar=document.getElementById('advisor-progress-bar');
@@ -538,41 +538,26 @@ async function runAdvisor(){
         {label:'14yd Demand',val:demand14pct+'%'}
       ];
       snap.innerHTML = snapItems.map(function(s){
-        return '<div style="flex:1;min-width:110px;text-align:center;">'
-          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text);">'+s.val+'</div>'
-          +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">'+s.label+'</div>'
-          +'</div>';
+        return '<div class="adv-metric"><div class="adv-metric-v">'+s.val+'</div>'
+          +'<div class="adv-metric-l">'+s.label+'</div></div>';
       }).join('');
     }
 
     // Recommendation cards
     var cards = document.getElementById('advisor-cards');
     if(cards){
-      var statusColors = {urgent:'#dc3545',opportunity:'#e67e22',positive:'#22c55e'};
-      var priorityBg = {HIGH:'rgba(220,53,69,.06)',MEDIUM:'rgba(230,126,34,.05)',LOW:'rgba(34,197,94,.05)'};
-      var priorityBorder = {HIGH:'rgba(220,53,69,.22)',MEDIUM:'rgba(230,126,34,.18)',LOW:'rgba(34,197,94,.14)'};
-      var catIcons = {FLEET:'🚛',MARKETING:'📣',SEASONAL:'📅','CITY TARGETING':'📍','SERVICE MIX':'⚖️','CUSTOMER RETENTION':'🔁',OPERATIONS:'⚙️',SALES:'💰',CAPACITY:'📊',STRATEGY:'🧭',EXPANSION:'🗺️',SCHEDULING:'📆'};
+      // Status rides on the card's left rule (CSS, by data-status) and the
+      // priority tag colour — no icons, no background washes.
+      var tagColors = {HIGH:'var(--red)',MEDIUM:'var(--accent-warm)',LOW:'var(--accent)'};
       cards.innerHTML = recs.map(function(r,_ci){
-        var col = statusColors[r.status]||'#22c55e';
-        var bg = priorityBg[r.priority]||'var(--surface)';
-        var bord = priorityBorder[r.priority]||'var(--border)';
-        var icon = catIcons[r.category]||'💡';
-        return '<div class="adv-card" data-status="'+r.status+'" data-idx="'+_ci+'" style="background:'+bg+';border:1px solid '+bord+';border-left:4px solid '+col+';border-radius:12px;padding:18px 20px;">'
-          +'<div style="display:flex;align-items:flex-start;gap:12px;">'
-          +'<div style="font-size:24px;flex-shrink:0;margin-top:2px;">'+icon+'</div>'
-          +'<div style="flex:1;">'
-          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'
-          +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:1px;color:var(--text);">'+r.title+'</span>'
-          +'<span style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:'+col+';background:'+col+'22;padding:2px 8px;border-radius:10px;">'+r.priority+'</span>'
-          +'<span style="font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;">'+r.category+'</span>'
+        return '<div class="adv-card" data-status="'+r.status+'" data-idx="'+_ci+'">'
+          +'<div class="adv-card-top">'
+          +'<span class="adv-card-t">'+r.title+'</span>'
+          +'<span class="adv-tag" style="color:'+(tagColors[r.priority]||'var(--accent)')+'">'+r.priority+'</span>'
+          +'<span class="adv-cat">'+r.category+'</span>'
           +'</div>'
-          +'<p style="font-size:13px;color:var(--text);line-height:1.6;margin:0 0 10px;">'+r.detail+'</p>'
-          +'<div style="display:flex;align-items:flex-start;gap:8px;background:rgba(0,0,0,.04);border-radius:8px;padding:10px 12px;">'
-          +'<span style="font-size:13px;flex-shrink:0;">&#8594;</span>'
-          +'<span style="font-size:12px;color:var(--muted);line-height:1.5;"><strong style="color:var(--text);">Next step:</strong> '+r.action+'</span>'
-          +'</div>'
-          +'</div>'
-          +'</div>'
+          +'<p>'+r.detail+'</p>'
+          +'<div class="adv-next"><b>Next step</b>'+r.action+'</div>'
           +'</div>';
       }).join('');
     }
@@ -596,12 +581,11 @@ function advisorApplyFilterCap(){
   var recs=_advisorRecs||[];
   var counts={all:recs.length,urgent:0,opportunity:0,positive:0};
   recs.forEach(function(r){counts[r.status]=(counts[r.status]||0)+1;});
-  var chipDefs=[{k:'all',label:'All'},{k:'urgent',label:'Urgent',color:'#dc3545'},{k:'opportunity',label:'Opportunities',color:'#e67e22'},{k:'positive',label:'Good news',color:'#22c55e'}];
+  var chipDefs=[{k:'all',label:'All'},{k:'urgent',label:'Urgent'},{k:'opportunity',label:'Opportunities'},{k:'positive',label:'Good news'}];
   var fbar=document.getElementById('advisor-filter');
   if(fbar){
     fbar.innerHTML=chipDefs.map(function(c){
-      var on=_advisorFilter===c.k; var col=c.color||'#1a1a2e';
-      return '<button onclick="advisorSetFilter(\''+c.k+'\')" style="border:1px solid '+(on?col:'var(--border)')+';background:'+(on?col:'var(--surface)')+';color:'+(on?'#fff':'var(--muted)')+';padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">'+c.label+' ('+(counts[c.k]||0)+')</button>';
+      return '<button class="adv-chip'+(_advisorFilter===c.k?' on':'')+'" onclick="advisorSetFilter(\''+c.k+'\')">'+c.label+' '+(counts[c.k]||0)+'</button>';
     }).join('');
   }
   var cap=8, shownCount=0, matchCount=0;
@@ -640,25 +624,26 @@ function _advisorAiCapture(d){
 function renderAdvisorAi(){
   var el=document.getElementById('advisor-ai'); if(!el) return;
   el.innerHTML='<div class="ai-panel">'
-    +'<div class="ai-panel-title">🤖 AI Analyst <span>— reads every number on this page and tells you what they mean together</span></div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
-    +'<button class="btn btn-primary btn-sm" onclick="aiAnalysis()">📊 Full Analysis</button>'
-    +'<button class="btn btn-ghost btn-sm" onclick="aiDigest()">⚡ Quick Digest</button>'
-    +'<button class="btn btn-ghost btn-sm" onclick="aiWinback()">📞 Rank Win-back Calls</button>'
+    +'<div class="ai-panel-title">AI ANALYST</div>'
+    +'<div class="ai-panel-sub">Reads every number on this page and tells you what they mean together.</div>'
+    +'<div class="ai-actions">'
+    +'<button class="ai-btn lead" onclick="aiAnalysis()">Full Analysis</button>'
+    +'<button class="ai-btn" onclick="aiDigest()">Quick Digest</button>'
+    +'<button class="ai-btn" onclick="aiWinback()">Rank Win-back Calls</button>'
     +'</div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:4px">'
-    +'<input id="ai-ask-q" type="text" placeholder=\'Ask anything — e.g. "why was July slower than last July?"\' style="flex:1;height:40px;font-size:13.5px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text)" onkeydown="if(event.key===\'Enter\')aiAsk()">'
-    +'<button class="btn btn-blue-solid btn-sm" onclick="aiAsk()">Ask</button>'
+    +'<div class="ai-ask">'
+    +'<input id="ai-ask-q" type="text" placeholder=\'Ask anything — e.g. "why was July slower than last July?"\' onkeydown="if(event.key===\'Enter\')aiAsk()">'
+    +'<button class="ai-btn" onclick="aiAsk()">Ask</button>'
     +'</div>'
-    +'<div id="ai-out" style="display:none;margin-top:10px"></div>'
+    +'<div id="ai-out" style="display:none;margin-top:14px"></div>'
     +'</div>';
 }
 async function _aiRun(label, fn){
   var out=document.getElementById('ai-out'); if(!out) return;
   out.style.display='block';
-  out.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">🤖 '+label+'…</div>';
+  out.innerHTML='<div class="ai-wait">'+label+'…</div>';
   try{ await fn(out); }
-  catch(e){ out.innerHTML = e.notConfigured ? _aiSetupHtml() : '<div style="padding:14px;color:#dc3545">⚠ '+escHtml(e.message)+'</div>'; }
+  catch(e){ out.innerHTML = e.notConfigured ? _aiSetupHtml() : '<div class="ai-err">'+escHtml(e.message)+'</div>'; }
 }
 function aiAnalysis(){ _aiRun('Reading the numbers', async function(out){
   var r=await _aiCall('analysis',{data:_advisorAiData});
@@ -673,12 +658,12 @@ function aiAsk(){
   if(!q){ toast('Type a question first'); return; }
   _aiRun('Working it out', async function(out){
     var r=await _aiCall('question',{data:_advisorAiData,question:q});
-    out.innerHTML='<div class="ai-report"><div style="font-size:12px;color:var(--muted);margin-bottom:6px">Q: '+escHtml(q)+'</div>'+_aiMd(r.text)+'</div>';
+    out.innerHTML='<div class="ai-report"><div class="ai-q">'+escHtml(q)+'</div>'+_aiMd(r.text)+'</div>';
   });
 }
 function aiWinback(){ _aiRun('Ranking win-back calls', async function(out){
   if(!_advisorLapsed.length){
-    out.innerHTML='<div style="padding:14px;color:var(--muted)">No lapsed repeat customers in the data right now. 🎉</div>';
+    out.innerHTML='<div class="ai-none">No lapsed repeat customers in the data right now.</div>';
     return;
   }
   // Names stay here — the AI only sees row numbers and counts.
@@ -689,15 +674,15 @@ function aiWinback(){ _aiRun('Ranking win-back calls', async function(out){
   var r=await _aiCall('winback',{customers:anon});
   var ranked=(r.result||[]).filter(function(x){return _advisorLapsed[x.n];});
   if(!ranked.length){
-    out.innerHTML='<div style="padding:14px;color:var(--muted)">The AI could not rank the list — try again.</div>';
+    out.innerHTML='<div class="ai-none">The AI could not rank the list — try again.</div>';
     return;
   }
   out.innerHTML='<div class="ai-report"><div class="ai-h">Best win-back calls first</div>'
     +ranked.map(function(x,idx){
       var c=_advisorLapsed[x.n];
-      return '<div class="ai-row" style="cursor:default"><b>'+(idx+1)+'. '+escHtml(c.name)+'</b>'
-        +' <span style="color:var(--muted);font-size:12px">('+c.total_jobs+' jobs, last ~'+Math.round((c.days_since||0)/30)+' months ago)</span>'
-        +'<div style="font-size:13px;margin-top:2px">'+escHtml(x.reason)+'</div></div>';
+      return '<div class="ai-row"><span class="ai-rank">'+(idx+1)+'</span><b>'+escHtml(c.name)+'</b>'
+        +' <span style="color:var(--muted);font-size:12px">'+c.total_jobs+' jobs · last ~'+Math.round((c.days_since||0)/30)+' months ago</span>'
+        +'<div style="font-size:13px;margin-top:3px">'+escHtml(x.reason)+'</div></div>';
     }).join('')+'</div>';
 });}
 
