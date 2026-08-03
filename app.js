@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '524';
+var APP_VERSION = '525';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -69,7 +69,8 @@ var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed
   toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
   depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
   clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
-  dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id', truckSize:'truck_size'};
+  dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id', truckSize:'truck_size',
+  poNumber:'po_number'};
 function _checkForUpdate(){
   fetch('version.txt?_='+Date.now(), {cache:'no-store'})
     .then(function(r){ return r.ok ? r.text() : null; })
@@ -717,7 +718,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 // Column list for list/calendar views. names/phones/emails ARE loaded — job lists show the
 // contact under the name, and the email screen reads emails off the job (see openEmailModal).
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,completed,completed_at,truck_size,review_ask,review_asked_at';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
@@ -792,6 +793,7 @@ function dbToJob(r) {
     jobName:    r.job_name || '',
     crewSize:   r.crew_size != null ? r.crew_size : '',
     tasks:      r.tasks || '',
+    poNumber:   r.po_number || '',
     completed:  r.completed || false,
     completedAt: r.completed_at || '',
     photos:        r.photos           || [],
@@ -948,6 +950,7 @@ function jobToDb(j) {
     job_name:    j.jobName || null,
     crew_size:   j.crewSize !== '' && j.crewSize != null ? parseInt(j.crewSize, 10) : null,
     tasks:       j.tasks || null,
+    po_number:   j.poNumber || null,
     completed:   j.completed || false,
     completed_at: j.completedAt || null,
     photos:      j.photos      || [],
@@ -4049,6 +4052,7 @@ function renderPossibleJobsList(){
     var infoGrid='<div class="pj-grid">'
       +info('Phone', phone?escHtml(phone):'')
       +info('Address', addr?(escHtml(addr)+dirLink):'')
+      +info('🧾 PO #', j.poNumber?escHtml(j.poNumber):'')
       +info('⏱️ Est. Duration', j.estDurationMin?fmtDur(j.estDurationMin):'')
       +info('💰 Quoted', (j.quotedAmount!==''&&j.quotedAmount!=null)?fm(j.quotedAmount):'')
       +info('💵 Amount Paid', (j.price!==''&&j.price!=null)?fm(j.price):'')
@@ -4116,6 +4120,7 @@ function _landscapeCardHTML(j, kind){
   var infoGrid='<div class="pj-grid">'
     +info('Phone', phone?escHtml(phone):'')
     +info('Address', addr?(escHtml(addr)+dirLink):'')
+    +info('🧾 PO #', j.poNumber?escHtml(j.poNumber):'')
     +info('⏱️ Est. Duration', j.estDurationMin?fmtDur(j.estDurationMin):'')
     +info('💰 Quoted', (j.quotedAmount!==''&&j.quotedAmount!=null)?fm(j.quotedAmount):'')
     +info('💵 Amount Paid', (j.price!==''&&j.price!=null)?fm(j.price):'')
@@ -8994,6 +8999,7 @@ function newJob(){
   var fjnN=document.getElementById('f-job-name');if(fjnN)fjnN.value='';
   var ftkN=document.getElementById('f-tasks');if(ftkN)ftkN.value='';
   var fcsN=document.getElementById('f-crew-size');if(fcsN)fcsN.value='';
+  var fpoN=document.getElementById('f-po-number');if(fpoN)fpoN.value='';
   var lndFieldsN=document.getElementById('landscape-fields-wrap');if(lndFieldsN)lndFieldsN.style.display='none';
   var ddgN=document.getElementById('junk-datetime-grid');if(ddgN)ddgN.style.display='grid';
   document.getElementById('f-notes').value='';var fin=document.getElementById('f-internal-notes');if(fin)fin.value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
@@ -9352,6 +9358,7 @@ async function openEdit(id){
       var fjnE=document.getElementById('f-job-name');if(fjnE)fjnE.value=isLandE?(j.jobName||''):'';
       var fcsE=document.getElementById('f-crew-size');if(fcsE)fcsE.value=isLandE?(j.crewSize||''):'';
       var ftkE=document.getElementById('f-tasks');if(ftkE)ftkE.value=isLandE?(j.tasks||''):'';
+      var fpoE=document.getElementById('f-po-number');if(fpoE)fpoE.value=isLandE?(j.poNumber||''):'';
       if(!isQEdit){
         var fjqE=document.getElementById('f-junk-quoted');if(fjqE)fjqE.value=j.quotedAmount||'';
         var fjaE=document.getElementById('f-junk-actual');if(fjaE)fjaE.value=j.price||'';
@@ -9635,6 +9642,7 @@ async function saveJob(e){
     jobName:  svc==='Extra Jobs' && document.getElementById('f-job-name') ? document.getElementById('f-job-name').value.trim() : '',
     crewSize: svc==='Extra Jobs' && document.getElementById('f-crew-size') ? document.getElementById('f-crew-size').value : '',
     tasks:    svc==='Extra Jobs' && document.getElementById('f-tasks') ? document.getElementById('f-tasks').value.trim() : '',
+    poNumber: svc==='Extra Jobs' && document.getElementById('f-po-number') ? document.getElementById('f-po-number').value.trim() : '',
     toolsNeeded: document.getElementById('f-tools') ? document.getElementById('f-tools').value.trim() : '',
     recurring: (svc==='Bin Rental' && document.getElementById('f-recurring') ? document.getElementById('f-recurring').checked : false) || (svc==='Junk Removal' && document.getElementById('f-junk-recurring') ? document.getElementById('f-junk-recurring').checked : false),
     recurInterval: svc==='Bin Rental' ? (document.getElementById('f-recur-interval') ? document.getElementById('f-recur-interval').value : '') : (svc==='Junk Removal' ? (document.getElementById('f-junk-recur-interval') ? document.getElementById('f-junk-recur-interval').value : '') : ''),
@@ -10111,8 +10119,9 @@ async function openDetail(id, returnCid){
     ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
     : '—';
   document.getElementById('det-body').innerHTML=
-    (j.service==='Extra Jobs'&&(j.jobName||j.crewSize||j.tasks)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
+    (j.service==='Extra Jobs'&&(j.jobName||j.crewSize||j.tasks||j.poNumber)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
       +(j.jobName?'<div style="font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:1px;color:#65a30d;line-height:1.1">🌿 '+escHtml(j.jobName)+'</div>':'')
+      +(j.poNumber?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:2px">🧾 PO #'+escHtml(j.poNumber)+'</div>':'')
       +(j.crewSize?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:'+(j.jobName?'2px':'0')+'">👷 '+j.crewSize+' '+(j.crewSize==1?'person':'people')+' needed</div>':'')
       +(j.tasks?'<div style="font-size:13px;margin-top:6px;line-height:1.7">'+j.tasks.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean).map(function(t){return '<div>☐ '+escHtml(t)+'</div>';}).join('')+'</div>':'')
       +'</div>':'')
@@ -14646,7 +14655,7 @@ async function printLandscaping(jobId){
     + '</style></head><body>'
     + '<div class="wo">'
     + '<div class="hdr"><div class="brand"><img class="logo" src="'+JWG_LOGO_URL+'" onerror="this.style.display=\'none\'"><div><div class="co">JEFF WHITE GROUP</div><div class="divn">EXTRA JOBS</div></div></div>'
-      + '<div><div class="wt">CREW WORK ORDER</div><div class="wm">Job #'+j.id+'<br>Date: '+dateCell+'</div></div></div>'
+      + '<div><div class="wt">CREW WORK ORDER</div><div class="wm">Job #'+j.id+'<br>PO #: '+(j.poNumber?'<b>'+escHtml(j.poNumber)+'</b>':line('90px'))+'<br>Date: '+dateCell+'</div></div></div>'
     + '<div class="jobbar"><div><div class="lbl">JOB NAME</div><div class="jobname">'+jobNameCell+'</div></div>'
       + '<div class="crewbox"><div class="lbl">CREW NEEDED</div><div class="n">'+crewCell+'</div></div></div>'
     + '<div class="cols">'
