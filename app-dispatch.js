@@ -969,9 +969,7 @@ function dcvCrewCardHtml(c, T, p, selected){
   h += '</div>';
   h += '<div style="padding:0 14px 13px">';
   h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">';
-  var wasStat = _dispatchPreview && _dispatchPreview.before[c.id];
-  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+T.sub+'">'
-    + (_dispatchPreview ? 'Was '+((wasStat&&wasStat.stops)||0)+' &middot; '+dispatchFmtTotal((wasStat&&wasStat.mins)||0) : 'Today\'s load') + '</span>';
+  h += '<span style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:'+T.sub+'">Today\'s load</span>';
   h += '<span style="font-size:11px;color:'+T.sub+';font-family:ui-monospace,monospace"><span style="color:'+T.accent+';font-weight:800">'+laneJobs.length+'</span> stop'+(laneJobs.length===1?'':'s')+' · '+dispatchFmtTotal(total)+'</span>';
   h += '</div>';
   h += '<div style="height:8px;background:'+T.track+';border-radius:6px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+barCol+';border-radius:6px;transition:width .4s cubic-bezier(.4,0,.2,1)"></div></div>';
