@@ -438,22 +438,22 @@
     var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
     var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
     var ROTATE_MS  = 20000;   // default time each panel is shown
-    // The map screen earns extra time — it cycles through the trucks, so 20s only
-    // gets you two of them. Everything else stays at ROTATE_MS.
-    var PANEL_MS   = { liveops: 45000 };
+    // The map screen earns extra time — it cycles through the trucks, and each one
+    // only gets panelMs/n. At 90s a normal day (4–5 out) holds each truck ~20s,
+    // long enough to read its card. Everything else stays at ROTATE_MS.
+    var PANEL_MS   = { liveops: 90000 };
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     var PANELS = ['bins','schedule','kpis','liveops'];
     var YARD = { lat:44.3683, lng:-79.6831 };   // 92 Davidson St — home base
     var YARD_KM = 0.6;                          // inside this ring a truck reads "at the yard"
-    // How close the map flies when it focuses a truck. FOCUS_ZOOM is the cap (a
-    // truck that has barely moved shouldn't slam to max magnification); MIN_ZOOM is
-    // the floor — a 90-min trail can span half the county, and framing all of it
-    // pushed the map so far out you couldn't tell where the truck was. Past the
-    // floor we centre on the truck and let the older trail run off-screen.
-    var FOCUS_ZOOM = 13;
-    var MIN_ZOOM   = 12;
-    var FIT_PAD    = [100, 110];                // per-side, when framing a trail
+    // ONE zoom for the whole tour, never changed while it runs. Fitting each
+    // truck's trail used to pick its own zoom per truck, and every change made
+    // Leaflet build a fresh tile level — the whole map visibly re-rendering at each
+    // step. Locked here the tiles stay put and only the new edges load. A 90-min
+    // trail can span half the county, so a long one now runs off-screen; the truck
+    // itself staying readable is worth more on a wall.
+    var TOUR_ZOOM  = 13;
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     var TV_BINS = ['tv-bin-4.png','tv-bin-14.png','tv-bin-20.png'];   // bottom overlay picks one at random each load
 
@@ -1042,7 +1042,7 @@
     var _trailLine = null, _replayRaf = null;
     // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
     // short deliberately: with a full fleet out, each truck only holds the screen
-    // for panelMs/n — 7.5s at six trucks — so a longer replay would still be
+    // for panelMs/n — 15s at six trucks — so a longer replay would still be
     // drawing when the cycle moves on.
     var REPLAY_MS = 5500;
     var TRAILS_MAX_AGE_MS = 5 * 60 * 1000;   // how long a fetched trail is reused
@@ -1175,8 +1175,11 @@
                            scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false,
                            keyboard:false, touchZoom:false, tap:false })
               .setView([YARD.lat, YARD.lng], 10);
+      // keepBuffer well above the default 2: the tour laps the same ground every
+      // rotation, so holding the off-screen tiles means coming back to a truck
+      // costs nothing instead of re-fetching the whole view.
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom:19, attribution:'© OpenStreetMap'
+        maxZoom:19, keepBuffer:6, attribution:'© OpenStreetMap'
       }).addTo(_map);
       // A bare landmark dot, no label. A text chip here collides constantly —
       // Barrie sits right on top of the yard, and truck labels hang down into it.
@@ -1197,7 +1200,7 @@
 
     // A truck that hasn't moved all trail-window (90 min, under 50 m of travel =
     // no trail) is parked — shop, yard, wherever — and the focus tour skips it
-    // (Jake 2026-07-20). It keeps its pin; it just doesn't get flown to.
+    // (Jake 2026-07-20). It keeps its pin; it just doesn't get toured.
     //
     // Two guards keep this honest:
     // - moving RIGHT NOW always tours, even with no trail yet — covers a truck
@@ -1384,14 +1387,19 @@
 
     function focusTruck(i, gen){
       if(gen !== _cycleGen) return;      // a newer cycle has taken over
-      var list = tourTrucks();           // parked trucks keep pins but aren't flown to
+      var list = tourTrucks();           // parked trucks keep pins but aren't toured
       if(!list.length){ _focusId = null; frameAll(); return; }
       var t = list[((i % list.length) + list.length) % list.length];
+      // Only the two pins that actually change get a new icon. Re-iconing the whole
+      // fleet every step threw away and rebuilt every marker's DOM for nothing.
+      var prevId = _focusId;
       _focusId = t.id;
-      list.forEach(function(x){
-        var m = _markers[x.id];
-        if(m) m.setIcon(truckIcon(x, x.id === t.id));
-      });
+      if(prevId && prevId !== t.id && _markers[prevId]){
+        (DATA.trucks || []).forEach(function(x){
+          if(x.id === prevId) _markers[prevId].setIcon(truckIcon(x, false));
+        });
+      }
+      if(_markers[t.id]) _markers[t.id].setIcon(truckIcon(t, true));
       var town = el('loTown');
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
@@ -1399,26 +1407,19 @@
       _card = L.tooltip({ permanent:true, direction:'top', offset:[0,-34],
                           className:'lo-pop', interactive:false })
         .setLatLng([t.lat, t.lng]).setContent(truckCard(t)).addTo(_map);
-      // flyTo, not panTo — panning alone left the map parked at the wide overview
-      // zoom, so a focused truck was a dot in a region. This drops right in on it.
-      // With a trail we frame the whole recent run instead, capped at the same
-      // zoom so a truck that has barely moved doesn't slam to max magnification.
-      var path = (DATA.trails || {})[t.id];
-      var bounds = path && path.length >= 2
-        ? L.latLngBounds(path.concat([[t.lat, t.lng]])) : null;
-      // getBoundsZoom tells us what fitting the trail WOULD cost. If that's wider
-      // than the floor, don't fit it — stay close on the truck instead.
+      // Move at a fixed zoom, never through one. flyTo used to swoop — zoom out on
+      // a curve, slide, zoom back in — so every level between here and there was
+      // fetched and binned, which is what made the whole map rebuild at each truck.
       //
-      // The doubling is load-bearing: flyToBounds applies `padding` to BOTH sides
-      // and hands getBoundsZoom the sum, while getBoundsZoom treats its argument as
-      // the total. Checking with FIT_PAD un-doubled saw more room than the real
-      // call had, so trails slipped through and then fitted a zoom level below the
-      // floor — measured: a 20 km trail passed the check and framed at 11.
-      if(bounds && _map.getBoundsZoom(bounds, false,
-           L.point(FIT_PAD[0] * 2, FIT_PAD[1] * 2)) >= MIN_ZOOM){
-        _map.flyToBounds(bounds, { maxZoom:FOCUS_ZOOM, padding:FIT_PAD, duration:0.9 });
+      // A near hop glides; a far one cuts. That split is Leaflet's own threshold:
+      // past about one screen of offset an animated pan smears tiles in Chrome
+      // (its #2602), and a clean cut beats a smear on a wall.
+      var to = L.latLng(t.lat, t.lng);
+      var off = _map.latLngToContainerPoint(to).subtract(_map.getSize().divideBy(2));
+      if(_map.getZoom() === TOUR_ZOOM && _map.getSize().contains(off)){
+        _map.panTo(to, { animate:true, duration:0.7 });
       } else {
-        _map.flyTo([t.lat, t.lng], FOCUS_ZOOM, { duration:0.9 });
+        _map.setView(to, TOUR_ZOOM, { animate:false });
       }
       replayTrail(t, gen);
       // Split the screen's dwell across however many trucks are out, with a floor
@@ -1430,11 +1431,16 @@
     function startCycle(){
       stopCycle();
       if(!_map) return;
-      frameAll();
       // All-parked (or none out) is a valid state: pins stay up, the overview
-      // frames them, and nobody gets flown to. The next data refresh restarts
-      // the tour the moment anything wakes up.
+      // frames them, and nobody gets toured. The next data refresh restarts the
+      // tour the moment anything wakes up.
+      //
+      // frameAll() ONLY in that case. Running it first every time meant the map
+      // snapped out to the wide overview and back on every restart — and a restart
+      // happens twice on entering the screen, once now and once when refreshTrucks
+      // lands a second later.
       if(tourTrucks().length) focusTruck(0, _cycleGen);
+      else frameAll();
     }
 
     function renderLiveOps(){
