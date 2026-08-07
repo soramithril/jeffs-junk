@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '535';
+var APP_VERSION = '536';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -7133,7 +7133,6 @@ function setFleetF(v){ fleetF=(fleetF===v && v!=='all')?'all':v; renderBinInvent
 function setFleetSort(field){ if(fleetSort===field)fleetSortDir*=-1; else {fleetSort=field;fleetSortDir=1;} renderFleet(); }
 function setFleetView(v){ fleetView=v; try{localStorage.setItem('fleetView',v);}catch(e){} renderFleet(); }
 function sizePill(s){var cls=s==='4 yard'?'sp-4':s==='7 yard'?'sp-7':s==='14 yard'?'sp-14':'sp-20';return '<span class="sp '+cls+'">'+s+'</span>';}
-function typePill(t){var cls=t==='wide'||t==='low'?'tc-low':'tc-reg';var lbl=t==='wide'||t==='low'?'Low-Wide':'Regular';return '<span class="tc '+cls+'">'+lbl+'</span>';}
 function binsOutOnDate(dateStr){
   // Delegates to the one availability counter, so the fleet timeline, the
   // dashboard cards and the booking form can't disagree about the same day.
@@ -7266,7 +7265,7 @@ function makeBinCard(b){
       +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
       +'<button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out')+'</button>'
     +'</div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span><span>'+binMetaHtml(b)+'</span></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<span>'+binMetaHtml(b)+'</span></div>'
     +(flags.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">'+flags.join('')+'</div>':'')
     +'<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
       +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
@@ -7281,7 +7280,7 @@ function makeBinTableRow(b){
   var flags=binFlags(b), hasNote=!!b.notes, td='padding:10px 13px;border-bottom:1px solid var(--border)';
   return '<tr style="'+(b.damage==='damage'?'background:rgba(220,53,69,.035)':'')+'">'
     +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
-    +'<td style="'+td+'"><span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span><div style="font-size:11px;color:var(--muted);margin-top:3px">'+binMetaHtml(b)+'</div></td>'
+    +'<td style="'+td+'">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<div style="font-size:11px;color:var(--muted);margin-top:3px">'+binMetaHtml(b)+'</div></td>'
     +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out')+'</button></td>'
     +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
     +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
@@ -8068,6 +8067,23 @@ async function toggleAssignCrew(jobId,crewId,leg){
   if(typeof renderLiveJobs==='function') renderLiveJobs();
 }
 
+// The crew reads a bin's number off its side: 4-01, 7-03, 14R-12, 14LW-07, 20-76. Only
+// 14-yard bins come in Regular (14R-) and Low-Wide (14LW-); no other size has a type at
+// all, so the Type picker only shows for 14s. When ADDING, the prefix is locked from the
+// Size/Type picks and the box takes just the run number — editing shows the number whole,
+// because renaming an existing bin is deliberate (it has its own protocol).
+function binNumPrefix(size,type){
+  var n=String(size).replace(/[^0-9]/g,'');
+  return n+(n==='14'?(type==='low'?'LW':'R'):'')+'-';
+}
+function binSizeTypeChanged(){
+  // Hiding the Type picker is enough — never rewrite its value here, or a size
+  // round-trip in Edit (14 → 20 → 14) would silently strip a Low-Wide bin's type.
+  // saveBinItem resolves any non-14 size to 'regular' at save time instead.
+  var size=document.getElementById('bi-size').value, is14=size==='14 yard';
+  document.getElementById('bi-type-wrap').style.display=is14?'':'none';
+  document.getElementById('bi-num-prefix').textContent=binNumPrefix(size,document.getElementById('bi-type').value);
+}
 function openAddBin(){
   if(!mGuard())return;
   if(!canDelete){ toast('⚠ You don\'t have permission to add bins.','error'); return; }
@@ -8077,8 +8093,12 @@ function openAddBin(){
   document.getElementById('bi-show').checked=false;
   document.getElementById('bi-repaint').checked=false;document.getElementById('bi-decals').checked=false;
   document.getElementById('bi-painted').value='';
-  document.getElementById('err-bi-num').textContent='Bin number or name is required.';
+  document.getElementById('err-bi-num').textContent='Bin number is required.';
   clearErr('bi-num');
+  var ni=document.getElementById('bi-num');
+  ni.placeholder='e.g. 30';ni.setAttribute('inputmode','numeric');ni.style.borderRadius='0 var(--radius-sm) var(--radius-sm) 0';
+  document.getElementById('bi-num-prefix').style.display='inline-flex';
+  binSizeTypeChanged();
   document.getElementById('bin-modal').classList.add('open');
 }
 function editBinItem(bid){
@@ -8091,19 +8111,38 @@ function editBinItem(bid){
   document.getElementById('bi-show').checked=!!b.show_bin;
   document.getElementById('bi-repaint').checked=!!b.repaint;document.getElementById('bi-decals').checked=!!b.decals;
   document.getElementById('bi-painted').value=b.painted_date||'';
+  var ni=document.getElementById('bi-num');
+  ni.placeholder='';ni.removeAttribute('inputmode');ni.style.borderRadius='';
+  document.getElementById('bi-num-prefix').style.display='none';
+  document.getElementById('err-bi-num').textContent='Bin number is required.';
+  clearErr('bi-num');
+  binSizeTypeChanged();
   document.getElementById('bin-modal').classList.add('open');
 }
 async function saveBinItem(e){
   e.preventDefault();
   if(!canDelete){ toast('⚠ You don\'t have permission to add or edit bins.','error'); return; }
+  var binSize=document.getElementById('bi-size').value;
+  // Only 14-yard bins carry a type; any other size saves as 'regular' regardless of
+  // what the (hidden) Type select last showed.
+  var binType=binSize==='14 yard'?document.getElementById('bi-type').value:'regular';
   var num=document.getElementById('bi-num').value.trim();
+  if(!editBinId){
+    // Adding: the box holds just the run number — the prefix is locked from Size/Type.
+    // Normalize through parseInt so "005" becomes 20-05, not an off-shape 20-005 that
+    // would slip past the duplicate check.
+    var runNo=/^\d+$/.test(num)?parseInt(num,10):NaN;
+    if(!runNo){
+      document.getElementById('err-bi-num').textContent=!num?'Bin number is required.':(runNo===0?'Bin numbers start at 1.':'Just the number — "'+binNumPrefix(binSize,binType)+'" is already in front.');
+      showErr('bi-num');return;
+    }
+    num=binNumPrefix(binSize,binType)+String(runNo).padStart(2,'0');
+  }
   if(!num){showErr('bi-num');return;}
   // Check for duplicate bin number
   var isDupe=binItems.some(function(b){return b.num.toLowerCase()===num.toLowerCase()&&b.bid!==editBinId;});
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
   var oorVal=document.getElementById('bi-oor').value==='oor';
-  var binType=document.getElementById('bi-type').value;
-  var binSize=document.getElementById('bi-size').value;
   var newBid=editBinId;
   if(!newBid){
     try{ newBid=await nextBinItemId(binSize,binType); }

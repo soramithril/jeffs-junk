@@ -2110,9 +2110,9 @@
     </div>
     <form onsubmit="saveBinItem(event)" novalidate>
       <div class="form-grid">
-        <div class="form-group"><label>Bin Number / Name</label><input id="bi-num" type="text" placeholder="e.g. 14YD-GREEN-1" oninput="clearErr('bi-num')"><div class="field-error-msg" id="err-bi-num">Bin number or name is required.</div></div>
-        <div class="form-group"><label>Type</label><select id="bi-type"><option value="regular">Regular</option><option value="low">Low-Wide</option></select></div>
-        <div class="form-group"><label>Size</label><select id="bi-size"><option value="4 yard">4 Yard</option><option value="7 yard">7 Yard</option><option value="14 yard">14 Yard</option><option value="20 yard">20 Yard</option></select></div>
+        <div class="form-group"><label>Bin Number</label><div style="display:flex;align-items:stretch"><span id="bi-num-prefix" style="display:inline-flex;align-items:center;padding:0 12px;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);font-size:16px;font-weight:700;color:var(--text-secondary);white-space:nowrap">14R-</span><input id="bi-num" type="text" placeholder="e.g. 30" oninput="clearErr('bi-num')" style="flex:1;min-width:0"></div><div class="field-error-msg" id="err-bi-num">Bin number is required.</div></div>
+        <div class="form-group"><label>Size</label><select id="bi-size" onchange="binSizeTypeChanged()"><option value="4 yard">4 Yard</option><option value="7 yard">7 Yard</option><option value="14 yard">14 Yard</option><option value="20 yard">20 Yard</option></select></div>
+        <div class="form-group" id="bi-type-wrap"><label>Type</label><select id="bi-type" onchange="binSizeTypeChanged()"><option value="regular">Regular</option><option value="low">Low-Wide</option></select></div>
         <div class="form-group"><label>Colour</label><select id="bi-color"><option value="green">🟢 Green</option><option value="black">⚫ Black</option></select></div>
         <div class="form-group full" style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:8px 12px">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#f59e0b">
@@ -2753,7 +2753,7 @@
 <script src="app-bookings.js?v=485"></script>
 <script src="jwg-icons.js?v=465"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=535"></script>
+<script src="app.js?v=536"></script>
 <script src="app-jwg-scheduler.js?v=500"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=445"></script>
