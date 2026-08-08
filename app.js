@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '536';
+var APP_VERSION = '537';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -5631,6 +5631,7 @@ function selectClientResult(cid){
   document.getElementById('f-client-select').value=cid;
   document.getElementById('f-client-search').value='';
   document.getElementById('f-client-results').style.display='none';
+  _phoneMatchReset();
   var badge=document.getElementById('f-client-selected-badge');
   var nm=document.getElementById('f-client-selected-name');
   if(badge){badge.style.display='flex';}
@@ -5668,6 +5669,7 @@ function showClientNotesPopup(cl){
 function clearClientSelection(){
   _selectedClientObj=null;
   _addrAutoFilled=false;
+  _phoneMatchDismissed=false;_phoneMatchReset();
   document.getElementById('f-client-select').value='';
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');
@@ -5682,6 +5684,78 @@ function clearClientSelection(){
 }
 
 function renderClientSelectOptions(){} // no-op, replaced by live search
+
+// ─── REPEAT-CALLER PHONE MATCH (job form) ───
+// While a phone number is being typed on a NEW booking, scan the in-memory client list
+// for that number and offer the match one click away. Picking one runs the exact same
+// path as the client search box (selectClientResult), so the booking links to the
+// existing client instead of minting a duplicate. Matching is digits-only and
+// endsWith-based, so "(705) 555-1234", "705-555-1234" and a stored 7-digit
+// "555-1234" all line up; the strip only appears once a complete number is in.
+var _phoneMatchDismissed=false;   // ✕ pressed — stay quiet until the next form open
+var _phoneMatchShownCids='';      // avoid re-rendering (and re-querying) the same match set
+function _phoneDigits(s){return String(s||'').replace(/\D/g,'');}
+function _phoneMatchReset(){
+  _phoneMatchShownCids='';
+  var box=document.getElementById('f-phone-match');
+  if(box){box.style.display='none';box.innerHTML='';}
+}
+function _phoneMatchScan(inputEl){
+  var box=document.getElementById('f-phone-match');
+  if(!box)return;
+  if(editId||_phoneMatchDismissed||document.getElementById('f-client-select').value){_phoneMatchReset();return;}
+  var typed=_phoneDigits(inputEl.value);
+  if(typed.length<7){_phoneMatchReset();return;}
+  var matches=[];
+  for(var i=0;i<clients.length&&matches.length<3;i++){
+    var c=clients[i];
+    var nums=[];
+    if(c.phone)nums.push(c.phone);
+    (c.phones||[]).forEach(function(p){var n=(p&&p.num)||p;if(n)nums.push(n);});
+    for(var k=0;k<nums.length;k++){
+      var d=_phoneDigits(nums[k]);
+      if(d.length>=7&&(d.slice(-typed.length)===typed||typed.slice(-d.length)===d)){matches.push({c:c,num:nums[k]});break;}
+    }
+  }
+  if(!matches.length){_phoneMatchReset();return;}
+  var key=matches.map(function(m){return m.c.cid;}).join(',');
+  if(key===_phoneMatchShownCids)return;
+  _phoneMatchShownCids=key;
+  box.innerHTML='<div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.35);border-radius:10px;padding:8px 10px;position:relative">'
+    +'<button type="button" onclick="_phoneMatchDismiss()" title="Dismiss" style="position:absolute;top:5px;right:7px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px;line-height:1">✕</button>'
+    +'<div style="font-size:10.5px;font-weight:700;color:var(--accent);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px">📞 This number is already a client</div>'
+    +matches.map(function(m){
+      var c=m.c;
+      return '<div onclick="_phoneMatchPick(\''+c.cid+'\')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:2px 0;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        +'<div style="flex:1;min-width:0"><strong>'+escHtml(c.name||'—')+'</strong>'
+        +(c.businessName?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.businessName)+'</span>':'')
+        +' <span style="color:var(--muted)">· '+escHtml(m.num)+'</span>'
+        +(c.city?' <span style="color:var(--muted);font-size:11px">· '+escHtml(c.city)+'</span>':'')
+        +' <span id="pm-jobs-'+escHtml(c.cid)+'" style="color:var(--muted);font-size:11px"></span></div>'
+        +'<span style="flex-shrink:0;background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:7px">Use client</span>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+  box.style.display='block';
+  // Real job history from the database — the in-memory jobs array is not the full history.
+  matches.forEach(function(m){
+    db.from('jobs').select('date',{count:'exact'}).eq('client_cid',m.c.cid)
+      .order('date',{ascending:false,nullsFirst:false}).limit(1).then(function(r){
+        var el=document.getElementById('pm-jobs-'+m.c.cid);
+        if(!el||r.error)return;
+        var n=r.count||0;
+        var last=(r.data&&r.data[0]&&r.data[0].date)?' · last '+fd(r.data[0].date):'';
+        el.textContent=n?('· '+n+' past job'+(n===1?'':'s')+last):'· no past jobs';
+      });
+  });
+}
+function _phoneMatchPick(cid){selectClientResult(cid);}
+function _phoneMatchDismiss(){_phoneMatchDismissed=true;_phoneMatchReset();}
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.classList&&e.target.classList.contains('f-phone-inp')&&e.target.closest&&e.target.closest('#f-phones-wrap')){
+    _phoneMatchScan(e.target);
+  }
+});
 
 function fillClientFromSelect(cid){
   if(!cid) return;
@@ -9168,6 +9242,7 @@ function newJob(){
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
+  _phoneMatchDismissed=false;_phoneMatchReset();
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
   ['f-svc','f-names','f-date'].forEach(clearErr);
   var recChk=document.getElementById('f-recurring');if(recChk)recChk.checked=false;
@@ -9454,6 +9529,7 @@ async function openEdit(id){
   // _selectedClientObj could inject another client's address via the picker.
   _selectedClientObj=null;
   _addrAutoFilled=false; // the job's own address is about to populate f-addr — protect it
+  _phoneMatchDismissed=false;_phoneMatchReset(); // a leftover match strip from an abandoned New Job form must not show on an edit
   var stalePicker=document.getElementById('f-addr-picker');
   if(stalePicker)stalePicker.style.display='none';
   setTimeout(function(){
@@ -10954,6 +11030,7 @@ function convertQuoteToJob(quoteId){
   // Pre-fill new job form from quote data
   editId=null;
   _selectedClientObj=null;
+  _phoneMatchDismissed=false;_phoneMatchReset();
   document.getElementById('modal-ttl').textContent='Convert Quote → New Job';
   document.getElementById('save-btn').textContent='Create Job';
   setFormSvc('Junk Removal');
