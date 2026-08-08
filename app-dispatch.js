@@ -206,6 +206,24 @@ function dispatchOrderLaneJobs(jobs){
   jobs.forEach(function(j){ if(!done[j.id]) emit(j); });                     // 4. loose pickups last
   return {jobs: ordered, warnings: warnings};
 }
+// Walks one driver's day the same way the lane view does: stops in dispatch
+// order, clock starting at the lane's start time. Arriving early for a timed
+// drop means waiting (counted); arriving 5+ min late is a miss. endMins is
+// when the truck finishes the last stop — waiting included — so balancing on
+// it treats a 1pm appointment like the real constraint it is.
+function dispatchSimulateLane(laneJobs, startMins){
+  var ord = dispatchOrderLaneJobs(laneJobs || []);
+  var clock = startMins, wait = 0, misses = 0;
+  ord.jobs.forEach(function(j){
+    var appt = j._isDelivery ? dispatchParseClock(j.binDropoffTime) : null;
+    if(appt != null){
+      if(clock > appt + 5) misses++;
+      if(appt > clock){ wait += appt - clock; clock = appt; }
+    }
+    clock += (j._estMinutes||0);
+  });
+  return {ordered: ord.jobs, warnings: ord.warnings, endMins: clock, waitMins: wait, misses: misses};
+}
 async function dispatchLoadJobs(dateISO){
   var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled')
     .or('bin_dropoff.eq.'+dateISO+',bin_pickup.eq.'+dateISO);
@@ -370,15 +388,20 @@ async function dispatchAssignJob(jobId, crewId, leg){
 // until you Apply or Discard it.
 var _dispatchPreview = null; // {date, byJob:{jobId:{leg,crewId}}, moved, before:{crewId:{stops,mins}}}
 
-// Stops + estimated minutes per driver for the leg that runs on this date.
+// Stops, simulated day span (waiting included) and missed timed drops per
+// driver, for the leg that runs on this date.
 function dispatchLaneStats(jobs){
-  var st = {};
+  var by = {};
   jobs.forEach(function(j){
     var c = j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'');
     if(!c) return;
-    if(!st[c]) st[c] = {stops:0, mins:0};
-    st[c].stops++;
-    st[c].mins += (j._estMinutes||0);
+    (by[c] = by[c] || []).push(j);
+  });
+  var st = {};
+  Object.keys(by).forEach(function(c){
+    var start = dispatchParseClock(dispatchGetLaneStart(c)) || 480;
+    var sim = dispatchSimulateLane(by[c], start);
+    st[c] = {stops: by[c].length, mins: sim.endMins - start, misses: sim.misses};
   });
   return st;
 }
@@ -396,17 +419,25 @@ function dispatchJobMoves(j){
 }
 // Load per driver now vs under the plan — both read the real jobs, nothing is mutated.
 function dispatchPreviewStats(){
-  var after = {};
+  var by = {};
   _dispatchJobsCache.forEach(function(j){
     var c = dispatchProposedCrewId(j);
     if(!c) return;
-    if(!after[c]) after[c] = {stops:0, mins:0};
-    after[c].stops++;
-    after[c].mins += (j._estMinutes||0);
+    (by[c] = by[c] || []).push(j);
+  });
+  var after = {};
+  Object.keys(by).forEach(function(c){
+    var start = dispatchParseClock(dispatchGetLaneStart(c)) || 480;
+    var sim = dispatchSimulateLane(by[c], start);
+    after[c] = {stops: by[c].length, mins: sim.endMins - start, misses: sim.misses};
   });
   return {before: dispatchLaneStats(_dispatchJobsCache), after: after};
 }
-// Longest-unit-first onto the lightest driver. Returns {assignments, working} or {error}.
+// Appointment-aware balancing. Timed units place first (earliest appointment
+// first), the rest longest-first. Each unit tries every working driver and
+// lands where it causes no new missed appointments and the earliest simulated
+// end of day — so colliding timed drops spread across drivers, and waiting
+// for an appointment counts against a lane like the real clock does.
 function dispatchPlanBalance(mode){
   var working = dispatchGetWorkingIds();
   if(!working.length) return {error:'Pick at least one driver first.'};
@@ -419,34 +450,54 @@ function dispatchPlanBalance(mode){
   _dispatchJobsCache.forEach(function(j){
     if(seen[j.id]) return;
     var pId = partner[j.id];
-    if(pId){
-      var p = _dispatchJobsCache.find(function(jj){return jj.id===pId;});
-      units.push({jobs:[j, p], total:(j._estMinutes||0)+(p._estMinutes||0)});
-      seen[j.id] = true; seen[pId] = true;
-    } else {
-      units.push({jobs:[j], total:j._estMinutes||0});
-      seen[j.id] = true;
-    }
+    var p = pId ? _dispatchJobsCache.find(function(jj){return jj.id===pId;}) : null;
+    var us = p ? [j, p] : [j];
+    us.forEach(function(x){ seen[x.id] = true; });
+    var appts = us.filter(function(x){ return x._isDelivery; })
+      .map(function(x){ return dispatchParseClock(x.binDropoffTime); })
+      .filter(function(t){ return t != null; });
+    units.push({jobs: us,
+                total: us.reduce(function(s,x){ return s+(x._estMinutes||0); },0),
+                appt: appts.length ? Math.min.apply(null, appts) : null});
   });
-  var totals = {}; working.forEach(function(id){ totals[id]=0; });
+  var lanes = {}; working.forEach(function(id){ lanes[id] = []; });
   var unitsToAssign;
   if(mode === 'all'){
     unitsToAssign = units;
   } else {
-    // Fill only: keep existing assignments, seed lane loads from them, distribute only the unassigned jobs
-    _dispatchJobsCache.forEach(function(j){ var c=legAssigned(j); if(c && totals[c]!=null) totals[c]+=(j._estMinutes||0); });
+    // Fill only: keep existing assignments — they seed each lane's simulated day
+    _dispatchJobsCache.forEach(function(j){ var c = legAssigned(j); if(c && lanes[c]) lanes[c].push(j); });
     unitsToAssign = units.filter(function(u){ return u.jobs.every(function(j){ return !legAssigned(j); }); });
     if(!unitsToAssign.length) return {error:'All jobs are already assigned — nothing to fill.'};
   }
-  unitsToAssign.sort(function(a,b){return b.total - a.total;});
+  var starts = {}, base = {};
+  working.forEach(function(id){
+    starts[id] = dispatchParseClock(dispatchGetLaneStart(id)) || 480;
+    base[id] = dispatchSimulateLane(lanes[id], starts[id]);
+  });
+  unitsToAssign.sort(function(a,b){
+    if(a.appt != null || b.appt != null){
+      if(a.appt == null) return 1;
+      if(b.appt == null) return -1;
+      return a.appt - b.appt;
+    }
+    return b.total - a.total;
+  });
   var assignments = [];
   unitsToAssign.forEach(function(u){
-    var best = working[0];
-    working.forEach(function(id){ if(totals[id] < totals[best]) best = id; });
+    var best = null, bestMiss = 0, bestEnd = 0, bestSim = null;
+    working.forEach(function(id){
+      var sim = dispatchSimulateLane(lanes[id].concat(u.jobs), starts[id]);
+      var newMiss = sim.misses - base[id].misses;
+      if(best === null || newMiss < bestMiss || (newMiss === bestMiss && sim.endMins < bestEnd)){
+        best = id; bestMiss = newMiss; bestEnd = sim.endMins; bestSim = sim;
+      }
+    });
+    lanes[best] = lanes[best].concat(u.jobs);
+    base[best] = bestSim;
     u.jobs.forEach(function(j){
       assignments.push({jobId: j.id, crewId: best, leg: j._isPickup ? 'pickup' : 'dropoff'});
     });
-    totals[best] += u.total;
   });
   return {assignments: assignments, working: working};
 }
@@ -541,7 +592,8 @@ function dispatchPreviewBannerHtml(){
       h += '<span style="font-weight:700;color:#343a40">'+escHtml(crew.name)+'</span>';
       h += '<span style="color:#adb5bd;font-family:ui-monospace,monospace">'+b.stops+' &middot; '+dispatchFmtTotal(b.mins)+'</span>';
       h += '<span style="color:#adb5bd">&rarr;</span>';
-      h += '<span style="font-weight:700;color:'+(same?'#adb5bd':'#1a1a2e')+';font-family:ui-monospace,monospace">'+a.stops+' &middot; '+dispatchFmtTotal(a.mins)+'</span>';
+      h += '<span style="font-weight:700;color:'+(same?'#adb5bd':'#1a1a2e')+';font-family:ui-monospace,monospace">'+a.stops+' &middot; '+dispatchFmtTotal(a.mins)+'</span>'
+         + (a.misses?' <span title="Would miss '+a.misses+' timed drop'+(a.misses===1?'':'s')+'" style="color:#dc3545;font-weight:800">&#9888;'+a.misses+'</span>':'');
       h += '</span>';
     });
     h += '</div>';
@@ -800,16 +852,17 @@ async function renderDispatch(){
       var crew = crewMembers.find(function(c){return c.id===id;});
       if(!crew) return;
       var laneJobs = byLane[id] || [];
-      var laneTotal = laneJobs.reduce(function(s,j){return s+(j._estMinutes||0);},0);
       var color = crew.color || crewAvatarColor(crew.id);
       var startTime = dispatchGetLaneStart(id);
       var startMins = dispatchParseClock(startTime) || 480;
-      var ord = laneJobs.length ? dispatchOrderLaneJobs(laneJobs) : null;
-      var routeUrl = ord ? dispatchMapsRouteUrl(ord.jobs) : null;
-      var _pct = Math.min(Math.round(laneTotal/480*100),100);
+      var sim = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : null;
+      var routeUrl = sim ? dispatchMapsRouteUrl(sim.ordered) : null;
+      // The day's span includes waiting for timed drops — that's real clock time.
+      var spanMins = sim ? (sim.endMins - startMins) : 0;
+      var _pct = Math.min(Math.round(spanMins/480*100),100);
       var _barCol = _pct<60?'var(--accent)':(_pct<90?'#f59e0b':'#dc3545');
       var _noteCol = _pct>=90?'#dc3545':(_pct>=60?'#c2410c':'#15803d');
-      var _note = laneTotal ? (_pct+'% of an 8-hr day') : 'Empty &mdash; add stops';
+      var _note = laneJobs.length ? (_pct+'% of an 8-hr day &middot; done ~'+dispatchFmtClock(sim.endMins)+(sim.waitMins?' &middot; '+sim.waitMins+'m waiting':'')) : 'Empty &mdash; add stops';
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
       // lane header: avatar + name/count + load bar
       html += '<div style="padding:12px 13px;border-bottom:1px solid var(--border)">';
@@ -817,7 +870,7 @@ async function renderDispatch(){
       html += (typeof teamAvatar==='function') ? teamAvatar(crew.name, color, 34)
         : '<div style="width:34px;height:34px;border-radius:50%;background:'+color+';color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none">'+(crew.name||'?').trim().charAt(0).toUpperCase()+'</div>';
       html += '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px;color:var(--text)">'+escHtml(crew.name)+'</div><div style="font-size:11px;color:var(--muted)">'+laneJobs.length+' stop'+(laneJobs.length===1?'':'s')+' &middot; starts '+dispatchFmtClock(startMins)+'</div></div>';
-      html += '<span style="font-size:13px;font-weight:700;color:'+_noteCol+';white-space:nowrap">'+dispatchFmtTotal(laneTotal)+'</span>';
+      html += '<span style="font-size:13px;font-weight:700;color:'+_noteCol+';white-space:nowrap">'+dispatchFmtTotal(spanMins)+'</span>';
       html += '</div>';
       html += '<div style="height:8px;border-radius:5px;background:var(--surface2);overflow:hidden;margin-bottom:5px"><div style="height:100%;width:'+_pct+'%;background:'+_barCol+';border-radius:5px"></div></div>';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-size:11px;font-weight:600;color:'+_noteCol+'">'+_note+'</span><span style="display:inline-flex;align-items:center;gap:8px">';
@@ -830,14 +883,14 @@ async function renderDispatch(){
       if(!laneJobs.length){
         html += '<div style="font-size:12.5px;color:var(--muted);text-align:center;padding:16px;font-style:italic">No stops yet &mdash; assign one above.</div>';
       } else {
-        var warns = ord.warnings;
+        var warns = sim.warnings;
         var _unkSeen = {};
         laneJobs.forEach(function(uj){
           var uKey = _dispatchCityNorm(uj.city) || '?';
           if(uj._cityUnknown && !_unkSeen[uKey]){ _unkSeen[uKey] = true; warns.push('&ldquo;'+escHtml(uj.city||'?')+'&rdquo; not in the town list &mdash; times use a 20m guess'); }
         });
         var clock = startMins;
-        ord.jobs.forEach(function(j){
+        sim.ordered.forEach(function(j){
           var ft2 = j._isDelivery ? dispatchParseClock(j.binDropoffTime) : null;
           if(ft2 != null){
             if(clock > ft2 + 5) warns.push('May miss '+ft(j.binDropoffTime)+' drop');
@@ -1069,10 +1122,11 @@ function dcvJobCardHtml(j, T, p, selected, opts){
 function dcvCrewCardHtml(c, T, p, selected){
   var col = c.color || crewAvatarColor(c.id);
   var laneJobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
-  var total = laneJobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
+  var startMins = dispatchParseClock(dispatchGetLaneStart(c.id)) || 480;
+  var _sim = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : null;
+  var total = _sim ? (_sim.endMins - startMins) : 0; // day span incl. waiting for timed drops
   var pct = Math.min(Math.round(total/480*100), 100);
   var barCol = pct < 60 ? 'var(--accent)' : (pct < 90 ? '#f59e0b' : '#dc3545');
-  var startMins = dispatchParseClock(dispatchGetLaneStart(c.id)) || 480;
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
   var h = '<div data-node="c:'+c.id+'" style="position:absolute;top:0;left:0;width:'+DCV_CREW_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
   h += '<div data-card style="'+outline+'background:'+T.surface+';border:1px solid '+T.border+';border-radius:15px;box-shadow:0 8px 26px rgba(0,0,0,.35);overflow:hidden">';
@@ -1122,8 +1176,11 @@ function dcvGhostPanelHtml(g, real, T, pos){
   if(!o) return '';
   var col = g.crew.color || crewAvatarColor(g.crew.id);
   var box = dcvGroupBox(o, g.jobs.length);
-  var mins = g.jobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
-  var realMins = real ? real.jobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0) : 0;
+  var _gStart = dispatchParseClock(dispatchGetLaneStart(g.crew.id)) || 480;
+  var _gSim = g.jobs.length ? dispatchSimulateLane(g.jobs, _gStart) : null;
+  var mins = _gSim ? (_gSim.endMins - _gStart) : 0;
+  var _rSim = real && real.jobs.length ? dispatchSimulateLane(real.jobs, _gStart) : null;
+  var realMins = _rSim ? (_rSim.endMins - _gStart) : 0;
   var dStops = g.jobs.length - (real ? real.jobs.length : 0);
   var dMins = mins - realMins;
   var same = (dStops === 0 && dMins === 0);
@@ -1139,6 +1196,7 @@ function dcvGhostPanelHtml(g, real, T, pos){
   h += '<div style="font-size:25px;font-weight:800;letter-spacing:-.5px;color:'+T.ink+';line-height:1">'+g.jobs.length+'<span style="font-size:12px;font-weight:700;color:'+T.sub+'"> stop'+(g.jobs.length===1?'':'s')+'</span></div>';
   h += '<div style="font-size:12.5px;font-family:ui-monospace,monospace;color:'+T.sub+'">'+dispatchFmtTotal(mins)+'</div>';
   h += '<div style="font-size:11px;font-weight:700;color:'+dCol+'">'+(same ? 'no change' : sgn(dStops)+' stop'+(Math.abs(dStops)===1?'':'s')+' &middot; '+sgn(dMins)+'m')+'</div>';
+  if(_gSim && _gSim.misses) h += '<div style="font-size:10.5px;font-weight:800;color:#dc3545">&#9888; would miss '+_gSim.misses+' timed drop'+(_gSim.misses===1?'':'s')+'</div>';
   h += '</div>';
   if(!g.jobs.length) h += '<div style="position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:11.5px;color:'+T.sub+';font-style:italic">Nothing assigned</div>';
   h += '</div>';
@@ -1677,23 +1735,23 @@ function dcvInspectorHtml(){
   if(!c) return '';
   var col = c.color || crewAvatarColor(c.id);
   var laneJobs = _dispatchJobsCache.filter(function(x){ return dcvJobCrewId(x) === c.id; });
-  var total = laneJobs.reduce(function(s,x){ return s+(x._estMinutes||0); }, 0);
   var startTime = dispatchGetLaneStart(c.id);
   var startMins = dispatchParseClock(startTime) || 480;
-  var ord = laneJobs.length ? dispatchOrderLaneJobs(laneJobs) : {jobs:[], warnings:[]};
-  var routeUrl = laneJobs.length ? dispatchMapsRouteUrl(ord.jobs) : null;
+  var ord = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : {ordered:[], warnings:[], endMins:startMins};
+  var total = ord.endMins - startMins; // day span incl. waiting for timed drops
+  var routeUrl = laneJobs.length ? dispatchMapsRouteUrl(ord.ordered) : null;
   h += head(col, 'Crew member');
   h += '<div style="padding:16px;overflow-y:auto;flex:1">';
   h += '<div style="font-size:19px;font-weight:800;color:#1a1a2e;letter-spacing:-.3px;margin-bottom:3px">'+escHtml(c.name)+'</div>';
   h += '<div style="font-size:12.5px;color:#868e96;margin-bottom:16px">'+laneJobs.length+' stop'+(laneJobs.length===1?'':'s')+' · '+dispatchFmtTotal(total)+' est</div>';
   h += row('Starts', '<input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+c.id+'\', this.value)" style="background:#f8f9fa;border:1px solid #e9ecef;color:#343a40;padding:4px 8px;border-radius:6px;font-size:12px;font-family:inherit">');
   h += '<div style="font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#adb5bd;margin:14px 0 2px">Route — in order</div>';
-  if(!ord.jobs.length){
+  if(!ord.ordered.length){
     h += '<div style="font-size:12.5px;color:#868e96;font-style:italic;padding:10px 0">No stops yet — drag a job\'s ○ onto this card.</div>';
   } else {
     var warns = ord.warnings.slice();
     var clock = startMins;
-    ord.jobs.forEach(function(x){
+    ord.ordered.forEach(function(x){
       var ft2 = x._isDelivery ? dispatchParseClock(x.binDropoffTime) : null;
       if(ft2 != null){
         if(clock > ft2 + 5) warns.push('May miss '+ft(x.binDropoffTime)+' drop');
