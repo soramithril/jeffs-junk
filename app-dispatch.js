@@ -14,23 +14,74 @@ async function dispatchLoadCityTimes(){
   if(!r.error && r.data){
     _dispatchCityTimes = {};
     r.data.forEach(function(row){ _dispatchCityTimes[row.city] = row.minutes; });
+    _dispatchCityIndex = {};
+    Object.keys(_dispatchCityTimes).forEach(function(name){ _dispatchCityIndex[_dispatchCityNorm(name)] = name; });
   }
 }
-function dispatchCityMins(city){
-  if(!city) return 20;
-  var m = _dispatchCityTimes[city];
-  return (typeof m === 'number') ? m : 20;
+// Town matching is forgiving: case/space-insensitive, en-dashes unified, and a
+// trailing " Township" is dropped ("Ramara Township" → "Ramara"). The alias map
+// points hamlets the office types at the table row that covers them (Minesing is
+// in Springwater, Shanty Bay is in Oro, …). A town that still doesn't resolve is
+// flagged on its card (⚠) instead of silently getting the 20-minute guess.
+var _dispatchCityIndex = {};
+var DISPATCH_CITY_ALIASES = {
+  'essa':'Angus', 'minesing':'Springwater', 'shanty bay':'Oro',
+  'horseshoe valley':'Oro-Medonte', 'clearview':'Stayner',
+  'adjala-tosorontio':'Alliston', 'adjala':'Alliston',
+  'blue mountain':'The Blue Mountains', 'blue mountains':'The Blue Mountains',
+  'georgian bay':'Georgian Bay Township'
+};
+function _dispatchCityNorm(s){
+  return String(s||'').toLowerCase().replace(/[–—]/g,'-').replace(/\s+/g,' ').trim();
 }
+// Resolves a typed town to its drive-time table row name, or null when unknown.
+function dispatchCityResolve(city){
+  var n = _dispatchCityNorm(city);
+  if(!n) return null;
+  var stripped = n.replace(/\s+(township|twp\.?)$/,'');
+  var cands = [n, stripped,
+    DISPATCH_CITY_ALIASES[n] ? _dispatchCityNorm(DISPATCH_CITY_ALIASES[n]) : null,
+    DISPATCH_CITY_ALIASES[stripped] ? _dispatchCityNorm(DISPATCH_CITY_ALIASES[stripped]) : null];
+  for(var i=0;i<cands.length;i++){
+    if(cands[i] && _dispatchCityIndex[cands[i]]) return _dispatchCityIndex[cands[i]];
+  }
+  return null;
+}
+function dispatchCityMins(city){
+  var row = dispatchCityResolve(city);
+  return row != null ? _dispatchCityTimes[row] : 20;
+}
+function dispatchCityKnown(city){ return dispatchCityResolve(city) != null; }
 function dispatchJobMins(j){
   if(j._driveMins != null) return j._driveMins;
   return dispatchCityMins(j.city);
 }
+// Every estimate builds from c = one-way drive minutes to the stop's town.
+// Each kind is the story of a real trip:
+//   standalone-delivery  yard→site, drop, site→yard                       2c + 5
+//   standalone-pickup    yard→site, hook, site→dump, tip, dump→yard       2c + 5 + 12 + 6
+// Remote pair (pickup at A + delivery at B, ONE trip — the bin emptied at
+// the dump goes straight to B instead of a second trip out):
+//   swap-pickup          yard→A, hook, A→dump, tip                        c + 5 + 12
+//   swap-delivery        dump→B, drop, B→yard (dump sits by the yard)     2c + 5
+// Swap-out (pickup + delivery at the SAME address — arrive with the fresh
+// bin, swap it for the full one, ONE visit):
+//   swap-delivery-onsite yard→site, drop the fresh bin                    c + 5
+//   swap-pickup-onsite   hook, site→dump, tip, dump→yard                  23
+// Double stack (two far 14-yard drops, regular nested inside a low-wide,
+// ONE trip out — see dispatchFindStacks):
+//   stack-first          yard→A, drop                                     c + 5
+//   stack-second         A→B hop, drop, B→yard                            c + 15
 function dispatchEstimateMinutes(job, kind){
   var c = dispatchJobMins(job);
-  if(kind === 'standalone-pickup')   return 2*c + 5 + 12 + 6;  // hookup + dump + dump→yard
-  if(kind === 'standalone-delivery') return 2*c + 5;            // drop
-  if(kind === 'swap-pickup')         return 2*c + 5 + 12;       // skip dump→yard return
-  if(kind === 'swap-delivery')       return 2*c + 5;
+  if(kind === 'standalone-pickup')    return 2*c + 5 + 12 + 6;
+  if(kind === 'standalone-delivery')  return 2*c + 5;
+  if(kind === 'swap-pickup')          return c + 5 + 12;
+  if(kind === 'swap-delivery')        return 2*c + 5;
+  if(kind === 'swap-pickup-onsite')   return 23;
+  if(kind === 'swap-delivery-onsite') return c + 5;
+  if(kind === 'stack-first')          return c + 5;
+  if(kind === 'stack-second')         return c + 15;
   return 0;
 }
 var DISPATCH_COMBO_MAX_KM = 15; // pickup→delivery legs farther apart than this aren't worth combining
@@ -75,6 +126,39 @@ function dispatchFindSwaps(jobsList){
   });
   return partner;
 }
+// Double stacking: only 14-yard bins stack (a regular rides inside a low-wide),
+// and it only pays off on far runs — Jake's rule of thumb is ~20-30+ minutes out,
+// Orillia being the classic case. Two far 14-yard deliveries near each other
+// (same resolved town, or within DISPATCH_STACK_MAX_KM when we have coordinates)
+// get matched as one trip. Runs after pair matching over the deliveries no pair
+// claimed; greedy nearest-first, same shape as dispatchFindSwaps.
+var DISPATCH_STACK_MIN_ONEWAY = 22;
+var DISPATCH_STACK_MAX_KM = 15;
+function dispatchFindStacks(jobsList, taken){
+  var ds = jobsList.filter(function(j){
+    return j._isDelivery && !taken[j.id] && parseInt(j.binSize,10) === 14
+      && dispatchJobMins(j) >= DISPATCH_STACK_MIN_ONEWAY;
+  });
+  var cand = [];
+  for(var i=0;i<ds.length;i++){
+    for(var k=i+1;k<ds.length;k++){
+      var a = ds[i], b = ds[k];
+      var ra = dispatchCityResolve(a.city), rb = dispatchCityResolve(b.city);
+      var sameTown = !!(ra && ra === rb);
+      var dist = dispatchHaversineKm(dispatchJobCoord(a), dispatchJobCoord(b));
+      if(sameTown || dist <= DISPATCH_STACK_MAX_KM)
+        cand.push({a:a.id, b:b.id, dist: dist <= DISPATCH_STACK_MAX_KM ? dist : 5});
+    }
+  }
+  cand.sort(function(x,y){return x.dist - y.dist;});
+  var partner = {}, used = {};
+  cand.forEach(function(c2){
+    if(used[c2.a] || used[c2.b]) return;
+    partner[c2.a] = c2.b; partner[c2.b] = c2.a;
+    used[c2.a] = true; used[c2.b] = true;
+  });
+  return partner;
+}
 // Reorders a list so every combo pair is back-to-back (pickup immediately
 // followed by its delivery partner); non-combo cards keep their order.
 function dispatchGroupCombos(list){
@@ -84,7 +168,8 @@ function dispatchGroupCombos(list){
     if(done[j.id]) return;
     var p = j._partnerId && byId[j._partnerId];
     if(p && !done[p.id]){
-      var pick = j._isPickup ? j : p, drop = j._isPickup ? p : j;
+      var jFirst = j._isPickup || j._kind === 'stack-first';
+      var pick = jFirst ? j : p, drop = jFirst ? p : j;
       out.push(pick); done[pick.id] = true;
       out.push(drop); done[drop.id] = true;
     } else { out.push(j); done[j.id] = true; }
@@ -103,7 +188,8 @@ function dispatchOrderLaneJobs(jobs){
     if(!j || done[j.id]) return;
     var p = j._partnerId && byId[j._partnerId];
     if(p && !done[p.id]){
-      var pick = j._isPickup ? j : p, drop = j._isPickup ? p : j;
+      var jFirst = j._isPickup || j._kind === 'stack-first';
+      var pick = jFirst ? j : p, drop = jFirst ? p : j;
       emit(pick); emit(drop);
     } else emit(j);
   }
@@ -326,6 +412,8 @@ function dispatchPlanBalance(mode){
   if(!working.length) return {error:'Pick at least one driver first.'};
   function legAssigned(j){ return j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||''); }
   var partner = dispatchFindSwaps(_dispatchJobsCache);
+  var _stacks = dispatchFindStacks(_dispatchJobsCache, partner);
+  Object.keys(_stacks).forEach(function(id){ partner[id] = _stacks[id]; });
   var seen = {};
   var units = [];
   _dispatchJobsCache.forEach(function(j){
@@ -513,8 +601,10 @@ function dispatchRenderCard(j, clockStartMins){
   return '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="position:relative;background:'+cardBg+';'+cardBorder+';border-radius:11px;padding:11px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:grab">'
     +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">'
       +'<span style="font-size:10px;font-weight:800;color:#fff;background:'+legBg+';padding:2px 8px;border-radius:5px;letter-spacing:.3px">'+legLabel+'</span>'
-      +(j._partnerId?'<span style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:2px 7px;border-radius:5px">🔗 Paired</span>':'')
-      +'<span style="margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:600">~'+j._estMinutes+'m</span>'
+      +(j._partnerId?(String(j._kind).indexOf('stack')===0
+        ?'<span title="Two far 14-yard drops on one trip — regular bin rides inside the low-wide" style="font-size:10.5px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.12);padding:2px 7px;border-radius:5px">📦 Double stack</span>'
+        :'<span style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:2px 7px;border-radius:5px">🔗 Paired</span>'):'')
+      +'<span style="margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:600">'+(j._cityUnknown?'<span title="Town not in the drive-time list — using a 20 min guess" style="color:#d97706">⚠ </span>':'')+'~'+j._estMinutes+'m</span>'
     +'</div>'
     +clockTxt
     +'<div style="font-size:13.5px;font-weight:700;color:var(--text)">'+escHtml(j.name||'—')+' <span style="font-size:11px;color:var(--muted);font-weight:500">#'+j.id+'</span></div>'
@@ -568,11 +658,28 @@ async function renderDispatch(){
     if(changed) dispatchSetWorkingIds(workingIds);
   })();
   var swapPartner = dispatchFindSwaps(todayJobs);
+  var stackPartner = dispatchFindStacks(todayJobs, swapPartner);
   todayJobs.forEach(function(j){
-    var partnerId = swapPartner[j.id];
-    var kind = partnerId ? (j._isPickup?'swap-pickup':'swap-delivery') : (j._isPickup?'standalone-pickup':'standalone-delivery');
+    var kind, partnerId = null;
+    if(swapPartner[j.id]){
+      partnerId = swapPartner[j.id];
+      var sp = todayJobs.find(function(x){return x.id===partnerId;});
+      // Same address = a swap-out: one visit, not an out-and-back pair.
+      var onsite = !!(sp && dispatchJobAddrStr(j) && dispatchJobAddrStr(j) === dispatchJobAddrStr(sp));
+      kind = j._isPickup ? (onsite?'swap-pickup-onsite':'swap-pickup') : (onsite?'swap-delivery-onsite':'swap-delivery');
+    } else if(stackPartner[j.id]){
+      partnerId = stackPartner[j.id];
+      var st = todayJobs.find(function(x){return x.id===partnerId;});
+      // The nearer drop unloads first; tie-break by id so both members agree.
+      var jm = dispatchJobMins(j), sm = st ? dispatchJobMins(st) : jm;
+      var first = jm < sm || (jm === sm && String(j.id) < String(st ? st.id : ''));
+      kind = first ? 'stack-first' : 'stack-second';
+    } else {
+      kind = j._isPickup ? 'standalone-pickup' : 'standalone-delivery';
+    }
     j._kind = kind;
-    j._partnerId = partnerId || null;
+    j._partnerId = partnerId;
+    j._cityUnknown = j._driveMins == null && !dispatchCityKnown(j.city);
     j._estMinutes = dispatchEstimateMinutes(j, kind);
   });
   // Give each combo pair a shared color so the two linked cards are obvious.
@@ -602,6 +709,7 @@ async function renderDispatch(){
   });
   var totalMins = todayJobs.reduce(function(s,j){return s+(j._estMinutes||0);},0);
   var swapPairs = Object.keys(swapPartner).length / 2;
+  var stackPairs = Object.keys(stackPartner).length / 2;
   var _vm = dispatchGetViewMode();
   if(_vm === 'canvas'){
     // Full-page canvas: all controls live inside the board (dcvMount builds them)
@@ -613,7 +721,7 @@ async function renderDispatch(){
   }
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
-  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' paired trip'+(swapPairs>1?'s':'')+' found':'')+'</div></div>';
+  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' paired trip'+(swapPairs>1?'s':'')+' found':'')+(stackPairs?' &middot; '+stackPairs+' double stack'+(stackPairs>1?'s':'')+' suggested':'')+'</div></div>';
   html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
   // Connected date stepper
   html += '<div style="display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
@@ -652,7 +760,9 @@ async function renderDispatch(){
   html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
   html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
   html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:var(--accent);background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">PAIRED</span>';
-  html += '<strong>= one trip handles both a pickup and a delivery.</strong> The empty bin coming out of the dump goes straight to the next customer instead of returning to the yard. Saves ~6&ndash;10 min per pair. The system flags pickup/delivery pairs within 10 min of each other &mdash; keep both legs on the same driver to capture the savings.';
+  html += '<strong>= one trip handles both a pickup and a delivery</strong> &mdash; the bin emptied at the dump goes straight to the next customer instead of a second trip out, saving the extra drive (20&ndash;40 min on far towns). Keep both legs on the same driver. ';
+  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.3);padding:1px 6px;border-radius:4px;margin:0 6px;vertical-align:1px">DOUBLE STACK</span>';
+  html += '<strong>= two far 14-yard drops ride out together</strong> &mdash; the regular bin nests inside a low-wide, so one trip delivers both. Suggested when two 14s land near each other roughly 20+ min out.';
   html += '</div></div>';
   html += '<div data-tour="dispatch-working" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">';
   html += '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Working today &mdash; click to toggle</div>';
@@ -721,6 +831,11 @@ async function renderDispatch(){
         html += '<div style="font-size:12.5px;color:var(--muted);text-align:center;padding:16px;font-style:italic">No stops yet &mdash; assign one above.</div>';
       } else {
         var warns = ord.warnings;
+        var _unkSeen = {};
+        laneJobs.forEach(function(uj){
+          var uKey = _dispatchCityNorm(uj.city) || '?';
+          if(uj._cityUnknown && !_unkSeen[uKey]){ _unkSeen[uKey] = true; warns.push('&ldquo;'+escHtml(uj.city||'?')+'&rdquo; not in the town list &mdash; times use a 20m guess'); }
+        });
         var clock = startMins;
         ord.jobs.forEach(function(j){
           var ft2 = j._isDelivery ? dispatchParseClock(j.binDropoffTime) : null;
@@ -912,6 +1027,7 @@ function dcvJobCardHtml(j, T, p, selected, opts){
   var svc = j._isPickup ? 'Pickup' : 'Drop';
   var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
   var win = (!j._isPickup && dispatchParseClock(j.binDropoffTime)!=null) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : '~'+(j._estMinutes||0)+'m';
+  if(j._cityUnknown) win = '⚠ '+win;
   var markCol = opts.mark === 'in' ? '#22c55e' : (opts.mark === 'out' ? '#f59e0b' : '');
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;'
               : (markCol ? 'outline:2px dashed '+markCol+';outline-offset:2px;' : '');
@@ -928,7 +1044,9 @@ function dcvJobCardHtml(j, T, p, selected, opts){
   h += '<span style="font-family:ui-monospace,monospace;font-size:9px;font-weight:700;letter-spacing:.4px;color:'+T.sub+'">#'+j.id+'</span>';
   h += '<span style="width:4px;height:4px;border-radius:50%;background:'+svcCol+';flex:0 0 auto"></span>';
   h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
-  if(isCombo) h += '<span title="Paired — pickup + delivery on one trip" style="font-size:9px">🔗</span>';
+  if(isCombo) h += String(j._kind).indexOf('stack')===0
+    ? '<span title="Double stack — two far 14-yard drops on one trip (regular rides inside the low-wide)" style="font-size:9px">📦</span>'
+    : '<span title="Paired — pickup + delivery on one trip" style="font-size:9px">🔗</span>';
   if(markCol){
     // On the real card: where it goes. On the ghost: where it came from.
     var mvId = opts.mark === 'in' ? (j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'')) : dispatchProposedCrewId(j);
