@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '537';
+var APP_VERSION = '538';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8401,31 +8401,6 @@ function clearErr(fieldId){
   if(el)  { el.classList.remove('field-error'); }
   if(msg) { msg.classList.remove('show'); }
 }
-function validateJob(){
-  // Clear all errors first
-  ['f-svc','f-name','f-date'].forEach(clearErr);
-  var ok = true;
-  var svc  = document.getElementById('f-svc').value;
-  var name = document.getElementById('f-name').value.trim();
-  var date = document.getElementById('f-date').value;
-  if(!svc){
-    document.getElementById('err-f-svc').textContent = 'Please choose a service type (Bin Rental, Junk Removal, etc.)';
-    showErr('f-svc'); ok = false;
-  }
-  if(!name){
-    document.getElementById('err-f-name').textContent = 'Customer name is required.';
-    showErr('f-name'); ok = false;
-  }
-  if(!date){
-    document.getElementById('err-f-date').textContent = 'Please pick a date for this job.';
-    showErr('f-date'); ok = false;
-  }
-  return ok;
-}
-function validateClient(){
-  return true; // Validation handled inline in saveClient
-}
-
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
 function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
@@ -11035,8 +11010,15 @@ function convertQuoteToJob(quoteId){
   document.getElementById('save-btn').textContent='Create Job';
   setFormSvc('Junk Removal');
   document.getElementById('f-status').value='';
-  document.getElementById('f-name').value=q.name||'';
-  document.getElementById('f-phone').value=q.phone||'';
+  // The form's contact fields are multi-row wraps (same shapes as openEdit fills).
+  // The emails wrap must be filled too — leaving it alone carries the previously
+  // opened job's emails into the converted booking (stale-field trap).
+  var convNames=q.names&&q.names.length?q.names:(q.name?[q.name]:[]);
+  document.getElementById('f-names-wrap').innerHTML=convNames.length?convNames.map(function(n){return _jobNameRow(n);}).join(''):_jobNameRow('');
+  var convPhones=q.phones&&q.phones.length?q.phones:(q.phone?[{num:q.phone,ext:'',type:'cell'}]:[]);
+  document.getElementById('f-phones-wrap').innerHTML=convPhones.length?convPhones.map(function(p){return _jobPhoneRow(p.num||p,p.ext||'',p.type||'cell');}).join(''):_jobPhoneRow('','','cell');
+  var convEmails=q.emails&&q.emails.length?q.emails:(q.email?[q.email]:[]);
+  document.getElementById('f-emails-wrap').innerHTML=convEmails.length?convEmails.map(function(em){return _jobEmailRow(em);}).join(''):_jobEmailRow('');
   var addrParts=(q.address||'').split(',').map(function(p){return p.trim();});
   document.getElementById('f-addr').value=addrParts[0]||'';
   document.getElementById('f-city').value=q.city||(addrParts[1]||'');
@@ -11058,7 +11040,7 @@ function convertQuoteToJob(quoteId){
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
   document.getElementById('bin-extra').style.display='none';
   toggleBin();
-  ['f-svc','f-name','f-date'].forEach(clearErr);
+  ['f-svc','f-names','f-date'].forEach(clearErr);
   _formPhotos = (q.photos || []).slice();
   _renderFormPhotos();
   document.getElementById('job-modal').classList.add('open');
