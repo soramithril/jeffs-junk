@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '541';
+var APP_VERSION = '542';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12200,11 +12200,16 @@ function fillEmailTemplate(template, j) {
     .replace(/{binSize}/g, j.binSize || 'bin')
     .replace(/{date}/g, fd(schedDate) || '')
     .replace(/{dropoffDate}/g, fd(dropoffDate) || '')
-    .replace(/{pickupDate}/g, fd(pickupDate) || 'TBD')
-    .replace(/{duration}/g, duration)
+    // fd('') returns '—' (truthy), so `fd(x) || 'TBD'` never fell back — 80
+    // sent emails said "Scheduled pick-up: —". Test the raw value instead.
+    .replace(/{pickupDate}/g, pickupDate ? fd(pickupDate) : 'TBD')
+    .replace(/{duration}/g, duration || 'TBD')
     .replace(/{address}/g, ((j.address||'')+(j.city?', '+j.city:'')) || '')
     .replace(/{price}/g, (j.price !== '' && j.price != null ? fm(j.price) : ''))
-    .replace(/{side}/g, side);
+    .replace(/{side}/g, side)
+    // {binSize} falls back to "bin", and the templates say "your {binSize} bin"
+    // — a job with no size rendered "your bin bin" (job 39772). Collapse it.
+    .replace(/\bbin bin\b/gi, 'bin');
 }
 
 function guessPresetKey(j) {
@@ -12231,6 +12236,7 @@ async function openEmailModal(id, presetKey) {
   }
   emailJobId = id;
   closeM('detail-modal');
+  _emailTplWarnClear();   // a warning left over from the last job would be about the wrong job
   /* The address comes off THE JOB first, always. A client can hold several addresses, and on
      a contractor's booking the client IS the contractor while the bin — and so the
      confirmation — belongs to their customer. Reading the client FIRST put ten bookings in a
@@ -12268,12 +12274,62 @@ async function openEmailModal(id, presetKey) {
   setTimeout(function(){document.getElementById('email-modal').classList.add('open');}, 150);
 }
 
+/* Which templates belong to which service. review_request fits any job, and a
+   service with no entry here (Extra Jobs) has no dedicated template — both
+   load without fuss. Anything else is a mismatch: the template's blanks would
+   fill from fields the job doesn't carry (a Junk Quote sent "your bin bin"
+   this way — job 39772), so switching needs an explicit go-ahead first. */
+var SERVICE_TPL = {
+  'Bin Rental':         {bin_dropoff:1, bin_pickup:1, bin_extension:1, bin_cancelled:1},
+  'Junk Removal':       {junk_removal:1},
+  'Junk Quote':         {junk_quote:1},
+  'Furniture Delivery': {furniture_bank:1},
+  'Furniture Pickup':   {furniture_bank:1}
+};
+
 function loadEmailPreset(key) {
+  var j = null; if (emailJobId) jobs.forEach(function(jj){if(jj.id===emailJobId)j=jj;});
+  var fit = j && SERVICE_TPL[j.service];
+  if (fit && !fit[key] && key !== 'review_request') { emailTplWarn(j, key); return; }
+  _emailTplWarnClear();
+  _applyEmailPreset(key);
+}
+
+function _applyEmailPreset(key) {
   var j = null; if (emailJobId) jobs.forEach(function(jj){if(jj.id===emailJobId)j=jj;});
   var preset = getPreset(key);
   emailPresetKey = key;
   document.getElementById('email-subject').value = j ? fillEmailTemplate(preset.subject, j) : preset.subject;
   document.getElementById('email-body').value = j ? fillEmailTemplate(preset.body, j) : preset.body;
+}
+
+var _emailTplWarnKey = '';
+function _emailTplWarnClear() {
+  _emailTplWarnKey = '';
+  var w = document.getElementById('email-tpl-warn');
+  if (w) w.remove();
+}
+function emailTplWarn(j, key) {
+  _emailTplWarnClear();
+  _emailTplWarnKey = key;
+  var box = document.createElement('div');
+  box.id = 'email-tpl-warn';
+  box.style.cssText = 'margin-bottom:14px;padding:14px 16px;border:2px solid #dc3545;border-radius:12px;background:rgba(220,53,69,.12)';
+  box.innerHTML =
+    '<div style="font-size:17px;font-weight:800;letter-spacing:.5px;color:#dc3545;margin-bottom:6px">⚠ WRONG EMAIL FOR THIS JOB?</div>'
+    + '<div style="font-size:13px;line-height:1.5;margin-bottom:10px">This is a <b>' + j.service + '</b> job, but that\'s the <b>'
+    + (ETPL_LABELS[key] || key) + '</b> email — some of its blanks may come out wrong or empty. Are you sure?</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn btn-sm" style="background:#dc3545;border-color:#dc3545;color:#fff" onclick="emailTplWarnUse()">Use It Anyway</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="_emailTplWarnClear()">Never Mind</button>'
+    + '</div>';
+  document.querySelector('#email-modal .modal-header').insertAdjacentElement('afterend', box);
+  if (window.JJMotion) JJMotion.bannerIn(box);
+}
+function emailTplWarnUse() {
+  var key = _emailTplWarnKey;
+  _emailTplWarnClear();
+  if (key) _applyEmailPreset(key);
 }
 
 /* ── PAGE STAMP ON BOOKING ────────────────────────────────────────────────
