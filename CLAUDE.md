@@ -27,6 +27,8 @@ The dashboard is one static site, three files at repo root:
 - `index.html` (~1,940 lines) — HTML structure only. References `style.css` and `app.js`.
 - `style.css` (~990 lines) — all CSS. Includes the `.modal-overlay` / `.modal-overlay.open` pattern that all modals rely on.
 - `app.js` (~12,800 lines) — all JavaScript. Big file but flat — grep for function names.
+- `motion.min.js` — vendored motion.dev v12.43.0 animation library (140 KB, exposes `window.Motion`). Never edit; replace wholesale to upgrade.
+- `app-motion.js` — the motion layer (`window.JJMotion`, v541). Stamp and modal animations run off observers with no call sites; app.js calls the rest behind `window.JJMotion &&` guards so stale-HTML users (and reduced-motion users) keep the pre-motion CSS behavior.
 
 Other folders:
 - `docs/` — business PDFs.
@@ -66,7 +68,7 @@ Edit files in place — no temp clones, no copying around. Then:
 
 ## Auto-update banner
 
-`app.js` polls `version.txt` every 5 minutes (with `cache: 'no-store'` to bypass browser caching). When the fetched version differs from `APP_VERSION`, a sticky "New version available — click to refresh" banner appears in the top center. Clicking it reloads the page. This works around GitHub Pages' fixed cache headers — users on stale HTML still get notified once their cached HTML expires and they pick up the polling code.
+`app.js` polls `version.txt` every 5 minutes (with `cache: 'no-store'` to bypass browser caching). When the fetched version differs from `APP_VERSION`, a **full-page blocking overlay** appears (dark blurred backdrop, "Update now" card, no dismiss — clicking anywhere reloads). Users are forced to refresh before continuing; Jake wants it this way (re-confirmed 2026-08-10). This works around GitHub Pages' fixed cache headers — users on stale HTML still get the takeover once their cached HTML expires and they pick up the polling code.
 
 ## Modal pattern (gotcha)
 

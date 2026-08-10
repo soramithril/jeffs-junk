@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '540';
+var APP_VERSION = '541';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -95,6 +95,7 @@ function _showUpdateBanner(){
   o.appendChild(card);
   o.onclick = function(){ location.reload(); };
   document.body.appendChild(o);
+  if(window.JJMotion && JJMotion.bannerIn) JJMotion.bannerIn(card);
 }
 setTimeout(_checkForUpdate, 30*1000);
 setInterval(_checkForUpdate, 5*60*1000);
@@ -2283,6 +2284,10 @@ function animateBars(container){
 }
 function animateView(viewEl){
   if(!viewEl) return;
+  // Motion layer springs the cascade when loaded; stale-HTML users have no
+  // JJMotion and keep this CSS slide (same contract: skips data-noanim,
+  // clears inline transforms when settled).
+  if(window.JJMotion && JJMotion.viewCascade){ JJMotion.viewCascade(viewEl); return; }
   var children=viewEl.children;
   Array.prototype.forEach.call(children,function(c,i){
     if(c.hasAttribute('data-noanim')) return;   // full-screen overlays must not shift
@@ -2741,7 +2746,7 @@ function renderNeedsYou(){
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
       : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
         +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
-    return '<div style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+    return '<div data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
       +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title+'</div><div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
       +cdChip
@@ -2760,6 +2765,8 @@ function renderNeedsYou(){
     +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
     +rowsHtml
   +'</div>';
+  // Buzz rows that are new since the last render (first render seeds silently)
+  if(window.JJMotion && JJMotion.buzzNew) JJMotion.buzzNew(el);
 }
 // ── REVIEW FOLLOW-UPS ──────────────────────────────────────────────────────
 // The person who dealt with the customer ticks "Ask for a review" on the work
@@ -11286,6 +11293,9 @@ function markPickedUp(id,e){
   if(e)e.stopPropagation();
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j)return;
+  // Slide the overdue row out; refresh()'s re-render finishes the removal
+  var _row = e && e.target && e.target.closest ? e.target.closest('#today-overdue-list > div') : null;
+  if(_row && window.JJMotion && JJMotion.rowExit) JJMotion.rowExit(_row);
   j.binInstatus='pickedup';
   if(j.binBid){patchBin(j.binBid,{status:'in'});}
   writeBinHistory(j);
@@ -11560,6 +11570,7 @@ function toast(msg, type) {
   t.className = 'toast' + (isErr ? ' toast-error' : isWarn ? ' toast-warn' : '');
   t.textContent = (isErr ? '✕ ' : isWarn ? '⚠ ' : '✓ ') + msg.replace(/^[⚠️✅✓⚠]\s*/,'');
   t.classList.add('show');
+  if(window.JJMotion && JJMotion.toastPop) JJMotion.toastPop(t);
   clearTimeout(t._tid);
   t._tid = setTimeout(function(){ t.classList.remove('show'); }, 3000);
 }
@@ -11588,7 +11599,9 @@ function renderToday(){
   });
   var statsHtml='<div class="stat-card c-green"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+iconTile('allJobs',{size:38,color:'green'})+'</div><div class="stat-value">'+todayJobs.length+'</div><div class="stat-label">Scheduled Today</div></div>'
     +'<div class="stat-card c-red"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+iconTile('binPickup',{size:38,color:'red'})+'</div><div class="stat-value">'+overdueJobs.length+'</div><div class="stat-label">Overdue Pickups</div></div>';
+  var _oldStats = window.JJMotion && JJMotion.snapStats ? JJMotion.snapStats(document.getElementById('today-stats')) : null;
   document.getElementById('today-stats').innerHTML=statsHtml;
+  if(_oldStats) JJMotion.tickStats(document.getElementById('today-stats'), _oldStats);
   // Today's jobs
   var el=document.getElementById('today-jobs-list');
   el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
@@ -12279,17 +12292,20 @@ function stampSound(){
   var AC = window.AudioContext || window.webkitAudioContext;
   if(!AC) return;
   var ctx = new AC();
-  [[147, 0], [294, 0.05]].forEach(function(n){
+  // Thump…ka-ching. The ring is a stand-in for the sound Jake linked (the
+  // Short couldn't be identified from here) — swap frequencies when named.
+  [['triangle',147,0,0.14,0.25],['triangle',294,0.05,0.14,0.25],
+   ['sine',1318.5,0.11,0.09,0.55],['sine',1975.5,0.17,0.07,0.6]].forEach(function(n){
     var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = n[0];
-    gain.gain.setValueAtTime(0.14, ctx.currentTime + n[1]);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n[1] + 0.3);
+    osc.type = n[0];
+    osc.frequency.value = n[1];
+    gain.gain.setValueAtTime(n[3], ctx.currentTime + n[2]);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n[2] + n[4]);
     osc.connect(gain).connect(ctx.destination);
-    osc.start(ctx.currentTime + n[1]);
-    osc.stop(ctx.currentTime + n[1] + 0.3);
+    osc.start(ctx.currentTime + n[2]);
+    osc.stop(ctx.currentTime + n[2] + n[4]);
   });
-  setTimeout(function(){ ctx.close(); }, 800);
+  setTimeout(function(){ ctx.close(); }, 1000);
 }
 
 function stampBookedIfJustSaved(job){
