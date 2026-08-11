@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '542';
+var APP_VERSION = '543';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12343,25 +12343,15 @@ var _stampBookedOnDetail = null;
 
 /* Two triangle notes, 147Hz then 294Hz 50ms apart — the octave is the "thunk".
    Saving is a click, so the AudioContext always has its user gesture. */
+// Jake's booking sound (assets/booked.mp3, 39 KB — replaced the synth stand-in v543)
+var _bookedAudio = new Audio('assets/booked.mp3');
+_bookedAudio.preload = 'auto';
 function stampSound(){
   if(localStorage.getItem('jjStampSound') === 'off') return;
-  var AC = window.AudioContext || window.webkitAudioContext;
-  if(!AC) return;
-  var ctx = new AC();
-  // Thump…ka-ching. The ring is a stand-in for the sound Jake linked (the
-  // Short couldn't be identified from here) — swap frequencies when named.
-  [['triangle',147,0,0.14,0.25],['triangle',294,0.05,0.14,0.25],
-   ['sine',1318.5,0.11,0.09,0.55],['sine',1975.5,0.17,0.07,0.6]].forEach(function(n){
-    var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.type = n[0];
-    osc.frequency.value = n[1];
-    gain.gain.setValueAtTime(n[3], ctx.currentTime + n[2]);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n[2] + n[4]);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(ctx.currentTime + n[2]);
-    osc.stop(ctx.currentTime + n[2] + n[4]);
-  });
-  setTimeout(function(){ ctx.close(); }, 1000);
+  _bookedAudio.currentTime = 0;
+  // .catch: the browser refuses play() when the save landed outside its
+  // user-gesture window — the sound is decorative, so stay silent, never toast
+  _bookedAudio.play().catch(function(){});
 }
 
 function stampBookedIfJustSaved(job){
