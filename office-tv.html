@@ -108,10 +108,15 @@
   #clock .d{font:600 16px/1 'Hanken Grotesk'; color:#8a7f5f; letter-spacing:.06em; margin-top:5px}
 
   /* ── panels ── */
-  #stage{position:relative; flex:1 1 auto; min-height:0}
+  #stage{position:relative; flex:1 1 auto; min-height:0; overflow:hidden}
+  /* Rotation is a conveyor since v543-era slide upgrade: waiting panels sit off-right,
+     the exiting one (.was, set by showPanel for ~.7s) rides off-left. Class-driven end
+     states, so a hidden tab that skips the transition still lands correct. */
   .panel{position:absolute; inset:0; display:flex; flex-direction:column; gap:24px; min-height:0;
-    opacity:0; visibility:hidden; transition:opacity .5s ease, visibility .5s}
-  .panel.on{opacity:1; visibility:visible}
+    opacity:0; visibility:hidden; transform:translateX(103%);
+    transition:transform .55s cubic-bezier(.32,.72,0,1), opacity .55s ease, visibility .55s}
+  .panel.on{opacity:1; visibility:visible; transform:translateX(0)}
+  .panel.was{opacity:0; visibility:visible; transform:translateX(-103%)}
   .p-head{display:flex; align-items:center; gap:20px; padding:0 4px; flex:0 0 auto}
   .p-head .bar{width:15px; height:46px; background:var(--gold); border-radius:6px; flex:0 0 auto}
   .p-head h2{margin:0; font:700 54px/1 'Baloo 2'; color:var(--spruce); white-space:nowrap}
@@ -1486,7 +1491,16 @@
       var name = PANELS[panelIdx];
       renderCurrent();
       var panels = document.querySelectorAll('.panel');
+      // Conveyor slide: the panel leaving rides out left (.was) while the next
+      // slides in from the right. Stale .was stripped first — self-healing if a
+      // hidden-tab rotation ever left one behind.
+      panels.forEach(function(p){ p.classList.remove('was'); });
+      var prev = document.querySelector('.panel.on');
       panels.forEach(function(p){ p.classList.toggle('on', p.getAttribute('data-panel')===name); });
+      if(prev && !prev.classList.contains('on')){
+        prev.classList.add('was');
+        setTimeout(function(){ prev.classList.remove('was'); }, 700);
+      }
       // Pull fresh truck positions as the map rotates in — once every lap rather
       // than on a timer of its own, so the pins are current exactly when they're
       // on screen and we spend nothing on Geotab's quota the rest of the time.
