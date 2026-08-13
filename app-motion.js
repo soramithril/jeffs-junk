@@ -113,6 +113,71 @@
     ).finished.then(clearTransform(card));
   };
 
+  /* ── forced-update takeover: the Pokopia window-open (v548) ─────────────
+     The logo badge pops in and pulses, half-spins with the white frame, then
+     the green-panelled frame springs open to card size and the message sheet
+     fades in. Values lifted 1:1 from motion.dev's "Pokopia: Modal" demo.
+     Without JJMotion the markup already sits in its final state; forceFinal
+     lands there too if a hidden tab stalls the timer chain — clicking
+     anywhere reloads regardless, so a stall is only ever cosmetic. */
+  J.updateTakeover = function (o) {
+    var frame = o.querySelector('#upd-frame'), panel = o.querySelector('#upd-panel'),
+        sheet = o.querySelector('#upd-sheet'), badge = o.querySelector('#upd-badge');
+    if (!frame || !panel || !sheet || !badge) return;
+    var W = frame.offsetWidth, H = frame.offsetHeight;   // final card size, measured before collapsing
+    var logo = badge.querySelector('img');
+    var done = false, pulse = null;
+    function forceFinal() {
+      if (done) return;
+      done = true;
+      if (pulse) pulse.stop();
+      frame.style.width = ''; frame.style.height = ''; frame.style.overflow = '';
+      frame.style.transform = ''; frame.style.opacity = ''; frame.style.borderRadius = '40px';
+      panel.style.borderRadius = '35px';
+      sheet.style.visibility = ''; sheet.style.opacity = '';
+      badge.style.display = 'none';
+    }
+
+    /* collapse to the starting square (the measured card is the expand target) */
+    frame.style.width = '150px'; frame.style.height = '150px';
+    frame.style.overflow = 'hidden'; frame.style.borderRadius = '75px';
+    panel.style.borderRadius = '70px';
+    sheet.style.visibility = 'hidden'; sheet.style.opacity = '0';
+    badge.style.display = 'flex';
+
+    animate(o, { opacity: [0, 1] }, { duration: 0.25 });
+    /* ENTRY — frame pops, badge appears and pulses */
+    animate(frame, { scale: [0.4, 1], opacity: [0, 1] }, { duration: 0.13, opacity: { duration: 0.08 } });
+    animate(badge, { opacity: [0, 1] }, { duration: 0.05 });
+    animate(logo, { opacity: [0, 1] }, { duration: 0.4 });
+    pulse = animate(badge, { scale: [0.8, 1.75, 0.8] }, { duration: 0.36, ease: 'easeInOut', repeat: Infinity });
+
+    setTimeout(function () {
+      if (done) return;
+      /* SPIN — half turn with slight overshoot while the corners tighten */
+      animate(frame, { rotate: [-180, 0] }, { duration: 0.33, ease: [0.57, 0.44, 0.66, 1.17] });
+      animate(frame, { borderRadius: ['75px', '50px'] }, { duration: 0.33, ease: 'linear' });
+      animate(panel, { borderRadius: ['70px', '45px'] }, { duration: 0.33, ease: 'linear' });
+
+      setTimeout(function () {
+        if (done) return;
+        /* EXPAND — spring open to the measured card; badge blows up and fades */
+        animate(frame, { width: ['150px', W + 'px'], height: ['150px', H + 'px'] },
+          { type: 'spring', duration: 0.55, bounce: 0.05 })
+          .finished.then(forceFinal);
+        animate(frame, { borderRadius: ['50px', '40px'] }, { duration: 0.55, ease: 'linear' });
+        animate(panel, { borderRadius: ['45px', '35px'] }, { duration: 0.55, ease: 'linear' });
+        if (pulse) pulse.stop();
+        animate(badge, { scale: 2 }, { duration: 0.36, ease: 'easeInOut' });
+        animate(badge, { opacity: 0 }, { duration: 0.15, delay: 0.3 });
+        sheet.style.visibility = '';
+        animate(sheet, { opacity: [0, 1] }, { duration: 0.1, ease: 'linear', delay: 0.12 });
+      }, 330);
+    }, 130);
+
+    setTimeout(forceFinal, 3000);                    // hidden-tab stall insurance
+  };
+
   /* ── numbers: count up with commas, small pulse on landing (v546) ──────── */
   J.countUp = function (el, target, dur) {
     if (!el) return;

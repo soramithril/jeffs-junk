@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '547';
+var APP_VERSION = '548';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -83,19 +83,27 @@ function _checkForUpdate(){
 }
 function _showUpdateBanner(){
   if(document.getElementById('update-banner')) return;
+  // Pokopia-style window open (v548): white frame + green panel spin in and
+  // spring open, logo badge pulses over it. Markup ships in its FINAL state —
+  // stale-HTML / reduced-motion users (no JJMotion) see a finished card.
   var o = document.createElement('div');
   o.id = 'update-banner';
   o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(10,12,15,0.92);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:#1c2025;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:40px 36px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6)';
-  card.innerHTML = '<div style="font-size:48px;margin-bottom:16px">🔄</div>'+
-    '<div style="font-size:22px;font-weight:800;margin-bottom:10px">New version available</div>'+
-    '<div style="font-size:14px;color:rgba(255,255,255,0.7);line-height:1.5;margin-bottom:28px">A newer version of the dashboard is ready. Update now to get the latest features and fixes.</div>'+
-    '<button style="background:var(--accent-hero);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Update now</button>';
-  o.appendChild(card);
+  o.innerHTML =
+    '<div id="upd-frame" style="position:relative;flex-shrink:0;background:#fff;border-radius:40px;width:min(520px,calc(100vw - 48px));box-shadow:0 20px 60px rgba(0,0,0,0.6)">'+
+      '<div id="upd-panel" style="position:absolute;inset:5px;background:var(--accent);border-radius:35px"></div>'+
+      '<div id="upd-sheet" style="position:relative;margin:30px;background:#fff;border-radius:15px;padding:36px 28px;text-align:center">'+
+        '<div style="font-size:22px;font-weight:800;margin-bottom:10px;color:var(--text)">New version available</div>'+
+        '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:26px">A newer version of the dashboard is ready. Update now to get the latest features and fixes.</div>'+
+        '<button style="background:var(--accent-hero);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Update now</button>'+
+      '</div>'+
+    '</div>'+
+    '<div id="upd-badge" style="display:none;position:absolute;left:50%;top:50%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;background:rgb(253,251,247);overflow:hidden;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,0.35)">'+
+      '<img src="assets/jeffs-junk-logo.png" alt="" style="width:86%;height:auto">'+
+    '</div>';
   o.onclick = function(){ location.reload(); };
   document.body.appendChild(o);
-  if(window.JJMotion && JJMotion.bannerIn) JJMotion.bannerIn(card);
+  if(window.JJMotion && JJMotion.updateTakeover) JJMotion.updateTakeover(o);
 }
 setTimeout(_checkForUpdate, 30*1000);
 setInterval(_checkForUpdate, 5*60*1000);
