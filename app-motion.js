@@ -100,33 +100,6 @@
     });
   };
 
-  /* ── stat cards: changed numbers drop in with a pulse ──────────────────── */
-  J.snapStats = function (container) {
-    if (!container) return null;
-    return Array.prototype.map.call(container.querySelectorAll('.stat-value'), function (v) { return v.textContent; });
-  };
-  J.tickStats = function (container, olds) {
-    if (!container || !olds) return;
-    Array.prototype.forEach.call(container.querySelectorAll('.stat-value'), function (v, i) {
-      if (olds[i] === undefined || olds[i] === v.textContent) return;
-      animate(v, { y: [-16, 0], opacity: [0, 1], scale: [1.1, 1] },
-        { type: 'spring', stiffness: 500, damping: 28 }
-      ).finished.then(function () { v.style.transform = ''; v.style.opacity = ''; });
-    });
-  };
-
-  /* ── a completed row slides away; restore if no re-render removes it ───── */
-  J.rowExit = function (row) {
-    if (!row) return;
-    var h = row.offsetHeight;
-    animate(row, { x: 60, opacity: 0 }, { duration: 0.25, ease: 'easeIn' }).finished.then(function () {
-      animate(row, { height: [h + 'px', '0px'], marginBottom: 0 }, { duration: 0.22, ease: 'easeOut' });
-    });
-    setTimeout(function () {                       // patch failed / list never re-rendered: undo
-      if (row.isConnected) row.removeAttribute('style');
-    }, 2000);
-  };
-
   /* ── toast entrance ────────────────────────────────────────────────────── */
   J.toastPop = function (t) {
     animate(t, { y: [18, 0], scale: [0.92, 1] }, { type: 'spring', stiffness: 520, damping: 30 })

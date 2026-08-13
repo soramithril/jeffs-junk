@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '546';
+var APP_VERSION = '547';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11393,9 +11393,6 @@ function markPickedUp(id,e){
   if(e)e.stopPropagation();
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j)return;
-  // Slide the overdue row out; refresh()'s re-render finishes the removal
-  var _row = e && e.target && e.target.closest ? e.target.closest('#today-overdue-list > div') : null;
-  if(_row && window.JJMotion && JJMotion.rowExit) JJMotion.rowExit(_row);
   j.binInstatus='pickedup';
   if(j.binBid){patchBin(j.binBid,{status:'in'});}
   writeBinHistory(j);
@@ -11681,59 +11678,6 @@ document.addEventListener('click',function(e){
   if(res&&inp&&!res.contains(e.target)&&e.target!==inp)res.style.display='none';
 });
 
-
-// ─── TODAY VIEW ───
-function renderToday(){
-  var todayS=todayStr();
-  document.getElementById('today-view-lbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  var todayJobs=jobs.filter(function(j){return jobSchedDate(j)===todayS&&j.status!=='Cancelled';});
-  // Cancelled rentals were never excluded here, unlike every other list on this screen, so a
-  // rental cancelled after the bin went out showed as an overdue pickup forever.
-  var overdueJobs=jobs.filter(function(j){return j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus==='dropped'&&j.binPickup&&j.binPickup<todayS;});
-  var threshold=parseInt(document.getElementById('today-days-threshold')&&document.getElementById('today-days-threshold').value)||7;
-  var longBins=jobs.filter(function(j){
-    if(j.service!=='Bin Rental'||j.status==='Cancelled')return false;
-    var drop=j.binDropoff||j.date;if(!drop)return false;
-    var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
-    return days>=threshold;
-  });
-  var statsHtml='<div class="stat-card c-green"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+iconTile('allJobs',{size:38,color:'green'})+'</div><div class="stat-value">'+todayJobs.length+'</div><div class="stat-label">Scheduled Today</div></div>'
-    +'<div class="stat-card c-red"><div class="stat-icon" style="height:38px;margin-bottom:12px">'+iconTile('binPickup',{size:38,color:'red'})+'</div><div class="stat-value">'+overdueJobs.length+'</div><div class="stat-label">Overdue Pickups</div></div>';
-  var _oldStats = window.JJMotion && JJMotion.snapStats ? JJMotion.snapStats(document.getElementById('today-stats')) : null;
-  document.getElementById('today-stats').innerHTML=statsHtml;
-  if(_oldStats) JJMotion.tickStats(document.getElementById('today-stats'), _oldStats);
-  // Today's jobs
-  var el=document.getElementById('today-jobs-list');
-  el.innerHTML=todayJobs.length?todayJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center"><strong>'+escHtml(j.name||'')+'</strong></div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+sb(j.service)+(function(){var st=j.service==='Bin Rental'?(j.binDropoffTime||j.binPickupTime):(j.service==='Furniture Delivery'||j.service==='Furniture Pickup')?j.fbTime:(j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Extra Jobs')?j.junkTime:'';return st?' · '+ft(st):'';})()+' · '+j.id+'</div>'
-    +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No jobs scheduled today</div>';
-  // Overdue
-  var od=document.getElementById('today-overdue-list');
-  od.innerHTML=overdueJobs.length?overdueJobs.map(function(j){return'<div style="padding:8px 12px;border:1px solid rgba(220,53,69,.3);border-radius:8px;margin-bottom:8px;background:rgba(220,53,69,.05)">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center">'
-    +'<strong style="color:#dc3545;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'+escHtml(j.name||'')+'</strong>'
-    +'<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event)" style="font-size:11px">✅ Picked Up</button>'
-    +'</div>'
-    +'<div style="font-size:12px;color:var(--muted)">Pickup was: '+fd(j.binPickup)+'</div>'
-    +'<div style="font-size:12px;color:var(--muted)">'+escHtml(j.address||'')+'</div>'
-    +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No overdue pickups</div>';
-  // Long bins
-  var lb=document.getElementById('today-long-bins');
-  lb.innerHTML=longBins.length?longBins.map(function(j){
-    var drop=j.binDropoff||j.date;var days=Math.floor((Date.now()-new Date(drop).getTime())/86400000);
-    return'<div style="padding:8px 12px;border:1px solid rgba(230,126,34,.3);border-radius:8px;margin-bottom:8px;background:rgba(230,126,34,.04);cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-    +'<strong>'+escHtml(j.name||'')+'</strong><span style="margin-left:8px;color:#e67e22;font-size:12px;font-weight:700">'+days+' days out</span>'
-    +'<div style="font-size:12px;color:var(--muted)">'+escHtml(j.binSize||'')+(j.binPickup?' · Pickup: '+fd(j.binPickup):'')+'</div>'
-    +'</div>';}).join(''):'<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">✅ No bins out that long</div>';
-  // Crew workload
-  var cr=document.getElementById('today-crew');
-  var svcCount={'Bin Rental':0,'Junk Removal':0,'Extra Jobs':0,'Furniture Pickup':0,'Furniture Delivery':0};
-  todayJobs.forEach(function(j){if(svcCount.hasOwnProperty(j.service))svcCount[j.service]++;});
-  var svcIcons={'Bin Rental':'🚛','Junk Removal':'🧹','Extra Jobs':'🌿','Furniture Pickup':'🛋️','Furniture Delivery':'📦'};
-  var svcColors={'Bin Rental':'#22c55e','Junk Removal':'#eab308','Extra Jobs':'#65a30d','Furniture Pickup':'#8b5cf6','Furniture Delivery':'#f97316'};
-  cr.innerHTML=Object.keys(svcCount).map(function(k){var v=svcCount[k];return'<div class="bar-row"><div class="bar-label">'+svcIcons[k]+' '+k.split(' ')[0]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(v/Math.max.apply(null,Object.values(svcCount))||0,v>0?0.1:0)*100+'%;background:'+svcColors[k]+'"><span class="bar-fill-label">'+v+'</span></div></div></div>';}).join('');
-}
 
 // ─── REVENUE INTELLIGENCE ───
 
