@@ -14,3 +14,17 @@ audit/
 # addresses plus one employee's two-month movement history. The dashboard reads
 # the snapshot from Supabase (jwg_cut_locations / jwg_cut_visits) instead.
 docs/cut-times/
+
+# Local-only by convention - the repo is public and deploys straight to the
+# live site, so reports (some name staff) and design mockups never go in.
+QA-REPORT-*.md
+CREW-TIME-REPORT-*.md
+SHOP-HEALTH-*.md
+*-local.html
+__pycache__/
+
+# Claude Code: only the shared config (tripwire hook) and the playbook skills
+# are the repo's business; everything else in .claude/ is machine-local.
+.claude/*
+!.claude/settings.json
+!.claude/skills/
