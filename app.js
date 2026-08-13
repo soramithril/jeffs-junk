@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '549';
+var APP_VERSION = '550';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -564,7 +564,14 @@ db.channel('notif-history')
   })
   .subscribe();
 
-// ── Address Autocomplete (Nominatim / OpenStreetMap — free, no key needed) ──
+// ── Address Autocomplete ──────────────────────────────────────────────────
+// Google Places (New) is the primary source once GOOGLE_PLACES_KEY is set — OSM's
+// address book is thin in the smaller towns (a Barrie address got booked onto an
+// Alliston job, Aug 2026). The key is referer-locked to this site and day-capped in
+// the Google console below the 10K/month free tier; a capped or failed Google call
+// falls back to Nominatim so suggestions never just stop.
+var GOOGLE_PLACES_KEY = ''; // empty = Nominatim only (pre-Google behavior)
+var _acGoogleRetryAt = 0;   // after a Google failure, ride Nominatim until this time
 
 var _acDebounceTimers = {};
 var _acActiveIdx = {};
@@ -606,21 +613,19 @@ function attachAddressAutocomplete(inputEl, onPick) {
     if (!results || !results.length) { hideDropdown(); return; }
     dropdown.innerHTML = '';
     _acActiveIdx[uid] = -1;
-    results.slice(0, 7).forEach(function(r, i) {
+    results.slice(0, 7).forEach(function(r) {
       var item = document.createElement('div');
       item.className = 'addr-ac-item';
-      // Build a nice display: bold the street part, muted the rest
-      var parts = (r.display_name || '').split(',');
-      var main = (parts[0] || '').trim();
-      var rest = parts.slice(1, 4).map(function(p){ return p.trim(); }).filter(Boolean).join(', ');
-      item.innerHTML = '<strong>' + main + '</strong>' + (rest ? ' <span style="color:#94a3b8;font-size:12px">' + rest + '</span>' : '');
+      // Town stays full-size and bold — towns in mouse-type are how a Barrie
+      // address got booked onto an Alliston job
+      item.innerHTML = '<strong>' + escHtml(r.street) + '</strong>'
+        + (r.city ? ' <span style="font-weight:700">' + escHtml(r.city) + '</span>' : '')
+        + (r.extra ? ' <span style="color:#94a3b8;font-size:12px">' + escHtml(r.extra) + '</span>' : '');
       item.addEventListener('mousedown', function(e) {
         e.preventDefault();
-        var street = _extractStreet(r, inputEl.value);
-        var city   = _extractCity(r);
-        inputEl.value = street;
+        inputEl.value = r.street;
         hideDropdown();
-        if (onPick) onPick(street, city);
+        if (onPick) onPick(r.street, r.city);
       });
       dropdown.appendChild(item);
     });
@@ -633,15 +638,11 @@ function attachAddressAutocomplete(inputEl, onPick) {
     if (q.length < 4) { hideDropdown(); return; }
     _acDebounceTimers[uid] = setTimeout(function() {
       showLoading();
-      // Viewbox biases results toward current location (±0.5 deg ≈ ~55km radius)
-      var vb = (_acLon-0.5)+','+(_acLat+0.5)+','+(_acLon+0.5)+','+(_acLat-0.5);
-      var url = 'https://nominatim.openstreetmap.org/search'
-        + '?q=' + encodeURIComponent(q + ', Ontario, Canada')
-        + '&format=json&addressdetails=1&limit=7&countrycodes=ca'
-        + '&viewbox=' + vb + '&bounded=0';
-      fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'JeffsJunkJobTracker/1.0' } })
-        .then(function(res){ return res.json(); })
-        .then(renderResults)
+      _acFetchSuggestions(q)
+        .then(function(results){
+          // A slower response for an older query must not overwrite a newer one
+          if (inputEl.value.trim() === q) renderResults(results);
+        })
         .catch(function(){ hideDropdown(); });
     }, 350);
   });
@@ -669,6 +670,64 @@ function attachAddressAutocomplete(inputEl, onPick) {
   inputEl.addEventListener('blur', function() {
     setTimeout(hideDropdown, 180);
   });
+}
+
+// Both providers normalize to { street, city, extra } so one dropdown serves both.
+function _acFetchSuggestions(q) {
+  if (GOOGLE_PLACES_KEY && Date.now() >= _acGoogleRetryAt) {
+    return _acFetchGoogle(q).catch(function(){
+      _acGoogleRetryAt = Date.now() + 60*60*1000;
+      return _acFetchNominatim(q);
+    });
+  }
+  return _acFetchNominatim(q);
+}
+
+function _acFetchGoogle(q) {
+  return fetch('https://places.googleapis.com/v1/places:autocomplete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GOOGLE_PLACES_KEY },
+    body: JSON.stringify({
+      input: q,
+      includedRegionCodes: ['ca'],
+      // Bias (never restrict) toward the service area; 50 km is the API's max radius
+      locationBias: { circle: { center: { latitude: _acLat, longitude: _acLon }, radius: 50000.0 } }
+    })
+  }).then(function(res){
+    if (!res.ok) throw new Error('places:autocomplete HTTP ' + res.status);
+    return res.json();
+  }).then(function(data){
+    return (data.suggestions || []).map(function(s){
+      var p = (s && s.placePrediction) || {};
+      var sf = p.structuredFormat || {};
+      var main = (sf.mainText && sf.mainText.text) || (p.text && p.text.text) || '';
+      var sec  = (sf.secondaryText && sf.secondaryText.text) || '';
+      var parts = sec.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+      return { street: main, city: parts[0] || '', extra: parts.slice(1).join(', ') };
+    });
+  });
+}
+
+function _acFetchNominatim(q) {
+  // Viewbox biases results toward current location (±0.5 deg ≈ ~55km radius)
+  var vb = (_acLon-0.5)+','+(_acLat+0.5)+','+(_acLon+0.5)+','+(_acLat-0.5);
+  var url = 'https://nominatim.openstreetmap.org/search'
+    + '?q=' + encodeURIComponent(q + ', Ontario, Canada')
+    + '&format=json&addressdetails=1&limit=7&countrycodes=ca'
+    + '&viewbox=' + vb + '&bounded=0';
+  return fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'JeffsJunkJobTracker/1.0' } })
+    .then(function(res){ return res.json(); })
+    .then(function(results){
+      return (results || []).map(function(r){
+        var a = r.address || {};
+        var city = _extractCity(r);
+        return {
+          street: _extractStreet(r, q),
+          city: city,
+          extra: (a.county && a.county !== city) ? a.county : ''
+        };
+      });
+    });
 }
 
 function _extractStreet(r, currentValue) {
