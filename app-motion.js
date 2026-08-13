@@ -125,13 +125,14 @@
         sheet = o.querySelector('#upd-sheet'), badge = o.querySelector('#upd-badge');
     if (!frame || !panel || !sheet || !badge) return;
     var W = frame.offsetWidth, H = frame.offsetHeight;   // final card size, measured before collapsing
+    var w0 = frame.style.width;                    // the markup's min() width — restore it, don't clear it
     var logo = badge.querySelector('img');
     var done = false, pulse = null;
     function forceFinal() {
       if (done) return;
       done = true;
       if (pulse) pulse.stop();
-      frame.style.width = ''; frame.style.height = ''; frame.style.overflow = '';
+      frame.style.width = w0; frame.style.height = ''; frame.style.overflow = '';
       frame.style.transform = ''; frame.style.opacity = ''; frame.style.borderRadius = '40px';
       panel.style.borderRadius = '35px';
       sheet.style.visibility = ''; sheet.style.opacity = '';
