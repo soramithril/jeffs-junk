@@ -437,14 +437,24 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
           var pc=bWork.filter(function(j){return j.service===s.key;}).length;
           return '<div class="ana-chip">'
             +'<div class="ana-chip-top"><span class="ana-chip-dot" style="background:'+s.color+'"></span><span class="ana-chip-lbl">'+s.label+'</span></div>'
-            +'<div class="ana-chip-row"><span class="ana-chip-val">'+anaFmtInt(c)+'</span>'+anaDeltaChip(c,pc,hasB)+'</div>'
+            +'<div class="ana-chip-row"><span class="ana-chip-val" data-count="'+c+'">'+anaFmtInt(c)+'</span>'+anaDeltaChip(c,pc,hasB)+'</div>'
             +(hasB?'<div class="ana-chip-prev">prev '+anaFmtInt(pc)+'</div>':'')
           +'</div>';
         }).join('')
         +'</div>'
         +'<div class="ana-spark-wrap">'+anaSparkline(buckets.totals)+'<div class="ana-note">'+granLbl+' — '+anaEsc(dates.a.label)+'</div></div>'
       +'</div>';
-    requestAnimationFrame(function(){ animCount(document.getElementById('ana-hero-num'),aWork.length); });
+    // v546: motion layer counts with commas + a landing pulse, and the service
+    // chips tick up too. animCount stays as the path for stale-HTML users.
+    requestAnimationFrame(function(){
+      var hn=document.getElementById('ana-hero-num');
+      if(window.JJMotion && JJMotion.countUp){
+        JJMotion.countUp(hn, aWork.length, 1.3);
+        Array.prototype.forEach.call(hero.querySelectorAll('.ana-chip-val[data-count]'), function(cv){
+          JJMotion.countUp(cv, parseInt(cv.getAttribute('data-count'),10)||0, 0.9);
+        });
+      } else animCount(hn, aWork.length);
+    });
   }
 
   // ── Jobs over time (period-aware stacked bars) ──

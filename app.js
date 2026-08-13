@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '545';
+var APP_VERSION = '546';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2746,6 +2746,9 @@ function renderNeedsYou(){
   }).length;
   el.setAttribute('data-count', items.length);
   renderGreeting();
+  // Snapshot row positions before the re-render so surviving rows can glide to
+  // their new spot (v546) — a ticked-off task shouldn't make the list teleport.
+  var _flipSnap = window.JJMotion && JJMotion.snapRows ? JJMotion.snapRows(el) : null;
   if(!items.length){
     el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid var(--accent-hero);background:linear-gradient(135deg,rgba(34,197,94,.14),var(--surface) 70%)">'
       +'<span style="width:6px;height:38px;border-radius:99px;background:var(--accent-hero);flex:none"></span>'
@@ -2797,7 +2800,9 @@ function renderNeedsYou(){
     +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
     +rowsHtml
   +'</div>';
-  // Buzz rows that are new since the last render (first render seeds silently)
+  // Surviving rows glide to their new spot, then buzz the genuinely new ones
+  // (first render seeds silently)
+  if(_flipSnap) JJMotion.flipRows(el, _flipSnap);
   if(window.JJMotion && JJMotion.buzzNew) JJMotion.buzzNew(el);
 }
 // ── REVIEW FOLLOW-UPS ──────────────────────────────────────────────────────
@@ -3749,7 +3754,16 @@ function jjApplyVibe(){
   // is only ~11% opaque by the time typing starts, which is faint but not
   // nothing. The 150ms is the wait before the first character, not before the
   // blanking.
-  jjTypeIn(document.getElementById('dash-greeting-head'), 42, 150);
+  // Exception (v546): the FIRST open of a page load is the sign-in moment — the
+  // greeting sweeps in word by word instead (motion layer). Later opens keep the
+  // typewriter, and stale-HTML/reduced-motion users always do.
+  var _greetHead=document.getElementById('dash-greeting-head');
+  if(!window._jjGreetSwept && window.JJMotion && JJMotion.greetSweep){
+    window._jjGreetSwept=true;
+    JJMotion.greetSweep(_greetHead);
+  } else {
+    jjTypeIn(_greetHead, 42, 150);
+  }
   clearInterval(_jjPartyTimer);
   if(v.confetti){ setTimeout(jjBurst,200); _jjPartyTimer=setInterval(jjBurst,3200); }
   else { var host=document.getElementById('jj-confetti'); if(host)host.innerHTML=''; }
@@ -3808,7 +3822,9 @@ function renderGreeting(){
   var nameEl=document.getElementById('logged-in-username');
   var raw=nameEl?(nameEl.textContent||'').trim():'';
   var nm=(raw && raw!=='—')?raw.split(' ')[0]:'';
-  headEl.textContent=part+(nm?', '+nm:'');
+  // Mid-sweep the headline is word spans (motion layer, v546) — data refreshes
+  // land here within the sweep's ~1.5s, and stomping it kills the entrance.
+  if(!headEl._jjSweeping) headEl.textContent=part+(nm?', '+nm:'');
   headEl.style.color=JJ_VIBES[jjVibeMode].color;
   var list=h<12?GREET_FUN.morning:(h<18?GREET_FUN.afternoon:GREET_FUN.evening);
   var phrase=list[now.getDate()%list.length]; // same phrase all day, new one tomorrow
@@ -4431,7 +4447,9 @@ function toggleBinsOutGroup(sz){
   var body=document.getElementById('binsout-g-'+slug);
   if(!body) throw new Error('toggleBinsOutGroup: no group body for "'+sz+'"');
   _binsOutOpen[sz]=!_binsOutOpen[sz];
-  body.style.display=_binsOutOpen[sz]?'':'none';
+  // Glide instead of snap when the motion layer is loaded (v546)
+  if(window.JJMotion && JJMotion.glide) JJMotion.glide(body, _binsOutOpen[sz], '');
+  else body.style.display=_binsOutOpen[sz]?'':'none';
   var caret=document.getElementById('binsout-c-'+slug);
   if(caret) caret.textContent=_binsOutOpen[sz]?'▾':'▸';
 }
@@ -4558,7 +4576,9 @@ function toggleJobFilters(){
   var btn   = document.getElementById('jobs-filters-btn');
   if (!panel) return;
   var open = (panel.style.display === 'none' || !panel.style.display);
-  panel.style.display = open ? 'flex' : 'none';
+  // Glide instead of snap when the motion layer is loaded (v546)
+  if(window.JJMotion && JJMotion.glide) JJMotion.glide(panel, open, 'flex');
+  else panel.style.display = open ? 'flex' : 'none';
   // highlights can't position while the panel is display:none — sync once it's visible
   if (open && typeof atabsSync === 'function') requestAnimationFrame(function(){ atabsSync('svc'); atabsSync('date'); atabsSync('bin'); });
   if (btn){

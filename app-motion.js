@@ -1,5 +1,6 @@
 /* ============================================================================
-   Jeff's Junk — MOTION LAYER  (companion to motion.min.js, v541)
+   Jeff's Junk — MOTION LAYER  (companion to motion.min.js, v541; +countUp,
+   glide, snapRows/flipRows, greetSweep in v546)
 
    All spring/stagger animation lives here, driven by the vendored motion.dev
    bundle (window.Motion). app.js calls into window.JJMotion at a handful of
@@ -137,6 +138,108 @@
     animate(card, { y: [-46, 0], scale: [0.94, 1], opacity: [0, 1] },
       { type: 'spring', stiffness: 360, damping: 20 }
     ).finished.then(clearTransform(card));
+  };
+
+  /* ── numbers: count up with commas, small pulse on landing (v546) ──────── */
+  J.countUp = function (el, target, dur) {
+    if (!el) return;
+    if (!target) { el.textContent = '0'; return; }   // counting to zero is just a pulse on nothing
+    animate(0, target, {
+      duration: dur || 1.1, ease: [0.16, 1, 0.3, 1],
+      onUpdate: function (v) { el.textContent = Math.round(v).toLocaleString('en-US'); }
+    }).finished.then(function () {
+      el.textContent = target.toLocaleString('en-US');
+      animate(el, { scale: [1.08, 1] }, { type: 'spring', stiffness: 480, damping: 24 })
+        .finished.then(clearTransform(el));
+    });
+  };
+
+  /* ── sections: glide open/shut instead of the display snap (v546) ──────── */
+  function glideClear(body) {
+    body.style.height = ''; body.style.overflow = ''; body.style.opacity = '';
+    body.style.paddingTop = ''; body.style.paddingBottom = '';
+  }
+  J.glide = function (body, opening, displayVal) {
+    var n = body._jjG = (body._jjG || 0) + 1;       // a newer toggle owns the end state
+    if (opening) {
+      body.style.display = displayVal || '';
+      // Vertical padding animates with the height — a padded box squeezed to
+      // height:0 otherwise keeps its padding as a visible stub (border-box).
+      var cs = getComputedStyle(body), pt = cs.paddingTop, pb = cs.paddingBottom;
+      var h = body.scrollHeight;
+      body.style.overflow = 'hidden';
+      animate(body,
+        { height: ['0px', h + 'px'], paddingTop: ['0px', pt], paddingBottom: ['0px', pb], opacity: [0, 1] },
+        { duration: 0.4, ease: [0.16, 1, 0.3, 1] })
+        .finished.then(function () {
+          if (body._jjG !== n) return;
+          glideClear(body);
+        });
+    } else {
+      var cs2 = getComputedStyle(body), pt2 = cs2.paddingTop, pb2 = cs2.paddingBottom;
+      var h2 = body.scrollHeight;
+      body.style.overflow = 'hidden';
+      animate(body,
+        { height: [h2 + 'px', '0px'], paddingTop: [pt2, '0px'], paddingBottom: [pb2, '0px'], opacity: [1, 0] },
+        { duration: 0.28, ease: [0.4, 0, 1, 1] })
+        .finished.then(function () {
+          if (body._jjG !== n) return;
+          body.style.display = 'none';
+          glideClear(body);
+        });
+    }
+  };
+
+  /* ── list re-render: surviving rows glide to their new spot (v546) ─────── */
+  J.snapRows = function (container) {
+    if (!container) return null;
+    var m = {};
+    Array.prototype.forEach.call(container.querySelectorAll('[data-nyk]'), function (r) {
+      m[r.getAttribute('data-nyk')] = r.getBoundingClientRect().top;
+    });
+    return m;
+  };
+  J.flipRows = function (container, snap) {
+    if (!container || !snap) return;
+    Array.prototype.forEach.call(container.querySelectorAll('[data-nyk]'), function (r) {
+      var old = snap[r.getAttribute('data-nyk')];
+      if (old === undefined) return;                 // brand-new row — that's buzzNew's moment
+      var dy = old - r.getBoundingClientRect().top;
+      if (!dy) return;
+      animate(r, { y: [dy, 0] }, { type: 'spring', stiffness: 350, damping: 30 })
+        .finished.then(clearTransform(r));
+    });
+  };
+
+  /* ── sign-in: greeting sweeps in word by word, blur to sharp (v546) ────── */
+  J.greetSweep = function (el) {
+    if (!el) return;
+    var words = el.textContent.split(' ');
+    el._jjSweeping = true;                           // renderGreeting skips the headline while this is set
+    el.textContent = '';
+    var spans = words.map(function (w, i) {
+      var s = document.createElement('span');
+      // the joiner below is a literal NBSP — a normal trailing space collapses inside inline-block
+      s.textContent = w + (i < words.length - 1 ? ' ' : '');
+      s.style.display = 'inline-block';
+      s.style.opacity = '0';
+      el.appendChild(s);
+      return s;
+    });
+    var done = 0;
+    function settle() {                              // plain text again so the typewriter (and renderGreeting) own it from here
+      if (!el._jjSweeping) return;
+      el._jjSweeping = false;
+      el.textContent = words.join(' ');
+    }
+    spans.forEach(function (s, i) {
+      animate(s, { y: [26, 0], opacity: [0, 1], filter: ['blur(8px)', 'blur(0px)'] },
+        { type: 'spring', stiffness: 320, damping: 26, delay: 0.15 + i * 0.11 })
+        .finished.then(function () {
+          if (++done === spans.length) settle();
+        });
+    });
+    setTimeout(settle, 3000);                        // hidden-tab springs never finish — don't leave the headline locked
   };
 
   /* ── tactile buttons: compress on press, spring back on release ────────── */
