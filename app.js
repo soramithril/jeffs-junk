@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '544';
+var APP_VERSION = '545';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11203,7 +11203,7 @@ async function scheduleNextSwap(id){
     address:j.address||'',city:j.city||'',date:nextDateStr,time:j.time||'',
     price:'',paid:'Unpaid',payMethod:'',referral:j.referral||'',
     notes:'Recurring swap ('+intervalLabel+') — from job '+j.id+(j.notes?'\n'+j.notes:''),
-    clientId:j.clientId||'',binSize:j.binSize||'',binBid:'',binDuration:j.binDuration||'',
+    clientId:j.clientId||'',emails:j.emails||[],binSize:j.binSize||'',binBid:'',binDuration:j.binDuration||'',
     binDropoff:nextDateStr,binPickup:'',binInstatus:'',binSide:j.binSide||'',
     recurring:true,recurInterval:j.recurInterval||'biweekly',
     createdBy:'system',createdByEmail:'system',editedBy:'',editedByEmail:''
@@ -11325,7 +11325,7 @@ async function bookRecurringRun(job){
       junkDate:visit, junkTime:job.junkTime||'',
       price:job.price||'', paid:'Unpaid', payMethod:'', referral:job.referral||'',
       notes:'Recurring ('+label+') — from job '+job.id,
-      clientId:job.clientId||'', businessName:job.businessName||'',
+      clientId:job.clientId||'', businessName:job.businessName||'', emails:job.emails||[],
       recurring:true, recurInterval:job.recurInterval,
       createdBy:'system', createdByEmail:'system', editedBy:'', editedByEmail:''
     };
@@ -11353,7 +11353,7 @@ async function scheduleNextRecurringJob(id){
     junkDate:nextDateStr,junkTime:j.junkTime||'',
     price:j.price||'',paid:'Unpaid',payMethod:'',referral:j.referral||'',
     notes:'Recurring ('+intervalLabel+') — from job '+j.id,
-    clientId:j.clientId||'',businessName:j.businessName||'',
+    clientId:j.clientId||'',businessName:j.businessName||'',emails:j.emails||[],
     recurring:true,recurInterval:j.recurInterval||'biweekly',
     createdBy:'system',createdByEmail:'system',editedBy:'',editedByEmail:''
   };
@@ -12222,6 +12222,7 @@ function resetInactivityTimer() {
 // ═══════════════════════════════════════
 var emailJobId = null;
 var emailPresetKey = '';   // which template is loaded in the modal right now
+var emailBorrowedAddr = ''; // client-record address the modal prefilled as a labeled backstop — sendEmail must not save this onto the job unedited
 var emailPresets = {};
 var quoteCorrespondence = [];
 
@@ -12334,6 +12335,7 @@ async function openEmailModal(id, presetKey) {
       if (email) borrowedFrom = cl.name || cl.cid;
     }
   }
+  emailBorrowedAddr = borrowedFrom ? email : '';
   document.getElementById('email-to').value = email;
   var addrNote = document.getElementById('email-no-address-note');
   addrNote.style.display = (email && !borrowedFrom) ? 'none' : 'block';
@@ -12509,6 +12511,20 @@ function sendEmail() {
     var sentName = '';
     jobs.forEach(function(j){if(j.id===sentJobId){clientIdForRecord=j.clientId||null;serviceForRecord=j.service||null;sentName=j.name||'';}});
     var who = sentName || sentJobId;
+    /* An address typed into the To box belongs on the booking — saved here, the next
+       email prefills it and nobody retypes it (the note above the box asks staff to do
+       exactly this; now it happens on send). Fill-empty only, and never a borrowed
+       client-record address sent unedited: promoting that to the job unlabeled is the
+       v520 wrong-recipient trap again. Editing the borrow counts as vouching for it. */
+    var sentJob = jobs.find(function(x){return x.id===sentJobId;});
+    if (sentJob && !(sentJob.emails && sentJob.emails[0])
+        && to.toLowerCase() !== (emailBorrowedAddr || '').toLowerCase()) {
+      sentJob.emails = [to];
+      patchJob(sentJobId, {emails: [to]});
+      var addrNoteSent = document.getElementById('email-no-address-note');
+      if (addrNoteSent) addrNoteSent.style.display = 'none';
+      toast('📧 Address saved onto the booking.');
+    }
     /* A review request is NOT a confirmation. Marking emailSent here would tell
        the dashboard the confirmation went out when it didn't, so the two
        receipts stay separate: review_asked_at drops the job off the follow-up
