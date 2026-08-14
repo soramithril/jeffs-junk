@@ -1555,3 +1555,87 @@ body.jwg-modal-open {overflow:hidden;}
   #view-jwgscheduler .loc-form {grid-template-columns:1fr;gap:0;}
   #view-jwgscheduler .loc-form .si-modal-actions {max-width:none;}
 }
+
+/* ═══ Mobile schedule v554: Week / Day / My week (≤900px) ═══
+   Below 900px (the dashboard shell's own mobile breakpoint) the desktop week
+   grid and its control bar hide, and the three phone screens take over.
+   Everything .ms-/.msd-/.msw-/.msp- lives only inside this media block. */
+#view-jwgscheduler .msched{display:none;}
+/* Desktop touch-up: employee column stays pinned while the week scrolls sideways */
+#view-jwgscheduler .sched-grid th.name-col,#view-jwgscheduler .sched-grid td.name-col{position:sticky;left:0;z-index:2;background:var(--bg-base);box-shadow:1px 0 0 var(--border);}
+#view-jwgscheduler .sched-grid thead th.name-col{z-index:3;}
+@media(max-width:900px){
+#view-jwgscheduler .grid-wrap{display:none;}
+#view-jwgscheduler .ctrl-bar{display:none;}
+#view-jwgscheduler .msched{display:block;padding:0 0 6px;}
+/* day-editor inputs at 16px so iPhones don't auto-zoom on focus */
+#view-jwgscheduler .modal input,#view-jwgscheduler .modal select,#view-jwgscheduler .modal textarea,#view-jwgscheduler .modal .sf-select{font-size:16px !important;}
+#view-jwgscheduler .ms-switch{display:flex;gap:4px;margin:10px 12px 4px;background:var(--bg-deep);border-radius:10px;padding:4px;}
+#view-jwgscheduler .ms-seg{flex:1;border:none;background:none;border-radius:7px;min-height:40px;font-size:13px;font-weight:700;color:var(--fg-muted);}
+#view-jwgscheduler .ms-seg.on{background:var(--dark);color:#fff;}
+#view-jwgscheduler .ms-list{padding:4px 12px 10px;}
+#view-jwgscheduler .ms-date{width:44px;flex-shrink:0;text-align:center;}
+#view-jwgscheduler .ms-dn{display:block;font-size:9px;font-weight:800;letter-spacing:.07em;color:var(--fg-subtle);}
+#view-jwgscheduler .ms-dd{display:block;font-size:17px;font-weight:800;color:var(--fg);line-height:1.15;}
+#view-jwgscheduler .msw-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--bg-elevated);border:1px solid var(--border);border-radius:13px;padding:10px 12px;margin-bottom:8px;min-height:56px;font-family:inherit;}
+#view-jwgscheduler .msw-row.is-today{border-color:rgba(5,115,52,.5);box-shadow:inset 3px 0 0 var(--dark);}
+#view-jwgscheduler .msw-row.is-today .ms-dd{color:var(--dark);}
+#view-jwgscheduler .msw-row.quiet{opacity:.55;}
+#view-jwgscheduler .msw-row:active{background:var(--surface-sm);}
+#view-jwgscheduler .msw-mid{flex:1;min-width:0;}
+#view-jwgscheduler .msw-sum{font-size:12.5px;font-weight:700;color:var(--fg);display:block;}
+#view-jwgscheduler .msw-sum b{color:var(--dark);}
+#view-jwgscheduler .ms-quiet{color:var(--fg-subtle);font-weight:600;}
+#view-jwgscheduler .ms-flag{font-size:10.5px;font-weight:700;margin-top:1px;}
+#view-jwgscheduler .ms-flag.sick{color:#c2410c;}
+#view-jwgscheduler .ms-flag.offd{color:var(--fg-subtle);}
+#view-jwgscheduler .ms-wavs{display:flex;margin-top:5px;}
+#view-jwgscheduler .ms-wav{width:22px;height:22px;border-radius:50%;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:2px solid var(--bg-elevated);margin-right:-5px;position:relative;}
+#view-jwgscheduler .ms-wav.more{background:var(--surface);color:var(--fg-muted);}
+#view-jwgscheduler .ms-wavdot{position:absolute;bottom:-1px;right:-1px;width:8px;height:8px;border-radius:50%;border:1.5px solid var(--bg-elevated);}
+#view-jwgscheduler .msw-arr{color:var(--fg-subtle);font-size:16px;font-weight:700;flex-shrink:0;}
+#view-jwgscheduler .ms-strip{display:flex;gap:4px;padding:8px 10px 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+#view-jwgscheduler .ms-strip::-webkit-scrollbar{display:none;}
+#view-jwgscheduler .ms-stab{flex:1 0 42px;border:none;background:none;border-radius:10px;padding:6px 2px 5px;min-height:46px;display:flex;flex-direction:column;align-items:center;gap:1px;}
+#view-jwgscheduler .ms-stab .ms-dd{font-size:14px;}
+#view-jwgscheduler .ms-stab.sel{background:var(--dark);}
+#view-jwgscheduler .ms-stab.sel .ms-dn{color:var(--accent);}
+#view-jwgscheduler .ms-stab.sel .ms-dd{color:#fff;}
+#view-jwgscheduler .ms-stab.tdy:not(.sel) .ms-dd{color:var(--dark);}
+#view-jwgscheduler .ms-tdot{width:4px;height:4px;border-radius:50%;background:transparent;}
+#view-jwgscheduler .ms-stab.tdy .ms-tdot{background:#22c55e;}
+#view-jwgscheduler .ms-ribbon{padding:8px 14px 2px;font-size:11.5px;color:var(--fg-muted);font-weight:600;}
+#view-jwgscheduler .ms-ribbon b{color:var(--dark);font-weight:800;}
+#view-jwgscheduler .ms-grp-h{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-subtle);padding:10px 15px 2px;}
+#view-jwgscheduler .msd-card{display:flex;align-items:center;gap:11px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:13px;padding:10px 12px;margin-bottom:8px;min-height:58px;cursor:pointer;}
+#view-jwgscheduler .msd-card:active{border-color:var(--border-acc);}
+#view-jwgscheduler .msd-card.dim{opacity:.62;background:var(--bg-deep);}
+#view-jwgscheduler .ms-av{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+#view-jwgscheduler .ms-av.sm{width:24px;height:24px;font-size:9px;}
+#view-jwgscheduler .ms-mid{flex:1;min-width:0;}
+#view-jwgscheduler .ms-name{display:block;font-size:13.5px;font-weight:750;color:var(--fg);}
+#view-jwgscheduler .ms-note{color:#f59e0b;font-size:11px;margin-left:5px;}
+#view-jwgscheduler .ms-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+#view-jwgscheduler .ms-chips:empty{display:none;}
+#view-jwgscheduler .ms-chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;line-height:1.35;white-space:nowrap;}
+#view-jwgscheduler .ms-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+#view-jwgscheduler .ms-tm{font-weight:600;opacity:.75;margin-left:2px;}
+#view-jwgscheduler .ms-badge{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:4px 9px;flex-shrink:0;}
+#view-jwgscheduler .ms-badge.on{background:rgba(5,115,52,.09);color:var(--dark);border:1px solid rgba(5,115,52,.22);}
+#view-jwgscheduler .ms-badge.off{background:var(--surface);color:var(--fg-subtle);border:1px solid var(--border);}
+#view-jwgscheduler .ms-badge.sick{background:#fff7ed;color:#c2410c;border:1px solid rgba(249,115,22,.3);}
+#view-jwgscheduler .ms-badge.book{background:#fff;color:#1d4ed8;border:1.5px dashed #60a5fa;}
+#view-jwgscheduler .ms-none{font-size:12px;color:var(--fg-subtle);padding:10px 4px;}
+#view-jwgscheduler .ms-pchips{display:flex;gap:5px;padding:8px 12px 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+#view-jwgscheduler .ms-pchips::-webkit-scrollbar{display:none;}
+#view-jwgscheduler .ms-pchip{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-h);background:var(--bg-elevated);border-radius:999px;padding:5px 12px 5px 5px;font-size:11.5px;font-weight:700;color:var(--fg-muted);min-height:36px;}
+#view-jwgscheduler .ms-pchip.sel{background:var(--dark);border-color:var(--dark);color:#fff;}
+#view-jwgscheduler .msp-row{display:flex;align-items:center;gap:11px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:9px 12px;margin-bottom:7px;min-height:50px;cursor:pointer;}
+#view-jwgscheduler .msp-row.offr{background:var(--bg-deep);opacity:.66;}
+#view-jwgscheduler .msp-row.is-today{border-color:rgba(5,115,52,.5);box-shadow:inset 3px 0 0 var(--dark);}
+#view-jwgscheduler .msp-mid{flex:1;min-width:0;margin-top:0;}
+/* junk-feed ghosts on the mobile screens (chips added by app-jwg-feed.js) */
+#view-jwgscheduler .jwg-mghost{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;line-height:1.35;white-space:nowrap;color:#1d4ed8;border:1.5px dashed #60a5fa;background:#fff;}
+#view-jwgscheduler .jwg-mflag{font-size:10.5px;font-weight:700;color:#1d4ed8;display:block;margin-top:1px;}
+#view-jwgscheduler .ms-ribbon .jwg-mflag{display:inline;margin-left:6px;}
+}

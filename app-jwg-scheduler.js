@@ -142,7 +142,7 @@ function dayHours(day){
 }
 
 // Default working days: Monday–Saturday
-let S={tab:"schedule",weekOffset:0,employees:[],allSchedules:[],schedule:{},activeDays:[...WEEKDAYS,"Saturday"],saving:false,aPeriod:"4w",hFilter:"all",hOpen:{},mobileDayIdx:0,sortAlpha:false};
+let S={tab:"schedule",weekOffset:0,employees:[],allSchedules:[],schedule:{},activeDays:[...WEEKDAYS,"Saturday"],saving:false,aPeriod:"4w",hFilter:"all",hOpen:{},mView:"week",mDay:null,mPerson:null,sortAlpha:false};
 
 function getWS(off=0){const n=new Date(),d=n.getDay(),r=new Date(n);r.setDate(n.getDate()-d+(d===0?-6:1)+off*7);r.setHours(0,0,0,0);return r;}
 // Use local date (Eastern) not UTC – avoids midnight-UTC rollover mismatching week keys
@@ -295,7 +295,7 @@ function updateFAB(){
   const fab=document.getElementById("fab");
   const stt=document.getElementById("scroll-top");
   if(!fab)return;
-  const isMobile=window.innerWidth<=600;
+  const isMobile=window.innerWidth<=900;
   if(isMobile&&S.tab==="schedule"&&S.employees.length>0){
     fab.classList.add("fab-show");
   } else {
@@ -976,7 +976,7 @@ function updBadge(empId){
 }
 function refreshGrid(){
   const gw=document.getElementById("gw");if(gw)gw.innerHTML=buildGrid();
-  const mdv=document.getElementById("mdv");if(mdv)mdv.innerHTML=buildMobileDayView();
+  const ms=document.getElementById("msched");if(ms)ms.innerHTML=buildMobileSched();
 }
 
 // ── WORK HOURS ──
@@ -1055,12 +1055,12 @@ function buildSched(){
     </div>`;
   } else {
     h+=`<div class="grid-wrap" id="gw">${buildGrid()}</div>`;
-    h+=`<div class="mobile-day-view" id="mdv">${buildMobileDayView()}</div>`;
+    h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
     h+=`<div class="save-bar" id="save-bar"><span id="save-status"></span><span style="font-size:10px;color:var(--fg-subtle)">Auto-saves as you edit</span></div>`;
   }
   const result=h+`</div>`;
-  // After HTML is set, init grid drag
-  setTimeout(initGridDrag,0);
+  // After HTML is set, init grid drag and land the grid on today's column
+  setTimeout(()=>{initGridDrag();scrollGridToToday();},0);
   return result;
 }
 
@@ -1172,70 +1172,148 @@ function buildGrid(){
   return h;
 }
 
-// ── MOBILE DAY CARD VIEW ──
-function setMobileDay(idx){S.mobileDayIdx=idx;render();}
-
-function buildMobileDayView(){
+// ── MOBILE SCHEDULE (≤900px): Week at a glance / Day board / My week ──
+// The desktop grid hides below 900px and these take over. Same S.schedule
+// data, always the full Mon–Sun week, and every tap lands in the existing
+// day editor (openShiftModal). The junk feed decorates these screens too.
+function mSetView(v){S.mView=v;render();}
+function mOpenDay(d){S.mView="day";S.mDay=d;render();}
+function mSetPerson(id){S.mView="person";S.mPerson=id;render();}
+function mTodayName(){return["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];}
+function mSortedEmps(){return S.sortAlpha?[...S.employees].sort((a,b)=>a.name.localeCompare(b.name)):S.employees;}
+function mChip(tm,sh){
+  const ids=getShiftTasks(sh);
+  const t=tm[ids[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e"};
+  const label=ids.map(id=>tm[id]?.label||id).join(" + ");
+  const time=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
+  return `<span class="ms-chip" style="background:${t.bg};color:${t.text}"><span class="ms-dot" style="background:${t.dot}"></span>${esc(label)}${time?`<span class="ms-tm">${time}</span>`:""}</span>`;
+}
+function buildMobileSched(){
+  const v=S.mView||"week";
+  let h=`<div class="ms-switch">`;
+  [["week","Week"],["day","Day"],["person","My week"]].forEach(([id,label])=>{
+    h+=`<button class="ms-seg${v===id?" on":""}" onclick="JWG.mSetView('${id}')">${label}</button>`;
+  });
+  h+=`</div>`;
+  if(v==="day")h+=buildMDay();
+  else if(v==="person")h+=buildMPerson();
+  else h+=buildMWeek();
+  return h;
+}
+function buildMWeek(){
   const ws=getWS(S.weekOffset),tm=TM();
-  const todayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
-  const isCurrentWeek=S.weekOffset===0;
-  const days=S.activeDays;
-  if(!days.length)return`<div class="empty" style="padding:24px;text-align:center;color:var(--fg-muted);">No days selected</div>`;
-  if(S.mobileDayIdx>=days.length)S.mobileDayIdx=0;
-  const selDay=days[S.mobileDayIdx];
-
-  // Day tabs row
-  let h=`<div class="mday-tabs">`;
-  days.forEach((d,i)=>{
+  const todayName=mTodayName(),isCur=S.weekOffset===0;
+  let h=`<div class="ms-list">`;
+  DAYS.forEach(d=>{
     const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
-    const isToday=isCurrentWeek&&d===todayName;
-    h+=`<button class="mday-tab${S.mobileDayIdx===i?" active":""}${isToday?" is-today":""}" onclick="JWG.setMobileDay(${i})">
-      <span class="mdt-name">${d.slice(0,3).toUpperCase()}</span>
-      <span class="mdt-date">${dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
-      <span class="mdt-dot"></span>
+    let cnt=0,hsum=0,avs="",flags="";
+    mSortedEmps().forEach(emp=>{
+      const dd=(S.schedule[emp.id]||{})[d]||{status:"off",shifts:[]};
+      if(dd.status==="work"&&(dd.shifts||[]).length){
+        cnt++;hsum+=dayHours(dd);
+        if(cnt<=8){
+          const[abg,afg]=ac(emp.name);
+          const dot=(tm[getShiftTasks(dd.shifts[0])[0]]||{}).dot||"#22c55e";
+          avs+=`<span class="ms-wav" style="background:${abg};color:${afg}">${empInitials(emp.name)}<span class="ms-wavdot" style="background:${dot}"></span></span>`;
+        }
+      }
+      else if(dd.status==="sick")flags+=`<div class="ms-flag sick">${esc(emp.name.split(" ")[0])} sick</div>`;
+      else if(dd.status==="dayoff")flags+=`<div class="ms-flag offd">${esc(emp.name.split(" ")[0])} day off</div>`;
+    });
+    if(cnt>8)avs+=`<span class="ms-wav more">+${cnt-8}</span>`;
+    const quiet=cnt===0&&!flags;
+    const sum=cnt?`<b>${cnt} on</b> · ${Math.round(hsum*10)/10}h`:`<span class="ms-quiet">Nobody scheduled</span>`;
+    h+=`<button class="msw-row${isCur&&d===todayName?" is-today":""}${quiet?" quiet":""}" data-day="${d}" onclick="JWG.mOpenDay('${d}')">
+      <span class="ms-date"><span class="ms-dn">${d.slice(0,3).toUpperCase()}</span><span class="ms-dd">${dt.getDate()}</span></span>
+      <span class="msw-mid"><span class="msw-sum">${sum}</span>${flags}${avs?`<span class="ms-wavs">${avs}</span>`:""}</span>
+      <span class="msw-arr">›</span>
     </button>`;
   });
   h+=`</div>`;
-
-  // Employee cards for selected day
-  h+=`<div class="mday-cards">`;
-  if(!S.employees.length){
-    h+=`<div class="empty" style="padding:32px 16px;text-align:center;color:var(--fg-muted);font-size:13px;">No employees yet — go to Team tab to add staff</div>`;
-  } else {
-    const sortedMobileEmps=S.sortAlpha?[...S.employees].sort((a,b)=>a.name.localeCompare(b.name)):S.employees;
-    sortedMobileEmps.forEach(emp=>{
-      const sc=S.schedule[emp.id]||defSched();
-      const dayData=sc[selDay]||{status:"off",shifts:[]};
-      const status=dayData.status||"off";
-      const shifts=dayData.shifts||[];
-      const[abg,afg]=ac(emp.name);
-
-      let badgeCls="off",badgeTxt="Off",shiftInfo="Tap to schedule";
-      if(status==="sick"){
-        badgeCls="sick";badgeTxt=schTile("sick",13)+" Sick";shiftInfo="Sick day";
-      } else if(status==="dayoff"){
-        badgeCls="dayoff";badgeTxt=schTile("off",13)+" Day Off";shiftInfo="Day off";
-      } else if(status==="nonworking"){
-        badgeCls="nonworking";badgeTxt=schTile("off",13)+" Non Working";shiftInfo="Non working day";
-      } else if(shifts.length>0){
-        const taskLabels=shifts.map(sh=>shiftTaskLabel(sh,tm));
-        const firstTime=shifts[0].start&&shifts[0].end?` · ${fmtRange(shifts[0].start,shifts[0].end)}`:"";
-        shiftInfo=taskLabels.slice(0,2).join(", ")+(shifts.length>2?` +${shifts.length-2} more`:"")+firstTime;
-        badgeCls="working";badgeTxt=`${shifts.length} task${shifts.length>1?"s":""}`;
-      }
-      const noteIcon=dayData.note?` <span title="${esc(dayData.note)}" style="color:#f59e0b;font-size:11px;">●</span>`:"";
-      h+=`<div class="mday-emp-card" onclick="JWG.openShiftModal('${emp.id}','${selDay}')">
-        <div class="mday-card-avatar" style="background:${abg};color:${afg};">${empInitials(emp.name)}</div>
-        <div class="mday-card-info">
-          <div class="mday-card-name">${esc(emp.name)}${noteIcon}</div>
-          <div class="mday-card-shift">${esc(shiftInfo)}</div>
-        </div>
-        <span class="mday-card-badge ${badgeCls}">${badgeTxt}</span>
-      </div>`;
-    });
-  }
+  return h;
+}
+function buildMDay(){
+  const ws=getWS(S.weekOffset),tm=TM();
+  const todayName=mTodayName(),isCur=S.weekOffset===0;
+  if(!DAYS.includes(S.mDay))S.mDay=isCur?todayName:"Monday";
+  const day=S.mDay;
+  let h=`<div class="ms-strip">`;
+  DAYS.forEach(d=>{
+    const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
+    h+=`<button class="ms-stab${d===day?" sel":""}${isCur&&d===todayName?" tdy":""}" onclick="JWG.mOpenDay('${d}')"><span class="ms-dn">${d.slice(0,3).toUpperCase()}</span><span class="ms-dd">${dt.getDate()}</span><span class="ms-tdot"></span></button>`;
+  });
+  h+=`</div>`;
+  const on=[],rest=[];let hsum=0;
+  mSortedEmps().forEach(emp=>{
+    const dd=(S.schedule[emp.id]||{})[day]||{status:"off",shifts:[]};
+    if(dd.status==="work"&&(dd.shifts||[]).length){on.push([emp,dd]);hsum+=dayHours(dd);}
+    else rest.push([emp,dd]);
+  });
+  h+=`<div class="ms-ribbon" id="msd-ribbon"><b>${on.length} on</b> · ${Math.round(hsum*10)/10}h scheduled</div>`;
+  h+=`<div class="ms-grp-h">Working</div><div class="ms-list" id="msd-on">`;
+  if(!on.length)h+=`<div class="ms-none">Nobody scheduled — tap a person below to add them</div>`;
+  on.forEach(([emp,dd])=>{h+=mDayCard(emp,dd,day,tm,false);});
+  h+=`</div><div class="ms-grp-h">Off · Away</div><div class="ms-list" id="msd-off">`;
+  rest.forEach(([emp,dd])=>{h+=mDayCard(emp,dd,day,tm,true);});
+  if(!rest.length)h+=`<div class="ms-none">Everyone's working</div>`;
   h+=`</div>`;
   return h;
+}
+function mDayCard(emp,dd,day,tm,dim){
+  const[abg,afg]=ac(emp.name);
+  const st=dd.status==="work"&&(dd.shifts||[]).length?"work":(dd.status||"off");
+  let chips="",badge;
+  if(st==="work"){chips=(dd.shifts||[]).map(sh=>mChip(tm,sh)).join("");badge=`<span class="ms-badge on">${Math.round(dayHours(dd)*10)/10}h</span>`;}
+  else if(st==="sick")badge=`<span class="ms-badge sick">Sick</span>`;
+  else if(st==="dayoff")badge=`<span class="ms-badge off">Day off</span>`;
+  else if(st==="nonworking")badge=`<span class="ms-badge off">Non working</span>`;
+  else badge=`<span class="ms-badge off">Off</span>`;
+  const note=dd.note?`<span class="ms-note" title="${esc(dd.note)}">●</span>`:"";
+  return `<div class="msd-card${dim?" dim":""}" data-empid="${emp.id}" data-day="${day}" data-st="${st}" onclick="JWG.openShiftModal('${emp.id}','${day}')">
+    <span class="ms-av" style="background:${abg};color:${afg}">${empInitials(emp.name)}</span>
+    <span class="ms-mid"><span class="ms-name">${esc(emp.name)}${note}</span><span class="ms-chips msd-chips">${chips}</span></span>${badge}
+  </div>`;
+}
+function buildMPerson(){
+  const ws=getWS(S.weekOffset),tm=TM();
+  const emps=mSortedEmps();
+  if(!emps.length)return"";
+  if(!emps.some(e=>e.id===S.mPerson))S.mPerson=emps[0].id;
+  const emp=emps.find(e=>e.id===S.mPerson);
+  const todayName=mTodayName(),isCur=S.weekOffset===0;
+  let h=`<div class="ms-pchips">`;
+  emps.forEach(e=>{
+    const[abg,afg]=ac(e.name);
+    h+=`<button class="ms-pchip${e.id===S.mPerson?" sel":""}" onclick="JWG.mSetPerson('${e.id}')"><span class="ms-av sm" style="background:${abg};color:${afg}">${empInitials(e.name)}</span>${esc(e.name.split(" ")[0])}</button>`;
+  });
+  h+=`</div>`;
+  const sc=S.schedule[emp.id]||defSched();
+  h+=`<div class="ms-ribbon"><b>${esc(emp.name)}</b> · ${countH(sc)}h this week</div><div class="ms-list">`;
+  DAYS.forEach(d=>{
+    const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
+    const dd=sc[d]||{status:"off",shifts:[]};
+    const st=dd.status==="work"&&(dd.shifts||[]).length?"work":(dd.status||"off");
+    let mid="";
+    if(st==="work")mid=(dd.shifts||[]).map(sh=>mChip(tm,sh)).join("");
+    else if(st==="sick")mid=`<span class="ms-badge sick">Sick</span>`;
+    else if(st==="dayoff")mid=`<span class="ms-badge off">Day off</span>`;
+    else if(st==="nonworking")mid=`<span class="ms-badge off">Non working</span>`;
+    else mid=`<span class="ms-quiet">—</span>`;
+    h+=`<div class="msp-row${st==="work"?"":" offr"}${isCur&&d===todayName?" is-today":""}" data-empid="${emp.id}" data-day="${d}" onclick="JWG.openShiftModal('${emp.id}','${d}')">
+      <span class="ms-date"><span class="ms-dn">${d.slice(0,3).toUpperCase()}</span><span class="ms-dd">${dt.getDate()}</span></span>
+      <span class="msp-mid ms-chips">${mid}</span>
+    </div>`;
+  });
+  h+=`</div>`;
+  return h;
+}
+// Desktop touch-up: on load, bring today's column into view when the grid overflows
+function scrollGridToToday(){
+  if(S.weekOffset!==0||S._todayScrolled)return;
+  const gw=document.getElementById("gw");if(!gw)return;
+  const col=gw.querySelector("th.day-col.is-today");if(!col)return;
+  if(gw.scrollWidth>gw.clientWidth+8)gw.scrollLeft=Math.max(0,col.offsetLeft-220);
+  S._todayScrolled=true;
 }
 
 function prevW(){S.weekOffset--;loadWeekSched();render();}
@@ -1245,8 +1323,6 @@ function toggleDay(d){
   const i=S.activeDays.indexOf(d);
   if(i>=0)S.activeDays.splice(i,1);
   else S.activeDays=[...DAYS.filter(x=>[...S.activeDays,d].includes(x))];
-  // Clamp mobileDayIdx if days were removed
-  if(S.mobileDayIdx>=S.activeDays.length)S.mobileDayIdx=0;
   render();
 }
 function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
@@ -3971,10 +4047,6 @@ async function bootApp(){
     const w=wkey(S.weekOffset);
     S.employees.filter(e=>e.usual_week&&!S.allSchedules.some(s=>s.employee_id===e.id&&s.week_start===w)).forEach(e=>autoSave(e.id));
   }catch(e){toast("Load failed: "+e.message,"error");}
-  // Auto-select today in mobile day view for current week
-  const todayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
-  const todayIdx=S.activeDays.indexOf(todayName);
-  if(todayIdx>=0)S.mobileDayIdx=todayIdx;
   render();
 }
 
@@ -4004,5 +4076,5 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
-window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setMobileDay:setMobileDay,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,copyLastWeek:copyLastWeek,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();

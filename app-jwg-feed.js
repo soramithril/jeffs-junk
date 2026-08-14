@@ -183,6 +183,84 @@
     return bar;
   }
 
+  // ── Mobile screens (≤900px): same ghosts on the Day board / Week / My week ──
+  // The scheduler tags its mobile cards/rows with data-empid + data-day; we
+  // compute uncovered entries straight from JWG.S data (no grid DOM needed, so
+  // weekend days work even when toggled off the desktop view).
+  var FALLBACK_LABELS={off:"off",sick:"sick",bins:"bins",junk:"junk removals",furniture:"furniture bank",garbage:"garbage",shop:"shop"};
+  function taskLabelMap(){
+    var m={};Object.keys(FALLBACK_LABELS).forEach(function(k){m[k]=FALLBACK_LABELS[k];});
+    try{(JSON.parse(localStorage.getItem("ss_tasks")||"null")||[]).forEach(function(t){if(t&&t.id)m[t.id]=String(t.label||t.id).toLowerCase();});}catch(e){}
+    return m;
+  }
+  function uncoveredFor(S,tmap,emp,day,occ){
+    var byDay=occ[(emp.name||"").toLowerCase()];
+    var entries=(byDay&&byDay[day])||[];
+    if(!entries.length)return [];
+    var dd=(S.schedule[emp.id]||{})[day]||{};
+    if(dd.status==="dayoff"||dd.status==="sick"||dd.status==="nonworking")return [];
+    var labels=[];
+    (dd.shifts||[]).forEach(function(sh){(sh.tasks||(sh.task?[sh.task]:[])).forEach(function(tid){labels.push(tmap[tid]||String(tid).toLowerCase());});});
+    return entries.filter(function(en){return !coveredBy(labels,en.taskKey);});
+  }
+  function mGhostEl(en){
+    var s=document.createElement("span");
+    s.className="jwg-mghost";
+    s.title="From Jeff's Junk — tap to put it on the schedule"+(en.detail?" ("+en.detail+")":"");
+    s.innerHTML="🚚 "+esc(en.label)+(en.count>1?" ×"+en.count:"")+(en.time?' <span style="font-weight:600;opacity:.75">'+esc(en.time)+"</span>":"");
+    return s;
+  }
+  function paintMobile(view,S,occ){
+    var ms=view.querySelector("#msched");
+    if(!ms)return;
+    ms.querySelectorAll(".jwg-mghost,.jwg-mflag").forEach(function(n){n.remove();});
+    var tmap=taskLabelMap();
+    var emps=S.employees||[];
+    var empById={};emps.forEach(function(em){empById[em.id]=em;});
+    // Day board: chips on cards; ghost-only people move up into Working as "Booking"
+    var ghosted=0;
+    ms.querySelectorAll(".msd-card").forEach(function(card){
+      var emp=empById[card.getAttribute("data-empid")];if(!emp)return;
+      var vis=uncoveredFor(S,tmap,emp,card.getAttribute("data-day"),occ);
+      if(!vis.length)return;
+      ghosted++;
+      var host=card.querySelector(".msd-chips");if(!host)return;
+      vis.forEach(function(en){host.appendChild(mGhostEl(en));});
+      if(card.getAttribute("data-st")!=="work"){
+        var badge=card.querySelector(".ms-badge");
+        if(badge){badge.className="ms-badge book";badge.textContent="Booking";}
+        var onList=ms.querySelector("#msd-on");
+        if(onList&&!card.dataset.jwgMoved){card.dataset.jwgMoved="1";card.classList.remove("dim");onList.appendChild(card);}
+      }
+    });
+    var ribbon=ms.querySelector("#msd-ribbon");
+    if(ribbon&&ghosted){
+      var f=document.createElement("span");
+      f.className="jwg-mflag";f.textContent="· "+ghosted+" from bookings";
+      ribbon.appendChild(f);
+    }
+    // Week rows: how many people have an un-scheduled booking that day
+    ms.querySelectorAll(".msw-row").forEach(function(row){
+      var day=row.getAttribute("data-day"),cnt=0;
+      emps.forEach(function(emp){if(uncoveredFor(S,tmap,emp,day,occ).length)cnt++;});
+      if(!cnt)return;
+      var mid=row.querySelector(".msw-mid");if(!mid)return;
+      var wf=document.createElement("span");
+      wf.className="jwg-mflag";wf.textContent="🚚 "+cnt+" from bookings";
+      mid.insertBefore(wf,mid.querySelector(".ms-wavs"));
+    });
+    // My week rows
+    ms.querySelectorAll(".msp-row").forEach(function(row){
+      var emp=empById[row.getAttribute("data-empid")];if(!emp)return;
+      var vis=uncoveredFor(S,tmap,emp,row.getAttribute("data-day"),occ);
+      if(!vis.length)return;
+      var mid=row.querySelector(".msp-mid");if(!mid)return;
+      row.classList.remove("offr");
+      var dash=mid.querySelector(".ms-quiet");if(dash)dash.remove();
+      vis.forEach(function(en){mid.appendChild(mGhostEl(en));});
+    });
+  }
+
   function paint(){
     var view=document.getElementById("view-jwgscheduler");
     if(!view||!window.JWG||!JWG.S)return;
@@ -231,6 +309,7 @@
           cell.classList.toggle("cell-compact",cell.querySelectorAll(".shift-bar").length>=2);
         }
       });
+      paintMobile(view,S,occ);
     }catch(err){console.warn("[jwg-feed] paint failed",err);}
     finally{reobserve();}
   }
