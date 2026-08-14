@@ -761,25 +761,25 @@ function renderMultiAssign(){
   const readyToAssign=_ma.tasks.length>0&&_ma.days.length>0&&selCount>0;
 
   const h=`
-  <div class="modal-title">👥 Assign to Multiple</div>
-  <div class="modal-sub">Pick a task, time, days, and employees — all get the same shift added.</div>
+  <div class="modal-title">➕ Assign shifts</div>
+  <div class="modal-sub">Four quick picks — everyone you choose gets the same shift on each chosen day.</div>
 
-  <div class="sect-label">Task</div>
+  <div class="sect-label"><span class="step-n">1</span> Job</div>
   ${taskHtml}
 
   <div class="modal-divider"></div>
-  <div class="sect-label">Time</div>
+  <div class="sect-label"><span class="step-n">2</span> Time</div>
   <div class="shift-form">
     <div><div class="sf-label">Start</div><select class="sf-select" id="ma_start">${buildTimeOpts(selStart)}</select></div>
     <div><div class="sf-label">End</div><select class="sf-select" id="ma_end">${buildTimeOpts(selEnd)}</select></div>
   </div>
 
   <div class="modal-divider"></div>
-  <div class="sect-label">Days</div>
+  <div class="sect-label"><span class="step-n">3</span> Days</div>
   ${dayHtml}
 
   <div class="modal-divider"></div>
-  <div class="sect-label">Employees <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?`(${selCount} selected)`:""}</span></div>
+  <div class="sect-label"><span class="step-n">4</span> People <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?`(${selCount} selected)`:""}</span></div>
   ${maEmps.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet — add them on the Team page.</div>'}
 
   <div class="modal-divider"></div>
@@ -923,15 +923,15 @@ function renderMultiClear(){
   const taskLabel=_mc.task==="__all__"?"all tasks":(TM()[_mc.task]?.label||_mc.task);
 
   const h=`
-  <div class="modal-title">🗑 Clear Multiple</div>
-  <div class="modal-sub">Remove shifts from selected employees and days in one go.</div>
-  <div class="sect-label">What to clear</div>
+  <div class="modal-title">🗑 Clear shifts</div>
+  <div class="modal-sub">Remove shifts from the people and days you pick — it asks before deleting anything.</div>
+  <div class="sect-label"><span class="step-n">1</span> What to clear</div>
   ${taskHtml}
   <div class="modal-divider"></div>
-  <div class="sect-label">Days</div>
+  <div class="sect-label"><span class="step-n">2</span> Days</div>
   ${dayHtml}
   <div class="modal-divider"></div>
-  <div class="sect-label">Employees <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?"("+selCount+" selected)":""}</span></div>
+  <div class="sect-label"><span class="step-n">3</span> People <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?"("+selCount+" selected)":""}</span></div>
   ${mcEmps.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet.</div>'}
   <div class="modal-divider"></div>
   <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1036,25 +1036,25 @@ function buildSched(){
     <div style="display:flex;gap:6px">${S.weekOffset!==0?`<button class="nav-btn" onclick="JWG.goToday()">Today</button>`:""}<button class="nav-btn" onclick="JWG.nextW()">Next →</button></div>
   </div>
   <div class="ctrl-bar">
-    <span class="ctrl-label">Days</span>`;
+    <div class="ctrl-group"><span class="ctrl-label">Show days</span>`;
 
   // Weekdays first (always shown prominently), weekends as toggleable
   WEEKDAYS.forEach(d=>{
     h+=`<button class="day-toggle${S.activeDays.includes(d)?" on":""}" onclick="JWG.toggleDay('${d}')">${d.slice(0,3)}</button>`;
   });
-  h+=`<div class="ctrl-sep"></div>
-    <span class="ctrl-label" style="font-size:9px;opacity:.7">Weekend</span>`;
+  h+=`<div class="ctrl-sep"></div>`;
   WEEKEND.forEach(d=>{
     h+=`<button class="day-toggle weekend${S.activeDays.includes(d)?" on":""}" onclick="JWG.toggleDay('${d}')">${d.slice(0,3)}</button>`;
   });
 
-  h+=`<div class="ctrl-sep"></div>
+  h+=`</div>
     <div class="ctrl-actions">
-      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openUsualWeeks()">💾 Saved schedules</button>
-      <button class="ctrl-btn" onclick="JWG.openTaskMgr()">⚙ Tasks</button>
-      <button class="ctrl-btn" onclick="JWG.openMultiAssign()">👥 Assign</button>
-      <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()">🗑 Clear</button>
-      <button class="ctrl-btn" onclick="JWG.openWHSettings()" title="Change visible work hours">⏰ ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
+      <span class="ctrl-label">Week tools</span>
+      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openUsualWeeks()" title="Save someone's typical week once, then fill any week from it with one tap">💾 Saved schedules</button>
+      <button class="ctrl-btn" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
+      <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()" title="Remove shifts from several people and days at once">🗑 Clear shifts</button>
+      <button class="ctrl-btn" onclick="JWG.openTaskMgr()" title="Edit the list of job types and their colours">🏷️ Job types</button>
+      <button class="ctrl-btn" onclick="JWG.openWHSettings()" title="Change the workday start and end hours this page shows">⏰ Hours ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
     </div>
     <button class="ctrl-btn ctrl-more-btn" onclick="this.closest('.ctrl-bar').classList.toggle('ctrl-expanded')"><span class="ctrl-more-btn-label">☰ More</span></button>
   </div>`;
@@ -1068,6 +1068,11 @@ function buildSched(){
       <button class="modal-done" style="padding:10px 24px" onclick="JWG.switchTab('team')">Go to Team →</button>
     </div>`;
   } else {
+    // Weeks start empty now (no silent pre-fill since v559) — say so and point
+    // at the two ways to fill one, instead of showing a bare grid.
+    if(S.employees.every(e=>!empHasWeekData(S.schedule[e.id]))){
+      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>💾 Saved schedules</b> and fill people's usual weeks in one tap.</div>`;
+    }
     h+=`<div class="grid-wrap" id="gw">${buildGrid()}</div>`;
     h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
     h+=`<div class="save-bar" id="save-bar"><span id="save-status"></span><span style="font-size:10px;color:var(--fg-subtle)">Auto-saves as you edit</span></div>`;
@@ -1175,7 +1180,7 @@ function buildGrid(){
       const nonworkStyle=status==="nonworking"?'background:rgba(71,85,105,0.05);':'';
       const isTodayCell=isCurrentWeek&&d===todayName;
       const noteIndicator=dayData.note?`<span title="${esc(dayData.note)}" data-tip="${esc(dayData.note)}" style="position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px white,0 0 6px rgba(245,158,11,0.5);z-index:2;pointer-events:none;animation:notePulse 2s ease-in-out infinite"></span>`:'';
-      h+=`<td class="day-cell${isTodayCell?" is-today":""}" style="${cellStyle}${sickStyle}${dayOffStyle}${nonworkStyle}" onclick="JWG.openShiftModal('${emp.id}','${d}')">${cellContent}${noteIndicator}</td>`;
+      h+=`<td class="day-cell${isTodayCell?" is-today":""}${cellContent?"":" empty-cell"}" style="${cellStyle}${sickStyle}${dayOffStyle}${nonworkStyle}" onclick="JWG.openShiftModal('${emp.id}','${d}')">${cellContent}${noteIndicator}</td>`;
     });
     h+=`</tr>`;
   });
