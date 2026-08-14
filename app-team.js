@@ -319,7 +319,23 @@
 
   async function add(){
     var inp = document.getElementById('team-new-name'); if(!inp) return;
-    var name = inp.value.trim(); if(!name) return;
+    var name = inp.value.trim();
+    // Clicking "Add person" with no name used to silently do nothing — the #1
+    // confusion on this page. Say exactly what's missing and point at the field.
+    if(!name){
+      inp.style.borderColor = '#dc3545';
+      inp.style.boxShadow = '0 0 0 3px rgba(220,53,69,.15)';
+      inp.placeholder = 'Type their name here first…';
+      inp.focus();
+      toast('⚠ Type the person\'s name in the box first, then hit Add person.', 'error');
+      setTimeout(function(){ inp.style.borderColor=''; inp.style.boxShadow=''; inp.placeholder='Add a person…'; }, 2600);
+      return;
+    }
+    var dupe = (_team||[]).find(function(p){ return String(p.name).trim().toLowerCase() === name.toLowerCase(); });
+    if(dupe){
+      toast('⚠ '+dupe.name+' is already on the list'+(dupe.active?'':' (inactive — flip their Active pill instead of re-adding)')+'.', 'error');
+      return;
+    }
     var onJunk = !!document.getElementById('team-new-junk').checked;
     var onJwg  = !!document.getElementById('team-new-jwg').checked;
     inp.value = '';
@@ -336,6 +352,7 @@
       if(r.error) throw r.error;
       if(r.data && r.data[0]) _team.push(r.data[0]);
       syncGlobalCrew(); paint();
+      toast('✅ '+name+' added'+(onJwg?' — they\'re on the JWG schedule now too':'')+'.');
     } catch(e){ toast('Couldn\'t add: '+((e&&e.message)||e), 'error'); }
   }
 
