@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '554';
+var APP_VERSION = '555';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13720,60 +13720,11 @@ async function delVehicle(vid){
   toast('Vehicle removed.');
 }
 
-// Add a range of blocked dates to a vehicle
-function addVehDateRange(vid){
-  var fromEl=document.getElementById('veh-from-'+vid);
-  var toEl=document.getElementById('veh-to-'+vid);
-  var reasonEl=document.getElementById('veh-reason-'+vid);
-  var notesEl=document.getElementById('veh-notes-'+vid);
-  var from=fromEl?fromEl.value:'';
-  var to=toEl?toEl.value:'';
-  if(!from){
-    if(fromEl){fromEl.style.borderColor='#dc3545';fromEl.focus();}
-    toast('⚠ Please select a start date first.');return;
-  }
-  if(fromEl)fromEl.style.borderColor='';
-  if(to&&to<from){
-    if(toEl){toEl.style.borderColor='#dc3545';toEl.focus();}
-    toast('⚠ End date can\'t be before the start date.');return;
-  }
-  if(toEl)toEl.style.borderColor='';
-  if(!vehBlocks[vid])vehBlocks[vid]={};
-  var reason=reasonEl?reasonEl.value:'Service / Repair';
-  var notes=notesEl?notesEl.value.trim():'';
-  var costEl=document.getElementById('veh-cost-'+vid);
-  var costVal=costEl&&costEl.value?parseFloat(costEl.value):null;
-  if(costVal!==null&&isNaN(costVal))costVal=null;
-  var openEnded=!to;
-  if(!to)to=todayStr();
-  var cur=new Date(from+'T12:00:00');
-  var end=new Date(to+'T12:00:00');
-  var count=0;
-  while(cur<=end){
-    var ds=cur.toISOString().split('T')[0];
-    vehBlocks[vid][ds]={reason:reason,notes:notes,openEnded:openEnded,openFrom:openEnded?from:undefined,cost:costVal};
-    cur.setDate(cur.getDate()+1);count++;
-  }
-  saveVehBlocks(vid);renderVehicles();
-  toast(count+' day'+(count!==1?'s':'')+' blocked'+(openEnded?' (ongoing until manually ended)':'')+' for vehicle.');
-}
-function removeVehBlock(vid,date){
-  if(!vehBlocks[vid])return;
-  delete vehBlocks[vid][date];
-  saveVehBlocks(vid);renderVehicles();
-}
-
 // ════════════════════════════════════════════════════════════════════════════
-// Vehicles page — Option H "Action Center" layout.
-// Three zones: critical-alerts inbox at the top → fleet KPIs → row-per-vehicle
-// list with click-to-expand drawer for maintenance, blocked days, service log,
-// and (later) photos. Alerts can be snoozed for 7 days via localStorage.
+// Vehicle health alerts — the oil / sticker / km-service engine shared by the
+// Vehicles hero and the Maintenance tab inbox. Alerts snooze 7 days via
+// localStorage.
 // ════════════════════════════════════════════════════════════════════════════
-var _expandedVehicleId = null;
-var _vehicleFilter = 'all';
-
-function setVehicleFilter(f){ _vehicleFilter = f; renderVehicles(); }
-
 function _isVehAlertSnoozed(key){
   try {
     var s = JSON.parse(localStorage.getItem('veh_alerts_snoozed') || '{}');
@@ -13854,7 +13805,7 @@ function _buildVehicleAlerts(){
           meta: oil.sub+(v.oilInterval?' · interval '+parseInt(v.oilInterval).toLocaleString()+' km':''),
           actions: [
             {label:'✅ Mark serviced', primary:true, onclick:"markOilServicedQuick('"+v.vid+"')"},
-            {label:'Mark out of service', onclick:"_focusVehBlockForm('"+v.vid+"')"}
+            {label:'🔧 Send to shop', onclick:"vehGoShop('"+v.vid+"')"}
           ],
           snoozeKey: key,
           vid: v.vid
@@ -13944,172 +13895,6 @@ function _renderVehicleInbox(alerts, elId){
     +'</div>';
 }
 
-function _renderVehicleKPIs(dashVehicles, alerts){
-  var el = document.getElementById('vehicle-kpis');
-  if(!el) return;
-  var compliant = 0;
-  dashVehicles.forEach(function(v){
-    var oil = _vehOilStatus(v);
-    var maint = _vehMaintWorstStatus(v.vid);
-    if(oil.state !== 'bad' && maint.state !== 'bad') compliant++;
-  });
-  var compPct = dashVehicles.length ? Math.round(100 * compliant / dashVehicles.length) : 100;
-  var oilOverdue = 0, maintDue = 0;
-  alerts.forEach(function(a){
-    if(a.snoozeKey.indexOf('oil:')===0 && a.severity==='urgent') oilOverdue++;
-    if(a.snoozeKey.indexOf('maint:')===0) maintDue++;
-  });
-  var today = todayStr();
-  var endD = new Date(today+'T12:00:00'); endD.setDate(endD.getDate()+30);
-  var endStr = endD.toISOString().split('T')[0];
-  var daysOff30 = 0;
-  Object.keys(vehBlocks).forEach(function(vid){
-    var blocks = vehBlocks[vid] || {};
-    Object.keys(blocks).forEach(function(d){ if(d>=today && d<=endStr) daysOff30++; });
-  });
-  el.innerHTML = '<div class="h-kpis">'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('confirmed',{size:36,radius:9,color:'green'})+'</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+dashVehicles.length+' on track</div></div>'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('oil',{size:36,radius:9,color:'red'})+'</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('maintenance',{size:36,radius:9,color:'orange'})+'</div><div><div class="h-kpi-num">'+maintDue+'</div><div class="h-kpi-lbl">Maintenance due</div></div></div></div>'
-    +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('cancelled',{size:36,radius:9,color:'blue'})+'</div><div><div class="h-kpi-num">'+daysOff30+'</div><div class="h-kpi-lbl">Days off (30d)</div></div></div></div>'
-  +'</div>';
-}
-
-function _renderVehicleFilters(dashVehicles, alerts){
-  var el = document.getElementById('vehicle-filters');
-  if(!el) return;
-  var attentionVids = {};
-  alerts.forEach(function(a){ attentionVids[a.vid] = true; });
-  var attentionCount = Object.keys(attentionVids).length;
-  var typeCounts = {};
-  dashVehicles.forEach(function(v){ typeCounts[v.type||'Other'] = (typeCounts[v.type||'Other']||0)+1; });
-  var chips = '<button class="h-chip'+(_vehicleFilter==='all'?' on':'')+'" onclick="setVehicleFilter(\'all\')">All ('+dashVehicles.length+')</button>'
-    +'<button class="h-chip'+(_vehicleFilter==='attention'?' on':'')+'" onclick="setVehicleFilter(\'attention\')">Needs attention ('+attentionCount+')</button>';
-  Object.keys(typeCounts).sort().forEach(function(t){
-    var safeT = t.replace(/'/g,"\\'");
-    chips += '<button class="h-chip'+(_vehicleFilter===t?' on':'')+'" onclick="setVehicleFilter(\''+safeT+'\')">'+t+' ('+typeCounts[t]+')</button>';
-  });
-  el.innerHTML = '<div class="h-list-hdr">'
-    +'<div class="h-list-title">🚛 Fleet</div>'
-    +'<div class="h-list-tools">'+chips+'</div>'
-    +'</div>';
-}
-
-function _render30DayStrip(vid){
-  var blocks = vehBlocks[vid] || {};
-  var today = new Date(); today.setHours(12,0,0,0);
-  var cells = '';
-  for(var i=0;i<30;i++){
-    var d = new Date(today); d.setDate(today.getDate()+i);
-    var ds = d.toISOString().split('T')[0];
-    var b = blocks[ds];
-    var cls = '';
-    if(i===0) cls = 'today';
-    else if(d.getDay()===0) cls = 'weekend';   // Sundays only — we work Mon–Sat
-    if(b){
-      if(b.reason==='Service / Repair') cls = 'svc';
-      else if(b.reason==='Personal Use') cls = 'per';
-      else if(b.reason==='Out of Area') cls = 'out';
-      else cls = 'oth';
-    }
-    var title = ds+(b?' — '+b.reason+(b.notes?' ('+b.notes+')':''):'');
-    cells += '<div class="c'+(cls?' '+cls:'')+'" title="'+title+'"></div>';
-  }
-  return '<div class="h-tl-mini">'+cells+'</div>';
-}
-
-function _renderVehicleDrawer(v){
-  var blocks = vehBlocks[v.vid]||{};
-  var today = todayStr();
-  var allDates = Object.keys(blocks).sort();
-  var upcoming = allDates.filter(function(d){return d>=today;});
-  var past = allDates.filter(function(d){return d<today;});
-  var scheds = _maintCache[v.vid]||[];
-  var odo = window._odometerCache && window._odometerCache[v.vid];
-  var odoKm = odo ? odo.odometer_km : null;
-
-  var maintHtml = scheds.length ? scheds.map(function(s){
-    var statusCls = s.status==='overdue'?'overdue':s.status==='due'?'due':'';
-    var statusIcon = s.status==='overdue'?'🔴':s.status==='due'?'🟡':'🟢';
-    var kmLeft = (s.next_due_km !== null && s.next_due_km !== undefined && odoKm !== null) ? (s.next_due_km - odoKm) : null;
-    var kmText = kmLeft !== null ? (kmLeft>0?kmLeft.toLocaleString()+' km left':'OVERDUE by '+Math.abs(kmLeft).toLocaleString()+' km') : '';
-    return '<div class="h-detail-row '+statusCls+'">'
-      +'<div><b>'+statusIcon+' '+s.maintenance_type+'</b>'
-        +'<div class="h-detail-sub">every '+s.interval_km.toLocaleString()+' km'+(kmText?' · '+kmText:'')
-        +(s.last_service_date?' · last '+fd(s.last_service_date)+(s.last_service_km?' at '+s.last_service_km.toLocaleString()+' km':''):'')+'</div>'
-      +'</div>'
-      +'<div style="display:flex;gap:4px">'
-        +'<button class="h-alert-cta" onclick="event.stopPropagation();markMaintDone(\''+s.id+'\',\''+v.vid+'\')">✅ Done</button>'
-        +'<button class="h-act-btn" onclick="event.stopPropagation();delMaintSchedule(\''+s.id+'\',\''+v.vid+'\')" title="Remove">✕</button>'
-      +'</div>'
-    +'</div>';
-  }).join('') : '<div class="h-empty">No maintenance schedules set up</div>';
-
-  var addMaintForm = '<div class="h-add-maint">'
-    +'<select id="maint-type-'+v.vid+'" onclick="event.stopPropagation()"><option>Oil Change</option><option>Tire Rotation</option><option>Brake Inspection</option><option>Transmission Fluid</option><option>Air Filter</option><option>DOT Inspection</option><option>Custom</option></select>'
-    +'<input type="number" id="maint-km-'+v.vid+'" placeholder="Interval (km)" onclick="event.stopPropagation()">'
-    +'<button onclick="event.stopPropagation();addMaintSchedule(\''+v.vid+'\')">+ Add</button>'
-  +'</div>';
-
-  var upcomingRows = upcoming.length ? upcoming.map(function(d){
-    var b = blocks[d];
-    return '<div class="h-detail-row muted">'
-      +'<div><b>'+fd(d)+'</b><div class="h-detail-sub">'+b.reason+(b.notes?' — '+b.notes:'')+(b.cost!=null?' · $'+b.cost.toFixed(2):'')+'</div></div>'
-      +'<button class="h-act-btn" onclick="event.stopPropagation();removeVehBlock(\''+v.vid+'\',\''+d+'\')" title="Remove">✕</button>'
-    +'</div>';
-  }).join('') : '<div class="h-empty">No upcoming blocked days</div>';
-
-  var serviceBlocks = past.filter(function(d){return blocks[d].reason==='Service / Repair';}).sort().reverse();
-  var totalCost = 0;
-  serviceBlocks.forEach(function(d){ if(blocks[d].cost!=null) totalCost += blocks[d].cost; });
-  var historyToggle = serviceBlocks.length
-    ? '<details style="margin-top:10px" onclick="event.stopPropagation()"><summary style="cursor:pointer;font-size:12px;color:var(--muted);user-select:none">🔧 Service history — '+serviceBlocks.length+' repair'+(serviceBlocks.length!==1?'s':'')+(totalCost>0?' · $'+totalCost.toFixed(2):'')+'</summary>'
-      +'<div style="margin-top:6px">'
-      +serviceBlocks.slice(0,15).map(function(d){
-        var b=blocks[d];
-        return '<div class="h-detail-row muted"><div><b>'+fd(d)+'</b>'+(b.notes?' — '+b.notes:'')+(b.cost!=null?'<div class="h-detail-sub">$'+b.cost.toFixed(2)+'</div>':'')+'</div></div>';
-      }).join('')
-      +(serviceBlocks.length>15?'<div class="h-detail-sub" style="text-align:center;padding:6px">…and '+(serviceBlocks.length-15)+' more</div>':'')
-      +'</div></details>'
-    : '';
-
-  return '<div class="h-drawer" id="veh-drawer-'+v.vid+'" onclick="event.stopPropagation()">'
-    +'<div class="h-drawer-grid">'
-      +'<div class="h-drawer-section">'
-        +'<h4>🔧 Maintenance schedules'+(odoKm!==null?' <span style="float:right;font-weight:400;text-transform:none;letter-spacing:0">Odometer '+odoKm.toLocaleString()+' km</span>':'')+'</h4>'
-        +maintHtml
-        +addMaintForm
-      +'</div>'
-      +'<div class="h-drawer-section">'
-        +'<h4>🚫 Mark out of service'+(upcoming.length?' ('+upcoming.length+')':'')+'</h4>'
-        +upcomingRows
-        +'<div class="h-block-form">'
-          +'<input type="date" id="veh-from-'+v.vid+'">'
-          +'<input type="date" id="veh-to-'+v.vid+'">'
-          +'<select id="veh-reason-'+v.vid+'"><option>Service / Repair</option><option>Personal Use</option><option>Out of Area</option><option>Other</option></select>'
-          +'<button onclick="event.stopPropagation();addVehDateRange(\''+v.vid+'\')">+ Block</button>'
-        +'</div>'
-        +'<div class="h-block-extra">'
-          +'<input type="text" id="veh-notes-'+v.vid+'" placeholder="Notes (optional)">'
-          +'<input type="number" id="veh-cost-'+v.vid+'" placeholder="Cost ($)" min="0" step="0.01" style="max-width:130px">'
-        +'</div>'
-        +historyToggle
-      +'</div>'
-    +'</div>'
-  +'</div>';
-}
-
-function toggleVehicleRow(vid){
-  _expandedVehicleId = (_expandedVehicleId === vid) ? null : vid;
-  renderVehicles();
-  if(_expandedVehicleId === vid){
-    setTimeout(function(){
-      var row = document.getElementById('veh-row-'+vid);
-      if(row && row.scrollIntoView) row.scrollIntoView({behavior:'smooth', block:'center'});
-    }, 50);
-  }
-}
-
 async function markOilServicedQuick(vid){
   var v = vehicles.find(function(x){return x.vid===vid;});
   if(!v) return;
@@ -14121,66 +13906,8 @@ async function markOilServicedQuick(vid){
   _rerenderFleet();
 }
 
-function _focusVehBlockForm(vid){
-  _expandedVehicleId = vid;
-  renderVehicles();
-  setTimeout(function(){
-    var el = document.getElementById('veh-from-'+vid);
-    if(el){ el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
-  }, 60);
-}
-
-function _renderVehicleRows(dashVehicles, alerts){
-  var withSev = dashVehicles.map(function(v){
-    var oil = _vehOilStatus(v);
-    var st = _vehStickerStatus(v);
-    var maint = _vehMaintWorstStatus(v.vid);
-    var sev = (oil.state==='bad'||st.state==='bad'||maint.state==='bad')?2 : (oil.state==='warn'||st.state==='warn'||maint.state==='warn')?1 : 0;
-    return {v:v, oil:oil, st:st, maint:maint, sev:sev};
-  });
-  withSev = withSev.filter(function(x){
-    if(_vehicleFilter==='all') return true;
-    if(_vehicleFilter==='attention') return x.sev>0;
-    return (x.v.type||'Other') === _vehicleFilter;
-  });
-  withSev.sort(function(a,b){
-    if(b.sev !== a.sev) return b.sev - a.sev;
-    return (a.v.name||'').localeCompare(b.v.name||'');
-  });
-
-  var el = document.getElementById('vehicles-list');
-  if(!el) return;
-  if(!withSev.length){
-    el.innerHTML = '<div class="h-empty" style="padding:32px;font-size:14px">No vehicles match the current filter.</div>';
-    return;
-  }
-  var rows = withSev.map(function(x){
-    var v = x.v;
-    var sevCls = x.sev===2?' urgent':'';
-    var expanded = (_expandedVehicleId === v.vid);
-    var sevDot = x.sev===2?'🔴':x.sev===1?'🟡':'🟢';
-    var sevTitle = x.sev===2?'Needs urgent attention':x.sev===1?'Has warnings':'All clear';
-    var rowHtml = '<div class="h-row'+sevCls+(expanded?' expanded':'')+'" id="veh-row-'+v.vid+'" onclick="toggleVehicleRow(\''+v.vid+'\')">'
-      +'<div class="h-stripe" style="background:'+(v.color||'#dc3545')+'"></div>'
-      +'<div class="h-photo">🚛</div>'
-      +'<div>'
-        +'<div class="h-name">'+v.name+' <span class="h-name-flags" title="'+sevTitle+'">'+sevDot+'</span></div>'
-        +'<div class="h-meta">'+(v.type||'')+(v.notes?' · '+v.notes:'')+'</div>'
-      +'</div>'
-      +'<div class="h-status"><div class="h-status-val '+x.oil.state+'">'+x.oil.label+'</div><div class="h-status-sub">'+(x.oil.sub||'')+'</div></div>'
-      +'<div class="h-status"><div class="h-status-val '+x.st.state+'">'+x.st.label+'</div><div class="h-status-sub">'+(x.st.sub||'')+'</div></div>'
-      +'<div class="h-status"><div class="h-status-val '+x.maint.state+'">'+x.maint.label+'</div><div class="h-status-sub">'+(x.maint.sub||'')+'</div></div>'
-      +_render30DayStrip(v.vid)
-      +'<div class="h-row-actions">'
-        +'<button class="h-act-btn" onclick="event.stopPropagation();openEditVehicle(\''+v.vid+'\')" title="Edit">'+lineIcon('edit',15)+'</button>'
-        +'<button class="h-act-btn" onclick="event.stopPropagation();delVehicle(\''+v.vid+'\')" title="Delete">'+lineIcon('del',15)+'</button>'
-      +'</div>'
-    +'</div>';
-    if(expanded) rowHtml += _renderVehicleDrawer(v);
-    return rowHtml;
-  }).join('');
-  el.innerHTML = '<div class="h-vehicles">'+rows+'</div>';
-}
+// Jump from a maintenance alert to the Vehicles tab with the send-to-shop panel open.
+function vehGoShop(vid){ switchFleetTab('vehicles'); openVehShop(vid); }
 
 // ── VEHICLES REDESIGN (v328) — plain-language fleet health, cards/list, send-to-shop ──
 var _vehFilter = 'all';                                                 // all | good | needs | shop
@@ -14214,7 +13941,7 @@ function vehShopInfo(vid){
 }
 function setVehFilter(f){ _vehFilter=(_vehFilter===f && f!=='all')?'all':f; renderVehicles(); }
 function setVehView(v){ _vehView=v; try{localStorage.setItem('vehView',v);}catch(e){} renderVehicles(); }
-function openVehShop(vid){ _vehShop={vid:vid,reason:'',note:'',backBy:''}; if(_vehView!=='cards'){ _vehView='cards'; try{localStorage.setItem('vehView','cards');}catch(e){} } renderVehicles(); }
+function openVehShop(vid){ _vehShop={vid:vid,reason:'',note:'',backBy:''}; _vehFeatVid=vid; _vehPhotoIdx=0; if(_vehView!=='cards'){ _vehView='cards'; try{localStorage.setItem('vehView','cards');}catch(e){} } renderVehicles(); }
 function closeVehShop(){ _vehShop={vid:null,reason:'',note:'',backBy:''}; renderVehicles(); }
 function vehShopReason(r){ _vehShop.reason=r; renderVehicles(); }
 function vehConfirmShop(vid){
@@ -14284,11 +14011,13 @@ function renderVehicles(){
   if(!filtered.length){
     body='<div style="background:var(--surface);border:1px dashed var(--border);border-radius:14px;padding:40px;text-align:center;color:var(--muted)">No vehicles match this filter.</div>';
   } else if(_vehView==='cards'){
-    body='<div class="veh-card-grid">'+filtered.map(function(x){return makeVehicleCard(x.v,x.ov);}).join('')+'</div>';
+    body=_vehHero(filtered);
   } else {
     body='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'+filtered.map(function(x){return makeVehicleListRow(x.v,x.ov);}).join('')+'</div>';
   }
   listEl.innerHTML = legend + body;
+  if(_vehView==='cards') _vehEnsurePhotoTimer();
+  _vehGeotabPill();
 }
 function _vehLegend(c,l){ return '<span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:'+c+'"></span>'+l+'</span>'; }
 function _renderVehAttention(rows){
@@ -14338,45 +14067,179 @@ function _vehShopPanel(vid){
     +'<div style="display:flex;gap:7px">'+(canSend?'<button onclick="vehConfirmShop(\''+vid+'\')"':'<button disabled')+' style="'+sendStyle+'">🔧 Send to shop</button><button onclick="closeVehShop()" style="min-height:38px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button></div>'
   +'</div>';
 }
-/* Same matching rule as the mobile app (jeff.html) so both surfaces show the
-   same truck for the same vehicle. The PNGs are cut-outs composited for a dark
-   backdrop, which is why the band below is dark rather than card-coloured. */
-function _vehPhoto(v){
+// ── Fleet Focus hero (v555, from Jake's Claude Design mockup) ──
+// Featured truck on the left, tap-to-focus fleet list on the right. Same
+// name-matching rule as the mobile app (jeff.html) so both surfaces show the
+// same truck cut-outs for the same vehicle.
+var _vehFeatVid=null, _vehPhotoIdx=0, _vehPhotoPaused=false, _vehPhotoTimer=null;
+function _vehPhotos(v){
   var n=String(v.name||''), t=String(v.type||'');
-  if(/L7/i.test(n)) return 'assets/truck-l7-1.png';
-  if(/hino|bin/i.test(n+' '+t)) return 'assets/truck-bin-1.png';
-  return '';
+  if(/L7/i.test(n)) return ['assets/truck-l7-1.png','assets/truck-l7-2.png','assets/truck-l7-3.png'];
+  if(/hino|bin/i.test(n+' '+t)) return ['assets/truck-bin-1.png','assets/truck-bin-2.png','assets/truck-bin-3.png'];
+  return [];
 }
-function makeVehicleCard(v,ov){
-  var m=_VEH_META[ov], o=_vehOilStatus(v), s=_vehStickerStatus(v);
-  var pillStyle='font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
-  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:15px 16px;'+(ov==='shop'?'border-left:3px solid #e67e22':(ov==='due'?'border-left:3px solid #dc3545':''));
-  var photo=_vehPhoto(v);
-  var h='<div style="'+cardStyle+'">'
-    +(photo?'<div style="height:120px;margin:-15px -16px 12px;background:linear-gradient(160deg,#1c2b23,#0f1a14);border-radius:14px 14px 0 0;overflow:hidden"><img src="'+photo+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"></div>':'')
-    +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:11px">'
-      +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+m.dot+'"></span>'
-      +'<span style="font-weight:700;font-size:14.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</span>'
-      +'<span style="'+pillStyle+'">'+m.pill+'</span>'
-      +'<button onclick="openVehMenu(\''+v.vid+'\',event)" title="Edit · Delete" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px">⋯</button>'
+// % of the oil interval still left (0..100). Prefers the km-based maintenance
+// schedule + Geotab odometer; falls back to the 180-day date window; null when
+// oil isn't tracked for this truck at all.
+function _vehOilPct(v){
+  var odo=window._odometerCache&&window._odometerCache[v.vid];
+  var odoKm=odo?odo.odometer_km:null;
+  var sched=(_maintCache[v.vid]||[]).find(function(s){return /oil/i.test(s.maintenance_type||'');});
+  if(sched&&sched.next_due_km!=null&&sched.interval_km&&odoKm!=null){
+    return Math.max(0,Math.min(100,Math.round(100*(sched.next_due_km-odoKm)/sched.interval_km)));
+  }
+  if(v.oilDate){
+    var days=Math.floor((Date.now()-new Date(v.oilDate+'T12:00:00'))/86400000);
+    return Math.max(0,Math.min(100,Math.round(100*(180-days)/180)));
+  }
+  return null;
+}
+function _vehRing(pct,val,lbl,color){
+  var grad = pct==null ? 'conic-gradient(var(--border) 100%,var(--border) 0)' : 'conic-gradient('+color+' '+pct+'%,#e9ede9 0)';
+  return '<div class="ffv-ring" style="background:'+grad+'"><div class="ffv-ring-in"><div class="ffv-ring-val">'+val+'</div><div class="ffv-ring-lbl">'+lbl+'</div></div></div>';
+}
+function _vehSyncTxt(ts){
+  var d=new Date(ts);
+  var t=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if(d.toDateString()===new Date().toDateString()) return t;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+t;
+}
+function _vehGeotabPill(){
+  var el=document.getElementById('veh-geotab-pill'); if(!el) return;
+  var latest=0, oc=window._odometerCache||{};
+  Object.keys(oc).forEach(function(k){ var u=oc[k]&&oc[k].updated_at; if(u){ var t=new Date(u).getTime(); if(t>latest) latest=t; } });
+  el.innerHTML = latest ? '<span class="ffv-live"><span class="ffv-live-dot"></span>GEOTAB · SYNCED '+_vehSyncTxt(latest).toUpperCase()+'</span>' : '';
+}
+function vehFeature(vid){
+  if(_vehFeatVid===vid) return;
+  _vehFeatVid=vid; _vehPhotoIdx=0;
+  if(_vehShop.vid&&_vehShop.vid!==vid) _vehShop={vid:null,reason:'',note:'',backBy:''};
+  renderVehicles();
+}
+function _vehStageApply(){
+  var stage=document.getElementById('ffv-stage'); if(!stage) return;
+  var imgs=stage.querySelectorAll('img[data-pi]'); if(!imgs.length) return;
+  var n=imgs.length, idx=((_vehPhotoIdx%n)+n)%n;
+  for(var i=0;i<n;i++) imgs[i].classList.toggle('on', i===idx);
+  var dots=stage.querySelectorAll('.ffv-dot');
+  for(var j=0;j<dots.length;j++) dots[j].classList.toggle('on', j===idx);
+}
+function vehPhotoStep(d){ _vehPhotoIdx+=d; _vehStageApply(); }
+function vehPhotoSet(i){ _vehPhotoIdx=i; _vehStageApply(); }
+function _vehEnsurePhotoTimer(){
+  if(_vehPhotoTimer) return;
+  _vehPhotoTimer=setInterval(function(){ if(!_vehPhotoPaused){ _vehPhotoIdx++; _vehStageApply(); } },10000);
+}
+function _vehHero(rows){
+  var feat=null;
+  rows.forEach(function(x){ if(x.v.vid===_vehFeatVid) feat=x; });
+  if(!feat){ feat=rows.filter(function(x){return x.ov!=='good';})[0]||rows[0]; _vehFeatVid=feat.v.vid; }
+  return '<div class="ffv-hero">'
+    +_vehFeatCard(feat.v,feat.ov)
+    +'<div class="ffv-list">'
+      +'<div class="ffv-mono-lbl" style="font-size:11px;font-weight:700;letter-spacing:1px;padding-left:2px">The fleet — tap to focus</div>'
+      +rows.map(function(x){return _vehHeroRow(x,_vehFeatVid);}).join('')
     +'</div>'
-    +'<div style="display:grid;gap:7px;margin-bottom:12px">'
-      +_vehInfoRow('Oil change',_vehOilText(o),_vehStateColor(o.state))
-      +_vehInfoRow('Safety sticker',_vehStickerText(s),_vehStateColor(s.state))
-      +_vehInfoRow('Odometer',_vehOdoText(v.vid),'var(--text-secondary)')
+  +'</div>';
+}
+function _vehHeroRow(x,featVid){
+  var v=x.v, m=_VEH_META[x.ov];
+  var photos=_vehPhotos(v);
+  var pillStyle='font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
+  var oilPct=_vehOilPct(v);
+  var barColor=oilPct==null?null:oilPct>=50?'#22c55e':oilPct>=20?'#eab308':'#dc3545';
+  return '<div class="ffv-row'+(v.vid===featVid?' sel':'')+'" onclick="vehFeature(\''+v.vid+'\')">'
+    +'<span style="width:11px;height:11px;border-radius:50%;flex:none;background:'+m.dot+';box-shadow:0 0 0 3px '+m.pb+'"></span>'
+    +(photos.length?'<div class="ffv-thumb"><img src="'+photos[0]+'" alt="" loading="lazy" draggable="false"></div>':'')
+    +'<div style="flex:1;min-width:0">'
+      +'<div class="ffv-row-name">'+escHtml(v.name||'')+'</div>'
+      +'<div class="ffv-mono" style="font-size:10.5px;margin-top:3px">'+escHtml((v.notes||'').trim()||v.type||'')+' · '+escHtml(v.vehicleStatus||'Available')+'</div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none">'
+      +'<span style="'+pillStyle+'">'+m.pill+'</span>'
+      +(barColor?'<div class="ffv-track"><div class="ffv-fill" style="width:'+oilPct+'%;background:'+barColor+'"></div></div>':'')
+    +'</div>'
+  +'</div>';
+}
+function _vehFeatCard(v,ov){
+  var m=_VEH_META[ov], o=_vehOilStatus(v), s=_vehStickerStatus(v);
+  var photos=_vehPhotos(v);
+  var n=photos.length, idx=n?((_vehPhotoIdx%n)+n)%n:0;
+  var pillStyle='font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
+  var h='<div class="ffv-feat">'
+    +'<div style="display:flex;align-items:flex-start;gap:12px">'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+          +'<div class="ffv-name">'+escHtml(v.name||'')+'</div>'
+          +'<span class="ffv-type">'+escHtml(v.type||'Truck')+'</span>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:9px;margin-top:7px">'
+          +'<span style="width:11px;height:11px;border-radius:50%;flex:none;background:'+m.dot+';box-shadow:0 0 0 3px '+m.pb+'"></span>'
+          +'<span class="ffv-mono">'+escHtml((v.notes||'').trim()||'No plate on file')+' · '+escHtml(v.vehicleStatus||'Available')+'</span>'
+        +'</div>'
+      +'</div>'
+      +'<span style="'+pillStyle+'">'+m.pill+'</span>'
+      +'<button onclick="openVehMenu(\''+v.vid+'\',event)" title="Edit · Delete" style="border:none;background:var(--surface2);color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:5px 9px;border-radius:9px;flex:none">⋯</button>'
     +'</div>';
+  if(n){
+    h+='<div class="ffv-stage" id="ffv-stage" onmouseenter="_vehPhotoPaused=true" onmouseleave="_vehPhotoPaused=false">'
+      +'<div class="ffv-shadow"></div>'
+      +photos.map(function(src,i){return '<img data-pi="'+i+'" src="'+src+'" alt="" draggable="false" class="'+(i===idx?'on':'')+'">';}).join('')
+      +(n>1
+        ? '<button class="ffv-nav" style="left:6px" onclick="vehPhotoStep(-1)">‹</button>'
+         +'<button class="ffv-nav" style="right:6px" onclick="vehPhotoStep(1)">›</button>'
+         +'<div class="ffv-dots">'+photos.map(function(_p,i){return '<button class="ffv-dot'+(i===idx?' on':'')+'" onclick="vehPhotoSet('+i+')"></button>';}).join('')+'</div>'
+        : '')
+    +'</div>';
+  } else {
+    h+='<div class="ffv-stage" id="ffv-stage" style="display:flex;align-items:center;justify-content:center"><div style="font-size:72px;opacity:.18">🚚</div></div>';
+  }
+  var oilPct=_vehOilPct(v);
+  var oilColor=oilPct==null?'#9ca3af':oilPct>=50?'#22c55e':oilPct>=20?'#eab308':'#dc3545';
+  var stPct=(s.days!=null)?Math.max(0,Math.min(100,Math.round(100*s.days/365))):null;
+  var stColor=s.state==='ok'?'#22c55e':s.state==='warn'?'#eab308':s.state==='bad'?'#dc3545':'#9ca3af';
+  var stVal=s.days==null?'—':(s.days<0?'EXP':s.days+'d');
+  var odo=window._odometerCache&&window._odometerCache[v.vid];
+  var odoNum=(odo&&odo.odometer_km!=null)?Number(odo.odometer_km).toLocaleString():'—';
+  var odoSub=(odo&&odo.updated_at)?'km · Geotab synced '+_vehSyncTxt(odo.updated_at):'no Geotab link for this truck';
+  h+='<div class="ffv-rings">'
+    +_vehRing(oilPct, oilPct==null?'—':oilPct+'%','🛢️ Oil life',oilColor)
+    +_vehRing(stPct, stVal,'📋 Sticker',stColor)
+    +'<div class="ffv-odo"><div class="ffv-mono-lbl">🛞 Odometer</div><div class="ffv-odo-num">'+odoNum+'</div><div class="ffv-tile-s">'+odoSub+'</div></div>'
+  +'</div>';
+  var mw=_vehMaintWorstStatus(v.vid);
+  var probs=[];
+  if(o.state==='bad')probs.push('Oil change overdue'); else if(o.state==='warn')probs.push('Oil change due soon');
+  if(s.state==='bad')probs.push('Safety sticker expired'); else if(s.state==='warn')probs.push('Safety sticker expiring soon');
+  if(mw.state==='bad')probs.push(mw.sub||'Service overdue'); else if(mw.state==='warn'&&mw.sub)probs.push(mw.sub);
+  var bIcon,bTitle,bMsg,bColor;
   if(ov==='shop'){
     var si=vehShopInfo(v.vid)||{reason:'In for service',backBy:'',openEnded:true};
-    var shopLine=si.backBy?('Back by '+fd(si.backBy)):'No return date yet';
-    h+='<div style="background:#fff7ed;border:1px solid #f0d2b0;border-radius:9px;padding:9px 11px;margin-bottom:9px"><div style="font-size:12px;font-weight:700;color:#9a3412">🔧 '+escHtml(si.reason)+'</div><div style="font-size:11.5px;color:#b45309;margin-top:2px">'+shopLine+'</div></div>'
-      +'<button onclick="vehBackInService(\''+v.vid+'\')" style="width:100%;min-height:40px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Back in service</button>';
+    bIcon='🔧'; bTitle='In the shop — '+escHtml(si.reason); bMsg=si.backBy?('Back by '+fd(si.backBy)):'No return date yet'; bColor='#c2410c';
+  } else if(ov==='due'){ bIcon='🔧'; bTitle='Service due now'; bMsg=escHtml(probs.join(' · '))||'Needs attention'; bColor='#b4232f'; }
+  else if(ov==='soon'){ bIcon='⚠️'; bTitle='Attention soon'; bMsg=escHtml(probs.join(' · '))||'Coming up'; bColor='#a16207'; }
+  else { bIcon='🛡️'; bTitle='All good'; bMsg='No issues detected'; bColor='#15803d'; }
+  h+='<div class="ffv-banner"><span style="font-size:24px">'+bIcon+'</span><div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:800;color:'+bColor+'">'+bTitle+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+bMsg+'</div></div></div>';
+  var oilLast=v.oilDate?fd(v.oilDate):'Not tracked';
+  var oilSched=(_maintCache[v.vid]||[]).find(function(x){return /oil/i.test(x.maintenance_type||'');});
+  var oilEvery=oilSched&&oilSched.interval_km?('every '+oilSched.interval_km.toLocaleString()+' km'):(v.oilInterval?('every '+parseInt(v.oilInterval).toLocaleString()+' km'):'no interval set');
+  var crew=(vehicleAssignments[v.vid]||[]).filter(function(a){return !a.endedAt;}).map(function(a){return a.name;});
+  h+='<div class="ffv-tiles">'
+    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(o.state)+'">🛢️ Oil service</div><div class="ffv-tile-v">Last '+oilLast+'</div><div class="ffv-tile-s">'+oilEvery+' · '+_vehOilText(o).toLowerCase()+'</div></div>'
+    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(s.state)+'">📋 Safety sticker</div><div class="ffv-tile-v">'+escHtml(_vehStickerText(s))+'</div><div class="ffv-tile-s">'+(s.days==null?'set it in Edit':(s.days<0?Math.abs(s.days)+' days expired':s.days+' days left'))+'</div></div>'
+    +'<div class="ffv-tile"><div class="ffv-mono-lbl">👷 Crew today</div><div class="ffv-tile-v">'+(crew.length?escHtml(crew.join(', ')):'No one assigned')+'</div><div class="ffv-tile-s">from today\'s truck assignments</div></div>'
+    +'<div class="ffv-tile"><div class="ffv-mono-lbl">🏷️ Plate / Notes</div><div class="ffv-tile-v">'+escHtml((v.notes||'').trim()||'—')+'</div><div class="ffv-tile-s">'+escHtml(v.type||'')+'</div></div>'
+  +'</div>';
+  if(ov==='shop'){
+    var si2=vehShopInfo(v.vid)||{reason:'In for service',backBy:'',openEnded:true};
+    h+='<div style="margin-top:14px"><div style="background:#fff7ed;border:1px solid #f0d2b0;border-radius:12px;padding:12px 15px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#c2410c">🔧 In the shop — '+escHtml(si2.reason)+'</div><div style="font-size:12px;color:#b45309;margin-top:2px">'+(si2.backBy?('Back by '+fd(si2.backBy)):'No return date yet')+'</div></div>'
+      +'<button onclick="vehBackInService(\''+v.vid+'\')" style="width:100%;background:#f0fdf4;color:#15803d;border:1px solid #cdebd8;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Back in service</button></div>';
   } else if(_vehShop.vid===v.vid){
-    h+=_vehShopPanel(v.vid);
+    h+='<div style="margin-top:14px">'+_vehShopPanel(v.vid)+'</div>';
   } else {
-    var needsService=(ov==='due'||ov==='soon');
-    h+='<div style="display:flex;gap:7px;flex-wrap:wrap">'
-      +'<button onclick="openVehShop(\''+v.vid+'\')" style="flex:1;min-width:120px;min-height:40px;border:1px solid #f0b27a;background:#fff7ed;color:#c2410c;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Send to shop</button>'
-      +(needsService?'<button onclick="markOilServicedQuick(\''+v.vid+'\')" style="flex:1;min-width:120px;min-height:40px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark serviced</button>':'')
+    h+='<div style="display:flex;gap:10px;margin-top:14px">'
+      +'<button onclick="openVehShop(\''+v.vid+'\')" style="flex:1;background:#fff7ed;color:#c2410c;border:1px solid #f0b27a;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Send to shop</button>'
+      +'<button onclick="markOilServicedQuick(\''+v.vid+'\')" style="flex:1;background:#f0fdf4;color:#15803d;border:1px solid #cdebd8;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark oil serviced</button>'
     +'</div>';
   }
   h+='</div>';
@@ -14505,17 +14368,24 @@ async function renderMaintenance(){
   if(subEl) subEl.textContent=fleet.length+' vehicle'+(fleet.length!==1?'s':'')+' · '+serviceDue+' service item'+(serviceDue!==1?'s':'')+' due';
 
   if(kpiEl){
-    kpiEl.innerHTML='<div class="h-kpis">'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('confirmed',{size:36,radius:9,color:'green'})+'</div><div><div class="h-kpi-num">'+compPct+'%</div><div class="h-kpi-lbl">Service up to date</div></div></div><div class="h-kpi-trend">'+compliant+' of '+fleet.length+' on track</div></div>'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('oil',{size:36,radius:9,color:'red'})+'</div><div><div class="h-kpi-num">'+oilOverdue+'</div><div class="h-kpi-lbl">Oil overdue</div></div></div></div>'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('maintenance',{size:36,radius:9,color:'orange'})+'</div><div><div class="h-kpi-num">'+serviceDue+'</div><div class="h-kpi-lbl">Service due</div></div></div></div>'
-      +'<div class="h-kpi"><div class="h-kpi-l"><div class="h-kpi-icon" style="background:transparent">'+iconTile('allJobs',{size:36,radius:9,color:'blue'})+'</div><div><div class="h-kpi-num">'+stickerFlag+'</div><div class="h-kpi-lbl">Sticker expiring</div></div></div></div>'
+    kpiEl.innerHTML='<div class="ffv-stats">'
+      +'<div class="ffv-stat" style="background:#ecfdf3;border-color:#c9ecd6"><div class="ffv-stat-num" style="color:#16a34a">'+compPct+'%</div><div class="ffv-stat-lbl" style="color:#15803d">Service up to date · '+compliant+' of '+fleet.length+'</div></div>'
+      +'<div class="ffv-stat" style="background:#fdeded;border-color:#f5c6c6"><div class="ffv-stat-num" style="color:#dc3545">'+oilOverdue+'</div><div class="ffv-stat-lbl" style="color:#b4232f">Oil overdue</div></div>'
+      +'<div class="ffv-stat" style="background:#fff2e6;border-color:#f0d2b0"><div class="ffv-stat-num" style="color:#c2410c">'+serviceDue+'</div><div class="ffv-stat-lbl" style="color:#c2410c">Service due</div></div>'
+      +'<div class="ffv-stat" style="background:#eaf3ff;border-color:#c5ddf7"><div class="ffv-stat-num" style="color:#0d6efd">'+stickerFlag+'</div><div class="ffv-stat-lbl" style="color:#0b5ed7">Sticker expiring</div></div>'
     +'</div>';
   }
 
   if(schedEl){
+    var vehOpts=fleet.map(function(v){return '<option value="'+v.vid+'">'+_esc(v.name||v.vid)+'</option>';}).join('');
+    var addBar='<div class="ffv-addbar">'
+      +'<div style="flex:2;min-width:150px"><label class="ffv-lb">Vehicle</label><select id="maint-bar-vid" class="form-input">'+vehOpts+'</select></div>'
+      +'<div style="flex:2;min-width:150px"><label class="ffv-lb">Service type</label><select id="maint-bar-type" class="form-input"><option>Oil Change</option><option>Tire Rotation</option><option>Brake Inspection</option><option>Transmission Fluid</option><option>Air Filter</option><option>DOT Inspection</option><option>Custom</option></select></div>'
+      +'<div style="flex:1.4;min-width:120px"><label class="ffv-lb">Every (km)</label><input type="number" id="maint-bar-km" class="form-input" placeholder="e.g. 8000" min="100"></div>'
+      +'<button class="btn btn-primary" style="min-height:40px" onclick="addMaintSchedule()">+ Add schedule</button>'
+    +'</div>';
     if(!rows.length){
-      schedEl.innerHTML='<div class="chart-card" style="padding:0;overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--border)"><div class="card-head" style="margin:0">🔧 Service Schedules</div></div>'+emptyStateHTML('🔧','No schedules yet','Add km-based service schedules on the Vehicles page.')+'</div>';
+      schedEl.innerHTML=addBar+'<div class="chart-card" style="padding:0;overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--border)"><div class="card-head" style="margin:0">🔧 Service Schedules</div></div>'+emptyStateHTML('🔧','No schedules yet','Add your first km-based service schedule above.')+'</div>';
     } else {
       rows.sort(function(a,b){ var ak=a.kmLeft==null?1e12:a.kmLeft, bk=b.kmLeft==null?1e12:b.kmLeft; return ak-bk; });
       var SC={overdue:{bd:'#dc3545',bg:'rgba(220,53,69,.15)',fg:'#dc3545',pbd:'rgba(220,53,69,.4)'},due:{bd:'#e67e22',bg:'rgba(230,126,34,.15)',fg:'#e67e22',pbd:'rgba(230,126,34,.4)'},ok:{bd:'var(--accent)',bg:'rgba(34,197,94,.12)',fg:'#16a34a',pbd:'rgba(34,197,94,.35)'}};
@@ -14535,7 +14405,7 @@ async function renderMaintenance(){
           +'<td style="padding:9px 12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+r.s.id+'\',\''+r.v.vid+'\')" style="font-size:11px;white-space:nowrap;color:var(--accent);border-color:rgba(34,197,94,.35)">✅ Mark serviced</button></td>'
         +'</tr>';
       }).join('');
-      schedEl.innerHTML='<div class="chart-card" style="padding:0;overflow:hidden">'
+      schedEl.innerHTML=addBar+'<div class="chart-card" style="padding:0;overflow:hidden">'
         +'<div style="padding:14px 18px;border-bottom:1px solid var(--border)"><div class="card-head" style="margin:0">🔧 Service Schedules</div><div style="font-size:11px;color:var(--muted);margin-top:2px">All km-based schedules, soonest due first</div></div>'
         +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
           +'<thead><tr style="text-align:left;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">'
@@ -14567,11 +14437,14 @@ async function loadMaintenanceForVehicles(){
 // don't need to know about the rewrite.
 function renderMaintSections(){ _rerenderFleet(); }
 
-async function addMaintSchedule(vid){
-  var typeEl=document.getElementById('maint-type-'+vid);
-  var kmEl=document.getElementById('maint-km-'+vid);
+async function addMaintSchedule(){
+  var vidEl=document.getElementById('maint-bar-vid');
+  var typeEl=document.getElementById('maint-bar-type');
+  var kmEl=document.getElementById('maint-bar-km');
+  var vid=vidEl?vidEl.value:'';
   var type=typeEl?typeEl.value:'';
-  var km=kmEl?parseInt(kmEl.value):0;
+  var km=kmEl?parseInt(kmEl.value,10):0;
+  if(!vid){toast('⚠ Pick a vehicle first','warn');return;}
   if(!km||km<100){toast('⚠ Enter a valid km interval (at least 100 km)','warn');return;}
   if(type==='Custom'){type=prompt('Enter maintenance type name:');if(!type)return;}
   var odo=window._odometerCache&&window._odometerCache[vid];
@@ -14581,6 +14454,7 @@ async function addMaintSchedule(vid){
   if(res.error){toast('⚠ Error: '+res.error.message,'error');return;}
   if(!_maintCache[vid])_maintCache[vid]=[];
   _maintCache[vid].push(res.data[0]);
+  if(kmEl)kmEl.value='';
   renderMaintSections();
   toast('Maintenance schedule added!');
 }
