@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '556';
+var APP_VERSION = '557';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3285,15 +3285,6 @@ async function addNewUser(){
   toast('✓ User created. They can now log in with '+email);
 }
 
-function changeVehicleStatus(vid,newStatus){
-  var v=vehicles.find(function(vv){return vv.vid===vid;});
-  if(!v)return;
-  v.vehicleStatus=newStatus;
-  db.from('vehicles').update({vehicle_status:newStatus}).eq('vid',vid).then(function(r){
-    if(r.error)console.warn('Update vehicle status failed:',r.error.message);
-  });
-  renderDashVehicleStatus();
-}
 
 // LEADERBOARD (Driver / Crew) lives in app-leaderboard.js
 async function renderDashMaintAlert(){
@@ -13902,6 +13893,7 @@ async function markOilServicedQuick(vid){
   v.oilDate = todayStr();
   if(odo && odo.odometer_km) v.oilKm = String(odo.odometer_km);
   saveVehicles();
+  _vehLogService(vid,'🛢️ Oil change',(odo&&odo.odometer_km)?('at '+Number(odo.odometer_km).toLocaleString()+' km'):'');
   toast('✅ Oil change recorded for '+v.name);
   _rerenderFleet();
 }
@@ -13930,6 +13922,7 @@ function vehOverall(v){
   var o=_vehOilStatus(v), s=_vehStickerStatus(v), m=_vehMaintWorstStatus(v.vid);
   if(o.state==='bad'||s.state==='bad'||m.state==='bad') return 'due';
   if(o.state==='warn'||s.state==='warn'||m.state==='warn') return 'soon';
+  if(_vehOpenIssues(v.vid).length) return 'soon';   // running, but carrying a problem
   return 'good';
 }
 function vehFilterPass(ov,f){ if(f==='all')return true; if(f==='good')return ov==='good'; if(f==='needs')return ov==='due'||ov==='soon'; if(f==='shop')return ov==='shop'; return true; }
@@ -14029,6 +14022,9 @@ function _renderVehAttention(rows){
     else if(o.state==='warn') out.push({name:v.name,reason:'Oil change due soon',dot:'#eab308',vid:v.vid,act:true});
     if(s.state==='bad') out.push({name:v.name,reason:'Safety sticker expired'+(s.sub?' ('+s.sub+')':''),dot:'#dc3545',vid:v.vid,act:false});
     else if(s.state==='warn') out.push({name:v.name,reason:'Safety sticker expiring'+(s.sub?' ('+s.sub+')':''),dot:'#eab308',vid:v.vid,act:false});
+    _vehOpenIssues(v.vid).forEach(function(i){
+      out.push({name:v.name,reason:escHtml(i.issue),dot:'#eab308',vid:v.vid,act:false,fixId:i.id});
+    });
   });
   if(!out.length) return '';
   return '<div style="background:var(--surface);border:1px solid #f0d2b0;border-left:4px solid #e67e22;border-radius:14px;padding:14px 16px;margin-bottom:14px">'
@@ -14037,6 +14033,7 @@ function _renderVehAttention(rows){
       return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:'+a.dot+'"></span>'
         +'<div style="flex:1;min-width:140px"><span style="font-weight:700;font-size:13px">'+escHtml(a.name||'')+'</span> <span style="color:var(--muted);font-size:12.5px">— '+a.reason+'</span></div>'
         +(a.act?'<button onclick="markOilServicedQuick(\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark serviced</button>':'')
+        +(a.fixId?'<button onclick="vehFixIssue(\''+a.fixId+'\',\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ Fixed</button>':'')
       +'</div>';
     }).join('')+'</div></div>';
 }
@@ -14075,6 +14072,7 @@ var _vehFeatVid=null, _vehPhotoIdx=0, _vehPhotoPaused=false, _vehPhotoTimer=null
 function _vehPhotos(v){
   var n=String(v.name||''), t=String(v.type||'');
   if(/L7/i.test(n)) return ['assets/truck-l7-1.png','assets/truck-l7-2.png','assets/truck-l7-3.png'];
+  if(/furniture/i.test(n+' '+t)) return ['assets/truck-fill.webp'];   // the quote-animation box truck (Jake, v557)
   if(/hino|bin/i.test(n+' '+t)) return ['assets/truck-bin-1.png','assets/truck-bin-2.png','assets/truck-bin-3.png'];
   return [];
 }
@@ -14113,6 +14111,7 @@ function _vehGeotabPill(){
 function vehFeature(vid){
   if(_vehFeatVid===vid) return;
   _vehFeatVid=vid; _vehPhotoIdx=0;
+  try{ localStorage.setItem('jjVehFeat',vid); }catch(e){}
   if(_vehShop.vid&&_vehShop.vid!==vid) _vehShop={vid:null,reason:'',note:'',backBy:''};
   renderVehicles();
 }
@@ -14133,6 +14132,11 @@ function _vehEnsurePhotoTimer(){
 function _vehHero(rows){
   var feat=null;
   rows.forEach(function(x){ if(x.v.vid===_vehFeatVid) feat=x; });
+  if(!feat && !_vehFeatVid){
+    // First render this visit: reopen on the truck they had focused last time
+    try{ var saved=localStorage.getItem('jjVehFeat'); if(saved) rows.forEach(function(x){ if(x.v.vid===saved) feat=x; }); }catch(e){}
+    if(feat) _vehFeatVid=feat.v.vid;
+  }
   if(!feat){ feat=rows.filter(function(x){return x.ov!=='good';})[0]||rows[0]; _vehFeatVid=feat.v.vid; }
   return '<div class="ffv-hero">'
     +_vehFeatCard(feat.v,feat.ov)
@@ -14153,7 +14157,7 @@ function _vehHeroRow(x,featVid){
     +(photos.length?'<div class="ffv-thumb"><img src="'+photos[0]+'" alt="" loading="lazy" draggable="false"></div>':'')
     +'<div style="flex:1;min-width:0">'
       +'<div class="ffv-row-name">'+escHtml(v.name||'')+'</div>'
-      +'<div class="ffv-mono" style="font-size:10.5px;margin-top:3px">'+escHtml((v.notes||'').trim()||v.type||'')+' · '+escHtml(v.vehicleStatus||'Available')+'</div>'
+      +'<div class="ffv-mono" style="font-size:10.5px;margin-top:3px">'+escHtml((v.notes||'').trim()||v.type||'')+' · '+_vehStatusTxt(v)+'</div>'
     +'</div>'
     +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none">'
       +'<span style="'+pillStyle+'">'+m.pill+'</span>'
@@ -14175,7 +14179,7 @@ function _vehFeatCard(v,ov){
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:9px;margin-top:7px">'
           +'<span style="width:11px;height:11px;border-radius:50%;flex:none;background:'+m.dot+';box-shadow:0 0 0 3px '+m.pb+'"></span>'
-          +'<span class="ffv-mono">'+escHtml((v.notes||'').trim()||'No plate on file')+' · '+escHtml(v.vehicleStatus||'Available')+'</span>'
+          +'<span class="ffv-mono">'+escHtml((v.notes||'').trim()||'No plate on file')+' · '+_vehStatusTxt(v)+'</span>'
         +'</div>'
       +'</div>'
       +'<span style="'+pillStyle+'">'+m.pill+'</span>'
@@ -14202,11 +14206,15 @@ function _vehFeatCard(v,ov){
   var odo=window._odometerCache&&window._odometerCache[v.vid];
   var odoNum=(odo&&odo.odometer_km!=null)?Number(odo.odometer_km).toLocaleString():'—';
   var odoSub=(odo&&odo.updated_at)?'km · Geotab synced '+_vehSyncTxt(odo.updated_at):'no Geotab link for this truck';
+  var pace=_vehKmPerDay(v.vid);
+  if(pace) odoSub+=' · ≈'+pace+' km/day';
   h+='<div class="ffv-rings">'
     +_vehRing(oilPct, oilPct==null?'—':oilPct+'%','🛢️ Oil life',oilColor)
     +_vehRing(stPct, stVal,'📋 Sticker',stColor)
     +'<div class="ffv-odo"><div class="ffv-mono-lbl">🛞 Odometer</div><div class="ffv-odo-num">'+odoNum+'</div><div class="ffv-tile-s">'+odoSub+'</div></div>'
   +'</div>';
+  var paceNote=_vehPaceNote(v.vid);
+  if(paceNote) h+='<div class="ffv-tile-s" style="margin-top:8px">'+paceNote+'</div>';
   var mw=_vehMaintWorstStatus(v.vid);
   var probs=[];
   if(o.state==='bad')probs.push('Oil change overdue'); else if(o.state==='warn')probs.push('Oil change due soon');
@@ -14223,13 +14231,43 @@ function _vehFeatCard(v,ov){
   var oilLast=v.oilDate?fd(v.oilDate):'Not tracked';
   var oilSched=(_maintCache[v.vid]||[]).find(function(x){return /oil/i.test(x.maintenance_type||'');});
   var oilEvery=oilSched&&oilSched.interval_km?('every '+oilSched.interval_km.toLocaleString()+' km'):(v.oilInterval?('every '+parseInt(v.oilInterval).toLocaleString()+' km'):'no interval set');
+  var oilKmLeft=(oilSched&&oilSched.next_due_km!=null&&odo&&odo.odometer_km!=null)?(oilSched.next_due_km-odo.odometer_km):null;
+  var oilDueTxt=_vehDueDateTxt(v.vid,oilKmLeft);
   var crew=(vehicleAssignments[v.vid]||[]).filter(function(a){return !a.endedAt;}).map(function(a){return a.name;});
   h+='<div class="ffv-tiles">'
-    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(o.state)+'">🛢️ Oil service</div><div class="ffv-tile-v">Last '+oilLast+'</div><div class="ffv-tile-s">'+oilEvery+' · '+_vehOilText(o).toLowerCase()+'</div></div>'
-    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(s.state)+'">📋 Safety sticker</div><div class="ffv-tile-v">'+escHtml(_vehStickerText(s))+'</div><div class="ffv-tile-s">'+(s.days==null?'set it in Edit':(s.days<0?Math.abs(s.days)+' days expired':s.days+' days left'))+'</div></div>'
+    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(o.state)+'">🛢️ Oil service</div><div class="ffv-tile-v">Last '+oilLast+'</div><div class="ffv-tile-s">'+oilEvery+' · '+_vehOilText(o).toLowerCase()+(oilDueTxt?' · due '+oilDueTxt:'')+'</div></div>'
+    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(s.state)+'">📋 Safety sticker</div><div class="ffv-tile-v">'+escHtml(_vehStickerText(s))+'</div><div class="ffv-tile-s">'+(s.days==null?'set it in Edit':(s.days<0?Math.abs(s.days)+' days expired':s.days+' days left'))+'</div>'
+      +(s.days!=null?'<button onclick="vehStickerRenewed(\''+v.vid+'\')" style="margin-top:8px;min-height:30px;padding:0 11px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Renewed — bump a year</button>':'')+'</div>'
     +'<div class="ffv-tile"><div class="ffv-mono-lbl">👷 Crew today</div><div class="ffv-tile-v">'+(crew.length?escHtml(crew.join(', ')):'No one assigned')+'</div><div class="ffv-tile-s">from today\'s truck assignments</div></div>'
     +'<div class="ffv-tile"><div class="ffv-mono-lbl">🏷️ Plate / Notes</div><div class="ffv-tile-v">'+escHtml((v.notes||'').trim()||'—')+'</div><div class="ffv-tile-s">'+escHtml(v.type||'')+'</div></div>'
   +'</div>';
+  // Ongoing problems — the truck still runs, but something needs fixing (v557)
+  var open=_vehOpenIssues(v.vid);
+  h+='<div style="margin-top:11px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
+    +'<div class="ffv-mono-lbl" style="margin-bottom:8px">🛠️ Ongoing problems'+(open.length?' <span style="background:#eab308;color:#fff;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">'+open.length+'</span>':'')+'</div>'
+    +(open.length?open.map(function(i){
+      var days=Math.max(0,Math.floor((Date.now()-new Date(i.reported_at))/86400000));
+      return '<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap">'
+        +'<span style="width:9px;height:9px;border-radius:50%;flex:none;background:#eab308"></span>'
+        +'<div style="flex:1;min-width:140px;font-size:13px;font-weight:600">'+escHtml(i.issue)+'<div class="ffv-tile-s" style="font-weight:400">reported '+(days===0?'today':days+' day'+(days!==1?'s':'')+' ago')+'</div></div>'
+        +'<button onclick="vehFixIssue(\''+i.id+'\',\''+v.vid+'\')" style="min-height:32px;padding:0 12px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ Fixed</button>'
+      +'</div>';
+    }).join(''):'<div class="ffv-tile-s" style="margin-bottom:8px">Nothing reported — truck\'s clean.</div>')
+    +'<div style="display:flex;gap:7px"><input id="ffv-issue-in" placeholder="Report a problem — e.g. tarp system broken" style="flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key===\'Enter\')vehAddIssue(\''+v.vid+'\')">'
+    +'<button onclick="vehAddIssue(\''+v.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">+ Add</button></div>'
+  +'</div>';
+  // Service history — shop stays, logged services, fixed problems (newest first)
+  var lg=_vehServiceLog(v.vid);
+  if(lg.length){
+    h+='<details style="margin-top:11px">'
+      +'<summary class="ffv-mono-lbl" style="cursor:pointer;user-select:none">📜 Service history — '+lg.length+' entr'+(lg.length!==1?'ies':'y')+'</summary>'
+      +'<div style="margin-top:9px;display:grid;gap:7px">'
+      +lg.slice(0,15).map(function(e){
+        return '<div style="display:flex;gap:10px;align-items:baseline;font-size:12.5px"><span class="ffv-mono" style="font-size:10.5px;flex:none">'+e.when+'</span><div style="min-width:0"><b>'+escHtml(e.kind)+'</b>'+(e.detail?' — '+escHtml(e.detail):'')+(e.cost!=null?' · $'+e.cost.toFixed(2):'')+'</div></div>';
+      }).join('')
+      +(lg.length>15?'<div class="ffv-tile-s">…and '+(lg.length-15)+' more</div>':'')
+      +'</div></details>';
+  }
   if(ov==='shop'){
     var si2=vehShopInfo(v.vid)||{reason:'In for service',backBy:'',openEnded:true};
     h+='<div style="margin-top:14px"><div style="background:#fff7ed;border:1px solid #f0d2b0;border-radius:12px;padding:12px 15px;margin-bottom:10px"><div style="font-size:13px;font-weight:700;color:#c2410c">🔧 In the shop — '+escHtml(si2.reason)+'</div><div style="font-size:12px;color:#b45309;margin-top:2px">'+(si2.backBy?('Back by '+fd(si2.backBy)):'No return date yet')+'</div></div>'
@@ -14400,9 +14438,10 @@ async function renderMaintenance(){
           +'<td style="padding:9px 12px">'+_esc(r.s.maintenance_type)+'</td>'
           +'<td style="padding:9px 12px;color:var(--muted)">every '+(r.s.interval_km?r.s.interval_km.toLocaleString():'—')+' km</td>'
           +'<td style="padding:9px 12px;color:var(--muted)">'+last+'</td>'
-          +'<td style="padding:9px 12px">'+(r.s.next_due_km!=null?r.s.next_due_km.toLocaleString()+' km':'—')+'</td>'
+          +'<td style="padding:9px 12px">'+(r.s.next_due_km!=null?r.s.next_due_km.toLocaleString()+' km':'—')
+            +(function(){ var dt=(r.kmLeft!=null&&r.kmLeft>0)?_vehDueDateTxt(r.v.vid,r.kmLeft):''; return dt?'<div style="font-size:11px;color:var(--muted)">'+dt+'</div>':''; })()+'</td>'
           +'<td style="padding:9px 12px">'+pill+'</td>'
-          +'<td style="padding:9px 12px;text-align:right"><button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+r.s.id+'\',\''+r.v.vid+'\')" style="font-size:11px;white-space:nowrap;color:var(--accent);border-color:rgba(34,197,94,.35)">✅ Mark serviced</button></td>'
+          +'<td style="padding:9px 12px;text-align:right;white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="markMaintDone(\''+r.s.id+'\',\''+r.v.vid+'\')" style="font-size:11px;white-space:nowrap;color:var(--accent);border-color:rgba(34,197,94,.35)">✅ Mark serviced</button> <button class="btn btn-ghost btn-sm" onclick="delMaintSchedule(\''+r.s.id+'\',\''+r.v.vid+'\')" title="Remove this schedule" style="font-size:11px;color:var(--muted)">✕</button></td>'
         +'</tr>';
       }).join('');
       schedEl.innerHTML=addBar+'<div class="chart-card" style="padding:0;overflow:hidden">'
@@ -14419,6 +14458,7 @@ async function renderMaintenance(){
 
 // ── Maintenance Schedules ──
 var _maintCache={};
+var _issueCache={}, _svcLogCache={}, _odoHistCache={};   // v557: problems, service history, km-pace
 async function loadMaintenanceForVehicles(){
   var res=await db.from('maintenance_schedules').select('*');
   _maintCache={};
@@ -14430,6 +14470,125 @@ async function loadMaintenanceForVehicles(){
   var oRes=await db.from('vehicle_odometers').select('*');
   window._odometerCache={};
   (oRes.data||[]).forEach(function(r){window._odometerCache[r.vid]=r;});
+  // v557: open problems + service history + last two weeks of odometer snapshots.
+  // All tiny tables, fetched once per page open.
+  var iRes=await db.from('vehicle_issues').select('*').order('reported_at',{ascending:false});
+  _issueCache={};
+  (iRes.data||[]).forEach(function(r){ if(!_issueCache[r.vid])_issueCache[r.vid]=[]; _issueCache[r.vid].push(r); });
+  var sRes=await db.from('vehicle_service_log').select('*').order('done_at',{ascending:false}).limit(400);
+  _svcLogCache={};
+  (sRes.data||[]).forEach(function(r){ if(!_svcLogCache[r.vid])_svcLogCache[r.vid]=[]; _svcLogCache[r.vid].push(r); });
+  var hCut=new Date(Date.now()-15*86400000).toISOString().slice(0,10);
+  var hRes=await db.from('vehicle_odometer_history').select('*').gte('day',hCut);
+  _odoHistCache={};
+  (hRes.data||[]).forEach(function(r){ if(!_odoHistCache[r.vid])_odoHistCache[r.vid]=[]; _odoHistCache[r.vid].push(r); });
+  Object.keys(_odoHistCache).forEach(function(k){ _odoHistCache[k].sort(function(a,b){ return a.day<b.day?-1:1; }); });
+}
+function _vehOpenIssues(vid){ return (_issueCache[vid]||[]).filter(function(i){ return !i.resolved_at; }); }
+// km/day from the nightly odometer snapshots; null until a few days of data exist
+function _vehKmPerDay(vid){
+  var h=_odoHistCache[vid]||[];
+  if(h.length<2) return null;
+  var a=h[0], b=h[h.length-1];
+  var days=(new Date(b.day+'T12:00:00')-new Date(a.day+'T12:00:00'))/86400000;
+  if(days<3) return null;
+  var rate=(b.odometer_km-a.odometer_km)/days;
+  return rate>=0?Math.round(rate*10)/10:null;
+}
+// "~Sep 3" from km left at this truck's current pace; '' until pace is known
+function _vehDueDateTxt(vid,kmLeft){
+  var pace=_vehKmPerDay(vid);
+  if(pace==null||pace<5||kmLeft==null||kmLeft<=0) return '';
+  var d=new Date(); d.setDate(d.getDate()+Math.round(kmLeft/pace));
+  return '~'+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+// Flags a truck suddenly driving far above/below its recent pace (needs ~10 days of data)
+function _vehPaceNote(vid){
+  var h=_odoHistCache[vid]||[]; if(h.length<10) return '';
+  var mid=h[Math.floor(h.length/2)];
+  var d1=(new Date(mid.day+'T12:00:00')-new Date(h[0].day+'T12:00:00'))/86400000;
+  var d2=(new Date(h[h.length-1].day+'T12:00:00')-new Date(mid.day+'T12:00:00'))/86400000;
+  if(d1<3||d2<3) return '';
+  var r1=(mid.odometer_km-h[0].odometer_km)/d1, r2=(h[h.length-1].odometer_km-mid.odometer_km)/d2;
+  if(r1>20&&r2>2*r1) return '⚡ Driving about '+(Math.round(r2/r1*10)/10)+'× its usual pace this week';
+  if(r1>20&&r2<r1/2) return '💤 Driving well under its usual pace this week';
+  return '';
+}
+// One truth for the shown status: shop blocks and open problems. The old
+// vehicle_status column is still persisted (jeff.html reads it) but the
+// dashboard no longer displays it — it went stale for years (v557).
+function _vehStatusTxt(v){
+  if(vehInShop(v.vid)) return 'In the shop';
+  if(_vehOpenIssues(v.vid).length) return 'Running with a problem';
+  return 'Available';
+}
+// Merge the real histories: shop stays (grouped past blocked days), logged
+// services (going forward), and fixed problems. Newest first.
+function _vehNextDayStr(d){ var x=new Date(d+'T12:00:00'); x.setDate(x.getDate()+1); return x.toISOString().slice(0,10); }
+function _vehServiceLog(vid){
+  var out=[], run=null, today=todayStr();
+  var blocks=vehBlocks[vid]||{};
+  Object.keys(blocks).filter(function(d){ return d<today; }).sort().forEach(function(d){
+    var b=blocks[d];
+    if(run && (b.reason||'')===run.reason && d===run.next){
+      run.to=d; run.next=_vehNextDayStr(d);
+      if(b.cost!=null) run.cost=(run.cost||0)+b.cost;
+      if(b.notes && run.notes.indexOf(b.notes)<0) run.notes=run.notes?run.notes+'; '+b.notes:b.notes;
+    } else {
+      if(run) out.push(run);
+      run={from:d,to:d,next:_vehNextDayStr(d),reason:b.reason||'Out of service',notes:b.notes||'',cost:b.cost!=null?b.cost:null};
+    }
+  });
+  if(run) out.push(run);
+  var entries=out.map(function(r){
+    return {sort:r.to, when:fd(r.from)+(r.to!==r.from?' – '+fd(r.to):''), kind:'🔧 '+r.reason, detail:r.notes, cost:r.cost};
+  });
+  (_svcLogCache[vid]||[]).forEach(function(s){ entries.push({sort:s.done_at, when:fd(s.done_at), kind:s.kind, detail:s.detail||'', cost:null}); });
+  (_issueCache[vid]||[]).filter(function(i){ return i.resolved_at; }).forEach(function(i){
+    var d=String(i.resolved_at).slice(0,10);
+    entries.push({sort:d, when:fd(d), kind:'✅ Problem fixed', detail:i.issue, cost:null});
+  });
+  entries.sort(function(a,b){ return a.sort<b.sort?1:-1; });
+  return entries;
+}
+async function vehAddIssue(vid){
+  var inp=document.getElementById('ffv-issue-in');
+  var txt=inp?inp.value.trim():'';
+  if(!txt){ toast('Type what\'s wrong first'); return; }
+  var r=await db.from('vehicle_issues').insert({vid:vid,issue:txt}).select();
+  if(r.error){ toast('⚠ Couldn\'t save the problem: '+r.error.message,'error'); return; }
+  if(!_issueCache[vid])_issueCache[vid]=[];
+  _issueCache[vid].unshift(r.data[0]);
+  renderVehicles();
+  toast('🛠️ Problem noted on the truck');
+}
+async function vehFixIssue(id,vid){
+  var r=await db.from('vehicle_issues').update({resolved_at:new Date().toISOString()}).eq('id',id).select();
+  if(r.error){ toast('⚠ Couldn\'t mark it fixed: '+r.error.message,'error'); return; }
+  (_issueCache[vid]||[]).forEach(function(i){ if(i.id===id) i.resolved_at=(r.data&&r.data[0])?r.data[0].resolved_at:new Date().toISOString(); });
+  renderVehicles();
+  toast('✅ Marked fixed — it\'s in the service history');
+}
+function _vehLogService(vid,kind,detail){
+  db.from('vehicle_service_log').insert({vid:vid,kind:kind,detail:detail||''}).select().then(function(r){
+    if(r.error){ console.warn('service log:',r.error.message); return; }
+    if(!_svcLogCache[vid])_svcLogCache[vid]=[];
+    if(r.data&&r.data[0]) _svcLogCache[vid].unshift(r.data[0]);
+  });
+}
+async function vehStickerRenewed(vid){
+  var v=vehicles.find(function(x){ return x.vid===vid; });
+  if(!v||!v.stickerMonth||!v.stickerYear) return;
+  var now=new Date(), m=parseInt(v.stickerMonth,10), curY=parseInt(v.stickerYear,10);
+  var expiry=new Date(curY, m, 0);
+  var newY = expiry>=now ? curY+1 : (m-1<=now.getMonth() ? now.getFullYear()+1 : now.getFullYear());
+  var mName=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
+  if(!confirm('Mark the yellow sticker renewed?\nNew expiry: '+mName+' '+newY)) return;
+  v.stickerYear=String(newY);
+  saveVehicles();
+  _vehLogService(vid,'📋 Sticker renewed','good to '+mName+' '+newY);
+  renderVehicles();
+  toast('📋 Sticker updated to '+mName+' '+newY);
 }
 
 // Maintenance is rendered inline by the vehicle row drawer (renderVehicles).
@@ -14479,6 +14638,7 @@ async function markMaintDone(schedId,vid){
   if(r.error){toast('⚠ Couldn\'t record the service: '+r.error.message,'error');return;}
   // Update local cache
   (_maintCache[vid]||[]).forEach(function(s){if(s.id===schedId){s.last_service_km=currentKm;s.last_service_date=today;s.status='ok';s.next_due_km=currentKm+s.interval_km;}});
+  _vehLogService(vid,'🔧 '+sched.maintenance_type,'at '+currentKm.toLocaleString()+' km');
   renderMaintSections();
   toast('Service marked complete!');
 }
