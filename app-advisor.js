@@ -411,12 +411,12 @@ async function runAdvisor(){
       }
     }
 
-    // ── NEW: Overdue bins ────────────────────────────────────
+    // ── Long rentals (14+ days) — billable extra days, NOT a problem (Jake's economics, v556) ──
     if(overdueBins.count > 0){
-      recs.push({category:'FLEET',priority:overdueBins.count>=5?'HIGH':'MEDIUM',status:'urgent',
-        title:overdueBins.count+' Bin'+(overdueBins.count!==1?'s':'')+' Overdue (14+ Days Out)',
-        detail:overdueBins.count+' bin'+(overdueBins.count!==1?'s are':' is')+' still on-site after 14+ days. Average: '+overdueBins.avg_days_out+' days, longest: '+overdueBins.max_days_out+' days. Every day a bin sits idle is a day it can\'t generate revenue for another customer.',
-        action:'Call these customers today to schedule pickup. If they need more time, ensure overage fees are being applied per your rental terms. Each bin returned = potential same-week re-rental.'
+      recs.push({category:'FLEET',priority:'LOW',status:'positive',
+        title:overdueBins.count+' Bin'+(overdueBins.count!==1?'s':'')+' on Long Rentals (14+ Days)',
+        detail:overdueBins.count+' bin'+(overdueBins.count!==1?'s are':' is')+' on-site past 14 days (average '+overdueBins.avg_days_out+' days out, longest '+overdueBins.max_days_out+'). Every day past the included period bills at the daily rate, and a bin in a driveway is a street-level billboard — long rentals are extra revenue, not a problem, as long as the days are being charged.',
+        action:'Spot-check these rentals against QuickBooks to confirm the extra days are on the invoice. Only chase a pickup if that size is running short for new bookings.'
       });
     }
 

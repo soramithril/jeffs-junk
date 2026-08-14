@@ -249,10 +249,14 @@ async function renderYoyTracker(){
   if(!wrap)return;
   await anaLoadAll();
   var now=new Date();
-  var y=now.getFullYear(), m=now.getMonth();
-  var thisJobs=anaSlice(new Date(y,m,1),new Date(y,m+1,0,23,59,59)).filter(anaIsWork);
-  var lastJobs=anaSlice(new Date(y-1,m,1),new Date(y-1,m+1,0,23,59,59)).filter(anaIsWork);
-  var monthName=now.toLocaleString('default',{month:'long'});
+  var y=now.getFullYear(), m=now.getMonth(), dom=now.getDate();
+  // Same-days pacing (v556, Jake's ask — like the TV board): Aug 1–14 this year
+  // vs Aug 1–14 LAST year. It used to race a half-finished month against the
+  // full month last year (and the current side even counted work scheduled for
+  // later in the month), so it always read as "behind" mid-month.
+  var thisJobs=anaSlice(new Date(y,m,1),new Date(y,m,dom,23,59,59)).filter(anaIsWork);
+  var lastJobs=anaSlice(new Date(y-1,m,1),new Date(y-1,m,dom,23,59,59)).filter(anaIsWork);
+  var windowLbl=now.toLocaleString('default',{month:'short'})+' 1–'+dom;
 
   function count(arr,svc){return arr.filter(function(j){return j.service===svc;}).length;}
   var services=[
@@ -277,7 +281,7 @@ async function renderYoyTracker(){
       +'<div style="display:flex;align-items:baseline;gap:4px;margin-bottom:4px">'
         +'<span style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--text);line-height:1">'+cur+'</span>'
         +'<span style="font-size:12px;color:var(--muted)">/ '+target+'</span>'
-        +'<span style="font-size:10px;color:var(--muted)">last '+monthName+'</span>'
+        +'<span style="font-size:10px;color:var(--muted)">'+windowLbl+' last yr</span>'
       +'</div>'
       +'<div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:4px">'
         +'<div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:3px;transition:width .6s ease"></div>'
@@ -374,18 +378,20 @@ function anaBuckets(jobSet,dates){
   return {labels:labels,titles:titles,series:series,other:other,totals:totals,n:n};
 }
 
-function anaSparkline(totals){
+function anaSparkline(totals,color,h){
   var n=totals.length;
   if(n<2) return '';
+  var stroke=color||'var(--accent)';
+  var fill=color?'color-mix(in srgb, '+color+' 12%, transparent)':'rgba(22,163,74,.10)';
   var max=Math.max.apply(null,totals)||1;
   var W=100,H=34;
   var pts=totals.map(function(v,i){
     var x=(i/(n-1))*W, y=H-2-((v/max)*(H-6));
     return x.toFixed(2)+','+y.toFixed(2);
   });
-  return '<svg class="ana-spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
-    +'<polygon points="0,'+H+' '+pts.join(' ')+' '+W+','+H+'" fill="rgba(22,163,74,.10)"></polygon>'
-    +'<polyline points="'+pts.join(' ')+'" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"></polyline>'
+  return '<svg class="ana-spark"'+(h?' style="height:'+h+'px"':'')+' viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
+    +'<polygon points="0,'+H+' '+pts.join(' ')+' '+W+','+H+'" fill="'+fill+'"></polygon>'
+    +'<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+stroke+'" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"></polyline>'
     +'</svg>';
 }
 
@@ -435,10 +441,12 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
         +ANA_SVC.map(function(s){
           var c=aWork.filter(function(j){return j.service===s.key;}).length;
           var pc=bWork.filter(function(j){return j.service===s.key;}).length;
+          var svcSpark=anaSparkline(buckets.series[s.key],s.color,20);
           return '<div class="ana-chip">'
             +'<div class="ana-chip-top"><span class="ana-chip-dot" style="background:'+s.color+'"></span><span class="ana-chip-lbl">'+s.label+'</span></div>'
             +'<div class="ana-chip-row"><span class="ana-chip-val" data-count="'+c+'">'+anaFmtInt(c)+'</span>'+anaDeltaChip(c,pc,hasB)+'</div>'
             +(hasB?'<div class="ana-chip-prev">prev '+anaFmtInt(pc)+'</div>':'')
+            +(svcSpark?'<div class="ana-chip-spark">'+svcSpark+'</div>':'')
           +'</div>';
         }).join('')
         +'</div>'

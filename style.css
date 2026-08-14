@@ -2926,6 +2926,7 @@ body.signed-in .help-fab{display:flex;}
 .ana-chip-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
 .ana-chip-val{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;color:var(--text);letter-spacing:.5px;}
 .ana-chip-prev{font-size:10px;color:var(--muted);margin-top:2px;}
+.ana-chip-spark{margin-top:7px;}
 .ana-delta{font-size:12px;font-weight:700;white-space:nowrap;}
 .ana-delta-up{color:var(--accent);}
 .ana-delta-down{color:var(--red);}
