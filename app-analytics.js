@@ -408,16 +408,37 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
   if(hero){
     var today=new Date(); today.setHours(0,0,0,0);
     var paceHtml='';
-    if(analyticsPeriod!=='all' && dates.a.start && today>=dates.a.start && today<dates.a.end){
+    // Same-days compare (v558, Jake's ask): while the period is still running,
+    // every comparison is cut to the same elapsed days — Aug 1–14 vs Jul 1–14,
+    // or vs Aug 1–14 LAST YEAR on a custom compare — because a half-finished
+    // month against a full one always reads "way down" even when you're ahead.
+    // A finished period still compares full-vs-full.
+    var liveNow = analyticsPeriod!=='all' && dates.a.start && today>=dates.a.start && today<dates.a.end;
+    var liveTrim = liveNow && hasB;
+    var todayS='', bSameJobs=bWork;
+    if(liveNow){
       // A live period always holds future scheduled work now that jobs count on
       // their work day — so show the real split, not a per-day projection.
       // Math.round absorbs both the 23:59:59 period end and the ±1h DST offset
       var elapsed=Math.round((today-dates.a.start)/86400000)+1;
       var total=Math.round((dates.a.end-dates.a.start)/86400000);
-      var todayS=anaYmd(today);
+      todayS=anaYmd(today);
       var doneN=aWork.filter(function(j){return j.date<=todayS;}).length;
       var aheadN=aWork.length-doneN;
       paceHtml='<div class="ana-pace">⏱ Day '+elapsed+' of '+total+' — '+anaFmtInt(doneN)+' done so far · '+anaFmtInt(aheadN)+' scheduled ahead</div>';
+      if(liveTrim){
+        var bCap=new Date(dates.b.start); bCap.setDate(bCap.getDate()+(elapsed-1));
+        if(bCap>dates.b.end) bCap=new Date(dates.b.end);
+        var bCapS=anaYmd(bCap);
+        bSameJobs=bWork.filter(function(j){return j.date<=bCapS;});
+        var bSame=bSameJobs.length;
+        var diff=doneN-bSame;
+        var tieNeed=bWork.length-aWork.length;   // scheduled-ahead work already counts toward the chase
+        paceHtml+='<div class="ana-pace">📊 '+anaEsc(dates.b.label)+' by this same point: '+anaFmtInt(bSame)+' — '
+          +(diff>=0?'<b style="color:var(--accent)">'+(diff===0?'dead even':'you\'re '+anaFmtInt(diff)+' ahead')+'</b>':'<b style="color:var(--red)">'+anaFmtInt(-diff)+' behind</b>')
+          +(tieNeed>0?' · '+anaFmtInt(tieNeed)+' more booking'+(tieNeed!==1?'s':'')+' to pass its full '+anaFmtInt(bWork.length):' · already past its full '+anaFmtInt(bWork.length)+' ✓')
+          +'</div>';
+      }
     }
     var subBits=[];
     if(hasB) subBits.push('vs '+dates.b.label+': '+anaFmtInt(bWork.length)+' jobs');
@@ -430,7 +451,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
         +'<div class="ana-hero-kicker">'+anaEsc(dates.a.label)+'</div>'
         +'<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'
           +'<div class="ana-hero-num" id="ana-hero-num">0</div>'
-          +anaDeltaChip(aWork.length,bWork.length,hasB)
+          +(liveTrim?'':anaDeltaChip(aWork.length,bWork.length,hasB))
         +'</div>'
         +'<div class="ana-hero-lbl">Jobs on the schedule — counted on the day the work happens</div>'
         +(subBits.length?'<div class="ana-note" style="margin-top:6px">'+subBits.join(' · ')+'</div>':'')
@@ -440,12 +461,13 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
         +'<div class="ana-chips">'
         +ANA_SVC.map(function(s){
           var c=aWork.filter(function(j){return j.service===s.key;}).length;
-          var pc=bWork.filter(function(j){return j.service===s.key;}).length;
+          var pc=bSameJobs.filter(function(j){return j.service===s.key;}).length;
+          var cCmp=liveTrim?aWork.filter(function(j){return j.service===s.key&&j.date<=todayS;}).length:c;
           var svcSpark=anaSparkline(buckets.series[s.key],s.color,20);
           return '<div class="ana-chip">'
             +'<div class="ana-chip-top"><span class="ana-chip-dot" style="background:'+s.color+'"></span><span class="ana-chip-lbl">'+s.label+'</span></div>'
-            +'<div class="ana-chip-row"><span class="ana-chip-val" data-count="'+c+'">'+anaFmtInt(c)+'</span>'+anaDeltaChip(c,pc,hasB)+'</div>'
-            +(hasB?'<div class="ana-chip-prev">prev '+anaFmtInt(pc)+'</div>':'')
+            +'<div class="ana-chip-row"><span class="ana-chip-val" data-count="'+c+'">'+anaFmtInt(c)+'</span>'+anaDeltaChip(cCmp,pc,hasB)+'</div>'
+            +(hasB?'<div class="ana-chip-prev">prev '+anaFmtInt(pc)+(liveTrim?' by this point':'')+'</div>':'')
             +(svcSpark?'<div class="ana-chip-spark">'+svcSpark+'</div>':'')
           +'</div>';
         }).join('')
