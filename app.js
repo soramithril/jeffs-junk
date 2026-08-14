@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '550';
+var APP_VERSION = '551';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -347,7 +347,15 @@ function phoneSearchVariants(q){
 // PostgREST .or() string, e.g. ",phone.ilike.%705-555-1234%". Digits and
 // hyphens only, so the clauses can never break the or-string parsing.
 function phoneSearchOr(q,col){
-  return phoneSearchVariants(q).map(function(v){return ','+col+'.ilike.%'+v+'%';}).join('');
+  var parts=phoneSearchVariants(q).map(function(v){return ','+col+'.ilike.%'+v+'%';});
+  // phone_digits is a generated digits-only column on clients and jobs (v551). It catches
+  // numbers stored in odd formats and the 2nd/3rd numbers that live only in the phones list.
+  if(!/[a-z]/i.test(q)){
+    var d=(q.match(/\d/g)||[]).join('');
+    if(d.length===11&&d.charAt(0)==='1')d=d.slice(1);
+    if(d.length>=4&&d.length<=10)parts.push(','+col+'_digits.ilike.%'+d+'%');
+  }
+  return parts.join('');
 }
 
 // ── Phone number auto-formatting (705-555-5555) ──────────────────────────
@@ -5687,7 +5695,7 @@ async function globalSearchLive(q){
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
       .order('name').limit(6);
     var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid,address,city')
-      .or('job_id.ilike.%'+q+'%,name.ilike.%'+q+'%,business_name.ilike.%'+q+'%,address.ilike.%'+q+'%,city.ilike.%'+q+'%,phone.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
+      .or('job_id.ilike.%'+_orSafe(q)+'%,name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
       .order('date',{ascending:false}).limit(6);
     var results = await Promise.all([clientsP, jobsP]);
     var cs = (results[0].data||[]);
@@ -6571,7 +6579,8 @@ async function openClientDetail(cid){
     var binInfo=j.service==='Bin Rental'&&j.binSize?' <span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'';
     var dropInfo='';
     if(j.service==='Bin Rental'){
-      dropInfo=j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:var(--accent)">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
+      // Cancelled outranks drop status — a cancelled rental must never read as "Pending"
+      dropInfo=j.status==='Cancelled'?'<span style="font-size:11px;color:#dc3545;font-weight:700">⚪ Cancelled</span>':j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:var(--accent)">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
     }
     return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\',\''+cid+'\')" style="cursor:pointer">'
       +'<td>'+jid(j.id,j.service)+'</td>'
@@ -10408,7 +10417,7 @@ async function openDetail(id, returnCid){
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
-      +'<div class="detail-item"><label>Pickup Date</label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
+      +'<div class="detail-item"><label>Pickup Date <button class="btn btn-ghost btn-sm" style="padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:middle" onclick="openBinPickup(\''+j.id+'\')" title="Change the pickup date without opening Edit">'+lineIcon('calendar',11)+' Change</button></label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(230,126,34,.12);color:#e67e22;border:1px solid rgba(230,126,34,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?binSideLabel(j.binSide):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
@@ -10755,6 +10764,7 @@ function renderDrdInDetail(j){
   // Action buttons
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +'<button class="btn btn-primary" onclick="saveDrdForJob(\''+j.id+'\')" style="flex:1;justify-content:center">💾 Save Furniture Data</button>'
+    +'<button class="btn btn-ghost" onclick="printDrdForm(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6" title="Prints the official DRD with exactly what is on screen — no save needed">'+lineIcon('print',14)+' Print DRD</button>'
     +'<button class="btn btn-ghost" onclick="drdDetailClearItems()" style="justify-content:center;border-color:rgba(220,53,69,.4);color:#dc3545" title="Zero every item and start the list again">🧹 Clear Items</button>'
     +'</div>';
 
@@ -10767,6 +10777,107 @@ function renderDrdInDetail(j){
 }
 
 function _esc(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ── DRD PRINT — the official Donation Receiving Document, filled from the detail panel ──
+// Prints exactly what is on screen (saved or not), so a form can be filled and printed
+// without saving. Layout mirrors docs/2026_DONATION_RECEIVING_DOCUMENT-1.pdf.
+function printDrdForm(jobId){
+  function v(id){var el=document.getElementById(id);return el?el.value:'';}
+  function ck(id){var el=document.getElementById(id);return !!(el&&el.checked);}
+  var qtys=DRD_ITEMS.map(function(_,i){var el=document.getElementById('drd-d-qty-'+i);return el?(parseInt(el.value)||0):0;});
+  var others=[];
+  var on=document.querySelectorAll('.drd-d-other-name'),oq=document.querySelectorAll('.drd-d-other-qty'),ov=document.querySelectorAll('.drd-d-other-val');
+  for(var i=0;i<on.length;i++){
+    var nm=(on[i].value||'').trim(),q2=parseInt(oq[i]?oq[i].value:0)||0,vl=parseFloat(ov[i]?ov[i].value:0)||0;
+    if(nm||q2)others.push({name:nm,qty:q2,val:vl});
+  }
+  var totalItems=0,inkind=0;
+  DRD_ITEMS.forEach(function(it,i){totalItems+=qtys[i];inkind+=qtys[i]*it.val;});
+  others.forEach(function(o){totalItems+=o.qty;inkind+=o.qty*o.val;});
+  var d={
+    sources:{fb:ck('drd-d-src-fb'),jj:ck('drd-d-src-jj'),rp:ck('drd-d-src-rp')},
+    opp:v('drd-d-opp'),tax:v('drd-d-tax')||'YES',date:v('drd-d-date'),
+    donorName:v('drd-d-donor-name'),addr:v('drd-d-addr'),city:v('drd-d-city'),
+    postal:v('drd-d-postal'),email:v('drd-d-email'),phone:v('drd-d-phone'),
+    contact:v('drd-d-contact'),contactInfo:v('drd-d-contactinfo'),
+    emailed:v('drd-d-emailed'),qtys:qtys,others:others,
+    totalItems:totalItems,inkind:inkind
+  };
+  var w=window.open('','_blank');
+  if(!w){toast('Pop-up blocked — allow pop-ups to print.','error');return;}
+  w.document.write(_drdPrintHtml(d));
+  w.document.close();
+}
+function _drdPrintHtml(d){
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  function cb(on,label){return '<span style="display:inline-flex;align-items:center;gap:6px;margin-right:26px;font-weight:600">'
+    +'<span style="display:inline-block;width:13px;height:13px;border:1.6px solid #000;text-align:center;line-height:11px;font-size:11px;font-weight:800">'+(on?'&#10005;':'&nbsp;')+'</span>'+label+'</span>';}
+  function line(label,val,flex){return '<div style="display:flex;align-items:flex-end;gap:6px;margin-top:9px'+(flex?';flex:1':'')+'"><span style="white-space:nowrap;color:#333">'+label+'</span><span style="flex:1;border-bottom:1px solid #000;min-height:14px;padding:0 4px;font-weight:600">'+esc(val)+'</span></div>';}
+  // Items in the official document order — alphabetical, flowing down four columns.
+  // Retired (hidden) items still print if an old job carries a quantity for them.
+  var list=DRD_ITEMS.map(function(it,i){return {name:it.name,val:it.val,qty:d.qtys[i]||0,hidden:!!it.hidden};})
+    .filter(function(x){return !x.hidden||x.qty>0;})
+    .sort(function(a,b){return a.name.localeCompare(b.name);});
+  var per=Math.ceil(list.length/4);
+  var cols='';
+  for(var c=0;c<4;c++){
+    var rows=list.slice(c*per,(c+1)*per).map(function(x){
+      return '<tr><td style="border:1px solid #000;padding:1.5px 4px;font-weight:600">'+esc(x.name)+'</td>'
+        +'<td style="border:1px solid #000;padding:1.5px 3px;text-align:center;white-space:nowrap">$'+x.val+'</td>'
+        +'<td style="border:1px solid #000;padding:1.5px 3px;text-align:center;font-weight:800;min-width:22px">'+(x.qty>0?x.qty:'')+'</td></tr>';
+    }).join('');
+    cols+='<table style="border-collapse:collapse;width:100%;font-size:8.4px"><thead><tr>'
+      +'<th style="border:1px solid #000;padding:2px 4px;text-align:left;font-size:8px">ITEM</th>'
+      +'<th style="border:1px solid #000;padding:2px 2px;font-size:7.2px">RECEIPT<br>VALUE#</th>'
+      +'<th style="border:1px solid #000;padding:2px 3px;font-size:8px">QTY</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+  var otherRows=d.others.map(function(o){
+    return '<tr><td style="border:1px solid #000;padding:2px 4px;font-weight:600">'+esc(o.name)+(o.val?' <span style="font-weight:400">($'+o.val+' receipt)</span>':'')+'</td>'
+      +'<td style="border:1px solid #000;padding:2px 3px;text-align:center;font-weight:800;min-width:26px">'+(o.qty||'')+'</td></tr>';
+  }).join('');
+  for(var e2=d.others.length;e2<5;e2++)otherRows+='<tr><td style="border:1px solid #000;padding:2px 4px">&nbsp;</td><td style="border:1px solid #000"></td></tr>';
+  var terms=['Gifts of furniture and household goods are accepted with the understanding that once received, they become the property of the Furniture Bank.',
+    'Gifts of furniture &amp; household items must be free of rips, tears or stains to be accepted.',
+    'The donor warrants that they are lawfully authorized to donate the goods and that the goods are free and clear of any encumbrances.',
+    'Furniture Bank/Jeff&#8217;s Junk retains the right to accept or decline gifts and reserves the right to distribute, discard or sell any donated goods.',
+    'Values for charitable receipt purposes only and are subject to change at anytime without notice at the discretion of Furniture Bank.',
+    'Receipts will be issued to the email/mailing address provided by the end of the following month.'];
+  return '<!DOCTYPE html><html><head><title>Donation Receiving Document</title><style>'
+    +'*{box-sizing:border-box;margin:0}body{font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px 24px;font-size:10px}'
+    +'@media print{@page{size:letter portrait;margin:7mm}body{padding:0}}'
+    +'.grn{background:#3faa4c;color:#fff;font-weight:800;padding:2px 10px;font-size:9.5px;letter-spacing:.4px;display:inline-block}'
+    +'</style></head><body>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px">'
+    +'<div style="font-size:15px;font-weight:800;white-space:nowrap">&#128666; JEFF&#8217;S JUNK<span style="font-size:10px">.ca</span></div>'
+    +'<div style="font-size:22px;font-weight:900;letter-spacing:.5px;text-align:center">DONATION RECEIVING DOCUMENT</div>'
+    +'<div style="background:#3faa4c;color:#fff;font-weight:800;text-align:center;padding:8px 12px;font-size:11px;line-height:1.25">&#128666;&#10084;<br>FURNITURE<br>BANK</div>'
+    +'</div>'
+    +'<div style="border:1.6px solid #000;padding:7px 10px;margin-bottom:8px"><span class="grn" style="margin-right:18px">DONATION SOURCE</span>'
+    +cb(d.sources.fb,'FURNITURE BANK')+cb(d.sources.jj,'JEFF&#8217;S JUNK')+cb(d.sources.rp,'REDWOOD PARK')+'</div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:10px">'
+    +'<div style="flex:1.2;border:1.6px solid #000;padding:5px 8px"><span class="grn">FB OPPORTUNITY #</span><div style="font-weight:700;font-size:12px;min-height:16px;padding-top:3px">'+esc(d.opp)+'</div></div>'
+    +'<div style="flex:1;border:1.6px solid #000;padding:5px 8px;display:flex;align-items:center;gap:8px"><span style="display:inline-block;min-width:34px;border:1.6px solid #000;text-align:center;font-weight:800;font-size:12px;padding:2px 4px">'+esc(d.tax)+'</span> Tax Receipt Requested?</div>'
+    +'<div style="flex:1;border:1.6px solid #000;padding:5px 8px"><span class="grn">DONATION DATE</span><div style="font-weight:700;font-size:12px;min-height:16px;padding-top:3px">'+esc(d.date?fd(d.date):'')+'</div></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:12px;margin-bottom:10px">'
+    +'<ol style="flex:1;padding-left:16px;font-size:8.6px;line-height:1.45;color:#222">'+terms.map(function(t){return '<li style="margin-bottom:5px">'+t+'</li>';}).join('')+'</ol>'
+    +'<div style="flex:1.15;border:1.6px solid #000;padding:8px 12px"><span class="grn">DONOR INFORMATION</span>'
+    +'<div style="font-size:8.4px;color:#333;margin-top:3px">*Must have full mailing address &amp; signature to issue tax receipt</div>'
+    +line('Donor Name:',d.donorName)+line('Mailing Address:',d.addr)+line('City:',d.city)+line('Postal Code:',d.postal)+line('Email:',d.email)+line('Phone:',d.phone)
+    +'<div style="display:flex;gap:10px">'+line('Contact Person if Different Than Donor',d.contact,true)+line('Phone &amp; Email:',d.contactInfo,true)+'</div>'
+    +'</div></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;align-items:start;margin-bottom:8px">'+cols+'</div>'
+    +'<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">'
+    +'<div style="flex:1.3"><table style="border-collapse:collapse;width:100%;font-size:8.6px"><thead><tr><th style="border:1px solid #000;padding:2px 5px;text-align:left;font-size:8px">OTHER ITEM FROM FB LIST</th><th style="border:1px solid #000;padding:2px 4px;font-size:8px;width:34px">QTY</th></tr></thead><tbody>'+otherRows+'</tbody></table></div>'
+    +'<div style="flex:1"><table style="width:100%;font-size:9px;border-collapse:separate;border-spacing:0 8px">'
+    +'<tr><td style="text-align:right;padding-right:8px">Number of Items:</td><td style="border:1.6px solid #000;width:86px;text-align:center;font-weight:800;font-size:13px;padding:4px">'+(d.totalItems||'')+'</td></tr>'
+    +'<tr><td style="text-align:right;padding-right:8px">INKIND GIFT AMOUNT ($)</td><td style="border:1.6px solid #000;text-align:center;font-weight:800;font-size:13px;padding:4px">'+(d.inkind?'$'+d.inkind.toFixed(2):'')+'</td></tr>'
+    +'</table></div>'
+    +'</div>'
+    +'<div style="border-top:1.4px solid #000;padding-top:6px;display:flex;align-items:flex-end;gap:8px"><span style="white-space:nowrap;font-size:9px;font-weight:700">Date DRD Form Emailed:</span><span style="border-bottom:1px solid #000;min-width:200px;padding:0 6px;font-weight:600">'+esc(d.emailed?fd(d.emailed):'')+'</span></div>'
+    +'<script>window.onload=function(){window.print();};<\/script>'
+    +'</body></html>';
+}
 
 // Amending a booked pickup means re-counting from scratch, not hunting down every stale
 // quantity. Clears the tally only — donor name, address, opportunity # and tax receipt
@@ -14762,16 +14873,19 @@ var FB_PICKUP_PDF_B64 = 'JVBERi0xLjcKJYGBgYEKCjE0MCAwIG9iago8PAovU3VidHlwZSAvWE1
 // the PDF comes out [all pages "Office", then the same pages again "Driver"].
 // The copy name goes in the pre-printed "Copy:" blank top-right; the FB Pick-Up
 // template has no pre-printed label, so pos.label/labelX draw one there.
-async function _addOfficeDriverCopies(pdfDoc, font, pos) {
+async function _addOfficeDriverCopies(pdfDoc, font, pos, labels) {
+  labels = labels || ['Office', 'Driver'];
   var n = pdfDoc.getPageCount();
   var idx = [];
   for (var i = 0; i < n; i++) idx.push(i);
-  var dupes = await pdfDoc.copyPages(pdfDoc, idx);
-  dupes.forEach(function(p) { pdfDoc.addPage(p); });
+  for (var s = 1; s < labels.length; s++) {
+    var dupes = await pdfDoc.copyPages(pdfDoc, idx);
+    dupes.forEach(function(p) { pdfDoc.addPage(p); });
+  }
   var black = PDFLib.rgb(0, 0, 0);
   pdfDoc.getPages().forEach(function(p, i) {
     if (pos.label) p.drawText(pos.label, { x: pos.labelX, y: 792 - pos.y, size: 10, font: font, color: black });
-    p.drawText(i < n ? 'Office' : 'Driver', { x: pos.x, y: 792 - pos.y, size: 10, font: font, color: black });
+    p.drawText(labels[Math.floor(i / n)], { x: pos.x, y: 792 - pos.y, size: 10, font: font, color: black });
   });
 }
 
@@ -15215,7 +15329,9 @@ async function _printFbForm(jobId, kind) {
       idx += _drawItemsOnPage(newPage, font, H, items, idx, itemYOff, itemRows);
     }
 
-    await _addOfficeDriverCopies(pdfDoc, font, isDropOff ? { x: 394, y: 169 } : { x: 394, y: 164, label: 'Copy:', labelX: 358 });
+    // FB pickups print three labeled copies — Office / Driver / Storage Unit (the storage
+    // copy stays with the goods in the unit). Drop-offs keep the two-copy default.
+    await _addOfficeDriverCopies(pdfDoc, font, isDropOff ? { x: 394, y: 169 } : { x: 394, y: 164, label: 'Copy:', labelX: 358 }, isDropOff ? null : ['Office', 'Driver', 'Storage Unit']);
     var filledBytes = await pdfDoc.save();
     var blob = new Blob([filledBytes], { type: 'application/pdf' });
     window.open(URL.createObjectURL(blob), '_blank');
