@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '552';
+var APP_VERSION = '553';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11221,6 +11221,7 @@ function openBinPickup(jobId,e){
   document.getElementById('bpd-sub').textContent=bits.join(' · ');
   document.getElementById('bpd-date').value=j.binPickup||'';
   document.getElementById('bpd-time').value=j.binPickupTime||'';
+  _syncTimeChips(document.getElementById('bpd-time'));
   openM('binpickup-modal');
 }
 function bpdBump(days){
@@ -11762,7 +11763,67 @@ function _fillTimeField(inputId, val){
   if(btn) btn.classList.toggle('active', any);
   inp.disabled=any;
   inp.value=any ? '' : (val==='anytime' ? '' : (val||''));
+  _syncTimeChips(inp);
 }
+
+// ── Tap-to-pick time slots (v553) ─────────────────────────────────────────
+// Half-hour buttons, 7:00 AM–5:00 PM (Jake 2026-08-13), under every time field.
+// The input stays the single source of truth — a button just sets its value, and
+// typing an odd time like 8:45 still works. Tapping a slot while Anytime is on
+// turns Anytime off (that is what the tap means); a field disabled for any other
+// reason (Will Call) stays inert.
+var TIME_CHIP_FIELDS=['f-bdrop-time','f-bpick-time','f-junk-time','f-fb-time','bpd-time'];
+var _TIME_CHIP_BASE='padding:4px 0;width:46px;text-align:center;font-size:12px;font-family:inherit;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;cursor:pointer';
+function initTimeChips(){
+  TIME_CHIP_FIELDS.forEach(function(id){
+    var inp=document.getElementById(id);
+    if(!inp||inp._jjChips) return;
+    inp._jjChips=true;
+    var strip=document.createElement('div');
+    strip.id=id+'-chips';
+    strip.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin-top:6px';
+    var html='';
+    for(var m=7*60;m<=17*60;m+=30){
+      if(m===12*60) html+='<span style="flex-basis:100%;height:0"></span>';
+      var h=Math.floor(m/60),mm=m%60;
+      var v=String(h).padStart(2,'0')+':'+(mm?'30':'00');
+      html+='<button type="button" class="time-chip" data-t="'+v+'" style="'+_TIME_CHIP_BASE+'">'+(((h+11)%12)+1)+(mm?':30':':00')+'</button>';
+    }
+    strip.innerHTML=html;
+    strip.addEventListener('click',function(e){
+      var b=e.target.closest('.time-chip'); if(!b) return;
+      if(inp.disabled){
+        var any=document.getElementById(id+'-any');
+        if(any&&any.classList.contains('active')) _setAnytime(id,any,false);
+        else return;
+      }
+      inp.value=b.getAttribute('data-t');
+      inp.dispatchEvent(new Event('input',{bubbles:true}));
+      _syncTimeChips(inp);
+    });
+    inp.addEventListener('input',function(){_syncTimeChips(inp);});
+    // Three of these inputs live inside a date+time flex row — the strip goes UNDER
+    // that row, not inside it (it would get squeezed onto the same line).
+    var anchor=(inp.parentNode.classList&&inp.parentNode.classList.contains('form-group'))?inp:inp.parentNode;
+    anchor.parentNode.insertBefore(strip,anchor.nextSibling);
+    _syncTimeChips(inp);
+  });
+}
+function _syncTimeChips(inp){
+  if(!inp||!inp._jjChips) return;
+  var strip=document.getElementById(inp.id+'-chips'); if(!strip) return;
+  strip.querySelectorAll('.time-chip').forEach(function(b){
+    if(b.getAttribute('data-t')===inp.value){
+      b.style.background='rgba(34,197,94,.14)';
+      b.style.borderColor='rgba(34,197,94,.5)';
+      b.style.color='var(--accent)';
+      b.style.fontWeight='700';
+    } else {
+      b.style.cssText=_TIME_CHIP_BASE;
+    }
+  });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initTimeChips); else initTimeChips();
 function toggleWillCallForm(forceState){
   var chk=document.getElementById('f-bwillcall');
   var btn=document.getElementById('f-bwillcall-btn');
