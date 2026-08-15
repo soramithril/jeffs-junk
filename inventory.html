@@ -254,8 +254,8 @@
     // Every page load starts at the login screen; the session lives in memory only.
     window.db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY, { auth: { persistSession: false } });
   </script>
-  <script src="jwg-icons.js?v=397"></script>
-  <script src="app-jwg-scheduler.js?v=441"></script>
+  <script src="jwg-icons.js?v=561"></script>
+  <script src="app-jwg-scheduler.js?v=561"></script>
   <script>
     (function(){
       var loginEl = document.getElementById('kiosk-login');
@@ -268,10 +268,10 @@
       var userCk  = document.getElementById('kl-user-ck');
       var passCk  = document.getElementById('kl-pass-ck');
 
-      document.getElementById('kt-logo').innerHTML = JWGIcons.svg('shop', { size: 20, stroke: '#fff' });
-      userCk.innerHTML = JWGIcons.svg('confirmed', { size: 18, stroke: '#16a34a' });
-      passCk.innerHTML = JWGIcons.svg('confirmed', { size: 18, stroke: '#16a34a' });
-      document.getElementById('kl-btn-ck').innerHTML = JWGIcons.svg('confirmed', { size: 24, stroke: '#fff' });
+      document.getElementById('kt-logo').innerHTML = JWGIcons.svg('shop', { size: 20, color: '#fff' });
+      userCk.innerHTML = JWGIcons.svg('confirmed', { size: 18, color: '#16a34a' });
+      passCk.innerHTML = JWGIcons.svg('confirmed', { size: 18, color: '#16a34a' });
+      document.getElementById('kl-btn-ck').innerHTML = JWGIcons.svg('confirmed', { size: 24, color: '#fff' });
 
       // green checkmarks fade in beside filled inputs
       userInp.addEventListener('input', function(){ userCk.classList.toggle('show', !!userInp.value.trim()); errEl.textContent = ''; });

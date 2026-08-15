@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '560';
+var APP_VERSION = '561';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -38,8 +38,8 @@ function svcTile(service, size){
 // the key is unknown so callers keep their emoji fallback.
 function lineIcon(key, size, color){
   if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
-  return JWGIcons.svg(key, { size: size||16, stroke: color||'currentColor', width: 2,
-    extra: 'style="flex:none;vertical-align:middle"' });
+  return JWGIcons.svg(key, { size: size||16, color: color||'currentColor',
+    style: 'flex:none;vertical-align:middle' });
 }
 
 // ── Cloudinary photo upload config ──

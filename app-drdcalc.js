@@ -130,7 +130,7 @@ function drdcPaintTileIcons(){
    ['drdc-tl-ico-load','schedule','#26311f'],
    ['drdc-tl-ico-runs','vehicles','#fdf6e6']].forEach(function(t){
     var el=document.getElementById(t[0]);
-    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:15,stroke:t[2]});
+    if(el) el.innerHTML=JWGIcons.svg(t[1],{size:15,color:t[2]});
   });
 }
 // Quantities live here, keyed by DRD_ITEMS index — the +/- steppers are the only

@@ -3078,7 +3078,7 @@ function renderInventoryKioskPage(){
         <div class="kg-empty-sub">Try clearing the search or the “Low or out” filter.</div>
       </div>
     </div>
-    <div class="kg-toast-wrap"><div class="kg-toast" id="kg-toast">${JWGIcons.svg("confirmed",{size:20,stroke:"#fff"})}<span>Restocked · <span id="kg-toast-name"></span></span></div></div>
+    <div class="kg-toast-wrap"><div class="kg-toast" id="kg-toast">${JWGIcons.svg("confirmed",{size:20,color:"#fff"})}<span>Restocked · <span id="kg-toast-name"></span></span></div></div>
     <div class="kg-modal" id="kg-add-modal" onclick="if(event.target===this)JWG.kioskCloseAdd()">
       <form class="kg-modal-card" onsubmit="JWG.kioskSaveAdd();return false;">
         <div class="kg-modal-title">Add an item</div>
@@ -3163,7 +3163,7 @@ function renderInventoryKioskPage(){
           ${item.image_url?`<img src="${esc(item.image_url)}" alt="${esc(item.item_name)}">`:`<span class="kg-imgph">${esc(item.item_name)}</span>`}
           ${low?`<span class="kg-lowbadge">LOW</span>`:""}
           ${item.status==="ordered"||_kgRecentRestock(item)?`<div class="kg-flags">${item.status==="ordered"?`<span class="kg-flag ord">ORDERED</span>`:""}${item.status!=="ordered"&&_kgRecentRestock(item)?`<span class="kg-flag res">RESTOCKED ✓</span>`:""}</div>`:""}
-          ${INV.kioskCelebrateId===item.id?`<div class="kg-cel"><span class="kg-cel-ring"></span><span class="kg-cel-pill">${JWGIcons.svg("confirmed",{size:16,stroke:"#fff"})}Restocked!</span></div>`:""}
+          ${INV.kioskCelebrateId===item.id?`<div class="kg-cel"><span class="kg-cel-ring"></span><span class="kg-cel-pill">${JWGIcons.svg("confirmed",{size:16,color:"#fff"})}Restocked!</span></div>`:""}
         </div>
         <div class="kg-body">
           <div class="kg-nrow"><span class="kg-name">${esc(item.item_name)}</span>${item.product_number?`<span class="kg-prod">#${esc(item.product_number)}</span>`:""}</div>
