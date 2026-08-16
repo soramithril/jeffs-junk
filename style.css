@@ -2204,17 +2204,24 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
-/* Bin deliveries | pickups side by side. A full-fidelity row needs ~700px
-   (132px bin slot + 200px actions + name/time/avatars), and .main is the
-   viewport minus the 82px rail and 80px padding — so two of them only fit
-   from 1600px up. Below that it stays a single column, exactly as today.
-   :only-child spans the full width when just one of the two legs has jobs,
-   so an empty half never sits there. */
+/* Bin deliveries | pickups side by side — Kelly's choice now, not the screen's
+   (v562). It used to switch itself on at 1600px and clip customer names, because
+   the ROW never got narrower: the bin slot held a fixed 132px even when empty and
+   the buttons reserved 200px, leaving the name as the only thing able to shrink.
+   Two changes: the toggle above the list decides, and in side-by-side mode those
+   two give up their fixed widths and the row may wrap — so a tight row runs to two
+   lines instead of cutting the name off. Below 1100px it stays one list whatever
+   the toggle says. :only-child spans the full width when just one leg has jobs, so
+   an empty half never sits there. */
 .tj-cols{display:grid;grid-template-columns:1fr;gap:0}
-@media(min-width:1600px){
-  .tj-cols{grid-template-columns:1fr 1fr;column-gap:14px}
-  .tj-cols>:only-child{grid-column:1/-1}
+@media(min-width:1100px){
+  .tj-cols.two{grid-template-columns:1fr 1fr;column-gap:14px}
+  .tj-cols.two>:only-child{grid-column:1/-1}
+  .tj-cols.two .tjr2{flex-wrap:wrap}
+  .tj-cols.two .tjr2-binslot{width:auto}
+  .tj-cols.two .tjr2-actions{min-width:0;margin-left:auto}
 }
+@media(max-width:1099px){#tj-cols-toggle{display:none}}
 
 /* Sticky jump-to bar (dashboard) — status-pill row (v449 design refresh):
    surface tray, rounded pills, active pill goes solid green with a white
