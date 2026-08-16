@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '561';
+var APP_VERSION = '562';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2085,9 +2085,7 @@ function openAddClient(){
     var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=false;
     var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
     document.getElementById('client-modal').classList.add('open');
-  }catch(ex){alert('Couldn't open the new-customer form.
-
-Nothing was lost - close this and try again.');console.error(ex);}
+  }catch(ex){console.error(ex);alert('Couldn\'t open the new-customer form.\n\nNothing was lost - close this and try again.');}
 }
 
 function editClient(cid){
@@ -2241,9 +2239,7 @@ async function saveClient(e){
   closeM('client-modal');
   clientsPage = 0;
   loadClientsPage();
-  }catch(ex){alert('Couldn't save this customer.
-
-Nothing was saved - the form still has everything you typed, so you can try again.');console.error(ex);}
+  }catch(ex){console.error(ex);alert('Couldn\'t save this customer.\n\nNothing was saved - the form still has everything you typed, so you can try again.');}
 }
 
 function jobIdCls(id,svc){
@@ -8415,9 +8411,7 @@ function addCrewFromPicker(){
   var name=input.value.trim();if(!name)return;
   input.value='';
   db.from('crew_members').insert({name:name}).select().then(function(r){
-    if(r.error)return alert('Couldn't add that crew member.
-
-Nobody was added - check the name and try again.');
+    if(r.error)return alert('Couldn\'t add that crew member.\n\nNobody was added - check the name and try again.');
     if(r.data&&r.data[0]){
       crewMembers.push({id:r.data[0].id, name:r.data[0].name});
       // Re-render picker so the new employee shows up immediately (preserving leg)
@@ -11704,12 +11698,8 @@ async function scheduleNextSwap(id){
   try{
     var dbRow=jobToDb(swapJob);
     var res=await db.from('jobs').insert(dbRow);
-    if(res.error){alert('Couldn't book the next swap.
-
-This job is unchanged - try again in a moment.');return;}
-  }catch(ex){console.error(ex);alert('Couldn't book the next visit.
-
-This job is unchanged - try again in a moment.');return;}
+    if(res.error){alert('Couldn\'t book the next swap.\n\nThis job is unchanged - try again in a moment.');return;}
+  }catch(ex){console.error(ex);alert('Couldn\'t book the next visit.\n\nThis job is unchanged - try again in a moment.');return;}
   toast('✅ Next swap booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
 }
@@ -11856,13 +11846,9 @@ async function scheduleNextRecurringJob(id){
   try{
     var dbRow=jobToDb(newJob);
     var res=await db.from('jobs').insert(dbRow);
-    if(res.error){alert('Couldn't book the next repeat visit.
-
-This job is unchanged - try again in a moment.');return;}
+    if(res.error){alert('Couldn\'t book the next repeat visit.\n\nThis job is unchanged - try again in a moment.');return;}
     await loadRecurRuns();
-  }catch(ex){console.error(ex);alert('Couldn't book the next visit.
-
-This job is unchanged - try again in a moment.');return;}
+  }catch(ex){console.error(ex);alert('Couldn\'t book the next visit.\n\nThis job is unchanged - try again in a moment.');return;}
   toast('Next '+j.service+' booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
 }
