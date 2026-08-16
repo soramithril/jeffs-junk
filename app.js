@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '564';
+var APP_VERSION = '565';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9306,6 +9306,20 @@ async function maybeShowMorningBrief(force){
       return j.service !== 'Extra Jobs' && !(j.email_sent || j.email_confirmed || j.no_email);
     });
   } catch(e){ console.warn('Morning brief email check failed:', e); }
+
+  // Bins stranded by a cancelled job. Cancelling hides a job from every list, so a bin
+  // still marked dropped on one has nothing left to chase it — bin 20-07 sat that way
+  // for seven weeks. Nobody can tell from a screen whether it came back, so the brief
+  // asks the one person who would know, every morning, until she answers.
+  var stranded = [];
+  try {
+    var sr = await db.from('jobs')
+      .select('job_id,name,address,city,bin_bid,bin_pickup,bin_dropoff')
+      .eq('service','Bin Rental').eq('status','Cancelled').eq('bin_instatus','dropped')
+      .not('bin_bid','is',null).neq('bin_bid','');
+    if(sr.error) throw sr.error;
+    stranded = sr.data || [];
+  } catch(e){ console.warn('Morning brief stranded-bin check failed:', e); }
   // Marked seen only once it has actually been shown AND closed (see closeBrief) —
   // it used to be stamped here, before the popup was even built, so a phone call
   // mid-read cost you the whole list until tomorrow.
@@ -9332,7 +9346,26 @@ async function maybeShowMorningBrief(force){
         'closeM(\'morning-brief-modal\');openDetail(\''+j.job_id+'\')',
         'Email', 'closeM(\'morning-brief-modal\');openEmailModal(\''+j.job_id+'\')');
     }).join('') : '<div data-anim="pop" style="font-size:12.5px;color:var(--accent)">Everyone got their confirmation ✓</div>');
-  var body = '<div data-anim="pop" style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
+  // Deliberately loud and above everything else: it is the only prompt that exists for
+  // a bin nothing else can see, and answering it is what frees the bin to be booked.
+  var strandedBlock = stranded.map(function(j){
+    var where = [j.address, j.city].filter(Boolean).join(', ');
+    return '<div data-anim="pop" style="border:2px solid #dc3545;background:rgba(220,53,69,.08);border-radius:12px;padding:14px 16px;margin-bottom:10px">'
+      + '<div style="font-size:16px;font-weight:800;color:#dc3545;line-height:1.3;margin-bottom:4px">'
+        + 'Has bin ' + escHtml(j.bin_bid) + ' been picked up?</div>'
+      + '<div style="font-size:14px;color:var(--text);line-height:1.45;margin-bottom:3px">'
+        + escHtml(j.name||'') + (where ? ' — ' + escHtml(where) : '') + '</div>'
+      + '<div style="font-size:13px;color:#c2410c;font-weight:700;margin-bottom:10px">'
+        + 'This booking was cancelled, but the bin was still marked out. It was due for pickup '
+        + (j.bin_pickup ? fd(j.bin_pickup) : 'earlier') + '.</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        + '<button class="btn btn-primary" style="background:#16a34a;border-color:#16a34a" onclick="strandedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',true)">Yes — it\'s back</button>'
+        + '<button class="btn btn-ghost" onclick="strandedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',false)">No — still there</button>'
+      + '</div></div>';
+  }).join('');
+
+  var body = strandedBlock
+    + '<div data-anim="pop" style="font-size:13px;color:var(--muted)">Before the day gets going — these are still waiting from before:</div>'
     + '<div class="mb-cols"><div>'+colBins+'</div><div>'+colMail+'</div></div>';
 
   document.getElementById('mb-body').innerHTML = body;
@@ -9355,6 +9388,25 @@ function _showBriefLink(){
   if(el) el.style.display = '';
 }
 function reopenMorningBrief(){ maybeShowMorningBrief(true); }
+
+// Kelly's answer to "has this bin come back?". Yes frees the bin and closes the
+// question for good; No leaves everything alone and it asks again tomorrow, which is
+// the right default — the bin really might still be sitting there.
+async function strandedBinAnswer(jobId, binBid, isBack){
+  if(!isBack){
+    toast('Left as still out — it will ask again tomorrow.');
+    closeBrief();
+    return;
+  }
+  var r = await patchJob(jobId, {binInstatus:'pickedup'});
+  if(r && r.error) return;              // patchJob toasts and re-syncs on failure
+  if(binBid) await patchBin(binBid, {status:'in'});
+  var j = jobs.find(function(x){ return x.id===jobId; });
+  if(j) j.binInstatus='pickedup';
+  toast('Bin '+binBid+' marked back in the yard — free to book again.');
+  closeBrief();
+  refresh();
+}
 
 // The brief leaves on an animation rather than blinking out. Everything that
 // dismisses it deliberately — the ✕, the backdrop, Got it, the timer — comes
@@ -10534,12 +10586,24 @@ async function cancelJob(id){
   if(!mGuard())return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
-  // A dropped bin means our bin is physically at the customer's. Cancelling hides the
-  // job from every screen while the bin sits there (bin 20-07 / job 39655, Aug 2026) —
-  // the pickup has to be dealt with first.
+  // A bin marked dropped means one of ours is recorded as sitting at the customer's.
+  // Cancelling hides the job from every screen, so the bin silently stays out of
+  // rotation with nothing left on any list to chase — that is exactly what happened
+  // to bin 20-07 on job 39655 (dropped 28 Jul, cancelled, found 16 Aug still marked
+  // out and unbookable for seven weeks). Rather than refuse the cancel, ask where the
+  // bin actually is, because both answers are common: a bin that never went out, and
+  // one that has to be collected first.
   if(j.service==='Bin Rental' && j.binInstatus==='dropped'){
-    toast('⚠ This bin is still dropped at the customer\'s. Set the pickup date and mark it picked up before cancelling.','error');
-    return;
+    var where = await askCancelBinWhere(j);
+    if(where==='back'){ return; }
+    if(where==='still-out'){
+      toast('Job left open — book the pickup, mark it picked up, then cancel.','error');
+      return;
+    }
+    // 'in-yard': it never went out (or is already back). Clear the false claim so the
+    // bin frees up; the cancel below then runs normally.
+    j.binInstatus='';
+    await patchJob(id, {binInstatus:''});
   }
   var _relNote = (j.service==='Bin Rental' && j.binBid)
     ? '\n\nBin '+j.binBid+' goes back to the yard and becomes available to book.' : '';
@@ -15176,6 +15240,49 @@ function resolveBinAvailWarning(proceed){
 // filed the booking under the wrong customer, the exact thing the guard exists to
 // stop. Resolves to 'new', 'same' or 'back'.
 var _nameMismatchResolver = null;
+// "This job has a bin marked as dropped — where is it really?" Asked when cancelling,
+// because the answer decides whether the bin frees up or has to be collected first.
+var _cancelBinResolver = null;
+function _resolveCancelBin(v){
+  var m = document.getElementById('cancel-bin-modal');
+  if(m) m.classList.remove('open');
+  if(_cancelBinResolver){ var r=_cancelBinResolver; _cancelBinResolver=null; r(v); }
+}
+function askCancelBinWhere(j){
+  return new Promise(function(resolve){
+    _cancelBinResolver = resolve;
+    var id = 'cancel-bin-modal';
+    var m = document.getElementById(id);
+    if(!m){
+      m = document.createElement('div');
+      m.id = id;
+      m.className = 'modal-overlay';
+      m.style.zIndex = '760';
+      document.body.appendChild(m);
+    }
+    var esc = (typeof escHtml==='function') ? escHtml : function(s){ return String(s); };
+    var binTxt = j.binBid ? ('Bin '+esc(j.binBid)) : 'The bin';
+    m.innerHTML = '<div class="modal" style="max-width:470px;width:92vw;border-top:4px solid #e67e22">'
+      + '<div class="modal-header" style="border-bottom:1px solid rgba(230,126,34,.25)">'
+        + '<div class="modal-title" style="color:#c2410c"><span style="font-size:20px;margin-right:8px">⚠</span>Where is the bin?</div>'
+      + '</div>'
+      + '<div style="padding:18px 20px">'
+        + '<div style="font-size:14px;color:var(--text);margin-bottom:14px">'
+          + binTxt + ' is marked as <strong>dropped</strong> at ' + esc(j.name||'this customer') + '.'
+          + ' Once this job is cancelled it disappears from every list, so the bin would stay'
+          + ' out of rotation with nothing left to chase it.</div>'
+        + '<div style="display:flex;flex-direction:column;gap:8px">'
+          + '<button class="btn btn-primary" style="justify-content:center" onclick="_resolveCancelBin(\'in-yard\')">It never went out — cancel and free the bin</button>'
+          + '<button class="btn btn-ghost" style="justify-content:center" onclick="_resolveCancelBin(\'still-out\')">It\'s still at the customer — I\'ll book the pickup first</button>'
+          + '<button class="btn btn-ghost" style="justify-content:center;color:var(--muted)" onclick="_resolveCancelBin(\'back\')">Back</button>'
+        + '</div>'
+      + '</div>'
+    + '</div>';
+    m.classList.add('open');
+    m.onclick = function(e){ if(e.target===m) _resolveCancelBin('back'); };
+  });
+}
+
 function askNameMismatch(clientName, typedName){
   return new Promise(function(resolve){
     _nameMismatchResolver = resolve;
