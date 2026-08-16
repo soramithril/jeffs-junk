@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '563';
+var APP_VERSION = '564';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4641,23 +4641,10 @@ async function confirmJob(id, e){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.confirmed=true;
-  // Immediately remove from callback list DOM — don't wait for DB round-trip
-  var cbEl = document.getElementById('dash-callback-list');
-  if(cbEl){
-    // Find and remove the row containing this job's confirm button
-    var rows = cbEl.querySelectorAll('div[style*="border-left"]');
-    rows.forEach(function(row){
-      if(row.innerHTML.indexOf("confirmJob('"+id+"'") >= 0 || row.innerHTML.indexOf('confirmJob(\''+id+'\'') >= 0){
-        row.remove();
-      }
-    });
-    // If no rows left, show the "all confirmed" message
-    var remaining = cbEl.querySelectorAll('div[style*="border-left"]');
-    if(!remaining.length){
-      cbEl.innerHTML=emptyStateHTML('📞','All Confirmed','Every pickup and drop-off is confirmed. Nothing to call about.');
-    }
-  }
-  // Also update the today's jobs section — hide the confirm button for this job
+  // The call-back panel this used to prune was removed from the page long ago, so
+  // fifteen lines of DOM surgery here were running against a container that never
+  // exists. Confirming shows on the day rows and in the Needs You card instead.
+  // Hide the confirm button for this job in the today's jobs section
   document.querySelectorAll('[onclick*="confirmJob(\''+id+'\'"]').forEach(function(btn){ btn.remove(); });
   toast('✅ '+j.name+' confirmed!');
   // Through patchJob like every other quick action: a failed save announces itself
