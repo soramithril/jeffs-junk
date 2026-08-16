@@ -7575,7 +7575,7 @@ function renderFleet(){
   var chipBase='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mkChip=function(f,lbl,dot){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+chipBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+fleetCount(f)+'</span></button>';};
   var chipsEl=document.getElementById('fleet-chips');
-  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','#dc3545'),mkChip('oos','Out of service'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
+  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','#dc3545'),mkChip('oos','Damaged / out of rotation'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
   // sort chips
   var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mkSort=function(k,lbl){var on=fleetSort===k;return '<button onclick="setFleetSort(\''+k+'\')" style="'+sortBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(on?lbl+(fleetSortDir===1?'  ↑':'  ↓'):lbl)+'</button>';};
@@ -7621,7 +7621,7 @@ function renderFleet(){
 // Flag chips shared by card + table views.
 function binFlags(b){
   var fb='display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;', out=[];
-  if(b.damage==='damage')out.push('<span style="'+fb+'background:rgba(220,53,69,.13);color:#b02633">⛔ Out of service</span>');
+  if(b.damage==='damage')out.push('<span style="'+fb+'background:rgba(220,53,69,.13);color:#b02633">⚠ Damaged - still rents</span>');
   if(b.damage==='oor')out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">♻ Out of rotation</span>');
   if(b.show_bin)out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">🔧 Not for rent</span>');
   if(b.repaint)out.push('<span style="'+fb+'background:rgba(249,115,22,.14);color:#c2410c">🖌️ Repaint</span>');
@@ -7651,14 +7651,14 @@ function makeBinCard(b){
     +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">'
       +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span>'
       +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
-      +'<button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out')+'</button>'
+      +'<button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
     +'</div>'
     +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<span>'+binMetaHtml(b)+'</span></div>'
     +(flags.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">'+flags.join('')+'</div>':'')
     +'<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
       +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
       +'<button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:13px">🕘</button>'
-      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" title="Book · Edit · Delete" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:16px;line-height:1">⋯</button>'
+      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" title="More actions for this bin" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:16px;line-height:1">⋯</button>'
     +'</div></div>';
 }
 function makeBinTableRow(b){
@@ -7669,10 +7669,10 @@ function makeBinTableRow(b){
   return '<tr style="'+(b.damage==='damage'?'background:rgba(220,53,69,.035)':'')+'">'
     +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
     +'<td style="'+td+'">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<div style="font-size:11px;color:var(--muted);margin-top:3px">'+binMetaHtml(b)+'</div></td>'
-    +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out')+'</button></td>'
+    +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button></td>'
     +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
     +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
-    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="min-width:32px;height:32px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px">🕘</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" title="Book · Edit · Delete" style="min-width:32px;height:32px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:15px;line-height:1">⋯</button></td>'
+    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="min-width:32px;height:32px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px">🕘</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" title="More actions for this bin" style="min-width:32px;height:32px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:15px;line-height:1">⋯</button></td>'
   +'</tr>';
 }
 // Lightweight ⋯ context menu: Book (everyone) · Edit/Delete (admins).
@@ -7683,6 +7683,8 @@ function openBinMenu(bid,ev){
   m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:150px';
   var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"}];
   if(canDelete){items.push({lbl:'✏️ Edit',fn:"editBinItem('"+bid+"')"});items.push({lbl:'🗑️ Delete',fn:"delBinItem('"+bid+"')",danger:true});}
+  // The hover hint promised Edit and Delete to everyone, but the menu only builds
+  // them for admins — so most staff opened it expecting three choices and got one.
   m.innerHTML=items.map(function(it){return '<button onclick="closeBinMenu();'+it.fn+'" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;'+(it.danger?'color:#dc3545':'color:var(--text)')+'" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">'+it.lbl+'</button>';}).join('');
   document.body.appendChild(m);
   var r=ev.target.getBoundingClientRect();
@@ -7721,6 +7723,10 @@ function quickToggleStatus(bid){
   b.status=b.status==='in'?'out':'in';
   if(b.status==='in') binLastReturn[b.bid]=todayStr(); // reset idle clock when manually returned to the yard
   patchBin(b.bid,{status:b.status});
+  // Every neighbouring bin action announces itself (note saved, dropped, picked
+  // up); this one only ever spoke when it REFUSED, so silence meant it had changed
+  // something and a message meant it hadn't — exactly backwards.
+  toast('Bin '+b.num+' marked '+(b.status==='in'?'back in the yard':'out on a job')+'.');
   renderBinInventory();
   refreshDashBinStats();
   // Also refresh the utilization tab if currently visible
@@ -7785,43 +7791,10 @@ async function renderTimeline(){
     });
   } catch(e){ console.error('renderTimeline load error',e); }
 
-  // Active bin rental jobs only (not cancelled, not picked up)
-  var binJobs=jobs.filter(function(j){
-    return j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus!=='pickedup';
-  });
-
-  // For each date, count how many jobs of each size are active
-  // Pre-compute fleet count per size once
-  var fleetBySize={};
-  sizes.forEach(function(s){
-    fleetBySize[s]=binItems.filter(function(b){return b.size===s;}).length;
-  });
-
-  var todayLocal=todayStr();
-  function outBySize(ds){
-    var out={'4 yard':0,'7 yard':0,'14 yard':0,'20 yard':0};
-    binJobs.forEach(function(j){
-      var drop=j.binDropoff||j.date;
-      var pick=j.binPickup;
-      var active=false;
-      if(j.binInstatus==='dropped'&&ds>=todayLocal){
-        // Physically out right now — ignore binDropoff (may be a future swap date).
-        if(!pick||pick<todayLocal) active=true;
-        else active=ds<=pick;
-      } else if(!drop){
-        return;
-      } else if(pick){
-        active=ds>=drop&&ds<=pick;
-      } else {
-        var dropD=new Date(drop+'T12:00:00');
-        var maxPick=new Date(dropD);maxPick.setDate(maxPick.getDate()+30);
-        active=ds>=drop&&ds<=maxPick.toISOString().split('T')[0];
-      }
-      if(active&&out.hasOwnProperty(j.binSize))out[j.binSize]++;
-    });
-    sizes.forEach(function(s){ out[s]=Math.min(out[s],fleetBySize[s]||0); });
-    return out;
-  }
+  // outBySize() and its binJobs/fleetBySize scaffolding used to live here — a second,
+  // subtly different availability counter that disagreed with the booking form AND
+  // with this table's own summary row. The per-size cells go through checkBinWindow
+  // now, the same counter everything else uses, so all of it has gone.
 
   // Header row
   var headCols=cols.map(function(ds){
@@ -7853,19 +7826,25 @@ async function renderTimeline(){
   }).join('');
   var sumRow='<tr class="tl-sum-row"><td style="padding-left:14px;white-space:nowrap"><strong>📊 All Sizes</strong><br><span style="font-size:10px;color:var(--muted)">Out / Avail</span></td>'+sumCells+'</tr>';
 
-  // One row per size showing available count
+  // One row per size showing available count. These cells go through checkBinWindow —
+  // the one counter the booking form and dashboard already share — instead of doing
+  // their own maths, which got two things wrong: it counted out-of-rotation and show
+  // bins as rentable (overstating 14 yd by seven bins every single day, so staff could
+  // read "7 avail" while the booking form said Fully Booked), and it held a bin through
+  // its pickup day when everything else frees it that morning. The All Sizes row above
+  // was already using the shared counter, so the same table disagreed with itself.
   var sizeRows=sizes.map(function(sz){
-    var fleetCount=binItems.filter(function(b){return b.size===sz;}).length;
+    var fleetCount=binItems.filter(function(b){return b.size===sz&&b.damage!=='oor'&&!b.show_bin;}).length;
     if(!fleetCount)return '';
     var cells=cols.map(function(ds){
       var out,avail;
       if(ds===todayISO){
-        out=binItems.filter(function(b){return b.size===sz&&b.status==='out';}).length;
-        avail=binItems.filter(function(b){return b.size===sz&&b.status==='in';}).length;
-      } else {
-        var ob=outBySize(ds);
-        out=ob[sz];
+        out=binItems.filter(function(b){return b.size===sz&&b.damage!=='oor'&&!b.show_bin&&b.status==='out';}).length;
         avail=Math.max(0,fleetCount-out);
+      } else {
+        var w=checkBinWindow(sz,ds,ds,null);
+        avail=w.available;
+        out=w.committed;
       }
       var isT=ds===todayISO;
       var pct=fleetCount?out/fleetCount:0;

@@ -1529,6 +1529,18 @@
   <!-- summary: two progress bars + 3 attention tiles -->
   <div class="fleet-summary" id="fleet-summary"></div>
 
+  <div class="timeline-wrap">
+    <div class="timeline-header">
+      <div><div class="timeline-title">📅 Availability Forecast</div><div class="timeline-sub">Bins in yard vs. out per day</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="cal-nav" onclick="shiftTimeline(-7)" style="padding:5px 10px;font-size:14px">&#8249;</button>
+        <button class="btn btn-ghost btn-sm" onclick="tlOffset=0;renderTimeline()">Today</button>
+        <button class="cal-nav" onclick="shiftTimeline(7)" style="padding:5px 10px;font-size:14px">&#8250;</button>
+      </div>
+    </div>
+    <div class="timeline-grid" id="timeline-table"></div>
+  </div>
+
   <!-- toolbar: filter chips + search + sort + view toggle -->
   <div class="fleet-bar">
     <div class="bf-scroll" id="fleet-chips" style="display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;margin-bottom:11px"></div>
@@ -1551,17 +1563,6 @@
   <div style="font-size:12.5px;color:var(--muted);margin:0 2px 12px" id="fleet-result-lbl"></div>
   <div id="fleet-cards"></div>
   <div id="fleet-table-view"></div>
-  <div class="timeline-wrap">
-    <div class="timeline-header">
-      <div><div class="timeline-title">📅 Availability Forecast</div><div class="timeline-sub">Bins in yard vs. out per day</div></div>
-      <div style="display:flex;gap:8px">
-        <button class="cal-nav" onclick="shiftTimeline(-7)" style="padding:5px 10px;font-size:14px">&#8249;</button>
-        <button class="btn btn-ghost btn-sm" onclick="tlOffset=0;renderTimeline()">Today</button>
-        <button class="cal-nav" onclick="shiftTimeline(7)" style="padding:5px 10px;font-size:14px">&#8250;</button>
-      </div>
-    </div>
-    <div class="timeline-grid" id="timeline-table"></div>
-  </div>
   </div>
 
 <!-- ═══════════════ BIN MAP ═══════════════ -->
