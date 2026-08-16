@@ -1,12 +1,17 @@
 // ── DOCUMENTS ─────────────────────────────────────────────
 // Standalone module. No dependencies on other app.js code.
 // Loaded via its own <script> tag before app.js. Called by render('documents').
+// The file names matter: they show in the browser tab, in the print dialog, and on
+// the saved file if one is emailed to a customer. These were all called
+// "... - final draft.pdf", so a signed rental agreement arrived looking unfinished.
+// The names shown on the page (below) never changed.
 var DOCUMENTS = [
-  { name: 'Bin Rental Agreement',        group: 'Bins',             desc: 'Customer signs before bin drop-off. Covers rental terms, swap and pickup policy.', file: '2026 BIN Rental - final draft.pdf' },
-  { name: 'Furniture Drop-Off',          group: 'Furniture',        desc: "Left at the customer's location. Lists accepted items and condition requirements.", file: '2026 FB Drop Off - final draft.pdf' },
-  { name: 'Furniture Pick-Up',           group: 'Furniture',        desc: 'Signed at pickup to confirm items received and condition noted.',                   file: '2026 FB Pick-up final draft.pdf' },
-  { name: 'Junk Removal Agreement',      group: 'Junk & Donations', desc: 'Customer authorizes removal. Covers liability, access, and disposal terms.',        file: '2026 Junk Removal - final draft.pdf' },
-  { name: 'Junk Quote Form',             group: 'Junk & Donations', desc: 'Blank estimate sheet to hand to a customer on-site before booking.',                file: '2026 Junk Quote - final draft.pdf' }
+  { name: 'Bin Rental Agreement',        group: 'Bins',             desc: 'Customer signs before bin drop-off. Covers rental terms, swap and pickup policy.', file: 'Jeffs Junk - Bin Rental Agreement 2026.pdf' },
+  { name: 'Furniture Drop-Off',          group: 'Furniture',        desc: "Left at the customer's location. Lists accepted items and condition requirements.", file: 'Jeffs Junk - Furniture Drop-Off 2026.pdf' },
+  { name: 'Furniture Pick-Up',           group: 'Furniture',        desc: 'Signed at pickup to confirm items received and condition noted.',                   file: 'Jeffs Junk - Furniture Pick-Up 2026.pdf' },
+  { name: 'Junk Removal Agreement',      group: 'Junk & Donations', desc: 'Customer authorizes removal. Covers liability, access, and disposal terms.',        file: 'Jeffs Junk - Junk Removal Agreement 2026.pdf' },
+  { name: 'Junk Quote Form',             group: 'Junk & Donations', desc: 'Blank estimate sheet to hand to a customer on-site before booking.',                file: 'Jeffs Junk - Junk Quote 2026.pdf' },
+  { name: 'Donation Receiving Document', group: 'Junk & Donations', desc: 'Receipt for donated goods taken in. Was sitting in the folder unlisted, so nobody could find it from here.', file: '2026_DONATION_RECEIVING_DOCUMENT-1.pdf' }
 ];
 function renderDocuments(){
   var el = document.getElementById('documents-list');

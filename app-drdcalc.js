@@ -122,6 +122,22 @@ function renderDrdCalc(){
   drdcPaintTileIcons();
   drdcRecalc();
   drdcFilter();
+  drdcStaleNotice();
+}
+
+// If there's still a load on the truck from an earlier sitting, say so on arrival
+// rather than letting the next customer's quote silently include it.
+function drdcStaleNotice(){
+  var box=document.getElementById('drdc-stale');
+  if(!box) return;
+  var n=0; Object.keys(drdcQty).forEach(function(k){ n+=drdcQty[k]||0; });
+  var oldEnough = _drdcStartedAt && (Date.now()-_drdcStartedAt) > 30*60*1000;
+  if(!n || !oldEnough){ box.style.display='none'; box.innerHTML=''; return; }
+  var mins=Math.round((Date.now()-_drdcStartedAt)/60000);
+  var whenTxt = mins>=120 ? Math.round(mins/60)+' hours ago' : mins+' minutes ago';
+  box.innerHTML='<span>This quote was started '+whenTxt+' — <strong>'+n+' item'+(n===1?'':'s')+'</strong> still on the truck.</span>'
+    +'<button type="button" class="btn btn-ghost btn-sm" onclick="drdcClear(true);drdcStaleNotice();toast(\'Started fresh.\')">Start fresh</button>';
+  box.style.display='flex';
 }
 // Glyphs for the three truck-panel readout tiles. Cream on the dark spruce/clay
 // tiles, dark ink on the gold one.
@@ -136,11 +152,17 @@ function drdcPaintTileIcons(){
 // Quantities live here, keyed by DRD_ITEMS index — the +/- steppers are the only
 // way to change them, so there is no input value to read back.
 var drdcQty={};
+// Quantities deliberately survive leaving the page, but nothing ever cleared them
+// afterwards — so the next caller's quote started with the previous customer's
+// sofa still on the truck, with nothing on screen saying so. This remembers when
+// the current quote was started so a stale one can announce itself.
+var _drdcStartedAt=null;
 function drdcQtyOf(i){ return drdcQty[i]||0; }
 // One step on an item's stepper. Repaints just that row, then the totals.
 function drdcStep(i,delta){
   var n=Math.max(0,drdcQtyOf(i)+delta);
   if(n===0) delete drdcQty[i]; else drdcQty[i]=n;
+  if(!_drdcStartedAt && n>0) _drdcStartedAt=Date.now();
   var count=document.getElementById('drdc-qty-'+i);
   count.textContent=n;
   count.classList.toggle('on',n>0);
@@ -341,9 +363,12 @@ function drdcAddOtherRow(){
     +'<button type="button" onclick="this.parentElement.remove();drdcRecalc()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px">&times;</button>';
   wrap.appendChild(row);
 }
-function drdcClear(){
-  if(!confirm('Clear all items?'))return;
+// skipConfirm is used after a quote has been handed off to a booking — there's
+// nothing to lose at that point, so asking is just a speed bump.
+function drdcClear(skipConfirm){
+  if(!skipConfirm && !confirm('Clear all items?'))return;
   drdcQty={};
+  _drdcStartedAt=null;
   DRD_ITEMS.forEach(function(_,i){
     var count=document.getElementById('drdc-qty-'+i);
     if(!count) return;
@@ -355,15 +380,26 @@ function drdcClear(){
   drdcAddOtherRow();drdcRecalc();
   var s=document.getElementById('drdc-search');if(s)s.value='';
   drdcFilter();
-  toast('Cleared.');
+  if(!skipConfirm) toast('Cleared.');
 }
 function drdcCopy(){
   var items=document.getElementById('drdc-total-items').textContent;
   var pay=document.getElementById('drdc-total-pay').textContent;
   var rec=document.getElementById('drdc-total-receipt').textContent;
-  var text=items+' items · Customer pays $'+pay+' · Tax receipt $'+rec;
+  // Totals alone left a pasted quote saying "6 items" with no record of WHICH six,
+  // so a note or email made from it couldn't be checked against later.
+  var lines=[];
+  DRD_ITEMS.forEach(function(it,i){
+    var q=drdcQtyOf(i);
+    if(q>0) lines.push('  ' + q + ' x ' + it.name);
+  });
+  drdcCustomRows().forEach(function(c){
+    if(c.name) lines.push('  ' + (c.qty||1) + ' x ' + c.name);
+  });
+  var text=items+' items · Customer pays $'+pay+' · Tax receipt $'+rec
+    + (lines.length ? '\n' + lines.join('\n') : '');
   if(navigator.clipboard) navigator.clipboard.writeText(text);
-  toast('Copied: '+text);
+  toast('Copied the quote and its item list.');
 }
 function drdcFilter(){
   var sEl=document.getElementById('drdc-search');
@@ -438,5 +474,10 @@ function drdcStartJob(){
     });
     if(!custom.length) drdModalAddOtherRow();
     drdModalRecalc();
+    // The quote has been handed to the booking form, so the calculator is done
+    // with it. Left loaded, the next caller's quote silently included this one's
+    // sofa and mattress. Cleared only after the carry-across has succeeded.
+    drdcClear(true);
+    drdcStaleNotice();
   });
 }

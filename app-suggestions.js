@@ -28,12 +28,29 @@
     var col = STICKY_COLORS[i % STICKY_COLORS.length];
     var rot = STICKY_TILT[i % STICKY_TILT.length];
     var done = n.status === 'done';
+    var working = n.status === 'working';
     var when = new Date(n.created_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
     var boss = isJake();
+    // A middle state and a written answer, so the person who posted can tell a
+    // note being worked on from one nobody has read.
+    var stamp = done
+      ? '<div class="sugg-stamp done">✅ Done'+(n.done_by?' · '+esc(n.done_by):'')+'</div>'
+      : working ? '<div class="sugg-stamp working">🔧 On it</div>' : '';
+    var reply = n.reply
+      ? '<div class="sugg-reply"><span class="sugg-reply-who">Jake:</span> '+esc(n.reply)+'</div>'
+      : '';
+    var replyBox = boss
+      ? '<div class="sugg-replybox"><input id="sugg-reply-'+n.id+'" type="text" placeholder="Reply to '+esc(n.author)+'…" value="'+esc(n.reply||'')+'">'
+        + '<button class="sugg-btn" onclick="SuggestBox.reply(\''+n.id+'\')" title="Save this reply">Send</button></div>'
+      : '';
     return '<div class="sugg-note" style="background:'+col+';--tilt:'+rot+'deg'+(done?';opacity:.55':'')+'">'
+      + stamp
       + '<div class="sugg-body"'+(done?' style="text-decoration:line-through"':'')+'>'+esc(n.body)+'</div>'
+      + reply
+      + replyBox
       + '<div class="sugg-foot">'
-      +   '<span style="flex:1">'+esc(n.author)+' · '+when+(done&&n.done_by?' · ✅ '+esc(n.done_by):'')+'</span>'
+      +   '<span style="flex:1">'+esc(n.author)+' · '+when+'</span>'
+      +   (!done && !working && boss ? '<button class="sugg-btn" onclick="SuggestBox.markWorking(\''+n.id+'\')" title="Tell them you have started">🔧 On it</button>' : '')
       +   (!done && boss ? '<button class="sugg-btn" onclick="SuggestBox.markDone(\''+n.id+'\')" title="Mark done">✓ Done</button>' : '')
       +   (boss ? '<button class="sugg-btn" onclick="SuggestBox.remove(\''+n.id+'\')" title="Take the note down">✕</button>' : '')
       + '</div></div>';
@@ -68,15 +85,35 @@
     var body = ta.value.trim(); if(!body) return;
     var r = await db.from('suggestions').insert({author:me(), body:body});
     if(r.error){ toast('Couldn\'t post: '+r.error.message, 'error'); return; }
-    toast('📌 Posted!');
-    renderSuggestions();
+    toast('📌 Posted — Jake sees a count on his menu.');
+    renderSuggestions(); refreshBadge();
   }
 
   async function markDone(id){
     if(!isJake()){ toast('⚠ Only Jake can mark a note done.'); return; }
     var r = await db.from('suggestions').update({status:'done', done_by:me(), done_at:new Date().toISOString()}).eq('id', id);
     if(r.error){ toast('Failed: '+r.error.message, 'error'); return; }
-    renderSuggestions();
+    renderSuggestions(); refreshBadge();
+  }
+
+  // The middle state: started, not finished. Without it a note being worked on
+  // looked exactly like one nobody had read.
+  async function markWorking(id){
+    if(!isJake()){ toast('⚠ Only Jake can change a note.'); return; }
+    var r = await db.from('suggestions').update({status:'working'}).eq('id', id);
+    if(r.error){ toast('Failed: '+r.error.message, 'error'); return; }
+    toast('Marked as on it — they can see that now.');
+    renderSuggestions(); refreshBadge();
+  }
+
+  async function reply(id){
+    if(!isJake()){ toast('⚠ Only Jake can reply.'); return; }
+    var inp = document.getElementById('sugg-reply-'+id); if(!inp) return;
+    var txt = inp.value.trim();
+    var r = await db.from('suggestions').update({reply:txt||null, replied_at:txt?new Date().toISOString():null}).eq('id', id);
+    if(r.error){ toast('Couldn\'t save the reply: '+r.error.message, 'error'); return; }
+    toast(txt?'Reply saved — they will see it on the note.':'Reply cleared.');
+    renderSuggestions(); refreshBadge();
   }
 
   async function remove(id){
@@ -84,9 +121,23 @@
     if(!confirm('Take this note down for good?')) return;
     var r = await db.from('suggestions').delete().eq('id', id);
     if(r.error){ toast('Failed: '+r.error.message, 'error'); return; }
-    renderSuggestions();
+    renderSuggestions(); refreshBadge();
+  }
+
+  // Nothing anywhere else in the app said a new note had arrived, so notes waited
+  // until someone happened to open the page. This puts the open count on the nav
+  // button. One tiny count query, run at sign-in and after every change.
+  async function refreshBadge(){
+    var el = document.getElementById('nav-sugg-badge');
+    if(!el) return;
+    var r = await db.from('suggestions').select('id',{count:'exact',head:true}).neq('status','done');
+    if(r.error) return;
+    var n = r.count || 0;
+    el.textContent = n;
+    el.style.display = n ? 'inline-flex' : 'none';
   }
 
   window.renderSuggestions = renderSuggestions;
-  window.SuggestBox = { post:post, markDone:markDone, remove:remove };
+  window.refreshSuggBadge = refreshBadge;
+  window.SuggestBox = { post:post, markDone:markDone, markWorking:markWorking, reply:reply, remove:remove };
 })();

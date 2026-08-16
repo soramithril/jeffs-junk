@@ -4393,7 +4393,7 @@ function renderPossibleJobsList(){
     return '<div class="pj-card" onclick="openDetail(\''+j.id+'\')">'
       +'<div class="pj-head">'
         +'<div style="min-width:0;flex:1">'
-          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+'<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span></div>'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+jid(j.id,j.service)+jobNameHtml+crewChip+_possibleAgePill(j)+'</div>'
           +'<div class="pj-cust">'+escHtml(custName)+(j.businessName?' <span style="font-weight:500;color:var(--muted);font-size:13px">· '+escHtml(j.businessName)+'</span>':'')+'</div>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'
@@ -4436,6 +4436,21 @@ function _renderLsSection(prefix, list, kind){
   if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 4px;font-style:italic">'+(kind==='possible'?'No undated jobs — every extra job has a date. 🎉':kind==='scheduled'?'No scheduled extra jobs.':'No completed jobs yet.')+'</div>'; return; }
   body.innerHTML=list.map(function(j){ return _landscapeCardHTML(j, kind); }).join('');
 }
+// How long a "possible" job has been waiting, tinted once it starts going cold.
+function _possibleAgePill(j){
+  var created=j.createdAt||j.created_at;
+  if(!created) return '<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span>';
+  var days=Math.floor((Date.now()-new Date(created).getTime())/86400000);
+  var txt = days<1 ? 'Asked today'
+    : days===1 ? 'Asked yesterday'
+    : days<14 ? 'Asked '+days+' days ago'
+    : days<60 ? 'Asked '+Math.round(days/7)+' weeks ago'
+    : 'Asked '+Math.round(days/30)+' months ago';
+  var c = days>=42 ? {bg:'rgba(220,53,69,.12)',fg:'#dc3545'}
+    : days>=21 ? {bg:'rgba(230,126,34,.14)',fg:'#c2410c'}
+    : {bg:'var(--surface2)',fg:'var(--muted)'};
+  return '<span class="pj-pill" style="background:'+c.bg+';color:'+c.fg+'" title="No date booked yet — oldest first, chase from the top">'+txt+'</span>';
+}
 function _landscapeCardHTML(j, kind){
   var addr=((j.address||'')+(j.city?', '+j.city:'')).trim();
   var phone=(j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext.'+p.ext:'');}).join(', '):(j.phone||'');
@@ -4461,7 +4476,10 @@ function _landscapeCardHTML(j, kind){
   var statusPill;
   if(kind==='completed') statusPill='<span class="pj-pill" style="background:rgba(34,197,94,.12);color:#16a34a">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+'</span>';
   else if(kind==='scheduled'){ var d=j.junkDate||j.date; statusPill='<span class="pj-pill" style="background:#e0f2f7;color:#0e7490">📅 '+(d?fd(d):'')+(j.junkTime?' '+ft(j.junkTime):'')+'</span>'; }
-  else statusPill='<span class="pj-pill" style="background:var(--surface2);color:var(--muted)">No date yet</span>';
+  // "Possible" is a chase-list, but every card read "No date yet" — a request from
+  // March looked identical to one from yesterday, so nothing showed what was going
+  // cold. The list is already sorted oldest-first, so it knew; it just never said.
+  else statusPill=_possibleAgePill(j);
   var btns;
   if(kind==='completed'){
     btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+lineIcon('print',14)+' Print</button>'
@@ -12135,6 +12153,20 @@ function scheduleWillCallPickup(id,e){
    purpose: one of these two has a button, and every other caller should carry
    on not thinking about markup. Shares the #toast element, so the next plain
    toast wipes this one — newest message wins, same as before. */
+// The Undo that lives in the email box rather than in a message that fades. Same
+// action the toast used to run, reachable for as long as the box is open.
+function undoJustSentEmail(jobId){
+  jobs.forEach(function(j){ if(j.id===jobId){ j.emailSent=false; j.emailConfirmed=false; } });
+  // Both flags, not just emailSent — every "needs an email" list tests emailSent OR
+  // emailConfirmed, so clearing one alone leaves the job hidden and undo does nothing.
+  patchJob(jobId,{emailSent:false,emailConfirmed:false}).then(function(){
+    var note=document.getElementById('email-sent-note');
+    if(note){ note.style.display='none'; note.innerHTML='✅ Email previously sent for this job'; }
+    refresh();
+    toast('Marked as not sent — back on the list.');
+  });
+}
+
 function undoToast(msg, onUndo) {
   var t = document.getElementById('toast');
   clearTimeout(t._tid);
@@ -12519,6 +12551,7 @@ async function loadSignedInApp() {
   applySettingsVisibility();
   trackPageView('dashboard');
   applyTjCols();
+  if(typeof refreshSuggBadge==='function') refreshSuggBadge();
   document.getElementById('login-screen').style.display = 'none';
   document.body.classList.add('signed-in');
   // Keep the push service worker registered/updated on devices that enabled it
@@ -13005,7 +13038,17 @@ function sendEmail() {
     } else {
       jobs.forEach(function(j){if(j.id===sentJobId){j.emailSent=true;j.emailConfirmed=true;}});
       patchJob(sentJobId,{emailSent:true,emailConfirmed:true});
-      document.getElementById('email-sent-note').style.display = 'block';
+      // Sending hands off to Outlook, which takes the whole screen — so the only
+      // Undo was a message back in this tab that expired in ten seconds, long gone
+      // by the time anyone finished writing. Put the receipt (and the undo) in the
+      // box itself, where it waits. "Previously sent" also read oddly for something
+      // sent five seconds ago, so that wording is now only for earlier visits.
+      var _sn = document.getElementById('email-sent-note');
+      if(_sn){
+        _sn.style.display = 'block';
+        _sn.innerHTML = '✅ Sent just now by '+escHtml((currentUser&&currentUser.displayName)||'you')
+          + ' <button class="btn btn-ghost btn-sm" style="margin-left:10px" onclick="undoJustSentEmail(\''+sentJobId+'\')">Undo</button>';
+      }
       stampEmailBtn(sentJobId);
       undoToast('Confirmation email opened in your mail app for '+who+'.', function(){
         jobs.forEach(function(j){if(j.id===sentJobId){j.emailSent=false;j.emailConfirmed=false;}});
@@ -13089,11 +13132,28 @@ function etplPreview(){
   var j = _etplSample();
   var s = document.getElementById('etpl-subj'), b = document.getElementById('etpl-body');
   if(!s || !b) return;
+  // Capture on every keystroke, not only when switching templates or pressing Save.
+  // Typing then walking away used to lose the wording — and worse, a background
+  // refresh could rebuild the page from the stored copy mid-sentence.
+  etplStash();
+  _etplDirty = true;
+  _etplMarkDirty();
   document.getElementById('etpl-prev-subj').textContent = fillEmailTemplate(s.value, j);
   document.getElementById('etpl-prev-body').textContent = fillEmailTemplate(b.value, j);
 }
+// Unsaved changes are worth saying out loud: the Save button is at the top of the
+// page, far from where the typing happens.
+var _etplDirty = false;
+function _etplMarkDirty(){
+  var btn = document.getElementById('etpl-save-btn');
+  if(!btn) return;
+  if(_etplDirty){ btn.textContent = 'Save Templates •'; btn.title = 'Unsaved changes'; }
+  else { btn.textContent = 'Save Templates'; btn.title = ''; }
+}
 function etplSave(){
   etplStash();
+  _etplDirty = false;
+  _etplMarkDirty();
   var rows = ETPL_KEYS.map(function(k){
     var p = getPreset(k);
     return {preset_key:k, subject:p.subject||'', body:p.body||''};
@@ -13106,6 +13166,11 @@ function etplSave(){
 function renderEmailTemplates(){
   var host = document.getElementById('etpl-page');
   if(!host) return;
+  // A background refresh (any job or client change, from anyone) re-renders the
+  // active page. Rebuilding this one mid-edit repainted both boxes from the stored
+  // copy and took the unsaved wording with it. If it's already on screen and dirty,
+  // leave it alone — etplPreview keeps the in-memory copy current anyway.
+  if(_etplDirty && host.querySelector('#etpl-body')) return;
   var p = getPreset(_etplKey);
   var list = ETPL_KEYS.map(function(k){
     return '<button class="etpl-tab' + (k===_etplKey?' on':'') + '" onclick="etplSelect(\'' + k + '\')">'

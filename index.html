@@ -179,7 +179,7 @@
     <button class="nav-item" onclick="go('drdcalc')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="12" y1="10" x2="14" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="12" y1="14" x2="14" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="12" y1="18" x2="14" y2="18"/><line x1="16" y1="18" x2="16.01" y2="18"/></svg></span><span>Furniture Quote</span></button>
     <div class="nav-label">Office</div>
     <button class="nav-item" onclick="go('documents')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span>Documents</span></button>
-    <button class="nav-item" onclick="go('suggestions')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span><span>Suggestions</span></button>
+    <button class="nav-item" onclick="go('suggestions')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span><span>Suggestions</span><span id="nav-sugg-badge" title="Notes still open" style="display:none;align-items:center;justify-content:center;margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:99px;background:#e67e22;color:#fff;font-size:10.5px;font-weight:800"></span></button>
     <button class="nav-item" onclick="openPushSettings()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span>Notifications</span></button>
     <div class="nav-label" id="nav-settings-label" style="display:none">Admin</div>
     <div id="nav-settings" style="display:none">
@@ -1340,7 +1340,7 @@
 <div id="view-emailtemplates" class="view">
   <div class="page-header">
     <div><div class="page-title page-title-sm">✉️ Email Templates</div><div class="page-sub">The wording staff start from when they email a customer — edit it here and everyone sends the same thing</div></div>
-    <button class="btn btn-primary" onclick="etplSave()">Save Templates</button>
+    <button class="btn btn-primary" id="etpl-save-btn" onclick="etplSave()">Save Templates</button>
   </div>
   <div id="etpl-page"></div>
 </div>
@@ -1489,6 +1489,8 @@
     </aside>
 
     <div class="drdc-main">
+      <!-- Says so when the last caller's items are still loaded (see drdcStaleNotice) -->
+      <div id="drdc-stale" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;padding:10px 14px;border-radius:9px;background:rgba(230,126,34,.10);border:1px solid rgba(230,126,34,.4);font-size:13px;color:var(--text)"></div>
       <div class="drdc-searchbar">
         <input id="drdc-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
       </div>
@@ -2532,7 +2534,9 @@
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('bin_cancelled')" style="color:#dc3545;border-color:rgba(220,53,69,.4)">🚫 Bin Cancelled</button>
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('review_request')" style="color:#b45309;border-color:rgba(234,179,8,.5)">⭐ Review Request</button>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">You can edit the presets by clicking the ✏️ buttons above each one.</div>
+      <!-- There are no pencil buttons on that row, so this used to send people
+           hunting for a control that doesn't exist. Point at the real one. -->
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Wording not right? Use ⚙️ Edit Templates below.</div>
     </div>
     <div id="email-no-address-note" style="display:none;padding:10px 12px;border-radius:8px;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.35);color:#c2410c;font-size:13px;font-weight:600;margin-bottom:12px"></div>
     <div class="form-group" style="margin-bottom:12px">
