@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '565';
+var APP_VERSION = '566';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11409,11 +11409,25 @@ function swapOutBin(id){
     +'<div style="padding:6px 4px 10px;font-size:14px;line-height:1.55">'
       +(addrLabel?'<p style="margin:0 0 12px;color:var(--muted)">'+_esc(addrLabel)+'</p>':'')
       +chooserHtml
-      +'<div style="margin-bottom:6px">'
+      +'<div style="margin-bottom:12px">'
         +'<label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Swap date — is it being swapped today?</label>'
         +'<input type="date" id="swap-out-date" value="'+today+'" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px">'
       +'</div>'
-      +'<p style="margin:10px 0 0;color:var(--muted);font-size:12px">The existing bin will be scheduled for pickup on this date, and a new bin drop job will be created for the same day.</p>'
+      // Which bin is going OUT, chosen here rather than left blank and assigned in a
+      // second trip through another screen — and it lets the note name both bins.
+      +'<div style="margin-bottom:6px">'
+        +'<label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Which bin is being dropped in its place?</label>'
+        +'<select id="swap-new-bin" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px">'
+          +'<option value="">Decide later</option>'
+          +binItems.filter(function(b){
+              return b.status==='in' && b.damage!=='oor' && !b.show_bin
+                && (!j.binSize || b.size===j.binSize);
+            }).map(function(b){
+              return '<option value="'+_esc(b.bid)+'">Bin '+_esc(b.num)+' — '+_esc(b.size||'')+'</option>';
+            }).join('')
+        +'</select>'
+      +'</div>'
+      +'<p style="margin:10px 0 0;color:var(--muted);font-size:12px">The bin that is there now gets booked for pickup on this date, and a new drop job is created for the same day. Both jobs get a note saying which bin is coming and which is going.</p>'
     +'</div>'
     +'<div class="form-actions" style="margin-top:8px">'
       +'<button class="btn btn-ghost" onclick="closeM(\'swap-out-modal\')">Cancel</button>'
@@ -11440,11 +11454,36 @@ async function _doSwapOutBin(){
   // tells you the exact state to fix by hand.
   var oldPickupBefore=oldJob.binPickup, oldSwapCountBefore=oldJob.swapCount;
 
+  // Everybody types the swap by hand into Notes ("SWAP OUT 20-01") — 104 times this
+  // year against 14 uses of this button — so the note is written for them, in words,
+  // naming BOTH bins. Job numbers meant nothing to the person reading it at the curb.
+  var newBinSel=document.getElementById('swap-new-bin');
+  var newBid=newBinSel?newBinSel.value:'';
+  function binNo(bid){
+    if(!bid) return '';
+    var b=binItems.find(function(x){return x.bid===bid;});
+    return b?(b.num||b.bid):bid;
+  }
+  var goingNo=binNo(oldJob.binBid), comingNo=binNo(newBid);
+  var swapLine='SWAP: bin '+(goingNo||'?')+' is being PICKED UP'
+    + (comingNo ? ', bin '+comingNo+' is being DROPPED' : ', replacement bin not chosen yet')
+    + ' on '+fd(swapDate)+'.';
+  // Carry the old notes across, minus any previous swap line — that is how a stale bin
+  // number rides down a chain of swaps and ends up describing the wrong bin entirely.
+  function stripSwapLines(txt){
+    return String(txt||'').split(/\r?\n/)
+      .filter(function(l){ return !/^\s*(SWAP\b|Swap out from job)/i.test(l); })
+      .join('\n').trim();
+  }
+  var carried=stripSwapLines(oldJob.notes);
+
   // 1. Schedule the existing bin for pickup on the swap date + bump swap count
-  var rOld=await patchJob(oldJob.id,{binPickup:swapDate,swapCount:(oldJob.swapCount||0)+1});
+  var rOld=await patchJob(oldJob.id,{binPickup:swapDate,swapCount:(oldJob.swapCount||0)+1,
+    notes:(swapLine+(carried?'\n'+carried:''))});
   if(rOld.error) return;   // patchJob has already reported it and put the screen back
   oldJob.binPickup=swapDate;
   oldJob.swapCount=(oldJob.swapCount||0)+1;
+  oldJob.notes=swapLine+(carried?'\n'+carried:'');
 
   // 2. Create the new drop job for the same day (fresh bin, assigned later)
   var newId;
@@ -11460,11 +11499,11 @@ async function _doSwapOutBin(){
     id:newId, service:'Bin Rental', status:'',
     name:oldJob.name, phone:oldJob.phone, address:oldJob.address, city:oldJob.city,
     date:swapDate, time:oldJob.time, price:oldJob.price, paid:'Unpaid',
-    notes:'Swap out from job '+oldJob.id+(oldJob.notes?' — '+oldJob.notes:''),
+    notes:swapLine+(carried?'\n'+carried:''),
     referral:oldJob.referral, confirmed:false, emailSent:false,
     binSize:oldJob.binSize, binDuration:oldJob.binDuration,
     binDropoff:swapDate, binPickup:'', binInstatus:'',
-    binSide:oldJob.binSide, binBid:'', clientId:oldJob.clientId,
+    binSide:oldJob.binSide, binBid:newBid, clientId:oldJob.clientId,
     deposit:'', depositPaid:false, payMethod:oldJob.payMethod,
     recurring:oldJob.recurring, recurInterval:oldJob.recurInterval,
     materialType:oldJob.materialType, toolsNeeded:oldJob.toolsNeeded,
@@ -11479,8 +11518,14 @@ async function _doSwapOutBin(){
     return;
   }
   jobs.push(newJob);
+  // The replacement bin is NOT flipped to 'out' here. A swap can be booked days ahead
+  // and the bin is still physically in the yard until the truck goes — the rule
+  // everywhere else is that a bin only goes 'out' once its job is marked dropped.
+  // Availability is protected anyway: checkBinWindow counts by the job's dates.
   _clientStatsCache = null;
-  toast('Swap booked: bin scheduled for pickup '+fd(swapDate)+', new drop job '+newId+' created.');
+  toast(comingNo
+    ? ('Swap booked for '+fd(swapDate)+': bin '+goingNo+' picked up, bin '+comingNo+' dropped. New job '+newId+'.')
+    : ('Swap booked for '+fd(swapDate)+': bin '+goingNo+' picked up. New job '+newId+' — pick its bin when you know it.'));
   closeM('detail-modal');
   await loadJobsPage(jobsPage);
   openDetail(newId);
