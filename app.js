@@ -2085,7 +2085,9 @@ function openAddClient(){
     var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=false;
     var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
     document.getElementById('client-modal').classList.add('open');
-  }catch(ex){alert('openAddClient error: '+ex.message);console.error(ex);}
+  }catch(ex){alert('Couldn't open the new-customer form.
+
+Nothing was lost - close this and try again.');console.error(ex);}
 }
 
 function editClient(cid){
@@ -2239,7 +2241,9 @@ async function saveClient(e){
   closeM('client-modal');
   clientsPage = 0;
   loadClientsPage();
-  }catch(ex){alert('saveClient error: '+ex.message);console.error(ex);}
+  }catch(ex){alert('Couldn't save this customer.
+
+Nothing was saved - the form still has everything you typed, so you can try again.');console.error(ex);}
 }
 
 function jobIdCls(id,svc){
@@ -3621,7 +3625,7 @@ async function refreshDashJobs(){
   // the side-by-side columns; everything else runs a median of 3 rows and reads
   // better as one strip underneath. Wrapper only when there ARE bins, so an
   // empty day still falls through to the empty state below.
-  var binCols = makeCat('Bin Deliveries','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}))
+  var binCols = makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}))
     +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}));
   var restCats = makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
     +makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24}))
@@ -4294,7 +4298,7 @@ async function renderDash(bg){
   // Same split as refreshDashJobs: bins in the two columns, the rest as one
   // strip below. Both paths must match or the layout would jump when the date
   // picker moves off today.
-  var todayBinCols = makeTodayCat('Bin Deliveries','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}))
+  var todayBinCols = makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}))
     +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}));
   var todayRestCats = makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
     +makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24}))
@@ -8411,7 +8415,9 @@ function addCrewFromPicker(){
   var name=input.value.trim();if(!name)return;
   input.value='';
   db.from('crew_members').insert({name:name}).select().then(function(r){
-    if(r.error)return alert('Error: '+r.error.message);
+    if(r.error)return alert('Couldn't add that crew member.
+
+Nobody was added - check the name and try again.');
     if(r.data&&r.data[0]){
       crewMembers.push({id:r.data[0].id, name:r.data[0].name});
       // Re-render picker so the new employee shows up immediately (preserving leg)
@@ -10481,9 +10487,18 @@ async function saveJob(e){
 async function delJob(id){
   if(!mGuard())return;
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
-  if(!confirm('Delete this job?'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j) return;
+  var _what=[];
+  if(j.binBid) _what.push('the bin link');
+  if(j.notes) _what.push('notes');
+  if(j.photos&&j.photos.length) _what.push(j.photos.length+' photo'+(j.photos.length===1?'':'s'));
+  _what.push('its email history');
+  if(!confirm('Delete job '+j.id+' for '+(j.name||'this customer')+'?
+
+This is permanent and also removes '+_what.join(', ')+'.
+
+To take it off the schedule without losing it, use Postpone or Cancel instead.'))return;
   // Snapshot bin state so we can restore if the DB delete fails
   var binStatusBefore = {};
   if(j.binBid){
@@ -10502,7 +10517,7 @@ async function delJob(id){
     refresh();
     return;
   }
-  toast('Deleted.');
+  toast('Job '+id+' deleted.');
 }
 async function cancelJob(id){
   if(!mGuard())return;
@@ -10515,7 +10530,13 @@ async function cancelJob(id){
     toast('⚠ This bin is still dropped at the customer\'s. Set the pickup date and mark it picked up before cancelling.','error');
     return;
   }
-  if(!confirm('Mark this job as Cancelled?'))return;
+  var _relNote = (j.service==='Bin Rental' && j.binBid)
+    ? '
+
+Bin '+j.binBid+' goes back to the yard and becomes available to book.' : '';
+  if(!confirm('Mark job '+j.id+' for '+(j.name||'this customer')+' as Cancelled?'+_relNote+'
+
+It stays in the records and can be reopened.'))return;
   // Write ONLY the status. This used to call saveSingleJob, which upserts the whole job object
   // from memory — and a job opened from a list has no notes, items, internal notes or photos in
   // memory, so cancelling blanked them. See the rule at JOB_LIST_COLS.
@@ -11683,8 +11704,12 @@ async function scheduleNextSwap(id){
   try{
     var dbRow=jobToDb(swapJob);
     var res=await db.from('jobs').insert(dbRow);
-    if(res.error){alert('Error creating swap job: '+res.error.message);return;}
-  }catch(ex){alert('Error: '+ex.message);return;}
+    if(res.error){alert('Couldn't book the next swap.
+
+This job is unchanged - try again in a moment.');return;}
+  }catch(ex){console.error(ex);alert('Couldn't book the next visit.
+
+This job is unchanged - try again in a moment.');return;}
   toast('✅ Next swap booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
 }
@@ -11831,9 +11856,13 @@ async function scheduleNextRecurringJob(id){
   try{
     var dbRow=jobToDb(newJob);
     var res=await db.from('jobs').insert(dbRow);
-    if(res.error){alert('Error creating recurring job: '+res.error.message);return;}
+    if(res.error){alert('Couldn't book the next repeat visit.
+
+This job is unchanged - try again in a moment.');return;}
     await loadRecurRuns();
-  }catch(ex){alert('Error: '+ex.message);return;}
+  }catch(ex){console.error(ex);alert('Couldn't book the next visit.
+
+This job is unchanged - try again in a moment.');return;}
   toast('Next '+j.service+' booked for '+fd(nextDateStr)+'!');
   closeM('detail-modal');refresh();
 }
@@ -12190,11 +12219,26 @@ function toast(msg, type) {
   var isErr  = type === 'error'  || msg.indexOf('⚠') === 0 || msg.indexOf('⚠️') === 0 || msg.indexOf('Error') >= 0;
   var isWarn = type === 'warn';
   t.className = 'toast' + (isErr ? ' toast-error' : isWarn ? ' toast-warn' : '');
-  t.textContent = (isErr ? '✕ ' : isWarn ? '⚠ ' : '✓ ') + msg.replace(/^[⚠️✅✓⚠]\s*/,'');
+  // Failures get longer on screen and a way to dismiss them. Three seconds with no
+  // close button meant an error carrying database text — the only explanation of
+  // what went wrong — was gone before it could be read, let alone written down.
+  var body = (isErr ? '✕ ' : isWarn ? '⚠ ' : '✓ ') + msg.replace(/^[⚠️✅✓⚠]\s*/,'');
+  if(isErr){
+    t.textContent = '';
+    var span = document.createElement('span'); span.textContent = body;
+    var x = document.createElement('span');
+    x.textContent = '✕';
+    x.title = 'Dismiss';
+    x.style.cssText = 'margin-left:12px;cursor:pointer;opacity:.75;font-weight:700';
+    x.onclick = function(){ t.classList.remove('show'); };
+    t.appendChild(span); t.appendChild(x);
+  } else {
+    t.textContent = body;
+  }
   t.classList.add('show');
   if(window.JJMotion && JJMotion.toastPop) JJMotion.toastPop(t);
   clearTimeout(t._tid);
-  t._tid = setTimeout(function(){ t.classList.remove('show'); }, 3000);
+  t._tid = setTimeout(function(){ t.classList.remove('show'); }, isErr ? 9000 : 3000);
 }
 // Overlay click-to-close intentionally disabled — use Cancel/Submit buttons or ✕ to close modals.
 document.addEventListener('click',function(e){

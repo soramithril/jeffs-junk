@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<!-- No maximum-scale: it blocked pinch-zoom, and this screen gets read outdoors on
+     a truck dash where enlarging it is exactly what you want to do. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jeff's App</title>
 <script>
   /* Layout switch (Jake only): if Jake last chose the full dashboard on this
@@ -83,6 +85,9 @@ a:hover{color:#15803d}
   };
   var lastScreen = null;
   var toastTimer = null, feedTimer = null, pendingJob = null;
+  // Photos that uploaded fine but whose attach-to-job step failed, kept so the
+  // retry only has to re-run that last quick step rather than re-shoot everything.
+  var _pendingPhotoSave = null;
 
   // ---------- data ----------
   function clock(){ var d=new Date(),h=d.getHours(),m=d.getMinutes(),ap=h>=12?'PM':'AM'; h=h%12||12; return h+':'+(m<10?'0':'')+m+' '+ap; }
@@ -232,7 +237,16 @@ a:hover{color:#15803d}
       .neq('status','Cancelled')
       .or('date.gte.'+since+',bin_dropoff.gte.'+since+',bin_pickup.gte.'+since+',junk_date.gte.'+since+',fb_date.gte.'+since)
       .limit(1500)
-      .then(function(r){ setState({ jobs: r.error ? [] : (r.data||[]) }); });
+      // A failed load used to be stored as an empty list with no error flag, so a
+      // dead zone showed the cheerful "Nothing booked" card and 0 stops — no way to
+      // tell a free day from a failed one. Worse, waking the phone re-ran this and
+      // a failed refresh wiped the good list already on screen. Keep the last good
+      // list and say the load failed, the way the Trucks screen already does.
+      .then(function(r){
+        if(r.error){ setState({ jobsErr:true }); return; }
+        setState({ jobs: r.data||[], jobsErr:false });
+      })
+      .catch(function(){ setState({ jobsErr:true }); });
   }
 
   function svcColor(s){ s=s||''; if(/quote/i.test(s)) return '#0d6efd'; if(/junk/i.test(s)) return '#eab308'; if(/land/i.test(s)) return '#65a30d'; if(/furniture/i.test(s)) return '#8b5cf6'; if(/bin/i.test(s)) return '#0891b2'; return '#5b6472'; }
@@ -283,6 +297,28 @@ a:hover{color:#15803d}
   function openDate(){ var el=document.getElementById('jeff-date-input'); if(!el) return; el.value=ymd(dateFromOffset(state.dayOffset)); try{ if(el.showPicker) el.showPicker(); else el.click(); }catch(e){ el.click(); } }
   function onDate(e){ var v=e.target.value; if(!v) return; var d=new Date(v+'T12:00:00'); var off=Math.round((d - dateFromOffset(0))/86400000); setState({dayOffset:off}); }
   function setFilter(f){ setState({filter:f}); }
+  async function retryPhotoSave(){
+    if(!_pendingPhotoSave) { setBusy(''); return; }
+    var pend=_pendingPhotoSave;
+    setBusy('Saving…','Attaching the photos to the job');
+    var r = await db.from('jobs').update({photos:pend.urls}).eq('job_id', pend.jobId);
+    if(r.error){
+      setBusy('Still couldn't save', 'The photos are safe — try again when you have signal.');
+      return;
+    }
+    _pendingPhotoSave = null;
+    var job=(state.jobs||[]).filter(function(j){ return j.job_id===pend.jobId; })[0];
+    if(job){ job.photos=pend.urls; }
+    setBusy('');
+    showToast('✅ Photos saved to the job');
+    render();
+  }
+  function giveUpPhotoSave(){
+    _pendingPhotoSave = null;
+    setBusy('');
+    showToast('⚠ Photos not attached — take them again later');
+  }
+
   function pickTruck(i){ setState({truckIdx: parseInt(i,10)||0, angle:0}); }
   function setAngle(i){ setState({angle: parseInt(i,10)||0}); }
   function nextAngle(){ var f=TRUCKS(); var t=f[Math.min(state.truckIdx, f.length-1)]; var n=(t&&t.imgs&&t.imgs.length)?t.imgs.length:1; setState({angle:(state.angle+1)%n}); }
@@ -309,7 +345,16 @@ a:hover{color:#15803d}
       var job=(state.jobs||[]).filter(function(j){ return j.job_id===jobId; })[0];
       var next=((job&&job.photos)||[]).concat(urls);
       var r = await db.from('jobs').update({photos:next}).eq('job_id', jobId);
-      if(r.error){ setBusy(''); showToast('⚠ Couldn\'t save to the job'); return; }
+      if(r.error){
+        // The photos ARE uploaded — only attaching them to the job failed. Dropping
+        // them behind a bubble that fades in 2.2s meant Jeff pocketed the phone and
+        // never knew; the job showed nothing and he had to shoot them all again.
+        // Hold the screen and offer a retry that just re-runs this last quick step.
+        _pendingPhotoSave = { jobId: jobId, urls: next };
+        setBusy('Couldn\'t save to the job', 'The photos uploaded fine — the last step failed. Tap Try again.');
+        return;
+      }
+      _pendingPhotoSave = null;
       if(job){ job.photos=next; }
       render();
     }
@@ -344,6 +389,8 @@ a:hover{color:#15803d}
     addPhoto:function(arg){ addPhoto(arg); },
     goQuotes:function(){ state.filter='Quote'; nav('photos'); },
     delPhoto:delPhoto,
+    retryJobs:function(){ showToast('🔄 Trying again…'); loadJobs(); },
+    retryPhotoSave:retryPhotoSave, giveUpPhotoSave:giveUpPhotoSave,
     goDash:function(){ try{ localStorage.setItem('jjLayout','dashboard'); }catch(e){} location.href='index.html'; }
   };
 
@@ -471,18 +518,32 @@ a:hover{color:#15803d}
       stops = '<div style="text-align:center;color:#98a0aa;padding:34px;font-size:14px">Loading your day…</div>';
     } else if(arr.length){
       var items = arr.map(function(s){
+        // Name and address are what he reads on a truck dash in daylight, so they
+        // get the darker grey the app already uses elsewhere (about 6:1 on white)
+        // instead of the faintest text on the card. The address wraps rather than
+        // truncating, and the whole stop opens directions — he used to have to read
+        // a cut-off address and retype it into maps.
+        var maps = s.addr ? 'https://www.google.com/maps?q='+encodeURIComponent(s.addr) : '';
         return '<div style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e7eae8;border-radius:18px;padding:13px 15px;box-shadow:0 4px 12px rgba(20,40,25,.04)">'+
           '<div style="width:9px;height:50px;border-radius:6px;background:'+s.color+';flex-shrink:0"></div>'+
           '<div style="flex:1;min-width:0">'+
             '<div style="font-weight:800;font-size:16px;color:#17223a">'+esc(s.label)+(s.binSize?' · '+esc(s.binSize):'')+(s.hasPhotos?'<span style="font-size:12px"> 📷</span>':'')+'</div>'+
-            '<div style="font-size:13px;color:#98a0aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.who||'—')+'</div>'+
-            (s.addr?'<div style="font-size:12px;color:#b3bbc3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.addr)+'</div>':'')+
+            '<div style="font-size:14px;color:#5b6472;font-weight:600">'+esc(s.who||'—')+'</div>'+
+            (s.addr?'<div style="font-size:13.5px;color:#5b6472;line-height:1.35;margin-top:1px">'+esc(s.addr)+'</div>':'')+
+            (maps?'<a href="'+maps+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:13px;font-weight:800;color:#0d6efd;text-decoration:none">➤ Directions</a>':'')+
           '</div>'+
           '<div style="font-weight:800;font-size:14px;color:#3a4048;white-space:nowrap;flex-shrink:0">'+(s.time||'—')+'</div>'+
         '</div>';
       }).join('');
       stops = '<div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#aab1b9;text-transform:uppercase;margin-top:2px;padding-left:4px">The stops</div>'+
         '<div style="display:flex;flex-direction:column;gap:10px">'+items+'</div>';
+    } else if(S.jobsErr){
+      // Never claim a free day when the truth is a failed load.
+      stops = '<div class="pa" data-act="retryJobs" style="margin-top:8px;background:#fff;border:1px solid #f0b27a;border-radius:22px;padding:34px 20px;text-align:center;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
+        '<div style="font-size:40px">📡</div>'+
+        '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#17223a;margin-top:8px;letter-spacing:.5px">Couldn\'t load your day</div>'+
+        '<div style="font-size:14px;color:#5b6472;margin-top:4px">No signal, or the server didn\'t answer. Tap to try again.</div>'+
+      '</div>';
     } else {
       stops = '<div style="margin-top:8px;background:#fff;border:1px solid #e7eae8;border-radius:22px;padding:38px 20px;text-align:center;box-shadow:0 6px 16px rgba(20,40,25,.05)">'+
         '<div style="font-size:44px">🌤️</div>'+
@@ -688,11 +749,16 @@ a:hover{color:#15803d}
     var el = document.getElementById('busy');
     if(!el) return;
     if(!state.busy){ el.innerHTML=''; return; }
-    el.innerHTML = '<div style="position:absolute;inset:0;z-index:90;background:rgba(14,22,16,.5);display:flex;align-items:center;justify-content:center">'+
-        '<div style="background:#fff;border-radius:24px;padding:30px 38px;display:flex;flex-direction:column;align-items:center;gap:15px;box-shadow:0 20px 50px rgba(0,0,0,.32);min-width:190px">'+
-          '<div class="jspin"></div>'+
+    // When a photo save has failed the overlay stops being a spinner and becomes a
+    // question: it waits, with a retry, instead of vanishing while he's driving.
+    var failed = !!_pendingPhotoSave;
+    el.innerHTML = '<div style="position:absolute;inset:0;z-index:90;background:rgba(14,22,16,.5);display:flex;align-items:center;justify-content:center;padding:20px">'+
+        '<div style="background:#fff;border-radius:24px;padding:30px 34px;display:flex;flex-direction:column;align-items:center;gap:15px;box-shadow:0 20px 50px rgba(0,0,0,.32);min-width:190px;max-width:320px;text-align:center">'+
+          (failed ? '<div style="font-size:40px">⚠️</div>' : '<div class="jspin"></div>')+
           '<div style="font-size:18px;font-weight:800;color:#17223a">'+esc(state.busy)+'</div>'+
-          (state.busyNote ? '<div style="font-size:13px;color:#98a0aa">'+esc(state.busyNote)+'</div>' : '')+
+          (state.busyNote ? '<div style="font-size:13.5px;color:#5b6472;line-height:1.4">'+esc(state.busyNote)+'</div>' : '')+
+          (failed ? '<button class="pa" data-act="retryPhotoSave" style="margin-top:4px;width:100%;padding:14px 20px;border:none;border-radius:14px;background:#0d6efd;color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer">Try again</button>'+
+                    '<button class="pa" data-act="giveUpPhotoSave" style="padding:8px;border:none;background:none;color:#98a0aa;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Not now</button>' : '')+
         '</div>'+
       '</div>';
   }

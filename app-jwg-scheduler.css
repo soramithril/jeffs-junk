@@ -121,6 +121,28 @@
   letter-spacing:0.02em;
 }
 #view-jwgscheduler .logout-btn:hover {background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:#ff6b6b;}
+/* #jwg-toast is what toast() in app-jwg-scheduler.js actually writes into — on both
+   the warehouse kiosk and the dashboard's scheduler. It had NO styling anywhere, so
+   every failure ("Failed to update stock", "Couldn't save") rendered as small plain
+   text at the very bottom of the scrolling page, under all the item cards, where
+   nobody looks. Errors are deliberately loud and stay until dismissed: at the kiosk
+   a silent failure means the counts the office orders from are quietly wrong. */
+#jwg-toast{
+  position:fixed;left:50%;top:22px;transform:translate(-50%,-14px) scale(.97);
+  z-index:10000;display:none;align-items:center;gap:12px;
+  max-width:min(560px,92vw);padding:16px 22px;border-radius:14px;
+  font-size:16px;font-weight:700;line-height:1.35;
+  background:#15803d;color:#fff;box-shadow:0 18px 44px -10px rgba(0,0,0,.45);
+  opacity:0;transition:opacity .2s ease,transform .25s cubic-bezier(.34,1.56,.64,1);
+}
+#jwg-toast.show{display:flex;opacity:1;transform:translate(-50%,0) scale(1);}
+#jwg-toast.error{background:#b3261e;font-size:17px;padding:20px 24px;}
+#jwg-toast.info{background:#1f2937;}
+#jwg-toast .t-icon{flex:none;font-size:20px;line-height:1}
+#jwg-toast .t-msg{flex:1;min-width:0}
+#jwg-toast .t-close{flex:none;cursor:pointer;opacity:.85;font-size:18px;padding:0 4px}
+#jwg-toast .t-close:hover{opacity:1}
+
 #view-jwgscheduler #toast {
   position:fixed;top:24px;right:24px;z-index:9999;
   background:var(--dark);color:#fff;

@@ -184,10 +184,13 @@ let toastT;
 const TOAST_ICONS={success:"✓",error:"✕",info:"ℹ"};
 function toast(msg,type="success"){
   const el=document.getElementById("jwg-toast");
+  if(!el) return;
   el.className=type+" show";
   el.innerHTML=`<span class="t-icon">${TOAST_ICONS[type]||"✓"}</span><span class="t-msg">${msg}</span><span class="t-close" onclick="JWG.dismissToast()">✕</span>`;
   clearTimeout(toastT);
-  toastT=setTimeout(()=>dismissToast(),3200);
+  // A success can slide away on its own; a failure waits to be dismissed. At the
+  // kiosk a missed error means the stock counts are wrong and nobody knows.
+  if(type!=="error") toastT=setTimeout(()=>dismissToast(),3200);
 }
 function dismissToast(){
   const el=document.getElementById("jwg-toast");
@@ -3306,17 +3309,37 @@ async function kioskSetBackstock(itemId,val){
   }catch(e){toast("Failed to update backstock","error");console.error(e);renderInventoryPage();}
 }
 
-async function adjustInventory(itemId,delta){
+// The natural way to count stock is click-click-click, but each click used to wait
+// for its own round trip AND work out "current + 1" from the number as of that
+// click — so two or three clicks inside one trip all computed the same answer and
+// counting ten landed on four. Now the number moves immediately and a burst of
+// clicks collapses into one save of the final total.
+const _invSaveTimers={};
+function adjustInventory(itemId,delta){
   const item=INV.items.find(i=>i.id===itemId);
   if(!item)return;
+  const before=item.current_stock;
   const newCount=Math.max(0,item.current_stock+delta);
-  const newStatus=newCount===0?"out_of_stock":newCount<=item.min_threshold?"low":"in_stock";
-  try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:newCount,status:newStatus});
-    item.current_stock=newCount;
-    item.status=newStatus;
-    renderInventoryPage();
-  }catch(e){toast("Failed to update stock","error");console.error(e);}
+  item.current_stock=newCount;
+  item.status=newCount===0?"out_of_stock":newCount<=item.min_threshold?"low":"in_stock";
+  renderInventoryPage();                      // on screen at once, no waiting
+
+  clearTimeout(_invSaveTimers[itemId]);
+  _invSaveTimers[itemId]=setTimeout(async function(){
+    delete _invSaveTimers[itemId];
+    const total=item.current_stock, status=item.status;
+    try{
+      await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:total,status:status});
+    }catch(e){
+      // Put the number back rather than leave a count on screen the database
+      // never received — the office orders off these.
+      item.current_stock=before;
+      item.status=before===0?"out_of_stock":before<=item.min_threshold?"low":"in_stock";
+      renderInventoryPage();
+      toast("Couldn't save that count — check the Wi-Fi and try again","error");
+      console.error(e);
+    }
+  },450);
 }
 
 async function markOrdered(itemId){
