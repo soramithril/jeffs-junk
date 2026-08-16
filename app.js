@@ -357,6 +357,16 @@ function phoneSearchOr(q,col){
   }
   return parts.join('');
 }
+// A client record can hold several contact names and several emails, but every
+// search only ever read the FIRST of each — so the husband stored second on his
+// wife's record simply didn't exist to the app, and staff made a duplicate.
+// names_search / emails_search are generated columns holding all of them (v562),
+// the same trick phone_digits uses above. Only used on the clients table.
+function nameEmailSearchOr(q){
+  var s=_orSafe(q);
+  if(!s) return '';
+  return ',names_search.ilike.%'+s+'%,emails_search.ilike.%'+s+'%';
+}
 
 // ── Phone number auto-formatting (705-555-5555) ──────────────────────────
 function formatPhoneInput(e) {
@@ -1196,6 +1206,22 @@ async function delClient(cid) {
   if(r.data && r.data.length){
     toast('⚠ Client has linked job '+r.data[0].job_id+' — delete or reassign jobs first.','error');
     return;
+  }
+  // Also look for work attached by NAME. Jobs booked by typing the name never got a
+  // customer number, so a real customer's profile could read "no jobs recorded",
+  // this guard agreed, and the record was deleted with its email history.
+  var _cl = clients.find(function(c){ return c.cid===cid; });
+  var _names = _cl ? (_cl.names&&_cl.names.length?_cl.names:[_cl.name||'']).filter(Boolean) : [];
+  if(_names.length){
+    var rN = await db.from('jobs').select('job_id').is('client_cid',null).in('name',_names).limit(1);
+    if(rN.error){
+      toast('⚠ Could not check this client for jobs booked under their name: '+rN.error.message+' — nothing deleted','error');
+      return;
+    }
+    if(rN.data && rN.data.length){
+      toast('⚠ Job '+rN.data[0].job_id+' is booked under this name but not attached to the file — open it and attach it before deleting.','error');
+      return;
+    }
   }
   // Their email archive goes too: quote_correspondence is removed with the client by the
   // database (ON DELETE CASCADE). Say so, with the number, instead of "cannot be undone".
@@ -2140,6 +2166,33 @@ async function saveClient(e){
   // Primary address for backward compat
   var primaryAddr=addresses[0];
   var fullAddr=primaryAddr.street?(primaryAddr.street+', '+primaryAddr.city+', ON, Canada'):(primaryAddr.city+', ON, Canada');
+
+  // Is this person already in here? Adding checked the name was present and the
+  // referral was chosen, and never asked this — so same name, same phone minted a
+  // second record. 201 duplicates had to be hand-merged in August and 117 names
+  // still sit on more than one record. The Team page got this guard in v559.
+  if(!editClientId){
+    var _digits=function(s){ return String(s||'').replace(/\D/g,''); };
+    var _newDigits=phones.map(function(p){ return _digits(p.num); }).filter(function(d){ return d.length>=7; });
+    var _lowNames=names.map(function(n){ return n.toLowerCase(); });
+    var _dupe=clients.find(function(c){
+      var cNames=(c.names&&c.names.length?c.names:[c.name||'']).map(function(n){ return String(n).toLowerCase(); });
+      if(cNames.some(function(n){ return n && _lowNames.indexOf(n)!==-1; })) return true;
+      if(!_newDigits.length) return false;
+      var cDigits=(c.phones&&c.phones.length?c.phones.map(function(p){return _digits(p.num);}):[_digits(c.phone)]);
+      return cDigits.some(function(d){ return d.length>=7 && _newDigits.indexOf(d)!==-1; });
+    });
+    if(_dupe){
+      var _dupPhone=(_dupe.phones&&_dupe.phones.length?_dupe.phones[0].num:_dupe.phone)||'no phone on file';
+      if(confirm('Looks like this person is already in the system:\n\n'
+        +(_dupe.name||'')+'  ('+_dupe.cid+', '+_dupPhone+')\n\n'
+        +'OK — open their file instead\nCancel — add them anyway as a separate customer')){
+        closeM('client-modal');
+        openClientDetail(_dupe.cid);
+        return;
+      }
+    }
+  }
 
   // New clients take their number from the same DB counter the booking form uses —
   // one minting authority, so two paths can never hand out the same CL number.
@@ -5692,8 +5745,10 @@ async function clientSearchLive(q){
   box.style.display='block';
   box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
   try{
+    // Address included: contractors are often known by their job site rather than
+    // by name, and this picker is the one used while the customer is on the phone.
     var r=await db.from('clients').select(CLIENT_LIST_COLS)
-      .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
+      .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Search error: '+r.error.message+'</div>';return;}
     if(!r.data||!r.data.length){box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found for "'+q+'"</div>';return;}
@@ -5723,7 +5778,7 @@ async function globalSearchLive(q){
   box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching…</div>';
   try {
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
-      .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
+      .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
       .order('name').limit(6);
     var jobsP = db.from('jobs').select('job_id,name,service,date,business_name,client_cid,address,city')
       .or('job_id.ilike.%'+_orSafe(q)+'%,name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'))
@@ -6417,7 +6472,7 @@ async function loadClientsPage() {
     if(q) {
       // Search: single query, no batching (avoids running the same search N times)
       var cqSearch = db.from('clients').select(CLIENT_LIST_COLS).order('name',{ascending:true})
-        .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone'));
+        .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q));
       var rSearch = await cqSearch;
       allClientRows = rSearch.data || [];
     } else {
@@ -6552,10 +6607,38 @@ async function loadClientsPage() {
 function renderClientsList(list) {
   var el = document.getElementById('clients-list');
   if (!list.length) {
-    el.innerHTML = '<div class="empty-state"><div class="ei">👥</div><h3>'+(clientSearchF?'No clients found':'No clients yet')+'</h3></div>';
+    // A bare "No clients found" sent people away believing a real customer wasn't
+    // in the system — most often because the Show tab quietly hides blacklisted
+    // people, or a filter is still on from earlier. Name whatever is actually
+    // hiding them, and offer one button that clears the lot.
+    var why = [];
+    if(clientSearchF) why.push('your search for "'+escHtml(clientSearchF)+'"');
+    if(clientShow==='blacklist')        why.push('the Blacklisted tab');
+    else if(clientShow==='contractors') why.push('the Contractors tab');
+    else if(clientShow==='dormant')     why.push('the Dormant tab');
+    else                                why.push('the Active customers tab (blacklisted customers are hidden here — check the Blacklisted tab)');
+    if(clientLastBinF) why.push('the "no bin in '+LAST_BIN_LABELS[clientLastBinF]+'" filter');
+    var f=clientRangeFilter;
+    if(f.binMin||f.binMax||f.junkMin||f.junkMax) why.push('the job-count filter');
+    el.innerHTML = '<div class="empty-state"><div class="ei">👥</div>'
+      + '<h3>'+(clientSearchF?'Nobody matches that':'Nothing to show here')+'</h3>'
+      + '<p style="max-width:44ch;margin:6px auto 0;color:var(--muted);font-size:13px;line-height:1.5">Hiding people right now: '+why.join(', ')+'.</p>'
+      + '<button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="clientsClearAllFilters()">Show everyone again</button>'
+      + '</div>';
     return;
   }
   el.innerHTML = '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+}
+// One button back to a clean list — four separate things can hide a customer and
+// there was no single control that let them all go.
+function clientsClearAllFilters(){
+  clientSearchF = '';
+  var s=document.getElementById('clients-search-input'); if(s) s.value='';
+  clientLastBinF = '';
+  var lb=document.getElementById('client-lastbin'); if(lb) lb.value='';
+  var everyoneTab=document.getElementById('cshow-everyone');
+  setClientShow('everyone', everyoneTab);   // re-renders
+  clearClientRangeFilters();                // clears the range panel + re-renders
 }
 function makeClientCard(row){
   var today6mo = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
@@ -6636,10 +6719,26 @@ async function openClientDetail(cid){
   var clientJobs = (rjCid.data||[]).map(dbToJob);
   clientJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
 
-  var bins = clientJobs.filter(function(j){return j.service==='Bin Rental';}).length;
-  var junk = clientJobs.filter(function(j){return j.service==='Junk Removal';}).length;
-  var furn = clientJobs.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';}).length;
-  var loyalty = clientJobs.length===0?'New Client':clientJobs.length===1?'🆕 New':clientJobs.length<=3?'🔁 Repeat Customer':'⭐ Frequent Customer';
+  // Counts skip cancelled work, matching the card on the Clients page. They used to
+  // disagree — the card said "3 jobs", opening the profile said "5 Jobs" for the
+  // same person — which taught people not to trust either number.
+  var liveJobs = clientJobs.filter(function(j){return j.status!=='Cancelled';});
+  var bins = liveJobs.filter(function(j){return j.service==='Bin Rental';}).length;
+  var junk = liveJobs.filter(function(j){return j.service==='Junk Removal';}).length;
+  var furn = liveJobs.filter(function(j){return j.service==='Furniture Pickup'||j.service==='Furniture Delivery';}).length;
+  var loyalty = liveJobs.length===0?'New Client':liveJobs.length===1?'🆕 New':liveJobs.length<=3?'🔁 Repeat Customer':'⭐ Frequent Customer';
+  // "Do they still have a bin out?" is the most common question asked of this
+  // screen and needed a scan down the table for green rows. Say it in a line.
+  var onRent = clientJobs.filter(function(j){
+    return j.service==='Bin Rental' && j.status!=='Cancelled' && j.binInstatus==='dropped';
+  });
+  var onRentHtml = onRent.length ? '<div style="margin:0 0 12px;padding:10px 14px;border-radius:9px;background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.35);font-size:13.5px;font-weight:600;color:var(--text)">'
+    + '🚛 On rent now: ' + onRent.map(function(j){
+        return escHtml((j.binSize||'bin')+(j.binBid?' #'+j.binBid:''))
+          + (j.address?' at '+escHtml(String(j.address).split(',')[0]):'')
+          + (j.binDropoff?' since '+fd(j.binDropoff):'');
+      }).join(' · ')
+    + '</div>' : '';
   document.getElementById('cdet-ttl').textContent = cl.name;
   document.getElementById('cdet-crumb').textContent = 'Clients › '+(loyalty.replace(/[^\w\s]/g,'').trim()||'Profile');
   var jobRows = clientJobs.map(function(j){
@@ -6648,12 +6747,20 @@ async function openClientDetail(cid){
     if(j.service==='Bin Rental'){
       // Cancelled outranks drop status — a cancelled rental must never read as "Pending"
       dropInfo=j.status==='Cancelled'?'<span style="font-size:11px;color:#dc3545;font-weight:700">⚪ Cancelled</span>':j.binInstatus==='pickedup'?'<span style="font-size:11px;color:var(--muted)">✔ Picked Up</span>':j.binInstatus==='dropped'?'<span style="font-size:11px;color:var(--accent)">🚛 Dropped</span>':'<span style="font-size:11px;color:var(--muted)">⏳ Pending</span>';
+    } else if(j.status==='Cancelled'){
+      // Only bins carried this tag, so a cancelled junk or furniture job read as
+      // work that actually happened (Kelly's Aug 11 note, other half of it).
+      dropInfo='<span style="font-size:11px;color:#dc3545;font-weight:700">⚪ Cancelled</span>';
     }
-    return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\',\''+cid+'\')" style="cursor:pointer">'
+    // Contractors are the heaviest renters and every row looked identical without
+    // the address — "14 yard, Jul 12, Dropped" could be any of their sites.
+    var addrCell = j.address ? escHtml(String(j.address).split(',')[0]) + (j.city?' <span style="color:var(--muted)">'+escHtml(j.city)+'</span>':'') : '<span style="color:var(--muted)">—</span>';
+    var rowStyle = j.status==='Cancelled' ? 'cursor:pointer;opacity:.6' : 'cursor:pointer';
+    return '<tr onclick="closeM(\'client-detail-modal\');openDetail(\''+j.id+'\',\''+cid+'\')" style="'+rowStyle+'">'
       +'<td>'+jid(j.id,j.service)+'</td>'
       +'<td>'+sb(j.service)+binInfo+'</td>'
       +'<td>'+fd(j.date)+'</td>'
-      
+      +'<td style="font-size:12px">'+addrCell+'</td>'
       +'<td>'+dropInfo+'</td>'
       +'</tr>';
   }).join('');
@@ -6689,7 +6796,8 @@ async function openClientDetail(cid){
     +(furn?'<span class="client-stat cs-furn">🛋️ '+furn+' Furn</span>':'')
     +'<span style="font-size:12px;color:var(--muted)">'+loyalty+'</span>'
     +'</div>'
-    +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Bin Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
+    +onRentHtml
+    +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +renderClientQuoteHistory(cl.cid)
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
@@ -6709,7 +6817,7 @@ function renderClientQuoteHistory(cid){
     .sort(function(a,b){return (b.sent_at||'').localeCompare(a.sent_at||'');});
   var rows;
   if(!quotes.length){
-    rows = '<p style="font-size:13px;color:var(--muted);margin:0">No emailed quotes yet — quotes sent from the app will appear here.</p>';
+    rows = '<p style="font-size:13px;color:var(--muted);margin:0">Nothing sent yet — every email sent from the app (confirmations, quotes, cancellations) is filed here.</p>';
   } else {
     rows = '<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Sent by</th><th>Service</th><th>Subject</th><th>To</th><th></th></tr></thead><tbody>'
       + quotes.map(function(q){
@@ -6728,7 +6836,9 @@ function renderClientQuoteHistory(cid){
         }).join('')
       + '</tbody></table></div>';
   }
-  return '<div class="detail-section"><div class="detail-section-title">'+lineIcon('email',14)+' Quote History</div>'+rows+'</div>';
+  // "Quote History" hid every confirmation and cancellation notice too, so nobody
+  // checking "did we send her the drop-off email?" had any reason to look here.
+  return '<div class="detail-section"><div class="detail-section-title">'+lineIcon('email',14)+' Emails sent to this client</div>'+rows+'</div>';
 }
 
 function toggleQuoteBody(id){
@@ -10225,7 +10335,24 @@ async function saveJob(e){
 
   // Auto-create client record if none selected
   if(!cid && job.name){
-    var exists = clients.some(function(c){return c.name.toLowerCase()===job.name.toLowerCase();});
+    // Typing a repeat customer's name instead of clicking the search result used
+    // to leave the job attached to NOBODY: the name matched, so no client was
+    // created, and nothing linked it either. The job saved fine and looked fine,
+    // but the customer's profile never showed it and emails sent from it were
+    // never filed to their record. 39 jobs were in that state when this was found.
+    // Same match the Clients-page card counter already assumes: link it.
+    var _match = clients.find(function(c){
+      if(c.name && c.name.toLowerCase()===job.name.toLowerCase()) return true;
+      return (c.names||[]).some(function(n){ return String(n).toLowerCase()===job.name.toLowerCase(); });
+    });
+    var exists = !!_match;
+    if(exists){
+      cid = _match.cid;
+      job.clientId = cid;
+      _selectedClientObj = _match;
+      var _sel=document.getElementById('f-client-select'); if(_sel) _sel.value = cid;
+      toast('Attached to '+(_match.name||cid)+'.');
+    }
     if(!exists){
       // Mint new client ID atomically via Postgres sequence — prevents two parallel saves from minting the same cid
       var cidR = await db.rpc('next_client_cid');
@@ -13114,8 +13241,12 @@ async function filterMergeList(which) {
   drop.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching...</div>';
 
   try {
+    // Merging duplicates is exactly when you need the best search — you're hunting
+    // two slightly different records of one person — and this was the weakest one
+    // in the app: name and primary phone, in the exact stored format. Same clause
+    // the Clients page uses, digit-tolerant phone matching included.
     var r = await db.from('clients').select(CLIENT_LIST_COLS)
-      .or('name.ilike.%' + _orSafe(q) + '%,phone.ilike.%' + _orSafe(q) + '%')
+      .or('name.ilike.%' + _orSafe(q) + '%,business_name.ilike.%' + _orSafe(q) + '%,phone.ilike.%' + _orSafe(q) + '%,email.ilike.%' + _orSafe(q) + '%,address.ilike.%' + _orSafe(q) + '%,city.ilike.%' + _orSafe(q) + '%' + phoneSearchOr(q,'phone') + nameEmailSearchOr(q))
       .order('name').limit(15);
 
     if (!r.data || !r.data.length) {

@@ -658,7 +658,10 @@
         <div class="atabs-wrap" id="atabs-cshow" style="position:relative;">
           <div class="atabs-highlight" id="atabs-cshow-hl"></div>
           <div class="atabs-track">
-            <button class="atab active" id="cshow-everyone"    onclick="setClientShow('everyone',this)">Everyone</button>
+            <!-- "Active customers", not "Everyone": this tab filters out blacklisted
+                 people, so a real customer could be on the dashboard and on their own
+                 jobs while searching here said nothing was found. -->
+            <button class="atab active" id="cshow-everyone"    onclick="setClientShow('everyone',this)" title="Everyone except blacklisted customers">Active customers</button>
             <button class="atab"        id="cshow-contractors" onclick="setClientShow('contractors',this)">🏗️ Contractors</button>
             <button class="atab"        id="cshow-dormant"     onclick="setClientShow('dormant',this)">😴 Dormant</button>
             <button class="atab"        id="cshow-blacklist"   onclick="setClientShow('blacklist',this)">🚫 Blacklisted</button>
@@ -1781,7 +1784,7 @@
 
       <div class="form-group" style="margin-bottom:14px;position:relative">
         <label>Search Existing Client</label>
-        <input type="text" id="f-client-search" placeholder="Type name or phone..." autocomplete="off"
+        <input type="text" id="f-client-search" placeholder="Name, phone, business, address..." autocomplete="off"
           oninput="clientSearchDebounce(this.value)"
           style="width:100%;box-sizing:border-box"
           onfocus="var _r=document.getElementById('f-client-results');if(!this.value.trim())_r.innerHTML='';_r.style.display=_r.innerHTML?'block':'none'"
