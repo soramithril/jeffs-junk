@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=562">
+<link rel="stylesheet" href="style.css?v=563">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -330,10 +330,7 @@
             <div id="workload-header" class="card-head" style="color:#fff">Today's Jobs</div>
             <span id="dash-today-jobcount" style="display:none;align-items:center;background:rgba(255,255,255,.22);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:21px;line-height:1;padding:3px 13px;border-radius:99px;letter-spacing:1px;white-space:nowrap"></span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <button id="tj-cols-toggle" class="btn btn-ghost btn-sm" onclick="toggleTjCols()" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff">View: One list</button>
-            <button class="btn btn-ghost btn-sm" onclick="go('jobs')" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff">All Jobs →</button>
-          </div>
+          <button class="btn btn-ghost btn-sm" onclick="go('jobs')" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff">All Jobs →</button>
         </div>
         <div id="dash-today-count" style="font-size:12px;color:var(--muted);padding:11px 20px 0;"></div>
         <div id="dash-today-jobs" style="padding:4px 0"></div>
@@ -1577,6 +1574,11 @@
     </div>
     <div class="bin-panel">
       <div class="bin-panel-hdr"><span>🚛 Active Bins Out</span><span class="cnt" id="bin-cnt">0</span></div>
+      <!-- Find one bin without reading all of them (see _binMapFilter) -->
+      <div style="padding:8px 10px;border-bottom:1px solid var(--border)">
+        <input id="bin-map-search" type="text" oninput="_binMapFilter()" placeholder="Find a bin number, customer or address…" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12.5px;font-family:inherit;background:var(--surface);color:var(--text)">
+        <div id="bin-map-search-note" style="display:none;font-size:11px;color:var(--muted);margin-top:5px"></div>
+      </div>
       <div id="bin-rows"></div>
     </div>
   </div>
@@ -2800,7 +2802,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=562"></script>
+<script src="app.js?v=563"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

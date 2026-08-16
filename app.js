@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '562';
+var APP_VERSION = '563';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3444,28 +3444,6 @@ function _cityColor(city){
 }
 
 // Refresh just the Today's Jobs panel for whatever date the picker is on
-// Drops and pickups: one list, or side by side. Kelly asked for the stacked list
-// back after the automatic two-column split cut names off (2026-08-04), so rather
-// than pick for everyone it's hers to set, remembered in this browser. One list is
-// the default — the layout she said she preferred.
-function tjColsOn(){ return localStorage.getItem('jjTjCols') === 'two'; }
-function tjColsClass(){ return tjColsOn() ? 'tj-cols two' : 'tj-cols'; }
-function applyTjCols(){
-  var on = tjColsOn();
-  document.querySelectorAll('.tj-cols').forEach(function(el){ el.classList.toggle('two', on); });
-  var b = document.getElementById('tj-cols-toggle');
-  if(b){
-    b.textContent = on ? 'View: Side by side' : 'View: One list';
-    b.title = on ? 'Switch to one list — drops and pickups stacked, full width'
-                 : 'Switch to side by side — drops on the left, pickups on the right';
-  }
-}
-function toggleTjCols(){
-  localStorage.setItem('jjTjCols', tjColsOn() ? 'one' : 'two');
-  applyTjCols();
-  toast(tjColsOn() ? 'Drops and pickups side by side.' : 'Drops and pickups in one list.');
-}
-
 async function refreshDashJobs(){
   var dp = document.getElementById('dash-bin-date');
   var dateS = dp && dp.value ? dp.value : todayStr();
@@ -3617,17 +3595,22 @@ async function refreshDashJobs(){
       }).join('')+'</div>';
   }
 
-  // Bins are ~88% of the day and split evenly between the two legs, so they take
-  // the side-by-side columns; everything else runs a median of 3 rows and reads
-  // better as one strip underneath. Wrapper only when there ARE bins, so an
-  // empty day still falls through to the empty state below.
-  var binCols = makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}))
-    +makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}));
-  var restCats = makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
-    +makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24}))
-    +makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24}))
-    +makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}));
-  var html = (binCols ? '<div class="'+tjColsClass()+'">'+binCols+'</div>' : '') + restCats;
+  // The whole day runs in pairs (v563): bin drop-offs beside pickups, junk beside
+  // furniture, quotes beside extra jobs. Each pair is its own row, and a pair with
+  // only one side filled spans the full width via :only-child — so an empty half
+  // never sits there. A wrapper is only emitted when its pair has something in it,
+  // so an empty day still falls through to the empty state below.
+  function pair(a,b){ var h=a+b; return h ? '<div class="tj-cols">'+h+'</div>' : ''; }
+  var binCols = pair(
+    makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24})),
+    makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24})));
+  var restCats = pair(
+      makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'})),
+      makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24})))
+    + pair(
+      makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24})),
+      makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24})));
+  var html = binCols + restCats;
 
   // A newer click already went out while this one was fetching — its answer is the
   // one that belongs on screen, so drop this instead of overwriting the right day.
@@ -4294,13 +4277,18 @@ async function renderDash(bg){
   // Same split as refreshDashJobs: bins in the two columns, the rest as one
   // strip below. Both paths must match or the layout would jump when the date
   // picker moves off today.
-  var todayBinCols = makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}))
-    +makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}));
-  var todayRestCats = makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}))
-    +makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24}))
-    +makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24}))
-    +makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24}));
-  var todayHtml = (todayBinCols ? '<div class="'+tjColsClass()+'">'+todayBinCols+'</div>' : '') + todayRestCats;
+  // Same pairing as the picked-date path above — see the comment there.
+  function pairToday(a,b){ var h=a+b; return h ? '<div class="tj-cols">'+h+'</div>' : ''; }
+  var todayBinCols = pairToday(
+    makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24})),
+    makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24})));
+  var todayRestCats = pairToday(
+      makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'})),
+      makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24})))
+    + pairToday(
+      makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24})),
+      makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24})));
+  var todayHtml = todayBinCols + todayRestCats;
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
@@ -7444,8 +7432,33 @@ function geocode(addr,cb){
     .then(function(data){if(data&&data[0]){var r={lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)};geoCache[addr]=r;saveGeo();cb(r);}else{cb(null);}})
     .catch(function(){cb(null);});
 }
-function pinIcon(status){
-  var c=status==='Cancelled'?'#666666':'var(--accent)';
+// The bin's own number for the map panel — the job stores the internal bin id, the
+// label people actually say is on the bin record.
+function _mapBinLabel(j){
+  if(!j.binBid) return '';
+  var b=binItems.find(function(x){return x.bid===j.binBid;});
+  return (b&&b.num) ? b.num : j.binBid;
+}
+// Filter the panel by bin number, customer or address. There was no search here at
+// all, so finding one bin meant reading all 48 rows.
+function _binMapFilter(){
+  var q=((document.getElementById('bin-map-search')||{}).value||'').trim().toLowerCase();
+  var shown=0, rows=document.querySelectorAll('#bin-rows .bin-row');
+  rows.forEach(function(row){
+    var hit=!q || row.textContent.toLowerCase().indexOf(q)>=0;
+    row.style.display=hit?'':'none';
+    if(hit) shown++;
+  });
+  var note=document.getElementById('bin-map-search-note');
+  if(note){
+    note.textContent = q ? (shown+' of '+rows.length+' shown') : '';
+    note.style.display = q ? '' : 'none';
+  }
+}
+function pinIcon(status, overdue){
+  // Overdue pins go red so a lingering bin is visible on the map itself, not just
+  // in the list beside it.
+  var c=status==='Cancelled'?'#666666':(overdue?'#dc3545':'var(--accent)');
   var html='<div style="position:relative;width:30px;height:40px"><svg viewBox="0 0 30 40" width="30" height="40" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))"><path d="M15 0C6.7 0 0 6.7 0 15 0 25.5 15 40 15 40S30 25.5 30 15C30 6.7 23.3 0 15 0z" fill="'+c+'"/><circle cx="15" cy="15" r="7" fill="rgba(0,0,0,.2)"/></svg><div style="position:absolute;top:7px;left:7px;font-size:13px">🚛</div></div>';
   return L.divIcon({html:html,iconSize:[30,40],iconAnchor:[15,40],popupAnchor:[0,-42],className:''});
 }
@@ -7474,15 +7487,33 @@ async function renderMap(){
     return true;
   });
   document.getElementById('bin-cnt').textContent=binJobs.length;
+  // Overdue first, then soonest pickup — "what should have come back already?" was
+  // unanswerable here: rows came out in raw order and printed the pickup date in the
+  // same muted grey whether it was next week or three weeks ago. Matches the order
+  // the dashboard's Bins Out list already uses.
+  binJobs.sort(function(a,b){
+    var ao=(a.binPickup&&a.binPickup<today)?0:1, bo=(b.binPickup&&b.binPickup<today)?0:1;
+    if(ao!==bo) return ao-bo;
+    return String(a.binPickup||'9999').localeCompare(String(b.binPickup||'9999'));
+  });
   var rowsEl=document.getElementById('bin-rows');
   rowsEl.innerHTML=binJobs.length?binJobs.map(function(j){
     var ra=resolveAddr(j);
-    return '<div class="bin-row" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')">'
-    +'<div class="bin-row-name">'+j.name+'</div>'
+    // The bin number is the one thing a map is perfect for and it was nowhere on
+    // this panel, so "where is 14R-07?" couldn't be answered from the map at all.
+    var binNum=_mapBinLabel(j);
+    var overdue=!!(j.binPickup && j.binPickup<today);
+    var pickTxt = overdue
+      ? '<span style="font-size:11px;color:#dc3545;font-weight:700">Overdue — pickup was '+fd(j.binPickup)+'</span>'
+      : (j.binPickup?'<span style="font-size:11px;color:var(--muted)">Pickup: '+fd(j.binPickup)+'</span>'
+                    :'<span style="font-size:11px;color:#c2410c">No pickup booked</span>');
+    return '<div class="bin-row'+(overdue?' attn':'')+'" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')"'+(overdue?' style="border-left:3px solid #dc3545"':'')+'>'
+    +'<div class="bin-row-name">'+(binNum?'<span style="font-weight:800;color:var(--accent)">'+escHtml(binNum)+'</span> · ':'')+j.name+'</div>'
     +'<div class="bin-row-addr">'+(ra.display||'<span style="color:var(--red);font-size:11px">⚠ No address</span>')+'</div>'
-    +'<div class="bin-row-meta">'+(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')+(j.binPickup?'<span style="font-size:11px;color:var(--muted)">Pickup: '+fd(j.binPickup)+'</span>':'')+'</div>'
+    +'<div class="bin-row-meta">'+(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')+pickTxt+'</div>'
     +'</div>';}).join('')
     :'<div class="empty-state" style="padding:28px 16px"><div class="ei">🚛</div><h3>No active bins</h3><p>All bins are currently in the yard</p></div>';
+  _binMapFilter();   // re-apply whatever is typed in the search box
   if(!leafMap){
     leafMap=L.map('the-map',{center:[44.39,-79.69],zoom:10});
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',maxZoom:19}).addTo(leafMap);
@@ -7493,11 +7524,14 @@ async function renderMap(){
   var bounds=[];
   function addPin(j, geo) {
     var ra=resolveAddr(j);
-    var popup='<div class="p-id">'+j.id+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
+    var binNum=_mapBinLabel(j);
+    var isOverdue=!!(j.binPickup && j.binPickup<today);
+    var popup='<div class="p-id">'+j.id+(binNum?' · Bin '+escHtml(binNum):'')+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
-      +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'')+'</div>'
+      +(isOverdue?'<div style="font-size:11.5px;font-weight:700;color:#dc3545;margin-bottom:4px">Overdue — pickup was '+fd(j.binPickup)+'</div>':'')
+      +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(binNum?'<br>🗑 Bin '+escHtml(binNum):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'<br>⬆ No pickup booked')+'</div>'
       +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
-    var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
+    var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status,isOverdue)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
     marker.on('click',function(){highlightRow(j.id);});
     mapPins.push({id:j.id,marker:marker,lat:geo.lat,lng:geo.lng});bounds.push([geo.lat,geo.lng]);
   }
@@ -12572,7 +12606,6 @@ async function loadSignedInApp() {
   applyDeleteVisibility();
   applySettingsVisibility();
   trackPageView('dashboard');
-  applyTjCols();
   if(typeof refreshSuggBadge==='function') refreshSuggBadge();
   document.getElementById('login-screen').style.display = 'none';
   document.body.classList.add('signed-in');

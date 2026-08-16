@@ -2213,24 +2213,23 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
-/* Bin deliveries | pickups side by side — Kelly's choice now, not the screen's
-   (v562). It used to switch itself on at 1600px and clip customer names, because
-   the ROW never got narrower: the bin slot held a fixed 132px even when empty and
-   the buttons reserved 200px, leaving the name as the only thing able to shrink.
-   Two changes: the toggle above the list decides, and in side-by-side mode those
-   two give up their fixed widths and the row may wrap — so a tight row runs to two
-   lines instead of cutting the name off. Below 1100px it stays one list whatever
-   the toggle says. :only-child spans the full width when just one leg has jobs, so
-   an empty half never sits there. */
+/* Today's Jobs runs in two columns — bin drop-offs beside pickups, junk beside
+   furniture (v563; the one-list toggle is gone, Jake picked side by side).
+   The reason it used to clip customer names was never the columns, it was the ROW:
+   the bin slot held a fixed 132px even when empty and the buttons reserved 200px,
+   leaving the name as the only thing allowed to shrink. So the row is compact here
+   — those two give up their fixed widths and the row may wrap, running to two lines
+   instead of cutting the name off. Below 1100px it stacks: two columns of this on a
+   small laptop is unreadable. :only-child spans the full width when only one side
+   has jobs, so an empty half never sits there. */
 .tj-cols{display:grid;grid-template-columns:1fr;gap:0}
 @media(min-width:1100px){
-  .tj-cols.two{grid-template-columns:1fr 1fr;column-gap:14px}
-  .tj-cols.two>:only-child{grid-column:1/-1}
-  .tj-cols.two .tjr2{flex-wrap:wrap}
-  .tj-cols.two .tjr2-binslot{width:auto}
-  .tj-cols.two .tjr2-actions{min-width:0;margin-left:auto}
+  .tj-cols{grid-template-columns:1fr 1fr;column-gap:14px}
+  .tj-cols>:only-child{grid-column:1/-1}
+  .tj-cols .tjr2{flex-wrap:wrap}
+  .tj-cols .tjr2-binslot{width:auto}
+  .tj-cols .tjr2-actions{min-width:0;margin-left:auto}
 }
-@media(max-width:1099px){#tj-cols-toggle{display:none}}
 
 /* Sticky jump-to bar (dashboard) — status-pill row (v449 design refresh):
    surface tray, rounded pills, active pill goes solid green with a white
