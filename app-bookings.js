@@ -258,10 +258,13 @@ async function renderTodayBookings(){
   var list = r.data || [];
   var n = list.length;
 
+  // "Entered", not "Booked": this card is jobs TYPED IN on the date, whatever day
+  // they're scheduled for — it sits right under "Today's Jobs", which means the
+  // opposite thing, and the card's own empty state already said "entered".
   var titleEl = document.getElementById('dash-bookings-title');
-  if(titleEl) titleEl.textContent = isToday ? '📝 Booked Today' : '📝 Booked ' + dateLbl;
+  if(titleEl) titleEl.textContent = isToday ? '📝 Entered Today' : '📝 Entered ' + dateLbl;
   var countEl = document.getElementById('dash-bookings-count');
-  if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' booked ' + (isToday ? 'today' : 'on ' + dateLbl)) : '';
+  if(countEl) countEl.textContent = n ? (n + ' job' + (n===1?'':'s') + ' entered ' + (isToday ? 'today' : 'on ' + dateLbl)) : '';
   var chipEl = document.getElementById('dash-tab-n-bookings');
   if(chipEl) chipEl.textContent = n;
   // Email-still-to-send badge on the Booked Today pill — counts bookings whose

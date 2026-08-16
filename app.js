@@ -2571,6 +2571,7 @@ function jid(id,svc){return '<span class="'+jobIdCls(id,svc)+'">'+id+'</span>';}
 // ─── DASHBOARD ───
 function getWeekStart(offset){var d=new Date();d.setDate(d.getDate()-d.getDay()+(offset*7));d.setHours(0,0,0,0);return d;}
 // Shift the dashboard bin date picker by n days and refresh
+var _dashJobsTicket = 0;
 function shiftDashDate(n){
   var dp=document.getElementById('dash-bin-date');
   var base=dp&&dp.value?dp.value:todayStr();
@@ -3075,6 +3076,13 @@ function renderDashVehicleStatus(){
 
 function markVehicleNotOperational(vid){
   closeVehMenus();
+  // One click here writes an open-ended shop block that everyone sees — the fleet
+  // page, and Jeff's phone app — until somebody notices and undoes it. Every staff
+  // member has this menu on the dashboard, so it gets the same are-you-sure the
+  // other one-way actions get.
+  var _v=(typeof vehicles!=='undefined'&&vehicles)?vehicles.find(function(x){return x.id===vid;}):null;
+  var _vn=_v&&_v.name?_v.name:'this truck';
+  if(!confirm('Mark '+_vn+' not operational?\n\nIt shows as in the shop on the fleet page and in Jeff\'s app until someone marks it operational again.')) return;
   var today=todayStr();
   if(!vehBlocks[vid])vehBlocks[vid]={};
   vehBlocks[vid][today]={reason:'Service / Repair',notes:'Marked not operational from dashboard',openEnded:true,openFrom:today};
@@ -3316,6 +3324,10 @@ async function addNewUser(){
 async function renderDashMaintAlert(){
   // The old always-on bar is retired — full maintenance detail lives on the Vehicles page.
   var bar=document.getElementById('dash-maint-alert'); if(bar) bar.style.display='none';
+  // Trucks are admin work: the Vehicles page had zero office visits in three weeks,
+  // yet an oil change coming due opened a blocking popup for whoever loaded the
+  // dashboard next — usually Kelly, who can only click Got it. Admins only.
+  if(!canAccessAnalytics()) return;
   var mRes=await db.from('maintenance_schedules').select('*').in('status',['due','overdue']);
   var alerts=mRes.data||[];
   if(!alerts.length) return;
@@ -3393,6 +3405,11 @@ async function refreshDashJobs(){
   var wHdr = document.getElementById('workload-header');
   var dateLbl = isToday ? "TODAY'S JOBS" : "JOBS — " + new Date(dateS+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
   if(wHdr) wHdr.textContent = dateLbl;
+
+  // Arrowing through the week fires one of these per click and each paints whenever
+  // its answer lands. Out of order, the slower older request won — heading saying
+  // Wednesday over Tuesday's rows. Every run claims a ticket; only the newest paints.
+  var _myTicket = ++_dashJobsTicket;
 
   // Fetch jobs for the selected date
   // Furniture uses fb_date, Junk uses junk_date, Bin Rental uses bin_dropoff/bin_pickup, others use date
@@ -3517,6 +3534,8 @@ async function refreshDashJobs(){
         if(j.service!=='Extra Jobs') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
           : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">'+lineIcon('email',14)+' Email</button>';
+        // Print straight from the row — the morning's paperwork without opening each job.
+        btns+='<button class="djj-btn" title="Print the work order for this job" onclick="printJobForm(\''+j.id+'\',event)">'+lineIcon('print',14)+'</button>';
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
@@ -3538,6 +3557,10 @@ async function refreshDashJobs(){
     +makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24}))
     +makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}));
   var html = (binCols ? '<div class="'+tjColsClass()+'">'+binCols+'</div>' : '') + restCats;
+
+  // A newer click already went out while this one was fetching — its answer is the
+  // one that belongs on screen, so drop this instead of overwriting the right day.
+  if(_myTicket !== _dashJobsTicket) return;
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -3966,12 +3989,8 @@ async function renderDash(bg){
   // ── Skeleton loading: show placeholders while data loads (v18) ──
   var skTodayJobs=document.getElementById('dash-today-jobs');
   if(skTodayJobs) skTodayJobs.innerHTML=skeletonRows(4);
-  var skAttention=document.getElementById('dash-attention-list');
-  if(skAttention) skAttention.innerHTML=skeletonRows(2);
   var skBinsOut=document.getElementById('dash-bins-out-list');
   if(skBinsOut) skBinsOut.innerHTML=skeletonRows(3);
-  var skCallback=document.getElementById('dash-callback-list');
-  if(skCallback) skCallback.innerHTML=skeletonRows(3);
   var skBinSize=document.getElementById('dash-bin-by-size');
   if(skBinSize) skBinSize.innerHTML=skeletonCards(4);
 
@@ -4013,41 +4032,29 @@ async function renderDash(bg){
   updateDashDateLabel();
   renderGreeting();
 
-  // Parallel Supabase fetches
+  // Parallel Supabase fetches. Thirteen more used to ride along here — counts and
+  // price totals left behind by stat cards that were removed, including one that
+  // pulled the price of every unpaid job ever. Nothing read any of them, so the day
+  // list waited on answers that painted nothing. Only what's actually rendered now.
   var [
-    rTotal, rActive, rDone, rUnpaid, rMonthRev,
-    rTodayJobs, rWeekJobs, rWeekRev,
-    rBinCounts, rJunkCount, rFurnCount,
-    rOutstanding, rBinPickupsToday, rBinDropoffsToday,
+    rTodayJobs, rWeekJobs,
+    rBinPickupsToday, rBinDropoffsToday,
     rTomorrowJobs, rUnconfirmed14,
-    rTodayFurn, rTodayJunk,
-    rLastWeekJobs, rLastWeekRev, rSameDayLastWeek
+    rTodayFurn, rTodayJunk
   ] = await Promise.all([
-    db.from('jobs').select('*',{count:'exact',head:true}),
-    db.from('jobs').select('*',{count:'exact',head:true}).neq('status','Cancelled'),
-    db.from('jobs').select('*',{count:'exact',head:true}).eq('status','Cancelled'),
-    db.from('jobs').select('*',{count:'exact',head:true}).neq('paid','Paid').neq('status','Cancelled'),
-    db.from('jobs').select('price').gte('date',monthStart).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('date',todayS).neq('status','Cancelled').order('time'),
     db.from('jobs').select('*',{count:'exact',head:true}).gte('date',weekStartS).neq('status','Cancelled'),
-    db.from('jobs').select('price').gte('date',weekStartS).neq('status','Cancelled'),
-    db.from('jobs').select('bin_instatus,bin_size').eq('service','Bin Rental').eq('bin_instatus','dropped'),
-    db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',monthStart),
-    db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',monthStart),
-    db.from('jobs').select('price').neq('paid','Paid').neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
     // Tomorrow's jobs
     db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
-    // Bin Rentals with upcoming pickup + Furniture jobs with upcoming date — unconfirmed (for call-back list)
+    // Upcoming unconfirmed bin pickups + furniture — kept because it seeds jobs[]
+    // with rows the rest of the dashboard reads, even though the old call-back
+    // panel it used to draw is long gone from the page.
     db.from('jobs').select('*').in('service',['Bin Rental','Furniture Pickup']).gte('date',todayS).lte('date',cutoff14S).neq('status','Cancelled').eq('confirmed',false).order('date').order('time'),
     // Furniture/junk by their scheduled dates for today
     db.from('jobs').select('*').eq('service','Furniture Pickup').neq('status','Cancelled').or('fb_date.eq.'+todayS+',and(fb_date.is.null,date.eq.'+todayS+')'),
-    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote','Extra Jobs']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')'),
-    // Trend comparisons (v18)
-    db.from('jobs').select('*',{count:'exact',head:true}).gte('date',lastWeekStartS).lte('date',lastWeekEndS).neq('status','Cancelled'),
-    db.from('jobs').select('price').gte('date',lastWeekStartS).lte('date',lastWeekEndS).neq('status','Cancelled'),
-    db.from('jobs').select('*',{count:'exact',head:true}).eq('date',sameDayLastWeekS).neq('status','Cancelled')
+    db.from('jobs').select('*').in('service',['Junk Removal','Junk Quote','Extra Jobs']).neq('status','Cancelled').or('junk_date.eq.'+todayS+',and(junk_date.is.null,date.eq.'+todayS+')')
   ]);
 
   // Sidebar mini-stat: jobs this week
@@ -4202,6 +4209,8 @@ async function renderDash(bg){
         if(j.service!=='Extra Jobs') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
           : '<button class="djj-btn email" title="Send email" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">'+lineIcon('email',14)+' Email</button>';
+        // Print straight from the row — the morning's paperwork without opening each job.
+        btns+='<button class="djj-btn" title="Print the work order for this job" onclick="printJobForm(\''+j.id+'\',event)">'+lineIcon('print',14)+'</button>';
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
@@ -4226,50 +4235,15 @@ async function renderDash(bg){
 
   renderWillCallCard();
 
-  // ── CALL-BACK LIST — unconfirmed upcoming jobs ────────────
-  var callbackJobs = (rUnconfirmed14.data||[]).map(dbToJob);
-  callbackJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
-  var cbEl = document.getElementById('dash-callback-list');
-  if(cbEl){
-    if(!callbackJobs.length){
-      cbEl.innerHTML=emptyStateHTML('📞','All Confirmed','Every pickup and drop-off is confirmed. Nothing to call about.');
-    } else {
-      cbEl.innerHTML = callbackJobs.map(function(j){
-        var sd = jobSchedDate(j);
-        var isToday = sd===todayS;
-        var isTom   = sd===tomorrowS;
-        var dateLabel = isToday?'<span style="color:#dc3545;font-weight:700">TODAY</span>'
-          : isTom?'<span style="color:#e67e22;font-weight:700">Tomorrow</span>'
-          : fd(sd);
-        var isDelivery = j.service==='Furniture Delivery';
-        var cfmLabel = isDelivery?'Drop-Off':'Pickup';
-        return '<div style="padding:8px 10px;border:1px solid rgba(230,126,34,.3);border-left:3px solid #e67e22;border-radius:0 8px 8px 0;margin-bottom:6px;background:rgba(230,126,34,.04);">'
-          +'<div style="display:flex;align-items:center;gap:8px;">'
-            +'<div style="flex:1;min-width:0;cursor:pointer" onclick="openDetail(\''+j.id+'\')">'
-              +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-                +'<strong style="font-size:13px">'+j.name+'</strong>'
-                +dateLabel
-                +(j.phone?'<span style="font-size:11px;font-weight:600;color:var(--text)">'+j.phone+'</span>':'')
-              +'</div>'
-              +'<div style="font-size:11px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+j.id+(j.service?'<span style="margin-left:6px">'+j.service+'</span>':'')+'</div>'
-            +'</div>'
-            +'<div class="jdd-wrap" style="flex-shrink:0" onclick="event.stopPropagation()">'
-              +'<button class="jdd-btn" style="border-color:rgba(34,197,94,.3);color:var(--accent);font-size:11px;padding:4px 9px;background:rgba(34,197,94,.07)" onclick="toggleJdd(this.parentElement)">Confirm '+cfmLabel+' ▾</button>'
-              +'<div class="jdd-menu">'
-                +'<div class="jdd-item" onclick="confirmJob(\''+j.id+'\',event)">✅ Mark Confirmed</div>'
-                +'<div class="jdd-divider"></div>'
-                +'<div class="jdd-item" onclick="openDetail(\''+j.id+'\')">📋 Open Details</div>'
-                +(j.phone?'<div class="jdd-item" onclick="window.location=\'tel:\'+j.phone;event.stopPropagation()">'+lineIcon('call',13)+' '+j.phone+'</div>':'')
-              +'</div>'
-            +'</div>'
-          +'</div>'
-        +'</div>';
-      }).join('');
-    }
-  }
+  // Upcoming unconfirmed jobs — seeded into jobs[] for the rest of the dashboard.
+  // The call-back panel that used to be drawn from them was removed from the page
+  // long ago; the markup that built it was still running into a container that no
+  // longer exists, so it has gone too. Confirming now lives on the day rows and in
+  // the Needs You card.
+  (rUnconfirmed14.data||[]).map(dbToJob).forEach(function(j){
+    if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j);
+  });
 
-  // ── BINS NEEDING ATTENTION (merged overdue + long-out) ────
-  renderBinsAttention();
   renderWeekCal();
   renderDashBinsOut();
   renderPossibleJobs();
@@ -15042,6 +15016,21 @@ async function _addOfficeDriverCopies(pdfDoc, font, pos, labels, fontBold) {
     p.drawText(labels[which].toUpperCase() + ' COPY - ' + (which + 1) + ' of ' + labels.length,
       { x: pos.x, y: 792 - pos.y, size: 12, font: fontBold || font, color: black });
   });
+}
+
+// Print the right form for whatever the job is. Printing driver paperwork used to
+// mean opening each job, hunting Print Form among a dozen buttons, closing, and
+// finding your place in the list again — ten times on a heavy morning.
+function printJobForm(id, e){
+  if(e) e.stopPropagation();
+  var j = jobs.find(function(x){ return x.id===id; });
+  if(!j){ toast('Job not found'); return; }
+  if(j.service==='Bin Rental') printBinRental(id);
+  else if(j.service==='Junk Removal') printJunkRemoval(id);
+  else if(j.service==='Junk Quote') printJunkQuote(id);
+  else if(j.service==='Extra Jobs') printLandscaping(id);
+  else if(j.service==='Furniture Pickup') printFbPickup(id);
+  else toast('No printed form for '+(j.service||'this job')+'.');
 }
 
 // A long note doesn't fit the few placement lines the forms leave, and the crew
