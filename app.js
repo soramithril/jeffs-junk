@@ -10488,11 +10488,7 @@ async function delJob(id){
   if(j.notes) _what.push('notes');
   if(j.photos&&j.photos.length) _what.push(j.photos.length+' photo'+(j.photos.length===1?'':'s'));
   _what.push('its email history');
-  if(!confirm('Delete job '+j.id+' for '+(j.name||'this customer')+'?
-
-This is permanent and also removes '+_what.join(', ')+'.
-
-To take it off the schedule without losing it, use Postpone or Cancel instead.'))return;
+  if(!confirm('Delete job '+j.id+' for '+(j.name||'this customer')+'?\n\nThis is permanent and also removes '+_what.join(', ')+'.\n\nTo take it off the schedule without losing it, use Postpone or Cancel instead.'))return;
   // Snapshot bin state so we can restore if the DB delete fails
   var binStatusBefore = {};
   if(j.binBid){
@@ -10525,12 +10521,8 @@ async function cancelJob(id){
     return;
   }
   var _relNote = (j.service==='Bin Rental' && j.binBid)
-    ? '
-
-Bin '+j.binBid+' goes back to the yard and becomes available to book.' : '';
-  if(!confirm('Mark job '+j.id+' for '+(j.name||'this customer')+' as Cancelled?'+_relNote+'
-
-It stays in the records and can be reopened.'))return;
+    ? '\n\nBin '+j.binBid+' goes back to the yard and becomes available to book.' : '';
+  if(!confirm('Mark job '+j.id+' for '+(j.name||'this customer')+' as Cancelled?'+_relNote+'\n\nIt stays in the records and can be reopened.'))return;
   // Write ONLY the status. This used to call saveSingleJob, which upserts the whole job object
   // from memory — and a job opened from a list has no notes, items, internal notes or photos in
   // memory, so cancelling blanked them. See the rule at JOB_LIST_COLS.
