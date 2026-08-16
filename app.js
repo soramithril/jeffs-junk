@@ -1875,6 +1875,24 @@ function binIdleDays(b){
 }
 
 var _saveJobLock = false;
+// Saving can take a few seconds on a shaky connection (it quietly retries three
+// times), and the button used to sit there unchanged — so it read as though the
+// click hadn't registered and people clicked again, which was swallowed silently.
+function _setSaveJobLock(on){
+  _saveJobLock = on;
+  var b = document.getElementById('save-btn');
+  if(!b) return;
+  if(on){
+    if(!b.dataset.lbl) b.dataset.lbl = b.textContent;
+    b.textContent = 'Saving…';
+    b.disabled = true;
+    b.style.opacity = '.65';
+  } else {
+    if(b.dataset.lbl){ b.textContent = b.dataset.lbl; delete b.dataset.lbl; }
+    b.disabled = false;
+    b.style.opacity = '';
+  }
+}
 async function nextIdFromDb(svc) {
   // One shared database counter for every service; Extra Jobs has its own, carrying a
   // visible LAND- prefix zero-padded to 4 digits (LAND-0001). No local fallback — a
@@ -5906,10 +5924,46 @@ document.addEventListener('input',function(e){
   }
 });
 
+// A repeat contractor orders the same bin, the same length, the same side, every
+// couple of weeks — and picking their name filled the contact details but nothing
+// about the job, so all three got re-clicked from blank every time. This offers the
+// last one as a chip; it never fills anything on its own. Needs a real lookup: the
+// in-memory jobs list only holds today plus the twenty most recent, so a repeat
+// customer's last bin job usually isn't in it.
+async function _offerLastBinSetup(cid){
+  var box=document.getElementById('f-last-bin-chip');
+  if(!box) return;
+  box.style.display='none'; box.innerHTML='';
+  if(!cid) return;
+  var r=await db.from('jobs')
+    .select('bin_size,bin_duration,bin_side,bin_dropoff,date')
+    .eq('client_cid',cid).eq('service','Bin Rental').neq('status','Cancelled')
+    .not('bin_size','is',null)
+    .order('bin_dropoff',{ascending:false}).limit(1);
+  if(r.error || !r.data || !r.data.length) return;
+  var p=r.data[0];
+  if(!p.bin_size) return;
+  var bits=[p.bin_size];
+  if(p.bin_duration) bits.push(p.bin_duration+' days');
+  if(p.bin_side) bits.push(p.bin_side+' side');
+  box.innerHTML='<button type="button" class="btn btn-ghost btn-sm" style="white-space:normal;text-align:left"'
+    +' onclick="_useLastBinSetup(\''+encodeURIComponent(p.bin_size)+'\',\''+encodeURIComponent(p.bin_duration||'')+'\',\''+encodeURIComponent(p.bin_side||'')+'\')">'
+    +'↺ Last time: '+escHtml(bits.join(' · '))+' — use same</button>';
+  box.style.display='';
+}
+function _useLastBinSetup(size, dur, side){
+  size=decodeURIComponent(size); dur=decodeURIComponent(dur); side=decodeURIComponent(side);
+  if(size && typeof initBinPicker==='function') initBinPicker('', size);
+  if(dur && typeof setBinDuration==='function'){ window._binPresetDays=null; setBinDuration(dur); }
+  if(side){ var s=document.getElementById('f-bside'); if(s) s.value=side; }
+  toast('Filled in from their last rental — change anything that\'s different.');
+}
+
 function fillClientFromSelect(cid){
   if(!cid) return;
   var cl=clients.find(function(c){return c.cid===cid;});
   if(!cl) return;
+  _offerLastBinSetup(cid);
   // Populate multi-name field
   var names=cl.names&&cl.names.length?cl.names:[cl.name||''];
   document.getElementById('f-names-wrap').innerHTML=names.map(function(n){return _jobNameRow(n);}).join('');
@@ -8551,6 +8605,27 @@ function clearErr(fieldId){
   if(el)  { el.classList.remove('field-error'); }
   if(msg) { msg.classList.remove('show'); }
 }
+// Ask before throwing away a part-typed booking. Returns true if it's OK to close.
+// Only speaks up when something worth losing has been entered, so the empty-form
+// case still closes instantly.
+function closeJobModalGuard(){
+  var typed = ['f-addr','f-city','f-notes','f-price','f-bdrop','f-junk-date','f-fb-date']
+    .some(function(id){ var el=document.getElementById(id); return el && el.value && el.value.trim(); });
+  if(!typed){
+    var n=document.querySelector('#f-names-wrap .f-name-inp');
+    typed = !!(n && n.value && n.value.trim());
+  }
+  if(!typed) return true;
+  return confirm('Close without saving?\n\nEverything typed on this booking will be lost.');
+}
+
+// The ✕ and Cancel go through here, not closeM — saving also closes the form, and
+// being asked "close without saving?" straight after a successful save is nonsense.
+function closeJobModal(){
+  if(!closeJobModalGuard()) return;
+  closeM('job-modal');
+}
+
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
 function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
@@ -8562,6 +8637,9 @@ document.addEventListener('keydown',function(e){
       if(last.id==='bin-avail-warning-modal' && _binAvailWarningResolver){
         resolveBinAvailWarning(false); return;
       }
+      // The booking form is five minutes of a phone call. One stray Escape used to
+      // bin all of it with nothing asked and no way back.
+      if(last.id==='job-modal' && !closeJobModalGuard()) return;
       last.classList.remove('open');
       // Only release body lock if no other overlays remain open (preserves stacked-modal scroll lock)
       if(!document.querySelectorAll('.modal-overlay.open').length){
@@ -9317,8 +9395,17 @@ function _showValidationErrorModal(errs, focusFieldId, opts){
     modal.classList.remove('open');
     if(focusFieldId){
       var el = document.getElementById(focusFieldId);
+      // A hidden input has no position on the page, so scrolling to it did nothing
+      // and left people hunting. Fall back to whatever visible block contains it.
+      if(el && el.type === 'hidden') el = el.closest('.form-group') || el.parentElement;
       if(el){
         if(el.scrollIntoView) el.scrollIntoView({behavior:'smooth', block:'center'});
+        // Flash it so the eye lands in the right place — same treatment "Change job
+        // type" already uses on the service picker.
+        el.style.transition = 'background .25s';
+        var _bg = el.style.backgroundColor;
+        el.style.backgroundColor = 'rgba(220,53,69,.12)';
+        setTimeout(function(){ el.style.backgroundColor = _bg; }, 900);
         var target = (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')
           ? el : el.querySelector('input,select,textarea');
         if(target) setTimeout(function(){ try{target.focus();}catch(e){} }, 300);
@@ -9330,17 +9417,30 @@ function _showValidationErrorModal(errs, focusFieldId, opts){
 }
 window._showValidationErrorModal = _showValidationErrorModal;
 
+// The form is hidden by fading, not removed, so it keeps its scroll position —
+// and finishing a booking always leaves you at the bottom by the Save button. The
+// next New Job then opened on the Wrap-Up section instead of the service picker.
+function _resetJobModalScroll(){
+  var m=document.querySelector('#job-modal .modal');
+  if(m) m.scrollTop=0;
+  var o=document.getElementById('job-modal');
+  if(o) o.scrollTop=0;
+}
+
 function newJob(){
   editId=null;
   _selectedClientObj=null;
   window._binPresetDays=null;
+  _resetJobModalScroll();
   document.getElementById('modal-ttl').textContent='New Job';document.getElementById('save-btn').textContent='Save Job';
   setFormSvc('');document.getElementById('f-status').value='';
   document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
   document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
   document.getElementById('f-addr').value='';document.getElementById('f-city').value='';
-  var now=new Date();document.getElementById('f-date').value=now.toISOString().split('T')[0];document.getElementById('f-time').value=now.toTimeString().slice(0,5);
+  // todayStr() is local. toISOString() is UTC, so after ~8pm it handed back
+  // TOMORROW — a booking taken in the evening quietly landed on the wrong day.
+  var now=new Date();document.getElementById('f-date').value=todayStr();document.getElementById('f-time').value=now.toTimeString().slice(0,5);
   document.getElementById('f-price').value='';document.getElementById('f-paid').value='Unpaid';document.getElementById('f-paymethod').value='';document.getElementById('f-referral').value='';var qaiC=document.getElementById('f-quote-amount');if(qaiC)qaiC.value='';
   var fjqC=document.getElementById('f-junk-quoted');if(fjqC)fjqC.value='';
   var fjaC=document.getElementById('f-junk-actual');if(fjaC)fjaC.value='';
@@ -9643,6 +9743,7 @@ function realName(j){
 }
 async function openEdit(id){
   if(!mGuard())return;
+  _resetJobModalScroll();
   // Fetch the row fresh — the local cache can be stale (refresh pauses while modals are
   // open), and saving a stale form full-row silently reverts another user's changes.
   var fr=await db.from('jobs').select('*').eq('job_id', id).single();
@@ -9827,7 +9928,7 @@ function changeJobType(id){
 async function saveJob(e){
   if(e && e.preventDefault) e.preventDefault();
   if(_saveJobLock){ console.warn("saveJob already running"); return; }
-  _saveJobLock = true;
+  _setSaveJobLock(true);
   try {
 
   // Clear error banner
@@ -9860,17 +9961,43 @@ async function saveJob(e){
   if(landscapeNoDate) date='';
   else if(svc==='Extra Jobs' && !date) date=todayStr();
 
+  // The date that matters is the one on screen for the chosen service, not the
+  // hidden f-date. Checking the hidden one meant a booking with the visible date
+  // box left blank saved silently onto TODAY, and — when it did complain — pointed
+  // at a field with no position on screen, so nothing turned red, "OK, fix it"
+  // scrolled nowhere, and typing a date anywhere visible never satisfied it.
+  var DATE_FIELD_BY_SVC = {
+    'Bin Rental':        {id:'f-bdrop',     label:'Drop-off Date'},
+    'Junk Removal':      {id:'f-junk-date', label:'Job Date'},
+    'Junk Quote':        {id:'f-junk-date', label:'Job Date'},
+    'Extra Jobs':        {id:'f-junk-date', label:'Job Date'},
+    'Furniture Pickup':  {id:'f-fb-date',   label:'Pickup Date'},
+    'Furniture Delivery':{id:'f-fb-date',   label:'Delivery Date'}
+  };
+  var dateField = DATE_FIELD_BY_SVC[svc] || null;
+  var visibleDateEl = dateField ? document.getElementById(dateField.id) : null;
+  var visibleDate = visibleDateEl ? visibleDateEl.value : '';
+  // The saved date follows what was typed on screen, so the job lands on that day
+  // instead of on whatever "now" was when the form opened.
+  if(visibleDate) date = visibleDate;
+
   // Clear previous field errors
-  ['f-svc','f-names','f-date','f-referral','f-addr','f-city'].forEach(clearErr);
+  ['f-svc','f-names','f-date','f-referral','f-addr','f-city','f-bdrop','f-junk-date','f-fb-date'].forEach(clearErr);
 
   // Validate and collect errors
   var errs = [];
   var firstErrField = null;
   if(!svc)      { showErr('f-svc');      errs.push('Service type is required — choose Bin Rental, Junk Removal, etc.'); if(!firstErrField) firstErrField='f-svc'; }
   if(!names.length && svc!=='Extra Jobs')  { showErr('f-names');     errs.push('At least one contact name is required.'); if(!firstErrField) firstErrField='f-names-wrap'; }
-  if(!date && !landscapeNoDate) { showErr('f-date'); errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
+  if(dateField && !landscapeNoDate){
+    if(!visibleDate){
+      showErr(dateField.id);
+      errs.push(dateField.label+' is missing — every job needs a date so it lands on the right day.');
+      if(!firstErrField) firstErrField=dateField.id;
+    }
+  } else if(!date && !landscapeNoDate) { showErr('f-date'); errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
   if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
-  if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='f-bsize'; }
+  if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='bin-extra'; }
   if(svc==='Bin Rental'){
     var _binStreet=document.getElementById('f-addr').value.trim();
     var _binCity=(document.getElementById('f-city').value||'').trim() || extractCity(_binStreet,'');
@@ -9885,19 +10012,19 @@ async function saveJob(e){
       banner.style.display = 'block';
     }
     _showValidationErrorModal(errs, firstErrField);
-    _saveJobLock = false; return;
+    _setSaveJobLock(false); return;
   }
 
   // Block save while photos are still uploading
   if(document.querySelector('.photo-thumb-uploading')){
     toast('⏳ Wait for photos to finish uploading before saving','error');
-    _saveJobLock = false; return;
+    _setSaveJobLock(false); return;
   }
 
   // Vehicle availability warning (skip when there's no date to check, e.g. undated landscaping)
   if(!editId && date){
     var avail=checkVehicleAvailability(svc,date);
-    if(!avail.ok&&!confirm(avail.msg)){_saveJobLock=false;return;}
+    if(!avail.ok&&!confirm(avail.msg)){_setSaveJobLock(false);return;}
   }
 
   // Bin availability warning (overbooking prevention). Judged on the drop-off →
@@ -9909,7 +10036,7 @@ async function saveJob(e){
       var _binAvail=checkBinWindow(_bsize,_bdrop,document.getElementById('f-bpick').value,editId||null);
       if(_binAvail.total>0 && !_binAvail.ok){
         var _proceed=await showBinAvailWarning(_bsize,_binAvail.date);
-        if(!_proceed){ _saveJobLock=false; return; }
+        if(!_proceed){ _setSaveJobLock(false); return; }
       }
     }
   }
@@ -9925,12 +10052,13 @@ async function saveJob(e){
       var _clNames = (_linkedCl.names&&_linkedCl.names.length?_linkedCl.names:[]).concat(_linkedCl.name?[_linkedCl.name]:[]);
       var _nameKnown = _clNames.some(function(n){return String(n).trim().toLowerCase()===name.trim().toLowerCase();});
       if(!_nameKnown){
-        if(confirm('⚠ This booking is linked to client "'+(_linkedCl.name||cid)+'" but the name on it is "'+name+'".\n\nOK — create a NEW client for '+name+'\nCancel — more options')){
+        var _choice = await askNameMismatch(_linkedCl.name||cid, name);
+        if(_choice==='new'){
           cid='';
           document.getElementById('f-client-select').value='';
           _selectedClientObj=null;
-        } else if(!confirm('Add "'+name+'" as another contact on "'+(_linkedCl.name||cid)+'"?\n(Same household, company staff, site contact…)\n\nOK — yes, same client\nCancel — go back to the form')){
-          _saveJobLock=false; return;
+        } else if(_choice!=='same'){
+          _setSaveJobLock(false); return;
         }
       }
     }
@@ -10082,7 +10210,7 @@ async function saveJob(e){
       var _otherDrop = binDroppedElsewhere(pickedBid, editId);
       if(_otherDrop){
         var _bnS=(binItems.find(function(b){return b.bid===pickedBid;})||{num:pickedBid}).num;
-        if(!confirm('⚠ Bin '+_bnS+' is still marked dropped at job '+_otherDrop.id+' ('+_otherDrop.name+').\n\nPick it up there first to avoid double-booking. Save and drop here anyway?')){ _saveJobLock=false; return; }
+        if(!confirm('⚠ Bin '+_bnS+' is still marked dropped at job '+_otherDrop.id+' ('+_otherDrop.name+').\n\nPick it up there first to avoid double-booking. Save and drop here anyway?')){ _setSaveJobLock(false); return; }
       }
     }
     // Mark the newly picked bin as out only when the job is actually dropped
@@ -10103,7 +10231,7 @@ async function saveJob(e){
       var cidR = await db.rpc('next_client_cid');
       if(cidR.error || !cidR.data){
         toast('⚠ Failed to generate client ID: '+(cidR.error?cidR.error.message:'no data')+' — try again','error');
-        _saveJobLock=false; return;
+        _setSaveJobLock(false); return;
       }
       var newCid = cidR.data;
       // Create full client with all the job data
@@ -10192,7 +10320,7 @@ async function saveJob(e){
     if(dbRes.error){
       alert('\u274c Error saving job: ' + dbRes.error.message + '\n\nNothing was saved \u2014 the form still has everything you typed. Check the internet connection and hit Save again.');
       console.error('saveJob error:', dbRes.error);
-      _saveJobLock = false; return;
+      _setSaveJobLock(false); return;
     }
     // DB write confirmed \u2014 only now touch what the user sees.
     if(wasEdit){
@@ -10214,17 +10342,17 @@ async function saveJob(e){
   } catch(ex){
     alert('\u274c Exception: ' + ex.message + '\n\nNothing was saved \u2014 the form still has everything you typed.');
     console.error(ex);
-    _saveJobLock = false; return;
+    _setSaveJobLock(false); return;
   }
   var savedJobId = job.id;
-  _saveJobLock = false;
+  _setSaveJobLock(false);
   closeM('job-modal');
   loadJobsPage(jobsPage);
   if(typeof renderPossibleJobs==='function') renderPossibleJobs();
   // Always reopen the saved job as detail so user can review/print immediately
   setTimeout(function(){ openDetail(savedJobId); },400);
 
-  } finally { _saveJobLock = false; }
+  } finally { _setSaveJobLock(false); }
 }
 async function delJob(id){
   if(!mGuard())return;
@@ -11328,7 +11456,7 @@ function convertQuoteToJob(quoteId){
   var addrParts=(q.address||'').split(',').map(function(p){return p.trim();});
   document.getElementById('f-addr').value=addrParts[0]||'';
   document.getElementById('f-city').value=q.city||(addrParts[1]||'');
-  var qnow=new Date();document.getElementById('f-date').value=qnow.toISOString().split('T')[0];
+  var qnow=new Date();document.getElementById('f-date').value=todayStr();  // local, not UTC
   document.getElementById('f-time').value=qnow.toTimeString().slice(0,5);
   document.getElementById('f-price').value=q.price||'';
   document.getElementById('f-paid').value=q.paid||'Unpaid';
@@ -14823,6 +14951,57 @@ function resolveBinAvailWarning(proceed){
   var r=_binAvailWarningResolver;
   _binAvailWarningResolver=null;
   if(r) r(!!proceed);
+}
+
+// Three outcomes need three buttons. This was two browser popups back to back
+// whose only choices were OK and Cancel, with the meanings buried in the message
+// — and Cancel on the first one didn't cancel, it opened the second. Picking wrong
+// filed the booking under the wrong customer, the exact thing the guard exists to
+// stop. Resolves to 'new', 'same' or 'back'.
+var _nameMismatchResolver = null;
+function askNameMismatch(clientName, typedName){
+  return new Promise(function(resolve){
+    _nameMismatchResolver = resolve;
+    var id = 'name-mismatch-modal';
+    var m = document.getElementById(id);
+    if(!m){
+      m = document.createElement('div');
+      m.id = id;
+      m.className = 'modal-overlay';
+      m.style.zIndex = '760';
+      document.body.appendChild(m);
+    }
+    var esc = (typeof escHtml==='function') ? escHtml : function(s){ return String(s); };
+    m.innerHTML = '<div class="modal" style="max-width:480px;width:92vw;border-top:4px solid #e67e22">'
+      + '<div class="modal-header" style="border-bottom:1px solid rgba(230,126,34,.25)">'
+        + '<div class="modal-title" style="color:#c2410c"><span style="font-size:20px;margin-right:8px">⚠</span>Two different names</div>'
+      + '</div>'
+      + '<div style="padding:18px 20px">'
+        + '<div style="font-size:14px;color:var(--text);margin-bottom:14px">This booking is attached to one customer file, but a different name is typed on it.</div>'
+        + '<div style="display:flex;gap:10px;margin-bottom:16px">'
+          + '<div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">'
+            + '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px">Attached to</div>'
+            + '<div style="font-size:14px;font-weight:700">'+esc(clientName)+'</div></div>'
+          + '<div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">'
+            + '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px">Typed on the job</div>'
+            + '<div style="font-size:14px;font-weight:700">'+esc(typedName)+'</div></div>'
+        + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:8px">'
+          + '<button class="btn btn-primary" style="justify-content:center" onclick="_resolveNameMismatch(\'new\')">Make a new customer for '+esc(typedName)+'</button>'
+          + '<button class="btn btn-ghost" style="justify-content:center" onclick="_resolveNameMismatch(\'same\')">Same customer — add '+esc(typedName)+' as another contact</button>'
+          + '<button class="btn btn-ghost" style="justify-content:center;color:var(--muted)" onclick="_resolveNameMismatch(\'back\')">Back to the form</button>'
+        + '</div>'
+      + '</div>'
+    + '</div>';
+    m.classList.add('open');
+  });
+}
+function _resolveNameMismatch(choice){
+  var m = document.getElementById('name-mismatch-modal');
+  if(m) m.classList.remove('open');
+  var r = _nameMismatchResolver;
+  _nameMismatchResolver = null;
+  if(r) r(choice);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

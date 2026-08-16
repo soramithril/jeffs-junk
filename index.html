@@ -1748,15 +1748,17 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-ttl">New Job</div>
-      <button class="modal-close" onclick="closeM('job-modal')">&#x2715;</button>
+      <button class="modal-close" onclick="closeJobModal()">&#x2715;</button>
     </div>
     <form onsubmit="return false;" novalidate>
       <!-- Hidden fields -->
       <input type="hidden" id="f-status" value="">
       <input type="hidden" id="f-price" value="">
       <input type="hidden" id="f-paid" value="Unpaid">
-      <input id="f-date" type="hidden"><div class="field-error-msg" id="err-f-date" style="display:none">Date is required.</div>
-      <input id="f-time" type="hidden"><div class="field-error-msg" id="err-f-time" style="display:none"></div>
+      <!-- No inline display:none here: it beat .field-error-msg.show, so this
+           message could never appear no matter what the validation did. -->
+      <input id="f-date" type="hidden"><div class="field-error-msg" id="err-f-date">Date is required.</div>
+      <input id="f-time" type="hidden"><div class="field-error-msg" id="err-f-time"></div>
 
       <!-- ── SERVICE TYPE (segmented picker, color-coded per service) ── -->
       <div class="form-group" style="margin-bottom:16px">
@@ -1847,6 +1849,8 @@
         <input type="hidden" id="f-bsize">
 
         <div class="job-form-subsection-label">🚛 Bin Selection</div>
+        <!-- Offers this customer's last bin setup in one tap. Filled by _offerLastBinSetup. -->
+        <div id="f-last-bin-chip" style="display:none;margin-bottom:10px"></div>
         <div style="margin-bottom:14px">
           <label>Bin Size</label>
           <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
@@ -1877,7 +1881,7 @@
 
         <div class="job-form-subsection-label" style="margin-top:16px">📅 Scheduling</div>
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>Drop-off Date</label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div></div>
+          <div class="form-group"><label>Drop-off Date <span style="color:#dc3545">*</span></label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
           <div class="form-group">
             <label>Pickup Date</label>
             <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div>
@@ -1927,7 +1931,7 @@
           <div class="form-group" style="margin-top:10px"><label>✅ Tasks <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— one per line; prints as a checklist on the work order</span></label><textarea id="f-tasks" rows="4" placeholder="Mow front lawn&#10;Trim hedges&#10;Haul away branches"></textarea></div>
         </div>
         <div id="junk-datetime-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label id="junk-date-label">Job Date</label><input id="f-junk-date" type="date"></div>
+          <div class="form-group"><label id="junk-date-label">Job Date <span style="color:#dc3545">*</span></label><input id="f-junk-date" type="date"><div class="field-error-msg" id="err-f-junk-date">Job Date is missing.</div></div>
           <div class="form-group"><label id="junk-time-label">Job Time</label><div style="display:flex;gap:6px"><input id="f-junk-time" type="time" style="flex:1"><button type="button" id="f-junk-time-any" class="anytime-btn" onclick="toggleAnytime('f-junk-time',this)">🕐 Anytime</button></div></div>
         </div>
         <div id="quote-amount-wrap" style="display:none;margin-top:10px">
@@ -1973,7 +1977,7 @@
       <div id="fb-schedule-wrap" style="display:none;margin-bottom:14px">
         <div class="job-form-subsection-label"><span style="font-size:14px">🛋️</span> <span id="fb-schedule-label">Delivery Schedule</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label id="fb-date-label">Delivery Date</label><input id="f-fb-date" type="date"></div>
+          <div class="form-group"><label id="fb-date-label">Delivery Date <span style="color:#dc3545">*</span></label><input id="f-fb-date" type="date"><div class="field-error-msg" id="err-f-fb-date">Date is missing.</div></div>
           <div class="form-group"><label id="fb-time-label">Delivery Time</label><input id="f-fb-time" type="time"></div>
         </div>
         <div id="fb-duration-wrap" style="margin-top:10px">
@@ -2086,7 +2090,7 @@
       <div class="form-group full" id="internal-notes-group" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
       <div class="form-actions">
-        <button type="button" class="btn btn-ghost" onclick="closeM('job-modal')">Cancel</button>
+        <button type="button" class="btn btn-ghost" onclick="closeJobModal()">Cancel</button>
         <button type="button" class="btn btn-primary" id="save-btn" onclick="saveJob(event)">Save Job</button>
       </div>
     </form>
