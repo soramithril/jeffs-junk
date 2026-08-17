@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '592';
+var APP_VERSION = '593';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -17633,7 +17633,10 @@ function clearCrewDay(crewId, dateStr){
 // size and duration already on the form. Strictly read-only: nothing here is saved with
 // the job, and no dollar figure is written anywhere — the job's own price column stays
 // empty by design, because the money lives in QuickBooks.
-var LB_PER_TONNE = 2204.62, HST_RATE = 0.13;
+// 2,200 lb to the tonne — that is what Barrie Recycling & Waste Transfer Station bills
+// on (Jake, 2026-08-17), NOT the 2,204.62 lb metric tonne and not a 2,000 lb short ton.
+// It only affects the cents-per-pound figure; the per-tonne totals are unchanged.
+var LB_PER_TONNE = 2200, HST_RATE = 0.13;
 // The sheet is one row per town, with an area's other towns listed in `towns`.
 function _priceAreaForCity(city){
   var c=String(city||'').trim().toLowerCase();
