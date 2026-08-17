@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '595';
+var APP_VERSION = '596';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1255,6 +1255,7 @@ function _binRow(bin) {
     size: bin.size || '14 yard',
     color: bin.color || 'green',
     damage: bin.damage || 'good',
+    rotation: bin.rotation || 'active',
     status: bin.status || 'in',
     notes: bin.notes || '',
     show_bin: bin.show_bin || false,
@@ -1263,6 +1264,18 @@ function _binRow(bin) {
     painted_date: bin.painted_date || null
   };
 }
+// Is this bin part of the rentable fleet right now?
+//
+// `rotation` is the single source of truth for availability: 'active' rents,
+// 'oor' (out of rotation) and 'prep' (in the shop being prepped/painted) do not.
+// A damaged bin still rents — condition lives in `damage` and says nothing about
+// availability (Jake 2026-07-31).
+//
+// Every availability count goes through here. Before this existed the same
+// `damage!=='oor'` test was written out in eight places, so adding a state meant
+// finding all eight — miss one and a bin gets booked while it's in the shop with
+// wet paint on it.
+function binInService(b){ return (b && b.rotation ? b.rotation : 'active') === 'active'; }
 // Writes named fields for ONE bin. The bin equivalent of patchJob.
 //
 // This replaces saveBins(), which rewrote all 86 bin records from this tab's memory every time a
@@ -2713,10 +2726,10 @@ async function refreshDashBinStats(){
   var avHdr=document.getElementById('dash-binavail-hdr');
   if(avHdr) avHdr.textContent = (dateStr===today) ? 'Bins available now'
     : 'Bins available — '+new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-  // Rentable stock only: out-of-rotation and display bins are excluded, a damaged
-  // bin still rents (Jake 2026-07-31). Same rule the booking form uses, so the
-  // two can't quote different fleets.
-  var activeBins=binItems.filter(function(b){return b.damage!=='oor'&&!b.show_bin;});
+  // Rentable stock only: out-of-rotation, in-the-shop and display bins are excluded,
+  // a damaged bin still rents (Jake 2026-07-31). Same rule the booking form uses, so
+  // the two can't quote different fleets.
+  var activeBins=binItems.filter(function(b){return binInService(b)&&!b.show_bin;});
   var totalBins=activeBins.length;
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
   var sizeColors={'4 yard':'#15803d','7 yard':'#b45309','14 yard':'#b45309','20 yard':'#b02633'};
@@ -7614,7 +7627,8 @@ function fleetPass(b,f){
   if(f==='all')return true;
   if(f==='in')return b.status==='in';
   if(f==='out')return b.status==='out';
-  if(f==='oos')return b.damage==='damage'||b.damage==='oor';   // damaged or out of rotation
+  if(f==='oos')return b.damage==='damage'||b.rotation==='oor'; // damaged or out of rotation
+  if(f==='prep')return b.rotation==='prep';                    // in the shop being prepped
   if(f==='nfr')return !!b.show_bin;                            // show/display bin — not for rent
   if(f==='green'||f==='black')return b.color===f;
   if(f==='4 yard'||f==='7 yard'||f==='14 yard'||f==='20 yard')return b.size===f;
@@ -7630,7 +7644,7 @@ function renderFleet(){
   var chipBase='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mkChip=function(f,lbl,dot){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+chipBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+fleetCount(f)+'</span></button>';};
   var chipsEl=document.getElementById('fleet-chips');
-  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','#dc3545'),mkChip('oos','Damaged / out of rotation'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
+  if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','#dc3545'),mkChip('oos','Damaged / out of rotation'),mkChip('prep','Being prepped / painted','#f97316'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
   // sort chips
   var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   // Sort chips were byte-identical to the filter chips above them, so a control that
@@ -7680,7 +7694,8 @@ function renderFleet(){
 function binFlags(b){
   var fb='display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;', out=[];
   if(b.damage==='damage')out.push('<span style="'+fb+'background:rgba(220,53,69,.13);color:#b02633">⚠ Damaged - still rents</span>');
-  if(b.damage==='oor')out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">♻ Out of rotation</span>');
+  if(b.rotation==='oor')out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">♻ Out of rotation</span>');
+  if(b.rotation==='prep')out.push('<span style="'+fb+'background:rgba(249,115,22,.16);color:#c2410c">🎨 Being prepped / painted</span>');
   if(b.show_bin)out.push('<span style="'+fb+'background:rgba(120,120,120,.15);color:#5f5e5a">🔧 Not for rent</span>');
   if(b.repaint)out.push('<span style="'+fb+'background:rgba(249,115,22,.14);color:#c2410c">🖌️ Repaint</span>');
   if(b.decals)out.push('<span style="'+fb+'background:rgba(8,145,178,.12);color:#0e7490">🏷️ Decals</span>');
@@ -7921,12 +7936,12 @@ async function renderTimeline(){
   // its pickup day when everything else frees it that morning. The All Sizes row above
   // was already using the shared counter, so the same table disagreed with itself.
   var sizeRows=sizes.map(function(sz){
-    var fleetCount=binItems.filter(function(b){return b.size===sz&&b.damage!=='oor'&&!b.show_bin;}).length;
+    var fleetCount=binItems.filter(function(b){return b.size===sz&&binInService(b)&&!b.show_bin;}).length;
     if(!fleetCount)return '';
     var cells=cols.map(function(ds){
       var out,avail;
       if(ds===todayISO){
-        out=binItems.filter(function(b){return b.size===sz&&b.damage!=='oor'&&!b.show_bin&&b.status==='out';}).length;
+        out=binItems.filter(function(b){return b.size===sz&&binInService(b)&&!b.show_bin&&b.status==='out';}).length;
         avail=Math.max(0,fleetCount-out);
       } else {
         var w=checkBinWindow(sz,ds,ds,null);
@@ -8022,7 +8037,7 @@ function openLinkBinFromJob(jobId){
   var byNum=function(a,b){return (a.num||'').localeCompare(b.num||'');};
   var available=[],unavailable=[];
   binItems.forEach(function(b){
-    if(b.damage==='oor')return; // skip out of rotation
+    if(!binInService(b))return; // skip out of rotation / in the shop
     if(b.status==='in')available.push(b);
     else unavailable.push(b);
   });
@@ -8258,8 +8273,8 @@ async function openAssignBinPicker(jobId){
   var size=j.binSize;
   var matchSize=function(b){ return !size || b.size===size; };
   var sortByNum=function(a,b){return (a.num||'').localeCompare(b.num||'',undefined,{numeric:true,sensitivity:'base'});};
-  var availBins=binItems.filter(function(b){return b.status==='in'&&matchSize(b)&&b.damage!=='oor';}).sort(sortByNum);
-  var unavailBins=binItems.filter(function(b){return b.status==='out'&&matchSize(b)&&b.damage!=='oor';}).sort(sortByNum);
+  var availBins=binItems.filter(function(b){return b.status==='in'&&matchSize(b)&&binInService(b);}).sort(sortByNum);
+  var unavailBins=binItems.filter(function(b){return b.status==='out'&&matchSize(b)&&binInService(b);}).sort(sortByNum);
 
   var html='';
   // ── Available section ──
@@ -8588,6 +8603,9 @@ function openAddBin(){
   editBinId=null;document.getElementById('bin-modal-ttl').textContent='Add Bin';document.getElementById('bin-save-btn').textContent='Add Bin';
   document.getElementById('bi-num').value='';document.getElementById('bi-type').value='regular';document.getElementById('bi-size').value='14 yard';
   document.getElementById('bi-color').value='green';document.getElementById('bi-dmg').value='good';document.getElementById('bi-status').value='in';document.getElementById('bi-notes').value='';
+  // Rotation has to be cleared too, or a new bin inherits it from whichever bin was
+  // edited last and is born out of rotation / in the shop.
+  document.getElementById('bi-oor').value='active';
   document.getElementById('bi-show').checked=false;
   document.getElementById('bi-repaint').checked=false;document.getElementById('bi-decals').checked=false;
   document.getElementById('bi-painted').value='';
@@ -8605,7 +8623,7 @@ function editBinItem(bid){
   var b=null;binItems.forEach(function(bi){if(bi.bid===bid)b=bi;});if(!b)return;
   editBinId=bid;document.getElementById('bin-modal-ttl').textContent='Edit Bin';document.getElementById('bin-save-btn').textContent='Save Changes';
   document.getElementById('bi-num').value=b.num||'';document.getElementById('bi-type').value=b.type||'regular';document.getElementById('bi-size').value=b.size||'14 yard';
-  document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage==='oor'?'good':b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-oor').value=b.damage==='oor'?'oor':'active';document.getElementById('bi-notes').value=b.notes||'';
+  document.getElementById('bi-color').value=b.color||'green';document.getElementById('bi-dmg').value=b.damage||'good';document.getElementById('bi-status').value=b.status||'in';document.getElementById('bi-oor').value=b.rotation||'active';document.getElementById('bi-notes').value=b.notes||'';
   document.getElementById('bi-show').checked=!!b.show_bin;
   document.getElementById('bi-repaint').checked=!!b.repaint;document.getElementById('bi-decals').checked=!!b.decals;
   document.getElementById('bi-painted').value=b.painted_date||'';
@@ -8640,7 +8658,10 @@ async function saveBinItem(e){
   // Check for duplicate bin number
   var isDupe=binItems.some(function(b){return b.num.toLowerCase()===num.toLowerCase()&&b.bid!==editBinId;});
   if(isDupe){showErr('bi-num');document.getElementById('err-bi-num').textContent='A bin with this number already exists. Use a unique number.';return;}
-  var oorVal=document.getElementById('bi-oor').value==='oor';
+  // Rotation and condition are separate columns. They used to share one, so putting a
+  // bin out of rotation wiped whether it was damaged (Jake asked for this split
+  // 2026-08-17).
+  var rotationVal=document.getElementById('bi-oor').value||'active';
   var newBid=editBinId;
   if(!newBid){
     try{ newBid=await nextBinItemId(binSize,binType); }
@@ -8652,7 +8673,7 @@ async function saveBinItem(e){
   var painted=document.getElementById('bi-painted').value||null;
   var prevPainted=editBinId?((binItems.find(function(x){return x.bid===editBinId;})||{}).painted_date||null):null;
   var justPainted=!!painted && painted!==prevPainted;
-  var bin={bid:newBid,num:num,type:binType,size:binSize,color:document.getElementById('bi-color').value,damage:oorVal?'oor':document.getElementById('bi-dmg').value,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:justPainted?false:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked,painted_date:painted};
+  var bin={bid:newBid,num:num,type:binType,size:binSize,color:document.getElementById('bi-color').value,damage:document.getElementById('bi-dmg').value,rotation:rotationVal,status:document.getElementById('bi-status').value,notes:document.getElementById('bi-notes').value.trim(),show_bin:document.getElementById('bi-show').checked,repaint:justPainted?false:document.getElementById('bi-repaint').checked,decals:document.getElementById('bi-decals').checked,painted_date:painted};
   if(editBinId){
     var i=binItems.findIndex(function(b){return b.bid===editBinId;});if(i>=0)Object.assign(binItems[i],bin);else binItems.push(bin);
     toast('Bin updated!');editBinId=null;patchBin(bin.bid,_binRow(bin));
@@ -8722,8 +8743,8 @@ function parseBinCsv(raw){
     var status=get('status')||'in';
     var notes=get('notes')||'';
     var oor=get('out_of_rotation');
-    var finalDmg=(oor==='true'||oor==='1'||oor==='yes')?'oor':damage;
-    rows.push({num:num,type:type,size:size,color:color,damage:finalDmg,status:status,notes:notes});
+    var rotation=(oor==='true'||oor==='1'||oor==='yes')?'oor':((oor==='prep'||oor==='prepped')?'prep':'active');
+    rows.push({num:num,type:type,size:size,color:color,damage:damage,rotation:rotation,status:status,notes:notes});
   }
   return rows;
 }
@@ -8795,7 +8816,7 @@ async function doBinCsvImport(){
       binItems=binItems.filter(function(b){return newBins.indexOf(b)===-1;});
       alert('Import stopped: '+ex.message+'\n\nNothing was imported.');return;
     }
-    var nb={bid:_newBid,num:_row.num,type:_row.type,size:_row.size,color:_row.color,damage:_row.damage,status:_row.status,notes:_row.notes};
+    var nb={bid:_newBid,num:_row.num,type:_row.type,size:_row.size,color:_row.color,damage:_row.damage,rotation:_row.rotation||'active',status:_row.status,notes:_row.notes};
     binItems.push(nb);newBins.push(nb);
     added++;
   }
@@ -11539,7 +11560,7 @@ function swapOutBin(id){
         +'<select id="swap-new-bin" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px">'
           +'<option value="">Decide later</option>'
           +binItems.filter(function(b){
-              return b.status==='in' && b.damage!=='oor' && !b.show_bin
+              return b.status==='in' && binInService(b) && !b.show_bin
                 && (!j.binSize || b.size===j.binSize);
             }).map(function(b){
               return '<option value="'+_esc(b.bid)+'">Bin '+_esc(b.num)+' — '+_esc(b.size||'')+'</option>';
@@ -15354,10 +15375,10 @@ function _binsCommittedOverWindow(size, d0, d1, exceptJobId){
 // that's the day that decides whether the booking fits.
 function checkBinWindow(size, dropStr, pickStr, exceptJobId){
   if(!size||!dropStr) return {ok:true,available:0,committed:0,total:0,date:dropStr||''};
-  // Out-of-rotation and display bins aren't rentable stock. A damaged bin still
-  // rents out (Jake 2026-07-31).
+  // Out-of-rotation, in-the-shop and display bins aren't rentable stock. A damaged
+  // bin still rents out (Jake 2026-07-31).
   var fleet=binItems.filter(function(b){
-    return b.size===size&&b.damage!=='oor'&&!b.show_bin;
+    return b.size===size&&binInService(b)&&!b.show_bin;
   }).length;
   if(!fleet) return {ok:true,available:0,committed:0,total:0,date:dropStr};
   var d0=_dayNum(dropStr);
