@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '566';
+var APP_VERSION = '567';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4063,8 +4063,6 @@ async function renderDash(bg){
   var todayS = todayStr();
   var now = new Date();
   // Use ymdLocal (local-time formatter) instead of toISOString() which returns UTC.
-  var tomorrowD = new Date(now); tomorrowD.setDate(tomorrowD.getDate()+1);
-  var tomorrowS = ymdLocal(tomorrowD);
   var weekStart = new Date(now); weekStart.setDate(now.getDate()-now.getDay());
   var weekStartS = ymdLocal(weekStart);
   var cutoff14 = new Date(now); cutoff14.setDate(now.getDate()+14);
@@ -4093,15 +4091,13 @@ async function renderDash(bg){
   var [
     rTodayJobs, rWeekJobs,
     rBinPickupsToday, rBinDropoffsToday,
-    rTomorrowJobs, rUnconfirmed14,
+    rUnconfirmed14,
     rTodayFurn, rTodayJunk
   ] = await Promise.all([
     db.from('jobs').select('*').eq('date',todayS).neq('status','Cancelled').order('time'),
     db.from('jobs').select('*',{count:'exact',head:true}).gte('date',weekStartS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').eq('bin_pickup',todayS).neq('status','Cancelled'),
     db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled').or('bin_dropoff.eq.'+todayS+',and(bin_dropoff.is.null,date.eq.'+todayS+')'),
-    // Tomorrow's jobs
-    db.from('jobs').select('*').eq('date',tomorrowS).neq('status','Cancelled').order('time'),
     // Upcoming unconfirmed bin pickups + furniture — kept because it seeds jobs[]
     // with rows the rest of the dashboard reads, even though the old call-back
     // panel it used to draw is long gone from the page.
@@ -4158,17 +4154,12 @@ async function renderDash(bg){
   window._dashTodayCount = totalTodayCount; renderGreeting(); // hero summary line
   var unconfirmedToday = allToday.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
 
-  // ── TOMORROW PILL in header ───────────────────────────────
-  var tomorrowJobs = (rTomorrowJobs.data||[]).map(dbToJob);
-  var tomorrowUnconf = tomorrowJobs.filter(function(j){return (j.service==='Bin Rental'||j.service==='Furniture Pickup'||j.service==='Furniture Delivery')&&!j.confirmed;}).length;
-  var tPill = document.getElementById('dash-tomorrow-pill');
-  if(tPill && tomorrowJobs.length > 0){
-    tPill.style.display = '';
-    tPill.innerHTML = 'Tomorrow: <strong style="color:var(--text)">' + tomorrowJobs.length + ' job' + (tomorrowJobs.length!==1?'s':'') + '</strong>'
-      + (tomorrowUnconf > 0 ? ' &nbsp;·&nbsp; <span style="color:#e67e22;font-weight:600">' + tomorrowUnconf + ' pickup unconfirmed</span>' : '');
-  } else if(tPill){
-    tPill.style.display = 'none';
-  }
+  // The "Tomorrow: N jobs" pill used to sit here. It lived inside the morning brief,
+  // which is a today briefing — and it counted tomorrow by the plain date column only,
+  // so on a business that is ~88% bins (which carry their dates in bin_dropoff /
+  // bin_pickup) it read 0 on days with two dozen jobs booked and hid itself. The line
+  // directly above it already says what today holds. Removed with its query (Jake,
+  // 2026-08-16).
 
   // ── WORKLOAD HEADER ───────────────────────────────────────
   var workloadHdr = document.getElementById('workload-header');
