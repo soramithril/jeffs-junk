@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '567';
+var APP_VERSION = '568';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2719,7 +2719,7 @@ async function refreshDashBinStats(){
   var activeBins=binItems.filter(function(b){return b.damage!=='oor'&&!b.show_bin;});
   var totalBins=activeBins.length;
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+  var sizeColors={'4 yard':'#15803d','7 yard':'#b45309','14 yard':'#b45309','20 yard':'#b02633'};
 
   // ── Load dropped bin jobs for counting ───────────────────
   try {
@@ -3429,15 +3429,35 @@ async function renderDashMaintAlert(){
 }
 
 // Map a city name to a deterministic color from a 6-color palette (same city → same color)
+// The service colours are chosen to IDENTIFY a service, and they work as a marker —
+// on an icon tile, a coloured edge, a chip fill. They were also being used as ink for
+// headings, times and duration chips, where they measured 1.92:1 (junk yellow) to
+// 4.50:1 on white; readable text needs 4.5:1. This maps each marker hue to the deep
+// step of the same hue for text only: 4.9:1 to 6.7:1, same colour, still identifiable.
+var SVC_INK = {
+  '#eab308':'#a16207',  // junk yellow    1.92 -> 4.92
+  '#65a30d':'#4d7c0f',  // extra jobs     3.09 -> 4.99
+  '#ec4899':'#be185d',  // bin pickups    3.53 -> 6.04
+  '#0891b2':'#0e7490',  // bin drop-offs  3.68 -> 5.36
+  '#8b5cf6':'#7c3aed',  // furniture      4.23 -> 5.70
+  '#0d6efd':'#1d4ed8'   // junk quotes    4.50 -> 6.70
+};
+function svcInk(c){ return SVC_INK[String(c).toLowerCase()] || c; }
+
 function _cityColor(city){
   if(!city) return null;
+  // The `fg` values were pale — #4ade80, #fbbf24 and friends — which are dark-theme
+  // colours. On the white row they measured 1.49:1 to 2.21:1, so the town name (the
+  // thing you scan a day list for) was the faintest text on it. Backgrounds and the
+  // colour coding are unchanged; only the text drops to the deep step of the SAME
+  // hue, which lands every one between 5.2:1 and 6.7:1. Nothing is recoloured.
   var palette=[
-    {bg:'rgba(34,197,94,.15)',  fg:'#4ade80', bd:'rgba(34,197,94,.4)',  ac:'var(--accent)'},
-    {bg:'rgba(168,85,247,.15)', fg:'#c084fc', bd:'rgba(168,85,247,.4)', ac:'#a855f7'},
-    {bg:'rgba(245,158,11,.15)', fg:'#fbbf24', bd:'rgba(245,158,11,.4)', ac:'#f59e0b'},
-    {bg:'rgba(236,72,153,.15)', fg:'#f472b6', bd:'rgba(236,72,153,.4)', ac:'#ec4899'},
-    {bg:'rgba(59,130,246,.15)', fg:'#60a5fa', bd:'rgba(59,130,246,.4)', ac:'#3b82f6'},
-    {bg:'rgba(20,184,166,.15)', fg:'#2dd4bf', bd:'rgba(20,184,166,.4)', ac:'#14b8a6'}
+    {bg:'rgba(34,197,94,.15)',  fg:'#15803d', bd:'rgba(34,197,94,.4)',  ac:'var(--accent)'},
+    {bg:'rgba(168,85,247,.15)', fg:'#7e22ce', bd:'rgba(168,85,247,.4)', ac:'#a855f7'},
+    {bg:'rgba(245,158,11,.15)', fg:'#b45309', bd:'rgba(245,158,11,.4)', ac:'#f59e0b'},
+    {bg:'rgba(236,72,153,.15)', fg:'#be185d', bd:'rgba(236,72,153,.4)', ac:'#ec4899'},
+    {bg:'rgba(59,130,246,.15)', fg:'#1d4ed8', bd:'rgba(59,130,246,.4)', ac:'#3b82f6'},
+    {bg:'rgba(20,184,166,.15)', fg:'#0f766e', bd:'rgba(20,184,166,.4)', ac:'#14b8a6'}
   ];
   var h=0; for(var i=0;i<city.length;i++) h=((h*31)+city.charCodeAt(i))>>>0;
   return palette[h % palette.length];
@@ -3538,20 +3558,20 @@ async function refreshDashJobs(){
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
     return '<div style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
                : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime
                : (j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Extra Jobs') ? j.junkTime : '';
         var timeStr = st ? ft(st) : '';
-        var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
+        var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+svcInk(color)+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
         var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
         var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
-        var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
+        var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+svcInk(color)+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
         // Landscaping: surface the job name + crew so jobs are distinguishable without tapping in.
         var landChip = '';
         if(j.service==='Extra Jobs'){
@@ -4209,20 +4229,20 @@ async function renderDash(bg){
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
     return '<div style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+color+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
                : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime
                : (j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Extra Jobs') ? j.junkTime : '';
         var timeStr = st ? ft(st) : '';
-        var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+color+'">'+timeStr+'</span>' : '';
+        var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+svcInk(color)+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
         var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
         var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
-        var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+color+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
+        var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+svcInk(color)+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
         // Landscaping: surface the job name + crew so jobs are distinguishable without tapping in.
         var landChip = '';
         if(j.service==='Extra Jobs'){
@@ -7770,7 +7790,7 @@ async function renderTimeline(){
   var totalBins=binItems.length;
   var todayISO=new Date().toISOString().split('T')[0];
   var sizes=['4 yard','7 yard','14 yard','20 yard'];
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+  var sizeColors={'4 yard':'#15803d','7 yard':'#b45309','14 yard':'#b45309','20 yard':'#b02633'};
   var sizeLabels={'4 yard':'4 YD','7 yard':'7 YD','14 yard':'14 YD','20 yard':'20 YD'};
 
   // Build date columns
@@ -7881,7 +7901,7 @@ async function renderTimeline(){
       var bg=pct>=1?'rgba(220,53,69,.18)':pct>=0.5?'rgba(230,126,34,.12)':'rgba(34,197,94,.07)';
       return '<td'+(isT?' class="tl-today-col"':'')+' style="text-align:center;padding:4px 2px">'
         +'<div style="background:'+bg+';border-radius:6px;padding:4px 2px;margin:1px">'
-        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;line-height:1;color:'+(avail===0?'#dc3545':sizeColors[sz])+'">'+avail+'</div>'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;line-height:1;font-variant-numeric:tabular-nums;color:'+(avail===0?'#dc3545':sizeColors[sz])+'">'+avail+'</div>'
         +'<div style="font-size:9px;color:var(--muted)">avail</div>'
         +'</div>'
         +'</td>';
@@ -7961,7 +7981,7 @@ function openLinkBinFromJob(jobId){
   var j=jobs.find(function(jj){return jj.id===jobId;});if(!j)return;
   document.getElementById('link-bin-from-job-ttl').textContent='🔗 Link a Bin to '+jobId;
   var grid=document.getElementById('link-bin-from-job-grid');
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#f0932b','20 yard':'#e76f7e'};
+  var sizeColors={'4 yard':'#15803d','7 yard':'#b45309','14 yard':'#b45309','20 yard':'#b02633'};
   var byNum=function(a,b){return (a.num||'').localeCompare(b.num||'');};
   var available=[],unavailable=[];
   binItems.forEach(function(b){
