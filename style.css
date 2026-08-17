@@ -718,8 +718,18 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
    contact fields, and the service blocks below split into two columns, so the whole
    form goes from three screens of scrolling to roughly one. */
 @media(min-width:1100px){
-  #job-modal .form-grid{grid-template-columns:repeat(3,1fr)}
+  /* .form-grid was three-up back when the form was one full-width block. Those grids
+     now sit inside a ~460px column, where three tracks don't fit — and because plain
+     `1fr` means minmax(AUTO,1fr) a track can never shrink below its content, so Bin
+     Rental's date row laid itself out at 566px inside a 462px column and spilled over
+     the edge (the third track collapsed to 0). One track, and minmax(0,…) so nothing
+     can push it wide again. */
+  #job-modal .form-grid{grid-template-columns:minmax(0,1fr)}
   #job-modal .form-grid .full{grid-column:1/-1}
+  /* Phone(s) and Email(s) sat side by side, which was right across a full-width form
+     and wrong in a 431px column: the row is [type][number][ext][remove], so the number
+     itself was squeezed to 56px and cut off. Stacked, each gets the whole column. */
+  #job-modal .jf-contact-2up{grid-template-columns:minmax(0,1fr)}
 
   /* The three sections side by side (v576). Measured across all five services:
      Customer is 373px and Wrap-Up 495px EVERY time — 961px of identical content
