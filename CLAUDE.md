@@ -6,6 +6,19 @@ Explain what you will change and ask to confirm the change so we are on the same
 
 Commit as you go and **push once the change is verified — no need to ask first**. (Jake lifted the ask-before-push rule 2026-07-11; it had been in place since 2026-07-10.) Always verify the live site after pushing, and say in the reply what went out.
 
+**Always work on a branch** (Jake, 2026-08-17). He runs several Claude sessions at once, so
+every piece of work starts on its own branch off `main`, named for the work
+(`dispatch-overhaul`, `bin-fleet-tidy`). Commit and push that branch freely — a branch push
+deploys nothing, so it is always safe.
+
+**Merging to `main` is the deploy, and that still needs Jake's word.** There is no staging:
+GitHub Pages only ever serves `main`, so a branch cannot be checked live. The live
+verification in step 4 below happens *after* the merge, not before. Two more things that
+follow from parallel sessions: re-read `version.txt` right before bumping (another session
+may have shipped since you started — this is how v585 turned out to be v594 mid-session),
+and keep a branch's changes inside its own feature file where you can, because `index.html`,
+`app.js` and `style.css` are where sessions collide.
+
 ## Code rules
 
 - Don't overengineer — simple beats complex.

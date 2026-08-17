@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '594';
+var APP_VERSION = '595';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8346,6 +8346,19 @@ function teamColorByName(name){
   var r = name && _teamByName[String(name).trim().toLowerCase()];
   if(r && r.color) return r.color;
   return crewAvatarColor(String(name||''));   // stable hash on the name itself
+}
+// One fixed colour per bin size, used everywhere a size is shown, so a 20 reads the
+// same on Dispatch as it does anywhere else. Four sizes is the whole fleet. 14s are
+// the workhorse — three quarters of every job — so they take the quiet slate and
+// leave the louder colours for the sizes worth noticing. Sizes are stored as
+// "14 yard" strings, hence the parseInt.
+var BIN_SIZE_COLORS = {4:'#0d9488', 7:'#7c3aed', 14:'#64748b', 20:'#c2410c'};
+function binSizeColor(size){
+  return BIN_SIZE_COLORS[parseInt(size, 10)] || '#868e96';
+}
+function binSizeLabel(size){
+  var n = parseInt(size, 10);
+  return isNaN(n) ? '' : n + ' yd';
 }
 // Smart initials across the WHOLE roster: 2 letters normally, extended just
 // enough (3+) to stay unique when first names share a prefix (Jack/Jake/Jasper
