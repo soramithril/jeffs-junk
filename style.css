@@ -710,12 +710,13 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:40px;height:40px;border-radius:var(--radius-sm);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all var(--transition);}
 .modal-close:hover{background:rgba(220,53,69,.08);color:var(--red);border-color:rgba(220,53,69,.2);}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-/* The booking form is one field per full-width row inside a 1,401px modal, so the
-   whole first screen goes on the customer block and the date section — section 2 —
-   is never visible when you start typing. Capping the reading column and putting the
-   contact fields three-up pulls the date onto screen one. A form column this wide is
-   also just hard to read: the eye loses the line between label and input. */
-#job-modal .modal{max-width:1100px}
+/* The booking form is a deliberate FULL-PAGE modal (see .modal-overlay.fullpage
+   above: 100vw, 60px side padding). Capping its width turned it into a small box
+   floating in the middle of a 1536px window — that was a mistake and is not coming
+   back. What it does need is to USE that width: the fields were stacking one per
+   full-width row, so the date section was never on the first screen. Three-up
+   contact fields, and the service blocks below split into two columns, so the whole
+   form goes from three screens of scrolling to roughly one. */
 @media(min-width:1100px){
   #job-modal .form-grid{grid-template-columns:repeat(3,1fr)}
   #job-modal .form-grid .full{grid-column:1/-1}
