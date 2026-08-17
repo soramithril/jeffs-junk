@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=568">
+<link rel="stylesheet" href="style.css?v=569">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -265,18 +265,16 @@
     <div id="dash-bin-by-size" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div>
   </div>
   <!-- DASHBOARD TOP: chips + date toolbar, then Vehicles | Crew panels (auto-fit grid, stacks on narrow) -->
-  <div style="position:relative;z-index:50;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+  <div style="position:relative;z-index:50;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 14px;box-shadow:var(--shadow-sm)">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
-      <div>
-        <div style="display:flex;align-items:center;min-height:26px;margin-bottom:8px"><div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px"><span class="jj-sec-chip cyan" style="height:12px"></span>Vehicles</div></div>
-        <div id="dash-vehicle-status" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;flex:none"><span class="jj-sec-chip cyan" style="height:12px"></span>Vehicles</div>
+        <div id="dash-vehicle-status" style="display:flex;gap:8px;flex-wrap:wrap;min-width:0"></div>
       </div>
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px;margin-bottom:8px">
-          <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px"><span class="jj-sec-chip warm" style="height:12px"></span>Crew</div>
-          <button class="btn btn-ghost btn-sm" onclick="go('crew')" style="white-space:nowrap;font-size:11px;padding:3px 10px">Manage →</button>
-        </div>
-        <div id="dash-crew-status" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;flex:none"><span class="jj-sec-chip warm" style="height:12px"></span>Crew</div>
+        <div id="dash-crew-status" style="display:flex;gap:8px;flex-wrap:wrap;min-width:0"></div>
+        <button class="btn btn-ghost btn-sm" onclick="go('crew')" style="white-space:nowrap;font-size:11px;padding:3px 10px;margin-left:auto;flex:none">Manage →</button>
       </div>
     </div>
   </div>
@@ -307,30 +305,32 @@
       Entered <span class="djj-seg-badge" id="jb-booked">0</span>
       <span id="jb-booked-emails" style="display:none;align-items:center;margin-left:3px;padding:0 6px;height:16px;border-radius:99px;background:#fff7ed;color:#c2410c;border:1px solid #f0b27a;font-size:10px;font-weight:800;white-space:nowrap" title="Confirmation emails still to send for today's bookings"></span>
     </button>
+          <div id="dash-datebar" style="display:inline-flex;align-items:center;gap:0;padding:0;background:var(--accent);border-radius:var(--radius-sm);overflow:hidden;min-width:300px;flex:0 0 auto;margin-left:auto;" onclick="event.stopPropagation()">
+            <button style="background:rgba(0,0,0,.1);border:none;padding:6px 16px;font-size:18px;line-height:1;font-weight:700;color:#fff;cursor:pointer;transition:background .15s,transform .15s;" onmouseover="this.style.background='rgba(0,0,0,.25)';this.style.transform='scale(1.15)'" onmouseout="this.style.background='rgba(0,0,0,.1)';this.style.transform='scale(1)'" onclick="event.stopPropagation();shiftDashDate(-1)">‹</button>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 12px;cursor:pointer;position:relative;" onclick="event.stopPropagation();document.getElementById('dash-bin-date').showPicker()">
+              <span style="font-size:11px;color:#fff;pointer-events:none;">📅</span>
+              <span id="dash-date-label" style="font-size:13px;font-weight:700;color:#fff;pointer-events:none;white-space:nowrap;"></span>
+              <input type="date" id="dash-bin-date" onchange="refreshDashBinStats();refreshDashJobs();renderTodayBookings();renderDashCrewStatus();updateDashDateLabel()" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;">
+            </div>
+            <button style="background:rgba(255,255,255,.2);border:none;padding:5px 14px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.2)'" onclick="event.stopPropagation();document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats();refreshDashJobs();renderTodayBookings();renderDashCrewStatus();updateDashDateLabel()">Today</button>
+            <button style="background:rgba(0,0,0,.1);border:none;padding:6px 16px;font-size:18px;line-height:1;font-weight:700;color:#fff;cursor:pointer;transition:background .15s,transform .15s;" onmouseover="this.style.background='rgba(0,0,0,.25)';this.style.transform='scale(1.15)'" onmouseout="this.style.background='rgba(0,0,0,.1)';this.style.transform='scale(1)'" onclick="event.stopPropagation();shiftDashDate(1)">›</button>
+          </div>
   </div>
 
   <!-- ROW: Today's Jobs — full width -->
   <div class="dash-section dash-s1" style="margin-bottom:24px">
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div id="dash-datebar-row" style="display:flex;justify-content:flex-end">
-        <div id="dash-datebar" style="display:inline-flex;align-items:center;gap:0;padding:0;background:var(--accent);border-radius:var(--radius-sm);overflow:hidden;min-width:300px;flex:0 0 auto;" onclick="event.stopPropagation()">
-          <button style="background:rgba(0,0,0,.1);border:none;padding:6px 16px;font-size:18px;line-height:1;font-weight:700;color:#fff;cursor:pointer;transition:background .15s,transform .15s;" onmouseover="this.style.background='rgba(0,0,0,.25)';this.style.transform='scale(1.15)'" onmouseout="this.style.background='rgba(0,0,0,.1)';this.style.transform='scale(1)'" onclick="event.stopPropagation();shiftDashDate(-1)">‹</button>
-          <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 12px;cursor:pointer;position:relative;" onclick="event.stopPropagation();document.getElementById('dash-bin-date').showPicker()">
-            <span style="font-size:11px;color:#fff;pointer-events:none;">📅</span>
-            <span id="dash-date-label" style="font-size:13px;font-weight:700;color:#fff;pointer-events:none;white-space:nowrap;"></span>
-            <input type="date" id="dash-bin-date" onchange="refreshDashBinStats();refreshDashJobs();renderTodayBookings();renderDashCrewStatus();updateDashDateLabel()" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;">
-          </div>
-          <button style="background:rgba(255,255,255,.2);border:none;padding:5px 14px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.2)'" onclick="event.stopPropagation();document.getElementById('dash-bin-date').value=todayStr();refreshDashBinStats();refreshDashJobs();renderTodayBookings();renderDashCrewStatus();updateDashDateLabel()">Today</button>
-          <button style="background:rgba(0,0,0,.1);border:none;padding:6px 16px;font-size:18px;line-height:1;font-weight:700;color:#fff;cursor:pointer;transition:background .15s,transform .15s;" onmouseover="this.style.background='rgba(0,0,0,.25)';this.style.transform='scale(1.15)'" onmouseout="this.style.background='rgba(0,0,0,.1)';this.style.transform='scale(1)'" onclick="event.stopPropagation();shiftDashDate(1)">›</button>
-        </div>
-      </div>
       <div class="chart-card urgency-neutral" id="card-today-jobs" style="padding:0;overflow:visible;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;background:linear-gradient(135deg,var(--green-s2),var(--green-s3));border-radius:11px 11px 0 0;">
+        <!-- Gradient runs dark-end-first: white on --green-s2 (#16a34a) measures 3.30:1
+             and the title is 18px/700, which is under the size that would let 3:1 pass.
+             Starting at --green-s3 (#15803d) puts 5.02:1 under the text. The translucent
+             fills went .22 -> .32 for the same reason. -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;background:linear-gradient(135deg,var(--green-s3),var(--green-s2));border-radius:11px 11px 0 0;">
           <div style="display:flex;align-items:center;gap:11px">
             <div id="workload-header" class="card-head" style="color:#fff">Today's Jobs</div>
-            <span id="dash-today-jobcount" style="display:none;align-items:center;background:rgba(255,255,255,.22);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:21px;line-height:1;padding:3px 13px;border-radius:99px;letter-spacing:1px;white-space:nowrap"></span>
+            <span id="dash-today-jobcount" style="display:none;align-items:center;background:rgba(255,255,255,.32);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:21px;line-height:1;padding:3px 13px;border-radius:99px;letter-spacing:1px;white-space:nowrap"></span>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="go('jobs')" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.45);color:#fff">All Jobs →</button>
+          <button class="btn btn-ghost btn-sm" onclick="go('jobs')" style="background:rgba(255,255,255,.32);border-color:rgba(255,255,255,.6);color:#fff">All Jobs →</button>
         </div>
         <div id="dash-today-count" style="font-size:12px;color:var(--muted);padding:11px 20px 0;"></div>
         <div id="dash-today-jobs" style="padding:4px 0"></div>
@@ -2801,7 +2801,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=568"></script>
+<script src="app.js?v=569"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

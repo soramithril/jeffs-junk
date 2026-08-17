@@ -2234,6 +2234,13 @@ input[type=date],input[type=time]{position:relative;}
   .tj-cols .tjr2{flex-wrap:wrap}
   .tj-cols .tjr2-binslot{width:auto}
   .tj-cols .tjr2-actions{min-width:0;margin-left:auto}
+  /* The wrap above never actually fired: the name block was the only flexible item,
+     so flex shrank IT to ~145px (of the 349px a full business name needs) long before
+     the row ran out of room. Measured on the live page. A floor forces the overflow,
+     which is what makes flex-wrap do its job — so a long name now pushes the buttons
+     onto a second line (row 58px -> 93px) instead of being cut in half, and short
+     names still sit on one line at 58px. */
+  .tj-cols .djj-main{min-width:260px}
 }
 
 /* Sticky jump-to bar (dashboard) — status-pill row (v449 design refresh):
@@ -2258,7 +2265,11 @@ input[type=date],input[type=time]{position:relative;}
 .djj-seg svg{display:none;}
 .djj-seg:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(16,24,40,.12);}
 .djj-seg:active{transform:translateY(0);box-shadow:none;}
-.djj-seg.is-active{background:#16a34a;color:#fff;}
+/* Selecting a tab used to make it the HARDEST pill in the row to read: white on
+   #16a34a is 3.30:1 while the untouched pills sit at 9.7:1, so the one you chose
+   was the blurry one. Tinted fill with a solid edge instead — 4.9:1, and it still
+   reads as obviously the selected one. */
+.djj-seg.is-active{background:var(--accent-light);color:var(--accent-hover);box-shadow:inset 0 0 0 1.5px var(--accent-hover);}
 .djj-seg-badge{
   min-width:18px;height:18px;padding:1px 8px;border-radius:99px;
   font-size:11px;font-weight:800;
@@ -2269,7 +2280,7 @@ input[type=date],input[type=time]{position:relative;}
 .djj-seg:nth-child(3) .djj-seg-badge{background:#fed7aa;color:#9a3412;}
 .djj-seg:nth-child(4) .djj-seg-badge{background:#cffafe;color:#155e75;}
 .djj-seg:nth-child(5) .djj-seg-badge{background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);}
-.djj-seg.is-active .djj-seg-badge{background:rgba(255,255,255,.24);border:none;color:#fff;}
+.djj-seg.is-active .djj-seg-badge{background:var(--accent-hover);border:none;color:#fff;}
 /* phones: let the bar scroll sideways instead of squashing */
 @media (max-width:760px){
   .djj-jumpbar{overflow-x:auto;-webkit-overflow-scrolling:touch;}
