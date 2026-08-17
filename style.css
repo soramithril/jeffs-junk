@@ -768,6 +768,10 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
      them, so the tiles get the whole 1,367px (six across) and the columns above never
      reflow. Nothing to opt out of — every service keeps the same layout. */
 }
+/* Phone(s) beside Email(s). Two-up on a full-width form; the column layout stacks it
+   (see the min-width:1100px block above). Base layout is here rather than inline
+   because an inline grid-template-columns outranks every stylesheet rule. */
+.jf-contact-2up{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-group.full{grid-column:1/-1;}
 label{font-size:14px;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);font-weight:600;}
