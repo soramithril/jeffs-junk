@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '579';
+var APP_VERSION = '580';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8851,13 +8851,14 @@ function _placeScopeField(svc){
 }
 function toggleBin(){
   var svc=document.getElementById('f-svc').value;
-  // Furniture Pickup carries the furniture item picker inside section 2 — 3,619px,
-  // 73% of that form. In a 495px column it gets TALLER, not shorter (measured:
-  // 4,990px stacked vs 7,308px in columns), so that one service keeps the full-width
-  // stack. This lives in toggleBin because BOTH ways of choosing a service — clicking
-  // a tile (pickSvc) and setting it programmatically (setFormSvc) — end up here.
-  var _jm = document.getElementById('job-modal');
-  if(_jm) _jm.classList.toggle('jf-tall-service', svc==='Furniture Pickup');
+  // Furniture Pickup used to opt out of the column layout: its item grid got TALLER
+  // in a narrow column (4,990px stacked vs 7,308px in columns). Since v579 the grid
+  // is folded by default, so the section is short enough to sit in a column like
+  // every other service — but it opts out again the moment the grid is opened, which
+  // is when it needs the full width to lay its items out.
+  // Lives in toggleBin because BOTH ways of choosing a service — clicking a tile
+  // (pickSvc) and setting it programmatically (setFormSvc) — end up here.
+  _syncJobFormWidth();
   var isBin=svc==='Bin Rental';
   var isJunk=svc==='Junk Removal';
   var hasItems=isJunk||svc==='Extra Jobs'||svc==='Furniture Delivery'||svc==='Furniture Pickup';
@@ -13771,6 +13772,20 @@ function toggleDrdItems(open){
   g.style.display = show ? 'grid' : 'none';
   if(chev) chev.style.transform = show ? 'rotate(90deg)' : '';
   if(show) renderDrdModalGrid();
+  _syncJobFormWidth();
+}
+
+// The three-column layout suits every service EXCEPT a furniture job with its item
+// grid open — 133 tiles need the full width, and squeezing them into a 495px column
+// makes the form taller than not using columns at all. So the form widens out only
+// for that one state, and returns to columns when the grid is folded again.
+function _syncJobFormWidth(){
+  var jm=document.getElementById('job-modal');
+  if(!jm) return;
+  var svcEl=document.getElementById('f-svc');
+  var grid=document.getElementById('drd-m-items-grid');
+  var itemsOpen = !!(grid && grid.style.display!=='none');
+  jm.classList.toggle('jf-tall-service', (svcEl&&svcEl.value==='Furniture Pickup') && itemsOpen);
 }
 // Keeps the folded button honest about what's inside it.
 function updateDrdItemsCount(){
