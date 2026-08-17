@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '569';
+var APP_VERSION = '570';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6666,16 +6666,16 @@ function makeClientCard(row){
   if(row.blacklisted) tag='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#b4232f;background:rgba(220,53,69,.08);border:1px solid #f1c0c0;padding:2px 8px;border-radius:6px">'+iconTile('cancelled',{size:14})+'Blacklisted</span>';
   else if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:#c2410c;background:rgba(230,126,34,.1);border:1px solid #f0d2b0;padding:2px 8px;border-radius:6px">😴 Dormant</span>';
   var contractorBadge = row.contractor?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:#fff;background:#2563eb;padding:2px 8px;border-radius:6px;letter-spacing:.3px">🏗️ CONTRACTOR</span>':'';
-  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px;cursor:pointer;'+(row.contractor?'border-left:4px solid #2563eb;':(row.blacklisted?'opacity:.92;':''));
+  var cardStyle='background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow-sm);padding:14px;cursor:pointer;'+(row.contractor?'border-left:4px solid #2563eb;':(row.blacklisted?'opacity:.92;':''));
   var line=function(icon,val,muted){return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:'+(muted?'var(--muted)':'var(--text-secondary)')+';min-width:0"><span style="flex:none;width:15px;text-align:center">'+icon+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(val)+'</span></div>';};
   return '<div onclick="openClientDetailSafe(event,\''+cid+'\')" style="'+cardStyle+'">'
     +'<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:11px">'
-      +'<div style="width:42px;height:42px;border-radius:50%;background:rgba(34,197,94,.12);color:#15803d;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none">'+escHtml(initials)+'</div>'
+      +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);color:#15803d;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">'+escHtml(initials)+'</div>'
       +'<div style="flex:1;min-width:0">'
         +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--text)">'+escHtml(name)+'</span>'+contractorBadge+'</div>'
-        +'<div style="font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(row.city||'')+(row.businessName?' · 🏢 '+escHtml(row.businessName):'')+'</div>'
+        +'<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(row.city||'')+(row.businessName?' · 🏢 '+escHtml(row.businessName):'')+'</div>'
       +'</div>'
-      +'<button onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex:none">✏ Edit</button>'
+      +'<button onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')" style="min-height:32px;padding:0 12px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex:none">✏ Edit</button>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px">'
       +'<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary)">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
@@ -6691,7 +6691,7 @@ function makeClientCard(row){
 
 function renderClientsPagination() {
   var totalPages = Math.ceil(clientsTotal / clientsPageSize);
-  if (totalPages <= 1) { ['clients-pagination-top','clients-pagination-bottom'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML='';}); return; }
+  if (totalPages <= 1) { var _cpb=document.getElementById('clients-pagination-bottom'); if(_cpb)_cpb.innerHTML=''; return; }
   var start = clientsPage*clientsPageSize+1, end = Math.min((clientsPage+1)*clientsPageSize,clientsTotal);
   var html = '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;flex-wrap:wrap;gap:10px;">'
     +'<div style="font-size:13px;color:var(--muted)">Showing <strong style="color:var(--text)">'+start.toLocaleString()+'–'+end.toLocaleString()+'</strong> of <strong style="color:var(--text)">'+clientsTotal.toLocaleString()+'</strong> clients</div>'
@@ -6702,7 +6702,7 @@ function renderClientsPagination() {
     +'<button onclick="clientsPage='+(clientsPage+1)+';renderClients()" '+(clientsPage>=totalPages-1?'disabled':'')+' style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;'+(clientsPage>=totalPages-1?'opacity:.4':'')+'">Next ›</button>'
     +'<button onclick="clientsPage='+(totalPages-1)+';renderClients()" '+(clientsPage>=totalPages-1?'disabled':'')+' style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;'+(clientsPage>=totalPages-1?'opacity:.4':'')+'">»</button>'
     +'</div></div>';
-  ['clients-pagination-top','clients-pagination-bottom'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=html;});
+  var _cpb2=document.getElementById('clients-pagination-bottom'); if(_cpb2)_cpb2.innerHTML=html;
 }
 
 function openClientDetailSafe(e, cid){ e.preventDefault(); e.stopPropagation(); openClientDetail(cid); }
@@ -6736,7 +6736,7 @@ async function openClientDetail(cid){
   var onRent = clientJobs.filter(function(j){
     return j.service==='Bin Rental' && j.status!=='Cancelled' && j.binInstatus==='dropped';
   });
-  var onRentHtml = onRent.length ? '<div style="margin:0 0 12px;padding:10px 14px;border-radius:9px;background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.35);font-size:13.5px;font-weight:600;color:var(--text)">'
+  var onRentHtml = onRent.length ? '<div style="margin:0 0 12px;padding:10px 14px;border-radius:9px;background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.35);font-size:15px;font-weight:700;color:var(--text)">'
     + '🚛 On rent now: ' + onRent.map(function(j){
         return escHtml((j.binSize||'bin')+(j.binBid?' #'+j.binBid:''))
           + (j.address?' at '+escHtml(String(j.address).split(',')[0]):'')
@@ -6782,6 +6782,7 @@ async function openClientDetail(cid){
   document.getElementById('cdet-body').innerHTML =
     (cl.blacklisted?'<div style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#dc3545;font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
     +(cl.contractor?'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.3);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#2563eb;font-weight:700;display:flex;align-items:center;gap:7px">🏗️ Contractor account</div>':'')
+    +onRentHtml
     +'<div class="detail-section"><div class="detail-grid">'
     +(namesHtml?'<div class="detail-item" style="grid-column:1/-1"><label>Contact Names</label><span>'+namesHtml+'</span></div>':'')
     +(cl.businessName?'<div class="detail-item" style="grid-column:1/-1"><label>Business Name</label><span>'+cl.businessName+'</span></div>':'')
@@ -6800,7 +6801,6 @@ async function openClientDetail(cid){
     +(furn?'<span class="client-stat cs-furn">🛋️ '+furn+' Furn</span>':'')
     +'<span style="font-size:12px;color:var(--muted)">'+loyalty+'</span>'
     +'</div>'
-    +onRentHtml
     +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +renderClientQuoteHistory(cl.cid)

@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=569">
+<link rel="stylesheet" href="style.css?v=570">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -630,7 +630,7 @@
 <!-- ═══════════════ CLIENTS ═══════════════ -->
 <div id="view-clients" class="view">
   <div class="page-header">
-    <div><div class="page-title">Clients</div><div class="page-sub" id="clients-sub">Manage your client list</div></div>
+    <div><div class="page-title page-title-sm">Clients</div><div class="page-sub" id="clients-sub">Manage your client list</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       
       <button class="btn btn-ghost" onclick="openMergeClients()">🔗 Merge Clients</button>
@@ -638,6 +638,7 @@
     </div>
   </div>
   <div class="filters-bar" style="flex-wrap:wrap;gap:8px;row-gap:8px;">
+    <input class="search-input search-icon" id="clients-search-input" type="text" placeholder="Search name, phone, email, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="width:100%;max-width:380px;font-size:15px;border-color:var(--border-strong)">
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Sort</span>
@@ -676,7 +677,6 @@
         </select>
       </div>
     </div>
-    <input class="search-input search-icon" id="clients-search-input" type="text" placeholder="Search name, phone, email, city..." oninput="clientSearchF=this.value;clientsPage=0;renderClients()" style="margin-left:auto;width:100%;max-width:300px">
     <!-- Per-service min/max range filters -->
     <div id="client-range-panel" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
       <!-- Panel header -->
@@ -772,7 +772,6 @@
     <button class="btn btn-ghost btn-sm" onclick="exportClientList()" title="Export filtered list">⬇ Export CSV</button>
     <button class="btn btn-ghost btn-sm" onclick="openEmailListModal()" title="Names + emails for marketing — records who was pulled">✉ Email List</button>
   </div>
-  <div id="clients-pagination-top"></div>
   <div id="clients-list"></div>
   <div id="clients-pagination-bottom"></div>
 </div>
@@ -2801,7 +2800,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=569"></script>
+<script src="app.js?v=570"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
