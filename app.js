@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '571';
+var APP_VERSION = '572';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10809,7 +10809,8 @@ async function openDetail(id, returnCid){
     j=dbToJob(r.data);
     jobs.push(j); // add to local array so action buttons (mark dropped, revert pickup, etc.) work
   }
-  document.getElementById('det-ttl').textContent=j.id;
+  // Customer leads, job number supports — it was the other way round.
+  document.getElementById('det-ttl').textContent = j.name || ('Job '+j.id);
   // When opened from a client's job list, show a clickable "Back to <client>" crumb
   // so you can return and pick another job. Otherwise show the normal breadcrumb.
   var _crumbEl=document.getElementById('det-crumb');
@@ -10818,7 +10819,7 @@ async function openDetail(id, returnCid){
     var _rcName=_rc?_rc.name:'Client';
     _crumbEl.innerHTML='<span onclick="closeM(\'detail-modal\');openClientDetail(\''+returnCid+'\')" style="cursor:pointer;color:var(--accent);font-weight:600">‹ Back to '+escHtml(_rcName)+'</span>';
   } else {
-    _crumbEl.textContent='Jobs › '+(j.service||'Job');
+    _crumbEl.textContent='Job '+j.id+' · '+(j.service||'Job');
   }
   var bin='';
   if(j.service==='Bin Rental'){
@@ -10917,16 +10918,16 @@ async function openDetail(id, returnCid){
       ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
       :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
     +reviewBtnHtml(j)
-    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="openBinPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(8,145,178,.4);color:#0891b2">'+lineIcon('calendar',14)+' Change Pickup</button>':'')
-    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:rgba(234,179,8,.4);color:#eab308">'+lineIcon('print',14)+' Print Form</button>':'')
-    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="openQuoteInvite(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📅 Calendar Invite</button>':'')
-    +(j.service==='Extra Jobs'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:rgba(101,163,13,.4);color:#65a30d">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Extra Jobs'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Extra Jobs'?(j.completed
         ?'<button class="btn btn-ghost" onclick="reopenLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+' · Reopen</button>'
         :'<button class="btn btn-ghost" onclick="completeLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.4);color:#16a34a">✅ Mark Completed</button>'):'')
-    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(139,92,246,.4);color:#8b5cf6">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Furniture Pickup'?'<button class="btn btn-ghost" onclick="printFbPickup(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +'<button class="btn btn-ghost" onclick="changeJobType(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#a855f7">🔄 Change Job</button>'
     +(j.status==='Postponed'
       ?'<button class="btn btn-ghost" onclick="reopenPostponedJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">▶ Postponed · Reopen</button>'

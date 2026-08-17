@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=571">
+<link rel="stylesheet" href="style.css?v=572">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1772,13 +1772,13 @@
 
       <!-- ── SERVICE TYPE (segmented picker, color-coded per service) ── -->
       <div class="form-group" style="margin-bottom:16px">
-        <label>Service Type <span style="color:#dc3545">*</span></label>
+        <label>Service Type <span class="req-mark">required</span></label>
         <div id="f-svc-picker" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-          <button type="button" data-svc="Bin Rental" data-color="#22c55e" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#22c55e;border-color:rgba(34,197,94,.4);text-align:center;line-height:1.25">🚛 Bin Rental</button>
-          <button type="button" data-svc="Junk Removal" data-color="#eab308" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#eab308;border-color:rgba(234,179,8,.4);text-align:center;line-height:1.25">🗑️ Junk Removal</button>
-          <button type="button" data-svc="Junk Quote" data-color="#0d6efd" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#0d6efd;border-color:rgba(13,110,253,.4);text-align:center;line-height:1.25">📋 Junk Quote</button>
-          <button type="button" data-svc="Furniture Pickup" data-color="#8b5cf6" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#8b5cf6;border-color:rgba(139,92,246,.4);text-align:center;line-height:1.25">🛋️ Furniture Pickup</button>
-          <button type="button" data-svc="Extra Jobs" data-color="#65a30d" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#65a30d;border-color:rgba(101,163,13,.4);text-align:center;line-height:1.25">🌿 Extra Jobs</button>
+          <button type="button" data-svc="Bin Rental" data-color="#22c55e" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#15803d;border-color:rgba(34,197,94,.4);text-align:center;line-height:1.25">🚛 Bin Rental</button>
+          <button type="button" data-svc="Junk Removal" data-color="#eab308" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#a16207;border-color:rgba(234,179,8,.4);text-align:center;line-height:1.25">🗑️ Junk Removal</button>
+          <button type="button" data-svc="Junk Quote" data-color="#0d6efd" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#1d4ed8;border-color:rgba(13,110,253,.4);text-align:center;line-height:1.25">📋 Junk Quote</button>
+          <button type="button" data-svc="Furniture Pickup" data-color="#8b5cf6" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#7c3aed;border-color:rgba(139,92,246,.4);text-align:center;line-height:1.25">🛋️ Furniture Pickup</button>
+          <button type="button" data-svc="Extra Jobs" data-color="#65a30d" onclick="pickSvc(this)" class="svc-pick-btn btn btn-ghost" style="justify-content:center;font-size:12px;font-weight:700;padding:11px 6px;color:#4d7c0f;border-color:rgba(101,163,13,.4);text-align:center;line-height:1.25">🌿 Extra Jobs</button>
         </div>
         <input type="hidden" id="f-svc" value="">
         <div class="field-error-msg" id="err-f-svc">Please choose a service type.</div>
@@ -1805,7 +1805,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:10px">
-        <label>Name(s) <span style="color:#dc3545">*</span></label>
+        <label>Name(s) <span class="req-mark">required</span></label>
         <div id="f-names-wrap"></div>
         <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Name</button>
         <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
@@ -1891,7 +1891,7 @@
 
         <div class="job-form-subsection-label" style="margin-top:16px">📅 Scheduling</div>
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>Drop-off Date <span style="color:#dc3545">*</span></label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
+          <div class="form-group"><label>Drop-off Date <span class="req-mark">required</span></label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
           <div class="form-group">
             <label>Pickup Date</label>
             <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div>
@@ -1941,7 +1941,7 @@
           <div class="form-group" style="margin-top:10px"><label>✅ Tasks <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— one per line; prints as a checklist on the work order</span></label><textarea id="f-tasks" rows="4" placeholder="Mow front lawn&#10;Trim hedges&#10;Haul away branches"></textarea></div>
         </div>
         <div id="junk-datetime-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label id="junk-date-label">Job Date <span style="color:#dc3545">*</span></label><input id="f-junk-date" type="date"><div class="field-error-msg" id="err-f-junk-date">Job Date is missing.</div></div>
+          <div class="form-group"><label id="junk-date-label">Job Date <span class="req-mark">required</span></label><input id="f-junk-date" type="date"><div class="field-error-msg" id="err-f-junk-date">Job Date is missing.</div></div>
           <div class="form-group"><label id="junk-time-label">Job Time</label><div style="display:flex;gap:6px"><input id="f-junk-time" type="time" style="flex:1"><button type="button" id="f-junk-time-any" class="anytime-btn" onclick="toggleAnytime('f-junk-time',this)">🕐 Anytime</button></div></div>
         </div>
         <div id="quote-amount-wrap" style="display:none;margin-top:10px">
@@ -1987,7 +1987,7 @@
       <div id="fb-schedule-wrap" style="display:none;margin-bottom:14px">
         <div class="job-form-subsection-label"><span style="font-size:14px">🛋️</span> <span id="fb-schedule-label">Delivery Schedule</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="form-group"><label id="fb-date-label">Delivery Date <span style="color:#dc3545">*</span></label><input id="f-fb-date" type="date"><div class="field-error-msg" id="err-f-fb-date">Date is missing.</div></div>
+          <div class="form-group"><label id="fb-date-label">Delivery Date <span class="req-mark">required</span></label><input id="f-fb-date" type="date"><div class="field-error-msg" id="err-f-fb-date">Date is missing.</div></div>
           <div class="form-group"><label id="fb-time-label">Delivery Time</label><input id="f-fb-time" type="time"></div>
         </div>
         <div id="fb-duration-wrap" style="margin-top:10px">
@@ -2069,7 +2069,7 @@
       <div class="job-form-section-label"><span class="job-form-section-num">3</span> Wrap-Up</div>
 
       <div class="form-group" style="margin-bottom:14px">
-        <label>Referral Source <span style="color:#dc3545">*</span></label>
+        <label>Referral Source <span class="req-mark">required</span></label>
         <select id="f-referral" oninput="clearErr('f-referral')" onchange="if(this.value==='__add_new__')addReferralSource('f-referral')">
           <option value="">— Choose source —</option>
           <option value="__add_new__">+ Add new source…</option>
@@ -2099,7 +2099,7 @@
       <div class="form-group full" id="notes-group"><label id="notes-group-label">Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div class="form-group full" id="internal-notes-group" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
       <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
-      <div class="form-actions">
+      <div class="form-actions job-form-actions-sticky">
         <button type="button" class="btn btn-ghost" onclick="closeJobModal()">Cancel</button>
         <button type="button" class="btn btn-primary" id="save-btn" onclick="saveJob(event)">Save Job</button>
       </div>
@@ -2377,7 +2377,7 @@
       <div class="job-form-section-label"><span class="job-form-section-num">1</span> Contact</div>
 
       <div class="form-group" style="margin-bottom:10px">
-        <label>Name(s) <span style="color:#dc3545">*</span></label>
+        <label>Name(s) <span class="req-mark">required</span></label>
         <div id="c-names-wrap"></div>
         <button type="button" class="btn btn-ghost btn-sm" onclick="addClientName()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Name</button>
         <div class="field-error-msg" id="err-c-name">At least one name is required.</div>
@@ -2418,7 +2418,7 @@
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
         <div class="form-group" style="margin:0">
-          <label>Referral Source <span style="color:#dc3545">*</span></label>
+          <label>Referral Source <span class="req-mark">required</span></label>
           <select id="c-referral" onchange="if(this.value==='__add_new__')addReferralSource('c-referral')">
             <option value="">— Choose source —</option>
             <option value="__add_new__">+ Add new source…</option>
@@ -2803,7 +2803,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=571"></script>
+<script src="app.js?v=572"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
