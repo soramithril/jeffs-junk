@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '578';
+var APP_VERSION = '579';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13761,6 +13761,33 @@ async function doMergeClients() {
 // The Edit-Job modal has no inputs for donor postal/email/contact/contactInfo,
 // so it preserves whatever the detail view saved instead of blanking them.
 var _drdModalPreserve = {postal:'',email:'',contact:'',contactInfo:''};
+// The furniture item grid is 3,619px — 73% of the whole booking form — so it opens
+// folded, with a live count on the button. Opening it is one click; nothing moved.
+function toggleDrdItems(open){
+  var g=document.getElementById('drd-m-items-grid');
+  var chev=document.getElementById('drd-m-items-chev');
+  if(!g) return;
+  var show = (open===undefined) ? g.style.display==='none' : !!open;
+  g.style.display = show ? 'grid' : 'none';
+  if(chev) chev.style.transform = show ? 'rotate(90deg)' : '';
+  if(show) renderDrdModalGrid();
+}
+// Keeps the folded button honest about what's inside it.
+function updateDrdItemsCount(){
+  var el=document.getElementById('drd-m-items-count');
+  if(!el || typeof DRD_ITEMS==='undefined') return;
+  var n=0;
+  DRD_ITEMS.forEach(function(_,i){
+    var q=document.getElementById('drd-m-qty-'+i);
+    if(q) n += (parseInt(q.value,10)||0);
+  });
+  document.querySelectorAll('#drd-m-other-rows .drd-m-other-qty').forEach(function(q){
+    n += (parseInt(q.value,10)||0);
+  });
+  el.textContent = n ? (n+' item'+(n===1?'':'s')+' chosen') : 'none yet';
+  el.style.color = n ? 'var(--accent-hover)' : 'var(--muted)';
+}
+
 function renderDrdModalGrid(){
   var g=document.getElementById('drd-m-items-grid');
   if(!g)return;
@@ -13806,6 +13833,7 @@ function drdModalStep(i,delta){
   drdModalRecalc();
 }
 function drdModalRecalc(){
+  if(typeof updateDrdItemsCount==='function') updateDrdItemsCount();
   var totalItems=0,totalFee=0,totalVal=0;
   DRD_ITEMS.forEach(function(item,i){
     var el=document.getElementById('drd-m-qty-'+i);

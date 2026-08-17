@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=578">
+<link rel="stylesheet" href="style.css?v=579">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -2055,7 +2055,17 @@
             </div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px;margin-bottom:10px" id="drd-m-items-grid"></div>
+        <!-- The 97-item furniture grid is 3,619px on its own — 73% of the whole
+             booking form. Folded by default with a live count beside it, so the form
+             is the same length as the others until someone actually needs to pick
+             items. Nothing is moved or removed; one click opens it. -->
+        <button type="button" id="drd-m-items-toggle" onclick="toggleDrdItems()"
+          style="display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border-strong);border-radius:9px;padding:10px 13px;margin-bottom:10px;cursor:pointer;font-family:inherit">
+          <span id="drd-m-items-chev" style="font-size:12px;color:var(--muted);transition:transform .15s;display:inline-block">&#9656;</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text)">Choose furniture items</span>
+          <span id="drd-m-items-count" style="margin-left:auto;font-size:12px;font-weight:700;color:var(--muted)">none yet</span>
+        </button>
+        <div style="display:none;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px;margin-bottom:10px" id="drd-m-items-grid"></div>
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>
           <div id="drd-m-other-rows"></div>
@@ -2813,7 +2823,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=578"></script>
+<script src="app.js?v=579"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
