@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '577';
+var APP_VERSION = '578';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8851,6 +8851,13 @@ function _placeScopeField(svc){
 }
 function toggleBin(){
   var svc=document.getElementById('f-svc').value;
+  // Furniture Pickup carries the furniture item picker inside section 2 — 3,619px,
+  // 73% of that form. In a 495px column it gets TALLER, not shorter (measured:
+  // 4,990px stacked vs 7,308px in columns), so that one service keeps the full-width
+  // stack. This lives in toggleBin because BOTH ways of choosing a service — clicking
+  // a tile (pickSvc) and setting it programmatically (setFormSvc) — end up here.
+  var _jm = document.getElementById('job-modal');
+  if(_jm) _jm.classList.toggle('jf-tall-service', svc==='Furniture Pickup');
   var isBin=svc==='Bin Rental';
   var isJunk=svc==='Junk Removal';
   var hasItems=isJunk||svc==='Extra Jobs'||svc==='Furniture Delivery'||svc==='Furniture Pickup';
@@ -12100,12 +12107,6 @@ function setFormSvc(value){
   document.querySelectorAll('.svc-pick-btn').forEach(function(b){
     _setSvcBtnState(b, b.getAttribute('data-svc')===value);
   });
-  // Furniture Pickup carries the furniture item picker inside section 2 — 3,619px of
-  // it, 73% of that form. Squeezing that into a 495px column makes it TALLER, not
-  // shorter (measured: 4,990px stacked became 7,308px in columns). So this one service
-  // keeps the full-width stack until the item picker gets its own home.
-  var jm = document.getElementById('job-modal');
-  if(jm) jm.classList.toggle('jf-tall-service', value==='Furniture Pickup');
   toggleBin();
 }
 // Paint emboss tiles into the static new-job service picker (tile on top, label
