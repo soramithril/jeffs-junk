@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '584';
+var APP_VERSION = '585';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1963,13 +1963,13 @@ async function nextBinItemId(size, type){
 var editClientId = null;
 
 function _clientNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientPhoneRow(num,ext,type){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="c-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="c-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientEmailRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="email" class="c-email-inp" placeholder="email@example.com" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="email" class="c-email-inp" placeholder="email@example.com" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientAddressRow(street, city, removable){
   var rmBtn=removable?'<button type="button" onclick="this.closest(\'.c-addr-row\').remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px;align-self:flex-start;margin-top:22px">✕</button>':'';
@@ -2004,19 +2004,19 @@ function addClientAddress(){
 
 // ─── JOB FORM HELPERS (reuse client helpers + job-specific ones) ───
 function _jobNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _jobPhoneRow(num,ext,type){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="f-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="f-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="f-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="f-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="f-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="f-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _jobEmailRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="email" class="f-email-inp" placeholder="email@example.com" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="email" class="f-email-inp" placeholder="email@example.com" value="'+(val||'')+'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function addJobName(){document.getElementById('f-names-wrap').insertAdjacentHTML('beforeend',_jobNameRow(''));}
 function addJobPhone(){document.getElementById('f-phones-wrap').insertAdjacentHTML('beforeend',_jobPhoneRow('','','cell'));}
 function addJobEmail(){document.getElementById('f-emails-wrap').insertAdjacentHTML('beforeend',_jobEmailRow(''));}
 function _jobItemRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px;position:relative"><input type="text" class="f-item-inp" placeholder="Item" value="'+(val||'').replace(/"/g,'&quot;')+'" onkeydown="_itemInpKey(event)" oninput="_itemInpAC(this)" onfocus="_itemInpAC(this)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px;position:relative"><input type="text" class="f-item-inp" placeholder="Item" value="'+(val||'').replace(/"/g,'&quot;')+'" onkeydown="_itemInpKey(event)" oninput="_itemInpAC(this)" onfocus="_itemInpAC(this)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _itemInpKey(e){
   var dd=e.target.parentNode.querySelector('.item-ac-dd');
@@ -8891,6 +8891,14 @@ function toggleBin(){
       }
     }
   }
+  // Extra Jobs type hours, everyone else minutes; and Extra Jobs need no referral source.
+  var isExtra=svc==='Extra Jobs';
+  var durUnit=document.getElementById('f-est-duration-unit');
+  if(durUnit) durUnit.textContent=isExtra?'hours':'min';
+  var durInp=document.getElementById('f-est-duration');
+  if(durInp){ durInp.step=isExtra?'0.5':'15'; durInp.placeholder=isExtra?'hours':'minutes'; }
+  var refMark=document.getElementById('referral-req-mark');
+  if(refMark) refMark.style.display=isExtra?'none':'';
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
   var fbWrap=document.getElementById('fb-schedule-wrap');
   if(fbWrap){
@@ -9853,9 +9861,20 @@ function fmtDur(min){
   if(r===0) return h+'h';
   return h+'h '+r+'m';
 }
+// Extra Jobs are day-length work, so that form types HOURS while Junk Removal types
+// minutes. estDurationMin in the database is always minutes; _estDurIsHours is the one
+// place that decides, and saveJob/editJob are the only two that convert.
+function _estDurIsHours(){ return document.getElementById('f-svc').value==='Extra Jobs'; }
 function setEstDuration(min){
   var inp=document.getElementById('f-est-duration');if(!inp)return;
-  inp.value=String(min);
+  inp.value = _estDurIsHours() ? String(min/60).replace(/\.0+$/,'') : String(min);
+}
+// The typed value in hours (Extra Jobs) or minutes (everything else), always returned
+// as the minutes the database stores.
+function _estDurToMinutes(svc){
+  var v=document.getElementById('f-est-duration').value;
+  if(v==='') return '';
+  return svc==='Extra Jobs' ? String(Math.round(Number(v)*60)) : v;
 }
 function setFbEstDuration(min){
   var inp=document.getElementById('f-fb-est-duration');if(!inp)return;
@@ -10050,7 +10069,9 @@ async function openEdit(id){
       if(!isQEdit){
         var fjqE=document.getElementById('f-junk-quoted');if(fjqE)fjqE.value=j.quotedAmount||'';
         var fjaE=document.getElementById('f-junk-actual');if(fjaE)fjaE.value=j.price||'';
-        var fedE=document.getElementById('f-est-duration');if(fedE)fedE.value=j.estDurationMin||'';
+        var fedE=document.getElementById('f-est-duration');
+        if(fedE) fedE.value = (j.service==='Extra Jobs' && j.estDurationMin)
+          ? String(Number(j.estDurationMin)/60).replace(/\.0+$/,'') : (j.estDurationMin||'');
       }
     }
     var isFurnEdit=j.service==='Furniture Delivery'||j.service==='Furniture Pickup';
@@ -10224,7 +10245,9 @@ async function saveJob(e){
       if(!firstErrField) firstErrField=dateField.id;
     }
   } else if(!date && !landscapeNoDate) { showErr('f-date'); errs.push('Date is required.'); if(!firstErrField) firstErrField='f-date'; }
-  if(!referral && !editId) { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
+  // Extra Jobs are JWG's own work — nobody phoned in off an ad, so there is no source
+  // to record and demanding one just taught people to pick a junk answer.
+  if(!referral && !editId && svc!=='Extra Jobs') { showErr('f-referral'); errs.push('Referral source is required.'); if(!firstErrField) firstErrField='f-referral'; }
   if(svc==='Bin Rental' && !document.getElementById('f-bsize').value) { errs.push('Bin size is required for Bin Rental jobs — please select a bin.'); if(!firstErrField) firstErrField='bin-extra'; }
   if(svc==='Bin Rental'){
     var _binStreet=document.getElementById('f-addr').value.trim();
@@ -10339,7 +10362,7 @@ async function saveJob(e){
               : ((svc==='Junk Removal'||svc==='Extra Jobs') ? (document.getElementById('f-junk-actual').value || '')
               : document.getElementById('f-price').value),
     quotedAmount: (svc==='Junk Removal'||svc==='Extra Jobs') ? (document.getElementById('f-junk-quoted').value || '') : '',
-    estDurationMin: (svc==='Junk Removal'||svc==='Extra Jobs') ? (document.getElementById('f-est-duration').value || '')
+    estDurationMin: (svc==='Junk Removal'||svc==='Extra Jobs') ? _estDurToMinutes(svc)
                   : ((svc==='Furniture Delivery'||svc==='Furniture Pickup') ? (document.getElementById('f-fb-est-duration').value || '')
                   : ''),
     paid:      document.getElementById('f-paid').value || 'Unpaid',

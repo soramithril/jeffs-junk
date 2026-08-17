@@ -731,22 +731,21 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
      itself was squeezed to 56px and cut off. Stacked, each gets the whole column. */
   #job-modal .jf-contact-2up{grid-template-columns:minmax(0,1fr)}
 
-  /* The three sections side by side (v576). Measured across all five services:
-     Customer is 373px and Wrap-Up 495px EVERY time — 961px of identical content
-     that used to stack underneath the service block. Standing them beside it takes
-     Junk Quote and Junk Removal from 2.4-2.7 screens to one, and Bin Rental from
-     three screens to one short scroll. The middle column is widest because section
-     2 is the only one whose height changes with the service. */
-  /* Row-gap matters now that there is a second row: the Furniture Pickup strip sits
-     under all three columns (index.html, last child of .jf-cols). Row 1 can never
-     wrap — three explicit tracks, three sections, none of them ever hidden — so this
-     gap only ever lands on the seam between the columns and that strip. */
+  /* TWO columns from 1100px up (v585). Three columns need about 420px each to stay
+     comfortable; a 15" laptop at 1366px only has 1,231px of modal content, which gave
+     377px columns — measured, and visibly cramped. So the laptop gets two roomy columns
+     (562/647 at 1366) and only a real monitor gets three, at min-width:1500px below.
+     Customer and Wrap-Up stack in the left lane, Scheduling — the tall one, and the only
+     section whose height changes with the service — takes the right lane on its own. */
   #job-modal .jf-cols{
     display:grid;
-    grid-template-columns:1fr 1.15fr 1fr;
+    grid-template-columns:1fr 1.15fr;
     gap:22px;
     align-items:start;
   }
+  #job-modal .jf-sec-customer{grid-column:1;grid-row:1}
+  #job-modal .jf-sec-wrap    {grid-column:1;grid-row:2}
+  #job-modal .jf-sec-service {grid-column:2;grid-row:1/span 2}
   #job-modal .jf-sec{min-width:0}
   /* Each column reads as its own panel, so three stacks of fields side by side
      don't run together into one field soup. */
@@ -764,14 +763,46 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
 
   /* Furniture Pickup used to break the columns apart whenever its item grid opened,
      because 133 tiles in a 495px column are taller than no columns at all. It doesn't
-     any more: the panel lives OUTSIDE the three columns as a full-width strip beneath
-     them, so the tiles get the whole 1,367px (six across) and the columns above never
-     reflow. Nothing to opt out of — every service keeps the same layout. */
+     any more: the panel lives OUTSIDE the columns as a full-width strip beneath them,
+     so the tiles get the whole width and the columns above never reflow. Nothing to
+     opt out of — every service keeps the same layout. */
+}
+/* Three columns only when there is genuinely room for them: 1500px of window leaves
+   about 1,365px of modal content, so each of the outer lanes clears 420px. Below this
+   the two-column layout above holds. Placement goes back to auto so the three sections
+   fill row 1 left-to-right and the Furniture strip lands full-width on row 2. */
+@media(min-width:1500px){
+  #job-modal .jf-cols{grid-template-columns:1fr 1.15fr 1fr}
+  #job-modal .jf-sec-customer,
+  #job-modal .jf-sec-wrap,
+  #job-modal .jf-sec-service{grid-column:auto;grid-row:auto}
 }
 /* Phone(s) beside Email(s). Two-up on a full-width form; the column layout stacks it
    (see the min-width:1100px block above). Base layout is here rather than inline
    because an inline grid-template-columns outranks every stylesheet rule. */
 .jf-contact-2up{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+/* Street Address is wider than City; the prompt above them belongs to both. */
+.jf-addr-row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:10px;}
+
+/* "+ Add name / phone / email". These were .btn-ghost inside a flex-column .form-group,
+   so they stretched to the full column width and read as a disabled input rather than a
+   button. Sized to their text, with the dashed outline that means "adds another one". */
+.jf-add{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin-top:6px;
+  padding:7px 14px;border-radius:8px;border:1px dashed var(--border-strong);
+  background:var(--surface);color:var(--accent-hover);font-family:'DM Sans',sans-serif;
+  font-size:12.5px;font-weight:700;line-height:1;cursor:pointer;white-space:nowrap;
+  transition:background var(--transition),border-color var(--transition),color var(--transition);}
+.jf-add:hover{background:var(--accent-light);border-color:var(--accent);border-style:solid;}
+.jf-add:active{transform:translateY(1px);}
+.jf-add:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* The first name, phone and email row is the one the job actually needs, so it has no
+   remove button — a ✕ that empties the only contact row is a trap. Rows added after it
+   keep theirs. Done in CSS because six different places rebuild these lists, and a rule
+   can't fall out of step with them the way six JS calls would. */
+#f-names-wrap  > div:first-child .jf-row-x,
+#f-phones-wrap > div:first-child .jf-row-x,
+#f-emails-wrap > div:first-child .jf-row-x{display:none;}
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-group.full{grid-column:1/-1;}
 label{font-size:14px;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);font-weight:600;}

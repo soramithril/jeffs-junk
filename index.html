@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=584">
+<link rel="stylesheet" href="style.css?v=585">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1814,7 +1814,7 @@
         <label>Name(s) <span class="req-mark">required</span></label>
         <div class="ask">Who am I speaking with?</div>
         <div id="f-names-wrap"></div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Name</button>
+        <button type="button" class="jf-add" onclick="addJobName()">+ Add name</button>
         <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
       </div>
 
@@ -1825,12 +1825,12 @@
           <label>Phone(s)</label>
           <div class="ask">Best number to reach you on?</div>
           <div id="f-phones-wrap"></div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Phone</button>
+          <button type="button" class="jf-add" onclick="addJobPhone()">+ Add phone</button>
         </div>
         <div class="form-group" style="margin:0">
           <label>Email(s)</label>
           <div id="f-emails-wrap"></div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="addJobEmail()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Email</button>
+          <button type="button" class="jf-add" onclick="addJobEmail()">+ Add email</button>
         </div>
       </div>
 
@@ -1853,10 +1853,13 @@
       <!-- The address moved here from the Customer block (v581). On a call it comes
            up with the JOB — "where are we going?" — not with who is speaking, and a
            contractor's job site is routinely not their office address. -->
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:10px">
+      <!-- The prompt belongs to the address AND the city, so it sits above both. Inside
+           the Street Address group it pushed that input one line lower than City's and
+           the two boxes no longer lined up. Layout is in style.css, not inline. -->
+      <div class="ask" style="margin-bottom:4px">Where are we going?</div>
+      <div class="jf-addr-row">
         <div class="form-group" style="margin:0">
           <label>Street Address</label>
-          <div class="ask">Where are we going?</div>
           <div id="f-addr-picker" style="display:none;margin-bottom:6px">
             <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%"></select>
           </div>
@@ -1971,15 +1974,21 @@
         </div>
         <div id="junk-duration-wrap" style="display:none;margin-top:10px">
           <div class="form-group"><label>⏱️ Estimated Duration</label>
+            <!-- The typed unit is minutes for Junk Removal and HOURS for Extra Jobs, which
+                 are day-length jobs where "480 minutes" is the wrong thing to think in.
+                 What gets STORED is always minutes (estDurationMin) — the two conversions
+                 live in saveJob and the edit-load and nowhere else. The presets below
+                 always pass minutes, so they read the same either way. -->
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
               <input id="f-est-duration" type="number" step="15" min="0" placeholder="minutes" style="width:130px">
-              <span style="font-size:12px;color:var(--muted)">min</span>
+              <span id="f-est-duration-unit" style="font-size:12px;color:var(--muted)">min</span>
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(30)">30m</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(60)">1h</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(90)">1.5h</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(120)">2h</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(180)">3h</button>
               <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(240)">4h</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(360)">6h</button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="setEstDuration(480)">All day (8h)</button>
             </div>
           </div>
         </div>
@@ -2033,7 +2042,7 @@
       <div class="job-form-section-label"><span class="job-form-section-num">3</span> Wrap-Up</div>
 
       <div class="form-group" style="margin-bottom:14px">
-        <label>Referral Source <span class="req-mark">required</span></label>
+        <label>Referral Source <span class="req-mark" id="referral-req-mark">required</span></label>
         <div class="ask">How did you hear about us?</div>
         <select id="f-referral" oninput="clearErr('f-referral')" onchange="if(this.value==='__add_new__')addReferralSource('f-referral')">
           <option value="">— Choose source —</option>
@@ -2843,7 +2852,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=584"></script>
+<script src="app.js?v=585"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
