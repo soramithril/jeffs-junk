@@ -743,6 +743,10 @@ textarea{resize:vertical;min-height:80px;}
   margin-left:-20px;margin-right:-20px;padding:14px 20px;
   box-shadow:0 -6px 18px -12px rgba(0,0,0,.35);
 }
+/* A sticky bar is lifted out of the flow, so it sat ON TOP of whatever field
+   happened to be at the bottom of the viewport — Street Address and City were
+   underneath it. The form reserves its height so nothing is ever covered. */
+#job-modal form{padding-bottom:78px}
 .divider{height:1px;background:var(--border);margin:20px 0;}
 .detail-section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);}
 .detail-section:last-child{border-bottom:none;margin-bottom:0;}
