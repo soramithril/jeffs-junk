@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '570';
+var APP_VERSION = '571';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -7602,7 +7602,12 @@ function renderBinInventory(){
       +mkTile('idle90',idle90,'Idle 90+ days',true)
     +'</div>';
   renderFleet();
-  renderTimeline();
+  // The forecast paints only when it's open — otherwise the page spends its whole
+  // first screen on a 14-day planning table and shows none of the 94 bins.
+  var _fcOpen = false;
+  try{ _fcOpen = localStorage.getItem('jjForecastOpen')==='1'; }catch(e){}
+  toggleForecast(_fcOpen);
+  renderForecastSummary();
 }
 // One filter predicate, shared by the chips and the attention tiles.
 function fleetPass(b,f){
@@ -7628,7 +7633,10 @@ function renderFleet(){
   if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','#dc3545'),mkChip('oos','Damaged / out of rotation'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
   // sort chips
   var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
-  var mkSort=function(k,lbl){var on=fleetSort===k;return '<button onclick="setFleetSort(\''+k+'\')" style="'+sortBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(on?lbl+(fleetSortDir===1?'  ↑':'  ↓'):lbl)+'</button>';};
+  // Sort chips were byte-identical to the filter chips above them, so a control that
+  // changes WHAT YOU SEE looked exactly like one that changes THE ORDER. Filters keep
+  // the solid fill; sort now uses the outlined treatment the view toggle already uses.
+  var mkSort=function(k,lbl){var on=fleetSort===k;return '<button onclick="setFleetSort(\''+k+'\')" style="'+sortBase+(on?'background:var(--surface);color:var(--accent-hover);border-color:var(--accent-hover);box-shadow:inset 0 0 0 1px var(--accent-hover)':'background:var(--surface);color:var(--muted)')+'">'+(on?lbl+(fleetSortDir===1?'  ↑':'  ↓'):lbl)+'</button>';};
   var sortsEl=document.getElementById('fleet-sorts');
   if(sortsEl)sortsEl.innerHTML=[mkSort('num','Bin number'),mkSort('size','Size'),mkSort('status','Status')].join('');
   // view toggle active state
@@ -7783,6 +7791,35 @@ function quickToggleStatus(bid){
   var activeView=document.querySelector('.view.active');
   if(activeView&&activeView.id==='view-analytics'&&_anaTab==='utilization') renderUtilization();
 }
+// The forecast is a planning tool that was taking 385px at the top of a page named
+// after 94 bins, none of which were on screen. It opens closed; the header still
+// carries today's numbers so the information is announced rather than hidden, and
+// the choice is remembered per browser.
+function toggleForecast(open){
+  var grid=document.getElementById('timeline-table');
+  var chev=document.getElementById('tl-chevron');
+  var nav=document.getElementById('tl-nav');
+  if(!grid) return;
+  var show = (open===undefined) ? grid.style.display==='none' : !!open;
+  grid.style.display = show ? '' : 'none';
+  if(nav) nav.style.display = show ? 'flex' : 'none';
+  if(chev) chev.style.transform = show ? 'rotate(90deg)' : '';
+  try{ localStorage.setItem('jjForecastOpen', show?'1':'0'); }catch(e){}
+  if(show) renderTimeline();
+}
+// One line of today's real numbers, so the collapsed header still answers
+// "what have we got" without expanding anything.
+function renderForecastSummary(){
+  var el=document.getElementById('tl-summary');
+  if(!el || typeof checkBinWindow!=='function') return;
+  var today=todayStr();
+  var parts=['4 yard','7 yard','14 yard','20 yard'].map(function(sz){
+    var w=checkBinWindow(sz,today,today,null);
+    if(!w.total) return '';
+    return sz.replace(' yard','yd')+' '+w.available+'/'+w.total;
+  }).filter(Boolean);
+  el.textContent = parts.length ? ('Free today — '+parts.join(' · ')) : 'Bins in yard vs. out per day';
+}
 function shiftTimeline(n){tlOffset+=n;renderTimeline();}
 async function renderTimeline(){
   var numDays=14;
@@ -7898,7 +7935,7 @@ async function renderTimeline(){
       }
       var isT=ds===todayISO;
       var pct=fleetCount?out/fleetCount:0;
-      var bg=pct>=1?'rgba(220,53,69,.18)':pct>=0.5?'rgba(230,126,34,.12)':'rgba(34,197,94,.07)';
+      var bg=pct>=1?'rgba(220,53,69,.30)':pct>=0.5?'rgba(230,126,34,.22)':'rgba(34,197,94,.14)';
       return '<td'+(isT?' class="tl-today-col"':'')+' style="text-align:center;padding:4px 2px">'
         +'<div style="background:'+bg+';border-radius:6px;padding:4px 2px;margin:1px">'
         +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;line-height:1;font-variant-numeric:tabular-nums;color:'+(avail===0?'#dc3545':sizeColors[sz])+'">'+avail+'</div>'
@@ -7916,9 +7953,9 @@ async function renderTimeline(){
 
   var legend='<div style="display:flex;gap:20px;align-items:center;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);flex-wrap:wrap">'
     +'<span style="font-weight:600;color:var(--text)">Availability key:</span>'
-    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(34,197,94,.15);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Most available</span>'
-    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(230,126,34,.2);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Half out</span>'
-    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(220,53,69,.2);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Fully booked</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(34,197,94,.14);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Most available</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(230,126,34,.22);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Half out</span>'
+    +'<span><span style="display:inline-block;width:12px;height:12px;background:rgba(220,53,69,.30);border-radius:3px;margin-right:4px;vertical-align:middle"></span>Fully booked</span>'
     +'<span style="margin-left:auto">Big number = bins available that day</span>'
     +'</div>';
 

@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=570">
+<link rel="stylesheet" href="style.css?v=571">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1529,14 +1529,17 @@
 
   <div class="timeline-wrap">
     <div class="timeline-header">
-      <div><div class="timeline-title">📅 Availability Forecast</div><div class="timeline-sub">Bins in yard vs. out per day</div></div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleForecast()" title="Show or hide the 14-day forecast">
+        <span id="tl-chevron" style="font-size:13px;color:var(--muted);transition:transform .15s;display:inline-block">&#9656;</span>
+        <div><div class="timeline-title">📅 Availability Forecast</div><div class="timeline-sub" id="tl-summary">Bins in yard vs. out per day</div></div>
+      </div>
+      <div style="display:flex;gap:8px" id="tl-nav">
         <button class="cal-nav" onclick="shiftTimeline(-7)" style="padding:5px 10px;font-size:14px">&#8249;</button>
         <button class="btn btn-ghost btn-sm" onclick="tlOffset=0;renderTimeline()">Today</button>
         <button class="cal-nav" onclick="shiftTimeline(7)" style="padding:5px 10px;font-size:14px">&#8250;</button>
       </div>
     </div>
-    <div class="timeline-grid" id="timeline-table"></div>
+    <div class="timeline-grid" id="timeline-table" style="display:none"></div>
   </div>
 
   <!-- toolbar: filter chips + search + sort + view toggle -->
@@ -2800,7 +2803,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=570"></script>
+<script src="app.js?v=571"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
