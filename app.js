@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '576';
+var APP_VERSION = '577';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12100,6 +12100,12 @@ function setFormSvc(value){
   document.querySelectorAll('.svc-pick-btn').forEach(function(b){
     _setSvcBtnState(b, b.getAttribute('data-svc')===value);
   });
+  // Furniture Pickup carries the furniture item picker inside section 2 — 3,619px of
+  // it, 73% of that form. Squeezing that into a 495px column makes it TALLER, not
+  // shorter (measured: 4,990px stacked became 7,308px in columns). So this one service
+  // keeps the full-width stack until the item picker gets its own home.
+  var jm = document.getElementById('job-modal');
+  if(jm) jm.classList.toggle('jf-tall-service', value==='Furniture Pickup');
   toggleBin();
 }
 // Paint emboss tiles into the static new-job service picker (tile on top, label

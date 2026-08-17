@@ -747,6 +747,13 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
   #job-modal .jf-cols .job-form-divider{display:none}
   /* Wrap-Up's textareas were sized for a 1,401px column and are now in a ~430px one. */
   #job-modal .jf-sec-wrap textarea{min-height:60px}
+
+  /* Furniture Pickup opts out — its embedded item picker gets TALLER in a narrow
+     column, so columns actively hurt it (4,990px stacked vs 7,308px in columns,
+     both measured). Set by setFormSvc(). */
+  #job-modal.jf-tall-service .jf-cols{display:block}
+  #job-modal.jf-tall-service .jf-sec{background:none;border:none;padding:0}
+  #job-modal.jf-tall-service .jf-cols .job-form-divider{display:block}
 }
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-group.full{grid-column:1/-1;}
