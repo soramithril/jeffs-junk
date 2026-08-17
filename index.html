@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=581">
+<link rel="stylesheet" href="style.css?v=582">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -2023,69 +2023,6 @@
       <!-- Items / Tools Needed -->
       <div id="items-wrap" class="form-group full" style="display:none;margin-bottom:14px"><label id="items-wrap-label">ITEMS / TOOLS NEEDED</label><div id="f-items-wrap"></div><button type="button" onclick="addJobItem()" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--accent);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;margin-top:4px">+ Add Item</button></div>
 
-      <!-- DRD Inline Section (Furniture Pickup only) -->
-      <div id="drd-inline-wrap" class="form-group full" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface2)">
-        <div class="job-form-subsection-label" style="margin-bottom:12px">🛋️ Furniture Pickup</div>
-        <div class="form-group" style="margin:0 0 12px 0"><label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Donor Name</label><input type="text" id="drd-m-donor-name" class="form-input" style="font-size:12px;padding:6px 8px"></div>
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;white-space:nowrap">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-fb" checked style="accent-color:var(--accent)"> FURNITURE BANK</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-jj" style="accent-color:var(--accent)"> JEFF'S JUNK</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-rp" style="accent-color:var(--accent)"> REDWOOD PARK</label>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-          <div class="form-group" style="margin:0"><label style="font-size:11px">FB Opportunity #</label><input type="text" id="drd-m-opp" class="form-input" placeholder="FB-2026-001" style="font-size:12px;padding:6px 8px"></div>
-          <div class="form-group" style="margin:0"><label style="font-size:11px">Tax Receipt?</label><select id="drd-m-tax" class="form-input" style="font-size:12px;padding:6px 8px"><option value="YES">YES</option><option value="NO">NO</option></select></div>
-          <div class="form-group" style="margin:0"><label style="font-size:11px">Donation Date</label><input type="date" id="drd-m-date" class="form-input" style="font-size:12px;padding:6px 8px"></div>
-        </div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px">📦 Donated Items</div>
-        <!-- Same truck as the Furniture Quote page, filling up as items are added -->
-        <div class="drd-m-truckrow">
-          <div class="drdc-side__truck" id="drd-m-truck">
-            <div class="drdc-truck-stage">
-              <div id="drd-m-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
-                <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
-                <div id="drd-m-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;flex:none">
-            <div style="position:relative;width:72px;height:72px;flex:none">
-              <svg viewBox="0 0 120 120" width="72" height="72" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="13"></circle><circle id="drd-m-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
-                <div id="drd-m-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:23px;line-height:1;color:var(--accent)"><span id="drd-m-gauge-num">0</span><span style="font-size:11px">%</span></div>
-              </div>
-            </div>
-            <div style="line-height:1.35;white-space:nowrap">
-              <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Truck load</div>
-              <div style="font-size:13px;font-weight:700;color:var(--text)"><span id="drd-m-vol">0</span> / 800 ft³</div>
-              <div style="font-size:11px;color:var(--muted)"><span id="drd-m-trips">1</span> trip</div>
-            </div>
-          </div>
-        </div>
-        <!-- The 97-item furniture grid is 3,619px on its own — 73% of the whole
-             booking form. Folded by default with a live count beside it, so the form
-             is the same length as the others until someone actually needs to pick
-             items. Nothing is moved or removed; one click opens it. -->
-        <button type="button" id="drd-m-items-toggle" onclick="toggleDrdItems()"
-          style="display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border-strong);border-radius:9px;padding:10px 13px;margin-bottom:10px;cursor:pointer;font-family:inherit">
-          <span id="drd-m-items-chev" style="font-size:12px;color:var(--muted);transition:transform .15s;display:inline-block">&#9656;</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text)">Choose furniture items</span>
-          <span id="drd-m-items-count" style="margin-left:auto;font-size:12px;font-weight:700;color:var(--muted)">none yet</span>
-        </button>
-        <div style="display:none;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px;margin-bottom:10px" id="drd-m-items-grid"></div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>
-          <div id="drd-m-other-rows"></div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="drdModalAddOtherRow()" style="margin-top:4px">+ Add Row</button>
-        </div>
-        <div style="display:flex;gap:30px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);align-items:center">
-          <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Items: </span><strong id="drd-m-total-items">0</strong></div>
-          <div><span style="font-size:11px;text-transform:uppercase;color:var(--accent)">Customer Pays: </span><strong id="drd-m-total-pay" style="color:var(--accent)">$0.00</strong></div>
-          <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Tax Receipt: </span><strong id="drd-m-total-value">$0.00</strong></div>
-          <div class="form-group" style="margin:0;margin-left:auto"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-m-emailed" class="form-input" style="font-size:12px;padding:6px 8px;width:150px"></div>
-        </div>
-      </div>
 
       </section>
 
@@ -2125,6 +2062,78 @@
       <div class="form-group full" id="notes-group"><label id="notes-group-label">Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div class="form-group full" id="internal-notes-group" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
       </section>
+      <!-- The Furniture Pickup panel is a FULL-WIDTH strip under all three columns, not a
+           field inside section 2 — 133 item tiles and the truck need the whole page. Its
+           position here is load-bearing twice over: it must be the LAST child of .jf-cols so
+           grid auto-placement leaves Customer/Scheduling/Wrap-Up filling row 1 (as the third
+           child it would push Wrap-Up down into a lane of its own), and DOM-last is also what
+           keeps tab order matching what you see. It spans the row for free via
+           .form-group.full{grid-column:1/-1}. Do not tidy it back next to section 2. -->
+      <!-- DRD Inline Section (Furniture Pickup only) -->
+      <div id="drd-inline-wrap" class="form-group full" style="display:none;margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface2)">
+        <div class="job-form-subsection-label" style="margin-bottom:12px">🛋️ Furniture Pickup</div>
+        <div class="form-group" style="margin:0 0 12px 0"><label style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Donor Name</label><input type="text" id="drd-m-donor-name" class="form-input" style="font-size:12px;padding:6px 8px"></div>
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;white-space:nowrap">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700">Source:</div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-fb" checked style="accent-color:var(--accent)"> FURNITURE BANK</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-jj" style="accent-color:var(--accent)"> JEFF'S JUNK</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700"><input type="checkbox" id="drd-m-src-rp" style="accent-color:var(--accent)"> REDWOOD PARK</label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="form-group" style="margin:0"><label style="font-size:11px">FB Opportunity #</label><input type="text" id="drd-m-opp" class="form-input" placeholder="FB-2026-001" style="font-size:12px;padding:6px 8px"></div>
+          <div class="form-group" style="margin:0"><label style="font-size:11px">Tax Receipt?</label><select id="drd-m-tax" class="form-input" style="font-size:12px;padding:6px 8px"><option value="YES">YES</option><option value="NO">NO</option></select></div>
+          <div class="form-group" style="margin:0"><label style="font-size:11px">Donation Date</label><input type="date" id="drd-m-date" class="form-input" style="font-size:12px;padding:6px 8px"></div>
+        </div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px">📦 Donated Items</div>
+        <!-- Same truck as the Furniture Quote page, filling up as items are added. Out here
+             it gets the full page width, so it renders at its 420px cap instead of the 260px
+             floor it was squeezed to inside a form column, and the fold button rides beside
+             it — the load you are building stays in view while you pick. -->
+        <div class="drd-m-truckrow">
+          <div class="drdc-side__truck" id="drd-m-truck">
+            <div class="drdc-truck-stage">
+              <div id="drd-m-truck-dip" style="position:absolute;inset:0;transition:transform .5s cubic-bezier(.22,1,.36,1)">
+                <img src="assets/truck-fill.webp" alt="16 ft box truck, side view" draggable="false" style="position:absolute;width:109.66%;height:109.66%;left:50.23%;top:49.03%;transform:translate(-50%,-50%);max-width:none">
+                <div id="drd-m-crates" style="position:absolute;left:8%;top:21%;width:57%;height:41%;overflow:hidden;pointer-events:none"></div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex:none">
+            <div style="position:relative;width:72px;height:72px;flex:none">
+              <svg viewBox="0 0 120 120" width="72" height="72" style="display:block"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="13"></circle><circle id="drd-m-gauge-arc" cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1),stroke .3s"></circle></svg>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+                <div id="drd-m-gauge-pct" style="font-family:'Bebas Neue',sans-serif;font-size:23px;line-height:1;color:var(--accent)"><span id="drd-m-gauge-num">0</span><span style="font-size:11px">%</span></div>
+              </div>
+            </div>
+            <div style="line-height:1.35;white-space:nowrap">
+              <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Truck load</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)"><span id="drd-m-vol">0</span> / 800 ft³</div>
+              <div style="font-size:11px;color:var(--muted)"><span id="drd-m-trips">1</span> trip</div>
+            </div>
+          </div>
+          <button type="button" id="drd-m-items-toggle" onclick="toggleDrdItems()"
+            style="display:flex;align-items:center;gap:9px;flex:1;min-width:280px;text-align:left;background:var(--surface);border:1px solid var(--border-strong);border-radius:9px;padding:12px 14px;cursor:pointer;font-family:inherit">
+            <span id="drd-m-items-chev" style="font-size:12px;color:var(--muted);transition:transform .15s;display:inline-block">&#9656;</span>
+            <span style="font-size:13px;font-weight:700;color:var(--text)">Choose furniture items</span>
+            <span id="drd-m-items-count" style="margin-left:auto;font-size:12px;font-weight:700;color:var(--muted)">none yet</span>
+          </button>
+        </div>
+        <!-- The 133-tile furniture grid is 2,631px on its own. Folded by default with a live
+             count on the button, so the form is the same length as the others until someone
+             actually needs to pick items. Nothing is removed; one click opens it. -->
+        <div style="display:none;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:6px;margin-bottom:10px" id="drd-m-items-grid"></div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:6px">Other Items</div>
+          <div id="drd-m-other-rows"></div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="drdModalAddOtherRow()" style="margin-top:4px">+ Add Row</button>
+        </div>
+        <div style="display:flex;gap:30px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);align-items:center">
+          <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Items: </span><strong id="drd-m-total-items">0</strong></div>
+          <div><span style="font-size:11px;text-transform:uppercase;color:var(--accent)">Customer Pays: </span><strong id="drd-m-total-pay" style="color:var(--accent)">$0.00</strong></div>
+          <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Tax Receipt: </span><strong id="drd-m-total-value">$0.00</strong></div>
+          <div class="form-group" style="margin:0;margin-left:auto"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-m-emailed" class="form-input" style="font-size:12px;padding:6px 8px;width:150px"></div>
+        </div>
+      </div>
       </div><!-- /.jf-cols -->
 
       <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
@@ -2809,7 +2818,7 @@
   </div>
 </div>
 <script src="app-documents.js?v=562"></script>
-<script src="app-drdcalc.js?v=562"></script>
+<script src="app-drdcalc.js?v=582"></script>
 <script src="app-dispatch.js?v=540"></script>
 <script src="app-leaderboard.js?v=469"></script>
 <script src="app-analytics.js?v=558"></script>
@@ -2832,7 +2841,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=581"></script>
+<script src="app.js?v=582"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

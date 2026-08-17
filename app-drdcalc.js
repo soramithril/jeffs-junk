@@ -453,9 +453,12 @@ function drdcStartJob(){
   var custom=drdcCustomRows();
   newJob();
   drdcWhenFormReady(function(){
-    var svc=document.getElementById('f-svc');
-    svc.value='Furniture Pickup';
-    svc.dispatchEvent(new Event('change'));
+    // #f-svc is a hidden input and nothing listens to it, so the old
+    // value=...+dispatchEvent('change') pair never ran toggleBin — the form opened with
+    // the furniture panel still display:none and no Pickup Date row, then this function
+    // wrote the quote's quantities into fields nobody could see. setFormSvc is the
+    // documented programmatic entry point and does call toggleBin.
+    setFormSvc('Furniture Pickup');
     renderDrdModalGrid();
     Object.keys(qtys).forEach(function(i){
       document.getElementById('drd-m-qty-'+i).value=qtys[i];

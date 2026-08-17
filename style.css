@@ -727,10 +727,14 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
      Junk Quote and Junk Removal from 2.4-2.7 screens to one, and Bin Rental from
      three screens to one short scroll. The middle column is widest because section
      2 is the only one whose height changes with the service. */
+  /* Row-gap matters now that there is a second row: the Furniture Pickup strip sits
+     under all three columns (index.html, last child of .jf-cols). Row 1 can never
+     wrap — three explicit tracks, three sections, none of them ever hidden — so this
+     gap only ever lands on the seam between the columns and that strip. */
   #job-modal .jf-cols{
     display:grid;
     grid-template-columns:1fr 1.15fr 1fr;
-    gap:0 22px;
+    gap:22px;
     align-items:start;
   }
   #job-modal .jf-sec{min-width:0}
@@ -748,12 +752,11 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
   /* Wrap-Up's textareas were sized for a 1,401px column and are now in a ~430px one. */
   #job-modal .jf-sec-wrap textarea{min-height:60px}
 
-  /* Furniture Pickup opts out — its embedded item picker gets TALLER in a narrow
-     column, so columns actively hurt it (4,990px stacked vs 7,308px in columns,
-     both measured). Set by setFormSvc(). */
-  #job-modal.jf-tall-service .jf-cols{display:block}
-  #job-modal.jf-tall-service .jf-sec{background:none;border:none;padding:0}
-  #job-modal.jf-tall-service .jf-cols .job-form-divider{display:block}
+  /* Furniture Pickup used to break the columns apart whenever its item grid opened,
+     because 133 tiles in a 495px column are taller than no columns at all. It doesn't
+     any more: the panel lives OUTSIDE the three columns as a full-width strip beneath
+     them, so the tiles get the whole 1,367px (six across) and the columns above never
+     reflow. Nothing to opt out of — every service keeps the same layout. */
 }
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-group.full{grid-column:1/-1;}
