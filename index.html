@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=580">
+<link rel="stylesheet" href="style.css?v=581">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1794,8 +1794,9 @@
       <!-- ── ① CUSTOMER ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">1</span> Customer</div>
 
-      <div class="form-group" style="margin-bottom:14px;position:relative">
-        <label>Search Existing Client</label>
+      <div class="form-group jf-search-first" style="margin-bottom:14px;position:relative">
+        <label>Start here &mdash; search existing client</label>
+        <div class="ask">Have we done work for you before?</div>
         <input type="text" id="f-client-search" placeholder="Name, phone, business, address..." autocomplete="off"
           oninput="clientSearchDebounce(this.value)"
           style="width:100%;box-sizing:border-box"
@@ -1811,6 +1812,7 @@
 
       <div class="form-group" style="margin-bottom:10px">
         <label>Name(s) <span class="req-mark">required</span></label>
+        <div class="ask">Who am I speaking with?</div>
         <div id="f-names-wrap"></div>
         <button type="button" class="btn btn-ghost btn-sm" onclick="addJobName()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Name</button>
         <div class="field-error-msg" id="err-f-names">At least one contact name is required.</div>
@@ -1819,6 +1821,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
         <div class="form-group" style="margin:0">
           <label>Phone(s)</label>
+          <div class="ask">Best number to reach you on?</div>
           <div id="f-phones-wrap"></div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="addJobPhone()" style="margin-top:4px;font-size:12px;padding:4px 10px">+ Phone</button>
         </div>
@@ -1832,21 +1835,6 @@
       <!-- Repeat-caller suggestion: filled by _phoneMatchScan when a typed phone number matches an existing client -->
       <div id="f-phone-match" style="display:none;margin-bottom:10px"></div>
 
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:10px">
-        <div class="form-group" style="margin:0">
-          <label>Street Address</label>
-          <div id="f-addr-picker" style="display:none;margin-bottom:6px">
-            <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%"></select>
-          </div>
-          <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
-          <input id="f-province" type="hidden" value="Ontario">
-          <input id="f-country" type="hidden" value="Canada">
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>City</label>
-          <input id="f-city" type="text" value="">
-        </div>
-      </div>
       <div style="margin-bottom:10px">
         <div class="form-group" style="margin:0">
           <label>Business Name <span style="font-size:9px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></label>
@@ -1859,6 +1847,26 @@
       <section class="jf-sec jf-sec-service">
       <!-- ── ② SCHEDULING & DETAILS ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">2</span> Scheduling & Details</div>
+
+      <!-- The address moved here from the Customer block (v581). On a call it comes
+           up with the JOB — "where are we going?" — not with who is speaking, and a
+           contractor's job site is routinely not their office address. -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:10px">
+        <div class="form-group" style="margin:0">
+          <label>Street Address</label>
+          <div class="ask">Where are we going?</div>
+          <div id="f-addr-picker" style="display:none;margin-bottom:6px">
+            <select id="f-addr-select" onchange="pickClientAddress(this.value)" style="width:100%"></select>
+          </div>
+          <input id="f-addr" type="text" onblur="this.value=toTitleCase(this.value)">
+          <input id="f-province" type="hidden" value="Ontario">
+          <input id="f-country" type="hidden" value="Canada">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>City</label>
+          <input id="f-city" type="text" value="">
+        </div>
+      </div>
 
       <!-- Bin Details (Bin Rental only) -->
       <div id="bin-extra" style="display:none">
@@ -1897,7 +1905,7 @@
 
         <div class="job-form-subsection-label" style="margin-top:16px">📅 Scheduling</div>
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>Drop-off Date <span class="req-mark">required</span></label><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
+          <div class="form-group"><label>Drop-off Date <span class="req-mark">required</span></label><div class="ask">When would you like it dropped off?</div><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
           <div class="form-group">
             <label>Pickup Date</label>
             <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div>
@@ -2087,6 +2095,7 @@
 
       <div class="form-group" style="margin-bottom:14px">
         <label>Referral Source <span class="req-mark">required</span></label>
+        <div class="ask">How did you hear about us?</div>
         <select id="f-referral" oninput="clearErr('f-referral')" onchange="if(this.value==='__add_new__')addReferralSource('f-referral')">
           <option value="">— Choose source —</option>
           <option value="__add_new__">+ Add new source…</option>
@@ -2823,7 +2832,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=580"></script>
+<script src="app.js?v=581"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

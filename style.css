@@ -3295,3 +3295,27 @@ body.signed-in .help-fab{display:flex;}
 }
 .field-error .req-mark,
 .form-group:has(.field-error-msg.show) .req-mark{color:#dc3545}
+
+/* ── Call prompts on the booking form (v581) ──────────────────────────────────
+   The office fills this in while the customer is on the phone, and a new starter
+   has to know what to SAY, not just what the field is called. These are the
+   question, not the label: "Best number to reach you on?" under Phone. Quiet
+   enough that someone who knows the form reads straight past them. */
+.ask{
+  font-size:11.5px;
+  color:var(--text-secondary);
+  font-style:italic;
+  margin:-1px 0 5px;
+  line-height:1.35;
+}
+/* Most callers are already on file, so finding them is the fastest possible start
+   to a call — it fills the name, numbers, emails and business in one go. It was one
+   field among many; now it reads as the opening move. */
+.jf-search-first{
+  background:var(--accent-light);
+  border:1px solid rgba(34,197,94,.35);
+  border-radius:10px;
+  padding:11px 13px;
+}
+.jf-search-first > label{color:var(--accent-hover)!important;font-weight:800}
+.jf-search-first .ask{color:var(--accent-hover);opacity:.85}
