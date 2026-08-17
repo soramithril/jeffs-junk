@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '588';
+var APP_VERSION = '589';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -17682,23 +17682,30 @@ function renderBinPriceScript(){
 
   var perTonne=parseFloat(ap.binTonne||bins._tonne||0);
   var perLb=perTonne>0 ? perTonne/LB_PER_TONNE : 0;
-  var oneT=perTonne, elevenT=perTonne*1.1, extra=elevenT-oneT;
-  var subtotal=rental+oneT, hst=subtotal*HST_RATE;
+  var subtotal=rental+perTonne, total=subtotal*(1+HST_RATE);
+  // What another 0.1 tonne actually costs, with the tax on it, because that is the
+  // question the customer is really asking when they ask about weight.
+  var overT=perTonne*0.1, overTotal=(rental+perTonne*1.1)*(1+HST_RATE);
+  var per100=perLb*100;
 
   el.innerHTML='<div class="bps">'
     +'<div class="bps-h">📞 What to quote</div>'
     +'<div class="bps-sub">'+escHtml(area)+' &middot; '+escHtml(key)+(days?' &middot; '+days+' day'+(days===1?'':'s'):'')+'</div>'
     +'<div class="bps-row"><span>Bin rental</span><b>'+_bpsMoney(rental)+'</b></div>'
     +(perTonne>0
-      ? '<div class="bps-row"><span>Dump fee &mdash; you only pay for what&rsquo;s in it</span>'
-        +'<b>'+(perLb*100).toFixed(2)+'&cent;/lb</b></div>'
-        +'<div class="bps-row bps-sm"><span>Typical load, about 1 tonne</span><b>'+_bpsMoney(oneT)+'</b></div>'
-        +'<div class="bps-row bps-sm"><span>If it comes in at 1.1 tonnes</span>'
-        +'<b>'+_bpsMoney(elevenT)+' <span class="bps-extra">only '+_bpsMoney(extra)+' more</span></b></div>'
+      ? '<div class="bps-row"><span>Dump fee &mdash; 1 tonne</span><b>'+_bpsMoney(perTonne)+'</b></div>'
       : '<div class="bps-note">No per-tonne rate on the sheet for '+escHtml(area)+'.</div>')
-    +'<div class="bps-row"><span>HST 13%</span><b>'+_bpsMoney(hst)+'</b></div>'
-    +'<div class="bps-row bps-total"><span>Typical all-in</span><b>'+_bpsMoney(subtotal+hst)+'</b></div>'
-    +'<div class="bps-note">Prices come straight off Our Prices. Nothing here is saved with the job.</div>'
+    +'<div class="bps-row"><span>HST 13%</span><b>'+_bpsMoney(total-subtotal)+'</b></div>'
+    +'<div class="bps-row bps-total"><span>Price</span><b>'+_bpsMoney(total)+'</b></div>'
+    +(perTonne>0
+      ? '<div class="bps-over">'
+        +'<div class="bps-over-h">⚖️ If the load goes over 1 tonne</div>'
+        +'<div class="bps-over-b">'+per100.toFixed(2)+'&cent; a pound &mdash; '+_bpsMoney(per100)+' for every 100&nbsp;lb.</div>'
+        +'<div class="bps-over-b">1.1 tonnes is 220&nbsp;lb over: <b>'+_bpsMoney(overT)+' more</b>, '
+        +'so <b>'+_bpsMoney(overTotal)+'</b> all in.</div>'
+        +'</div>'
+      : '')
+    +'<div class="bps-note">Straight off Our Prices. Nothing here is saved with the job.</div>'
     +'</div>';
 }
 // One delegated listener instead of a call in every handler that touches a town, size

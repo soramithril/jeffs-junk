@@ -593,6 +593,15 @@ body{
 .bps-total{border-top:1px solid rgba(34,197,94,.35);margin-top:5px;padding-top:6px;
   font-size:14px;font-weight:700;}
 .bps-note{font-size:11px;color:var(--text-secondary);margin-top:7px;line-height:1.4;}
+/* The overweight explainer sits UNDER the price and is deliberately a different colour
+   from the green quote above it — it answers a different question ("what if it's
+   heavier?") and reading it as part of the price is exactly the confusion to avoid. */
+.bps-over{background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.45);
+  border-radius:8px;padding:9px 11px;margin-top:9px;}
+.bps-over-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
+  color:#a1710a;margin-bottom:4px;}
+.bps-over-b{font-size:12px;color:var(--text);line-height:1.5;}
+.bps-over-b b{font-variant-numeric:tabular-nums;}
 
 .lb-assign-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:180px;cursor:pointer;transition:border-color .15s,box-shadow .15s;}
 .lb-assign-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(34,197,94,.1);}
