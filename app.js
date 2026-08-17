@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '585';
+var APP_VERSION = '586';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8372,6 +8372,36 @@ function crewInitialsMap(){
   if(_crewIniCache&&_crewIniSig===sig) return _crewIniCache;   // recompute only when the roster changes
   _crewIniSig=sig; _crewIniCache=computeCrewInitials(names);
   return _crewIniCache;
+}
+// Dashboard crew strip only: FOUR characters instead of two, so the availability board
+// reads as names rather than a code. One-word names take their first four letters; a
+// two-word name takes three plus the surname initial, which keeps every chip the same
+// width and is what tells Tyler M and Tyler N apart (TYLM / TYLN). If two first names
+// still collide at four, they extend until they don't. teamAvatar's 2-letter initials
+// are untouched — those still have to fit a 26px circle everywhere else in the app.
+function crewChipLabels(names){
+  var out={}, singles=[];
+  names.forEach(function(name){
+    var p=String(name||'').trim().split(/\s+/).filter(Boolean);
+    if(!p.length){ out[name]='?'; return; }
+    if(p.length>1){ out[name]=(p[0].slice(0,3)+p[1][0]).toUpperCase(); return; }
+    out[name]=p[0].slice(0,4).toUpperCase();
+    singles.push({name:name,word:p[0]});
+  });
+  singles.forEach(function(s){
+    var len=4, word=s.word;
+    while(len<word.length && singles.some(function(o){
+      return o!==s && o.word.slice(0,len).toUpperCase()===word.slice(0,len).toUpperCase(); })) len++;
+    out[s.name]=word.slice(0,len).toUpperCase();
+  });
+  return out;
+}
+var _crewChipCache=null, _crewChipSig='';
+function crewChipLabel(name){
+  var names=(typeof crewMembers!=='undefined'&&crewMembers)?crewMembers.map(function(c){return c.name;}):[];
+  var sig=names.join('|');
+  if(!_crewChipCache||_crewChipSig!==sig){ _crewChipSig=sig; _crewChipCache=crewChipLabels(names); }
+  return _crewChipCache[name] || String(name||'?').trim().slice(0,4).toUpperCase();
 }
 function crewAvatarInitials(name){
   var m=crewInitialsMap();
@@ -17607,6 +17637,7 @@ function renderDashCrewStatus(){
     var st=crewStatusForDate(c.id, ds);
     // Ring goes straight into `border`, so the free case can stay a CSS var; the
     // tint is string-concatenated and therefore only ever built from a real hex.
+    var col=crewAvatarColor(c.id);
     var ring=st.state==='off'?'#dc3545':st.state==='partial'?'#e67e22':'var(--accent)';
     var tint=st.state==='free'?'transparent':(st.state==='off'?'#dc3545':'#e67e22')+'1f';
     var icon=st.state==='off'?'🚫':st.state==='partial'?'⏱':'';
@@ -17620,8 +17651,8 @@ function renderDashCrewStatus(){
       +'<div style="padding:8px 14px;font-size:12px;cursor:pointer;border-top:1px solid var(--border)" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeCrewMenus();go(\'crew\')">📋 Manage availability</div>'
       +'</div>';
     return '<div style="position:relative;display:inline-flex;align-items:center;cursor:pointer" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
-      +'<span style="display:inline-flex;border-radius:50%;padding:2px;border:2px solid '+ring+';background:'+tint+'">'
-        +teamAvatar(c.name, crewAvatarColor(c.id), 26)
+      +'<span style="display:inline-flex;border-radius:16px;padding:2px;border:2px solid '+ring+';background:'+tint+'">'
+        +'<span class="crew-chip" style="--pa:'+col+';color:'+teamInk(col)+'">'+crewChipLabel(c.name)+'</span>'
       +'</span>'
       +(icon?'<span style="position:absolute;right:-3px;bottom:-3px;font-size:9px;line-height:1;background:var(--surface2);border-radius:50%;padding:1px 1px 0">'+icon+'</span>':'')
       +menu
