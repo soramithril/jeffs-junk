@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=575">
+<link rel="stylesheet" href="style.css?v=576">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -1786,6 +1786,11 @@
 
       <div class="job-form-divider"></div>
 
+      <!-- Sections are wrapped in containers (v576) so they can sit side by side on a
+           wide screen. Customer is 373px and Wrap-Up 495px on EVERY service — that is
+           961px of identical content that used to stack under the service block. -->
+      <div class="jf-cols">
+      <section class="jf-sec jf-sec-customer">
       <!-- ── ① CUSTOMER ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">1</span> Customer</div>
 
@@ -1849,8 +1854,9 @@
         </div>
       </div>
 
-      <div class="job-form-divider"></div>
+      </section>
 
+      <section class="jf-sec jf-sec-service">
       <!-- ── ② SCHEDULING & DETAILS ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">2</span> Scheduling & Details</div>
 
@@ -2063,8 +2069,9 @@
         </div>
       </div>
 
-      <div class="job-form-divider"></div>
+      </section>
 
+      <section class="jf-sec jf-sec-wrap">
       <!-- ── ③ WRAP-UP ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">3</span> Wrap-Up</div>
 
@@ -2098,6 +2105,9 @@
       </div>
       <div class="form-group full" id="notes-group"><label id="notes-group-label">Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div class="form-group full" id="internal-notes-group" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
+      </section>
+      </div><!-- /.jf-cols -->
+
       <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
       <div class="form-actions job-form-actions-sticky">
         <button type="button" class="btn btn-ghost" onclick="closeJobModal()">Cancel</button>
@@ -2803,7 +2813,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=575"></script>
+<script src="app.js?v=576"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

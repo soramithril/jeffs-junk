@@ -720,6 +720,33 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
 @media(min-width:1100px){
   #job-modal .form-grid{grid-template-columns:repeat(3,1fr)}
   #job-modal .form-grid .full{grid-column:1/-1}
+
+  /* The three sections side by side (v576). Measured across all five services:
+     Customer is 373px and Wrap-Up 495px EVERY time — 961px of identical content
+     that used to stack underneath the service block. Standing them beside it takes
+     Junk Quote and Junk Removal from 2.4-2.7 screens to one, and Bin Rental from
+     three screens to one short scroll. The middle column is widest because section
+     2 is the only one whose height changes with the service. */
+  #job-modal .jf-cols{
+    display:grid;
+    grid-template-columns:1fr 1.15fr 1fr;
+    gap:0 22px;
+    align-items:start;
+  }
+  #job-modal .jf-sec{min-width:0}
+  /* Each column reads as its own panel, so three stacks of fields side by side
+     don't run together into one field soup. */
+  #job-modal .jf-sec{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  /* The dividers were drawn between stacked sections; in columns they'd be a stray
+     line at the top of each one. */
+  #job-modal .jf-cols .job-form-divider{display:none}
+  /* Wrap-Up's textareas were sized for a 1,401px column and are now in a ~430px one. */
+  #job-modal .jf-sec-wrap textarea{min-height:60px}
 }
 .form-group{display:flex;flex-direction:column;gap:6px;}
 .form-group.full{grid-column:1/-1;}
