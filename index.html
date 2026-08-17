@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=586">
+<link rel="stylesheet" href="style.css?v=587">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -271,9 +271,9 @@
         <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;flex:none"><span class="jj-sec-chip cyan" style="height:12px"></span>Vehicles</div>
         <div id="dash-vehicle-status" style="display:flex;gap:8px;flex-wrap:wrap;min-width:0"></div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;grid-column:1/-1">
         <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;flex:none"><span class="jj-sec-chip warm" style="height:12px"></span>Crew</div>
-        <div id="dash-crew-status" style="display:flex;gap:8px;flex-wrap:wrap;min-width:0"></div>
+        <div id="dash-crew-status" style="display:flex;gap:7px;flex-wrap:nowrap;overflow-x:auto;min-width:0"></div>
         <button class="btn btn-ghost btn-sm" onclick="go('crew')" style="white-space:nowrap;font-size:11px;padding:3px 10px;margin-left:auto;flex:none">Manage →</button>
       </div>
     </div>
@@ -2072,6 +2072,11 @@
       </div>
       <div class="form-group full" id="notes-group"><label id="notes-group-label">Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div class="form-group full" id="internal-notes-group" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
+
+      <!-- What to say when they ask "how much?". Reads the price sheet live off the town,
+           size and duration already typed above. Bin Rental only, read-only — no dollar
+           figure here is saved with the job. Filled by renderBinPriceScript(). -->
+      <div id="bin-price-script" style="display:none"></div>
       </section>
       <!-- The Furniture Pickup panel is a FULL-WIDTH strip under all three columns, not a
            field inside section 2 — 133 item tiles and the truck need the whole page. Its
@@ -2852,7 +2857,7 @@
 <script src="app-motion.js?v=549"></script>
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
-<script src="app.js?v=586"></script>
+<script src="app.js?v=587"></script>
 <script src="app-jwg-scheduler.js?v=562"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

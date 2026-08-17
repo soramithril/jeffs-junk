@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '586';
+var APP_VERSION = '587';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8398,7 +8398,8 @@ function crewChipLabels(names){
 }
 var _crewChipCache=null, _crewChipSig='';
 function crewChipLabel(name){
-  var names=(typeof crewMembers!=='undefined'&&crewMembers)?crewMembers.map(function(c){return c.name;}):[];
+  var src=(typeof teamRoster!=='undefined'&&teamRoster.length)?teamRoster:(crewMembers||[]);
+  var names=src.map(function(c){return c.name;});
   var sig=names.join('|');
   if(!_crewChipCache||_crewChipSig!==sig){ _crewChipSig=sig; _crewChipCache=crewChipLabels(names); }
   return _crewChipCache[name] || String(name||'?').trim().slice(0,4).toUpperCase();
@@ -17624,16 +17625,107 @@ function clearCrewDay(crewId, dateStr){
   toast('Day cleared.');
 }
 
+// ── Bin Rental price script (bottom of Wrap-Up) ───────────────────────────────
+// What to say when the customer asks "how much?". Reads our_prices live off the town,
+// size and duration already on the form. Strictly read-only: nothing here is saved with
+// the job, and no dollar figure is written anywhere — the job's own price column stays
+// empty by design, because the money lives in QuickBooks.
+var LB_PER_TONNE = 2204.62, HST_RATE = 0.13;
+// The sheet is one row per town, with an area's other towns listed in `towns`.
+function _priceAreaForCity(city){
+  var c=String(city||'').trim().toLowerCase();
+  if(!c || typeof ourPricesV2==='undefined') return null;
+  var areas=Object.keys(ourPricesV2||{});
+  for(var i=0;i<areas.length;i++) if(areas[i].trim().toLowerCase()===c) return areas[i];
+  for(var j=0;j<areas.length;j++){
+    var towns=String(ourPricesV2[areas[j]].towns||'').split(',').map(function(s){return s.trim().toLowerCase();});
+    if(towns.indexOf(c)!==-1) return areas[j];
+  }
+  return null;
+}
+// 4 and 7 yard bins are only sold for dirt and concrete, so their key carries the
+// material; 14 and 20 yard have a 3-day rate and a monthly one.
+function _binPriceKey(bins, size, days, material){
+  if(!size || !bins) return null;
+  if(material && bins[size+' '+material]!=null) return size+' '+material;
+  if(days>=30 && bins['monthly '+size]!=null) return 'monthly '+size;
+  if(days && days<=3 && bins[size+' 3 day']!=null) return size+' 3 day';
+  return bins[size]!=null ? size : null;
+}
+function _bpsMoney(n){ return '$'+Number(n).toFixed(2); }
+function renderBinPriceScript(){
+  var el=document.getElementById('bin-price-script'); if(!el) return;
+  if(document.getElementById('f-svc').value!=='Bin Rental'){ el.style.display='none'; return; }
+  el.style.display='block';
+  var hint=function(msg){ el.innerHTML='<div class="bps"><div class="bps-h">📞 What to quote</div>'
+    +'<div class="bps-note">'+msg+'</div></div>'; };
+
+  var city=(document.getElementById('f-city').value||'').trim()
+        || extractCity(document.getElementById('f-addr').value||'','');
+  var size=document.getElementById('f-bsize').value;
+  if(!city || !size) return hint('Fill in the town and bin size above and the price shows up here.');
+
+  var area=_priceAreaForCity(city);
+  if(!area) return hint('No sheet price for <b>'+escHtml(city)+'</b>. Check Our Prices, or quote it manually.');
+
+  var ap=ourPricesV2[area]||{}, bins=ap.bins||{};
+  var days=parseInt(document.getElementById('f-bdur').value,10)||0;
+  var material=(document.getElementById('f-material-type')||{}).value||'';
+  var key=_binPriceKey(bins, size, days, material);
+  if(!key) return hint('No sheet price for a <b>'+escHtml(size)+'</b> in <b>'+escHtml(area)+'</b> yet.');
+
+  var rental=parseFloat(bins[key]);
+  if(!(rental>0)) return hint('The sheet has no price filled in for <b>'+escHtml(key)+'</b> in <b>'+escHtml(area)+'</b>.');
+
+  var perTonne=parseFloat(ap.binTonne||bins._tonne||0);
+  var perLb=perTonne>0 ? perTonne/LB_PER_TONNE : 0;
+  var oneT=perTonne, elevenT=perTonne*1.1, extra=elevenT-oneT;
+  var subtotal=rental+oneT, hst=subtotal*HST_RATE;
+
+  el.innerHTML='<div class="bps">'
+    +'<div class="bps-h">📞 What to quote</div>'
+    +'<div class="bps-sub">'+escHtml(area)+' &middot; '+escHtml(key)+(days?' &middot; '+days+' day'+(days===1?'':'s'):'')+'</div>'
+    +'<div class="bps-row"><span>Bin rental</span><b>'+_bpsMoney(rental)+'</b></div>'
+    +(perTonne>0
+      ? '<div class="bps-row"><span>Dump fee &mdash; you only pay for what&rsquo;s in it</span>'
+        +'<b>'+(perLb*100).toFixed(2)+'&cent;/lb</b></div>'
+        +'<div class="bps-row bps-sm"><span>Typical load, about 1 tonne</span><b>'+_bpsMoney(oneT)+'</b></div>'
+        +'<div class="bps-row bps-sm"><span>If it comes in at 1.1 tonnes</span>'
+        +'<b>'+_bpsMoney(elevenT)+' <span class="bps-extra">only '+_bpsMoney(extra)+' more</span></b></div>'
+      : '<div class="bps-note">No per-tonne rate on the sheet for '+escHtml(area)+'.</div>')
+    +'<div class="bps-row"><span>HST 13%</span><b>'+_bpsMoney(hst)+'</b></div>'
+    +'<div class="bps-row bps-total"><span>Typical all-in</span><b>'+_bpsMoney(subtotal+hst)+'</b></div>'
+    +'<div class="bps-note">Prices come straight off Our Prices. Nothing here is saved with the job.</div>'
+    +'</div>';
+}
+// One delegated listener instead of a call in every handler that touches a town, size
+// or duration — there are a dozen of those and a missed one would leave a stale price
+// on screen during a call.
+document.addEventListener('input', function(e){
+  if(e.target && e.target.closest && e.target.closest('#job-modal')) renderBinPriceScript();
+});
+document.addEventListener('change', function(e){
+  if(e.target && e.target.closest && e.target.closest('#job-modal')) renderBinPriceScript();
+});
+
 // ── Dashboard crew availability strip (selected dashboard date) ──
 function dashSelectedDate(){ var dp=document.getElementById('dash-bin-date'); return (dp&&dp.value)?dp.value:todayStr(); }
 function renderDashCrewStatus(){
   var el=document.getElementById('dash-crew-status'); if(!el) return;
-  if(!crewMembers.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
+  // EVERYONE, not just the junk side. This board answers "who is around today", which
+  // includes the office. It reads teamRoster directly rather than crewMembers so that
+  // showing someone here never makes them assignable to a junk job — on_junk still
+  // decides that, and the two questions are not the same question.
+  var roster=(typeof teamRoster!=='undefined'&&teamRoster.length)
+    ? teamRoster.filter(function(r){ return r.active!==false; })
+        .slice().sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); })
+    : crewMembers;
+  if(!roster.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
   var ds=dashSelectedDate();
   // Everyone shows, as a bare initials avatar — the whole roster has to fit one
   // line, so the name lives in the hover tooltip and the ring carries the status:
   // green available, amber part-day, red off.
-  el.innerHTML=crewMembers.map(function(c){
+  el.innerHTML=roster.map(function(c){
     var st=crewStatusForDate(c.id, ds);
     // Ring goes straight into `border`, so the free case can stay a CSS var; the
     // tint is string-concatenated and therefore only ever built from a real hex.
