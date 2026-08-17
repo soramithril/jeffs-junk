@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '587';
+var APP_VERSION = '588';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8951,6 +8951,7 @@ function toggleBin(){
     // which now clears f-bdrop). Do NOT auto-fill to today here.
     setTimeout(function(){initBinPicker('','');},50);
   }
+  renderBinPriceScript();
 }
 // Landscaping "no date yet" toggle — hides the date/time inputs and clears them.
 function toggleLandscapeNoDate(){
@@ -9844,6 +9845,7 @@ function selectBinSize(sz, el){
   renderBinPicker(currentBid||'');
   // Show material type if applicable
   showMaterialType();
+  renderBinPriceScript();
 }
 
 function filterBinPicker(sz, el){
@@ -9939,6 +9941,7 @@ function setBinDuration(days){
     if(isActive){b.style.animation='durPop .3s ease';setTimeout(function(){b.style.animation='';},300);}
   });
   renderBinSizeAvailability();
+  renderBinPriceScript();
 }
 function applyBinPresetDuration(){
   var days=window._binPresetDays;if(!days)return;
@@ -17701,6 +17704,8 @@ function renderBinPriceScript(){
 // One delegated listener instead of a call in every handler that touches a town, size
 // or duration — there are a dozen of those and a missed one would leave a stale price
 // on screen during a call.
+// Covers everything TYPED — town, address, duration box. The tiles below are hidden
+// inputs written in JS, which fire no event, so they call the render themselves.
 document.addEventListener('input', function(e){
   if(e.target && e.target.closest && e.target.closest('#job-modal')) renderBinPriceScript();
 });
