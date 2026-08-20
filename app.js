@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '596';
+var APP_VERSION = '597';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2502,20 +2502,30 @@ function animateView(viewEl){
   });
 }
 
-var ANALYTICS_USERS = ['Jake','Sam','Barbara'];
+// Access tier, read from the signed-in person's profile. One of six values:
+// developer, owner, lead, office, yard, display. This is the only thing that
+// decides what a page shows, so moving someone between tiers is a profile edit
+// rather than a code change — it replaced a hardcoded list of usernames.
+var currentRole = '';
 // Jake-only preview: see the dashboard the way office staff see it. Purely a view of the SCREEN —
 // the database still knows who is signed in, so an action attempted while previewing would still
 // be allowed. It answers "what do they see", not "what can they do"; the banner says so.
 var _staffView = false;
 var _canDeleteReal = false;
 
-function canAccessAnalytics(){
-  if(_staffView) return false;
-  return currentUser && currentUser.displayName && ANALYTICS_USERS.indexOf(currentUser.displayName)!==-1;
-}
+// Previewing as office staff answers every visibility question as if the signed-in
+// person were office. currentRole itself is left alone, so the way back out works.
+function currentTier(){ return _staffView ? 'office' : currentRole; }
+// Money and strategy: analytics, margins, bookings, email templates, team, prospects.
+function canAccessAnalytics(){ return ['developer','owner','lead'].indexOf(currentTier())!==-1; }
+// Owners and the dev only: staff check-in, user management.
+function canAccessOwner(){ return ['developer','owner'].indexOf(currentTier())!==-1; }
+// Jake alone: usage stats and the staff-view preview itself.
+function canAccessDev(){ return currentTier()==='developer'; }
 
 function toggleStaffView(){
-  if(!currentUser || currentUser.displayName !== 'Jake') return;
+  // Reads currentRole, not currentTier — previewing must not lock away the switch back.
+  if(!currentUser || currentRole !== 'developer') return;
   _staffView = !_staffView;
   canDelete = _staffView ? false : _canDeleteReal;
   var bar = document.getElementById('staff-view-bar');
@@ -2557,11 +2567,15 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','staffcheckin','pricingconsole','ourprices','ourpriceseditor','team','usage','emailtemplates'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
-  if(name==='usage' && !(currentUser&&currentUser.displayName==='Jake')){
+  // Staff check-in shows who is in and out — owners only, not the marketing or sales lead.
+  if(name==='staffcheckin' && !canAccessOwner()){
+    toast('⚠ You don\'t have access to this page.');return;
+  }
+  if(name==='usage' && !canAccessDev()){
     toast('⚠ You don\'t have access to this page.');return;
   }
   // Tab-merged pages: old page names route to their host page with that tab active
@@ -3305,11 +3319,33 @@ function removeCrewMember(id){
 // Edits user_profiles rows (username, role, can_delete) and creates new logins via auth.signUp.
 // The admin's session is restored after signUp so they stay signed in as themselves.
 var _userManagerUsers = [];
+// The six access tiers. The value is what lands in user_profiles.role and drives
+// every visibility check in the app; the label is what this dropdown shows. The
+// old list offered Owner/Manager/Driver/User — none of which the database
+// recognised, so picking any of them silently stripped a person's access.
+var ROLE_TIERS = [
+  ['developer','Developer','everything, plus dev tools'],
+  ['owner','Owner','everything except dev tools'],
+  ['lead','Lead','every page, no deleting'],
+  ['office','Office','day-to-day work only'],
+  ['yard','Yard','back-shop kiosk'],
+  ['display','Display','read-only wallboard']
+];
+// Lowest tier when the stored value isn't one we know — a typo must not promote anyone.
+function roleLabel(role){
+  for(var i=0;i<ROLE_TIERS.length;i++){ if(ROLE_TIERS[i][0]===role) return ROLE_TIERS[i][1]; }
+  return 'Office';
+}
+function roleOptionsHtml(selected){
+  return ROLE_TIERS.map(function(t){
+    return '<option value="'+t[0]+'"'+(selected===t[0]?' selected':'')+'>'+t[1]+' — '+t[2]+'</option>';
+  }).join('');
+}
 function openUserManager(){
   var html='<div class="modal-overlay open" id="user-modal-overlay" onclick="if(event.target===this)closeUserManager()">'
     +'<div style="background:var(--surface);border-radius:14px;padding:24px;max-width:640px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="font-size:16px;font-weight:700;margin-bottom:6px">User Management</div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Edit roles and permissions, or add a new staff login. Settings/Analytics access is granted by username — ask Jake to add new managers to the access list in code.</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Edit roles and permissions, or add a new staff login. The tier decides which pages someone sees — no code change needed. Deleting is the separate tick box, so someone can have every page without being able to delete anything.</div>'
     +'<div id="user-list" style="margin-bottom:18px"><div style="font-size:12px;color:var(--muted);padding:8px 0">Loading…</div></div>'
     +'<div style="border-top:1px solid var(--border);padding-top:14px">'
     +'<div style="font-size:13px;font-weight:600;margin-bottom:8px">Add new staff login</div>'
@@ -3318,7 +3354,7 @@ function openUserManager(){
     +'<input id="user-new-password" type="text" placeholder="Temp password (min 6 chars)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
     +'<input id="user-new-username" type="text" placeholder="Username (display name)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
     +'<select id="user-new-role" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
-    +'<option value="Driver">Driver</option><option value="Manager">Manager</option><option value="Owner">Owner</option><option value="User">User</option>'
+    +roleOptionsHtml('office')
     +'</select>'
     +'</div>'
     +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:10px"><input id="user-new-candelete" type="checkbox"> Can delete records</label>'
@@ -3346,10 +3382,9 @@ async function loadUserList(){
 function renderUserList(){
   var el=document.getElementById('user-list');if(!el)return;
   if(!_userManagerUsers.length){el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">No users yet.</div>';return;}
-  var roles=['Owner','Manager','Driver','User'];
   el.innerHTML='<div style="display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 6px 6px;border-bottom:1px solid var(--border)"><div>Username</div><div>Role</div><div>Delete</div><div></div></div>'
     +_userManagerUsers.map(function(u){
-      var roleOpts=roles.map(function(r){return '<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>';}).join('');
+      var roleOpts=roleOptionsHtml(u.role);
       return '<div style="display:grid;grid-template-columns:1.4fr 1fr auto auto;gap:8px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--border)">'
         +'<input type="text" value="'+_esc(u.username||'')+'" onchange="updateUserField(\''+u.id+'\',\'username\',this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
         +'<select onchange="updateUserField(\''+u.id+'\',\'role\',this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'+roleOpts+'</select>'
@@ -12672,7 +12707,7 @@ function setUserCardSignedIn(username, role){
   if(avatar){ avatar.textContent = (username||'?').charAt(0); avatar.style.display=''; }
   if(meta) meta.style.display='';
   if(nameEl) nameEl.textContent = username || '—';
-  if(roleEl) roleEl.textContent = role || 'User';
+  if(roleEl) roleEl.textContent = roleLabel(role);
   if(signoutBtn) signoutBtn.style.display='';
   var jeffBtn = document.getElementById('jeff-view-btn');
   if(jeffBtn) jeffBtn.style.display = (username === 'Jake') ? '' : 'none';
@@ -12793,7 +12828,7 @@ async function onLoginSuccess() {
 
 async function loadSignedInApp() {
   // Await profile so displayName is set before any job saves can happen
-  var r = await db.from('user_profiles').select('role,can_delete,username').eq('id', currentUser.id).single();
+  var r = await db.from('user_profiles').select('role,can_delete,username,mobile_home').eq('id', currentUser.id).single();
   // A failed profile load silently demotes an admin (name falls back to the email
   // prefix, so every access check fails) — say so instead of leaving them confused.
   if (r.error) toast('⚠ Couldn\'t load your profile ('+r.error.message+') — refresh the page.', 'error');
@@ -12802,8 +12837,11 @@ async function loadSignedInApp() {
   }
   _canDeleteReal = canDelete;   // remembered so the staff-view preview can be switched back off
   var uname = (r.data && r.data.username) ? r.data.username : (currentUser.email||'').split('@')[0];
-  var role  = (r.data && r.data.role) ? r.data.role : 'User';
+  // A profile that won't load falls back to the lowest tier rather than the highest —
+  // the toast above already told them to refresh.
+  var role  = (r.data && r.data.role) ? String(r.data.role).toLowerCase() : 'office';
   currentUser.displayName = uname;
+  currentRole = role;
   // Darrin's login is for the back-shop inventory kiosk only — if it ever lands on
   // the main dashboard (any browser, any PC), send it to inventory.html. Sign out
   // first: his login must never stay remembered anywhere (Jake's rule), and a
@@ -12818,14 +12856,20 @@ async function loadSignedInApp() {
   // Jake's device auto-remembers a layout choice. Written here so it reflects a
   // real, Supabase-verified login; cleared on sign-out and for every other user.
   try { if (uname === 'Jake') localStorage.setItem('jjDashUser', 'Jake'); else localStorage.removeItem('jjDashUser'); } catch(e){}
-  // Jeff's account is locked to his mobile app: any dashboard landing (fresh
-  // sign-in or remembered session) goes straight to jeff.html. Unlike Darrin,
-  // his session must survive the hop — jeff.html reads it. He never gets
-  // jjDashUser (cleared above), so the switch back to this layout never
-  // appears for him.
-  if (uname === 'Jeff') {
+  // The simple on-the-road view is a per-person setting (mobile_home) rather than a
+  // username baked into sign-in, and it only applies on a phone: touch-primary AND
+  // narrow, so a dragged-in desktop window doesn't qualify. At a desk the same person
+  // gets the full dashboard at whatever their tier allows — which is how Jeff owns the
+  // company and still lands on his own view in the truck. Unlike Darrin's kiosk hop the
+  // session must survive, because jeff.html reads it. jjLayout is jeff.html's own
+  // "take me to the dashboard" signal; honouring it here stops the two pages bouncing.
+  var mobileHome = (r.data && r.data.mobile_home) ? r.data.mobile_home : '';
+  var askedForDashboard = false;
+  try { askedForDashboard = localStorage.getItem('jjLayout') === 'dashboard'; } catch(e){}
+  if (mobileHome && !askedForDashboard && window.matchMedia
+      && window.matchMedia('(pointer: coarse) and (max-width: 900px)').matches) {
     try { localStorage.removeItem('jjReturn'); } catch(e){}
-    location.replace('jeff.html');
+    location.replace(mobileHome);
     return;
   }
   // Jeff's mobile app has no login of its own — it sends people here and marks where it
@@ -12867,9 +12911,15 @@ function applySettingsVisibility(){
   document.querySelectorAll('.admin-only').forEach(function(el){
     el.style.display=show?'':'none';
   });
-  // Usage tracker page is Jake-only
+  // Staff check-in and user management live inside the settings section but sit a
+  // tier above it: owners and the dev, not the marketing or sales lead.
+  var owner=canAccessOwner();
+  document.querySelectorAll('.owner-only').forEach(function(el){
+    el.style.display=owner?'':'none';
+  });
+  // Usage tracker page is the dev's alone
   var navUsage=document.getElementById('nav-usage');
-  if(navUsage)navUsage.style.display=(currentUser&&currentUser.displayName==='Jake')?'':'none';
+  if(navUsage)navUsage.style.display=canAccessDev()?'':'none';
 }
 
 // ─── PAGE USAGE TRACKER (temporary — Jake wants to see which pages get used;
@@ -12877,7 +12927,7 @@ function applySettingsVisibility(){
 var _lastPv='';
 function trackPageView(page){
   if(!currentUser||!currentUser.displayName)return;
-  if(currentUser.displayName==='Jake')return; // Jake reads the report — his own clicks don't count
+  if(canAccessDev())return; // the dev reads the report — their own clicks don't count
   if(page==='usage')return; // don't let checking the report inflate the numbers
   if(page===_lastPv)return; // ignore re-clicks of the page you're already on
   _lastPv=page;
