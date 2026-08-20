@@ -841,7 +841,7 @@ var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,addres
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
 // address text when it's absent, and any save writes that derivation back over the real list.
-var CLIENT_LIST_COLS ='cid,name,business_name,names,phone,phones,email,emails,address,addresses,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor';
+var CLIENT_LIST_COLS ='cid,name,business_name,names,phone,phones,email,emails,address,addresses,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor,contact_person,playbook,billing_note';
 
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
@@ -1000,6 +1000,11 @@ function dbToClient(r) {
     createdAt: r.created_at || '',
     blacklisted: r.blacklisted || false,
     contractor: r.contractor || false,
+    // What the office knows and the database didn't: who to ask for, how they like
+    // the job done, how they pay. Captured in the playbook editor (app-playbook.js).
+    contactPerson: r.contact_person || '',
+    playbook: r.playbook || '',
+    billingNote: r.billing_note || '',
   };
 }
 
@@ -1095,6 +1100,9 @@ function clientToDb(c) {
     photos:   c.photos  || [],
     blacklisted: c.blacklisted || false,
     contractor: c.contractor || false,
+    contact_person: c.contactPerson || '',
+    playbook: c.playbook || '',
+    billing_note: c.billingNote || '',
   };
 }
 
@@ -2567,7 +2575,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates'];
+  var restricted=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates','prospects'];
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -2628,6 +2636,7 @@ function render(name, bg){
   else if(name==='landscaping') renderLandscapingPage();
   else if(name==='usage') renderUsage();
   else if(name==='suggestions') renderSuggestions();
+  else if(name==='prospects'){ if(typeof renderProspects==='function') renderProspects(); }
   else if(name==='clients'){ renderClients(); setTimeout(function(){ atabsSync('csort'); }, 60); }
   else if(name==='analytics') switchAnalyticsTab(_anaTab||'overview');
   else if(name==='pricing') renderPricing();
@@ -6558,12 +6567,18 @@ async function loadClientsPage() {
 
     // ── 4. Build stats map ─────────────────────────────────────────────────────
     statsMap = {};
+    // "Top client" means booking lately, not booking a lot in 2019. Anything dated
+    // inside the window counts, including work already on the books for next month —
+    // a customer with a bin booked for Tuesday is as current as one who had it last
+    // Tuesday, and one rule beats special-casing future dates.
+    var recentCutoff = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
     allJobRows.forEach(function(row){
       var cid = row.client_cid || (row.name ? nameToCid[row.name.trim().toLowerCase()] : null);
       if(!cid) return;
-      if(!statsMap[cid]) statsMap[cid]={total:0,lastDate:null,bins:0,junk:0,furn:0,lastBin:null};
+      if(!statsMap[cid]) statsMap[cid]={total:0,lastDate:null,bins:0,junk:0,furn:0,lastBin:null,recent:0};
       var s = statsMap[cid];
       s.total++;
+      if(row.date && row.date >= recentCutoff) s.recent++;
       if(!s.lastDate||row.date>s.lastDate) s.lastDate=row.date;
       if(row.service==='Bin Rental'){ s.bins++; if(!s.lastBin||row.date>s.lastBin) s.lastBin=row.date; }
       else if(row.service==='Junk Removal') s.junk++;
@@ -6580,11 +6595,12 @@ async function loadClientsPage() {
   // ── 5. Merge stats into client objects ─────────────────────────────────────
   var allClients = allClientRows.map(function(row){
     var c = dbToClient(row);
-    var s = statsMap[c.cid]||{total:0,lastDate:null,bins:0,junk:0,furn:0,lastBin:null};
+    var s = statsMap[c.cid]||{total:0,lastDate:null,bins:0,junk:0,furn:0,lastBin:null,recent:0};
     c._totalJobs = s.total;
     c._lastDate  = s.lastDate;
     c._lastBin   = s.lastBin;
     c._bins = s.bins; c._junk = s.junk; c._furn = s.furn;
+    c._recent = s.recent || 0;   // jobs inside the last 180 days — drives the Top Clients tab
     return c;
   });
 
@@ -6606,6 +6622,9 @@ async function loadClientsPage() {
 
   // ── 7. Sort ────────────────────────────────────────────────────────────────
   allClients.sort(function(a,b){
+    // The Top Clients tab is defined by how recently and often someone books, so it
+    // owns its own order rather than deferring to the sort control.
+    if(clientShow==='top') return (b._recent - a._recent) || String(b._lastDate||'').localeCompare(String(a._lastDate||''));
     if(clientSort==='jobs')    return b._totalJobs - a._totalJobs;
     if(clientSort==='recent'){
       // Use last job date; fall back to client created_at for new clients with no jobs
@@ -6625,7 +6644,10 @@ async function loadClientsPage() {
 
   // ── 7b. Show filter (who's in the list) — blacklisted hidden unless explicitly shown ──
   var _dormCutoff = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
-  if(clientShow==='blacklist')         allClients = allClients.filter(function(c){ return c.blacklisted; });
+  // Top Clients: booking repeatedly and lately. Two jobs inside 180 days is the cut —
+  // it lands around 210 accounts, small enough for the office to genuinely know them.
+  if(clientShow==='top')               allClients = allClients.filter(function(c){ return c._recent >= 2 && !c.blacklisted; });
+  else if(clientShow==='blacklist')    allClients = allClients.filter(function(c){ return c.blacklisted; });
   else if(clientShow==='contractors')  allClients = allClients.filter(function(c){ return c.contractor && !c.blacklisted; });
   else if(clientShow==='dormant')      allClients = allClients.filter(function(c){ return c._lastDate && c._lastDate < _dormCutoff && !c.blacklisted; });
   else                                 allClients = allClients.filter(function(c){ return !c.blacklisted; }); // everyone
@@ -6653,7 +6675,19 @@ async function loadClientsPage() {
   if (f.furnMin||f.furnMax) filterNote.push('furn '+(f.furnMin||'0')+'–'+(f.furnMax||'any'));
   if (f.totalMin||f.totalMax) filterNote.push('total '+(f.totalMin||'0')+'–'+(f.totalMax||'any'));
   if (clientLastBinF) filterNote.push('no bin in ' + LAST_BIN_LABELS[clientLastBinF]);
+  if (clientShow==='top') filterNote.push('2+ jobs in the last 180 days, most frequent first');
   if(sub) sub.textContent = clientsTotal.toLocaleString() + ' clients' + (filterNote.length ? ' · ' + filterNote.join(', ') : ' total');
+  // Capture only makes sense against the top accounts, so the button rides that tab.
+  var pbBtn = document.getElementById('pb-capture-btn');
+  if(pbBtn) pbBtn.style.display = (clientShow==='top') ? '' : 'none';
+}
+
+// Walks the accounts currently on the Top Clients tab, busiest first, so the office
+// knowledge behind them gets written down before the person holding it leaves.
+// Lives here rather than in app-playbook.js because it needs the filtered list.
+function startPlaybookCapture(){
+  if(!window.JJPlaybook){ toast('Playbook didn\'t load — refresh the page.','error'); return; }
+  window.JJPlaybook.start((_allClientsFiltered||[]).slice(0,50).map(function(c){ return c.cid; }));
 }
 
 function renderClientsList(list) {
@@ -6727,9 +6761,12 @@ function makeClientCard(row){
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px">'
       +'<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary)">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
+      +((row._recent||0)>=2?'<span style="font-size:11px;font-weight:800;color:#15803d;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);padding:2px 8px;border-radius:6px">⭐ '+row._recent+' in 180d</span>':'')
       +(chips?'<span style="color:var(--border)">·</span>'+chips:'')+(tag?' '+tag:'')
     +'</div>'
     +'<div style="display:grid;gap:6px;border-top:1px solid var(--border);padding-top:11px">'
+      // Who to ask for, before the number to ask them on.
+      +(row.contactPerson?line('🗣️', 'Ask for '+row.contactPerson, false):'')
       +line('📞', phone||'—', false)
       +(email?line('✉️', email, false):'')
       +line('📍', (addr||row.city||'—'), true)
@@ -6831,6 +6868,9 @@ async function openClientDetail(cid){
     (cl.blacklisted?'<div style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#dc3545;font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
     +(cl.contractor?'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.3);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#2563eb;font-weight:700;display:flex;align-items:center;gap:7px">🏗️ Contractor account</div>':'')
     +onRentHtml
+    // Playbook block lives in app-playbook.js; guarded so stale cached HTML that
+    // hasn't picked the file up yet still renders the rest of the profile.
+    +(window.JJPlaybook ? window.JJPlaybook.card(cl) : '')
     +'<div class="detail-section"><div class="detail-grid">'
     +(namesHtml?'<div class="detail-item" style="grid-column:1/-1"><label>Contact Names</label><span>'+namesHtml+'</span></div>':'')
     +(cl.businessName?'<div class="detail-item" style="grid-column:1/-1"><label>Business Name</label><span>'+cl.businessName+'</span></div>':'')
