@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "python",
-            "args": ["C:\\Users\\Jake\\Documents\\Claude\\Projects\\jeffs-junk\\scripts\\prepush_check.py"],
+            "args": ["scripts/prepush_check.py"],
             "timeout": 90,
             "statusMessage": "Pre-push tripwire: parsing JS + checking version lockstep"
           }
