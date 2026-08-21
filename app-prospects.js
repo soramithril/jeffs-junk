@@ -266,13 +266,25 @@
     + '.jjp-door.open{display:flex;flex-direction:column;position:fixed;inset:0;z-index:420;'
     +   'background:var(--jjp-bg);color:var(--jjp-ink);overflow:hidden;'
     +   'font-family:\'Plus Jakarta Sans\',\'Inter\',system-ui,sans-serif;}'
+    + '.jjp-dcols{display:flex;flex-direction:column;gap:13px;}'
+    + '.jjp-solo{max-width:560px;margin:0 auto;}'
     + '@media(min-width:900px){'
     +   '#prospects-page{height:calc(100vh - 132px);}'
-    +   '.jjp-grid{grid-template-columns:minmax(330px,400px) 1fr;}'
+    +   '.jjp-grid{grid-template-columns:minmax(340px,420px) 1fr;}'
     +   '.jjp-list{border-right:1px solid var(--jjp-line);}'
     +   '.jjp-door{display:flex;flex-direction:column;position:relative;inset:auto;z-index:auto;overflow:hidden;}'
     +   '.jjp-door.open{position:relative;inset:auto;z-index:auto;}'
     +   '.jjp-back{display:none;}'
+    + '}'
+    // Past ~1240px a single column leaves half the pane empty, so the cards
+    // that don't need full width pair up.
+    + '@media(min-width:1240px){'
+    +   '.jjp-dcols{display:grid;grid-template-columns:1fr 1fr;align-items:start;}'
+    +   '.jjp-dbody{max-width:1100px;}'
+    + '}'
+    + '@media(min-width:700px){'
+    +   '.jjp-g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}'
+    +   '.jjp-sheet-wide{max-width:760px;padding:28px;}'
     + '}'
     // Modals sit on body, so they carry their own dark surface.
     + '.jjp-sheet{background:#12171A;color:#E8EFEA;border-radius:22px;padding:22px;width:94%;max-width:560px;'
@@ -389,12 +401,12 @@
       }).join('');
     }
 
-    var foot = '<div style="padding:16px 14px 4px;display:flex;gap:9px">'
+    var actions = '<div style="padding:0 18px 4px;display:flex;gap:9px">'
       + '<button class="jjp-btn jjp-btn-q jjp-sm" style="flex:1" onclick="JJProspects.importCsv()">Import a list</button>'
       + '<button class="jjp-btn jjp-btn-go jjp-sm" style="flex:1" onclick="JJProspects.add()">'
       + ICON.plus + 'Add one</button></div>';
 
-    return head + controls + body + foot;
+    return head + controls + actions + body;
   }
 
   // ── The door (right pane / full screen on a phone) ───────────────────────
@@ -434,77 +446,80 @@
         + 'title="Edit" onclick="JJProspects.edit(\'' + p.id + '\')">✎</div>'
       + '</div>';
 
-    var body = '<div style="flex:1;overflow-y:auto;padding:22px 16px 12px;display:flex;flex-direction:column;gap:13px">'
+    var nameBlock = '<div><div style="font-size:36px;font-weight:600;line-height:1.04;letter-spacing:-1.3px;'
+      + 'color:#F4F8F5">' + esc(p.business_name||'(no name)') + '</div>'
+      + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px">'
+        + (p.biz_type ? '<span class="jjp-chip" style="background:' + cat[2] + '24;border-color:' + cat[2]
+            + '4d;color:' + cat[2] + ';font-weight:700">' + esc(cat[1]) + '</span>' : '')
+        + (p.size_note ? '<span class="jjp-chip">' + esc(p.size_note) + '</span>' : '')
+        + (pr && pr.zone ? '<span class="jjp-chip">Zone ' + pr.zone + '</span>' : '')
+        + '<span class="jjp-chip" style="color:' + sm[2] + '">' + esc(sm[1]) + '</span>'
+      + '</div></div>';
 
-      + '<div><div style="font-size:36px;font-weight:600;line-height:1.04;letter-spacing:-1.3px;color:#F4F8F5">'
-        + esc(p.business_name||'(no name)') + '</div>'
-        + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px">'
-          + (p.biz_type ? '<span class="jjp-chip" style="background:' + cat[2] + '24;border-color:' + cat[2]
-              + '4d;color:' + cat[2] + ';font-weight:700">' + esc(cat[1]) + '</span>' : '')
-          + (p.size_note ? '<span class="jjp-chip">' + esc(p.size_note) + '</span>' : '')
-          + (pr && pr.zone ? '<span class="jjp-chip">Zone ' + pr.zone + '</span>' : '')
-          + '<span class="jjp-chip" style="color:' + sm[2] + '">' + esc(sm[1]) + '</span>'
-        + '</div></div>'
+    var sayBlock = line
+      ? '<div style="border-radius:26px;padding:21px 20px 23px;position:relative;overflow:hidden;'
+        + 'background:linear-gradient(152deg,#22c55e 0%,#16a34a 55%,#14804a 100%);'
+        + 'box-shadow:0 22px 54px -26px rgba(34,197,94,.55)">'
+        + '<div style="position:absolute;top:-70px;right:-50px;width:200px;height:200px;border-radius:999px;'
+        + 'background:rgba(255,255,255,.2);filter:blur(34px)"></div>'
+        + '<div style="position:relative">'
+        + '<div style="font-size:11.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;'
+        + 'color:rgba(6,26,15,.6);margin-bottom:10px">Say this</div>'
+        + '<div style="font-size:21px;font-weight:500;line-height:1.34;letter-spacing:-.4px;color:#062412">'
+        + '\u201c' + esc(line) + '\u201d</div></div></div>'
+      : '';
 
-      + (p.why_them
-          ? '<div class="jjp-fr" style="border-radius:24px;padding:16px 18px">'
-            + '<div class="jjp-lab" style="margin-bottom:8px">Why them</div>'
-            + '<div style="font-size:15px;line-height:1.5;color:rgba(232,239,234,.8)">' + esc(p.why_them) + '</div></div>'
-          : '')
+    var whyBlock = p.why_them
+      ? '<div class="jjp-fr" style="border-radius:24px;padding:16px 18px">'
+        + '<div class="jjp-lab" style="margin-bottom:8px">Why them</div>'
+        + '<div style="font-size:15px;line-height:1.5;color:rgba(232,239,234,.8)">' + esc(p.why_them) + '</div></div>'
+      : '';
 
-      + (line
-          ? '<div style="border-radius:26px;padding:21px 20px 23px;position:relative;overflow:hidden;'
-            + 'background:linear-gradient(152deg,#22c55e 0%,#16a34a 55%,#14804a 100%);'
-            + 'box-shadow:0 22px 54px -26px rgba(34,197,94,.55)">'
-            + '<div style="position:absolute;top:-70px;right:-50px;width:200px;height:200px;border-radius:999px;'
-            + 'background:rgba(255,255,255,.2);filter:blur(34px)"></div>'
-            + '<div style="position:relative">'
-            + '<div style="font-size:11.5px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;'
-            + 'color:rgba(6,26,15,.6);margin-bottom:10px">Say this</div>'
-            + '<div style="font-size:21px;font-weight:500;line-height:1.34;letter-spacing:-.4px;color:#062412">'
-            + '“' + esc(line) + '”</div></div></div>'
-          : '')
-
-      + '<div class="jjp-fr" style="border-radius:24px;padding:16px 18px">'
-        + '<div class="jjp-lab" style="margin-bottom:8px">Ask for</div>'
-        + '<div style="font-size:20px;font-weight:600;letter-spacing:-.5px;line-height:1.2;color:#F4F8F5">'
-          + esc(p.contact_name || 'Whoever is in the office') + '</div>'
-        + (cat[4] ? '<div style="font-size:12.5px;color:var(--jjp-faint);margin-top:7px;line-height:1.4">'
-            + esc(cat[4]) + '</div>' : '')
-        + (p.address ? '<div style="font-size:13.5px;color:var(--jjp-dim);margin-top:9px">' + esc(p.address) + '</div>' : '')
-      + '</div>'
-
-      + (pr && pr.list
-          ? '<div style="display:flex;gap:11px">'
-            + '<div class="jjp-fr" style="flex:1;border-radius:22px;padding:15px 17px">'
-              + '<div class="jjp-lab" style="font-size:10.5px;margin-bottom:7px">List 14 yd</div>'
-              + '<div style="font-size:30px;font-weight:600;letter-spacing:-1.3px;line-height:1;color:#F4F8F5">$'
-              + pr.list + '</div></div>'
-            + (pr.floor
-                ? '<div class="jjp-fr" style="flex:1;border-radius:22px;padding:15px 17px;'
-                  + 'border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.1)">'
-                  + '<div class="jjp-lab" style="font-size:10.5px;margin-bottom:7px;color:rgba(134,239,172,.75)">You can go to</div>'
-                  + '<div style="font-size:30px;font-weight:600;letter-spacing:-1.3px;line-height:1;color:var(--jjp-bright)">$'
-                  + pr.floor + '</div></div>'
-                : '<div class="jjp-fr" style="flex:1;border-radius:22px;padding:15px 17px">'
-                  + '<div class="jjp-lab" style="font-size:10.5px;margin-bottom:7px;color:#fbbf24">Discount</div>'
-                  + '<div style="font-size:16px;font-weight:600;line-height:1.25;color:#fbbf24;padding-top:4px">'
-                  + 'Hold at list</div></div>')
-            + '</div>'
-            + '<div style="font-size:12.5px;color:var(--jjp-faint);line-height:1.45;margin-top:-4px">'
-            + (pr.tonne ? 'Dump is $' + pr.tonne + ' a tonne on top — that is our cost, it never moves.'
-                        : 'The dump fee is our cost. It never moves.') + '</div>'
-          : '<div class="jjp-fr" style="border-radius:22px;padding:15px 17px">'
-            + '<div class="jjp-lab" style="margin-bottom:6px;color:#fbbf24">No price for this town</div>'
-            + '<div style="font-size:13.5px;color:var(--jjp-dim);line-height:1.45">'
-            + 'Set a town that is on the pricing sheet, or call the office before quoting.</div></div>')
-
-      + '<div class="jjp-fr" style="border-radius:24px;padding:16px 18px">'
-        + '<div class="jjp-lab" style="margin-bottom:' + (hist?'4px':'8px') + '">What’s happened so far</div>'
-        + (hist || '<div style="font-size:14px;color:var(--jjp-faint)">Nothing yet — first time in</div>')
-      + '</div>'
-
+    var askBlock = '<div class="jjp-fr" style="border-radius:24px;padding:16px 18px">'
+      + '<div class="jjp-lab" style="margin-bottom:8px">Ask for</div>'
+      + '<div style="font-size:20px;font-weight:600;letter-spacing:-.5px;line-height:1.2;color:#F4F8F5">'
+        + esc(p.contact_name || 'Whoever is in the office') + '</div>'
+      + (cat[4] ? '<div style="font-size:12.5px;color:var(--jjp-faint);margin-top:7px;line-height:1.4">'
+          + esc(cat[4]) + '</div>' : '')
+      + (p.address ? '<div style="font-size:13.5px;color:var(--jjp-dim);margin-top:9px">' + esc(p.address) + '</div>' : '')
       + '</div>';
+
+    var priceBlock = (pr && pr.list)
+      ? '<div>'
+        + '<div style="display:flex;gap:11px">'
+          + '<div class="jjp-fr" style="flex:1;border-radius:22px;padding:15px 17px">'
+            + '<div class="jjp-lab" style="font-size:10.5px;margin-bottom:7px">List 14 yd</div>'
+            + '<div style="font-size:30px;font-weight:600;letter-spacing:-1.3px;line-height:1;color:#F4F8F5">$'
+            + pr.list + '</div></div>'
+          + (pr.floor
+              ? '<div class="jjp-fr" style="flex:1;border-radius:22px;padding:15px 17px;'
+                + 'border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.1)">'
+                + '<div class="jjp-lab" style="font-size:10.5px;margin-bottom:7px;color:rgba(134,239,172,.75)">You can go to</div>'
+                + '<div style="font-size:30px;font-weight:600;letter-spacing:-1.3px;line-height:1;color:var(--jjp-bright)">$'
+                + pr.floor + '</div></div>'
+              : '<div class="jjp-fr" style="flex:1;border-radius:22px;padding:15px 17px">'
+                + '<div class="jjp-lab" style="font-size:10.5px;margin-bottom:7px;color:#fbbf24">Discount</div>'
+                + '<div style="font-size:16px;font-weight:600;line-height:1.25;color:#fbbf24;padding-top:4px">'
+                + 'Hold at list</div></div>')
+        + '</div>'
+        + '<div style="font-size:12.5px;color:var(--jjp-faint);line-height:1.45;margin-top:9px;padding:0 4px">'
+        + (pr.tonne ? 'Dump is $' + pr.tonne + ' a tonne on top \u2014 that is our cost, it never moves.'
+                    : 'The dump fee is our cost. It never moves.') + '</div></div>'
+      : '<div class="jjp-fr" style="border-radius:22px;padding:15px 17px">'
+        + '<div class="jjp-lab" style="margin-bottom:6px;color:#fbbf24">No price for this town</div>'
+        + '<div style="font-size:13.5px;color:var(--jjp-dim);line-height:1.45">'
+        + 'Set a town that is on the pricing sheet, or call the office before quoting.</div></div>';
+
+    var histBlock = '<div class="jjp-fr" style="border-radius:24px;padding:16px 18px">'
+      + '<div class="jjp-lab" style="margin-bottom:' + (hist?'4px':'8px') + '">What\u2019s happened so far</div>'
+      + (hist || '<div style="font-size:14px;color:var(--jjp-faint)">Nothing yet \u2014 first time in</div>')
+      + '</div>';
+
+    var body = '<div style="flex:1;overflow-y:auto;padding:22px 16px 12px">'
+      + '<div class="jjp-dbody" style="display:flex;flex-direction:column;gap:13px">'
+      + nameBlock + sayBlock
+      + '<div class="jjp-dcols">' + whyBlock + askBlock + priceBlock + histBlock + '</div>'
+      + '</div></div>';
 
     var tel = String(p.phone||'').replace(/[^0-9+]/g,'');
     var foot = '<div style="padding:10px 16px 18px;display:flex;gap:10px;flex:none">'
@@ -518,14 +533,44 @@
     return head + body + foot;
   }
 
+  function wash(){
+    return '<div class="jjp-wash" style="top:-150px;left:-110px;width:420px;height:420px;'
+      + 'background:radial-gradient(circle,rgba(34,197,94,.26),transparent 66%)"></div>'
+      + '<div class="jjp-wash" style="bottom:-170px;right:-130px;width:390px;height:390px;'
+      + 'background:radial-gradient(circle,rgba(20,184,166,.17),transparent 68%)"></div>';
+  }
+
   function render(){
     var el = host(); if(!el) return;
     styles();
-    el.innerHTML =
-      '<div class="jjp-wash" style="top:-150px;left:-110px;width:420px;height:420px;'
-        + 'background:radial-gradient(circle,rgba(34,197,94,.26),transparent 66%)"></div>'
-    + '<div class="jjp-wash" style="bottom:-170px;right:-130px;width:390px;height:390px;'
-        + 'background:radial-gradient(circle,rgba(20,184,166,.17),transparent 68%)"></div>'
+    // A wide screen showing an empty right pane is half the window doing nothing,
+    // so the first door on the round is always open. Narrow screens keep the list
+    // to themselves until the rep taps something.
+    var wide = (typeof window !== 'undefined' && window.innerWidth >= 900);
+    var r = round();
+    var onRound = false;
+    r.order.forEach(function(t){
+      r.byTown[t].forEach(function(x){ if(x.id === S.sel) onRound = true; });
+    });
+    if(!onRound) S.sel = (wide && r.count) ? r.byTown[r.order[0]][0].id : null;
+
+    // Nothing in the database yet — one centred column beats a wall of nothing.
+    if(!S.rows.length){
+      el.innerHTML = wash()
+        + '<div class="jjp-solo" style="position:relative;padding:64px 24px;text-align:center">'
+        + '<div style="font-size:26px;font-weight:600;letter-spacing:-.8px;color:#F4F8F5;margin-bottom:10px">'
+        + 'No prospects yet</div>'
+        + '<div style="font-size:15px;color:var(--jjp-dim);line-height:1.55;margin-bottom:24px">'
+        + 'Bring a list in with Import \u2014 a CSV of business name, town, phone and type \u2014 '
+        + 'or add businesses one at a time as you come across them. Then pick a town and work it.</div>'
+        + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'
+        + '<button class="jjp-btn jjp-btn-go" style="padding:0 22px" onclick="JJProspects.importCsv()">Import a list</button>'
+        + '<button class="jjp-btn jjp-btn-q" style="padding:0 22px" onclick="JJProspects.add()">Add one</button>'
+        + '</div></div>';
+      return;
+    }
+
+    el.innerHTML = wash()
     + '<div class="jjp-grid">'
       + '<div class="jjp-list" style="position:relative">' + listHtml() + '</div>'
       + '<div class="jjp-door' + (S.sel ? ' open' : '') + '">' + doorHtml() + '</div>'
@@ -558,10 +603,12 @@
       + 'color:rgba(232,239,234,.6)">' + t + '</label>'; };
 
     var html = '<div class="modal-overlay open" id="pr-overlay" onclick="if(event.target===this)JJProspects.close()">'
-      + '<div class="jjp-sheet">'
-      + '<div style="font-size:20px;font-weight:700;letter-spacing:-.5px;margin-bottom:16px">'
+      + '<div class="jjp-sheet jjp-sheet-wide">'
+      + '<div style="font-size:22px;font-weight:700;letter-spacing:-.6px;margin-bottom:4px">'
         + (isNew?'Add a prospect':'Edit prospect') + '</div>'
-      + '<div class="jjp-g2" style="margin-bottom:10px">'
+      + '<div style="font-size:13.5px;color:rgba(232,239,234,.5);margin-bottom:20px">'
+        + 'Only the name is required. Everything else can wait until you\u2019ve been in.</div>'
+      + '<div class="jjp-g2 jjp-g3" style="margin-bottom:12px">'
         + '<div style="grid-column:1/-1">' + field('pr-name','Business name *',p.business_name,'text','Simcoe Ridge Roofing') + '</div>'
         + '<div>' + lbl('What kind of outfit') + '<select id="pr-type" class="jjp-in">' + catOpts + '</select></div>'
         + '<div>' + lbl('Town') + '<select id="pr-city" class="jjp-in">' + townOpts + '</select></div>'
