@@ -19,6 +19,18 @@ may have shipped since you started — this is how v585 turned out to be v594 mi
 and keep a branch's changes inside its own feature file where you can, because `index.html`,
 `app.js` and `style.css` are where sessions collide.
 
+**Start every piece of work in sync** (Jake, 2026-08-21). Jake runs cloud sessions (Claude
+Code on the web) alongside local ones. A cloud session always clones fresh from GitHub, so it
+is never stale; the LOCAL clone can sit days behind without showing it. So before writing any
+code locally: `git fetch origin main && git checkout main && git pull`, then branch off that.
+Uncommitted local changes that block the fast-forward are stale WIP — discard them, don't
+stash to save them. Nothing syncs on its own in either direction; GitHub is the only meeting
+point.
+
+Cloud sessions cannot read Jake's local memory folder — they only get what is checked into
+this repo. So anything BOTH kinds of session must follow belongs in this file, not in a
+memory note.
+
 ## Code rules
 
 - Don't overengineer — simple beats complex.
