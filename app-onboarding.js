@@ -31,7 +31,7 @@ var PAGE_TOURS = [
   { view:'clients', label:'Clients', icon:'👥', section:'Daily', summary:'Your searchable address book of every customer.', steps:[
     { sel:'#view-clients button.btn-primary[onclick="openAddClient()"]', title:'Add Client button', body:'Opens a form to create a brand-new client record with their name, phone, address and other details. Use this for any customer not in the system yet.' },
     { sel:'#atabs-csort', title:'Sort', body:'Reorders the list by A–Z, Most Jobs, or Recent — handy for surfacing your busiest accounts or the newest bookings.' },
-    { sel:'#atabs-cshow', title:'Show', body:'Filters who appears: Everyone, 🏗️ Contractors (repeat trade accounts), 😴 Dormant (no jobs in 6+ months), or 🚫 Blacklisted. Blacklisted clients stay hidden from Everyone.' },
+    { sel:'#atabs-cshow', title:'Show', body:'Filters who appears: Active customers, ⭐ Top clients (2+ jobs in the last 6 months), 🏗️ Contractors (repeat trade accounts), 😴 Dormant (no jobs in 6+ months), or 🚫 Blacklisted. Blacklisted customers also show up under Active customers now, in red, so nobody looks for one and thinks we have never heard of them.' },
     { sel:'[data-tour="clients-range-filter"]', title:'Filter by Job Count', body:'Click to expand min/max filters for bin rentals, junk removals, furniture jobs and total jobs, so you can find, say, every client who has booked 5+ bin rentals.' },
     { sel:'#clients-list', title:'Client list', body:'The main list of client cards — each shows contact info and a job breakdown by type (🚛 bin · 🧹 junk · 🛋️ furniture), with a 🏗️ contractor badge for trade accounts. Click a card for the full profile, or ✏ Edit to update.' }
   ]},
