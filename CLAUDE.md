@@ -31,6 +31,28 @@ Cloud sessions cannot read Jake's local memory folder — they only get what is 
 this repo. So anything BOTH kinds of session must follow belongs in this file, not in a
 memory note.
 
+**A cloud session pushes the branch; Jake merges** (Jake, 2026-08-21). A cloud session cannot
+see the live site at all: the environment's network policy answers 403 to
+`soramithril.github.io` for both `curl` and WebFetch, and there is no access to Jake's Chrome.
+So it cannot do step 4 — and step 4 is the whole safety net. A cloud session therefore commits,
+pushes its branch, and stops with "ready to merge". Jake merges and checks it live, or hands it
+to a local session that can.
+
+What a cloud session CAN still prove before handing over, and should: `node --check` on every
+file it touched, the pre-push tripwire (which parses changed JS in V8), and GitHub's
+`parse-check` workflow on the merge commit. Between them the syntax-error-blanks-the-site
+failure is covered. What none of them cover is anything visual or behavioural — a modal that
+won't open, a layout that lands wrong, a handler that throws on click. That is what the human
+at the browser is for.
+
+Docs-only changes are exempt — nothing loads this file, so there is nothing to verify live.
+If the environment is ever allowed to reach the site, this rule goes away and the normal
+verify-after-push applies everywhere.
+
+Practical: a fresh cloud container does not have `mini-racer`, and `scripts/prepush_check.py`
+needs it, so the first push of every session is blocked until
+`python3 -m pip install mini-racer`. Install it — never work around the tripwire.
+
 ## Code rules
 
 - Don't overengineer — simple beats complex.
@@ -70,9 +92,11 @@ Edit files in place — no temp clones, no copying around. Then:
 1. **No local test servers** (Jake, 2026-07-25 — replaces the tiered local-check policy of
    2026-07-11). Don't spin up `python -m http.server` or any local preview before pushing.
    Push, then verify the LIVE site immediately — it deploys in ~25s and that check is now the
-   only safety net against a JS syntax error blanking the whole site (`node` isn't installed,
-   so there's no offline syntax check). Never end a deploy without step 4, and fix-forward
-   fast if it's broken.
+   only safety net against a JS syntax error blanking the whole site. `node` IS available —
+   run `node --check <file>` on anything you touched before pushing (corrected 2026-08-21;
+   this line used to say node wasn't installed). That catches the killer, but it proves
+   nothing about how the page looks, so it never replaces step 4. Never end a deploy without
+   step 4, and fix-forward fast if it's broken.
    Note for live checks: screenshots hang in the automation browser on this machine — verify
    via DOM/JS evals instead. The console always shows benign intro-video autoplay errors
    (AbortError/DOMException from `intro-bg.mp4`) — ignore those; a SyntaxError is the killer.
