@@ -7713,6 +7713,16 @@ function fleetPass(b,f){
   return true;
 }
 function fleetCount(f){return binItems.filter(function(b){return fleetPass(b,f);}).length;}
+// The words on each chip/tile, so the empty state can name the one that's hiding bins.
+var FLEET_FILTER_LABELS={'in':'In yard','out':'Out','oos':'Damaged / out of rotation','prep':'Being prepped / painted','nfr':'Not for rent','green':'Green','black':'Black','4 yard':'4 yd','7 yard':'7 yd','14 yard':'14 yd','20 yard':'20 yd','decals':'Needs decals','repaint':'Needs repaint','idle90':'Idle 90+ days'};
+// One button back to the whole fleet — a chip and a leftover search can each hide
+// bins, and there was no single control that let both go. (Same fix as Clients.)
+function fleetClearAllFilters(){
+  fleetF='all';
+  fleetQ='';
+  var s=document.getElementById('fleet-search-input'); if(s)s.value='';
+  renderBinInventory();
+}
 
 function renderFleet(){
   // filter chips
@@ -7748,7 +7758,21 @@ function renderFleet(){
   });
   var cardsEl=document.getElementById('fleet-cards'), tableEl=document.getElementById('fleet-table-view');
   if(!groups.length){
-    var empty='<div style="background:var(--surface);border:1px dashed var(--border);border-radius:14px;padding:46px;text-align:center;color:var(--muted)">No bins match this filter.</div>';
+    // "No bins match this filter" didn't say WHICH filter, and a chip clicked ten
+    // minutes ago looks like nothing at all once you've scrolled past it — so an
+    // empty page read as "the bin is gone". Name what's hiding them, one button to
+    // let the lot go. Same pattern as the Clients page.
+    var why=[];
+    if(q) why.push('your search for "'+escHtml(fleetQ.trim())+'"');
+    if(fleetF!=='all'&&FLEET_FILTER_LABELS[fleetF]) why.push('the "'+FLEET_FILTER_LABELS[fleetF]+'" filter');
+    var empty='<div style="background:var(--surface);border:1px dashed var(--border);border-radius:14px;padding:38px 22px;text-align:center;color:var(--muted)">'
+      +'<div style="font-size:34px;margin-bottom:8px">🗑️</div>'
+      +'<div style="font-size:15px;font-weight:700;color:var(--text)">No bins to show</div>'
+      +(why.length
+        ?'<div style="max-width:44ch;margin:8px auto 0;font-size:13px;line-height:1.5">Hiding bins right now: '+why.join(' and ')+'.</div>'
+          +'<button class="btn btn-ghost btn-sm" style="margin-top:13px" onclick="fleetClearAllFilters()">Show all bins again</button>'
+        :'<div style="max-width:44ch;margin:8px auto 0;font-size:13px;line-height:1.5">There are no bins in the fleet yet.</div>')
+      +'</div>';
     if(cardsEl)cardsEl.innerHTML=empty; if(tableEl)tableEl.innerHTML=''; return;
   }
   if(fleetView==='cards'){
@@ -7803,10 +7827,12 @@ function makeBinCard(b){
     +'</div>'
     +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<span>'+binMetaHtml(b)+'</span></div>'
     +(flags.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">'+flags.join('')+'</div>':'')
-    +'<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
-      +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
-      +'<button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:13px">🕘</button>'
-      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" title="More actions for this bin" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:16px;line-height:1">⋯</button>'
+    // The two buttons carry words now, so on a narrow card (the grid goes down to
+    // 224px) they wrap onto their own line rather than squeezing the note to nothing.
+    +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;row-gap:8px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
+      +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1 1 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
+      +'<button onclick="openBinHistory(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
+      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button>'
     +'</div></div>';
 }
 function makeBinTableRow(b){
@@ -7820,16 +7846,19 @@ function makeBinTableRow(b){
     +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button></td>'
     +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
     +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
-    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinHistory(\''+b.bid+'\')" title="History" style="min-width:32px;height:32px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px">🕘</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" title="More actions for this bin" style="min-width:32px;height:32px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:15px;line-height:1">⋯</button></td>'
+    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinHistory(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
   +'</tr>';
 }
-// Lightweight ⋯ context menu: Book (everyone) · Edit/Delete (admins).
+// Lightweight More menu: Book + Report damage (everyone) · Edit/Delete (admins).
 function openBinMenu(bid,ev){
   ev.stopPropagation(); closeBinMenu();
   var b=null; binItems.forEach(function(x){if(x.bid===bid)b=x;}); if(!b)return;
   var m=document.createElement('div'); m.id='bin-ctx-menu';
   m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:150px';
-  var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"}];
+  // Report damage is NOT behind canDelete on purpose: bin_items UPDATE is open to
+  // every signed-in user, and the crew who find the damage aren't admins. The modal
+  // lives in app-damage.js.
+  var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"},{lbl:'⚠ Report damage',fn:"openBinDamageReport('"+bid+"')"}];
   if(canDelete){items.push({lbl:'✏️ Edit',fn:"editBinItem('"+bid+"')"});items.push({lbl:'🗑️ Delete',fn:"delBinItem('"+bid+"')",danger:true});}
   // The hover hint promised Edit and Delete to everyone, but the menu only builds
   // them for admins — so most staff opened it expecting three choices and got one.
