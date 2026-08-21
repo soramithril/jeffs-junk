@@ -658,10 +658,10 @@
         <div class="atabs-wrap" id="atabs-cshow" style="position:relative;">
           <div class="atabs-highlight" id="atabs-cshow-hl"></div>
           <div class="atabs-track">
-            <!-- "Active customers", not "Everyone": this tab filters out blacklisted
-                 people, so a real customer could be on the dashboard and on their own
-                 jobs while searching here said nothing was found. -->
-            <button class="atab active" id="cshow-everyone"    onclick="setClientShow('everyone',this)" title="Everyone except blacklisted customers">Active customers</button>
+            <!-- This tab hides nobody (2026-08-21). It used to drop blacklisted people, so a
+                 real customer could be on the dashboard and on their own jobs while searching
+                 here said nothing was found. They show up here now, on a red card. -->
+            <button class="atab active" id="cshow-everyone"    onclick="setClientShow('everyone',this)" title="Every customer on file, blacklisted ones included">Active customers</button>
             <button class="atab"        id="cshow-top"         onclick="setClientShow('top',this)" title="Booked 2 or more times in the last 180 days, most frequent first">⭐ Top clients</button>
             <button class="atab"        id="cshow-contractors" onclick="setClientShow('contractors',this)">🏗️ Contractors</button>
             <button class="atab"        id="cshow-dormant"     onclick="setClientShow('dormant',this)">😴 Dormant</button>
@@ -1810,6 +1810,13 @@
         <div id="f-client-selected-badge" style="display:none;margin-top:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:8px 12px;font-size:13px;align-items:center;justify-content:space-between">
           <span id="f-client-selected-name"></span>
           <button type="button" onclick="clearClientSelection()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">✕</button>
+        </div>
+        <!-- Shown by setJobFormBlacklistWarning() whenever the linked client is blacklisted.
+             Stays up for the whole booking on purpose — it does not block the save, it just
+             has to be impossible to miss. -->
+        <div id="f-client-blacklist-warning" style="display:none;margin-top:8px;background:#b4232f;border:2px solid #dc3545;border-radius:8px;padding:10px 12px;color:#fff">
+          <div style="font-size:13px;font-weight:800;letter-spacing:.5px">🚫 BLACKLISTED CUSTOMER</div>
+          <div id="f-client-blacklist-name" style="font-size:12.5px;font-weight:600;margin-top:3px;color:#ffdfe2"></div>
         </div>
       </div>
 
