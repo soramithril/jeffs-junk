@@ -221,10 +221,14 @@
   function styles(){
     if(document.getElementById('jjp-style')) return;
     var css = ''
+    + '.main:has(> #view-prospects.active){padding:0 !important;}'
+    + '@media(max-width:1024px){.main:has(> #view-prospects.active){padding:72px 0 0 !important;}'
+    +   '#prospects-page{min-height:calc(100vh - 72px);}}'
     + '#prospects-page{--jjp-bg:#080B09;--jjp-ink:#E8EFEA;--jjp-dim:rgba(232,239,234,.55);'
     +   '--jjp-faint:rgba(232,239,234,.4);--jjp-line:rgba(255,255,255,.09);--jjp-green:#22c55e;'
     +   '--jjp-green-lt:#86efac;--jjp-bright:#4ade80;'
-    +   'background:var(--jjp-bg);color:var(--jjp-ink);border-radius:18px;padding:0;overflow:hidden;'
+    +   'background:var(--jjp-bg);color:var(--jjp-ink);border-radius:0;padding:0;overflow:hidden;'
+    +   'min-height:100vh;'
     +   'position:relative;font-family:\'Plus Jakarta Sans\',\'Inter\',system-ui,sans-serif;}'
     + '#prospects-page *{box-sizing:border-box;}'
     + '.jjp-wash{position:absolute;border-radius:999px;pointer-events:none;filter:blur(48px);}'
@@ -267,9 +271,8 @@
     +   'background:var(--jjp-bg);color:var(--jjp-ink);overflow:hidden;'
     +   'font-family:\'Plus Jakarta Sans\',\'Inter\',system-ui,sans-serif;}'
     + '.jjp-dcols{display:flex;flex-direction:column;gap:13px;}'
-    + '.jjp-solo{max-width:560px;margin:0 auto;}'
     + '@media(min-width:900px){'
-    +   '#prospects-page{height:calc(100vh - 132px);}'
+    +   '#prospects-page{height:100vh;}'
     +   '.jjp-grid{grid-template-columns:minmax(340px,420px) 1fr;}'
     +   '.jjp-list{border-right:1px solid var(--jjp-line);}'
     +   '.jjp-door{display:flex;flex-direction:column;position:relative;inset:auto;z-index:auto;overflow:hidden;}'
@@ -553,22 +556,6 @@
       r.byTown[t].forEach(function(x){ if(x.id === S.sel) onRound = true; });
     });
     if(!onRound) S.sel = (wide && r.count) ? r.byTown[r.order[0]][0].id : null;
-
-    // Nothing in the database yet — one centred column beats a wall of nothing.
-    if(!S.rows.length){
-      el.innerHTML = wash()
-        + '<div class="jjp-solo" style="position:relative;padding:64px 24px;text-align:center">'
-        + '<div style="font-size:26px;font-weight:600;letter-spacing:-.8px;color:#F4F8F5;margin-bottom:10px">'
-        + 'No prospects yet</div>'
-        + '<div style="font-size:15px;color:var(--jjp-dim);line-height:1.55;margin-bottom:24px">'
-        + 'Bring a list in with Import \u2014 a CSV of business name, town, phone and type \u2014 '
-        + 'or add businesses one at a time as you come across them. Then pick a town and work it.</div>'
-        + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'
-        + '<button class="jjp-btn jjp-btn-go" style="padding:0 22px" onclick="JJProspects.importCsv()">Import a list</button>'
-        + '<button class="jjp-btn jjp-btn-q" style="padding:0 22px" onclick="JJProspects.add()">Add one</button>'
-        + '</div></div>';
-      return;
-    }
 
     el.innerHTML = wash()
     + '<div class="jjp-grid">'
