@@ -1110,7 +1110,10 @@ function clientToDb(c) {
 function updateSidebarStats() {
   var today = new Date(); var day = today.getDay(); var mon = new Date(today); mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1)); mon.setHours(0,0,0,0); var sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
   var weekJobs = jobs.filter(function(j){ if(!j.date || j.status === 'Cancelled') return false; var d = new Date(j.date + 'T00:00:00'); return d >= mon && d <= sun; }).length;
-  var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped'; }).length;
+  // Cancelled jobs are excluded: 39 of them still carry a stale 'dropped' flag from the
+  // old page-load auto-drop, and without this the sidebar counts every one as a bin sitting
+  // at a customer's. Every other bins-out list already filters cancelled; this one didn't.
+  var binsOut = jobs.filter(function(j){ return j.service === 'Bin Rental' && j.binInstatus === 'dropped' && j.status !== 'Cancelled'; }).length;
   var el = document.getElementById('m-active'); if(el) el.textContent = weekJobs;
   var el2 = document.getElementById('m-bins'); if(el2) el2.textContent = binsOut;
 }
@@ -1239,10 +1242,16 @@ async function delClient(cid) {
     return;
   }
   var mailCount = rMail.count || 0;
-  var warning = mailCount
-    ? 'Delete this client?\n\nThis also permanently deletes their '+mailCount+' saved email'+(mailCount===1?'':'s')+' (quotes and confirmations, including the message text).\n\nThis cannot be undone.'
-    : 'Delete this client? This cannot be undone.';
-  if(!confirm(warning)) return;
+  var _clName = (_cl && _cl.name) ? _cl.name : 'this customer';
+  var _goDelClient = await askBigAction({
+    title:'Delete this customer?',
+    line:(mailCount
+      ? 'Their '+mailCount+' saved email'+(mailCount===1?'':'s')+' (quotes and confirmations, message text and all) go with them. '
+      : '')+'This cannot be undone.',
+    yes:'Yes, delete '+_clName+' permanently',
+    no:'Keep them'
+  });
+  if(!_goDelClient) return;
   var rDel = await db.from('clients').delete().eq('cid', cid);
   if(rDel.error){
     toast('⚠ Delete failed: '+rDel.error.message,'error');
@@ -1572,38 +1581,16 @@ async function loadAllFromSupabase() {
     } catch(e){ console.warn('Referral sources load error:',e); }
 
     hideLoading();
-    // ── Auto-mark bins as dropped/pickedup when dates have passed ──
+    // ── Bin housekeeping on load ──
+    // No auto-drop lives here any more. It used to call auto_drop_bins on every page
+    // load and mark a bin dropped purely because its drop-off date had passed — the
+    // RPC has no cancelled-job filter, so a cancelled job's bin was re-stamped as out
+    // on every single load, forever. Bin 20-07 sat unbookable for seven weeks on
+    // cancelled job 39655, and the fix that cleared it on 16 Aug was undone two minutes
+    // later by the next page load. A bin is dropped when a person says so; assigning
+    // the bin number is that act (see binAssignIsDrop). Auto-pickup went the same way.
     _suppressBinNotify = true;
     try {
-      var today2 = todayStr();
-      var pastDropJobs = await db.from('jobs').select('job_id,bin_bid')
-        .eq('service','Bin Rental')
-        .or('bin_instatus.is.null,bin_instatus.eq.')
-        .not('bin_dropoff','is',null)
-        .lte('bin_dropoff', today2);
-      if (pastDropJobs.data && pastDropJobs.data.length) {
-        var dropIds = pastDropJobs.data.map(function(r){return r.job_id;});
-        // Use auto_drop_bins RPC so the log_job_changes trigger attributes the
-        // bulk update to "System" instead of whoever happens to be logged in.
-        // The result is checked: this used to run and then mark the bins dropped on screen
-        // regardless, so a failed call left the dashboard showing bins on site that the
-        // database still had in the yard, until the next reload.
-        var rDrop = await db.rpc('auto_drop_bins', { drop_ids: dropIds });
-        if(rDrop.error){
-          console.error('auto_drop_bins failed:', rDrop.error.message);
-          toast('⚠ Couldn\'t auto-drop today\'s bins: '+rDrop.error.message+' — refresh to try again','error');
-        } else {
-          var dropBids = pastDropJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
-          if(dropBids.length) await db.from('bin_items').update({status:'out'}).in('bid',dropBids);
-          binItems.forEach(function(b){ if(dropBids.indexOf(b.bid)>=0) b.status='out'; });
-          jobs.forEach(function(j){
-            if(j.service==='Bin Rental'&&j.binDropoff&&j.binDropoff<=today2&&(!j.binInstatus||j.binInstatus===''))
-              { j.binInstatus='dropped'; }
-          });
-        }
-      }
-      // Auto-pickup removed — bin pickup status is user-controlled only
-
       // Reconcile bin_items.status with actual assignments:
       // any bin assigned to a currently-dropped Bin Rental job must be 'out'.
       var assignedOutJobs = await db.from('jobs').select('bin_bid')
@@ -1618,7 +1605,7 @@ async function loadAllFromSupabase() {
           binItems.forEach(function(b){ if(staleInYard.indexOf(b.bid)>=0) b.status='out'; });
         }
       }
-    } catch(e){ console.warn('Auto-mark error:',e); }
+    } catch(e){ console.warn('Bin reconcile error:',e); }
     setTimeout(function(){ _suppressBinNotify = false; }, 5000);
     renderDash();
     toast('✓ Dashboard ready');
@@ -4845,6 +4832,22 @@ function binDroppedElsewhere(bid, exceptId){
   return jobs.find(function(j){
     return j.binBid===bid && j.id!==exceptId && j.binInstatus==='dropped' && j.status!=='Cancelled';
   });
+}
+// Putting a bin number on a rental IS the drop. Over 501 assignments, 85% happened ON
+// the drop-off day and 15% after it — not one was made ahead of time. Nobody is
+// planning which bin to send; they are recording which bin went. So the moment the
+// number is picked, the bin is out, marked by the person who picked it (the
+// log_job_changes trigger reads the signed-in user, so the job history names them).
+// The calendar decides one thing only: whether that day has come. A bin put on a job
+// for next Tuesday waits for Tuesday, and someone marks it dropped then.
+// This replaces the old page-load auto-drop — see the note in loadAllFromSupabase().
+function binAssignIsDrop(j, bin){
+  if(!j || !bin || j.service!=='Bin Rental') return false;
+  if(j.binInstatus) return false;                       // a person already said dropped or picked up
+  if(j.status==='Cancelled') return false;              // a cancelled job never gets a bin stamped on it again
+  if(binDroppedElsewhere(bin.bid, j.id)) return false;  // that bin is recorded as sitting at another job
+  var drop = j.binDropoff || j.date;
+  return !!drop && drop <= todayStr();
 }
 // Mark a job's bin picked up because the bin is being reassigned elsewhere.
 // The bin stays 'out' (it's moving to the new job, not returning to the yard).
@@ -8251,15 +8254,22 @@ async function linkBinFromJob(bid){
   if(j.binBid && j.binBid!==bid){
     binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
   }
+  // Picking the bin IS the drop once the drop-off day has come (see binAssignIsDrop)
+  var dropped=binAssignIsDrop(j,b);
   j.binBid=bid;
   j.binSize=b.size;
+  var fields={binBid:bid,binSize:b.size};
+  if(dropped){ j.binInstatus='dropped'; fields.binInstatus='dropped'; }
   // Only flip the picked bin to 'out' if this job is currently dropped AND the bin is in the yard.
   // If the bin is already out (on another job), leave it alone — retroactive link only.
   if(j.binInstatus==='dropped' && b.status==='in') patchBin(b.bid,{status:'out'});
-  var res=await db.from('jobs').update({bin_bid:bid,bin_size:b.size}).eq('job_id',jobId);
-  if(res.error){toast('Error linking bin: '+res.error.message,'error');return;}
+  // patchJob, not a raw update: it names the signed-in user as the editor, so the
+  // job's history says who put the bin out instead of leaving the last editor standing.
+  var res=await patchJob(jobId,fields);
+  if(res.error) return;   // patchJob toasts the failure and puts the screen back
   closeM('link-bin-from-job-modal');
-  toast('Bin #'+b.num+' linked to '+jobId+'!');
+  if(dropped) _stampBinOnDetail={id:jobId,num:b.num,size:b.size};
+  else toast('Bin #'+b.num+' linked to '+jobId+'!');
   openDetail(jobId);
 }
 async function linkBinToJob(bid,jobId){
@@ -8271,14 +8281,20 @@ async function linkBinToJob(bid,jobId){
   if(j.binBid && j.binBid!==bid){
     binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
   }
+  // Picking the bin IS the drop once the drop-off day has come (see binAssignIsDrop)
+  var dropped=binAssignIsDrop(j,b);
   j.binBid=bid;
   j.binSize=b.size;
+  var fields={binBid:bid,binSize:b.size};
+  if(dropped){ j.binInstatus='dropped'; fields.binInstatus='dropped'; }
   // Only flip new bin to 'out' when the job is actually dropped
   if(j.binInstatus==='dropped')patchBin(b.bid,{status:'out'});
-  var res=await db.from('jobs').update({bin_bid:bid,bin_size:b.size}).eq('job_id',jobId);
-  if(res.error){toast('Error linking bin: '+res.error.message,'error');return;}
+  var res=await patchJob(jobId,fields);
+  if(res.error) return;   // patchJob toasts the failure and puts the screen back
   closeM('link-bin-modal');
-  toast('Bin #'+b.num+' linked to '+jobId+'!');
+  // No work order on screen here (this runs from the Bin Fleet page), so the toast
+  // is the receipt — it says the bin went out rather than just "linked".
+  toast(dropped ? ('Bin #'+b.num+' is out at '+jobId+'.') : ('Bin #'+b.num+' linked to '+jobId+'!'));
   loadBinJobsThenRender();
 }
 
@@ -8395,13 +8411,20 @@ async function doAssignBin(jobId,bid){
   if(j.binBid && j.binBid!==bid){
     binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
   }
+  // Picking the bin IS the drop once the drop-off day has come — no prompt, this
+  // is done around eight times a day and has to stay one tap.
+  var dropped=binAssignIsDrop(j,b);
   j.binBid=bid;
   j.binSize=b.size;
+  var fields={binBid:bid,binSize:b.size};
+  if(dropped){ j.binInstatus='dropped'; fields.binInstatus='dropped'; }
   // Only flip new bin to 'out' when the job is actually dropped
   if(j.binInstatus==='dropped')patchBin(b.bid,{status:'out'});
-  patchJob(j.id,{binBid:bid,binSize:b.size});
+  patchJob(j.id,fields);
   closeM('assign-bin-modal');
-  toast('Bin #'+b.num+' assigned to '+jobId+'!');
+  // The stamp is the receipt for a drop; an assignment for a future date still toasts.
+  if(dropped) _stampBinOnDetail={id:jobId,num:b.num,size:b.size};
+  else toast('Bin #'+b.num+' assigned to '+jobId+'!');
   openDetail(jobId);
 }
 
@@ -8772,7 +8795,14 @@ async function delBinItem(bid){
   if(!canDelete){ toast('⚠ You don\'t have permission to delete bins.','error'); return; }
   var assigned=jobs.find(function(j){return j.binBid===bid;});
   if(assigned){toast('⚠ Bin is assigned to job '+assigned.id+' — unassign it first.','error');return;}
-  if(!confirm('Delete this bin?'))return;
+  var _bin=binItems.find(function(b){return b.bid===bid;})||{num:bid,size:''};
+  var _goDelBin = await askBigAction({
+    title:'Delete this bin?',
+    line:'Bin '+_bin.num+(_bin.size?' ('+_bin.size+')':'')+' comes off the fleet for good and stops counting towards what you can book. To park it for a while instead, set it out of rotation.',
+    yes:'Yes, delete bin '+_bin.num+' permanently',
+    no:'Keep it'
+  });
+  if(!_goDelBin) return;
   // Delete this one bin, by name, and check it worked. This used to drop the bin from the local
   // list and let saveBins() notice it was missing and delete it — which is also what made
   // saveBins delete bins other people had added.
@@ -10598,6 +10628,14 @@ async function saveJob(e){
         if(pickedBin){ patchBin(pickedBin.bid,{status:'in'}); }
       }
     }
+    // Putting a bin number on the form is the drop too, same rule as the bin picker
+    // (see binAssignIsDrop). Only when the bin is NEW to this job: someone who set the
+    // status back to "not dropped yet" by hand must not have it flipped back on the
+    // next save — that loop is exactly what the old page-load auto-drop did.
+    if(pickedBin){
+      var _prevBid = editId ? ((jobs.find(function(x){return x.id===editId;})||{}).binBid||'') : '';
+      if(_prevBid !== pickedBid && binAssignIsDrop(job, pickedBin)) job.binInstatus = 'dropped';
+    }
     // Guard against double-dropping: if this bin is still dropped on another live
     // job, warn before marking it out here.
     if(job.binInstatus === 'dropped' && pickedBid){
@@ -10775,7 +10813,13 @@ async function delJob(id){
   if(j.notes) _what.push('notes');
   if(j.photos&&j.photos.length) _what.push(j.photos.length+' photo'+(j.photos.length===1?'':'s'));
   _what.push('its email history');
-  if(!confirm('Delete job '+j.id+' for '+(j.name||'this customer')+'?\n\nThis is permanent and also removes '+_what.join(', ')+'.\n\nTo take it off the schedule without losing it, use Postpone or Cancel instead.'))return;
+  var _goDel = await askBigAction({
+    title:'Delete this job for good?',
+    line:'This is permanent. It also removes '+_what.join(', ')+'. To take it off the schedule without losing it, cancel or postpone it instead.',
+    yes:'Yes, delete job '+j.id+' permanently',
+    no:'Keep it'
+  });
+  if(!_goDel) return;
   // Snapshot bin state so we can restore if the DB delete fails
   var binStatusBefore = {};
   if(j.binBid){
@@ -10819,9 +10863,17 @@ async function cancelJob(id){
     j.binInstatus='';
     await patchJob(id, {binInstatus:''});
   }
+  var _binNum = j.binBid ? (binItems.find(function(b){return b.bid===j.binBid;})||{num:j.binBid}).num : '';
   var _relNote = (j.service==='Bin Rental' && j.binBid)
-    ? '\n\nBin '+j.binBid+' goes back to the yard and becomes available to book.' : '';
-  if(!confirm('Mark job '+j.id+' for '+(j.name||'this customer')+' as Cancelled?'+_relNote+'\n\nIt stays in the records and can be reopened.'))return;
+    ? 'Bin '+_binNum+' goes back to the yard and can be booked again. ' : '';
+  var _goCancel = await askBigAction({
+    title:'Cancel this job?',
+    line:_relNote+'The job stays in the records and can be reopened later.',
+    yes:'Yes, cancel job '+j.id,
+    no:'Keep it booked',
+    undoable:true
+  });
+  if(!_goCancel) return;
   // Write ONLY the status. This used to call saveSingleJob, which upserts the whole job object
   // from memory — and a job opened from a list has no notes, items, internal notes or photos in
   // memory, so cancelling blanked them. See the rule at JOB_LIST_COLS.
@@ -10862,9 +10914,16 @@ async function reopenLandscapeJob(id){
   refresh();
 }
 async function postponeJob(id){
-  if(!confirm('Postpone this job? It comes off the schedule and moves to All Jobs → Postponed until you reopen it.'))return;
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
+  var _goPostpone = await askBigAction({
+    title:'Postpone this job?',
+    line:'It comes off the schedule and its dates are cleared — find it under All Jobs → Postponed. Reopening it asks for a new date.',
+    yes:'Yes, postpone job '+j.id,
+    no:'Leave it on the schedule',
+    undoable:true
+  });
+  if(!_goPostpone) return;
   // Old dates stay visible in the job's Edit History (log_job_changes trigger).
   // Clear the schedule in the database FIRST — a failure here used to leave the job still
   // scheduled while the screen claimed it was postponed.
@@ -11144,6 +11203,7 @@ async function openDetail(id, returnCid){
     +'</div>';
   document.getElementById('detail-modal').classList.add('open');
   stampBookedIfJustSaved(j);
+  stampBinDroppedIfJustAssigned(j);
   // Render embedded DRD form for Furniture Pickup only
   if(j.service==='Furniture Pickup'){
     setTimeout(function(){ renderDrdInDetail(j); },50);
@@ -13308,6 +13368,33 @@ function stampSound(){
   _bookedAudio.play().catch(function(){});
 }
 
+/* THE BIN STAMP — the receipt for a drop.
+   Picking a bin number for a job whose drop-off day has come marks the bin out
+   (see binAssignIsDrop). That happens roughly eight times a day, so it asks
+   nothing and never pauses: the stamp lands on the work order instead. Same
+   handoff as the booked stamp — the assign flows reopen the job as a detail, and
+   openDetail below consumes this. No sound; the booking thunk stays the one
+   moment that makes a noise. */
+var _stampBinOnDetail = null;
+function stampBinDroppedIfJustAssigned(job){
+  if(!job || !_stampBinOnDetail || _stampBinOnDetail.id !== job.id) return;
+  var info = _stampBinOnDetail;
+  _stampBinOnDetail = null;
+  var host = document.getElementById('detail-modal');
+  if(!host) return;
+  var now = new Date();
+  var who = (currentUser && currentUser.displayName) ? currentUser.displayName : '';
+  var meta = 'DROPPED · ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}).replace(/\s/g,'')
+    + (who ? ' · ' + who.toUpperCase() : '');
+  var overlay = JWGStamp.stampPage(host, 'bin', {num: info.num, sub: info.size, meta: meta});
+  if(!overlay) return;
+  setTimeout(function(){
+    overlay.style.transition = 'opacity .4s ease';
+    overlay.style.opacity = '0';
+    setTimeout(function(){ overlay.remove(); }, 420);
+  }, 2200);
+}
+
 function stampBookedIfJustSaved(job){
   if(!job || _stampBookedOnDetail !== job.id) return;
   _stampBookedOnDetail = null;
@@ -13825,6 +13912,15 @@ async function doMergeClients() {
   var pc = clients.find(function(c){return c.cid===pid;});
   var sc = clients.find(function(c){return c.cid===sid;});
   if (!pc || !sc) return;
+
+  var _moving = countClientJobs(sid, sc.name);
+  var _goMerge = await askBigAction({
+    title:'Merge these two customers?',
+    line:sc.name+' is folded into '+pc.name+': '+_moving+' job'+(_moving===1?'':'s')+' and their email history move across, then '+sc.name+' is deleted. This cannot be undone.',
+    yes:'Yes, merge '+sc.name+' into '+pc.name,
+    no:'Keep them separate'
+  });
+  if(!_goMerge) return;
 
   // Merge into a copy, not into the live client. If any write below fails we return early, and
   // the on-screen client must still be exactly what the database holds.
@@ -15447,10 +15543,15 @@ function _binsCommittedOverWindow(size, d0, d1, exceptJobId){
     var drop=j.binDropoff||j.date;
     if(!drop) return;
     var start=_dayNum(drop), end;
-    // Already dropped with no pickup booked (a will-call), or past its pickup
-    // day: it's physically out until someone marks it back in, however long that
-    // takes. Never time this out — a will-call sitting 60 days is still gone.
-    if(j.binInstatus==='dropped'&&(!j.binPickup||_dayNum(j.binPickup)<todayNum)) end=d1;
+    // Its drop-off day has come and gone (or a person marked it dropped early), and
+    // no pickup is booked or the pickup day is behind us: the bin is out until
+    // someone marks it back in, however long that takes. Never time this out — a
+    // will-call sitting 60 days is still gone.
+    // Keyed on the DATE, not on bin_instatus. Until v600 a page-load auto-drop
+    // stamped 'dropped' on every rental whose date had passed, so the flag alone
+    // carried this branch; with that gone, a flag-only test would quietly let a long
+    // will-call fall out of the count after 30 days and the bin would look free.
+    if((start<=todayNum||j.binInstatus==='dropped')&&(!j.binPickup||_dayNum(j.binPickup)<todayNum)) end=d1;
     else if(!j.binPickup) end=start+30;                    // booked but not dropped yet
     // Free again ON pickup day — the pickup is confirmed the day before, so the
     // bin can be collected and dropped at the next job the same day.
@@ -15545,6 +15646,57 @@ function resolveBinAvailWarning(proceed){
 // filed the booking under the wrong customer, the exact thing the guard exists to
 // stop. Resolves to 'new', 'same' or 'back'.
 var _nameMismatchResolver = null;
+// ─── ONE CONFIRM FOR THE BIG ACTIONS ─────────────────────────────────────────
+// Cancel, delete, merge, postpone all used to go through the browser's confirm():
+// a grey box whose buttons say OK and Cancel, so the only words that matter are in
+// a paragraph nobody reads, and OK gets clicked either way. Here the BUTTON IS THE
+// SENTENCE — "Yes, cancel job 39655" — with one plain line above it saying what
+// actually happens ("Bin 20-07 goes back to the yard"). The way out says what it
+// keeps, so neither button is the safe-looking default.
+// Deliberately NOT type-to-confirm: Kelly books seven jobs a day and that would be
+// punishment, not care. Resolves true to go ahead, false to leave it alone.
+//   var go = await askBigAction({title:…, line:…, yes:…, no:…});
+var _bigActionResolver = null;
+function _resolveBigAction(go){
+  var m = document.getElementById('big-action-modal');
+  if(m) m.classList.remove('open');
+  var r = _bigActionResolver;
+  _bigActionResolver = null;
+  if(r) r(!!go);
+}
+function askBigAction(opts){
+  return new Promise(function(resolve){
+    _bigActionResolver = resolve;
+    var id = 'big-action-modal';
+    var m = document.getElementById(id);
+    if(!m){
+      m = document.createElement('div');
+      m.id = id;
+      m.className = 'modal-overlay';
+      m.style.zIndex = '770';
+      document.body.appendChild(m);
+    }
+    var esc = (typeof escHtml==='function') ? escHtml : function(s){ return String(s); };
+    // Red for the ones that destroy something, amber for the ones you can undo.
+    var ink = opts.undoable ? '#e67e22' : '#dc3545';
+    var rim = opts.undoable ? 'rgba(230,126,34,.25)' : 'rgba(220,53,69,.25)';
+    m.innerHTML = '<div class="modal" style="max-width:470px;width:92vw;border-top:4px solid '+ink+'">'
+      + '<div class="modal-header" style="border-bottom:1px solid '+rim+'">'
+        + '<div class="modal-title" style="color:'+ink+'"><span style="font-size:20px;margin-right:8px">⚠</span>'+esc(opts.title)+'</div>'
+      + '</div>'
+      + '<div style="padding:18px 20px">'
+        + '<div style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.55">'+esc(opts.line)+'</div>'
+        + '<div style="display:flex;flex-direction:column;gap:8px">'
+          + '<button class="btn btn-danger" style="justify-content:center" onclick="_resolveBigAction(true)">'+esc(opts.yes)+'</button>'
+          + '<button class="btn btn-ghost" style="justify-content:center" onclick="_resolveBigAction(false)">'+esc(opts.no||'Keep it')+'</button>'
+        + '</div>'
+      + '</div>'
+    + '</div>';
+    m.classList.add('open');
+    m.onclick = function(e){ if(e.target===m) _resolveBigAction(false); };
+  });
+}
+
 // "This job has a bin marked as dropped — where is it really?" Asked when cancelling,
 // because the answer decides whether the bin frees up or has to be collected first.
 var _cancelBinResolver = null;
