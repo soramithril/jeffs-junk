@@ -310,8 +310,16 @@ function skeletonRows(n){
 }
 
 // ── Session-expiry guard: signs out on auth errors ──
+// One place decides "this failure is an expired login", because the sleep-recovery
+// retry in patchJob/saveJob has to spot exactly the errors this guard signs out on.
+function isAuthExpiredError(err) {
+  if (!err) return false;
+  return err.code === 'PGRST301'
+      || err.status === 401
+      || /jwt expired|invalid refresh token/i.test(err.message || '');
+}
 function handleSupabaseError(r) {
-  if (r.error && (r.error.message === 'JWT expired' || r.error.code === 'PGRST301' || r.error.message === 'Invalid Refresh Token: Refresh Token Not Found' || (r.error.status === 401))) {
+  if (r.error && isAuthExpiredError(r.error)) {
     signOutWithReason('⚠ Session expired — please sign in again.');
     return true;
   }
@@ -1139,7 +1147,16 @@ function patchJob(jobId, fields) {
     dbFields.edited_by = currentUser.displayName || (currentUser.email || '').split('@')[0];
     dbFields.edited_by_email = currentUser.email || '';
   }
-  return db.from('jobs').update(dbFields).eq('job_id', jobId).then(function(r){
+  // A laptop that slept comes back with a dead access token, so the first write is a
+  // 401 — refresh the login and put the SAME write through once more. Exactly once: a
+  // second 401 is a real sign-out, not a sleeping laptop, and must be shown.
+  var write = function(){ return db.from('jobs').update(dbFields).eq('job_id', jobId); };
+  return write().then(function(r){
+    if(r.error && isAuthExpiredError(r.error)){
+      return refreshSessionNow().then(function(ok){ return ok ? write() : r; });
+    }
+    return r;
+  }).then(function(r){
     if(r.error){
       console.error('patchJob error ('+jobId+'):', r.error.message);
       toast('⚠ Save failed: '+r.error.message+' — putting the screen back to what is stored','error');
@@ -10714,6 +10731,7 @@ async function saveJob(e){
     // replacing the job that owns it. Auto-recovery before bothering anyone: a taken
     // number gets a fresh one minted and retried; a connection blip gets two quiet retries.
     var dbRes = null;
+    var authRetried = false;
     for(var attempt = 1; attempt <= 3; attempt++){
       dbRes = wasEdit
         ? await db.from('jobs').upsert(dbRow, {onConflict:'job_id'})
@@ -10721,7 +10739,14 @@ async function saveJob(e){
       if(!dbRes.error) break;
       console.warn('saveJob attempt ' + attempt + ' failed:', dbRes.error.message);
       var isDup = dbRes.error.code === '23505' || /duplicate key/i.test(dbRes.error.message || '');
-      if(!wasEdit && isDup){
+      // A laptop that slept comes back with a dead access token, so the first write is a
+      // 401. Refresh the login and go straight round again — no wait, and only ever once,
+      // because a second 401 is a real sign-out rather than a sleeping laptop.
+      if(isAuthExpiredError(dbRes.error) && !authRetried){
+        authRetried = true;
+        var refreshed = await refreshSessionNow();
+        if(!refreshed) break;
+      } else if(!wasEdit && isDup){
         job.id = await nextIdFromDb(svc);
         dbRow = jobToDb(job);
       } else if(attempt < 3){
@@ -12931,7 +12956,7 @@ async function loadSignedInApp() {
   document.body.classList.add('signed-in');
   // Keep the push service worker registered/updated on devices that enabled it
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
-  resetInactivityTimer();
+  startSessionGuards();
   loadAllFromSupabase();
 }
 
@@ -13072,22 +13097,174 @@ function handleAdminBtn() {
   }
 }
 
-// ── 30-minute inactivity auto-logout ──
-var _inactivityTimer = null;
-var INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
+// ── The session runs until 3 AM ──
+// The 30-minute inactivity logout that used to sit here was the ONLY thing signing
+// anyone out: Supabase caps nothing on this project (auth.sessions.not_after is NULL
+// on every row) and the access token refreshes itself all day. But Rachel books 68%
+// of her jobs after 4pm and Barbara browses until 9, so half an hour of quiet was
+// throwing people who were still working back to the login screen mid-shift. The
+// session now ends at 3 AM instead, when the office is empty.
+var _overnightTimer = null;
+var _sessionStartedAt = Date.now();
 
-function resetInactivityTimer() {
-  clearTimeout(_inactivityTimer);
+// The first 3 AM strictly after `from`.
+function nextThreeAm(from) {
+  var t = new Date(from);
+  t.setHours(3, 0, 0, 0);
+  if (t.getTime() <= from) t.setDate(t.getDate() + 1);
+  return t.getTime();
+}
+
+function scheduleOvernightSignOut() {
+  clearTimeout(_overnightTimer);
   if (!currentUser) return;
-  _inactivityTimer = setTimeout(function() {
-    if (!currentUser) return;
-    signOutWithReason('⚠ Signed out due to inactivity.');
-  }, INACTIVITY_LIMIT);
+  _overnightTimer = setTimeout(function() {
+    if (currentUser) signOutWithReason('Signed out overnight — please sign in again.');
+    scheduleOvernightSignOut();   // work out the next one
+  }, nextThreeAm(Date.now()) - Date.now());
+}
+
+// A laptop asleep at 3 AM never fires that timer, so the wake-up path asks the clock
+// instead: has 3 AM gone by since this session started?
+function overnightHasPassed() {
+  return Date.now() >= nextThreeAm(_sessionStartedAt);
+}
+
+// ── The 4 PM desk swap ──
+// Kelly finishes around 4 and Rachel moves onto her desk. Every booking is filed
+// under whoever is signed in, so after 4 an untouched screen gets asked who is
+// sitting at it. The guards below matter more than the question does: interrupting a
+// booking half-typed is worse than a job filed under the wrong name, so the card only
+// appears on a screen that has genuinely been left alone.
+var _identityIdleTimer = null;
+var _identityAnswerTimer = null;
+var _identityResolver = null;
+var IDENTITY_IDLE_MS = 5 * 60 * 1000;    // how long the screen must sit untouched first
+var IDENTITY_ANSWER_MS = 2 * 60 * 1000;  // no answer in this long and we sign out
+
+function identityConfirmedToday() {
+  var stamp = '';
+  try { stamp = localStorage.getItem('jjIdentityOk') || ''; } catch(e) {}
+  return stamp === ((currentUser && currentUser.email) || '') + '|' + todayStr();
+}
+
+function resetIdentityIdle() {
+  clearTimeout(_identityIdleTimer);
+  if (!currentUser || _identityResolver) return;   // no countdown while the card is up
+  _identityIdleTimer = setTimeout(maybeAskStillYou, IDENTITY_IDLE_MS);
+}
+
+function maybeAskStillYou() {
+  if (!currentUser || _identityResolver) return;
+  // Every one of these is a reason to wait, never a reason to skip the check: put the
+  // quiet countdown back and look again after the next untouched five minutes.
+  if (new Date().getHours() < 16) return resetIdentityIdle();
+  if (identityConfirmedToday()) return resetIdentityIdle();
+  // A tab nobody is looking at cannot answer, and an unanswered card signs people out
+  // — the exact thing this change exists to stop. Wait until it is on screen.
+  if (document.hidden) return resetIdentityIdle();
+  if (document.getElementById('update-banner')) return resetIdentityIdle();
+  if (document.querySelector('.modal-overlay.open')) return resetIdentityIdle();
+  var el = document.activeElement;
+  if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return resetIdentityIdle();
+  askStillYou();
+}
+
+function askStillYou() {
+  var who = (currentUser.displayName || (currentUser.email || '').split('@')[0] || '').split(' ')[0];
+  new Promise(function(resolve) {
+    _identityResolver = resolve;
+    var id = 'identity-check-modal';
+    var m = document.getElementById(id);
+    if (!m) {
+      m = document.createElement('div');
+      m.id = id;
+      m.className = 'modal-overlay';
+      m.style.zIndex = '780';
+      document.body.appendChild(m);
+    }
+    var esc = (typeof escHtml === 'function') ? escHtml : function(s){ return String(s); };
+    m.innerHTML = '<div class="modal" style="max-width:420px;width:92vw;border-top:4px solid var(--accent)">'
+      + '<div class="modal-header"><div class="modal-title">Still ' + esc(who) + '?</div></div>'
+      + '<div style="padding:18px 20px">'
+        + '<div style="font-size:14px;color:var(--text);margin-bottom:16px">Every booking is filed under whoever is signed in.</div>'
+        + '<div style="display:flex;flex-direction:column;gap:8px">'
+          + '<button class="btn btn-primary" style="justify-content:center" onclick="_resolveIdentity(\'me\')">Yes, it\'s me</button>'
+          + '<button class="btn btn-ghost" style="justify-content:center" onclick="_resolveIdentity(\'other\')">Someone else</button>'
+        + '</div>'
+      + '</div>'
+    + '</div>';
+    m.classList.add('open');
+    // No backdrop click and no Back button: the card has to be answered, and nobody
+    // answering is itself an answer — see the timeout.
+    _identityAnswerTimer = setTimeout(function(){ _resolveIdentity('nobody'); }, IDENTITY_ANSWER_MS);
+  }).then(function(answer) {
+    if (answer === 'me') {
+      try { localStorage.setItem('jjIdentityOk', ((currentUser && currentUser.email) || '') + '|' + todayStr()); } catch(e) {}
+      resetIdentityIdle();
+      return;
+    }
+    signOutWithReason(answer === 'other'
+      ? 'Signed out so the next person can sign in.'
+      : 'Signed out — nobody said who was at the desk.');
+  });
+}
+
+function _resolveIdentity(answer) {
+  clearTimeout(_identityAnswerTimer);
+  var m = document.getElementById('identity-check-modal');
+  if (m) m.classList.remove('open');
+  var r = _identityResolver;
+  _identityResolver = null;
+  if (r) r(answer);
 }
 
 ['mousedown','keydown','touchstart','scroll'].forEach(function(evt) {
-  document.addEventListener(evt, resetInactivityTimer, { passive: true });
+  document.addEventListener(evt, resetIdentityIdle, { passive: true });
 });
+
+// ── Coming back from sleep ──
+// A sleeping laptop (or a tab left in the background for hours) stops the token
+// refresh, so the access token quietly dies and the next save comes back 401 with
+// nothing on screen to explain it — that is what was behind "things weren't saving".
+// On the way back into view, get a fresh token before anybody types anything.
+function refreshSessionNow() {
+  return db.auth.refreshSession().then(function(r) {
+    return !!(r && !r.error && r.data && r.data.session);
+  }).catch(function() { return false; });
+}
+
+var _hiddenSince = 0;
+
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) { _hiddenSince = Date.now(); return; }
+  if (!currentUser) return;
+  if (overnightHasPassed()) { signOutWithReason('Signed out overnight — please sign in again.'); return; }
+  scheduleOvernightSignOut();
+  resetIdentityIdle();
+  // A quick alt-tab never killed the token, and asking for a new one on every tab
+  // switch would pile the whole office — one IP — up against Supabase's limit on
+  // token refreshes. Only a real absence gets one: a slept laptop, a tab left all
+  // afternoon. Anything shorter is still running on a live token.
+  if (Date.now() - _hiddenSince < 60000) return;
+  refreshSessionNow().then(function(ok) {
+    if (ok) return;
+    // Opening a lid beats the wifi back by a second or two, so one failure means
+    // nothing. Try once more before sending anyone to the login screen.
+    setTimeout(function() {
+      refreshSessionNow().then(function(ok2) {
+        if (!ok2) signOutWithReason('Session expired — please sign in again.');
+      });
+    }, 3000);
+  });
+});
+
+// Armed once the sign-in has really landed (loadSignedInApp).
+function startSessionGuards() {
+  _sessionStartedAt = Date.now();
+  scheduleOvernightSignOut();
+  resetIdentityIdle();
+}
 
 // ═══════════════════════════════════════
 // EMAIL SYSTEM
