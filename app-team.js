@@ -110,7 +110,7 @@
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'active',p.active,p.active?'Active':'Inactive','#6b7280')+'</td>'
       + (canGift() ? '<td style="padding:9px 8px;text-align:center">'+giftCell(p)+'</td>' : '')
       + '<td style="padding:9px 12px;text-align:right">'
-        + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove (soft — keeps history)" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>' : '')
+        + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove — history is kept, but their schedule from today on is cleared" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>' : '')
       + '</td>';
     return '<tr style="border-bottom:1px solid var(--border)'+(p.active?'':';background:rgba(0,0,0,.02)')+'">'+cells+'</tr>';
   }
@@ -174,7 +174,8 @@
       +  '</tbody></table></div>';
 
     h += '<div style="font-size:11.5px;color:#adb5bd;margin-top:12px;line-height:1.5">'
-      +  'Removing someone keeps their history (they go inactive, not deleted). The Junk/Bins toggle takes effect across dispatch, the crew schedule and pickers right away. '
+      +  'Removing someone keeps their history (they go inactive, not deleted), but it does clear their Jeff White Group schedule from that day on, so nobody is left booked in after they have gone. '
+      +  'The Junk/Bins toggle takes effect across dispatch, the crew schedule and pickers right away. '
       +  'JWG people also appear on the Jeff White Group schedule and Staff Check-In.'
       +  '</div>';
     h += '</div>';
@@ -259,6 +260,10 @@
 
   async function toggle(id, field){
     var p = find(id); if(!p) return;
+    // Switching Active off IS removing someone, so it goes down the same path as
+    // the × button. Two ways of removing a person used to leave the JWG schedule
+    // in two different states — the pill left every booked shift behind.
+    if(field==='active' && p.active){ await deactivate(p); return; }
     var next = !p[field];
     p[field] = next; paint();                    // optimistic
     try {
@@ -356,13 +361,45 @@
     } catch(e){ toast('Couldn\'t add: '+((e&&e.message)||e), 'error'); }
   }
 
+  // ── removing someone ──
+  // Going inactive has to take them off the Jeff White Group schedule too, or the
+  // office keeps seeing them on the week grid (Jake, Aug 2026: "staff scheduler
+  // still has jack on it" — inactive for weeks, still down Mon–Fri, with rows
+  // booked out to December). Only today forward is wiped; every day before that
+  // stays put, because history has to keep rendering.
+  function removeMsg(p, sum){
+    var m = 'Remove '+p.name+'?\n\nThey go inactive here. Their history is kept — nothing they already worked is deleted.';
+    var bits = [];
+    if(sum && sum.weeks) bits.push(sum.weeks+' week'+(sum.weeks===1?'':'s')+' of Jeff White Group shifts from today on');
+    if(sum && sum.saved) bits.push('their saved schedule');
+    if(bits.length){
+      m += '\n\nThis also wipes '+bits.join(' and ')+', so nobody is left booked in after they have gone. '
+        +  'Days already worked this week, and every week before it, stay exactly as they are.'
+        +  '\n\nThat part cannot be undone.';
+    }
+    return m;
+  }
+
+  async function deactivate(p){
+    var sum = null;
+    if(p.jwg_id){
+      try { sum = await JWGRoster.forwardSummary(p.jwg_id); }
+      catch(e){ toast('Couldn\'t check the schedule for '+p.name+' — nothing was changed. '+((e&&e.message)||e), 'error'); return; }
+    }
+    if(!confirm(removeMsg(p, sum))) return;
+    p.active = false; paint();
+    try { var r = await db.from('crew_members').update({active:false}).eq('id', p.id); if(r.error) throw r.error; syncGlobalCrew(); }
+    catch(e){ p.active = true; paint(); toast('Remove failed: '+((e&&e.message)||e), 'error'); return; }
+    if(!p.jwg_id) return;
+    try { await JWGRoster.clearForward(p.jwg_id); }
+    catch(e){ toast(p.name+' is inactive, but their Jeff White Group schedule did not clear: '+((e&&e.message)||e), 'error'); return; }
+    if(sum && (sum.weeks || sum.saved)) toast('✅ '+p.name+' is off the Jeff White Group schedule from today on.');
+  }
+
   async function remove(id){
     if(!canRemove()){ toast('⚠ You don\'t have permission to remove people.', 'error'); return; }
     var p = find(id); if(!p) return;
-    if(!confirm('Remove '+p.name+'? They go inactive (history is kept, nothing is deleted).')) return;
-    p.active = false; paint();
-    try { var r = await db.from('crew_members').update({active:false}).eq('id', id); if(r.error) throw r.error; syncGlobalCrew(); }
-    catch(e){ p.active = true; paint(); toast('Remove failed: '+((e&&e.message)||e), 'error'); }
+    await deactivate(p);
   }
 
   window.renderTeamPage = renderTeamPage;
