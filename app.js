@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '606';
+var APP_VERSION = '608';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2913,7 +2913,7 @@ async function refreshDashBinStats(){
       // Size sits in the corner rather than in the column, so the card gets
       // shorter by a whole line without the photo giving up any of its 180px.
       +'<div style="position:absolute;top:7px;right:10px;z-index:1;font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:1px;line-height:1;color:var(--accent-warm)">'+s.replace(/\s*yard/i,' yd')+'</div>'
-      +'<img src="assets/'+imgKey+'.png?v=398" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
+      +'<img src="assets/'+imgKey+'.png?v=608" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:'+(isLow?'#b45309':'var(--muted)')+';margin-top:5px">'+(isFull?'all out':(isLow?'of '+tot+' — low':'of '+tot))+'</div>'
       +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
