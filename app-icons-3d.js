@@ -50,11 +50,15 @@
     global.location.reload();
   }
 
+  // Ad blockers drop any request with "analytics" in the path, so that one icon
+  // ships under a different filename. Every other icon is simply key + '.png'.
+  var RENAMED = { analytics: 'chart' };
+
   // One illustrated icon at the size the caller asked for. Square, so it drops
   // into the same slot an emboss tile came out of.
   function tag(key, size, extraStyle) {
     var px = size || 18;
-    return '<img class="jj3d" src="' + DIR + key + '.png" width="' + px +
+    return '<img class="jj3d" src="' + DIR + (RENAMED[key] || key) + '.png" width="' + px +
       '" height="' + px + '" alt="" style="flex:none;vertical-align:middle;object-fit:contain' +
       (extraStyle ? ';' + extraStyle : '') + '">';
   }

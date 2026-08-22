@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '601';
+var APP_VERSION = '602';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12339,6 +12339,7 @@ var NAV_COLOR={
 };
 function paintNavIcons(){
   if(!window.JWGIcons) return;
+  var three=window.JJ3D && JJ3D.on();   // illustrated-icon trial
   document.querySelectorAll('.sidebar .nav-item').forEach(function(btn){
     var oc=(btn.getAttribute('onclick')||'').replace(/\s+/g,'');
     var key=NAV_ICO[oc];
@@ -12346,7 +12347,6 @@ function paintNavIcons(){
     var ico=btn.querySelector('.icon');
     if(!ico) return;
     var color=NAV_COLOR[oc]||JWGIcons.ICON_COLOR[key]||'green';
-    var three=window.JJ3D && JJ3D.on();   // illustrated-icon trial
     if(btn.closest('#nav-more')){
       // More-Tools flyout: colourful emboss tile fills the chip
       ico.innerHTML=three?JJ3D.tag(key,28):JWGIcons.embossTile(key,{size:28,radius:8,color:color});
@@ -12360,9 +12360,10 @@ function paintNavIcons(){
   // "More tools" toggle row gets a tile too (v418) — same grid glyph, indigo
   // so it reads as its own thing next to the blue Dashboard tile
   var moreLbl=document.getElementById('nav-more-label');
-  if(moreLbl && !moreLbl.querySelector('.jwg-emboss')){
+  if(moreLbl && !moreLbl.querySelector('.jwg-emboss') && !moreLbl.querySelector('img.jj3d')){
     var msvg=moreLbl.querySelector('svg');
-    if(msvg) msvg.outerHTML=JWGIcons.embossTile('dashboard',{size:34,radius:9,color:'indigo'});
+    if(msvg) msvg.outerHTML=three?JJ3D.tag('dashboard',34)
+      :JWGIcons.embossTile('dashboard',{size:34,radius:9,color:'indigo'});
   }
 }
 function paintServiceIcons(){ paintSvcPickerIcons(); paintSvcTabIcons(); paintNavIcons(); }
