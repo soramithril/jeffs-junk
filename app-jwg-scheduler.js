@@ -176,9 +176,52 @@ function applyCrewFlags(crew){
 }
 function visEmps(){return S.employees.filter(e=>!e.hidden);}
 // Does this week's schedule hold anything worth showing for a hidden person?
-function empHasWeekData(sc){if(!sc)return false;return DAYS.some(d=>{const dd=sc[d];return dd&&((dd.status&&dd.status!=="off")||(dd.shifts&&dd.shifts.length)||dd.note);});}
+function dayHasData(dd){return !!(dd&&((dd.status&&dd.status!=="off")||(dd.shifts&&dd.shifts.length)||dd.note));}
+function empHasWeekData(sc){if(!sc)return false;return DAYS.some(d=>dayHasData(sc[d]));}
 async function loadScheds(){const since=new Date();since.setFullYear(since.getFullYear()-1);return sbF("GET","jwg_schedules?select=*&week_start=gte."+localDateStr(since));}
 async function upsertSched(eid,ws,data){const w=localDateStr(ws);return sbF("POST","jwg_schedules?on_conflict=employee_id,week_start",{employee_id:eid,week_start:w,schedule_data:data,updated_at:new Date().toISOString()});}
+
+// ── ROSTER CLEAN-UP — called by the Team page when someone is removed ──
+// Going inactive on the Team page used to only HIDE the person here, so their
+// booked shifts sat on the grid and the office kept seeing them (Jake, Aug 2026:
+// "staff scheduler still has jack on it" — inactive for weeks and still down
+// Mon–Fri, with rows out to December). Removal now clears them from today on.
+// Everything before today is left exactly as it is: history has to keep
+// rendering, badged REMOVED.
+function todayDayIdx(){return(new Date().getDay()+6)%7;}   // DAYS is Monday-first; Date#getDay is Sunday-first
+// What a removal would wipe, so the Team page can say it out loud beforehand.
+async function rosterForwardSummary(empId){
+  const cur=wkey(0),from=todayDayIdx();
+  const rows=await sbF("GET","jwg_schedules?select=week_start,schedule_data&employee_id=eq."+empId+"&week_start=gte."+cur)||[];
+  const who=await sbF("GET","jwg_employees?select=usual_week&id=eq."+empId);
+  const weeks=rows.filter(r=>{
+    const sc=migrateSched(r.schedule_data);
+    return (r.week_start===cur?DAYS.slice(from):DAYS).some(d=>dayHasData(sc[d]));
+  }).length;
+  return {weeks:weeks,saved:!!(who&&who[0]&&who[0].usual_week)};
+}
+async function rosterClearForward(empId){
+  const cur=wkey(0);
+  await sbF("DELETE","jwg_schedules?employee_id=eq."+empId+"&week_start=gt."+cur);
+  // This week keeps the days already worked; today and the rest of it go.
+  const rows=await sbF("GET","jwg_schedules?select=schedule_data&employee_id=eq."+empId+"&week_start=eq."+cur);
+  let curData=null;
+  if(rows&&rows.length){
+    curData=migrateSched(rows[0].schedule_data);
+    for(let i=todayDayIdx();i<DAYS.length;i++)curData[DAYS[i]]={status:"off",shifts:[]};
+    await upsertSched(empId,getWS(0),curData);
+  }
+  await sbF("PATCH","jwg_employees?id=eq."+empId,{usual_week:null});
+  // Keep a scheduler already loaded in this tab honest without a reload.
+  S.allSchedules=S.allSchedules.filter(s=>!(s.employee_id===empId&&s.week_start>cur));
+  const held=S.allSchedules.find(s=>s.employee_id===empId&&s.week_start===cur);
+  if(held&&curData)held.schedule_data=curData;
+  const emp=S.employees.find(e=>e.id===empId);
+  if(emp)emp.usual_week=null;
+  const viewed=wkey(S.weekOffset);
+  if(viewed===cur)S.schedule[empId]=curData?JSON.parse(JSON.stringify(curData)):defSched();
+  else if(viewed>cur)S.schedule[empId]=defSched();
+}
 
 let toastT;
 const TOAST_ICONS={success:"✓",error:"✕",info:"ℹ"};
@@ -4130,5 +4173,7 @@ async function bootInventoryKiosk(){
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
+// The Team page (app-team.js) calls these when someone is removed there.
+window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
 window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();
