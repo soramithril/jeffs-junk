@@ -63,5 +63,25 @@
       (extraStyle ? ';' + extraStyle : '') + '">';
   }
 
-  global.JJ3D = { on: on, set: set, tag: tag, mode: function () { return mode; } };
+  // The sidebar rail is dark green (#14532d) and most of this artwork is green
+  // too, so on the rail the icons sink into the background — measured contrast
+  // was as low as 1.0:1, i.e. invisible. The emboss tiles never had this problem
+  // because each one carries its own coloured tile. So on the rail the artwork
+  // gets a pale chip of the same footprint, which is also what the icon set's
+  // own rule asks for: colour on a light ground, never colour on colour.
+  function chip(key, size) {
+    var px = size || 34;
+    var pad = Math.max(2, Math.round(px * 0.08));
+    var style = [
+      'width:' + px + 'px', 'height:' + px + 'px',
+      'border-radius:' + Math.round(px * 0.26) + 'px',
+      'background:linear-gradient(160deg,#ffffff,#eef3ef)',
+      'box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 1px 3px rgba(0,0,0,.28)',
+      'display:inline-grid', 'place-items:center', 'flex:none'
+    ].join(';');
+    return '<span class="jj3d-chip" style="' + style + '">' +
+      tag(key, px - pad * 2) + '</span>';
+  }
+
+  global.JJ3D = { on: on, set: set, tag: tag, chip: chip, mode: function () { return mode; } };
 })(window);

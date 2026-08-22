@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '602';
+var APP_VERSION = '603';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12349,11 +12349,11 @@ function paintNavIcons(){
     var color=NAV_COLOR[oc]||JWGIcons.ICON_COLOR[key]||'green';
     if(btn.closest('#nav-more')){
       // More-Tools flyout: colourful emboss tile fills the chip
-      ico.innerHTML=three?JJ3D.tag(key,28):JWGIcons.embossTile(key,{size:28,radius:8,color:color});
+      ico.innerHTML=three?JJ3D.chip(key,28):JWGIcons.embossTile(key,{size:28,radius:8,color:color});
     } else {
       // main green rail: same emboss tiles at chip size (v416) — the rail
       // rests icon-only, so the coloured tiles carry the meaning by themselves
-      ico.innerHTML=three?JJ3D.tag(key,34):JWGIcons.embossTile(key,{size:34,radius:9,color:color});
+      ico.innerHTML=three?JJ3D.chip(key,34):JWGIcons.embossTile(key,{size:34,radius:9,color:color});
     }
     ico.style.background='transparent';
   });
@@ -12362,7 +12362,7 @@ function paintNavIcons(){
   var moreLbl=document.getElementById('nav-more-label');
   if(moreLbl && !moreLbl.querySelector('.jwg-emboss') && !moreLbl.querySelector('img.jj3d')){
     var msvg=moreLbl.querySelector('svg');
-    if(msvg) msvg.outerHTML=three?JJ3D.tag('dashboard',34)
+    if(msvg) msvg.outerHTML=three?JJ3D.chip('dashboard',34)
       :JWGIcons.embossTile('dashboard',{size:34,radius:9,color:'indigo'});
   }
 }
