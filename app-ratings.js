@@ -1,13 +1,16 @@
-// ── ADMIN-ONLY STAFF CHECK-IN PAGE (heat map redesign) ──────────────────
-// Full-page daily 1-3 ratings board (1 bad · 2 average/normal · 3 good), from
-// the Claude Design handoff "Staff Check-In Page.dc.html". Two views (Team
-// grid / Crew cards), history window 4w-104w, Year to Date, or All, four
-// palettes. WEEKDAYS ONLY — Sat/Sun are excluded everywhere (the crew isn't
-// seen on weekends). No saved row = 2 ("average, normal day"); picking a plain
-// 2 with no note DELETES the row, so the table only holds deviations (1s/3s)
-// and notes. Rows saved on the old 1-5 scale display clamped to 3. Only TODAY
-// is ratable. Server-side security is the employee_ratings RLS policy
-// (user_profiles.role='admin'); the nav gating here is just UI.
+// ── ADMIN-ONLY STAFF CHECK-IN PAGE (contribution heat map) ──────────────
+// Full-page daily 1-3 ratings board (1 bad · 2 average/normal · 3 good). Two
+// views: Crew cards (a GitHub-style contribution graph per person — weeks run
+// across, weekdays run down) and Team grid (one dense row per person for
+// side-by-side comparison). History window 4w-104w, Year to Date, or All, four
+// palettes. WEEKDAYS ONLY — Sundays are excluded everywhere; the crew DOES
+// work Saturdays (Jake 2026-07-10). No saved row = 2 ("average, normal day");
+// picking a plain 2 with no note DELETES the row, so the table only holds
+// deviations (1s/3s) and notes. Rows saved on the old 1-5 scale display
+// clamped to 3. ANY weekday inside the loaded window can be rated or
+// corrected — click its square — so a missed day can be filled in later.
+// Future days are never rateable. Server-side security is the employee_ratings
+// RLS policy (user_profiles.role='admin'); the nav gating here is just UI.
 (function(){
   'use strict';
 
@@ -18,6 +21,7 @@
   var LABELS = {1:'Bad day', 2:'Average (normal)', 3:'Good'};
   var FG_SEL = {1:'#fff', 2:'#7c4a03', 3:'#fff'};
   var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DOW_LETTER = ['M','T','W','T','F','S'];   // Mon..Sat — Sunday is never drawn
   // 3 swatches per palette: bad / okay / good. The good color is a real fill —
   // a 3 (default or hand-picked) must never look blank in the heat map.
   var PALETTES = {
@@ -27,6 +31,9 @@
     plum:    { name:'Plum',    c:['#b91c1c','#e59866','#8a63d2'] }
   };
   var WEEK_PRESETS = [4, 8, 12, 24, 'ytd', 'all'];
+  var CELL_GAP = 2;      // gap between day squares in the team grid
+  var WEEK_GAP = 3;      // extra breathing room where a new week starts
+  var MONTH_H  = 13;     // height of the month label rail above a heat map
 
   // view state (persisted so the page opens how you left it)
   var st = {
@@ -35,8 +42,8 @@
       if(w === 'all' || w === 'ytd') return w; var n = parseInt(w,10);
       return (!isNaN(n) && n >= 1 && n <= 104) ? n : 12; })(),
     pal:   PALETTES[localStorage.getItem('sc_pal')] ? localStorage.getItem('sc_pal') : 'classic',
-    open:  null,           // employee id whose rating popover is open (grid view)
-    noteFor: null,         // employee id whose note editor is open (after rating a 1 or 3)
+    open:  null,           // 'employeeId|YYYY-MM-DD' whose rating popover is open
+    noteFor: null,         // 'employeeId|YYYY-MM-DD' whose note editor is open
     manage: false          // manage mode: show Hide/Show controls
   };
 
@@ -57,6 +64,11 @@
     localStorage.setItem('sc_weeks', String(st.weeksN));
     localStorage.setItem('sc_pal', st.pal);
   }
+  // A day can be rated if it is a weekday (Sundays are not tracked) and is not
+  // in the future. Everything in the window past that is fair game.
+  function rateable(ds){
+    return !!ds && ds <= todayStr() && parseLocalDate(ds).getDay() !== 0;
+  }
 
   async function renderStaffCheckin(){
     var el = host(); if(!el) return;
@@ -69,7 +81,18 @@
       try {
         var rEmp = await db.from('jwg_employees').select('id,name').order('name');
         if(rEmp.error) throw rEmp.error;
+        // jwg_employees has no active flag — the Team page (crew_members) is the
+        // master roster. Anyone soft-removed there, or taken off the JWG side,
+        // keeps their history but stops being tracked here. Same rule the
+        // scheduler uses in applyCrewFlags().
+        var rCrew = await db.from('crew_members').select('jwg_id,active,on_jwg');
+        if(rCrew.error) throw rCrew.error;
+        var offRoster = {};
+        (rCrew.data || []).forEach(function(c){
+          if(c.jwg_id && (c.active === false || c.on_jwg === false)) offRoster[c.jwg_id] = true;
+        });
         _emps = (rEmp.data || []).filter(function(e){
+          if(offRoster[e.id]) return false;
           return ADMIN_NAMES.indexOf(String(e.name).trim().toLowerCase()) === -1;
         });
         var rMin = await db.from('employee_ratings').select('rating_date').order('rating_date',{ascending:true}).limit(1);
@@ -125,7 +148,7 @@
     }
   }
 
-  // ── page build (all computed exactly like the design prototype) ──
+  // ── page build ──
   function paint(){
     var el = host(); if(!el || !_emps) return;
     var today = todayStr();
@@ -134,28 +157,82 @@
     var COLORS = {1:PC[0], 2:PC[1], 3:PC[2]};
     var startD = new Date(parseLocalDate(today)); startD.setDate(startD.getDate() - (DAYS - 1));
 
-    // Mon–Sat — the crew works Saturdays now (Jake 2026-07-10); only Sundays are
-    // dropped from every column, average and streak. N is the real column count.
-    var dates = [], monthMarks = [], lastMonth = -1;
+    // Calendar model. Mon–Sat only. Every day also carries the contribution-graph
+    // coordinates: col = which week column, row = which weekday row (Mon=0).
+    // The grid is anchored to the Monday of the FIRST day actually drawn — anchor
+    // it to the window start and a window that opens on a Sunday wastes a column.
+    var firstMon = null;
+    var dates = [], cols = [], rows = [], monthMarks = [], lastCol = -1, lastMonth = -1;
     for(var i = 0; i < DAYS; i++){
       var d = new Date(startD); d.setDate(startD.getDate() + i);
       var dow = d.getDay();
       if(dow === 0) continue;
-      if(d.getMonth() !== lastMonth){ monthMarks.push({ n: MONTHS[d.getMonth()], idx: dates.length }); lastMonth = d.getMonth(); }
-      dates.push(ymdLocal(d));
+      if(!firstMon){ firstMon = new Date(d); firstMon.setDate(firstMon.getDate() - (dow - 1)); }
+      var col = Math.floor(Math.round((d - firstMon) / 86400000) / 7);
+      // A month is labelled on the first week column that starts in it, so the
+      // labels line up with column edges instead of landing mid-week on top of
+      // each other (a 4-week window can hold two months in one column).
+      if(col !== lastCol){
+        if(d.getMonth() !== lastMonth){
+          monthMarks.push({ n: MONTHS[d.getMonth()], idx: dates.length, col: col });
+          lastMonth = d.getMonth();
+        }
+        lastCol = col;
+      }
+      dates.push(ymdLocal(d)); cols.push(col); rows.push(dow - 1);
     }
     var N = dates.length || 1;
+    var weeksShown = cols.length ? cols[cols.length - 1] + 1 : 1;
+    // The newest tracked day. On a Sunday that is Saturday, not "today" — rating
+    // a Sunday would write a row no screen ever shows again.
+    var lastDs = dates[N - 1] || today;
+    // A month that owns only one week column is a sliver at the edge of the
+    // window; its label would sit on top of the next one, so leave it off.
+    var marks = monthMarks.filter(function(m, k){
+      var nextCol = (k + 1 < monthMarks.length) ? monthMarks[k+1].col : weeksShown;
+      return nextCol - m.col >= 2;
+    });
+    if(!marks.length) marks = monthMarks.slice(-1);
 
-    var pitch = Math.max(6, Math.min(12, Math.floor(1010 / N)));
-    var cellW = pitch - 2;
-    var weeksShown = Math.ceil(N / 6);   // 6 working days per week (Mon–Sat)
-    var miniCell = weeksShown <= 12 ? 9 : (weeksShown <= 16 ? 7 : 5);
-    var monthLabels = monthMarks.map(function(m){ return { n:m.n, x:m.idx*pitch }; });
-    if(monthLabels.length > 1 && monthLabels[1].x - monthLabels[0].x < 34) monthLabels.shift();
+    // Team grid geometry: one dense row per person, a small gap where weeks turn.
+    var pitch = Math.max(6, Math.min(12, Math.floor((1010 - weeksShown * WEEK_GAP) / N)));
+    var cellW = pitch - CELL_GAP;
+    var cellR = Math.max(2, Math.round(cellW / 4));
+    var xs = [], gx = 0;
+    for(var i2 = 0; i2 < N; i2++){
+      if(i2 > 0 && rows[i2] === 0) gx += WEEK_GAP;
+      xs.push(gx); gx += pitch;
+    }
+    var gridW = Math.max(1, gx - CELL_GAP);
+
+    // Crew card geometry: squares shrink as the window grows so a year still fits.
+    var miniCell = Math.max(4, Math.min(11, Math.floor(320 / weeksShown) - 2));
+    var miniGap = miniCell >= 8 ? 3 : 2;
+    var miniPitch = miniCell + miniGap;
+    var miniR = Math.max(1.5, Math.round(miniCell / 4));
+    var railW = 15;
+    var cardMin = Math.min(680, Math.max(242, weeksShown * miniPitch + railW + 42));
+
+    function thinLabels(list, minGap){
+      var out = [];
+      list.forEach(function(m){
+        if(!out.length || m.x - out[out.length-1].x >= minGap) out.push(m);
+      });
+      return out;
+    }
+    var gridMonths = thinLabels(marks.map(function(m){ return { n:m.n, x:xs[m.idx] }; }), 34);
+    var cardMonths = thinLabels(marks.map(function(m){ return { n:m.n, x:m.col * miniPitch }; }), 26);
 
     function tipFor(ds, v, note){
       var d = parseLocalDate(ds);
-      return MONTHS[d.getMonth()] + ' ' + d.getDate() + ' — ' + v + '/3 ' + LABELS[v] + (note ? ' · ' + note : '');
+      return d.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})
+        + ' — ' + v + '/3 ' + LABELS[v] + (note ? ' · ' + note : '');
+    }
+    function sq(cl, w, radius, extra){
+      return '<span title="'+escHtml(tipFor(cl.ds, cl.v, cl.note)).replace(/"/g,'&quot;')+'" '
+        + 'onclick="StaffRatings.togglePop(\''+cl.empId+'\',\''+cl.ds+'\')" '
+        + 'style="'+(extra||'')+'width:'+w+'px;height:'+w+'px;border-radius:'+radius+'px;background:'+COLORS[cl.v]+';'
+        + 'box-shadow:inset 0 0 0 1px rgba(27,31,35,.07)'+(cl.ds === lastDs ? ',0 0 0 2px #1a1a2e' : '')+';cursor:pointer"></span>';
     }
 
     var roster = _emps.filter(function(e){ return !_hidden[e.id]; });
@@ -163,11 +240,11 @@
 
     var emps = roster.map(function(e){
       var cells = [], sum = 0;
-      for(var i2 = 0; i2 < N; i2++){
-        var rec = _ratings[e.id + '|' + dates[i2]];
+      for(var i3 = 0; i3 < N; i3++){
+        var rec = _ratings[e.id + '|' + dates[i3]];
         // No entry = 2 (average / normal day). Legacy 1-5 rows: 4s and 5s = 3.
         var v = rec ? Math.min(3, rec.rating) : 2;
-        cells.push({ v: v, set: !!rec, note: rec ? rec.note : '' });
+        cells.push({ v: v, set: !!rec, note: rec ? rec.note : '', ds: dates[i3], col: cols[i3], row: rows[i3], empId: e.id });
         sum += v;
       }
       var avg = sum / N;
@@ -183,25 +260,17 @@
         id: e.id, name: e.name,
         initials: e.name.split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase(),
         cells: cells, avg: avg, trend: trend,
-        streak: streak, todayV: cells[N-1].v, todaySet: cells[N-1].set
+        streak: streak, curV: cells[N-1].v, curSet: cells[N-1].set
       };
     });
 
-    var teamToday = emps.length ? (emps.reduce(function(a,e){ return a + e.todayV; }, 0) / emps.length).toFixed(1) : '—';
-    var goods = emps.filter(function(e){ return e.todayV === 3; }).length;
-    var okays = emps.filter(function(e){ return e.todayV === 2; }).length;
-    var roughs = emps.filter(function(e){ return e.todayV === 1; }).length;
-    var changed = emps.filter(function(e){ return e.todaySet; }).length;
-
-    function chipsHtml(emp, flexy){
-      return [1,2,3].map(function(v){
-        var sel = v === emp.todayV;
-        return '<button onclick="StaffRatings.rate(\''+emp.id+'\','+v+')" title="'+v+' — '+LABELS[v]+'" '
-          + 'style="'+(flexy?'flex:1;':'width:32px;')+'height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;'
-          + 'font-family:\'Inter\',sans-serif;font-size:'+(flexy?'12':'13')+'px;font-weight:800;cursor:pointer;'
-          + 'background:'+(sel?COLORS[v]:'#f8f9fa')+';color:'+(sel?FG_SEL[v]:'#868e96')+';border:1.5px solid '+(sel?COLORS[v]:'#e9ecef')+'">'+v+'</button>';
-      }).join('');
-    }
+    var teamToday = emps.length ? (emps.reduce(function(a,e){ return a + e.curV; }, 0) / emps.length).toFixed(1) : '—';
+    var goods = emps.filter(function(e){ return e.curV === 3; }).length;
+    var okays = emps.filter(function(e){ return e.curV === 2; }).length;
+    var roughs = emps.filter(function(e){ return e.curV === 1; }).length;
+    var changed = emps.filter(function(e){ return e.curSet; }).length;
+    var curLabel = lastDs === today ? 'Team today' : 'Team ' + fmtDate(lastDs);
+    var quickLabel = lastDs === today ? 'Today' : fmtDate(lastDs);
 
     var todayLong = parseLocalDate(today).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
 
@@ -210,17 +279,17 @@
     // header
     h += '<div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">'
       +  '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:44px;letter-spacing:1.5px;line-height:1;color:#1a1a2e">STAFF CHECK-IN</div>'
-      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · Monday–Saturday · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved · click a name for their 12-month summary</div></div>'
+      +  '<div style="font-size:13px;color:#868e96;margin-top:7px">'+todayLong+' · admins only · Monday–Saturday · no entry = 2 (average, normal day) — only 1s, 3s and notes are saved · click any square to rate or fix that day, today or back · click a name for their 12-month summary</div></div>'
       +  '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">'
-      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">Team today <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[2]+'">'+teamToday+'</span></span>'
+      +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057">'+curLabel+' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;line-height:1;color:'+PC[2]+'">'+teamToday+'</span></span>'
       +  '<span style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:99px;background:#fff;border:1px solid #e9ecef;font-size:12px;font-weight:600;color:#495057"><span style="width:8px;height:8px;border-radius:50%;background:'+PC[2]+'"></span>'+goods+' good · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[1]+'"></span>'+okays+' okay · <span style="width:8px;height:8px;border-radius:50%;background:'+PC[0]+'"></span>'+roughs+' rough</span>'
       +  '</div></div>';
 
     // controls bar
     var isCustom = WEEK_PRESETS.indexOf(st.weeksN) === -1;
-    h += '<div style="display:flex;align-items:center;gap:10px;margin:20px 0 18px;background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:8px 12px;flex-wrap:wrap">'
+    h += '<div style="display:flex;align-items:center;gap:10px;margin:20px 0 14px;background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:8px 12px;flex-wrap:wrap">'
       +  '<div style="display:flex;gap:3px;background:#f1f3f5;border-radius:10px;padding:3px">'
-      +  [['grid','Team grid'],['cards','Crew cards']].map(function(p){
+      +  [['cards','Crew cards'],['grid','Team grid']].map(function(p){
            var sel = st.view === p[0];
            return '<button onclick="StaffRatings.setView(\''+p[0]+'\')" style="border:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:12.5px;font-weight:700;padding:8px 16px;border-radius:8px;background:'+(sel?'#fff':'transparent')+';color:'+(sel?'#1a1a2e':'#868e96')+';box-shadow:'+(sel?'0 1px 4px rgba(0,0,0,.10)':'none')+'">'+p[1]+'</button>';
          }).join('')
@@ -251,37 +320,40 @@
       +  '</button>'
       +  '</div>';
 
+    // legend — one for the whole page, both views
+    h += '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 14px;padding:0 4px">'
+      +  '<span style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">Legend</span>'
+      +  [1,2,3].map(function(v){
+           return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#868e96"><span style="width:11px;height:11px;border-radius:3px;background:'+COLORS[v]+';box-shadow:inset 0 0 0 1px rgba(27,31,35,.07)"></span>'+v+' '+LABELS[v]+'</span>';
+         }).join('')
+      +  '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#868e96"><span style="width:11px;height:11px;border-radius:3px;background:'+COLORS[2]+';box-shadow:inset 0 0 0 1px rgba(27,31,35,.07),0 0 0 2px #1a1a2e"></span>'+(lastDs === today ? 'today' : fmtDate(lastDs))+'</span>'
+      +  '<span style="margin-left:auto;font-size:11.5px;color:#adb5bd">hover a square for its date and note · click it to rate or comment that day</span>'
+      +  '</div>';
+
     if(st.view === 'grid'){
+      var innerW = 150 + 14 + gridW + 14 + 40 + (st.manage ? 74 : 0);
       h += '<div style="background:#fff;border:1px solid #e9ecef;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
-        +  '<div style="padding:18px 30px 4px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
-        +  [1,2,3].map(function(v){
-             return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#868e96"><span style="width:11px;height:11px;border-radius:3px;background:'+COLORS[v]+';border:1px solid rgba(0,0,0,.06)"></span>'+v+' '+LABELS[v]+'</span>';
-           }).join('')
-        +  '<span style="margin-left:auto;font-size:11.5px;color:#adb5bd">hover a square for the note · click any square to rate or comment that day</span>'
-        +  '</div>'
-        +  '<div style="padding:10px 30px 4px;display:flex"><div style="width:164px;flex:none"></div><div style="position:relative;height:15px;flex:1">'
-        +  monthLabels.map(function(m){ return '<span style="position:absolute;top:0;left:'+m.x+'px;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">'+m.n+'</span>'; }).join('')
-        +  '</div></div>'
-        +  '<div style="padding:0 30px 14px">';
+        +  '<div style="overflow-x:auto;padding:16px 30px 14px"><div style="min-width:'+innerW+'px">'
+        +  '<div style="display:flex"><div style="width:164px;flex:none"></div><div style="position:relative;height:'+MONTH_H+'px;flex:1">'
+        +  gridMonths.map(function(m){ return '<span style="position:absolute;top:0;left:'+m.x+'px;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">'+m.n+'</span>'; }).join('')
+        +  '</div></div>';
       emps.forEach(function(emp){
         h += '<div style="display:flex;align-items:center;gap:14px;padding:5px 0;position:relative">'
           +  '<div style="width:150px;flex:none;display:flex;align-items:center;gap:9px">'
           +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 26) : '<span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:12px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
           +  '<span onclick="StaffRatings.summary(\''+emp.id+'\')" title="View 12-month summary" style="font-size:13px;font-weight:600;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">'+escHtml(emp.name)+'</span>'
           +  '</div>'
-          +  '<div style="display:flex;gap:2px;position:relative">';
-        emp.cells.forEach(function(cl, i3){
-          var isToday = i3 === N-1;
-          h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" '
-            +  'onclick="StaffRatings.togglePop(\''+emp.id+'\',\''+dates[i3]+'\')" '
-            +  'style="width:'+cellW+'px;height:'+cellW+'px;border-radius:3px;background:'+COLORS[cl.v]+';box-shadow:'+(isToday?'0 0 0 2px #1a1a2e':'none')+';cursor:pointer"></span>';
+          +  '<div style="display:flex;gap:'+CELL_GAP+'px;position:relative">';
+        emp.cells.forEach(function(cl, i4){
+          h += sq(cl, cellW, cellR, (i4 > 0 && cl.row === 0) ? 'margin-left:'+WEEK_GAP+'px;' : '');
         });
-        var openP=(st.open||'').split('|'), noteP=(st.noteFor||'').split('|');
+        var openP = (st.open||'').split('|'), noteP = (st.noteFor||'').split('|');
         if(openP[0] === emp.id){
           var opRec = _ratings[emp.id+'|'+openP[1]];
           h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
             +  '<span style="font-size:11px;font-weight:700;color:#868e96;padding:0 3px;white-space:nowrap">'+fmtDate(openP[1])+'</span>'
-            +  chipsForDay(emp.id, openP[1], opRec ? Math.min(3, opRec.rating) : 2, COLORS) + '</div>';
+            +  chipsForDay(emp.id, openP[1], opRec ? Math.min(3, opRec.rating) : 2, COLORS, false)
+            +  '<button onclick="StaffRatings.closePop()" title="Close" style="flex:none;cursor:pointer;font-size:12px;font-weight:700;padding:7px 9px;border-radius:8px;border:1px solid #e9ecef;background:#fff;color:#868e96">&#x2715;</button></div>';
         } else if(noteP[0] === emp.id){
           h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center;width:330px">'
             +  '<span style="font-size:11px;font-weight:700;color:#868e96;white-space:nowrap">'+fmtDate(noteP[1])+'</span>'
@@ -292,14 +364,15 @@
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>';
       });
-      h += '</div>'
+      h += '</div></div>'
         +  '<div style="padding:14px 30px;border-top:1px solid #e9ecef;display:flex;align-items:center">'
-        +  '<span style="font-size:12px;color:#868e96">Today\'s column is outlined.</span>'
-        +  '<span style="margin-left:auto;font-size:12px;font-weight:600;color:'+PC[2]+'">'+changed+' ratings changed today</span>'
+        +  '<span style="font-size:12px;color:#868e96">'+(lastDs === today ? 'Today\'s' : fmtDate(lastDs)+'\'s')+' column is outlined.</span>'
+        +  '<span style="margin-left:auto;font-size:12px;font-weight:600;color:'+PC[2]+'">'+changed+' rating'+(changed===1?'':'s')+' recorded for '+(lastDs === today ? 'today' : fmtDate(lastDs))+'</span>'
         +  '</div></div>';
     } else {
-      h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(242px,1fr));gap:14px">';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax('+cardMin+'px,1fr));gap:14px">';
       emps.forEach(function(emp){
+        var openP = (st.open||'').split('|'), noteP = (st.noteFor||'').split('|');
         h += '<div class="sc-crew-card" style="background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">'
           +  '<div style="display:flex;align-items:center;gap:9px">'
           +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 30) : '<span style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
@@ -307,13 +380,42 @@
           +  '<span style="margin-left:auto;font-size:13px;font-weight:700;color:'+(emp.trend==='↑'?PC[2]:(emp.trend==='↓'?PC[0]:'#adb5bd'))+'">'+emp.trend+'</span>'
           +  (st.manage ? '<button onclick="StaffRatings.hide(\''+emp.id+'\')" style="flex:none;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid #e9ecef;background:#fff;color:#adb5bd">Hide</button>' : '')
           +  '</div>'
-          +  '<div style="display:flex;gap:5px">'+chipsHtml(emp, true)+'</div>'
-          +  (st.noteFor === emp.id+'|'+today ? '<div style="display:flex;gap:6px;align-items:center">'+noteEditorHtml(emp, today)+'</div>' : '')
-          +  '<div style="display:grid;grid-template-rows:repeat(5,'+miniCell+'px);grid-auto-flow:column;gap:2px;justify-content:start">';
-        emp.cells.forEach(function(cl, i3){
-          h += '<span title="'+escHtml(tipFor(dates[i3], cl.v, cl.note)).replace(/"/g,'&quot;')+'" style="width:'+miniCell+'px;height:'+miniCell+'px;border-radius:2.5px;background:'+COLORS[cl.v]+'"></span>';
+          // quick-rate row for the newest tracked day
+          +  '<div style="display:flex;align-items:center;gap:8px">'
+          +  '<span style="flex:none;font-size:10.5px;font-weight:700;letter-spacing:.5px;color:#adb5bd;text-transform:uppercase;width:44px">'+escHtml(quickLabel)+'</span>'
+          +  '<div style="flex:1;display:flex;gap:5px">'+chipsForDay(emp.id, lastDs, emp.curV, COLORS, true)+'</div>'
+          +  '</div>';
+        // editing a past day: chips or the note box, both stamped with the date
+        if(openP[0] === emp.id && openP[1] !== lastDs){
+          var opRec2 = _ratings[emp.id+'|'+openP[1]];
+          h += '<div style="display:flex;align-items:center;gap:8px;background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:7px 8px">'
+            +  '<span style="flex:none;font-size:11px;font-weight:700;color:#495057;white-space:nowrap">'+fmtDate(openP[1])+'</span>'
+            +  '<div style="flex:1;display:flex;gap:5px">'+chipsForDay(emp.id, openP[1], opRec2 ? Math.min(3, opRec2.rating) : 2, COLORS, true)+'</div>'
+            +  '<button onclick="StaffRatings.closePop()" title="Close" style="flex:none;cursor:pointer;font-size:12px;font-weight:700;padding:6px 8px;border-radius:8px;border:1px solid #e9ecef;background:#fff;color:#868e96">&#x2715;</button>'
+            +  '</div>';
+        }
+        if(noteP[0] === emp.id){
+          h += '<div style="display:flex;gap:6px;align-items:center">'
+            +  '<span style="flex:none;font-size:11px;font-weight:700;color:#868e96;white-space:nowrap">'+fmtDate(noteP[1])+'</span>'
+            +  noteEditorHtml(emp, noteP[1]) + '</div>';
+        }
+        // the contribution graph: weeks across, Mon–Sat down
+        h += '<div style="display:flex;gap:4px;overflow-x:auto">'
+          +  '<div style="flex:none;width:'+railW+'px;display:grid;grid-template-rows:repeat(6,'+miniCell+'px);gap:'+miniGap+'px;margin-top:'+MONTH_H+'px">'
+          +  DOW_LETTER.map(function(L, r){
+               var show = (r === 0 || r === 2 || r === 4 || (r === 5 && miniPitch >= 11));
+               return '<span style="display:flex;align-items:center;font-size:'+Math.max(7, Math.min(9, miniCell))+'px;font-weight:700;color:#adb5bd;line-height:1">'+(show?L:'')+'</span>';
+             }).join('')
+          +  '</div>'
+          +  '<div style="flex:none">'
+          +  '<div style="position:relative;height:'+MONTH_H+'px">'
+          +  cardMonths.map(function(m){ return '<span style="position:absolute;top:0;left:'+m.x+'px;font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#adb5bd;text-transform:uppercase">'+m.n+'</span>'; }).join('')
+          +  '</div>'
+          +  '<div style="display:grid;grid-template-columns:repeat('+weeksShown+','+miniCell+'px);grid-template-rows:repeat(6,'+miniCell+'px);gap:'+miniGap+'px">';
+        emp.cells.forEach(function(cl){
+          h += sq(cl, miniCell, miniR, 'grid-column:'+(cl.col+1)+';grid-row:'+(cl.row+1)+';');
         });
-        h += '</div>'
+        h += '</div></div></div>'
           +  '<div style="display:flex;align-items:baseline;gap:8px;border-top:1px solid #f1f3f5;padding-top:10px">'
           +  '<span style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;line-height:1;color:'+(emp.avg>=2.34?PC[2]:(emp.avg<=1.66?PC[0]:'#495057'))+'">'+emp.avg.toFixed(1)+'</span>'
           +  '<span style="font-size:10.5px;font-weight:600;color:#adb5bd;text-transform:uppercase;letter-spacing:.4px">avg</span>'
@@ -353,20 +455,20 @@
     }
   }
 
-  // Chip row for a specific day (grid popover) — any visible day is rateable,
-  // so a forgotten entry or comment can be added after the fact.
-  function chipsForDay(empId, ds, curV, COLORS){
+  // Chip row for one specific day — every day drawn on the page gets one, so a
+  // forgotten entry or comment can be filled in after the fact.
+  function chipsForDay(empId, ds, curV, COLORS, flexy){
     return [1,2,3].map(function(v){
       var sel = v === curV;
       return '<button onclick="StaffRatings.rate(\''+empId+'\','+v+',\''+ds+'\')" title="'+v+' — '+LABELS[v]+'" '
-        + 'style="width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;'
-        + 'font-family:\'Inter\',sans-serif;font-size:13px;font-weight:800;cursor:pointer;'
+        + 'style="'+(flexy?'flex:1;':'width:32px;')+'height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;'
+        + 'font-family:\'Inter\',sans-serif;font-size:'+(flexy?'12':'13')+'px;font-weight:800;cursor:pointer;'
         + 'background:'+(sel?COLORS[v]:'#f8f9fa')+';color:'+(sel?FG_SEL[v]:'#868e96')+';border:1.5px solid '+(sel?COLORS[v]:'#e9ecef')+'">'+v+'</button>';
     }).join('');
   }
 
   // Inline note editor shown right after rating a 1 or a 3 (also reopens when
-  // the day's 1/3 square or chip is clicked again, so comments can be fixed later).
+  // the day's square or chip is clicked again, so comments can be fixed later).
   function noteEditorHtml(emp, ds){
     var rec = _ratings[emp.id + '|' + ds];
     var val = rec ? (rec.note || '') : '';
@@ -378,11 +480,11 @@
   }
 
   // ── handlers ──
-  function setView(v){ st.view = v; st.open = null; persist(); paint(); }
+  function setView(v){ st.view = v; st.open = null; st.noteFor = null; persist(); paint(); }
   function setPal(p){ if(PALETTES[p]){ st.pal = p; persist(); paint(); } }
   function setWeeks(n){
     st.weeksN = (n === 'all' || n === 'ytd') ? n : parseInt(n,10);
-    st.open = null; persist();
+    st.open = null; st.noteFor = null; persist();
     ensureWindow().then(paint); paint();
   }
   function weeksKey(e){ if(e.key === 'Enter'){ applyCustom(e.target); e.target.blur(); } }
@@ -392,12 +494,14 @@
     if(!isNaN(n) && n >= 1) setWeeks(Math.min(104, n));
   }
   function togglePop(empId, ds){
-    var k = empId + '|' + (ds || todayStr());
+    if(!rateable(ds)){ toast('Only weekdays up to today can be rated.', 'error'); return; }
+    var k = empId + '|' + ds;
     st.open = (st.open === k) ? null : k;
     st.noteFor = null;
     paint();
   }
-  function toggleManage(){ st.manage = !st.manage; st.open = null; paint(); }
+  function closePop(){ st.open = null; paint(); }
+  function toggleManage(){ st.manage = !st.manage; st.open = null; st.noteFor = null; paint(); }
 
   async function setHidden(empId, hide){
     var was = !!_hidden[empId];
@@ -416,7 +520,7 @@
   }
 
   async function rate(empId, v, ds){
-    ds = ds || todayStr();
+    if(!rateable(ds)){ toast('Only weekdays up to today can be rated.', 'error'); return; }
     var key = empId + '|' + ds;
     var prev = _ratings[key];
     var note = prev ? (prev.note || '') : '';
@@ -438,7 +542,7 @@
         if(!_minDate || ds < _minDate) _minDate = ds;
       }
       // A 1 or a 3 is worth a word — open the comment box (2 = normal, no ask)
-      st.noteFor = (v === 1 || v === 3) ? empId + '|' + ds : null;
+      st.noteFor = (v === 1 || v === 3) ? key : null;
       paint();
     } catch(e){
       toast('Save failed: ' + ((e && e.message) || e), 'error');
@@ -449,10 +553,10 @@
   async function saveNote(empId, ds){
     var inp = document.getElementById('sc-note-' + empId);
     if(!inp) return;
-    ds = ds || todayStr();
+    if(!rateable(ds)){ toast('Only weekdays up to today can be rated.', 'error'); return; }
     var note = inp.value.trim();
     var key = empId + '|' + ds;
-    var rating = _ratings[key] ? _ratings[key].rating : 2;
+    var rating = _ratings[key] ? Math.min(3, _ratings[key].rating) : 2;
     st.noteFor = null;
     try {
       if(rating === 2 && !note){
@@ -466,6 +570,7 @@
           {onConflict: 'employee_id,rating_date'});
         if(rU.error) throw rU.error;
         _ratings[key] = { rating: rating, note: note };
+        if(!_minDate || ds < _minDate) _minDate = ds;
       }
       paint();
     } catch(e){
@@ -503,7 +608,7 @@
     });
     var PC = PALETTES[st.pal].c;
 
-    function entryList(list, color, emptyText){
+    function entryList(list, emptyText){
       var withNote = list.filter(function(x){ return x.note; });
       var plain = list.length - withNote.length;
       if(!list.length) return '<div style="font-size:12.5px;color:#adb5bd;padding:4px 0">'+emptyText+'</div>';
@@ -529,10 +634,10 @@
               + (m.b ? ' <b style="color:'+PC[0]+'">'+m.b+'↓</b>' : '') + '</span>';
           }).join('') + '</div>' : '')
       + '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:'+PC[2]+';text-transform:uppercase;margin-bottom:2px">Positives</div>'
-      + entryList(goods, PC[2], 'No good days recorded in the last 12 months.')
+      + entryList(goods, 'No good days recorded in the last 12 months.')
       + '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:'+PC[0]+';text-transform:uppercase;margin:16px 0 2px">Negatives</div>'
-      + entryList(bads, PC[0], 'No rough days recorded in the last 12 months. 🎉')
-      + (noted2.length ? '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#868e96;text-transform:uppercase;margin:16px 0 2px">Other notes (average days)</div>' + entryList(noted2, '#868e96', '') : '');
+      + entryList(bads, 'No rough days recorded in the last 12 months. 🎉')
+      + (noted2.length ? '<div style="font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#868e96;text-transform:uppercase;margin:16px 0 2px">Other notes (average days)</div>' + entryList(noted2, '') : '');
 
     if(!document.getElementById('sc-sum-modal')){
       var div = document.createElement('div');
@@ -551,7 +656,7 @@
   window.StaffRatings = {
     rate: rate, setView: setView, setPal: setPal, setWeeks: setWeeks,
     weeksKey: weeksKey, weeksBlur: weeksBlur, togglePop: togglePop,
-    toggleManage: toggleManage,
+    closePop: closePop, toggleManage: toggleManage,
     saveNote: saveNote, closeNote: closeNote, summary: summary,
     hide: function(id){ setHidden(id, true); },
     show: function(id){ setHidden(id, false); }
