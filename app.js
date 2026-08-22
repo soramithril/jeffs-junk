@@ -75,6 +75,7 @@ var JOB_KEY_MAP = {confirmed:'confirmed', emailSent:'email_sent', emailConfirmed
   toolsNeeded:'tools_needed', swapCount:'swap_count', deposit:'deposit',
   depositPaid:'deposit_paid', editedBy:'edited_by', editedByEmail:'edited_by_email',
   clientId:'client_cid', assignedCrewIds:'assigned_crew_ids', binWillCall:'bin_will_call',
+  binLiveLoad:'bin_live_load',
   dropoffCrewId:'dropoff_crew_id', pickupCrewId:'pickup_crew_id', truckSize:'truck_size',
   poNumber:'po_number'};
 function _checkForUpdate(){
@@ -830,6 +831,9 @@ try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){
 
 var editId = null, editBinId = null;
 var svcF = 'all', searchF = '', invF = 'all', jobStatusF = 'all', jobDateF = 'all', binDropF = 'all';
+// 'all' | 'only' — "how many live loads did we do?" is a counting question, so this
+// one runs server-side (see loadJobsPage) and the answer is the pagination total.
+var liveLoadF = 'all';
 var jobShowF = 'active', jobSvcF = 'all'; // 4A: All Jobs "Show" (status) + "Service" controls, mapped onto svcF
 var jobSort = 'date', jobSortDir = -1; // -1 = newest first
 var weekOffset = 0, tlOffset = 0;
@@ -842,7 +846,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 // Column list for list/calendar views. names/phones/emails ARE loaded — job lists show the
 // contact under the name, and the email screen reads emails off the job (see openEmailModal).
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,bin_live_load,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
@@ -887,6 +891,7 @@ function dbToJob(r) {
     binSide:    r.bin_side   || '',
     binBid:     r.bin_bid    || '',
     binWillCall:r.bin_will_call || false,
+    binLiveLoad:r.bin_live_load || false,
     clientId:   r.client_cid || '',
     deposit:    r.deposit != null ? String(r.deposit) : '',
     depositPaid:r.deposit_paid || false,
@@ -1052,6 +1057,7 @@ function jobToDb(j) {
     bin_side:    j.binSide     || '',
     bin_bid:     j.binBid      || '',
     bin_will_call: j.binWillCall || false,
+    bin_live_load: j.binLiveLoad || false,
     client_cid:  j.clientId    || '',
     deposit:     j.deposit !== '' && j.deposit != null ? parseFloat(j.deposit) : null,
     deposit_paid:j.depositPaid || false,
@@ -1688,6 +1694,11 @@ async function loadJobsPage(page) {
   // Apply status filter
   if (jobStatusF && jobStatusF !== 'all') {
     query = query.eq('status', jobStatusF);
+  }
+  // Live loads only. Server-side on purpose: binDropF filters the page you happen to
+  // be looking at, which would have made the count a lie.
+  if (liveLoadF === 'only') {
+    query = query.eq('bin_live_load', true);
   }
 
   query = query.range(from, from + jobsPageSize - 1);
@@ -2359,7 +2370,7 @@ function atabsSync(groupId) {
 
 // Sync all groups at once
 function atabsSyncAll() {
-  ['svc','status','date','bin','csort','cshow','analytics'].forEach(atabsSync);
+  ['svc','status','date','bin','liveload','csort','cshow','analytics'].forEach(atabsSync);
 }
 
 // Patch the existing filter setters to also sync tabs
@@ -2415,6 +2426,18 @@ function _patchAtabs() {
         el.classList.add('active');
       }
       atabsSync('bin');
+    };
+  }
+  // Jobs: live load
+  if (typeof setLiveLoadFilter === 'function') {
+    var _ll = setLiveLoadFilter;
+    setLiveLoadFilter = function(v, el) {
+      _ll(v, el);
+      if (el) {
+        document.querySelectorAll('#atabs-liveload .atab').forEach(function(b){ b.classList.remove('active'); });
+        el.classList.add('active');
+      }
+      atabsSync('liveload');
     };
   }
   // Clients: sort
@@ -3671,7 +3694,7 @@ async function refreshDashJobs(){
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
-          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+(j.binLiveLoad?liveLoadBadge():'')+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
           +'<div class="tjr2-binslot">'+binBadge+'</div>'
           +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
@@ -4342,7 +4365,7 @@ async function renderDash(bg){
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
-          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+(j.binLiveLoad?liveLoadBadge():'')+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
           +'<div class="tjr2-binslot">'+binBadge+'</div>'
           +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
@@ -4778,6 +4801,8 @@ function _applyJobFilters(){
   // Bin-drop filter only makes sense for bin rows
   var binGroup = document.getElementById('filter-group-bin');
   if (binGroup) binGroup.style.display = (svcF === 'all' || svcF === 'Bin Rental') ? '' : 'none';
+  var llGroup = document.getElementById('filter-group-liveload');
+  if (llGroup) llGroup.style.display = (svcF === 'all' || svcF === 'Bin Rental') ? '' : 'none';
 
   // Bins-out is its own special view (no server page load) — same as the old setSvc()
   var binsOutView = document.getElementById('jobs-bins-out-view');
@@ -4806,10 +4831,11 @@ function toggleJobFilters(){
   if(window.JJMotion && JJMotion.glide) JJMotion.glide(panel, open, 'flex');
   else panel.style.display = open ? 'flex' : 'none';
   // highlights can't position while the panel is display:none — sync once it's visible
-  if (open && typeof atabsSync === 'function') requestAnimationFrame(function(){ atabsSync('svc'); atabsSync('date'); atabsSync('bin'); });
+  if (open && typeof atabsSync === 'function') requestAnimationFrame(function(){ atabsSync('svc'); atabsSync('date'); atabsSync('bin'); atabsSync('liveload'); });
   if (btn){
     var n = (jobSvcF !== 'all' ? 1 : 0) + (jobDateF !== 'all' ? 1 : 0)
-          + ((svcF === 'Bin Rental' || svcF === 'all') && binDropF !== 'all' ? 1 : 0);
+          + ((svcF === 'Bin Rental' || svcF === 'all') && binDropF !== 'all' ? 1 : 0)
+          + (liveLoadF !== 'all' ? 1 : 0);
     btn.innerHTML = '⚙ Filters ' + (open ? '▴' : '▾')
       + (n ? ' <span style="display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:800">' + n + '</span>' : '');
   }
@@ -4826,6 +4852,8 @@ function renderJobChips(){
     chips.push({txt:({today:'Today',week:'This week',month:'This month'}[jobDateF] || jobDateF), clr:"setJobDateFilter('all',document.getElementById('jdtf-all'))"});
   if (binDropF !== 'all' && (svcF === 'Bin Rental' || svcF === 'all'))
     chips.push({txt:({pending:'Not dropped',dropped:'Dropped',pickedup:'Picked up'}[binDropF] || binDropF), clr:"setBinDropFilter('all',document.getElementById('jbdf-all'))"});
+  if (liveLoadF === 'only')
+    chips.push({txt:'Live loads only', clr:"setLiveLoadFilter('all',document.getElementById('jllf-all'))"});
   box.innerHTML = chips.length
     ? '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Filtering by</span>'
       + chips.map(function(c){ return '<span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:6px 10px;background:var(--surface2);color:var(--text-secondary);border:1px solid var(--border);border-radius:8px">' + c.txt + ' <span onclick="' + c.clr + '" style="cursor:pointer;font-weight:800;opacity:.55">✕</span></span>'; }).join('')
@@ -4891,6 +4919,7 @@ function renderJobsBinsOut(){
 function setJobStatus(v,el){jobStatusF=v;document.querySelectorAll('[id^="jstf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);}
 function setJobDateFilter(v,el){jobDateF=v;document.querySelectorAll('[id^="jdtf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);renderJobChips();}
 function setBinDropFilter(v,el){binDropF=v;document.querySelectorAll('[id^="jbdf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');renderJobs();renderJobChips();}
+function setLiveLoadFilter(v,el){liveLoadF=v;document.querySelectorAll('[id^="jllf-"]').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');jobsPage=0;loadJobsPage(0);renderJobChips();}
 function setQ(v){searchF=v;renderJobs();}
 // Start/end (inclusive, local time) for the All Jobs date filter; null = no filtering
 function jobDateRange(){
@@ -4969,6 +4998,14 @@ function toggleJdd(wrap){
   _openJdd(wrap, btn);
 }
 
+/* LIVE LOAD — the truck drops the bin, waits while the customer fills it and hauls it
+   away on the same visit. There is no rental period, so drop-off and pickup are the
+   same day. Kelly asked for it in Aug 2026 (the Charlie Maugeri job on the 29th).
+   One builder so the day list, the All Jobs row and the job detail all say the same
+   thing at the same size — a live load is the whole shape of the visit, not a footnote. */
+function liveLoadBadge(){
+  return '<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:11.5px;font-weight:800;letter-spacing:.4px;color:#7c3aed;background:#f3f0fb;border:1px solid #c4b5fd;border-radius:6px;padding:3px 9px;white-space:nowrap">⚡ LIVE LOAD</span>';
+}
 function binDropBtn(j){
   if(j.service!=='Bin Rental') return '<td></td>';
   var st = j.binInstatus || '';
@@ -4980,7 +5017,9 @@ function binDropBtn(j){
   return '<td class="jcell-drop" style="padding:8px 12px">'
     +'<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid '+border+';background:'+bg+';color:'+color+'">'
     +'<span style="width:7px;height:7px;border-radius:50%;background:'+dot+';flex-shrink:0;display:inline-block"></span>'
-    +label+'</span></td>';
+    +label+'</span>'
+    +(j.binLiveLoad?'<div style="margin-top:5px">'+liveLoadBadge()+'</div>':'')
+    +'</td>';
 }
 
 function confirmedHtml(id, confirmed, service, status, binInstatus){
@@ -9949,6 +9988,9 @@ function newJob(){
   _fillTimeField('f-bdrop-time','');
   _fillTimeField('f-bpick-time','');
   var wcEl=document.getElementById('f-bwillcall');if(wcEl){wcEl.checked=false;toggleWillCallForm(false);}
+  // Same stale-field trap: the form is reused, so without this the next booking is
+  // born a live load because the last job you opened was one.
+  var llEl=document.getElementById('f-liveload');if(llEl){llEl.checked=false;_liveLoadPrevPickup=null;syncLiveLoadForm();}
   // Same stale-field trap as the dates above: this is only ever written when an
   // existing job is opened, so without clearing it a new booking is born "dropped".
   var bstEl=document.getElementById('f-binstatus');if(bstEl)bstEl.value='';
@@ -10115,6 +10157,7 @@ function setBinDuration(days){
     document.getElementById('f-bdur').value='';
     document.getElementById('f-bpick').value='';
     document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
+    syncLiveLoadForm();
     renderBinSizeAvailability();
     return;
   }
@@ -10134,6 +10177,9 @@ function setBinDuration(days){
     b.classList.toggle('active',isActive);
     if(isActive){b.style.animation='durPop .3s ease';setTimeout(function(){b.style.animation='';},300);}
   });
+  // A live load has no rental period, so the duration presets must not drag the
+  // pickup date off the drop-off date. Live load is the last writer either way.
+  syncLiveLoadForm();
   renderBinSizeAvailability();
   renderBinPriceScript();
 }
@@ -10347,8 +10393,14 @@ async function openEdit(id){
       _fillTimeField('f-bdrop-time',j.binDropoffTime);
       document.getElementById('f-bpick').value=j.binPickup||'';
       _fillTimeField('f-bpick-time',j.binPickupTime);
+      // Order matters: both flags own the pickup field's enabled state, and a
+      // will-call ("no date at all") outranks a live load. So set the live-load box,
+      // let will-call paint, and only then let live load fill in the date if it survived.
+      var llEl2=document.getElementById('f-liveload');
+      if(llEl2){ llEl2.checked=!!j.binLiveLoad; _liveLoadPrevPickup=null; }
       var wcEl2=document.getElementById('f-bwillcall');
       if(wcEl2){wcEl2.checked=!!j.binWillCall;toggleWillCallForm(!!j.binWillCall);}
+      if(llEl2 && llEl2.checked) syncLiveLoadForm();
       document.getElementById('f-bside').value=j.binSide||'';
       document.getElementById('f-trucksize').value=j.truckSize||'';
       document.getElementById('f-binstatus').value=j.binInstatus||'';
@@ -10664,6 +10716,12 @@ async function saveJob(e){
     var wcChk=document.getElementById('f-bwillcall');
     job.binWillCall = wcChk ? !!wcChk.checked : false;
     if(job.binWillCall){ job.binPickup=''; job.binPickupTime=''; }
+    // Live load: same visit, so the pickup date IS the drop-off date. Forced here
+    // rather than trusted from the field — that's the invariant the badge promises,
+    // and it must hold no matter what order the two dates were typed in.
+    var llChk2=document.getElementById('f-liveload');
+    job.binLiveLoad = llChk2 ? !!llChk2.checked : false;
+    if(job.binLiveLoad){ job.binPickup = job.binDropoff; }
     // Preserve per-leg crew assignments (set via Dispatch / per-leg picker) so
     // saving the job from the form doesn't blank them out.
     if(editId){
@@ -11081,7 +11139,9 @@ async function openDetail(id, returnCid){
     var bsStatus=j.binInstatus==='dropped'?'<span style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700">'+iconTile('confirmed',{size:15})+'Dropped Off</span>':j.binInstatus==='pickedup'?'<span style="display:inline-flex;align-items:center;gap:5px;color:var(--accent);font-weight:700">'+iconTile('confirmed',{size:15})+'Picked Up</span>':'<span style="color:var(--muted)">Pending</span>';
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
-    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div><div class="detail-grid">'
+    bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div>'
+      +(j.binLiveLoad?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 13px;border:1px solid #c4b5fd;background:#f3f0fb;border-radius:8px"><span style="font-size:14px;font-weight:800;letter-spacing:.5px;color:#7c3aed">⚡ LIVE LOAD</span><span style="font-size:12.5px;color:var(--muted)">Truck waits while it is loaded — the bin comes back the same day.</span></div>':'')
+      +'<div class="detail-grid">'
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
@@ -12557,6 +12617,10 @@ function toggleWillCallForm(forceState){
   var active = (forceState===undefined) ? !chk.checked : !!forceState;
   chk.checked = active;
   if(active){
+    // Two opposite promises about the pickup: a live load comes back on the same
+    // visit, a will-call has no pickup date at all. Turning this on turns that off.
+    var llChk=document.getElementById('f-liveload');
+    if(llChk && llChk.checked){ llChk.checked=false; syncLiveLoadForm(); }
     pick.value=''; pickTime.value='';
     pick.disabled=true; pickTime.disabled=true;
     pick.style.opacity='0.45'; pickTime.style.opacity='0.45';
@@ -12573,6 +12637,35 @@ function toggleWillCallForm(forceState){
       btn.style.borderColor='rgba(230,126,34,.4)';
       btn.innerHTML='📞 Waiting on customer call — no pickup date scheduled';
     }
+  }
+}
+/* The pickup date someone had typed before the Live load box was ticked. The tick is
+   the only thing allowed to overwrite a pickup date, so unticking hands it straight
+   back. null means "nothing to hand back" — a fresh form, or an already-saved live
+   load being reopened. */
+var _liveLoadPrevPickup = null;
+// Reads the checkbox and makes the pickup field agree with it. Called from the box's
+// own onchange (so .checked is already the new state — do NOT invert it here, unlike
+// toggleWillCallForm, which is driven by a button click).
+function syncLiveLoadForm(){
+  var chk=document.getElementById('f-liveload');
+  var drop=document.getElementById('f-bdrop');
+  var pick=document.getElementById('f-bpick');
+  var pickTime=document.getElementById('f-bpick-time');
+  if(!chk||!drop||!pick||!pickTime) return;
+  if(chk.checked){
+    // Same visit — a will-call ("no date") and a live load can't both be true.
+    var wcChk=document.getElementById('f-bwillcall');
+    if(wcChk && wcChk.checked) toggleWillCallForm(false);
+    if(_liveLoadPrevPickup===null) _liveLoadPrevPickup=pick.value;
+    pick.value=drop.value;
+    pick.disabled=true;
+    pick.style.opacity='0.55';
+  } else {
+    if(_liveLoadPrevPickup!==null){ pick.value=_liveLoadPrevPickup; }
+    _liveLoadPrevPickup=null;
+    pick.disabled=false;
+    pick.style.opacity='1';
   }
 }
 function scheduleWillCallPickup(id,e){

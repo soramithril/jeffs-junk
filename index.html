@@ -557,6 +557,19 @@
         </div>
       </div>
 
+      <!-- Live Load (Bin Rental only) — answers "how many live loads did we do?".
+           Runs server-side, so the count in the Showing X of N line is the real total. -->
+      <div class="filter-group" id="filter-group-liveload">
+        <span class="filter-group-label">Live Load</span>
+        <div class="atabs-wrap" id="atabs-liveload" style="position:relative;">
+          <div class="atabs-highlight" id="atabs-liveload-hl"></div>
+          <div class="atabs-track">
+            <button class="atab active" data-group="liveload" id="jllf-all"  onclick="setLiveLoadFilter('all',this)">All</button>
+            <button class="atab"        data-group="liveload" id="jllf-only" onclick="setLiveLoadFilter('only',this)">⚡ Live Loads Only</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- 4. Active-filter chips -->
@@ -1920,7 +1933,7 @@
 
         <div class="job-form-subsection-label" style="margin-top:16px">📅 Scheduling</div>
         <div class="form-grid" style="margin-bottom:12px">
-          <div class="form-group"><label>Drop-off Date <span class="req-mark">required</span></label><div class="ask">When would you like it dropped off?</div><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
+          <div class="form-group"><label>Drop-off Date <span class="req-mark">required</span></label><div class="ask">When would you like it dropped off?</div><div style="display:flex;gap:6px"><input id="f-bdrop" type="date" onchange="applyBinPresetDuration();syncLiveLoadForm()" style="flex:1"><input id="f-bdrop-time" type="time" placeholder="Time" style="width:110px"></div><div class="field-error-msg" id="err-f-bdrop">Drop-off Date is missing.</div></div>
           <div class="form-group">
             <label>Pickup Date</label>
             <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div>
@@ -1928,6 +1941,15 @@
             <button type="button" id="f-bwillcall-btn" onclick="toggleWillCallForm()" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:6px;font-size:12px;font-weight:700;color:#e67e22;border-color:rgba(230,126,34,.4);padding:7px 14px">📞 Waiting on call — no pickup date set</button>
           </div>
         </div>
+
+        <!-- Live load: drop, wait while it's filled, haul it away on the same visit.
+             Ticking it makes the pickup date the drop-off date and locks the field. -->
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;user-select:none;margin-bottom:14px;padding:10px 13px;border:1px solid #c4b5fd;background:#f3f0fb;border-radius:8px">
+          <input type="checkbox" id="f-liveload" onchange="syncLiveLoadForm()" style="margin:2px 0 0;width:17px;height:17px;flex:none;cursor:pointer;accent-color:#7c3aed">
+          <span style="font-size:13px;font-weight:700;color:#7c3aed;line-height:1.4">⚡ Live load — truck waits, bin comes back same day
+            <span style="display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:2px">Pickup date is set to the drop-off date.</span>
+          </span>
+        </label>
 
         <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
           <div class="form-group" style="flex:0 0 80px;min-width:80px"><label>Duration</label><input id="f-bdur" type="text" placeholder="" style="text-align:center;font-size:13px;padding:8px 6px"></div>
