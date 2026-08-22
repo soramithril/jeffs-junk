@@ -5821,8 +5821,14 @@ async function clientSearchLive(q){
     if(!r.data||!r.data.length){box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found for "'+q+'"</div>';return;}
     box.innerHTML=r.data.map(function(c){
       var ph=c.phone||(c.phones&&c.phones[0]?(c.phones[0].num||c.phones[0]):'');
-      return '<div onclick="selectClientResult(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        +'<strong>'+c.name+'</strong>'+(ph?' <span style="color:var(--muted)">· '+ph+'</span>':'')
+      // A blacklisted customer looked exactly like everyone else in this picker, so one could
+      // be booked with nobody knowing (Kelly, 2026-08-21). The tag flags it in the list; the
+      // strip below the picker takes over once they are actually chosen. The red bar goes on
+      // the border, not the background — the hover handlers wipe any background we set here.
+      var blTag=c.blacklisted?' <span style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#fff;background:#b4232f;padding:2px 7px;border-radius:5px">BLACKLISTED</span>':'';
+      var blBar=c.blacklisted?'border-left:4px solid #dc3545;':'';
+      return '<div onclick="selectClientResult(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);'+blBar+'font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        +'<strong>'+c.name+'</strong>'+blTag+(ph?' <span style="color:var(--muted)">· '+ph+'</span>':'')
         +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+c.business_name+'</span>':'')
         +(c.city?' <span style="color:var(--muted);font-size:11px">· '+c.city+'</span>':'')+'</div>';
     }).join('');
@@ -5926,7 +5932,21 @@ function selectClientResult(cid){
   if(badge){badge.style.display='flex';}
   if(nm){nm.textContent='✅ '+cl.name+(cl.phone?' · '+cl.phone:'');}
   fillClientFromSelect(cid);
+  setJobFormBlacklistWarning(cl);
   showClientNotesPopup(cl);
+}
+
+// One place decides whether the job form is wearing the blacklist strip. Pass the client
+// that the form is linked to, or nothing to take it down — every path that changes the
+// linked client calls this, so a strip can never be left over from the last form session.
+// Jake's call: warn loudly, do NOT block the booking.
+function setJobFormBlacklistWarning(cl){
+  var el=document.getElementById('f-client-blacklist-warning');
+  if(!el)return;
+  var on=!!(cl&&cl.blacklisted);
+  el.style.display=on?'block':'none';
+  var nm=document.getElementById('f-client-blacklist-name');
+  if(nm)nm.textContent=on?((cl.name||'This customer')+' is blacklisted. Check with Jeff or Jake before you book this in.'):'';
 }
 
 // Fires when a client is picked on a booking — this is the "for future bookings" surface.
@@ -5963,6 +5983,7 @@ function clearClientSelection(){
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');
   if(badge)badge.style.display='none';
+  setJobFormBlacklistWarning(null);
   document.getElementById('f-names-wrap').innerHTML=_jobNameRow('');
   document.getElementById('f-phones-wrap').innerHTML=_jobPhoneRow('','','cell');
   document.getElementById('f-emails-wrap').innerHTML=_jobEmailRow('');
@@ -6347,8 +6368,12 @@ async function openEmailListModal() {
   body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Loading…</div>';
   openM('email-list-modal');
 
-  var withEmail = _allClientsFiltered.filter(function(c){ return mktgEmail(c); });
-  var noEmail   = _allClientsFiltered.length - withEmail.length;
+  // Blacklisted people must never land in a promo pull. This list used to inherit that for
+  // free, because the Clients page hid them; since 2026-08-21 it shows them, so the rule has
+  // to be stated here instead. Same rule the client file states: do not contact for promotions.
+  var mktgPool  = _allClientsFiltered.filter(function(c){ return !c.blacklisted; });
+  var withEmail = mktgPool.filter(function(c){ return mktgEmail(c); });
+  var noEmail   = mktgPool.length - withEmail.length;
   var log;
   try {
     log = await fetchMarketingLog();
@@ -6462,7 +6487,9 @@ async function confirmEmailListExport() {
 
 function exportClientList() {
   if (!_allClientsFiltered.length) { toast('No clients to export.'); return; }
-  var rows = [['Name','Phone','City','Email','Contractor','Total Jobs','Bins','Junk','Furniture','Last Job']];
+  // Blacklisted people can be in this list now that the Clients page shows them, so the file
+  // has to say so — a spreadsheet with no such column reads as a clean list of customers.
+  var rows = [['Name','Phone','City','Email','Contractor','Blacklisted','Total Jobs','Bins','Junk','Furniture','Last Job']];
   _allClientsFiltered.forEach(function(c) {
     rows.push([
       c.name || '',
@@ -6470,6 +6497,7 @@ function exportClientList() {
       c.city  || '',
       c.email || '',
       c.contractor ? 'Yes' : '',
+      c.blacklisted ? 'BLACKLISTED' : '',
       c._totalJobs || 0,
       c._bins  || 0,
       c._junk  || 0,
@@ -6648,7 +6676,10 @@ async function loadClientsPage() {
     return (a.name||'').localeCompare(b.name||'');
   });
 
-  // ── 7b. Show filter (who's in the list) — blacklisted hidden unless explicitly shown ──
+  // ── 7b. Show filter (who's in the list) ──
+  // Active customers shows blacklisted people too (Jake, 2026-08-21). Hiding them meant
+  // Kelly searched for a real customer, got nothing back, and believed they weren't in the
+  // system at all. They come up in the list now, wearing the red card in makeClientCard.
   var _dormCutoff = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
   // Top Clients: booking repeatedly and lately. Two jobs inside 180 days is the cut —
   // it lands around 210 accounts, small enough for the office to genuinely know them.
@@ -6656,7 +6687,7 @@ async function loadClientsPage() {
   else if(clientShow==='blacklist')    allClients = allClients.filter(function(c){ return c.blacklisted; });
   else if(clientShow==='contractors')  allClients = allClients.filter(function(c){ return c.contractor && !c.blacklisted; });
   else if(clientShow==='dormant')      allClients = allClients.filter(function(c){ return c._lastDate && c._lastDate < _dormCutoff && !c.blacklisted; });
-  else                                 allClients = allClients.filter(function(c){ return !c.blacklisted; }); // everyone
+  // 'everyone' takes no filter at all — that is the whole point of the change above.
 
   // ── 7c. Win-back filter: past bin customers whose last bin is older than the cutoff.
   // A bin booked for a future date reads as the last bin, so anyone with one on the books drops out.
@@ -6700,21 +6731,23 @@ function renderClientsList(list) {
   var el = document.getElementById('clients-list');
   if (!list.length) {
     // A bare "No clients found" sent people away believing a real customer wasn't
-    // in the system — most often because the Show tab quietly hides blacklisted
-    // people, or a filter is still on from earlier. Name whatever is actually
-    // hiding them, and offer one button that clears the lot.
+    // in the system — usually a filter is still on from earlier. Name whatever is
+    // actually hiding them, and offer one button that clears the lot.
     var why = [];
     if(clientSearchF) why.push('your search for "'+escHtml(clientSearchF)+'"');
     if(clientShow==='blacklist')        why.push('the Blacklisted tab');
     else if(clientShow==='contractors') why.push('the Contractors tab');
     else if(clientShow==='dormant')     why.push('the Dormant tab');
-    else                                why.push('the Active customers tab (blacklisted customers are hidden here — check the Blacklisted tab)');
+    else if(clientShow==='top')         why.push('the Top Clients tab (2+ jobs in the last 180 days)');
+    // Active customers is deliberately absent: blacklisted people show there now, so that
+    // tab hides nobody, and saying it did was the line that sent Kelly away empty-handed.
     if(clientLastBinF) why.push('the "no bin in '+LAST_BIN_LABELS[clientLastBinF]+'" filter');
     var f=clientRangeFilter;
     if(f.binMin||f.binMax||f.junkMin||f.junkMax) why.push('the job-count filter');
+    var hiding = why.length ? 'Hiding people right now: '+why.join(', ')+'.' : 'Nothing is filtered — there is nobody in the list at all.';
     el.innerHTML = '<div class="empty-state"><div class="ei">👥</div>'
       + '<h3>'+(clientSearchF?'Nobody matches that':'Nothing to show here')+'</h3>'
-      + '<p style="max-width:44ch;margin:6px auto 0;color:var(--muted);font-size:13px;line-height:1.5">Hiding people right now: '+why.join(', ')+'.</p>'
+      + '<p style="max-width:44ch;margin:6px auto 0;color:var(--muted);font-size:13px;line-height:1.5">'+hiding+'</p>'
       + '<button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="clientsClearAllFilters()">Show everyone again</button>'
       + '</div>';
     return;
@@ -6745,37 +6778,53 @@ function makeClientCard(row){
   var phone = phones.length?phones[0].num:'';
   var email = (row.emails&&row.emails[0])?row.emails[0]:(row.email||'');
   var addr = row.address||'';
-  var chip=function(icon,n,label,col,bg){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+col+';background:'+bg+'">'+icon+'<span>'+n+' '+label+'</span></span>';};
+  // Blacklisted clients ride along on the Active tab now, so the card has to be impossible
+  // to skim past — a small chip and opacity .92 were invisible to someone scanning. It goes
+  // solid dark red and carries its own colours: the theme tokens and the pale chip tints are
+  // built for a light surface and disappear on it.
+  var bl     = !!row.blacklisted;
+  var cTxt   = bl ? '#ffffff' : 'var(--text)';
+  var cTxt2  = bl ? '#f7d4d7' : 'var(--text-secondary)';
+  var cMuted = bl ? '#e7b3b7' : 'var(--muted)';
+  var cLine  = bl ? 'rgba(255,255,255,.22)' : 'var(--border)';
+  var chip=function(icon,n,label,col,bg){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+(bl?'#fff':col)+';background:'+(bl?'rgba(255,255,255,.15)':bg)+'">'+icon+'<span>'+n+' '+label+'</span></span>';};
   var chips='';
   if(bins) chips+=chip(iconTile('bins',{size:15}),bins,'Bin','#0e7490','rgba(8,145,178,.1)');
   if(junk) chips+=chip(iconTile('junk',{size:15,color:'yellow'}),junk,'Junk','#c2410c','rgba(230,126,34,.12)');
   if(furn) chips+=chip(iconTile('furniture',{size:15}),furn,'Furniture','#7c3aed','rgba(139,92,246,.1)');
+  // No blacklisted chip any more — the band across the top of the card says it far louder.
   var tag='';
-  if(row.blacklisted) tag='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#b4232f;background:rgba(220,53,69,.08);border:1px solid #f1c0c0;padding:2px 8px;border-radius:6px">'+iconTile('cancelled',{size:14})+'Blacklisted</span>';
-  else if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:#c2410c;background:rgba(230,126,34,.1);border:1px solid #f0d2b0;padding:2px 8px;border-radius:6px">😴 Dormant</span>';
+  if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:'+(bl?'#fff':'#c2410c')+';background:'+(bl?'rgba(255,255,255,.15)':'rgba(230,126,34,.1)')+';border:1px solid '+(bl?'rgba(255,255,255,.3)':'#f0d2b0')+';padding:2px 8px;border-radius:6px">😴 Dormant</span>';
   var contractorBadge = row.contractor?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:#fff;background:#2563eb;padding:2px 8px;border-radius:6px;letter-spacing:.3px">🏗️ CONTRACTOR</span>':'';
-  var cardStyle='background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow-sm);padding:14px;cursor:pointer;'+(row.contractor?'border-left:4px solid #2563eb;':(row.blacklisted?'opacity:.92;':''));
-  var line=function(icon,val,muted){return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:'+(muted?'var(--muted)':'var(--text-secondary)')+';min-width:0"><span style="flex:none;width:15px;text-align:center">'+icon+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(val)+'</span></div>';};
-  return '<div onclick="openClientDetailSafe(event,\''+cid+'\')" style="'+cardStyle+'">'
+  var cardStyle='border-radius:14px;box-shadow:var(--shadow-sm);cursor:pointer;overflow:hidden;'
+    +(bl?'background:#2a0e11;border:2px solid #dc3545;'
+        :'background:var(--surface);border:1px solid var(--border-strong);'+(row.contractor?'border-left:4px solid #2563eb;':''));
+  var band = bl?'<div style="background:#b4232f;color:#fff;font-size:12px;font-weight:800;letter-spacing:.6px;text-align:center;padding:7px 10px">BLACKLISTED — do not book</div>':'';
+  var line=function(icon,val,muted){return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:'+(muted?cMuted:cTxt2)+';min-width:0"><span style="flex:none;width:15px;text-align:center">'+icon+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(val)+'</span></div>';};
+  // Padding moved off the card and onto an inner wrapper so the band can run edge to edge.
+  return '<div'+(bl?' class="client-card-blacklisted"':'')+' onclick="openClientDetailSafe(event,\''+cid+'\')" style="'+cardStyle+'">'
+    +band
+    +'<div style="padding:14px">'
     +'<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:11px">'
-      +'<div style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.12);color:#15803d;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">'+escHtml(initials)+'</div>'
+      +'<div style="width:30px;height:30px;border-radius:50%;background:'+(bl?'rgba(255,255,255,.15)':'rgba(34,197,94,.12)')+';color:'+(bl?'#fff':'#15803d')+';font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none">'+escHtml(initials)+'</div>'
       +'<div style="flex:1;min-width:0">'
-        +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:var(--text)">'+escHtml(name)+'</span>'+contractorBadge+'</div>'
-        +'<div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(row.city||'')+(row.businessName?' · 🏢 '+escHtml(row.businessName):'')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700;color:'+cTxt+'">'+escHtml(name)+'</span>'+contractorBadge+'</div>'
+        +'<div style="font-size:13px;font-weight:600;color:'+cTxt2+';margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(row.city||'')+(row.businessName?' · 🏢 '+escHtml(row.businessName):'')+'</div>'
       +'</div>'
-      +'<button onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')" style="min-height:32px;padding:0 12px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex:none">✏ Edit</button>'
+      +'<button onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')" style="min-height:32px;padding:0 12px;border:1px solid '+(bl?'rgba(255,255,255,.45)':'var(--border)')+';background:transparent;color:'+(bl?'#fff':'var(--muted)')+';border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex:none">✏ Edit</button>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px">'
-      +'<span style="font-size:11.5px;font-weight:700;color:var(--text-secondary)">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
-      +((row._recent||0)>=2?'<span style="font-size:11px;font-weight:800;color:#15803d;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);padding:2px 8px;border-radius:6px">⭐ '+row._recent+' in 180d</span>':'')
-      +(chips?'<span style="color:var(--border)">·</span>'+chips:'')+(tag?' '+tag:'')
+      +'<span style="font-size:11.5px;font-weight:700;color:'+cTxt2+'">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
+      +((row._recent||0)>=2?'<span style="font-size:11px;font-weight:800;color:'+(bl?'#fff':'#15803d')+';background:'+(bl?'rgba(255,255,255,.15)':'rgba(34,197,94,.12)')+';border:1px solid '+(bl?'rgba(255,255,255,.3)':'rgba(34,197,94,.35)')+';padding:2px 8px;border-radius:6px">⭐ '+row._recent+' in 180d</span>':'')
+      +(chips?'<span style="color:'+cLine+'">·</span>'+chips:'')+(tag?' '+tag:'')
     +'</div>'
-    +'<div style="display:grid;gap:6px;border-top:1px solid var(--border);padding-top:11px">'
+    +'<div style="display:grid;gap:6px;border-top:1px solid '+cLine+';padding-top:11px">'
       // Who to ask for, before the number to ask them on.
       +(row.contactPerson?line('🗣️', 'Ask for '+row.contactPerson, false):'')
       +line('📞', phone||'—', false)
       +(email?line('✉️', email, false):'')
       +line('📍', (addr||row.city||'—'), true)
+    +'</div>'
     +'</div>'
   +'</div>';
 }
@@ -9850,6 +9899,7 @@ function newJob(){
   document.getElementById('f-client-select').value='';
   document.getElementById('f-client-search').value='';
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
+  setJobFormBlacklistWarning(null);
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
   _phoneMatchDismissed=false;_phoneMatchReset();
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
@@ -10284,6 +10334,9 @@ async function openEdit(id){
     }
     var ft2=document.getElementById('f-tools');if(ft2)ft2.value=j.toolsNeeded||'';
     document.getElementById('f-client-select').value=j.clientId||'';
+    // Editing a booking is the other place the strip has to be right: show it when this
+    // job's client is blacklisted, and clear a leftover one when they aren't.
+    setJobFormBlacklistWarning(clients.find(function(c){return c.cid===j.clientId;}));
     // Recurring fields
     var recChk=document.getElementById('f-recurring');
     var recOpts=document.getElementById('recurring-opts');
@@ -11910,6 +11963,7 @@ function newJobForClient(cid){
     if(badge)badge.style.display='flex';
     if(nm)nm.textContent='✅ '+cl.name+(cl.phone?' · '+cl.phone:'');
     fillClientFromSelect(cid);
+    setJobFormBlacklistWarning(cl);
     showClientNotesPopup(cl);
   },50);
 }
@@ -11951,6 +12005,7 @@ function convertQuoteToJob(quoteId){
   document.getElementById('f-notes').value=(q.notes?'Converted from quote '+quoteId+'.\n'+q.notes:'Converted from quote '+quoteId+'.');
   document.getElementById('f-client-select').value=q.clientId||'';
   document.getElementById('f-client-search').value='';
+  setJobFormBlacklistWarning(clients.find(function(c){return c.cid===q.clientId;}));
   var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';

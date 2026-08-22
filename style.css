@@ -666,6 +666,8 @@ body{
 .clients-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
 .clients-grid > div{transition:border-color .15s,transform .15s,box-shadow .15s}
 .clients-grid > div:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+/* A blacklisted card must not turn green the moment the mouse crosses it. */
+.clients-grid > div.client-card-blacklisted:hover{border-color:#dc3545}
 
 /* ── TABLE ── */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:visible;box-shadow:var(--shadow-sm);}
