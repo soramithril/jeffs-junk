@@ -270,3 +270,87 @@ async function delDamageReport(){
   renderDamageReports();
   toast('Damage report deleted.');
 }
+
+// ── Report damage straight from a bin ──────────────────────────────────────
+// Until now the only way to mark a bin damaged was the bin Edit form, which is
+// admin-only on screen — so the people who actually find the dent had nowhere to
+// put it. bin_items UPDATE is deliberately open to every signed-in user in the
+// database, so this is too: it hangs off the bin ⋯ menu with no permission check.
+//
+// Saving does two things on purpose:
+//   1. files a damage_reports row with bin_bid set — the paper trail, and
+//   2. sets bin_items.damage = 'damage' so the "⚠ Damaged - still rents" chip
+//      shows on the fleet immediately.
+// It does NOT touch status or rotation. A damaged bin still rents (Jake 2026-07-31).
+var _binDmgBid = null;
+
+// Built in JS rather than index.html so this whole feature lives in one file.
+// Follows the reassign-bin-modal pattern in app.js: create once, reuse after.
+function _binDamageModal(){
+  var m = document.getElementById('bin-damage-modal');
+  if(m) return m;
+  m = document.createElement('div');
+  m.id = 'bin-damage-modal';
+  m.className = 'modal-overlay';
+  m.onclick = function(e){ if(e.target === m) closeM('bin-damage-modal'); };
+  m.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;max-width:440px;width:90%;box-shadow:var(--shadow-lg)">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">'
+      + '<div class="modal-title" style="font-size:18px">Report damage</div>'
+      + '<button class="btn btn-ghost btn-sm" onclick="closeM(\'bin-damage-modal\')">Close</button>'
+    + '</div>'
+    + '<div id="bindmg-bin" style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px"></div>'
+    + '<div id="bindmg-already" style="display:none;font-size:12.5px;background:rgba(220,53,69,.1);color:#b02633;border-radius:8px;padding:8px 10px;margin-bottom:10px">This bin is already marked damaged. Saving adds another report.</div>'
+    + '<label for="bindmg-desc" style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px">What is wrong with it?</label>'
+    + '<textarea id="bindmg-desc" placeholder="e.g. Back door hinge is bent, sticks when you close it" style="width:100%;box-sizing:border-box;min-height:110px;background:var(--surface2);border:1px solid var(--border-strong);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--text);resize:vertical"></textarea>'
+    + '<div style="font-size:12px;color:var(--muted);margin-top:9px;line-height:1.45">The bin keeps renting. This flags it as damaged on the fleet and files a report on the Damage Reports page.</div>'
+    + '<div class="form-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end">'
+      + '<button class="btn btn-ghost" onclick="closeM(\'bin-damage-modal\')">Cancel</button>'
+      + '<button class="btn btn-primary" id="bindmg-save" onclick="saveBinDamageReport()">Save damage report</button>'
+    + '</div>'
+  + '</div>';
+  document.body.appendChild(m);
+  return m;
+}
+
+function openBinDamageReport(bid){
+  var b = (typeof binItems !== 'undefined' ? binItems : []).find(function(x){ return x.bid === bid; });
+  if(!b){ toast('That bin is not loaded — refresh the page.','error'); return; }
+  _binDmgBid = bid;
+  var m = _binDamageModal();
+  document.getElementById('bindmg-bin').textContent = 'Bin ' + (b.num || b.bid) + (b.size ? ' · ' + b.size : '');
+  document.getElementById('bindmg-desc').value = '';
+  document.getElementById('bindmg-already').style.display = (b.damage === 'damage') ? '' : 'none';
+  m.classList.add('open');
+  document.body.classList.add('modal-open');
+  setTimeout(function(){ var t = document.getElementById('bindmg-desc'); if(t) t.focus(); }, 60);
+}
+
+async function saveBinDamageReport(){
+  var b = (typeof binItems !== 'undefined' ? binItems : []).find(function(x){ return x.bid === _binDmgBid; });
+  if(!b) return;
+  var desc = (document.getElementById('bindmg-desc').value || '').trim();
+  if(!desc){ toast('Please say what is wrong with the bin.','error'); return; }
+  var btn = document.getElementById('bindmg-save');
+  if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  var r = await db.from('damage_reports').insert({
+    what_damaged: 'Bin ' + (b.num || b.bid),
+    description: desc,
+    bin_bid: b.bid,
+    incident_date: todayStr(),
+    status: 'open',
+    created_by: (typeof currentUser !== 'undefined' && currentUser && currentUser.displayName) ? currentUser.displayName : null,
+    photos: []
+  });
+  if(btn){ btn.disabled = false; btn.textContent = 'Save damage report'; }
+  if(r.error){ toast('Could not save: ' + r.error.message,'error'); return; }
+  // patchBin writes the one field and updates binItems in memory, so the chip is
+  // right on the next render without a reload.
+  await patchBin(b.bid, { damage: 'damage' });
+  closeM('bin-damage-modal');
+  _damageLoaded = false;   // next visit to Damage Reports re-reads and shows this one
+  if(typeof renderBinInventory === 'function') renderBinInventory();
+  toast('Bin ' + (b.num || b.bid) + ' marked damaged. It still rents.');
+}
+
+window.openBinDamageReport = openBinDamageReport;
+window.saveBinDamageReport = saveBinDamageReport;
