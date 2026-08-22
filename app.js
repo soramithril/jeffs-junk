@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '603';
+var APP_VERSION = '604';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14,9 +14,9 @@ function iconTile(key, opts){
   opts = opts || {};
   if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
   var size = opts.size || 18;
-  // Illustrated-icon trial (app-icons-3d.js) — off unless switched on with
-  // ?icons=3d. The artwork carries its own colour, so opts.color is dropped.
-  if(window.JJ3D && JJ3D.on()) return JJ3D.tag(key, size);
+  // Icon style picker (app-icons-3d.js). Artwork carries its own colour, so
+  // opts.color is dropped when it is in use.
+  if(window.JJ3D && JJ3D.useArt(size)) return JJ3D.tag(key, size);
   return JWGIcons.embossTile(key, {
     size: size,
     radius: opts.radius || Math.max(5, Math.round(size * 0.34)),
@@ -41,9 +41,9 @@ function svcTile(service, size){
 // the key is unknown so callers keep their emoji fallback.
 function lineIcon(key, size, color){
   if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
-  // Illustrated-icon trial — a picture cannot inherit the button's colour, which
-  // is exactly the trade-off the trial is there to show.
-  if(window.JJ3D && JJ3D.on()) return JJ3D.tag(key, size||16);
+  // Icon style picker — a picture cannot inherit the button's colour, so this
+  // only ever fires on the Illustrated setting, never on Mixed.
+  if(window.JJ3D && JJ3D.useArt(size||16)) return JJ3D.tag(key, size||16);
   return JWGIcons.svg(key, { size: size||16, color: color||'currentColor',
     style: 'flex:none;vertical-align:middle' });
 }
@@ -12339,7 +12339,7 @@ var NAV_COLOR={
 };
 function paintNavIcons(){
   if(!window.JWGIcons) return;
-  var three=window.JJ3D && JJ3D.on();   // illustrated-icon trial
+  var three=window.JJ3D && JJ3D.useArt(34);   // icon style picker: rail draws at 34
   document.querySelectorAll('.sidebar .nav-item').forEach(function(btn){
     var oc=(btn.getAttribute('onclick')||'').replace(/\s+/g,'');
     var key=NAV_ICO[oc];
