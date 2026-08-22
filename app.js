@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '600';
+var APP_VERSION = '601';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14,6 +14,9 @@ function iconTile(key, opts){
   opts = opts || {};
   if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
   var size = opts.size || 18;
+  // Illustrated-icon trial (app-icons-3d.js) — off unless switched on with
+  // ?icons=3d. The artwork carries its own colour, so opts.color is dropped.
+  if(window.JJ3D && JJ3D.on()) return JJ3D.tag(key, size);
   return JWGIcons.embossTile(key, {
     size: size,
     radius: opts.radius || Math.max(5, Math.round(size * 0.34)),
@@ -38,6 +41,9 @@ function svcTile(service, size){
 // the key is unknown so callers keep their emoji fallback.
 function lineIcon(key, size, color){
   if(!key || !window.JWGIcons || !JWGIcons.PATHS[key]) return '';
+  // Illustrated-icon trial — a picture cannot inherit the button's colour, which
+  // is exactly the trade-off the trial is there to show.
+  if(window.JJ3D && JJ3D.on()) return JJ3D.tag(key, size||16);
   return JWGIcons.svg(key, { size: size||16, color: color||'currentColor',
     style: 'flex:none;vertical-align:middle' });
 }
@@ -12340,13 +12346,14 @@ function paintNavIcons(){
     var ico=btn.querySelector('.icon');
     if(!ico) return;
     var color=NAV_COLOR[oc]||JWGIcons.ICON_COLOR[key]||'green';
+    var three=window.JJ3D && JJ3D.on();   // illustrated-icon trial
     if(btn.closest('#nav-more')){
       // More-Tools flyout: colourful emboss tile fills the chip
-      ico.innerHTML=JWGIcons.embossTile(key,{size:28,radius:8,color:color});
+      ico.innerHTML=three?JJ3D.tag(key,28):JWGIcons.embossTile(key,{size:28,radius:8,color:color});
     } else {
       // main green rail: same emboss tiles at chip size (v416) — the rail
       // rests icon-only, so the coloured tiles carry the meaning by themselves
-      ico.innerHTML=JWGIcons.embossTile(key,{size:34,radius:9,color:color});
+      ico.innerHTML=three?JJ3D.tag(key,34):JWGIcons.embossTile(key,{size:34,radius:9,color:color});
     }
     ico.style.background='transparent';
   });
