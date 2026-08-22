@@ -160,9 +160,15 @@
     document.removeEventListener('mousedown', outside);
   }
 
+  // Its own row inside the footer. The rail is only ~82px wide, and the Help
+  // button already fills that row, so sharing it pushes this button outside the
+  // sidebar entirely.
   function mountButton() {
-    var slim = document.querySelector('.sidebar-footer .footer-slim');
-    if (!slim || document.getElementById('jj3d-btn')) return;
+    var foot = document.querySelector('.sidebar-footer');
+    if (!foot || document.getElementById('jj3d-btn')) return;
+    var row = document.createElement('div');
+    row.className = 'footer-slim';
+    row.style.cssText = 'justify-content:flex-start';
     var b = document.createElement('button');
     b.id = 'jj3d-btn';
     b.type = 'button';
@@ -173,7 +179,9 @@
       '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>' +
       '<rect x="3" y="14" width="7" height="7" rx="1.5"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>Icons';
     b.addEventListener('click', function (e) { e.stopPropagation(); openPicker(); });
-    slim.appendChild(b);
+    row.appendChild(b);
+    var card = document.getElementById('user-card');
+    if (card) foot.insertBefore(row, card); else foot.appendChild(row);
   }
 
   if (document.readyState === 'loading') {
