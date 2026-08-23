@@ -52,6 +52,7 @@
   var _minDate = null;     // oldest saved rating_date ('' = none yet)
   var _ratings = {};       // 'empId|YYYY-MM-DD' -> {rating, note}
   var _loadedFrom = null;  // earliest date currently covered by _ratings
+  var _lastDs = '';        // newest tracked day in the painted window (Sat on a Sunday)
   var _hidden = {};        // employee id -> true (not tracked; shared via jwg_app_settings 'checkin_hidden')
 
   function ymdLocal(d){
@@ -186,6 +187,7 @@
     // The newest tracked day. On a Sunday that is Saturday, not "today" — rating
     // a Sunday would write a row no screen ever shows again.
     var lastDs = dates[N - 1] || today;
+    _lastDs = lastDs;   // handlers need it too — the cards view never reopens this day
     // A month that owns only one week column is a sliver at the edge of the
     // window; its label would sit on top of the next one, so leave it off.
     var marks = monthMarks.filter(function(m, k){
@@ -332,12 +334,20 @@
 
     if(st.view === 'grid'){
       var innerW = 150 + 14 + gridW + 14 + 40 + (st.manage ? 74 : 0);
+      // The rows sit in a sideways-scrolling box, and a box that scrolls one way
+      // clips the other: anything reaching past its top or left edge is cut off
+      // and cannot be scrolled back to. So the note editor never grows wider
+      // than the room to its left (a 1-week window leaves ~246px of it).
+      var noteW = Math.min(330, 176 + gridW);
       h += '<div style="background:#fff;border:1px solid #e9ecef;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)">'
         +  '<div style="overflow-x:auto;padding:16px 30px 14px"><div style="min-width:'+innerW+'px">'
         +  '<div style="display:flex"><div style="width:164px;flex:none"></div><div style="position:relative;height:'+MONTH_H+'px;flex:1">'
         +  gridMonths.map(function(m){ return '<span style="position:absolute;top:0;left:'+m.x+'px;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:#adb5bd;text-transform:uppercase">'+m.n+'</span>'; }).join('')
         +  '</div></div>';
-      emps.forEach(function(emp){
+      emps.forEach(function(emp, ri){
+        // Popovers open upward, which the top row has no room for — the scroll
+        // box cuts them in half. The first row's opens downward instead.
+        var popY = ri === 0 ? 'top:22px' : 'bottom:22px';
         h += '<div style="display:flex;align-items:center;gap:14px;padding:5px 0;position:relative">'
           +  '<div style="width:150px;flex:none;display:flex;align-items:center;gap:9px">'
           +  (typeof teamAvatar==='function' ? teamAvatar(emp.name, crewAvatarColor(emp.id), 26) : '<span style="width:26px;height:26px;border-radius:50%;background:rgba(34,197,94,.12);display:inline-flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:12px;color:#16a34a;flex:none">'+escHtml(emp.initials)+'</span>')
@@ -350,12 +360,12 @@
         var openP = (st.open||'').split('|'), noteP = (st.noteFor||'').split('|');
         if(openP[0] === emp.id){
           var opRec = _ratings[emp.id+'|'+openP[1]];
-          h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
+          h += '<div style="position:absolute;right:-12px;'+popY+';background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center">'
             +  '<span style="font-size:11px;font-weight:700;color:#868e96;padding:0 3px;white-space:nowrap">'+fmtDate(openP[1])+'</span>'
             +  chipsForDay(emp.id, openP[1], opRec ? Math.min(3, opRec.rating) : 2, COLORS, false)
             +  '<button onclick="StaffRatings.closePop()" title="Close" style="flex:none;cursor:pointer;font-size:12px;font-weight:700;padding:7px 9px;border-radius:8px;border:1px solid #e9ecef;background:#fff;color:#868e96">&#x2715;</button></div>';
         } else if(noteP[0] === emp.id){
-          h += '<div style="position:absolute;right:-12px;bottom:22px;background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center;width:330px">'
+          h += '<div style="position:absolute;right:-12px;'+popY+';background:#fff;border:1px solid #e9ecef;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.16);padding:9px;display:flex;gap:6px;z-index:6;align-items:center;width:'+noteW+'px">'
             +  '<span style="font-size:11px;font-weight:700;color:#868e96;white-space:nowrap">'+fmtDate(noteP[1])+'</span>'
             +  noteEditorHtml(emp, noteP[1]) + '</div>';
         }
@@ -494,8 +504,15 @@
     if(!isNaN(n) && n >= 1) setWeeks(Math.min(104, n));
   }
   function togglePop(empId, ds){
-    if(!rateable(ds)){ toast('Only weekdays up to today can be rated.', 'error'); return; }
+    if(!rateable(ds)){ toast('Only Monday–Saturday up to today can be rated.', 'error'); return; }
     var k = empId + '|' + ds;
+    // Clicking the square of the day whose comment box is open would swap the
+    // box for the chips and throw away half-typed text. Leave it be.
+    if(st.noteFor === k) return;
+    // Crew cards already show a chip row for the newest day at the top of every
+    // card, so that square has nothing left to open — don't wipe what's on
+    // screen for a click that can't show anything new.
+    if(st.view === 'cards' && ds === _lastDs) return;
     st.open = (st.open === k) ? null : k;
     st.noteFor = null;
     paint();
@@ -520,7 +537,7 @@
   }
 
   async function rate(empId, v, ds){
-    if(!rateable(ds)){ toast('Only weekdays up to today can be rated.', 'error'); return; }
+    if(!rateable(ds)){ toast('Only Monday–Saturday up to today can be rated.', 'error'); return; }
     var key = empId + '|' + ds;
     var prev = _ratings[key];
     var note = prev ? (prev.note || '') : '';
@@ -553,7 +570,7 @@
   async function saveNote(empId, ds){
     var inp = document.getElementById('sc-note-' + empId);
     if(!inp) return;
-    if(!rateable(ds)){ toast('Only weekdays up to today can be rated.', 'error'); return; }
+    if(!rateable(ds)){ toast('Only Monday–Saturday up to today can be rated.', 'error'); return; }
     var note = inp.value.trim();
     var key = empId + '|' + ds;
     var rating = _ratings[key] ? Math.min(3, _ratings[key].rating) : 2;
