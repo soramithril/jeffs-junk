@@ -1627,9 +1627,12 @@ async function loadAllFromSupabase() {
     try {
       // Reconcile bin_items.status with actual assignments:
       // any bin assigned to a currently-dropped Bin Rental job must be 'out'.
+      // Cancelled jobs are excluded: a cancelled job's leftover 'dropped' flag was
+      // re-marking its bin 'out' on every page load (bin 20-07, cancelled job 39655).
       var assignedOutJobs = await db.from('jobs').select('bin_bid')
         .eq('service','Bin Rental')
         .eq('bin_instatus','dropped')
+        .neq('status','Cancelled')
         .not('bin_bid','is',null);
       if(assignedOutJobs.data && assignedOutJobs.data.length){
         var outBids = assignedOutJobs.data.map(function(r){return r.bin_bid;}).filter(function(b){return b;});
@@ -7679,7 +7682,8 @@ async function renderMap(){
   try {
     var rMap = await db.from('jobs').select(JOB_LIST_COLS)
       .eq('service','Bin Rental')
-      .eq('bin_instatus','dropped');
+      .eq('bin_instatus','dropped')
+      .neq('status','Cancelled');
     var mapBinRows = (rMap.data || []).map(dbToJob);
     mapBinRows.forEach(function(j){
       var idx=jobs.findIndex(function(x){return x.id===j.id;});
@@ -7692,6 +7696,10 @@ async function renderMap(){
   var binJobs = jobs.filter(function(j){
     if(j.service!=='Bin Rental') return false;
     if(j.binInstatus!=='dropped') return false;
+    // A cancelled booking's leftover "dropped" flag is not a bin on the road. The
+    // dashboard and sidebar already skip these, so counting them here put two
+    // different numbers on screen at once.
+    if(j.status==='Cancelled') return false;
     return true;
   });
   document.getElementById('bin-cnt').textContent=binJobs.length;
@@ -8309,8 +8317,11 @@ function _confirmReassignBinFromJob(bid, toJobId){
   var oldJob = jobs.find(function(j){ return j.binBid === bid && j.binInstatus === 'dropped'; })
             || jobs.find(function(j){ return j.binBid === bid; });
   if(!oldJob){
+    // Assign it to the job we came from. This used to fall back to a module global set
+    // only by "Link a Bin", so from the assign picker it either did nothing at all or
+    // put the bin on whatever job was opened that way last — a different customer's.
     if(confirm('This bin is marked out, but no job claims it. Assign anyway?')){
-      linkBinFromJob(bid);
+      linkBinFromJob(bid, toJobId);
     }
     return;
   }
@@ -8361,6 +8372,9 @@ async function _doReassignBin(bid, fromJobId, toJobId){
   var oldJob = jobs.find(function(j){ return j.id === fromJobId; });
   var newJob = jobs.find(function(j){ return j.id === toJobId; });
   if(!bin || !oldJob || !newJob){ toast('Could not find bin/job','error'); return; }
+  // A cancelled booking never gets a bin stamped on it again — that is the loop that
+  // left bin 20-07 unbookable for seven weeks.
+  if(newJob.status==='Cancelled'){ toast('Job '+newJob.id+' is cancelled — reopen it before putting a bin on it.','error'); return; }
 
   // If the new job already had a different bin, release it back to the yard
   if(newJob.binBid && newJob.binBid !== bid){
@@ -8394,8 +8408,8 @@ async function _doReassignBin(bid, fromJobId, toJobId){
 
 window._confirmReassignBinFromJob = _confirmReassignBinFromJob;
 window._doReassignBin = _doReassignBin;
-async function linkBinFromJob(bid){
-  var jobId=_linkBinFromJobId;if(!jobId)return;
+async function linkBinFromJob(bid, jobIdArg){
+  var jobId=jobIdArg||_linkBinFromJobId;if(!jobId)return;
   var b=binItems.find(function(bi){return bi.bid===bid;});
   var j=jobs.find(function(jj){return jj.id===jobId;});
   if(!j||!b)return;
@@ -8416,6 +8430,7 @@ async function linkBinFromJob(bid){
   var res=await patchJob(jobId,fields);
   if(res.error) return;   // patchJob toasts the failure and puts the screen back
   closeM('link-bin-from-job-modal');
+  closeM('assign-bin-modal');   // this can also be reached from the assign-bin picker
   if(dropped) _stampBinOnDetail={id:jobId,num:b.num,size:b.size};
   else toast('Bin #'+b.num+' linked to '+jobId+'!');
   openDetail(jobId);
@@ -9131,6 +9146,15 @@ document.addEventListener('keydown',function(e){
       if(last.id==='bin-avail-warning-modal' && _binAvailWarningResolver){
         resolveBinAvailWarning(false); return;
       }
+      // Escape on a "are you sure?" dialog means "no". Without this it only hid the
+      // box and left the cancel/delete waiting forever, so nothing happened and
+      // nothing said so.
+      if(last.id==='big-action-modal' && _bigActionResolver){
+        _resolveBigAction(false); return;
+      }
+      if(last.id==='cancel-bin-modal' && _cancelBinResolver){
+        _resolveCancelBin('back'); return;
+      }
       // The booking form is five minutes of a phone call. One stray Escape used to
       // bin all of it with nothing asked and no way back.
       if(last.id==='job-modal' && !closeJobModalGuard()) return;
@@ -9731,6 +9755,30 @@ async function maybeShowMorningBrief(force){
     if(sr.error) throw sr.error;
     stranded = sr.data || [];
   } catch(e){ console.warn('Morning brief stranded-bin check failed:', e); }
+
+  // Rentals that have a bin number but nobody has said the bin actually went out.
+  // Putting the number on IS the drop once the day has come, so this is normally
+  // empty — but a number put on ahead of the day, or a dropped job whose date gets
+  // pushed out, both land here, and then the day arrives with nothing to mark it.
+  // Until someone answers, the bin still shows as sitting in the yard and can be
+  // handed to a second job. No screen can see this, so the brief asks.
+  var undropped = [];
+  try {
+    // Yesterday and back, not today: a bin due out this afternoon has not gone out
+    // yet at 8am, and asking then would be noise. Same one-day grace the unassigned
+    // bin banner uses. Thirty-day floor so it never digs through the archive.
+    var uCut = new Date(); uCut.setHours(0,0,0,0); uCut.setDate(uCut.getDate()-1);
+    var uCutStr = uCut.toISOString().split('T')[0];
+    var uFloor = new Date(); uFloor.setHours(0,0,0,0); uFloor.setDate(uFloor.getDate()-30);
+    var uFloorStr = uFloor.toISOString().split('T')[0];
+    var ur = await db.from('jobs')
+      .select('job_id,name,address,city,bin_bid,bin_size,bin_dropoff,bin_instatus')
+      .eq('service','Bin Rental').neq('status','Cancelled')
+      .not('bin_bid','is',null).neq('bin_bid','')
+      .lte('bin_dropoff', uCutStr).gte('bin_dropoff', uFloorStr);
+    if(ur.error) throw ur.error;
+    undropped = (ur.data||[]).filter(function(r){ return !r.bin_instatus; });
+  } catch(e){ console.warn('Morning brief undropped-bin check failed:', e); }
   // Marked seen only once it has actually been shown AND closed (see closeBrief) —
   // it used to be stamped here, before the popup was even built, so a phone call
   // mid-read cost you the whole list until tomorrow.
@@ -9740,6 +9788,7 @@ async function maybeShowMorningBrief(force){
   // booked again. Then bins waiting on a number, then yesterday's missing emails.
   var queue = [];
   stranded.forEach(function(j){ queue.push({kind:'stranded', key:'s'+j.job_id, j:j}); });
+  undropped.forEach(function(j){ queue.push({kind:'undropped', key:'u'+j.job_id, j:j}); });
   bins.forEach(function(j){ queue.push({kind:'bin', key:'b'+j.id, j:j}); });
   unemailed.forEach(function(j){ queue.push({kind:'email', key:'e'+j.job_id, j:j}); });
   _jjBriefQueue = queue.filter(function(it){ return !_jjBriefSkipped[it.key]; });
@@ -9807,6 +9856,22 @@ function _jjBriefCard(it){
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
         + '<button class="btn btn-primary" style="background:#16a34a;border-color:#16a34a" onclick="strandedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',true)">Yes — it\'s back</button>'
         + '<button class="btn btn-ghost" onclick="strandedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',false)">No — still there</button>'
+      + '</div></div>';
+  }
+  if(it.kind === 'undropped'){
+    var uwhere = [j.address, j.city].filter(Boolean).join(', ');
+    return '<div style="border:2px solid #e67e22;background:rgba(230,126,34,.08);border-radius:14px;padding:18px 20px">'
+      + '<div style="font-size:22px;font-weight:800;color:#c2410c;line-height:1.25;margin-bottom:6px">'
+        + 'Did bin ' + escHtml(j.bin_bid) + ' go out?</div>'
+      + '<div style="font-size:15px;color:var(--text);line-height:1.45;margin-bottom:4px">'
+        + escHtml(j.name||'') + (uwhere ? ' — ' + escHtml(uwhere) : '') + '</div>'
+      + '<div style="font-size:13px;color:#c2410c;font-weight:700;margin-bottom:14px">'
+        + 'Job ' + escHtml(j.job_id) + ' was down for drop-off '
+        + (j.bin_dropoff ? fd(j.bin_dropoff) : 'earlier')
+        + ', but nobody has marked it dropped — so the bin still shows as in the yard.</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        + '<button class="btn btn-primary" onclick="undroppedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',true)">Yes — it went out</button>'
+        + '<button class="btn btn-ghost" onclick="undroppedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',false)">No — still in the yard</button>'
       + '</div></div>';
   }
   if(it.kind === 'bin'){
@@ -9912,6 +9977,25 @@ async function strandedBinAnswer(jobId, binBid, isBack){
   var j = jobs.find(function(x){ return x.id===jobId; });
   if(j) j.binInstatus='pickedup';
   toast('Bin '+binBid+' marked back in the yard — free to book again.');
+  _jjBriefNext();
+  refresh();
+}
+
+// "Yes" is the person saying the bin went out — the same act as tapping Mark Dropped
+// on the work order, so it writes exactly what that button writes. "No" changes
+// nothing and the brief asks again tomorrow.
+async function undroppedBinAnswer(jobId, binBid, wentOut){
+  if(!wentOut){
+    toast('Left as still in the yard — it will ask again tomorrow.');
+    _jjBriefNext();
+    return;
+  }
+  var r = await patchJob(jobId, {binInstatus:'dropped'});
+  if(r && r.error) return;              // patchJob toasts and re-syncs on failure
+  if(binBid) await patchBin(binBid, {status:'out'});
+  var j = jobs.find(function(x){ return x.id===jobId; });
+  if(j) j.binInstatus='dropped';
+  toast('Bin '+binBid+' marked as out at '+jobId+'.');
   _jjBriefNext();
   refresh();
 }
@@ -10922,7 +11006,9 @@ async function saveJob(e){
     }
     // Auto-revert: if user changed binDropoff to a future date and the bin was already
     // marked 'dropped' (e.g. auto-set when the previous date passed), revert to "not dropped".
-    // The bin should re-drop when the new date arrives.
+    // Nothing re-drops it on its own — a bin is dropped when a person says so. Once the
+    // new date comes and nobody has said it, the morning brief asks (see _jjBriefCard's
+    // 'undropped' card), so the bin can't sit in Available while it's at a customer's.
     if(editId){
       var _oldJobForDrop = jobs.find(function(x){return x.id===editId;});
       var _today = todayStr();
@@ -11164,17 +11250,18 @@ async function cancelJob(id){
   // out and unbookable for seven weeks). Rather than refuse the cancel, ask where the
   // bin actually is, because both answers are common: a bin that never went out, and
   // one that has to be collected first.
+  // Nothing is written here. Asking where the bin is used to clear the "dropped"
+  // flag straight away, so backing out of the second dialog left the job booked but
+  // its bin recorded as never gone out. The answer is remembered and only acted on
+  // once the cancel itself is confirmed, below.
+  var where = '';
   if(j.service==='Bin Rental' && j.binInstatus==='dropped'){
-    var where = await askCancelBinWhere(j);
+    where = await askCancelBinWhere(j);
     if(where==='back'){ return; }
     if(where==='still-out'){
       toast('Job left open — book the pickup, mark it picked up, then cancel.','error');
       return;
     }
-    // 'in-yard': it never went out (or is already back). Clear the false claim so the
-    // bin frees up; the cancel below then runs normally.
-    j.binInstatus='';
-    await patchJob(id, {binInstatus:''});
   }
   var _binNum = j.binBid ? (binItems.find(function(b){return b.bid===j.binBid;})||{num:j.binBid}).num : '';
   var _relNote = (j.service==='Bin Rental' && j.binBid)
@@ -11187,6 +11274,13 @@ async function cancelJob(id){
     undoable:true
   });
   if(!_goCancel) return;
+  // 'in-yard': it never went out (or is already back). Clear the false claim so the
+  // bin frees up, now that the cancel is going ahead.
+  if(where==='in-yard'){
+    var rw = await patchJob(id, {binInstatus:''});
+    if(rw.error) return;   // patchJob toasts the failure
+    j.binInstatus='';
+  }
   // Write ONLY the status. This used to call saveSingleJob, which upserts the whole job object
   // from memory — and a job opened from a list has no notes, items, internal notes or photos in
   // memory, so cancelling blanked them. See the rule at JOB_LIST_COLS.
@@ -11492,7 +11586,7 @@ async function openDetail(id, returnCid){
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22;position:relative">📅 Extend Pickup</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openRelocate(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🚚 Relocate</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚛 Mark Dropped</button>');
+      if(j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚚 Mark Picked Up</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
@@ -16170,6 +16264,9 @@ function _resolveBigAction(go){
 }
 function askBigAction(opts){
   return new Promise(function(resolve){
+    // A second ask replaces the first — settle the old one as "no" so the action
+    // behind it stops waiting instead of hanging with nothing on screen.
+    if(_bigActionResolver){ var _prev=_bigActionResolver; _bigActionResolver=null; _prev(false); }
     _bigActionResolver = resolve;
     var id = 'big-action-modal';
     var m = document.getElementById(id);
