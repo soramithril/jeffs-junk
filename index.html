@@ -24,7 +24,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=610">
+<link rel="stylesheet" href="style.css?v=611">
+<link rel="stylesheet" href="login-art.css?v=611">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
 <link rel="stylesheet" href="app-jwg-theme.css?v=429">
 <link rel="stylesheet" href="icons.css?v=373">
@@ -36,49 +37,70 @@
 <body>
 
 <!-- ─── LOGIN SCREEN ─── -->
-<div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:99999;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">
-  <!-- Pastel Drift ambient scene — same background as the office TV board -->
-  <div class="login-scene" aria-hidden="true">
-    <div class="lsc-dotgrid"></div>
-    <div class="lsc-moon"></div>
-    <div class="lsc-ring"></div>
-    <div class="lsc-spr lsc-truck"><div class="lsc-inner"><img src="assets/tv-truck.png" alt=""></div></div>
-    <div class="lsc-spr lsc-bin20"><div class="lsc-inner"><img src="assets/tv-bin-20.png" alt=""></div></div>
-    <div class="lsc-spr lsc-bin14"><div class="lsc-inner"><img src="assets/tv-bin-14.png" alt=""></div></div>
-    <div class="lsc-haze"></div>
-  </div>
-  <div class="login-card" style="width:100%;max-width:400px;padding:24px;">
-    <!-- Logo -->
-    <div style="text-align:center;margin-bottom:36px;">
-      <img src="https://jeffsjunk.ca/wp-content/uploads/jeffs-junk-logo.png"
-           alt="Jeff's Junk"
-           style="width:200px;max-width:80%;animation:logoFadeIn 0.9s cubic-bezier(0.16,1,0.3,1) both;">
-      <div style="font-size:11px;color:#6b7280;letter-spacing:2px;text-transform:uppercase;margin-top:10px;">Job Tracker — Sign In</div>
+<!-- One of nine poster sheets. login-art.js picks which and fills the copy;
+     login-art.css holds all nine themes. Artwork in assets/login/. -->
+<div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:99999;">
+  <div class="jjl-scene" aria-hidden="true">
+    <div class="jjl-parallax"><div class="jjl-art"></div></div>
+    <div class="jjl-grade"></div>
+    <div class="jjl-grain"></div>
+    <div class="jjl-particles"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="jjl-lines"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="jjl-pitbars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="jjl-fx jjl-fx-anime"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="jjl-fx jjl-fx-overhead"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="jjl-fx jjl-fx-blueprint"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="jjl-fx jjl-fx-engineering"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="jjl-credits"><span>JEFF'S JUNK</span><span>BIN RENTALS</span><span>JUNK REMOVAL</span><span>SIMCOE COUNTY</span></div>
+    <div class="jjl-copy">
+      <p id="jjl-eyebrow"></p>
+      <h1 id="jjl-headline"></h1>
+      <span class="jjl-tag" id="jjl-tagline"></span>
     </div>
-    <!-- Card -->
-    <div id="login-card-inner" style="background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border:1.5px solid rgba(34,197,94,.2);border-radius:18px;padding:32px;box-shadow:0 8px 40px rgba(34,197,94,.1),0 2px 8px rgba(0,0,0,.06);">
-      <div style="margin-bottom:18px;">
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600;">Username</div>
+    <div class="jjl-telemetry">
+      <div><span>BASE</span><strong>BARRIE</strong></div>
+      <div><span>ROUTES</span><strong><i></i>LIVE</strong></div>
+      <div><span>CREWS</span><strong>READY</strong></div>
+    </div>
+  </div>
+
+  <div class="jjl-panel">
+    <div class="jjl-sweep" aria-hidden="true"></div>
+    <div class="jjl-brand"><img src="assets/login/jeffs-junk-logo.png" alt="Jeff's Junk"></div>
+
+    <div class="jjl-card">
+      <p class="jjl-portal"><span class="jjl-dot" aria-hidden="true"></span>OPERATIONS SIGN IN</p>
+      <h2 id="jjl-title"></h2>
+      <p class="jjl-intro" id="jjl-intro"></p>
+
+      <label for="login-username">Username</label>
+      <div class="jjl-field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 19c.7-4 3-6 6.5-6s5.8 2 6.5 6"></path></svg>
         <input id="login-username" type="text" placeholder="Your name" autocomplete="username"
           onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
       </div>
-      <div style="margin-bottom:10px;">
-        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:600;">Password</div>
-        <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"
+
+      <label for="login-password">Password</label>
+      <div class="jjl-field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"></path></svg>
+        <input id="login-password" type="password" placeholder="Your password" autocomplete="current-password"
           onkeydown="if(event.key==='Enter')doLogin()">
+        <button type="button" class="jjl-peek" id="login-peek" aria-label="Show password">SHOW</button>
       </div>
-      <div id="login-error" style="color:#dc3545;font-size:14px;font-weight:600;min-height:20px;margin-bottom:14px;padding:0 2px;line-height:1.4;"></div>
-      <button onclick="doLogin()" id="login-btn"
-        style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#16a34a);color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .15s;letter-spacing:.5px;box-shadow:0 4px 16px rgba(34,197,94,.3);"
-        onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-        Sign In
+
+      <div id="login-error" role="status"></div>
+
+      <button type="button" id="login-btn" class="jjl-signin" onclick="doLogin()">
+        <span id="login-btn-label">SIGN IN</span><b aria-hidden="true">&rarr;</b>
       </button>
+
+      <p class="jjl-help">Need access? Contact Jeff to get an account set up.</p>
     </div>
-    <div style="text-align:center;margin-top:18px;font-size:12px;color:#9ca3af;">
-      Need access? Contact Jeff to get an account set up.
-    </div>
+
+    <div class="jjl-footer"><span>JEFF'S JUNK &times; JEFF WHITE GROUP</span><span>705-333-7767</span></div>
   </div>
 </div>
+<script src="login-art.js?v=611"></script>
 
 <!-- ─── LOADING SCREEN ─── -->
 <div id="sb-loading" style="display:none;position:fixed;inset:0;z-index:99998;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 50%,#0a0a0a 100%);background-size:400% 400%;animation:loadBgShift 3s ease infinite;">
@@ -2898,7 +2920,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=606"></script>
-<script src="app.js?v=610"></script>
+<script src="app.js?v=611"></script>
 <script src="app-jwg-scheduler.js?v=609"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>

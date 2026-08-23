@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '610';
+var APP_VERSION = '611';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13293,10 +13293,10 @@ function loginFail(msg) {
   var errEl = document.getElementById('login-error');
   var btn   = document.getElementById('login-btn');
   errEl.textContent = msg;
-  errEl.style.fontWeight = '600';
-  errEl.style.fontSize = '14px';
-  btn.textContent = 'Sign In';
-  btn.style.background = 'var(--accent)';
+  // The button label is the current login sheet's ("RELEASE THE ROADRUNNER" and
+  // friends), so it's restored from the button rather than hard-coded here.
+  document.getElementById('login-btn-label').textContent = btn.dataset.label;
+  btn.classList.remove('is-busy');
   btn.disabled = false;
   document.getElementById('login-password').value = '';
   document.getElementById('login-password').focus();
@@ -13309,8 +13309,8 @@ async function doLogin() {
   var btn   = document.getElementById('login-btn');
   if (!username || !pass) { errEl.textContent = 'Please enter your username and password.'; return; }
   errEl.textContent = '';
-  btn.textContent = 'Signing in...';
-  btn.style.background = '#16a34a';
+  document.getElementById('login-btn-label').textContent = 'Signing in...';
+  btn.classList.add('is-busy');
   btn.disabled = true;
 
   // Check Supabase client exists
@@ -13372,6 +13372,11 @@ async function doLogin() {
   }
 
   currentUser = r.data.user;
+  // Move the login artwork on by one, so next time this browser sees the sign-in
+  // screen it gets a different sheet. Here and nowhere else: a page refresh or a
+  // failed password must not shuffle it. Guarded because a browser still holding
+  // cached pre-v611 HTML has no login-art.js — and nothing may throw on this line.
+  if (window.JJLoginArt) JJLoginArt.advance();
   await onLoginSuccess();
 }
 
