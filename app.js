@@ -7979,8 +7979,13 @@ function openBinMenu(bid,ev){
   m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:150px';
   // Report damage is NOT behind canDelete on purpose: bin_items UPDATE is open to
   // every signed-in user, and the crew who find the damage aren't admins. The modal
-  // lives in app-damage.js.
-  var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"},{lbl:'⚠ Report damage',fn:"openBinDamageReport('"+bid+"')"}];
+  // lives in app-damage.js. "Mark bin fixed" is the way back out for those same
+  // people — without it the flag was a one-way door and only the three admins could
+  // undo a mis-click.
+  var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"}];
+  items.push(b.damage==='damage'
+    ? {lbl:'✅ Mark bin fixed',fn:"clearBinDamage('"+bid+"')"}
+    : {lbl:'⚠ Report damage',fn:"openBinDamageReport('"+bid+"')"});
   if(canDelete){items.push({lbl:'✏️ Edit',fn:"editBinItem('"+bid+"')"});items.push({lbl:'🗑️ Delete',fn:"delBinItem('"+bid+"')",danger:true});}
   // The hover hint promised Edit and Delete to everyone, but the menu only builds
   // them for admins — so most staff opened it expecting three choices and got one.
