@@ -371,7 +371,7 @@ async function saveBinDamageReport(){
   if(pr && pr.error){
     b.damage = was;   // patchBin already said what went wrong
     if(typeof renderBinInventory === 'function') renderBinInventory();
-    toast('Report filed, but the damaged flag did not save. Report it again in a moment.','error');
+    toast('Report filed. The bin was not flagged as damaged — set that on the Bin Fleet page. Do NOT file it again.','error');
     return;
   }
   if(typeof renderBinInventory === 'function') renderBinInventory();

@@ -5931,9 +5931,9 @@ async function clientSearchLive(q){
       var blTag=c.blacklisted?' <span style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#fff;background:#b4232f;padding:2px 7px;border-radius:5px">BLACKLISTED</span>':'';
       var blBar=c.blacklisted?'border-left:4px solid #dc3545;':'';
       return '<div onclick="selectClientResult(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);'+blBar+'font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        +'<strong>'+c.name+'</strong>'+blTag+(ph?' <span style="color:var(--muted)">· '+ph+'</span>':'')
-        +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+c.business_name+'</span>':'')
-        +(c.city?' <span style="color:var(--muted);font-size:11px">· '+c.city+'</span>':'')+'</div>';
+        +'<strong>'+escHtml(c.name||'')+'</strong>'+blTag+(ph?' <span style="color:var(--muted)">· '+escHtml(ph)+'</span>':'')
+        +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
+        +(c.city?' <span style="color:var(--muted);font-size:11px">· '+escHtml(c.city)+'</span>':'')+'</div>';
     }).join('');
     r.data.forEach(function(c){var cl=dbToClient(c);var idx=clients.findIndex(function(x){return x.cid===cl.cid;});if(idx>=0)clients[idx]=cl;else clients.push(cl);});
   }catch(ex){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Error: '+ex.message+'</div>';}
@@ -9205,6 +9205,9 @@ document.addEventListener('keydown',function(e){
       if(last.id==='cancel-bin-modal' && _cancelBinResolver){
         _resolveCancelBin('back'); return;
       }
+      // Escape on the brief has to go through closeBrief, or the day never gets
+      // stamped and it reopens on every visit to the dashboard until midnight.
+      if(last.id==='morning-brief-modal'){ closeBrief(); return; }
       // The booking form is five minutes of a phone call. One stray Escape used to
       // bin all of it with nothing asked and no way back.
       if(last.id==='job-modal' && !closeJobModalGuard()) return;
@@ -10059,7 +10062,19 @@ async function strandedBinAnswer(jobId, binBid, isBack){
 // nothing and the brief asks again tomorrow.
 async function undroppedBinAnswer(jobId, binBid, wentOut){
   if(!wentOut){
+    // "No" writes nothing, so without this hold the card comes straight back the
+    // next time the brief rebuilds — minutes later, having just promised tomorrow.
+    var answered = _jjBriefQueue[0];
+    if(answered) _jjBriefSkipped[answered.key] = true;
     toast('Left as still in the yard — it will ask again tomorrow.');
+    _jjBriefNext();
+    return;
+  }
+  // The bin may have been booked onto another job since this card was built.
+  // Stamping it dropped here as well would put one physical bin at two addresses.
+  var _elsewhere = binDroppedElsewhere(binBid, jobId);
+  if(_elsewhere){
+    toast('Bin '+binBid+' is already recorded as dropped at '+_elsewhere.id+'. Sort that one out first.','error');
     _jjBriefNext();
     return;
   }
@@ -11075,7 +11090,14 @@ async function saveJob(e){
     // and it must hold no matter what order the two dates were typed in.
     var llChk2=document.getElementById('f-liveload');
     job.binLiveLoad = llChk2 ? !!llChk2.checked : false;
-    if(job.binLiveLoad){ job.binPickup = job.binDropoff; }
+    if(job.binLiveLoad){
+      job.binPickup = job.binDropoff;
+      // A live load has no rental period. Ticking the box clears the duration field,
+      // but typing one afterwards put it straight back, so the job saved as a
+      // three-day rental with both dates on the same day. Forced here, where it is
+      // the last word, rather than only in the tick handler.
+      job.binDuration = '';
+    }
     // Preserve per-leg crew assignments (set via Dispatch / per-leg picker) so
     // saving the job from the form doesn't blank them out.
     if(editId){
@@ -11680,7 +11702,7 @@ async function openDetail(id, returnCid){
       if(j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus!=='dropped'&&j.binInstatus!=='pickedup') btns.push('<button class="btn btn-ghost" onclick="markDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚛 Mark Dropped</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markNotDropped(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Not Dropped Yet</button>');
       if(j.service==='Bin Rental'&&j.binInstatus==='dropped') btns.push('<button class="btn btn-ghost" onclick="markBinPickedUp2(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent)">🚚 Mark Picked Up</button>');
-      if(j.service==='Bin Rental'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
+      if(j.service==='Bin Rental'&&j.status!=='Cancelled'&&j.binInstatus==='pickedup') btns.push('<button class="btn btn-ghost" onclick="revertPickedUp(\''+j.id+'\')" style="justify-content:center;border-color:rgba(230,126,34,.4);color:#e67e22">↩ Revert Pickup</button>');
       if(j.service==='Bin Rental'&&!j.binBid) btns.push('<button class="btn btn-ghost" onclick="openLinkBinFromJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🔗 Link a Bin</button>');
       if(j.service==='Bin Rental'){
         var wcIcon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
