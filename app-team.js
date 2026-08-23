@@ -261,9 +261,11 @@
   async function toggle(id, field){
     var p = find(id); if(!p) return;
     // Switching Active off IS removing someone, so it goes down the same path as
-    // the × button. Two ways of removing a person used to leave the JWG schedule
-    // in two different states — the pill left every booked shift behind.
-    if(field==='active' && p.active){ await deactivate(p); return; }
+    // the × button — permission check and all. Two ways of removing a person used
+    // to leave the JWG schedule in two different states; then the pill went down
+    // the destructive path but skipped the permission check the × button has, so
+    // anyone who could open this page could wipe months of booked shifts.
+    if(field==='active' && p.active){ await remove(id); return; }
     var next = !p[field];
     p[field] = next; paint();                    // optimistic
     try {
@@ -374,13 +376,24 @@
     if(sum && sum.saved) bits.push('their saved schedule');
     if(bits.length){
       m += '\n\nThis also wipes '+bits.join(' and ')+', so nobody is left booked in after they have gone. '
-        +  'Days already worked this week, and every week before it, stay exactly as they are.'
+        +  'Every week before this one stays exactly as it is, and so do the days already finished this week. '
+        +  'Today is cleared along with the rest of the week, even if they worked it.'
         +  '\n\nThat part cannot be undone.';
     }
     return m;
   }
 
+  // The pill and the × button both stay live while the pre-check fetch runs, so an
+  // impatient second click used to open a second confirm box for the same person.
+  var _removing = false;
   async function deactivate(p){
+    if(_removing) return;
+    _removing = true;
+    try { await doDeactivate(p); }
+    finally { _removing = false; }
+  }
+
+  async function doDeactivate(p){
     var sum = null;
     if(p.jwg_id){
       try { sum = await JWGRoster.forwardSummary(p.jwg_id); }
@@ -392,7 +405,11 @@
     catch(e){ p.active = true; paint(); toast('Remove failed: '+((e&&e.message)||e), 'error'); return; }
     if(!p.jwg_id) return;
     try { await JWGRoster.clearForward(p.jwg_id); }
-    catch(e){ toast(p.name+' is inactive, but their Jeff White Group schedule did not clear: '+((e&&e.message)||e), 'error'); return; }
+    // Clearing is four separate calls with no undo. If it falls over halfway the
+    // future weeks are usually already gone, so never say "did not clear" — that
+    // reads as "nothing happened" and sends people planning around bookings that
+    // no longer exist.
+    catch(e){ toast(p.name+' is inactive, but clearing their Jeff White Group schedule stopped part-way — some of it may already be gone. Check the Jeff White Group scheduler. '+((e&&e.message)||e), 'error'); return; }
     if(sum && (sum.weeks || sum.saved)) toast('✅ '+p.name+' is off the Jeff White Group schedule from today on.');
   }
 
