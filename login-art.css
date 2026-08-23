@@ -542,6 +542,21 @@
 .jjl-engineering .jjl-signin:hover { background: var(--jjl-green); color: #061009; }
 
 /* ── responsive ──────────────────────────────────────────────────── */
+/* Short desktop screens — a 1366x768 laptop is about 660px of viewport, and the
+   panel wants ~710px. Left alone the footer and part of the button get cropped. */
+@media (min-width: 761px) and (max-height: 800px) {
+  .jjl-scene, .jjl-panel { min-height: 0; }
+  .jjl-pit .jjl-panel { min-height: 0; height: calc(100svh - 40px); }
+  .jjl-brand { width: min(165px, 52%); }
+  .jjl-classic .jjl-brand, .jjl-pit .jjl-brand, .jjl-roadrunner .jjl-brand { width: 165px; }
+  .jjl-card, .jjl-pit .jjl-card { padding: 20px 0 16px; }
+  .jjl-card h2 { font-size: clamp(2.1rem, 2.9vw, 2.9rem); }
+  .jjl-intro { margin: 8px 0 18px; }
+  .jjl-card label { margin: 12px 0 6px; }
+  .jjl-field, .jjl-signin { height: 50px; }
+  .jjl-help { margin-top: 12px; }
+}
+
 @media (max-width: 1120px) {
   .jjl-pit .jjl-telemetry > div { min-width: 102px; padding: 10px 11px; }
   .jjl-copy { left: 37%; }
@@ -564,7 +579,8 @@
   .jjl-scene { position: fixed; min-height: 100svh; }
   .jjl-parallax { transform: none; }
   .jjl-art { background-position: 35% center; background-size: auto 100%; }
-  .jjl-classic .jjl-art, .jjl-pit .jjl-art, .jjl-anime .jjl-art, .jjl-blueprint .jjl-art { background-position: 31% center; }
+  .jjl-classic .jjl-art, .jjl-pit .jjl-art { background-position: 32% center; }
+  .jjl-anime .jjl-art, .jjl-blueprint .jjl-art { background-position: 31% center; }
   .jjl-roadrunner .jjl-art { background-position: 59% center; }
   .jjl-fullthrottle .jjl-art { background-position: 34% center; }
   .jjl-overhead .jjl-art { background-position: 42% center; }
