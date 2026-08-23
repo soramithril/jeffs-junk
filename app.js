@@ -1706,7 +1706,9 @@ async function loadJobsPage(page) {
   }
   // Live loads only. Server-side on purpose: binDropF filters the page you happen to
   // be looking at, which would have made the count a lie.
-  if (liveLoadF === 'only') {
+  // Only bins can be live loads, so this one steps aside on any other service —
+  // otherwise the hidden filter empties the list with nothing on screen to explain it.
+  if (liveLoadF === 'only' && (svcF === 'all' || svcF === 'Bin Rental')) {
     query = query.eq('bin_live_load', true);
   }
 
@@ -3608,6 +3610,11 @@ async function refreshDashJobs(){
     if(!j.binDropoff && j.binPickup === dateS) return false;
     return true;
   });
+  // A live load drops and comes back on one visit, so it matches both queries. Show
+  // and count it once, on the drop-off side — the pick-up buttons ride on that row.
+  dayPickups = dayPickups.filter(function(j){
+    return !(j.binLiveLoad && j.binDropoff === dateS);
+  });
 
   // Use fb_date/junk_date queries for furniture and junk categories
   var furnPickups  = dedup(dayFurn.filter(function(j){return j.service==='Furniture Pickup';}));
@@ -3659,6 +3666,9 @@ async function refreshDashJobs(){
       +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
+        // A live load only ever shows on the drop-off side (one truck visit), so its
+        // row has to carry the pick-up actions too — otherwise they'd be nowhere.
+        var isPickLeg = isPickup || (isBin && j.binLiveLoad);
         var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
                : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime
                : (j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Extra Jobs') ? j.junkTime : '';
@@ -3686,17 +3696,17 @@ async function refreshDashJobs(){
           // Which truck this pickup needs. It's an exception (tight driveway, heavy load),
           // not the norm, so it only appears once someone has set it on the booking —
           // otherwise every pickup would carry a chip that says nothing. Tap to change.
-          if(isPickup && j.truckSize){
+          if(isPickLeg && j.truckSize){
             var tcol = j.truckSize==='BIG' ? '#8b5cf6' : '#0ea5e9';
             binBadge += '<span class="tjr2-bin assigned" title="Tap to change or clear" style="cursor:pointer;color:'+tcol+';border-color:'+tcol+'" onclick="cycleTruckSize(\''+j.id+'\',event)">🚚 '+j.truckSize+'</span>';
           }
         }
         var btns='';
         if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
-        if(isBin && isPickup){ btns+=(j.binInstatus==='pickedup')
+        if(isBin && isPickLeg){ btns+=(j.binInstatus==='pickedup')
           ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
-        if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
+        if(!cfm && ((isBin&&isPickLeg)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
           btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">'+lineIcon('call',14)+' Confirm</button>';
         if(j.service!=='Extra Jobs') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
@@ -4256,6 +4266,11 @@ async function renderDash(bg){
     if(!j.binDropoff && j.binPickup === todayS) return false;
     return true;
   });
+  // Same as refreshDashJobs: a live load is one visit, so it sits on the drop-off
+  // side only and that row carries the pick-up buttons.
+  todayBinPickups = todayBinPickups.filter(function(j){
+    return !(j.binLiveLoad && j.binDropoff === todayS);
+  });
 
   // Use dedicated fb_date/junk_date queries for furniture and junk (not created date)
   var todayFurnAll      = (rTodayFurn.data||[]).map(dbToJob);
@@ -4330,6 +4345,9 @@ async function renderDash(bg){
       +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
+        // A live load only ever shows on the drop-off side (one truck visit), so its
+        // row has to carry the pick-up actions too — otherwise they'd be nowhere.
+        var isPickLeg = isPickup || (isBin && j.binLiveLoad);
         var st = isBin ? (isPickup?j.binPickupTime:j.binDropoffTime)
                : (j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? j.fbTime
                : (j.service==='Junk Removal'||j.service==='Junk Quote'||j.service==='Extra Jobs') ? j.junkTime : '';
@@ -4357,17 +4375,17 @@ async function renderDash(bg){
           // Which truck this pickup needs. It's an exception (tight driveway, heavy load),
           // not the norm, so it only appears once someone has set it on the booking —
           // otherwise every pickup would carry a chip that says nothing. Tap to change.
-          if(isPickup && j.truckSize){
+          if(isPickLeg && j.truckSize){
             var tcol = j.truckSize==='BIG' ? '#8b5cf6' : '#0ea5e9';
             binBadge += '<span class="tjr2-bin assigned" title="Tap to change or clear" style="cursor:pointer;color:'+tcol+';border-color:'+tcol+'" onclick="cycleTruckSize(\''+j.id+'\',event)">🚚 '+j.truckSize+'</span>';
           }
         }
         var btns='';
         if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
-        if(isBin && isPickup){ btns+=(j.binInstatus==='pickedup')
+        if(isBin && isPickLeg){ btns+=(j.binInstatus==='pickedup')
           ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
-        if(!cfm && ((isBin&&isPickup)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
+        if(!cfm && ((isBin&&isPickLeg)||j.service==='Furniture Pickup'||j.service==='Furniture Delivery'))
           btns+='<button class="djj-btn confirm" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()">'+lineIcon('call',14)+' Confirm</button>';
         if(j.service!=='Extra Jobs') btns+=(j.emailSent||j.emailConfirmed)
           ? '<button class="djj-btn done" title="Email sent — view/resend" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')">✓ Sent</button>'
@@ -4847,7 +4865,7 @@ function toggleJobFilters(){
   if (btn){
     var n = (jobSvcF !== 'all' ? 1 : 0) + (jobDateF !== 'all' ? 1 : 0)
           + ((svcF === 'Bin Rental' || svcF === 'all') && binDropF !== 'all' ? 1 : 0)
-          + (liveLoadF !== 'all' ? 1 : 0);
+          + ((svcF === 'Bin Rental' || svcF === 'all') && liveLoadF !== 'all' ? 1 : 0);
     btn.innerHTML = '⚙ Filters ' + (open ? '▴' : '▾')
       + (n ? ' <span style="display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;padding:0 5px;border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:800">' + n + '</span>' : '');
   }
@@ -4864,7 +4882,7 @@ function renderJobChips(){
     chips.push({txt:({today:'Today',week:'This week',month:'This month'}[jobDateF] || jobDateF), clr:"setJobDateFilter('all',document.getElementById('jdtf-all'))"});
   if (binDropF !== 'all' && (svcF === 'Bin Rental' || svcF === 'all'))
     chips.push({txt:({pending:'Not dropped',dropped:'Dropped',pickedup:'Picked up'}[binDropF] || binDropF), clr:"setBinDropFilter('all',document.getElementById('jbdf-all'))"});
-  if (liveLoadF === 'only')
+  if (liveLoadF === 'only' && (svcF === 'Bin Rental' || svcF === 'all'))
     chips.push({txt:'Live loads only', clr:"setLiveLoadFilter('all',document.getElementById('jllf-all'))"});
   box.innerHTML = chips.length
     ? '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Filtering by</span>'
@@ -5516,8 +5534,11 @@ async function renderLiveJobs(){
     var dropToday=j.binDropoff===today, pickToday=j.binPickup===today;
     var geoPicked=geoNotifs.pickedup.has(j.id);
     var dropDone=j.binInstatus==='pickedup'||geoPicked||geoNotifs.dropped.has(j.id);
-    if(dropToday) legs.push({j:j,leg:'dropoff',time:j.binDropoffTime||'',crewId:j.dropoffCrewId,swap:dropToday&&pickToday,liveOwner:!dropDone||!pickToday});
-    if(pickToday) legs.push({j:j,leg:'pickup',time:j.binPickupTime||'',crewId:j.pickupCrewId,swap:dropToday&&pickToday,liveOwner:!dropToday||dropDone});
+    // A live load is both legs on the same day too, but it is not a swap-out —
+    // the truck waits and brings the same bin back, it does not exchange bins.
+    var isSwap=dropToday&&pickToday&&!j.binLiveLoad;
+    if(dropToday) legs.push({j:j,leg:'dropoff',time:j.binDropoffTime||'',crewId:j.dropoffCrewId,swap:isSwap,liveOwner:!dropDone||!pickToday});
+    if(pickToday) legs.push({j:j,leg:'pickup',time:j.binPickupTime||'',crewId:j.pickupCrewId,swap:isSwap,liveOwner:!dropToday||dropDone});
   });
 
   // Base status per leg (the En Route upgrade happens after grouping below)
@@ -5605,9 +5626,10 @@ async function renderLiveJobs(){
 
   function buildLegRow(l){
     var j=l.j, st=ST[l.status]||ST.notstarted;
+    var legNote=j.binLiveLoad?' · live load':(l.swap?' · swap':'');
     var legChip=(l.leg==='dropoff')
-      ?'<span class="lj-leg-chip lj-leg-drop">🚛 Drop-off'+(l.swap?' · swap':'')+'</span>'
-      :'<span class="lj-leg-chip lj-leg-pick">🚚 Pick-up'+(l.swap?' · swap':'')+'</span>';
+      ?'<span class="lj-leg-chip lj-leg-drop">🚛 Drop-off'+legNote+'</span>'
+      :'<span class="lj-leg-chip lj-leg-pick">🚚 Pick-up'+legNote+'</span>';
     // Field priority: bin size, city, drop/pick, customer, street address last
     var sizeTxt=(j.binSize||'').replace(/\s*yard/i,' yd');
     var meta=[];
@@ -10576,6 +10598,13 @@ async function openEdit(id){
     document.getElementById('bin-extra').style.display=j.service==='Bin Rental'?'block':'none';
     var tnw3=document.getElementById('tools-needed-wrap');if(tnw3)tnw3.style.display=(j.service==='Junk Removal'||j.service==='Extra Jobs')?'block':'none';
     if(j.service==='Bin Rental') setTimeout(function(){initBinPicker(j.binBid||'',j.binSize||'');},50);
+    // The bin box is hidden on other services, so a live load left ticked from the
+    // last job opened would sit there invisibly — and if this job is then switched
+    // to Bin Rental, the save would force its pickup date onto the drop-off date.
+    if(j.service!=='Bin Rental'){
+      var llOff=document.getElementById('f-liveload');
+      if(llOff){ llOff.checked=false; _liveLoadPrevPickup=null; syncLiveLoadForm(); }
+    }
     if(j.service==='Bin Rental'){
       document.getElementById('f-bdur').value=j.binDuration||'';
       document.getElementById('f-bdrop').value=j.binDropoff||'';
@@ -12326,6 +12355,11 @@ function convertQuoteToJob(quoteId){
   var res=document.getElementById('f-client-results');if(res)res.style.display='none';
   var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
   document.getElementById('bin-extra').style.display='none';
+  // Same reason as openEdit: the bin box is hidden here, so a live load left ticked
+  // by the last job opened is invisible. Switch this converted quote to Bin Rental
+  // and the save would force its pickup date onto the drop-off date.
+  var llConv=document.getElementById('f-liveload');
+  if(llConv){ llConv.checked=false; _liveLoadPrevPickup=null; syncLiveLoadForm(); }
   toggleBin();
   ['f-svc','f-names','f-date'].forEach(clearErr);
   _formPhotos = (q.photos || []).slice();
@@ -12888,11 +12922,24 @@ function syncLiveLoadForm(){
     pick.value=drop.value;
     pick.disabled=true;
     pick.style.opacity='0.55';
+    // A live load has no rental period, so any duration picked before the box was
+    // ticked has to go — otherwise the job saves as "3 days" with both dates on the
+    // same day, and the phone script quotes a three-day rental.
+    var durEl=document.getElementById('f-bdur');
+    if(durEl) durEl.value='';
+    window._binPresetDays=null;
+    document.querySelectorAll('.bin-quick-dur').forEach(function(b){b.classList.remove('active');});
   } else {
-    if(_liveLoadPrevPickup!==null){ pick.value=_liveLoadPrevPickup; }
+    // Only hand the pickup field back if live load was the one holding it. A
+    // will-call locks the same field and means "no pickup date at all" — leaving
+    // it open there invites someone to type a date that the save then throws away.
+    var wcOff=document.getElementById('f-bwillcall');
+    if(!(wcOff && wcOff.checked)){
+      if(_liveLoadPrevPickup!==null){ pick.value=_liveLoadPrevPickup; }
+      pick.disabled=false;
+      pick.style.opacity='1';
+    }
     _liveLoadPrevPickup=null;
-    pick.disabled=false;
-    pick.style.opacity='1';
   }
 }
 function scheduleWillCallPickup(id,e){
@@ -18577,7 +18624,7 @@ async function renderCrew(){
   var dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   // Pull this week's jobs WITH crew-assignment columns (not in JOB_LIST_COLS).
-  var COLS='job_id,service,name,date,time,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,fb_date,fb_time,junk_date,junk_time,status,assigned_crew_ids,pickup_crew_id,dropoff_crew_id';
+  var COLS='job_id,service,name,date,time,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_live_load,fb_date,fb_time,junk_date,junk_time,status,assigned_crew_ids,pickup_crew_id,dropoff_crew_id';
   var assignMap={};
   try {
     var res = await Promise.all([
@@ -18594,7 +18641,11 @@ async function renderCrew(){
       if(j.service==='Bin Rental'){
         var dropDs=j.binDropoff||j.date;
         if(j.dropoffCrewId) push(j.dropoffCrewId, dropDs, {j:j,type:'dropoff',time:j.binDropoffTime||''});
-        if(j.binPickup && j.pickupCrewId) push(j.pickupCrewId, j.binPickup, {j:j,type:'pickup',time:j.binPickupTime||''});
+        // A live load is one visit, so the same person doing both legs gets one chip,
+        // not two — that would overstate their day. If the legs are on different
+        // people, both chips stay: someone assigned that second leg on purpose.
+        var llSameCrew = j.binLiveLoad && j.binPickup===dropDs && j.pickupCrewId===j.dropoffCrewId;
+        if(j.binPickup && j.pickupCrewId && !llSameCrew) push(j.pickupCrewId, j.binPickup, {j:j,type:'pickup',time:j.binPickupTime||''});
       } else {
         var ds=jobSchedDate(j);
         var t=(j.service==='Furniture Pickup'?j.fbTime:j.junkTime)||j.time||'';
