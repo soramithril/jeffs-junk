@@ -2257,9 +2257,17 @@ async function saveClient(e){
     cid=cidR.data;
   }
 
+  // The playbook fields (who to ask for, how they like it done, how they pay) are
+  // written by their own editor, not by this form — but this save upserts the whole
+  // row, so anything not carried over here is overwritten with blanks. A phone-number
+  // fix would have silently erased the playbook.
+  var _prev=editClientId?clients.find(function(c){return c.cid===editClientId;}):null;
   var cl={
     cid:cid,
     name:names[0],names:names,
+    contactPerson:(_prev&&_prev.contactPerson)||'',
+    playbook:(_prev&&_prev.playbook)||'',
+    billingNote:(_prev&&_prev.billingNote)||'',
     businessName:document.getElementById('c-business-name').value.trim(),
     phone:phones.length?phones[0].num:'',phones:phones,
     email:emails[0]||'',emails:emails,
@@ -2985,7 +2993,10 @@ function renderNeedsYou(){
     // noEmail jobs are a deliberate decision, not an outstanding task — a swap-out,
     // or a customer taking two bins in a day who doesn't want two emails. Leaving
     // them here made the list permanently dirty, which is how real misses get missed.
-    if(upcoming && !(j.emailSent||j.emailConfirmed||j.noEmail)) items.push({j:j,kind:'email'});
+    // A customer marked "never needs a confirmation" has answered this for good, so
+    // the nag has to leave here too — otherwise saying it in the morning brief just
+    // moved the same booking one card over onto the dashboard.
+    if(upcoming && !(j.emailSent||j.emailConfirmed||j.noEmail) && !_jjNoConfirmClient(j.clientId)) items.push({j:j,kind:'email'});
     if(j.binPickup===tomorrow && !j.confirmed) items.push({j:j,kind:'call'});
   });
   var doneToday=active.filter(function(j){
@@ -9746,14 +9757,17 @@ async function maybeShowMorningBrief(force){
   }
   await _loadUnassignedBinAlertJobs(true);
   var bins = _getUnassignedBinJobs();
-  var yd = new Date(); yd.setDate(yd.getDate()-1);
-  var pad = function(n){ return String(n).padStart(2,'0'); };
-  var ys = yd.getFullYear()+'-'+pad(yd.getMonth()+1)+'-'+pad(yd.getDate());
+  // Yesterday means yesterday HERE. The date column is a real timestamp and the
+  // database runs on UTC, so a plain "2026-08-21T00:00:00" was read as 8 pm the
+  // evening before, Ontario time — a booking taken after 8 pm was missed by a whole
+  // day. Bound the window on local midnight to local midnight instead.
+  var ydStart = new Date(); ydStart.setHours(0,0,0,0); ydStart.setDate(ydStart.getDate()-1);
+  var ydEnd = new Date(ydStart); ydEnd.setDate(ydEnd.getDate()+1);
   var unemailed = [];
   try {
     var r = await db.from('jobs')
       .select('job_id,name,service,created_at,status,email_sent,email_confirmed,no_email,client_cid')
-      .gte('created_at', ys+'T00:00:00').lt('created_at', today+'T00:00:00')
+      .gte('created_at', ydStart.toISOString()).lt('created_at', ydEnd.toISOString())
       .neq('status','Cancelled').order('created_at');
     if(r.error) throw r.error;
     unemailed = (r.data||[]).filter(function(j){
@@ -9815,6 +9829,18 @@ async function maybeShowMorningBrief(force){
   unemailed.forEach(function(j){ queue.push({kind:'email', key:'e'+j.job_id, j:j}); });
   _jjBriefQueue = queue.filter(function(it){ return !_jjBriefSkipped[it.key]; });
   _jjBriefDone = 0;
+
+  // Ask the same two questions again. The three lookups above take up to a second
+  // and a half, and the answers from before they started are stale: in that window
+  // she can have hit "+ New Job" and started typing, or walked off to Jobs. Nothing
+  // has been marked read yet, so backing out here costs nothing.
+  var viewNow = document.querySelector('.view.active');
+  if(!viewNow || viewNow.id !== 'view-dashboard') return;
+  if(document.getElementById('job-modal').classList.contains('open')){
+    clearTimeout(_jjBriefWait);
+    _jjBriefWait = setTimeout(function(){ maybeShowMorningBrief(force); }, 4000);
+    return;
+  }
 
   _jjBriefPaint(false);
   document.getElementById('morning-brief-modal').classList.add('open');
@@ -9946,12 +9972,15 @@ function jjBriefSkip(){
 }
 
 // Both of these hand over to another popup, so the brief steps out of the way
-// first — one thing on screen at a time. It stamps the day on the way out: leaving
-// through closeM alone left the day unstamped, so walking back to the dashboard
-// re-popped the whole brief from the top. No farewell animation, because 420ms in
-// front of the next modal reads as lag.
+// first — one thing on screen at a time. It deliberately does NOT mark the day as
+// read: acting on one card is not reading the list. Stamping here meant the first
+// person to press "Pick the bin" or "Send the confirmation" threw away every card
+// behind it until tomorrow — including the missing confirmations this whole thing
+// exists to chase. Coming back to the dashboard re-opens the brief with whatever is
+// left; the card just handled drops out on its own (the bin now has a number, the
+// email is sent), and anything skipped stays skipped for this page load. No
+// farewell animation, because 420ms in front of the next modal reads as lag.
 function _jjBriefLeave(){
-  localStorage.setItem('jjBriefDay', todayStr());
   _showBriefLink();
   clearTimeout(_jjBriefTimer);
   closeM('morning-brief-modal');
@@ -9989,6 +10018,11 @@ function reopenMorningBrief(){ maybeShowMorningBrief(true); }
 // an answer, so the brief moves on to the next card rather than shutting.
 async function strandedBinAnswer(jobId, binBid, isBack){
   if(!isBack){
+    // "No" changes nothing in the data, so the card would be waiting again the next
+    // time the brief opens. She has answered it; hold it for the rest of the day the
+    // same way a deliberate skip is held.
+    var answered = _jjBriefQueue[0];
+    if(answered) _jjBriefSkipped[answered.key] = true;
     toast('Left as still out — it will ask again tomorrow.');
     _jjBriefNext();
     return;
@@ -10024,9 +10058,10 @@ async function undroppedBinAnswer(jobId, binBid, wentOut){
 
 // The brief leaves on an animation rather than blinking out. Everything that
 // dismisses it deliberately — the ✕, the backdrop, Got it, the timer, and the last
-// card being answered — comes through here. The buttons that hand over to another
-// popup go through _jjBriefLeave instead: they still stamp the day, but skip the
-// 420ms farewell, which in front of the next modal reads as lag.
+// card being answered — comes through here, and only here does the day get marked
+// as read. The buttons that hand over to another popup go through _jjBriefLeave
+// instead: they leave the day unmarked so the rest of the list survives, and they
+// skip the 420ms farewell, which in front of the next modal reads as lag.
 function closeBrief(){
   var overlay = document.getElementById('morning-brief-modal');
   if(!overlay.classList.contains('open')) return;   // already gone; don't reach
