@@ -6139,8 +6139,13 @@ function _phoneMatchScan(inputEl){
     +'<div style="font-size:10.5px;font-weight:700;color:var(--accent);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px">📞 This number is already a client</div>'
     +matches.map(function(m){
       var c=m.c;
-      return '<div onclick="_phoneMatchPick(\''+c.cid+'\')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:2px 0;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        +'<div style="flex:1;min-width:0"><strong>'+escHtml(c.name||'—')+'</strong>'
+      // This box is green all over — "already a client" reads as good news. A blacklisted
+      // repeat caller sat in it looking like everyone else, so they get the same red tag and
+      // red edge the search dropdown carries. The row still works; it just cannot be missed.
+      var blTag=c.blacklisted?' <span style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#fff;background:#b4232f;padding:2px 7px;border-radius:5px">BLACKLISTED</span>':'';
+      var blBar=c.blacklisted?'border-left:4px solid #dc3545;':'';
+      return '<div onclick="_phoneMatchPick(\''+c.cid+'\')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin:2px 0;border-radius:8px;'+blBar+'cursor:pointer;font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        +'<div style="flex:1;min-width:0"><strong>'+escHtml(c.name||'—')+'</strong>'+blTag
         +(c.businessName?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.businessName)+'</span>':'')
         +' <span style="color:var(--muted)">· '+escHtml(m.num)+'</span>'
         +(c.city?' <span style="color:var(--muted);font-size:11px">· '+escHtml(c.city)+'</span>':'')
@@ -6472,9 +6477,10 @@ async function openEmailListModal() {
   openM('email-list-modal');
 
   // Blacklisted people must never land in a promo pull. This list used to inherit that for
-  // free, because the Clients page hid them; since 2026-08-21 it shows them, so the rule has
-  // to be stated here instead. Same rule the client file states: do not contact for promotions.
+  // free, because the Clients page hid them; every tab shows them now, so the rule has to be
+  // stated here instead. Same rule the client file states: do not contact for promotions.
   var mktgPool  = _allClientsFiltered.filter(function(c){ return !c.blacklisted; });
+  var blocked   = _allClientsFiltered.length - mktgPool.length;
   var withEmail = mktgPool.filter(function(c){ return mktgEmail(c); });
   var noEmail   = mktgPool.length - withEmail.length;
   var log;
@@ -6495,10 +6501,10 @@ async function openEmailListModal() {
   _mktgEligible = withEmail.filter(function(c){ return !sentAlready[c.cid]; })
     .sort(function(a,b){ return (a._lastBin||'9999').localeCompare(b._lastBin||'9999'); });
 
-  renderEmailListModal(skipped, noEmail, log);
+  renderEmailListModal(skipped, noEmail, log, blocked);
 }
 
-function renderEmailListModal(skipped, noEmail, log) {
+function renderEmailListModal(skipped, noEmail, log, blocked) {
   var avail = _mktgEligible.length;
 
   // Past pulls, newest first — grouped from the same rows the skip list came from.
@@ -6524,9 +6530,12 @@ function renderEmailListModal(skipped, noEmail, log) {
     + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">'
       + '<div style="font-size:30px;font-weight:800;color:var(--accent);line-height:1.1">' + avail.toLocaleString() + '</div>'
       + '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">ready to email</div>'
+      // The blacklisted line has to be here or the numbers stop adding up: they are on the
+      // list on screen now, they are dropped from the pull, and nothing said so.
       + note((skipped ? '<div>' + skipped.toLocaleString() + ' skipped — already emailed in the last ' + MKTG_SKIP_MONTHS + ' months</div>' : '')
            + (noEmail ? '<div>' + noEmail.toLocaleString() + ' skipped — no email address on file</div>' : '')
-           + (!skipped && !noEmail ? 'Everyone on screen is available.' : ''))
+           + (blocked ? '<div>' + blocked.toLocaleString() + ' skipped — blacklisted, never emailed promotions</div>' : '')
+           + (!skipped && !noEmail && !blocked ? 'Everyone on screen is available.' : ''))
     + '</div>'
     + (avail
       ? '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
@@ -6780,17 +6789,20 @@ async function loadClientsPage() {
   });
 
   // ── 7b. Show filter (who's in the list) ──
-  // Active customers shows blacklisted people too (Jake, 2026-08-21). Hiding them meant
-  // Kelly searched for a real customer, got nothing back, and believed they weren't in the
-  // system at all. They come up in the list now, wearing the red card in makeClientCard.
+  // Every tab shows blacklisted people (Jake, 2026-08-23). Hiding them meant Kelly searched
+  // for a real customer, got nothing back, and believed they weren't in the system at all —
+  // so no tab hides them any more. They come up wearing the red card from makeClientCard,
+  // which is impossible to mistake for a normal customer. The one place they are still left
+  // out is the marketing pull in openEmailListModal: never a promo email to a blacklisted
+  // customer. The Blacklisted tab is unchanged — it is the only-them view.
   var _dormCutoff = new Date(Date.now()-180*86400000).toISOString().slice(0,10);
   // Top Clients: booking repeatedly and lately. Two jobs inside 180 days is the cut —
   // it lands around 210 accounts, small enough for the office to genuinely know them.
-  if(clientShow==='top')               allClients = allClients.filter(function(c){ return c._recent >= 2 && !c.blacklisted; });
+  if(clientShow==='top')               allClients = allClients.filter(function(c){ return c._recent >= 2; });
   else if(clientShow==='blacklist')    allClients = allClients.filter(function(c){ return c.blacklisted; });
-  else if(clientShow==='contractors')  allClients = allClients.filter(function(c){ return c.contractor && !c.blacklisted; });
-  else if(clientShow==='dormant')      allClients = allClients.filter(function(c){ return c._lastDate && c._lastDate < _dormCutoff && !c.blacklisted; });
-  // 'everyone' takes no filter at all — that is the whole point of the change above.
+  else if(clientShow==='contractors')  allClients = allClients.filter(function(c){ return c.contractor; });
+  else if(clientShow==='dormant')      allClients = allClients.filter(function(c){ return c._lastDate && c._lastDate < _dormCutoff; });
+  // 'everyone' takes no filter at all.
 
   // ── 7c. Win-back filter: past bin customers whose last bin is older than the cutoff.
   // A bin booked for a future date reads as the last bin, so anyone with one on the books drops out.
@@ -11137,7 +11149,13 @@ async function saveJob(e){
       job.clientId = cid;
       _selectedClientObj = _match;
       var _sel=document.getElementById('f-client-select'); if(_sel) _sel.value = cid;
-      toast('Attached to '+(_match.name||cid)+'.');
+      // Typing the name instead of picking it out of the search box was the last door into
+      // a blacklisted customer with no warning at all: the match happened here, quietly,
+      // and the green "Attached to" message read like an ordinary booking. Put up the same
+      // red strip the picker puts up, and say who it is in red. Warn, never block (Jake).
+      setJobFormBlacklistWarning(_match);
+      if(_match.blacklisted) toast((_match.name||cid)+' is BLACKLISTED — this booking is now attached to them. Check with Jeff or Jake.','error');
+      else toast('Attached to '+(_match.name||cid)+'.');
     }
     if(!exists){
       // Mint new client ID atomically via Postgres sequence — prevents two parallel saves from minting the same cid
