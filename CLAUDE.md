@@ -38,7 +38,7 @@ So it cannot do step 4 — and step 4 is the whole safety net. A cloud session t
 pushes its branch, and stops with "ready to merge". Jake merges and checks it live, or hands it
 to a local session that can.
 
-What a cloud session CAN still prove before handing over, and should: `node --check` on every
+What a cloud session CAN still prove before handing over, and should: parse every
 file it touched, the pre-push tripwire (which parses changed JS in V8), and GitHub's
 `parse-check` workflow on the merge commit. Between them the syntax-error-blanks-the-site
 failure is covered. What none of them cover is anything visual or behavioural — a modal that

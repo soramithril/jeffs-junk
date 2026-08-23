@@ -74,6 +74,25 @@
 .jjl-lines span:nth-child(4) { top: 69%; animation-delay: 4.05s; }
 .jjl-lines span:nth-child(5) { top: 83%; animation-delay: 5.4s; height: 1px; }
 
+/* Road-level rush — a low band of streaks so the ground moves under the truck.
+   They run left to right: the truck is driving left, so in the truck's frame the
+   road runs the other way. Only the Original sheet turns this on. The band is
+   pinned to the lower part of the frame rather than to anything in the photo, so
+   it stays right whatever shape the screen is. */
+.jjl-road { position: absolute; z-index: 9; inset: 62% 32% 2% 0; display: none; overflow: hidden; pointer-events: none; }
+.jjl-road span {
+  position: absolute; left: -24%; height: 2px; width: 18%; border-radius: 99px; opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,250,232,.8), transparent);
+  filter: blur(.6px);
+  animation: jjl-roadrush 2.6s linear infinite;
+}
+.jjl-road span:nth-child(1) { top: 18%; }
+.jjl-road span:nth-child(2) { top: 34%; width: 22%; height: 3px; animation-delay: -.7s; animation-duration: 2.2s; }
+.jjl-road span:nth-child(3) { top: 52%; width: 14%; animation-delay: -1.4s; animation-duration: 3.1s; }
+.jjl-road span:nth-child(4) { top: 67%; width: 24%; height: 3px; animation-delay: -2s; animation-duration: 2.4s; }
+.jjl-road span:nth-child(5) { top: 81%; width: 16%; animation-delay: -1.1s; animation-duration: 3.4s; }
+.jjl-road span:nth-child(6) { top: 93%; width: 20%; height: 1px; animation-delay: -2.6s; animation-duration: 2.8s; }
+
 /* pit-lane neon bars */
 .jjl-pitbars { position: absolute; z-index: 7; inset: 0 0 0 57%; display: none; overflow: hidden; pointer-events: none; }
 .jjl-pitbars span {
@@ -342,6 +361,18 @@
 .jjl-classic .jjl-grade { background: linear-gradient(90deg, transparent 0 65%, rgba(239,223,188,.24) 72%, rgba(239,223,188,.78) 100%); }
 .jjl-classic .jjl-copy { display: none; }   /* this sheet's headline is painted into the artwork */
 .jjl-classic .jjl-lines span { background: linear-gradient(90deg, transparent, rgba(0,111,54,.5), transparent); }
+/* This sheet arrived the plainest of the nine — it only breathed, with no camera
+   drift and no light sweep. v612 gives it all three: the camera paces the truck,
+   the road rushes underneath, and sun crosses the paper. Deliberately no animated
+   dot on the route sketch — Barb's notes rule that one out. */
+.jjl-classic .jjl-art { animation: jjl-classiccam 14s ease-in-out infinite alternate; }
+.jjl-classic .jjl-road { display: block; }
+.jjl-classic .jjl-grade::after {
+  content: ""; position: absolute; top: -22%; left: -36%; width: 24%; height: 150%; opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,248,216,.44), rgba(250,234,192,.24), transparent);
+  filter: blur(14px); transform: rotate(8deg);
+  animation: jjl-papersun 11s ease-in-out infinite;
+}
 .jjl-classic .jjl-panel {
   width: clamp(420px, 29.2vw, 500px);
   border-left: 1px solid rgba(84,64,34,.14);
@@ -595,7 +626,7 @@
   .jjl-copy, .jjl-poster .jjl-copy, .jjl-pit .jjl-copy, .jjl-roadrunner .jjl-copy,
   .jjl-fullthrottle .jjl-copy, .jjl-anime .jjl-copy, .jjl-overhead .jjl-copy,
   .jjl-blueprint .jjl-copy, .jjl-engineering .jjl-copy { left: 7%; top: 9%; }
-  .jjl-classic .jjl-copy { display: none; }
+  .jjl-classic .jjl-copy, .jjl-classic .jjl-road { display: none; }
   .jjl-copy h1, .jjl-poster .jjl-copy h1, .jjl-pit .jjl-copy h1, .jjl-roadrunner .jjl-copy h1,
   .jjl-fullthrottle .jjl-copy h1, .jjl-anime .jjl-copy h1, .jjl-overhead .jjl-copy h1,
   .jjl-blueprint .jjl-copy h1, .jjl-engineering .jjl-copy h1 { font-size: clamp(2.8rem, 13vw, 5rem); }
@@ -634,6 +665,9 @@
 
 /* ── keyframes ───────────────────────────────────────────────────── */
 @keyframes jjl-breathe { from { transform: scale(1.012); } to { transform: scale(1.055); } }
+@keyframes jjl-classiccam { from { transform: scale(1.014) translate3d(-.25%, .3%, 0); } to { transform: scale(1.052) translate3d(.5%, -.35%, 0); } }
+@keyframes jjl-papersun { 0%,52%,100% { left: -36%; opacity: 0; } 64% { opacity: .9; } 90% { left: 86%; opacity: 0; } }
+@keyframes jjl-roadrush { 0% { left: -24%; opacity: 0; } 10% { opacity: .85; } 72% { opacity: .65; } 100% { left: 106%; opacity: 0; } }
 @keyframes jjl-postercam { from { transform: scale(1.018) translate3d(-.35%, .2%, 0); } to { transform: scale(1.065) translate3d(.9%, -.55%, 0); } }
 @keyframes jjl-roadcam { from { transform: scale(1.01) translate3d(-.45%, .2%, 0); } to { transform: scale(1.045) translate3d(.75%, -.35%, 0); } }
 @keyframes jjl-throttlecam { from { transform: scale(1.018) translate3d(-.25%, 0, 0); } to { transform: scale(1.06) translate3d(.85%, -.45%, 0); } }
@@ -669,5 +703,5 @@
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
   }
-  .jjl-particles, .jjl-fx, .jjl-lines { display: none !important; }
+  .jjl-particles, .jjl-fx, .jjl-lines, .jjl-road { display: none !important; }
 }
