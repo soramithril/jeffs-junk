@@ -9131,6 +9131,10 @@ document.addEventListener('keydown',function(e){
       if(last.id==='bin-avail-warning-modal' && _binAvailWarningResolver){
         resolveBinAvailWarning(false); return;
       }
+      // "Still Kelly?" has to be answered. Escape used to strip .open and leave the
+      // two-minute sign-out running behind an invisible card, so the page reloaded
+      // mid-booking with nothing on screen to explain it.
+      if(last.id==='identity-check-modal' && _identityResolver) return;
       // The booking form is five minutes of a phone call. One stray Escape used to
       // bin all of it with nothing asked and no way back.
       if(last.id==='job-modal' && !closeJobModalGuard()) return;
@@ -11080,7 +11084,11 @@ async function saveJob(e){
       }
     }
     if(dbRes.error){
-      alert('\u274c Error saving job: ' + dbRes.error.message + '\n\nNothing was saved \u2014 the form still has everything you typed. Check the internet connection and hit Save again.');
+      // A dead login is not a connection problem: "JWT expired ... hit Save again" sent
+      // people round the same button forever, in words nobody in the office uses.
+      alert(isAuthExpiredError(dbRes.error)
+        ? '\u274c Your login expired while this was open.\n\nNothing was saved, and Save cannot work until you sign in again. Getting back to the sign-in screen reloads the page and clears this form, so copy anything you need out of it first.'
+        : '\u274c Error saving job: ' + dbRes.error.message + '\n\nNothing was saved \u2014 the form still has everything you typed. Check the internet connection and hit Save again.');
       console.error('saveJob error:', dbRes.error);
       _setSaveJobLock(false); return;
     }
@@ -13022,6 +13030,10 @@ db.auth.getSession().then(function(r) {
 // Periodic session check — signs out if token expired (catches stale tabs)
 setInterval(function() {
   if (!currentUser) return;
+  // The 3 AM sign-out used to depend on the tab going hidden and coming back. A laptop
+  // that wakes with the dashboard already the front tab never fires that, so ask the
+  // clock here too — this runs every minute whatever else happens.
+  if (overnightHasPassed()) { signOutWithReason('Signed out overnight — please sign in again.'); return; }
   db.auth.getSession().then(function(r) {
     if (!r.data || !r.data.session) {
       signOutWithReason('⚠ Session expired — please sign in again.');
@@ -13506,8 +13518,11 @@ function scheduleOvernightSignOut() {
   clearTimeout(_overnightTimer);
   if (!currentUser) return;
   _overnightTimer = setTimeout(function() {
-    if (currentUser) signOutWithReason('Signed out overnight — please sign in again.');
-    scheduleOvernightSignOut();   // work out the next one
+    // A timer counts awake seconds, not clock time: a laptop that slept four hours
+    // fires this four hours late. Ask the clock before acting on it, and if 3 AM has
+    // not actually gone by yet, just work out the next one.
+    if (currentUser && overnightHasPassed()) signOutWithReason('Signed out overnight — please sign in again.');
+    else scheduleOvernightSignOut();
   }, nextThreeAm(Date.now()) - Date.now());
 }
 
@@ -13529,10 +13544,17 @@ var _identityResolver = null;
 var IDENTITY_IDLE_MS = 5 * 60 * 1000;    // how long the screen must sit untouched first
 var IDENTITY_ANSWER_MS = 2 * 60 * 1000;  // no answer in this long and we sign out
 
-function identityConfirmedToday() {
+// An answer holds for an hour, not for the day. Kelly saying "yes, it's me" at 4:05
+// used to switch the check off until midnight, so Rachel taking the desk at 4:30 —
+// the exact swap this exists to catch — was never asked about at all.
+var IDENTITY_CONFIRM_MS = 60 * 60 * 1000;
+
+function identityConfirmedRecently() {
   var stamp = '';
   try { stamp = localStorage.getItem('jjIdentityOk') || ''; } catch(e) {}
-  return stamp === ((currentUser && currentUser.email) || '') + '|' + todayStr();
+  var parts = stamp.split('|');
+  if (!parts[0] || parts[0] !== ((currentUser && currentUser.email) || '')) return false;
+  return Date.now() - (+parts[1] || 0) < IDENTITY_CONFIRM_MS;
 }
 
 function resetIdentityIdle() {
@@ -13546,7 +13568,7 @@ function maybeAskStillYou() {
   // Every one of these is a reason to wait, never a reason to skip the check: put the
   // quiet countdown back and look again after the next untouched five minutes.
   if (new Date().getHours() < 16) return resetIdentityIdle();
-  if (identityConfirmedToday()) return resetIdentityIdle();
+  if (identityConfirmedRecently()) return resetIdentityIdle();
   // A tab nobody is looking at cannot answer, and an unanswered card signs people out
   // — the exact thing this change exists to stop. Wait until it is on screen.
   if (document.hidden) return resetIdentityIdle();
@@ -13587,7 +13609,7 @@ function askStillYou() {
     _identityAnswerTimer = setTimeout(function(){ _resolveIdentity('nobody'); }, IDENTITY_ANSWER_MS);
   }).then(function(answer) {
     if (answer === 'me') {
-      try { localStorage.setItem('jjIdentityOk', ((currentUser && currentUser.email) || '') + '|' + todayStr()); } catch(e) {}
+      try { localStorage.setItem('jjIdentityOk', ((currentUser && currentUser.email) || '') + '|' + Date.now()); } catch(e) {}
       resetIdentityIdle();
       return;
     }
@@ -13636,13 +13658,11 @@ document.addEventListener('visibilitychange', function() {
   if (Date.now() - _hiddenSince < 60000) return;
   refreshSessionNow().then(function(ok) {
     if (ok) return;
-    // Opening a lid beats the wifi back by a second or two, so one failure means
-    // nothing. Try once more before sending anyone to the login screen.
-    setTimeout(function() {
-      refreshSessionNow().then(function(ok2) {
-        if (!ok2) signOutWithReason('Session expired — please sign in again.');
-      });
-    }, 3000);
+    // A lid opened before the wifi is back fails here for reasons that have nothing to
+    // do with the login, and a dropped fetch looks exactly like a dead token from in
+    // here. So this path only ever tries again — it never signs anyone out. The
+    // 60-second session check is the one place that decides a login is really gone.
+    setTimeout(refreshSessionNow, 3000);
   });
 });
 
