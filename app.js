@@ -2672,7 +2672,6 @@ function goJwg(tab){
 }
 function render(name, bg){
   if(name==='dashboard'){ renderDash(bg); }
-  if(name==='dashboard' && window.JJNudges) JJNudges.start();
   else if(name==='livejobs') renderLiveJobs();
   else if(name==='jobs'){ renderJobs(); setTimeout(atabsSyncAll, 60); }
   else if(name==='landscaping') renderLandscapingPage();
@@ -11110,9 +11109,6 @@ async function saveJob(e){
   var savedJobId = job.id;
   _setSaveJobLock(false);
   closeM('job-modal');
-  // A job with no date lands on NO screen. Say so now, to the person who just
-  // saved it, while the call is still fresh.
-  if(window.JJNudges) JJNudges.warnNoDate(job);
   loadJobsPage(jobsPage);
   if(typeof renderPossibleJobs==='function') renderPossibleJobs();
   // Always reopen the saved job as detail so user can review/print immediately
