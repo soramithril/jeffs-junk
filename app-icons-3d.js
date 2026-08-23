@@ -21,11 +21,30 @@
      icon here is a distinct colour, and why the colours match what each screen
      already used. Jake chose artwork everywhere over the earlier mixed setting.
 
-   THE PALE CHIP
-     The sidebar rail is dark green (#14532d) and a lot of this artwork is green,
-     so on the rail it sinks into the background — measured as low as 1.01:1.
-     Rail and flyout icons therefore sit on a pale chip of the same footprint,
-     which took median contrast from 1.41:1 to 6.10:1.
+   THE PALE CHIP, AND WHY IT WENT (v613)
+     Rail and flyout icons used to sit on a white chip, because green artwork on
+     the dark green rail (#14532d) measured as low as 1.01:1. That number came
+     from comparing flat colour to flat colour, which is not what is on screen:
+     every icon carries its own dark outline, top highlight and drop shadow, and
+     those are what actually separate it from the rail. Rendered side by side the
+     bare icons read fine and the chips looked like stickers, so they are gone.
+     Jake's call, 2026-08-23.
+
+   FACING
+     Eight nav icons were mirrored so they face right (v613). Held back on
+     purpose: chart (the trend would run downhill), summerWinter (the seasons
+     would swap sides), confirmed and junkQuote (a mirrored tick reads as wrong)
+     and allJobs and documents (their lines would read right-to-left). The
+     mirroring is baked into the PNGs, not applied at render time, so an icon
+     faces the same way on every screen it appears on.
+
+   THE WIDE-ICON BOOST
+     Artwork is square but some objects are not. The dump truck's ink is 72x58
+     inside its 72px square, so `object-fit: contain` draws it 22.6px tall on the
+     34px rail where a full-height icon gets 27.6px — about 18% short, and it
+     read as a smaller icon. RAIL_BOOST scales those back up. Rail and flyout
+     only, where the slot is a fixed box: tag() is left alone so nothing in the
+     lists and tables shifts.
    ========================================================================== */
 (function (global) {
   'use strict';
@@ -43,19 +62,22 @@
       (extraStyle ? ';' + extraStyle : '') + '">';
   }
 
-  // For the dark green rail only — see the note above.
-  function chip(key, size) {
+  // Wide, short artwork loses height to empty canvas — see the note above.
+  var RAIL_BOOST = { junk: 1.22, vehicles: 1.12 };
+
+  // The rail and the More-tools flyout. A fixed square slot with the icon
+  // centred in it, so a boosted icon grows inside the slot instead of pushing
+  // its neighbours around.
+  function rail(key, size) {
     var px = size || 34;
     var pad = Math.max(2, Math.round(px * 0.08));
+    var inner = Math.round((px - pad * 2) * (RAIL_BOOST[key] || 1));
     var style = [
       'width:' + px + 'px', 'height:' + px + 'px',
-      'border-radius:' + Math.round(px * 0.26) + 'px',
-      'background:linear-gradient(160deg,#ffffff,#eef3ef)',
-      'box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 1px 3px rgba(0,0,0,.28)',
-      'display:inline-grid', 'place-items:center', 'flex:none'
+      'display:inline-grid', 'place-items:center', 'flex:none', 'overflow:hidden'
     ].join(';');
-    return '<span class="jj3d-chip" style="' + style + '">' + tag(key, px - pad * 2) + '</span>';
+    return '<span class="jj3d-rail" style="' + style + '">' + tag(key, inner) + '</span>';
   }
 
-  global.JJ3D = { tag: tag, chip: chip };
+  global.JJ3D = { tag: tag, rail: rail };
 })(window);
