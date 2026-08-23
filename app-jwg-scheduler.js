@@ -189,6 +189,8 @@ async function upsertSched(eid,ws,data){const w=localDateStr(ws);return sbF("POS
 // Everything before today is left exactly as it is: history has to keep
 // rendering, badged REMOVED.
 function todayDayIdx(){return(new Date().getDay()+6)%7;}   // DAYS is Monday-first; Date#getDay is Sunday-first
+// Removal empties today and the rest of the week; the days before today stay put.
+function blankFromToday(sc){for(let i=todayDayIdx();i<DAYS.length;i++)sc[DAYS[i]]={status:"off",shifts:[]};return sc;}
 // What a removal would wipe, so the Team page can say it out loud beforehand.
 async function rosterForwardSummary(empId){
   const cur=wkey(0),from=todayDayIdx();
@@ -205,17 +207,21 @@ async function rosterClearForward(empId){
   await sbF("DELETE","jwg_schedules?employee_id=eq."+empId+"&week_start=gt."+cur);
   // This week keeps the days already worked; today and the rest of it go.
   const rows=await sbF("GET","jwg_schedules?select=schedule_data&employee_id=eq."+empId+"&week_start=eq."+cur);
-  let curData=null;
-  if(rows&&rows.length){
-    curData=migrateSched(rows[0].schedule_data);
-    for(let i=todayDayIdx();i<DAYS.length;i++)curData[DAYS[i]]={status:"off",shifts:[]};
-    await upsertSched(empId,getWS(0),curData);
-  }
+  if(rows&&rows.length)await upsertSched(empId,getWS(0),blankFromToday(migrateSched(rows[0].schedule_data)));
   await sbF("PATCH","jwg_employees?id=eq."+empId,{usual_week:null});
-  // Keep a scheduler already loaded in this tab honest without a reload.
+  rosterPruneLocal(empId);
+}
+// Keep a scheduler already loaded in this tab honest without a reload: forget the
+// future weeks and blank this week from today on. Called after the database work
+// above, and also straight off the roster event in every OTHER open tab — the
+// jwg_schedules delete event carries only the row id, never whose row it was, so
+// it can't do this job itself.
+function rosterPruneLocal(empId){
+  const cur=wkey(0);
   S.allSchedules=S.allSchedules.filter(s=>!(s.employee_id===empId&&s.week_start>cur));
   const held=S.allSchedules.find(s=>s.employee_id===empId&&s.week_start===cur);
-  if(held&&curData)held.schedule_data=curData;
+  let curData=null;
+  if(held){curData=blankFromToday(migrateSched(held.schedule_data));held.schedule_data=curData;}
   const emp=S.employees.find(e=>e.id===empId);
   if(emp)emp.usual_week=null;
   const viewed=wkey(S.weekOffset);
@@ -1496,7 +1502,12 @@ function autoSave(empId){
     _schedSaveCooldown["_t_"+id]=setTimeout(()=>{delete _schedSaveCooldown[id];delete _schedSaveCooldown["_t_"+id];},3000);
   });
   // Snapshot the changed employee(s) RIGHT NOW
-  const toSave=empId?S.employees.filter(e=>e.id===empId):S.employees;
+  // A blanket save must never touch someone who has been removed. Their rows were
+  // deleted on the Team page, but a tab open at the time still holds the old grid
+  // in memory — and upserting it would put every one of their shifts straight back.
+  // The pickers that trigger a blanket save only offer visEmps() anyway, so nobody
+  // loses an edit they could actually have made.
+  const toSave=empId?S.employees.filter(e=>e.id===empId):S.employees.filter(e=>!e.hidden);
   const newEntries=toSave.map(e=>({emp:e,data:JSON.parse(JSON.stringify(S.schedule[e.id]||defSched()))}));
   if(_pendingSave&&_pendingSave.w===w){
     // Merge: update existing entries for same week, add any new ones
@@ -4020,7 +4031,13 @@ function initRealtime(){
       if(!row||!row.jwg_id)return;
       const emp=S.employees.find(e=>e.id===row.jwg_id);
       if(!emp)return;
+      const wasHidden=!!emp.hidden;
       emp.hidden=payload.eventType!=="DELETE"&&(row.active===false||row.on_jwg===false);
+      // Someone just removed on the Team page has had their shifts deleted from
+      // today on, so drop them here too — otherwise this tab keeps showing weeks
+      // that no longer exist and a bulk save would write them all back. Only for
+      // a removal: switching the Jeff White Group side off deletes nothing.
+      if(!wasHidden&&emp.hidden&&row.active===false)rosterPruneLocal(emp.id);
       if(!isModalOpen())render();
     })
 
