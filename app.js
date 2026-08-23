@@ -9196,10 +9196,6 @@ document.addEventListener('keydown',function(e){
       if(last.id==='bin-avail-warning-modal' && _binAvailWarningResolver){
         resolveBinAvailWarning(false); return;
       }
-      // "Still Kelly?" has to be answered, so Escape does nothing here. It used to
-      // strip .open and leave the two-minute sign-out running behind an invisible
-      // card, so the page reloaded mid-booking with nothing on screen to explain it.
-      if(last.id==='identity-check-modal' && _identityResolver) return;
       // Escape on an "are you sure?" dialog means no. Without these it only hid the
       // box and left the cancel/delete waiting forever, so nothing happened and
       // nothing said so.
@@ -13229,10 +13225,10 @@ db.auth.getSession().then(function(r) {
 // Periodic session check — signs out if token expired (catches stale tabs)
 setInterval(function() {
   if (!currentUser) return;
-  // The 3 AM sign-out used to depend on the tab going hidden and coming back. A laptop
-  // that wakes with the dashboard already the front tab never fires that, so ask the
-  // clock here too — this runs every minute whatever else happens.
-  if (overnightHasPassed()) { signOutWithReason('Signed out overnight — please sign in again.'); return; }
+  // This is what ends the day's session. It cannot hang off the tab going hidden and
+  // coming back: a laptop that wakes with the dashboard already the front tab never
+  // fires that. This runs every minute whatever else happens, so it asks the clock.
+  if (endSessionIfDue()) return;
   db.auth.getSession().then(function(r) {
     if (!r.data || !r.data.session) {
       signOutWithReason('⚠ Session expired — please sign in again.');
@@ -13256,6 +13252,10 @@ db.auth.onAuthStateChange(function(event, session) {
     return;
   }
   if (event === 'SIGNED_OUT') {
+    // The three-hour clock belongs to the session that just ended, however it ended.
+    // Cleared before anything returns early, so the next person to sign in on this
+    // machine always starts their own three hours.
+    try { localStorage.removeItem('jjSessionStart'); } catch(e){}
     if (_redirecting) return;   // Darrin's kiosk signs out on its way to inventory.html
     // Reload instead of handing the login screen back inside this page. A window that
     // has sat open holds a stale connection, and signing in again on it is what leaves
@@ -13695,141 +13695,85 @@ function handleAdminBtn() {
   }
 }
 
-// ── The session runs until 3 AM ──
+// ── The session runs three hours, and never past 4:15 PM ──
 // The 30-minute inactivity logout that used to sit here was the ONLY thing signing
 // anyone out: Supabase caps nothing on this project (auth.sessions.not_after is NULL
-// on every row) and the access token refreshes itself all day. But Rachel books 68%
-// of her jobs after 4pm and Barbara browses until 9, so half an hour of quiet was
-// throwing people who were still working back to the login screen mid-shift. The
-// session now ends at 3 AM instead, when the office is empty.
-var _overnightTimer = null;
-var _sessionStartedAt = Date.now();
+// on every row) and the access token refreshes itself all day. But idle time is the
+// wrong measure. The problem is not an abandoned screen, it is a busy one: Kelly
+// leaves around 4 and Rachel carries on at Kelly's desk, still signed in as Kelly, so
+// every booking after that is filed under the wrong name. A screen somebody else is
+// using is never idle, so an idle timer is the one thing that can never catch it.
+//
+// The clock runs from the sign-in instead, and there are two of them:
+//   · three hours after signing in, whatever is happening on screen;
+//   · 4:15 PM, whatever the session age — that is the desk handover.
+// Kelly files 305 of her 310 bookings before 4, so a 4:15 sign-out costs her nothing.
+var SESSION_MAX_MS = 3 * 60 * 60 * 1000;   // three hours from sign-in
+var END_OF_DAY_HOUR = 16;                  // 4:15 PM local — the desk handover
+var END_OF_DAY_MIN = 15;
+// Longest a sign-out is held back for somebody mid-booking: long enough to finish the
+// call in front of you, short enough that 4:15 still means 4:15.
+var SIGN_OUT_GRACE_MS = 5 * 60 * 1000;
+var _dueSince = 0;   // when the sign-out first came due but the screen was busy
 
-// The first 3 AM strictly after `from`.
-function nextThreeAm(from) {
+// When this session began. Kept in localStorage because a page reload must not hand
+// anybody a fresh three hours, and stamped with the email so a stamp left behind by
+// the last person can never sign the next one out on sight. Missing or somebody
+// else's, it stamps now — a session whose start we don't know starts here.
+function sessionStart() {
+  var email = (currentUser && currentUser.email) || '';
+  var raw = '';
+  try { raw = localStorage.getItem('jjSessionStart') || ''; } catch(e) {}
+  var parts = raw.split('|');
+  if (parts[0] === email && +parts[1]) return +parts[1];
+  var now = Date.now();
+  try { localStorage.setItem('jjSessionStart', email + '|' + now); } catch(e) {}
+  return now;
+}
+
+// The first 4:15 PM strictly after `from`. Strictly, so signing back in at 4:20 does
+// not land on today's 4:15 and throw you out again on sight.
+function nextEndOfDay(from) {
   var t = new Date(from);
-  t.setHours(3, 0, 0, 0);
+  t.setHours(END_OF_DAY_HOUR, END_OF_DAY_MIN, 0, 0);
   if (t.getTime() <= from) t.setDate(t.getDate() + 1);
   return t.getTime();
 }
 
-function scheduleOvernightSignOut() {
-  clearTimeout(_overnightTimer);
-  if (!currentUser) return;
-  _overnightTimer = setTimeout(function() {
-    // A timer counts awake seconds, not clock time: a laptop that slept four hours
-    // fires this four hours late. Ask the clock before acting on it, and if 3 AM has
-    // not actually gone by yet, just work out the next one.
-    if (currentUser && overnightHasPassed()) signOutWithReason('Signed out overnight — please sign in again.');
-    else scheduleOvernightSignOut();
-  }, nextThreeAm(Date.now()) - Date.now());
+// Both rules read the clock rather than counting timer ticks, because a timer counts
+// awake seconds: a laptop that slept through 4:15 would fire hours late, or never.
+// Returns why the session is over, or '' if it isn't.
+function sessionOverdue() {
+  var start = sessionStart();
+  if (Date.now() >= nextEndOfDay(start)) return 'day';
+  if (Date.now() - start >= SESSION_MAX_MS) return 'age';
+  return '';
 }
 
-// A laptop asleep at 3 AM never fires that timer, so the wake-up path asks the clock
-// instead: has 3 AM gone by since this session started?
-function overnightHasPassed() {
-  return Date.now() >= nextThreeAm(_sessionStartedAt);
-}
-
-// ── The 4 PM desk swap ──
-// Kelly finishes around 4 and Rachel moves onto her desk. Every booking is filed
-// under whoever is signed in, so after 4 an untouched screen gets asked who is
-// sitting at it. The guards below matter more than the question does: interrupting a
-// booking half-typed is worse than a job filed under the wrong name, so the card only
-// appears on a screen that has genuinely been left alone.
-var _identityIdleTimer = null;
-var _identityAnswerTimer = null;
-var _identityResolver = null;
-var IDENTITY_IDLE_MS = 5 * 60 * 1000;    // how long the screen must sit untouched first
-var IDENTITY_ANSWER_MS = 2 * 60 * 1000;  // no answer in this long and we sign out
-
-// An answer holds for an hour, not for the day. Kelly saying "yes, it's me" at 4:05
-// used to switch the check off until midnight, so Rachel taking the desk at 4:30 —
-// the exact swap this exists to catch — was never asked about at all.
-var IDENTITY_CONFIRM_MS = 60 * 60 * 1000;
-
-function identityConfirmedRecently() {
-  var stamp = '';
-  try { stamp = localStorage.getItem('jjIdentityOk') || ''; } catch(e) {}
-  var parts = stamp.split('|');
-  if (!parts[0] || parts[0] !== ((currentUser && currentUser.email) || '')) return false;
-  return Date.now() - (+parts[1] || 0) < IDENTITY_CONFIRM_MS;
-}
-
-function resetIdentityIdle() {
-  clearTimeout(_identityIdleTimer);
-  if (!currentUser || _identityResolver) return;   // no countdown while the card is up
-  _identityIdleTimer = setTimeout(maybeAskStillYou, IDENTITY_IDLE_MS);
-}
-
-function maybeAskStillYou() {
-  if (!currentUser || _identityResolver) return;
-  // Every one of these is a reason to wait, never a reason to skip the check: put the
-  // quiet countdown back and look again after the next untouched five minutes.
-  if (new Date().getHours() < 16) return resetIdentityIdle();
-  if (identityConfirmedRecently()) return resetIdentityIdle();
-  // A tab nobody is looking at cannot answer, and an unanswered card signs people out
-  // — the exact thing this change exists to stop. Wait until it is on screen.
-  if (document.hidden) return resetIdentityIdle();
-  if (document.getElementById('update-banner')) return resetIdentityIdle();
-  if (document.querySelector('.modal-overlay.open')) return resetIdentityIdle();
+// Signing out reloads the page, so whatever is on screen goes with it. Nobody should
+// lose a half-typed booking to the clock.
+function screenIsBusy() {
+  if (document.querySelector('.modal-overlay.open')) return true;
   var el = document.activeElement;
-  if (el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return resetIdentityIdle();
-  askStillYou();
+  return !!(el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'));
 }
 
-function askStillYou() {
-  var who = (currentUser.displayName || (currentUser.email || '').split('@')[0] || '').split(' ')[0];
-  new Promise(function(resolve) {
-    _identityResolver = resolve;
-    var id = 'identity-check-modal';
-    var m = document.getElementById(id);
-    if (!m) {
-      m = document.createElement('div');
-      m.id = id;
-      m.className = 'modal-overlay';
-      m.style.zIndex = '780';
-      document.body.appendChild(m);
-    }
-    var esc = (typeof escHtml === 'function') ? escHtml : function(s){ return String(s); };
-    m.innerHTML = '<div class="modal" style="max-width:420px;width:92vw;border-top:4px solid var(--accent)">'
-      + '<div class="modal-header"><div class="modal-title">Still ' + esc(who) + '?</div></div>'
-      + '<div style="padding:18px 20px">'
-        + '<div style="font-size:14px;color:var(--text);margin-bottom:16px">Every booking is filed under whoever is signed in.</div>'
-        + '<div style="display:flex;flex-direction:column;gap:8px">'
-          + '<button class="btn btn-primary" style="justify-content:center" onclick="_resolveIdentity(\'me\')">Yes, it\'s me</button>'
-          + '<button class="btn btn-ghost" style="justify-content:center" onclick="_resolveIdentity(\'other\')">Someone else</button>'
-        + '</div>'
-      + '</div>'
-    + '</div>';
-    m.classList.add('open');
-    // No backdrop click and no Back button: the card has to be answered, and nobody
-    // answering is itself an answer — see the timeout.
-    _identityAnswerTimer = setTimeout(function(){ _resolveIdentity('nobody'); }, IDENTITY_ANSWER_MS);
-  }).then(function(answer) {
-    if (answer === 'me') {
-      try { localStorage.setItem('jjIdentityOk', ((currentUser && currentUser.email) || '') + '|' + Date.now()); } catch(e) {}
-      resetIdentityIdle();
-      return;
-    }
-    signOutWithReason(answer === 'other'
-      ? 'Signed out so the next person can sign in.'
-      : 'Signed out — nobody said who was at the desk.');
-  });
+// Called from the every-minute check and from the wake-up path. Returns true if it
+// signed out, so the caller knows to stop.
+function endSessionIfDue() {
+  if (!currentUser) return false;
+  var why = sessionOverdue();
+  if (!why) { _dueSince = 0; return false; }
+  if (!_dueSince) _dueSince = Date.now();
+  // A busy screen buys time to finish, not a reprieve: once the grace is up the
+  // sign-out goes ahead, or a cursor parked in a box would hold the session open all
+  // evening — which is the whole thing this exists to stop.
+  if (screenIsBusy() && Date.now() - _dueSince < SIGN_OUT_GRACE_MS) return false;
+  signOutWithReason(why === 'day'
+    ? 'Signed out at 4:15 — please sign in again.'
+    : 'Signed out after 3 hours — please sign in again.');
+  return true;
 }
-
-function _resolveIdentity(answer) {
-  clearTimeout(_identityAnswerTimer);
-  var m = document.getElementById('identity-check-modal');
-  if (m) m.classList.remove('open');
-  var r = _identityResolver;
-  _identityResolver = null;
-  if (r) r(answer);
-}
-
-['mousedown','keydown','touchstart','scroll'].forEach(function(evt) {
-  document.addEventListener(evt, resetIdentityIdle, { passive: true });
-});
 
 // ── Coming back from sleep ──
 // A sleeping laptop (or a tab left in the background for hours) stops the token
@@ -13847,9 +13791,9 @@ var _hiddenSince = 0;
 document.addEventListener('visibilitychange', function() {
   if (document.hidden) { _hiddenSince = Date.now(); return; }
   if (!currentUser) return;
-  if (overnightHasPassed()) { signOutWithReason('Signed out overnight — please sign in again.'); return; }
-  scheduleOvernightSignOut();
-  resetIdentityIdle();
+  // A tab nobody is looking at can miss the every-minute check for a while — browsers
+  // throttle timers they cannot see — so ask the clock again on the way back in.
+  if (endSessionIfDue()) return;
   // A quick alt-tab never killed the token, and asking for a new one on every tab
   // switch would pile the whole office — one IP — up against Supabase's limit on
   // token refreshes. Only a real absence gets one: a slept laptop, a tab left all
@@ -13865,11 +13809,12 @@ document.addEventListener('visibilitychange', function() {
   });
 });
 
-// Armed once the sign-in has really landed (loadSignedInApp).
+// Armed once the sign-in has really landed (loadSignedInApp). A fresh sign-in starts a
+// fresh three hours — the sign-out cleared the old stamp — while a page reload of a
+// session already running picks the stamp back up and keeps the time it has left.
 function startSessionGuards() {
-  _sessionStartedAt = Date.now();
-  scheduleOvernightSignOut();
-  resetIdentityIdle();
+  sessionStart();
+  endSessionIfDue();
 }
 
 // ═══════════════════════════════════════
