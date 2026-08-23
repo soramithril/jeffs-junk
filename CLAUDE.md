@@ -92,9 +92,12 @@ Edit files in place — no temp clones, no copying around. Then:
 1. **No local test servers** (Jake, 2026-07-25 — replaces the tiered local-check policy of
    2026-07-11). Don't spin up `python -m http.server` or any local preview before pushing.
    Push, then verify the LIVE site immediately — it deploys in ~25s and that check is now the
-   only safety net against a JS syntax error blanking the whole site. `node` IS available —
-   run `node --check <file>` on anything you touched before pushing (corrected 2026-08-21;
-   this line used to say node wasn't installed). That catches the killer, but it proves
+   only safety net against a JS syntax error blanking the whole site. Parse every JS file you
+   touched before pushing. On Jake's Windows machine `node` is NOT installed (re-checked
+   2026-08-23 — `where node` finds nothing); use real V8 through Python instead, which is what
+   the pre-push tripwire itself uses:
+   `python -c "from py_mini_racer import MiniRacer; import io,json; MiniRacer().eval('new Function('+json.dumps(io.open('app.js',encoding='utf-8').read())+')')"`
+   A cloud container usually does have node, so `node --check` is fine there. That catches the killer, but it proves
    nothing about how the page looks, so it never replaces step 4. Never end a deploy without
    step 4, and fix-forward fast if it's broken.
    Note for live checks: screenshots hang in the automation browser on this machine — verify
