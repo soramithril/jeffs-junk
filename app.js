@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '622';
+var APP_VERSION = '623';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -859,7 +859,7 @@ var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,addres
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
 // address text when it's absent, and any save writes that derivation back over the real list.
-var CLIENT_LIST_COLS ='cid,name,business_name,names,phone,phones,email,emails,address,addresses,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor,contact_person,playbook,billing_note,no_confirmation_needed';
+var CLIENT_LIST_COLS ='cid,name,business_name,names,phone,phones,email,emails,address,addresses,city,referral,notes,internal_notes,photos,created_at,blacklisted,contractor,contact_person,playbook,billing_note,no_confirmation_needed,billable';
 
 // ── Map Supabase DB row → local job object ─────────────────
 function dbToJob(r) {
@@ -1032,6 +1032,7 @@ function dbToClient(r) {
     // people dont need emails as they are regulars, but some do it depends" — so the
     // answer belongs to the customer, not to each booking. The morning brief reads it.
     noConfirmationNeeded: r.no_confirmation_needed || false,
+    billable: r.billable || false,
     // What the office knows and the database didn't: who to ask for, how they like
     // the job done, how they pay. Captured in the playbook editor (app-playbook.js).
     contactPerson: r.contact_person || '',
@@ -1134,6 +1135,7 @@ function clientToDb(c) {
     blacklisted: c.blacklisted || false,
     contractor: c.contractor || false,
     no_confirmation_needed: c.noConfirmationNeeded || false,
+    billable: c.billable || false,
     contact_person: c.contactPerson || '',
     playbook: c.playbook || '',
     billing_note: c.billingNote || '',
@@ -2145,6 +2147,7 @@ function openAddClient(){
     var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=false;
     var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=false;
     var ncEl=document.getElementById('c-no-confirm');if(ncEl)ncEl.checked=false;
+    var blEl=document.getElementById('c-billable');if(blEl)blEl.checked=false;
     var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
     document.getElementById('client-modal').classList.add('open');
   }catch(ex){console.error(ex);alert('Couldn\'t open the new-customer form.\n\nNothing was lost - close this and try again.');}
@@ -2179,6 +2182,7 @@ function editClient(cid){
   var blEl=document.getElementById('c-blacklisted');if(blEl)blEl.checked=cl.blacklisted||false;
   var coEl=document.getElementById('c-contractor');if(coEl)coEl.checked=cl.contractor||false;
   var ncEl=document.getElementById('c-no-confirm');if(ncEl)ncEl.checked=cl.noConfirmationNeeded||false;
+  var blEl=document.getElementById('c-billable');if(blEl)blEl.checked=cl.billable||false;
   var errEl=document.getElementById('err-c-name');if(errEl)errEl.style.display='none';
   closeM('client-detail-modal');
   document.getElementById('client-modal').classList.add('open');
@@ -2287,7 +2291,8 @@ async function saveClient(e){
     photos:_clientPhotos.slice(),
     blacklisted:document.getElementById('c-blacklisted')?document.getElementById('c-blacklisted').checked:false,
     contractor:document.getElementById('c-contractor')?document.getElementById('c-contractor').checked:false,
-    noConfirmationNeeded:document.getElementById('c-no-confirm')?document.getElementById('c-no-confirm').checked:false
+    noConfirmationNeeded:document.getElementById('c-no-confirm')?document.getElementById('c-no-confirm').checked:false,
+    billable:document.getElementById('c-billable')?document.getElementById('c-billable').checked:false
   };
   var dbRow=clientToDb(cl);
   // New clients INSERT: a duplicate number fails loudly instead of replacing that client.
@@ -6053,12 +6058,29 @@ function selectClientResult(cid){
 // linked client calls this, so a strip can never be left over from the last form session.
 // Jake's call: warn loudly, do NOT block the booking.
 function setJobFormBlacklistWarning(cl){
+  setJobFormBillableNote(cl);
   var el=document.getElementById('f-client-blacklist-warning');
   if(!el)return;
   var on=!!(cl&&cl.blacklisted);
   el.style.display=on?'block':'none';
   var nm=document.getElementById('f-client-blacklist-name');
   if(nm)nm.textContent=on?((cl.name||'This customer')+' is blacklisted. Check with Jeff or Jake before you book this in.'):'';
+}
+
+// A billable account is invoiced after the job and takes no card up front, and it almost
+// always comes with a PO number — so the note sits with the PO field rather than anywhere
+// else (Jake, 2026-08-24). It rides along with the blacklist warning because that already
+// fires from every place a client gets attached to a booking: the picker, a phone match,
+// opening an existing job, and converting a quote.
+function setJobFormBillableNote(cl){
+  var el=document.getElementById('po-billable-hint');
+  if(!el) return;
+  var on=!!(cl&&cl.billable);
+  el.style.display=on?'block':'none';
+  el.innerHTML=on
+    ? '<b>🧾 Billable account — do NOT take payment on site.</b> '
+      +escHtml(cl.name||'This customer')+' is invoiced after the job. Get their PO number if they use one.'
+    : '';
 }
 
 // Fires when a client is picked on a booking — this is the "for future bookings" surface.
@@ -16704,6 +16726,21 @@ async function printBinRental(jobId) {
       if (officePhone.ext) drawText(officePhone.ext, 258, 189);
     }
     drawText(email, 55, 210);
+
+    // PO number, and whether this is a billable account (Jake, 2026-08-24).
+    // The template has no printed labels for either, so both label and value are drawn.
+    // PO sits directly under "Swap Out #:" in the right-hand reference column — that
+    // label is at y=193 from the top, so one line below it is 213. The billable banner
+    // goes in the clear band between the e-mail line and the DESCRIPTION table header
+    // (y=264), which is the only full-width gap on the page, and it needs to be seen.
+    if (j.poNumber) {
+      drawText('PO #:', 360, 213, { bold: true });
+      drawText(j.poNumber, 400, 213);
+    }
+    var _cl = clients.find(function(c){ return c.cid === j.clientId; });
+    if (_cl && _cl.billable) {
+      drawText('BILLABLE ACCOUNT — DO NOT TAKE PAYMENT ON SITE', 55, 240, { bold: true, size: 11 });
+    }
 
     // ── RIGHT COLUMN: Bin Info ──
     drawText(binNum, 395, 70);          // Bin #
