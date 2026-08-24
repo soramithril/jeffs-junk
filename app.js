@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '624';
+var APP_VERSION = '625';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -17030,6 +17030,9 @@ async function printJunkRemoval(jobId) {
       page.drawText(String(text), { x: x, y: H - yFromTop, size: size || 10, font: font, color: black });
     }
     var cd = await _loadFormClientData(j);
+    // Read once, outside the per-copy loop — the client does not change between copies.
+    var _jrCl = clients.find(function(c){ return c.cid === j.clientId; });
+    var _jrBillable = !!(_jrCl && _jrCl.billable);
     _drawCustomerInfo(page, font, fontBold, H, j, cd.clientPhones, cd.email);
 
     // Right column
@@ -17059,6 +17062,19 @@ async function printJunkRemoval(jobId) {
       newPage.drawText(j.binSize || '', { x: 410, y: H - 154, size: 10, font: font, color: black });
       newPage.drawText(_fmtDate(j.junkDate || j.date), { x: 478, y: H - 174, size: 10, font: font, color: black });
       newPage.drawText(_fmtTime(j.junkTime || j.time), { x: 478, y: H - 192, size: 10, font: font, color: black });
+      // Same two additions as the bin rental sheet, and this form is laid out the same
+      // way: PO goes under the last of the right-hand reference labels ("Junk Removal
+      // Time:" at y=194 from the top), and the billable line goes in the clear band
+      // between the e-mail line and the DESCRIPTION table. Drawn inside the per-copy
+      // loop so the office, driver and storage copies all carry it.
+      if (j.poNumber) {
+        newPage.drawText('PO #:', { x: 360, y: H - 213, size: 10, font: fontBold, color: black });
+        newPage.drawText(String(j.poNumber), { x: 400, y: H - 213, size: 10, font: font, color: black });
+      }
+      if (_jrBillable) {
+        newPage.drawText('BILLABLE ACCOUNT — NO PRE-AUTHORIZATION, INVOICED AFTER THE JOB',
+          { x: 55, y: H - 240, size: 11, font: fontBold, color: black });
+      }
       idx += _drawItemsOnPage(newPage, font, H, items, idx);
     }
 
