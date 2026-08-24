@@ -324,6 +324,28 @@ async function renderAnalytics(){
   _renderAnalyticsWithJobs(dates,aJobs,bJobs);
 }
 
+// Which services are worth a chip for the period on screen.
+//
+// Furniture Delivery stopped in August 2026 (Jake, 2026-08-24), so on this week
+// and every week after it its chip reads 0, prev 0, flat dash, flat sparkline —
+// a quarter of the comparison row saying nothing. Rather than strike the service
+// out of ANA_SVC, which would erase it from the years when they DID run
+// deliveries, a service drops out only for periods where it did no work: nothing
+// in the period on screen and nothing in the one it is compared against.
+//
+// So this week loses it, 2025 keeps it, All Time keeps it, and the same happens
+// by itself for any other service that goes quiet.
+//
+// If that would empty the row — a week with no jobs at all — every service stays,
+// because an empty box reads as broken rather than as "a quiet week".
+function anaLiveServices(aJobs,bJobs){
+  var live=ANA_SVC.filter(function(s){
+    return aJobs.some(function(j){return j.service===s.key;})
+        || bJobs.some(function(j){return j.service===s.key;});
+  });
+  return live.length?live:ANA_SVC;
+}
+
 function anaDeltaChip(curr,prev,hasB){
   if(!hasB) return '';
   if(prev===0) return curr===0?'<span class="ana-delta ana-delta-flat">—</span>':'<span class="ana-delta ana-delta-up">▲ new</span>';
@@ -459,7 +481,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
       +'</div>'
       +'<div class="ana-hero-side">'
         +'<div class="ana-chips">'
-        +ANA_SVC.map(function(s){
+        +anaLiveServices(aWork,bSameJobs).map(function(s){
           var c=aWork.filter(function(j){return j.service===s.key;}).length;
           var pc=bSameJobs.filter(function(j){return j.service===s.key;}).length;
           var cCmp=liveTrim?aWork.filter(function(j){return j.service===s.key&&j.date<=todayS;}).length:c;
@@ -519,8 +541,15 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
       var show=!many || i%5===0 || i===buckets.n-1;
       return '<div class="vbar-lbl">'+(show?l:'')+'</div>';
     }).join('');
+    // Same rule as the chips: a service with no bar anywhere in this chart gets no
+    // key in the legend. The bars already skip empty segments, so without this the
+    // legend advertises a colour that never appears.
     var legend=document.getElementById('chart-time-legend');
-    if(legend) legend.innerHTML=segCfg.map(function(s){
+    var legendCfg=segCfg.filter(function(s){
+      return (buckets.series[s.key]||[]).some(function(n){return n>0;});
+    });
+    if(!legendCfg.length) legendCfg=segCfg;
+    if(legend) legend.innerHTML=legendCfg.map(function(s){
       return '<span class="ana-legend-item"><span class="ana-chip-dot" style="background:'+s.color+'"></span>'+s.key+'</span>';
     }).join('');
     requestAnimationFrame(function(){
