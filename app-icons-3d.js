@@ -62,8 +62,43 @@
       (extraStyle ? ';' + extraStyle : '') + '">';
   }
 
-  // Wide, short artwork loses height to empty canvas — see the note above.
-  var RAIL_BOOST = { junk: 1.22, vehicles: 1.12 };
+  // Optical sizing (v614). The canvas is square but the objects are not, so
+  // `object-fit: contain` leaves a tall thin phone and a wide flat truck
+  // carrying very different weight in the same square slot. Each icon's mean
+  // extent — the average of its inked width and height — is nudged 60% of the
+  // way toward the set's median, clamped to 0.90–1.26, and never past the point
+  // where the ink would clip the slot. All measured off the files.
+  //
+  // This supersedes the hand-set junk:1.22 / vehicles:1.12 from v613. Those were
+  // read off the truck's HEIGHT while the white chip was still there, and the
+  // chip's white margin above and below is what made it look small. With the
+  // chip gone, two independent measures — inked area and mean extent — both put
+  // the truck inside the normal range, and 1.22 now reads oversized next to its
+  // neighbours.
+  var RAIL_BOOST = {
+    advisor:1.06, bell:1.02, binDrop:0.97, binMap:0.97, bins:1.03,
+    call:1.12, cancelled:0.98, clothing:0.96, confirmed:0.98, damage:0.98,
+    dashboard:0.98, del:1.05, directions:0.97, dispatch:0.96, edit:1.02,
+    furniture:1.02, garbage:1.03, junk:1.02, junkQuote:1.06, landscaping:0.96,
+    liveJobs:1.06, maintenance:1.02, newJob:0.98, pricing:1.06, print:0.96,
+    summerWinter:0.98, utilization:1.03
+  };
+
+  // The rail and the More-tools flyout are both dark green (--nav-green and
+  // --nav-green-raised). Full-colour artwork sinks into that: measured against
+  // #14532d the set's median contrast is 2.29:1, under the 3:1 floor for a
+  // graphic, and the Dashboard icon manages 1.34:1. It is not a green-on-green
+  // problem — it is dark-on-dark, and the blue and violet icons score worst.
+  //
+  // Lifting brightness while opening the shadows takes the median to 3.29:1 and
+  // drops the icons under 3:1 from 35 to 15, without bleaching the artwork the
+  // way a straight brightness push does. Dark surfaces only — tag() on white
+  // cards is untouched, because there it already reads fine.
+  //
+  // Honest limit: 15 icons still sit under 3:1 and no filter rescues them. The
+  // only complete fixes for raster artwork on a dark rail are a holder behind it
+  // or vector glyphs, and both are off the table for now by choice.
+  var RAIL_FILTER = 'filter:brightness(1.3) contrast(.85) saturate(1.25)';
 
   // The rail and the More-tools flyout. A fixed square slot with the icon
   // centred in it, so a boosted icon grows inside the slot instead of pushing
@@ -76,7 +111,7 @@
       'width:' + px + 'px', 'height:' + px + 'px',
       'display:inline-grid', 'place-items:center', 'flex:none', 'overflow:hidden'
     ].join(';');
-    return '<span class="jj3d-rail" style="' + style + '">' + tag(key, inner) + '</span>';
+    return '<span class="jj3d-rail" style="' + style + '">' + tag(key, inner, RAIL_FILTER) + '</span>';
   }
 
   global.JJ3D = { tag: tag, rail: rail };
