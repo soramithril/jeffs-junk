@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '620';
+var APP_VERSION = '621';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -17866,6 +17866,39 @@ function pvShowToast(msg){
   t.textContent=msg; t.classList.add('show');
   clearTimeout(window._pvToastT); window._pvToastT=setTimeout(function(){t.classList.remove('show');},1500);
 }
+// The sheet keys carry the material and the term inside the name — '4 yard dirt',
+// '14 yard 3 day', 'monthly 14 yard' — while the booking form keeps size, material and
+// duration in three separate fields. This is the one place that unpicks them.
+function _pvBaseSize(sz){
+  return sz.replace('monthly ','').replace(/ 3 day$/,'').replace(/ (dirt|concrete)$/,'');
+}
+
+// "Book this" — straight from the quote on screen into a new bin booking with the town,
+// the size, the material and the rental length already filled in, so whoever just read
+// the price out does not have to retype any of it (Jake, 2026-08-24).
+function pvBookThis(){
+  var rows = pvAllRows(); if(!rows.length) return;
+  var r = _pvEnsureSelection(rows), sz = _pvSel.size;
+  var base = _pvBaseSize(sz);
+  var monthly = _pvIsMonthly(sz), threeDay = / 3 day$/.test(sz);
+  var material = /dirt/.test(sz) ? 'dirt' : /concrete/.test(sz) ? 'concrete' : '';
+
+  newJob();                       // resets the form and opens the modal
+  setFormSvc('Bin Rental');       // also runs toggleBin(), which reveals the bin fields
+  document.getElementById('f-city').value = r.town;
+
+  var btn = document.querySelector('.bsz-btn[data-sz="' + base + '"]');
+  if(btn) selectBinSize(base, btn);
+  var mat = document.getElementById('f-material-type');
+  if(mat) mat.value = material;
+  if(typeof showMaterialType === 'function') showMaterialType();
+  var dur = document.getElementById('f-bdur');
+  if(dur) dur.value = monthly ? '30' : threeDay ? '3' : '';
+
+  renderBinPriceScript();         // quote card + deposit + the can't-go-in list
+  toast('Booking a ' + _pvSizeLabel(sz) + ' in ' + r.town + ' — add the customer and the dates.');
+}
+
 function pvCopyPrice(p){
   if(navigator.clipboard) navigator.clipboard.writeText('$'+p);
   pvShowToast('Copied $'+p);
@@ -18044,6 +18077,15 @@ function renderPricingRail(){
   if(hasDump) html += '<div class="pv-rail-line"><span class="lbl">+ Dump fee (1 tonne included)</span><span class="val">$'+dump.toFixed(2)+'</span></div>';
   html += '<div class="pv-rail-line"><span class="lbl">+ HST (13%)</span><span class="val">$'+hst.toFixed(2)+'</span></div>';
   html += '<div class="pv-rail-total"><div class="lbl">All-in price</div><div class="val">$'+total.toFixed(2)+'</div></div>';
+  // The deposit, off the same rules the booking form uses — binDepositFor() is the one
+  // place that knows them, so the price sheet and the job can never quote two different
+  // figures at the same customer. The sheet's key carries the term in its name, so unpick
+  // it into the days/monthly the rule actually asks about.
+  var depQ = {total:total, size:_pvBaseSize(sz), monthly:monthly,
+              days: monthly ? 30 : (/ 3 day$/.test(sz) ? 3 : 7)};
+  html += '<div class="pv-rail-line" style="margin-top:6px"><span class="lbl">Deposit</span>'
+       +  '<span class="val">$'+binDepositFor(depQ).toFixed(2)+'</span></div>';
+  html += '<div class="pv-rail-note" style="margin-top:2px">'+binDepositBasis(depQ)+'</div>';
   // Competitor prices for this size — the context for our own pricing decisions
   var compKey = _pvCompKey(sz), chips = '';
   if(compKey){
@@ -18062,7 +18104,8 @@ function renderPricingRail(){
   }
   if(chips) html += '<div class="pv-rail-comps"><span class="lbl">Competitors — '+_pvSizeLabel(sz)+'</span><div class="pv-comp-wrap">'+chips+'</div></div>';
   html += '<div class="pv-rail-actions">'
-       + '<button class="btn btn-primary" onclick="pvCopyPrice('+total.toFixed(2)+')">📋 Copy price</button>'
+       + '<button class="btn btn-primary" onclick="pvBookThis()">🚛 Book this</button>'
+       + '<button class="btn btn-ghost" onclick="pvCopyPrice('+total.toFixed(2)+')">📋 Copy price</button>'
        + '</div>';
   html += '<div class="pv-script"><span class="lbl">Read to customer</span>'+script+'</div>';
   if(hasDump) html += '<div class="pv-rail-note">Overage is prorated: $'+r.tonne+'/tonne for weight over the first tonne.</div>';
