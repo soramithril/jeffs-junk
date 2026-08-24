@@ -1974,7 +1974,9 @@
           </span>
         </label>
 
-        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
+        <!-- Swapped out for the will-call banner below when there is no pickup date to
+             count days to. toggleWillCallForm() owns which of the two is showing. -->
+        <div id="bin-duration-row" style="display:flex;gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
           <div class="form-group" style="flex:0 0 80px;min-width:80px"><label>Duration</label><input id="f-bdur" type="text" placeholder="" style="text-align:center;font-size:13px;padding:8px 6px"></div>
           <div style="display:flex;gap:8px;padding-bottom:1px;flex:1">
             <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(1)">1 Day</button>
@@ -1982,6 +1984,14 @@
             <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(7)">7 Days</button>
             <button type="button" class="bin-quick-dur" style="flex:1" onclick="setBinDuration(30)">1 Month</button>
           </div>
+        </div>
+
+        <!-- Stands in for Duration on a will-call. There is no pickup date, so there is
+             no number of days to pick — offering the box invited a length that means
+             nothing and quietly disagreed with the empty pickup date above. -->
+        <div id="bin-willcall-banner" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px solid #e67e22;border-left:4px solid #e67e22;background:rgba(230,126,34,.10);border-radius:8px">
+          <div style="font-size:14px;font-weight:800;color:#b35309;letter-spacing:.04em">📞 WILL CALL</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45">No pickup date and no rental length — the customer calls when they are ready and we book the pickup then.</div>
         </div>
 
         <div class="job-form-subsection-label" style="margin-top:16px">📍 Placement</div>
@@ -2007,8 +2017,9 @@
         </div>
         <div id="landscape-fields-wrap" style="display:none;margin-bottom:10px">
           <div class="form-group" style="margin-bottom:10px"><label>🌿 Job Name <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— what the job's called, e.g. "Backyard cleanup"</span></label><input id="f-job-name" type="text" placeholder="Backyard cleanup, hedge trim, sod install…"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="form-group" style="margin:0"><label>🧾 PO Number <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— prints on the work order</span></label><input id="f-po-number" type="text" placeholder="Purchase order #"></div>
+          <!-- PO Number moved out to Wrap-Up in v622: bin rentals and junk removals
+               need one too, and it only ever appeared here, for Extra Jobs. -->
+          <div style="display:grid;grid-template-columns:1fr;gap:10px">
             <div class="form-group" style="margin:0"><label>👷 People Needed</label><input id="f-crew-size" type="number" min="0" step="1" placeholder="How many guys?"></div>
           </div>
           <div id="ls-scope-slot" style="margin-top:10px"></div>
@@ -2095,6 +2106,15 @@
       <section class="jf-sec jf-sec-wrap">
       <!-- ── ③ WRAP-UP ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">3</span> Wrap-Up</div>
+
+      <!-- One PO field for every service that can carry one — bin rentals, junk
+           removals and extra jobs. It lives here rather than inside a service block
+           because more than one service needs it, and toggleBin() shows it. -->
+      <div class="form-group" id="po-number-group" style="display:none;margin-bottom:14px">
+        <label>🧾 PO Number <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— prints on the work order</span></label>
+        <input id="f-po-number" type="text" placeholder="Purchase order #">
+        <div id="po-billable-hint" style="display:none;margin-top:6px;padding:8px 11px;border:1px solid #b45309;border-left:4px solid #b45309;background:rgba(180,83,9,.09);border-radius:7px;font-size:12px;color:#8a4308;line-height:1.45"></div>
+      </div>
 
       <div class="form-group" style="margin-bottom:14px">
         <label>Referral Source <span class="req-mark" id="referral-req-mark">required</span></label>
@@ -2927,7 +2947,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=621"></script>
+<script src="app.js?v=622"></script>
 <script src="app-jwg-scheduler.js?v=609"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
