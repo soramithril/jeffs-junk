@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '625';
+var APP_VERSION = '626';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4690,6 +4690,8 @@ async function renderDashBinsOut(){
     var drop=j.binDropoff||j.date;
     j._days=drop?Math.max(0,Math.floor((Date.now()-new Date(drop+'T12:00:00').getTime())/86400000)):0;
     j._overdue=!!(j.binPickup && j.binPickup<todayS);
+    j._overdueDays=j._overdue
+      ? Math.max(0,Math.floor((Date.now()-new Date(j.binPickup+'T12:00:00').getTime())/86400000)) : 0;
     j._attn=j._overdue || j._days>=7;
   });
   var nOut=droppedJobs.length;
@@ -4719,8 +4721,18 @@ async function renderDashBinsOut(){
     var cityChip=(j.city&&cc)?'<span class="djj-city" style="background:'+cc.bg+';color:'+cc.fg+'">'+_esc(j.city)+'</span>':'';
     var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+_esc(j.businessName)+'</span>':'';
     var addr=j.address?_esc(j.address.split(',')[0]):'';
+    // "Overdue by 3 days" and "overdue by 65 days" used to read identically here, which
+    // is how Kevin Wu's job 39218 sat two months in this list without anyone picking it
+    // out (2026-08-24). Past a fortnight it stops being a late pickup and starts being a
+    // status nobody updated, so it says so — and it says whether a bin is even attached,
+    // because that was the giveaway: of 51 bins out, his was the only one without one.
     var subLine = attn
-      ? lineIcon('damage',12,'currentColor')+' '+(j._overdue?('overdue — pickup was '+fd(j.binPickup)):('out '+j._days+' days'))
+      ? lineIcon('damage',12,'currentColor')+' '+(j._overdue
+          ? (j._overdueDays>=14
+              ? 'overdue '+j._overdueDays+' days — was this actually picked up?'
+                + (j.binBid?'':' · no bin assigned')
+              : 'overdue — pickup was '+fd(j.binPickup))
+          : ('out '+j._days+' days'))
       : [addr,(j.binPickup?'pickup '+fd(j.binPickup):'')].filter(Boolean).join(' · ');
     var daysPill='<span class="djj-days'+(j._days>=14?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+lineIcon('call',13)+_esc(j.phone)+'</a>':'';
@@ -17213,6 +17225,8 @@ async function printLandscaping(jobId){
   var when  = j.junkDate || j.date;
   var dur   = j.estDurationMin ? fmtDur(j.estDurationMin) : '';
   var items = _notesToItems(j.items || '');
+  var _lsCl = clients.find(function(c){ return c.cid === j.clientId; });
+  var _lsBillable = !!(_lsCl && _lsCl.billable);
   function line(w){ return '<span class="fill" style="min-width:'+w+'">&nbsp;</span>'; }
   var dateCell = when ? (fd(when)+(j.junkTime?' '+ft(j.junkTime):'')) : line('130px');
   var jobNameCell = j.jobName ? escHtml(j.jobName) : line('260px');
@@ -17238,6 +17252,7 @@ async function printLandscaping(jobId){
       + '<div><div class="wt">CREW WORK ORDER</div><div class="wm">Job #'+j.id+'<br>PO #: '+(j.poNumber?'<b>'+escHtml(j.poNumber)+'</b>':line('90px'))+'<br>Date: '+dateCell+'<br>Copy: <b>'+copy+'</b></div></div></div>'
     + '<div class="jobbar"><div><div class="lbl">JOB NAME</div><div class="jobname">'+jobNameCell+'</div></div>'
       + '<div class="crewbox"><div class="lbl">CREW NEEDED</div><div class="n">'+crewCell+'</div></div></div>'
+    + (_lsBillable ? '<div class="billable">🧾 Billable account — no pre-authorization, invoiced after the job</div>' : '')
     + '<div class="cols">'
       + '<div class="col"><div class="sec">Customer &amp; Site</div><div class="kv">'
         + '<div><span class="k">Name:</span> <b>'+escHtml(name)+'</b></div>'
@@ -17274,6 +17289,11 @@ async function printLandscaping(jobId){
     + '.wt{font-size:15px;font-weight:bold;letter-spacing:1px;text-align:right}'
     + '.wm{font-size:11px;color:#555;text-align:right;margin-top:5px;line-height:1.6}'
     + '.jobbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #111}'
+    // Sits directly under the job name, high on the sheet. Black on white with a heavy
+    // left rule rather than a colour fill — these print on whatever is in the office
+    // printer, and a tint that reads as a warning on screen goes to flat grey on paper.
+    + '.billable{margin:0;padding:8px 18px;border-bottom:1px solid #111;border-left:6px solid #111;'
+      + 'font-size:11px;font-weight:bold;letter-spacing:.6px;text-transform:uppercase}'
     + '.lbl{font-size:10px;letter-spacing:1.5px;color:#555}'
     + '.jobname{font-size:19px;font-weight:bold;line-height:1.15}'
     + '.crewbox{border:1.5px solid #111;border-radius:4px;padding:5px 16px;text-align:center}'
