@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '616';
+var APP_VERSION = '617';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11251,6 +11251,24 @@ async function saveJob(e){
     // New bookings must INSERT: a duplicate job number fails here instead of silently
     // replacing the job that owns it. Auto-recovery before bothering anyone: a taken
     // number gets a fresh one minted and retried; a connection blip gets two quiet retries.
+    // A tab can outlive its login. Jake lost a pickup-date change this way on
+    // 2026-08-24: the tab had been signed in since the previous day, its session was
+    // gone server-side, so the write could never have landed — and the sign-out
+    // reload wiped the warning before he read it, which made it look like it saved.
+    //
+    // The five-minute grace deliberately lets somebody mid-booking finish, so this
+    // does NOT refuse to save once the clock is up. It proves the login still works
+    // first. A good refresh and the save goes ahead as normal; a failed one is refused
+    // while the form is still on screen to copy from, and leaves a message that
+    // survives the reload.
+    if(sessionOverdue()){
+      var stillAlive = await refreshSessionNow();
+      if(!stillAlive){
+        _saveDiedMessage('⚠ Nothing was saved — this tab had been signed in too long and its login was already gone. Sign in and make that change again.');
+        alert('❌ This tab has been signed in too long and its login is gone.\n\nNothing was saved. Copy anything you still need out of the form, then sign in again.');
+        return;
+      }
+    }
     var dbRes = null;
     var authRetried = false;
     for(var attempt = 1; attempt <= 3; attempt++){
@@ -11275,6 +11293,12 @@ async function saveJob(e){
       }
     }
     if(dbRes.error){
+      // The alert below is the only thing that says this failed, and an overdue
+      // sign-out reloads the page — which can wipe it before it is read. Leave the
+      // news somewhere the reload cannot touch, naming the job, so the sign-in screen
+      // says what did not save even if nobody saw the alert.
+      _saveDiedMessage('⚠ Job ' + job.id + ' did NOT save — ' + (isAuthExpiredError(dbRes.error)
+        ? 'your login had expired.' : dbRes.error.message) + ' Make that change again.');
       // A dead login is not a connection problem: "JWT expired ... hit Save again" sent
       // people round the same button forever, in words nobody in the office uses.
       alert(isAuthExpiredError(dbRes.error)
@@ -13230,6 +13254,15 @@ function signOutWithReason(reason) {
   db.auth.signOut();
 }
 
+// Same channel, for a save that died rather than a session that ended. A failed save
+// only ever announced itself in an alert box, and an overdue sign-out reloads the page
+// out from under it — which is how a real change went missing with nothing on screen
+// to say so (2026-08-24). Written here instead, it is waiting on the sign-in screen.
+// Does not sign anybody out; it only leaves the note.
+function _saveDiedMessage(reason) {
+  try { sessionStorage.setItem('jjSignOutReason', reason); } catch(e) {}
+}
+
 // Check if already logged in on page load
 db.auth.getSession().then(function(r) {
   if (r.data && r.data.session) {
@@ -13792,6 +13825,12 @@ function endSessionIfDue() {
   var why = sessionOverdue();
   if (!why) { _dueSince = 0; return false; }
   if (!_dueSince) _dueSince = Date.now();
+  // A save in flight waits with NO cap. Signing out reloads the page, and saveJob runs
+  // for seconds — two 1.2s backoffs and a token refresh in the worst case — so a reload
+  // landing inside one loses real work. The grace below is capped precisely because a
+  // parked cursor could hold a session open all evening; a save cannot, it is over in
+  // seconds. This is above the cap so a save that starts on minute six is safe too.
+  if (_saveJobLock) return false;
   // A busy screen buys time to finish, not a reprieve: once the grace is up the
   // sign-out goes ahead, or a cursor parked in a box would hold the session open all
   // evening — which is the whole thing this exists to stop.
