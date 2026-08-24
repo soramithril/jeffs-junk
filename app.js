@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '617';
+var APP_VERSION = '618';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -18672,14 +18672,61 @@ function _binPriceKey(bins, size, days, material){
   return bins[size]!=null ? size : null;
 }
 function _bpsMoney(n){ return '$'+Number(n).toFixed(2); }
-// A $450 deposit is taken at booking on the two big bins, against the load going over
-// (Jake, 2026-08-24). It is a separate block from the quote card below rather than a
-// row inside it, because it keys off the bin size ALONE: the card has half a dozen
-// early returns — no town, no sheet price for that town, no price filled in for that
-// size — and the deposit still has to show on every one of them.
-// Nothing here is saved with the job; it is a note for whoever is on the phone.
-var BIN_DEPOSIT = 450;
+
+// The ONE place the price sheet is read for a bin job: town → area → price key → money.
+// The quote card and the deposit both run off this. That matters as of v618: the deposit
+// is now worked out FROM the price, so two separate lookups could drift apart and put two
+// numbers on screen that disagree about the same job, on a phone call, out loud.
+// Returns {err:...} for each way the sheet can come up empty so callers can word it.
+function binSheetQuote(){
+  var city=(document.getElementById('f-city').value||'').trim()
+        || extractCity(document.getElementById('f-addr').value||'','');
+  var size=document.getElementById('f-bsize').value;
+  if(!city || !size) return {err:'need-town-size', city:city, size:size};
+  var area=_priceAreaForCity(city);
+  if(!area) return {err:'no-area', city:city, size:size};
+  var ap=ourPricesV2[area]||{}, bins=ap.bins||{};
+  var days=parseInt(document.getElementById('f-bdur').value,10)||0;
+  var material=(document.getElementById('f-material-type')||{}).value||'';
+  var key=_binPriceKey(bins, size, days, material);
+  if(!key) return {err:'no-key', area:area, size:size};
+  var rental=parseFloat(bins[key]);
+  if(!(rental>0)) return {err:'no-rate', area:area, key:key};
+  var perTonne=parseFloat(ap.binTonne||bins._tonne||0);
+  var subtotal=rental+perTonne;
+  return {area:area, key:key, size:size, days:days, rental:rental, perTonne:perTonne,
+          subtotal:subtotal, total:subtotal*(1+HST_RATE),
+          monthly:/^monthly /i.test(key)};
+}
+
+// ── What the deposit comes to (Jake, 2026-08-24) ──
+// Taken on 14 and 20 yard bins only, against the load going over.
+//   · a month out  — the deposit IS the price, to the cent
+//   · anything else — the next $50 ABOVE the all-in price, never below the floor
+// "All in" is the price the customer actually pays: rental + one tonne + HST, the same
+// number the quote card reads out. Jake's own examples: $450 all in takes $500, $420
+// all in takes $450. Strictly above is what makes $450 go to $500 rather than stay.
 var BIN_DEPOSIT_SIZES = ['14 yard', '20 yard'];
+var BIN_DEPOSIT_FLOOR = 450;        // the usual 7-day rental
+var BIN_DEPOSIT_FLOOR_3DAY = 400;   // a 3-day rental
+var BIN_DEPOSIT_STEP = 50;
+
+function binDepositFor(q){
+  if(q.monthly) return q.total;
+  var floor=(q.days && q.days<=3) ? BIN_DEPOSIT_FLOOR_3DAY : BIN_DEPOSIT_FLOOR;
+  var step=(Math.floor(q.total/BIN_DEPOSIT_STEP)+1)*BIN_DEPOSIT_STEP;
+  return Math.max(floor, step);
+}
+// Its own block, below the quote card rather than a row inside it: the card bails out
+// in four different ways — no town, no sheet price for the town, no rate for the size —
+// and a 14 or 20 still takes a deposit and still can't take tires on every one of them.
+// Nothing here is saved with the job; it is a script for whoever is on the phone.
+//
+// What can't go in a 14 or 20. Word for word off the confirmation email, so the phone
+// call and the email the customer then reads say the same thing. Dirt and concrete are
+// on this list because they need a 4 or 7 yard bin — the email says so too.
+var BIN_NO_LIST = ['Hazardous Waste','Medical Waste','Tires','Propane Tanks',
+                   'Paints, Liquid or Solvents','Dirt','Concrete'];
 
 function renderBinDepositNote(){
   var el=document.getElementById('bin-deposit-note'); if(!el) return;
@@ -18687,9 +18734,33 @@ function renderBinDepositNote(){
   if(document.getElementById('f-svc').value!=='Bin Rental'
      || BIN_DEPOSIT_SIZES.indexOf(size)===-1){ el.style.display='none'; return; }
   el.style.display='block';
+
+  var q=binSheetQuote(), head, sub;
+  if(q.err){
+    // The size alone already says a deposit is due and what the least it can be is.
+    // The exact figure needs the town, so say which bit is missing instead of nothing.
+    head='At least '+_bpsMoney(BIN_DEPOSIT_FLOOR)+' deposit';
+    sub='Fill in the town and rental length above for the exact figure — it goes up with the price.';
+  } else {
+    head=_bpsMoney(binDepositFor(q))+' deposit';
+    sub=q.monthly
+      ? 'A month out, so the deposit is the price itself — '+escHtml(q.area)+' · '+escHtml(q.key)+'.'
+      : escHtml(q.area)+' · '+escHtml(q.key)
+        +(q.days?' · '+q.days+' day'+(q.days===1?'':'s'):'')
+        +' — price '+_bpsMoney(q.total)+', so the deposit is the next $50 above it.';
+  }
+
   el.innerHTML='<div class="bps-over">'
-    +'<div class="bps-over-h">💳 '+_bpsMoney(BIN_DEPOSIT)+' deposit</div>'
-    +'<div class="bps-over-b">Taken at booking on a <b>'+escHtml(size)+'</b>, in case the load goes over.</div>'
+      +'<div class="bps-over-h">💳 '+head+'</div>'
+      +'<div class="bps-over-b">Taken at booking on a <b>'+escHtml(size)+'</b>, in case the load goes over.</div>'
+      +'<div class="bps-over-b" style="margin-top:4px;opacity:.8">'+sub+'</div>'
+    +'</div>'
+    +'<div class="bps-no">'
+      +'<div class="bps-no-h">🚫 Read this out — what can\'t go in the bin</div>'
+      +'<ul class="bps-no-list">'
+      +BIN_NO_LIST.map(function(item){ return '<li><b>NO</b> '+escHtml(item)+'</li>'; }).join('')
+      +'</ul>'
+      +'<div class="bps-no-foot">Dirt and concrete do go, but only in a <b>4 or 7 yard</b> bin — those are priced separately on the sheet.</div>'
     +'</div>';
 }
 
@@ -18703,26 +18774,18 @@ function renderBinPriceScript(){
   var hint=function(msg){ el.innerHTML='<div class="bps"><div class="bps-h">📞 What to quote</div>'
     +'<div class="bps-note">'+msg+'</div></div>'; };
 
-  var city=(document.getElementById('f-city').value||'').trim()
-        || extractCity(document.getElementById('f-addr').value||'','');
-  var size=document.getElementById('f-bsize').value;
-  if(!city || !size) return hint('Fill in the town and bin size above and the price shows up here.');
+  // Same lookup the deposit uses — see binSheetQuote(). The wording of each miss stays
+  // here, because only this card has room to explain what to do about it.
+  var q=binSheetQuote();
+  if(q.err==='need-town-size') return hint('Fill in the town and bin size above and the price shows up here.');
+  if(q.err==='no-area')        return hint('No sheet price for <b>'+escHtml(q.city)+'</b>. Check Our Prices, or quote it manually.');
+  if(q.err==='no-key')         return hint('No sheet price for a <b>'+escHtml(q.size)+'</b> in <b>'+escHtml(q.area)+'</b> yet.');
+  if(q.err==='no-rate')        return hint('The sheet has no price filled in for <b>'+escHtml(q.key)+'</b> in <b>'+escHtml(q.area)+'</b>.');
+  var area=q.area, key=q.key, days=q.days, rental=q.rental;
 
-  var area=_priceAreaForCity(city);
-  if(!area) return hint('No sheet price for <b>'+escHtml(city)+'</b>. Check Our Prices, or quote it manually.');
-
-  var ap=ourPricesV2[area]||{}, bins=ap.bins||{};
-  var days=parseInt(document.getElementById('f-bdur').value,10)||0;
-  var material=(document.getElementById('f-material-type')||{}).value||'';
-  var key=_binPriceKey(bins, size, days, material);
-  if(!key) return hint('No sheet price for a <b>'+escHtml(size)+'</b> in <b>'+escHtml(area)+'</b> yet.');
-
-  var rental=parseFloat(bins[key]);
-  if(!(rental>0)) return hint('The sheet has no price filled in for <b>'+escHtml(key)+'</b> in <b>'+escHtml(area)+'</b>.');
-
-  var perTonne=parseFloat(ap.binTonne||bins._tonne||0);
+  var perTonne=q.perTonne;
   var perLb=perTonne>0 ? perTonne/LB_PER_TONNE : 0;
-  var subtotal=rental+perTonne, total=subtotal*(1+HST_RATE);
+  var subtotal=q.subtotal, total=q.total;
   // What another 0.1 tonne actually costs, with the tax on it, because that is the
   // question the customer is really asking when they ask about weight.
   var overT=perTonne*0.1, overTotal=(rental+perTonne*1.1)*(1+HST_RATE);
