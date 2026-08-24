@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '623';
+var APP_VERSION = '624';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6078,7 +6078,7 @@ function setJobFormBillableNote(cl){
   var on=!!(cl&&cl.billable);
   el.style.display=on?'block':'none';
   el.innerHTML=on
-    ? '<b>🧾 Billable account — do NOT take payment on site.</b> '
+    ? '<b>🧾 Billable account — no pre-authorization.</b> '
       +escHtml(cl.name||'This customer')+' is invoiced after the job. Get their PO number if they use one.'
     : '';
 }
@@ -16739,7 +16739,7 @@ async function printBinRental(jobId) {
     }
     var _cl = clients.find(function(c){ return c.cid === j.clientId; });
     if (_cl && _cl.billable) {
-      drawText('BILLABLE ACCOUNT — DO NOT TAKE PAYMENT ON SITE', 55, 240, { bold: true, size: 11 });
+      drawText('BILLABLE ACCOUNT — NO PRE-AUTHORIZATION, INVOICED AFTER THE JOB', 55, 240, { bold: true, size: 11 });
     }
 
     // ── RIGHT COLUMN: Bin Info ──
