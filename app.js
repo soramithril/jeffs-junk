@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '619';
+var APP_VERSION = '620';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13263,18 +13263,30 @@ function signOutWithReason(reason) {
   db.auth.signOut();
 }
 
-// Once you have been signed out, the next load must ASK — the way every other site
-// behaves, even with the password saved (Jake, 2026-08-24). Without this the page can
-// walk straight back in: signing out reloads, and if a session is still in storage when
-// the reload lands, getSession() finds it and nobody ever sees the sign-in screen. With
-// two tabs open that is easy to hit, because the other tab can refresh a session back
-// into storage between one tab's sign-out and its reload.
+// ── Signed out means signed out, until somebody presses the button ──
+// Every other site behaves this way, even with the password saved (Jake, 2026-08-24).
 //
-// sessionStorage, not localStorage, and that is the whole trick: it is per TAB, so every
-// tab that gets signed out asks for its own click, while a plain refresh of a tab that is
-// simply working carries on untouched. Only a sign-out sets it.
+// Two separate things used to sign people back in on their own:
+//   · the page load, if a session was still sitting in storage when it landed;
+//   · and the bigger one — Supabase re-checks its stored session whenever the tab
+//     gets focus and fires SIGNED_IN when it restores one. That is why clicking
+//     anywhere on the sign-in screen, or just clicking the tab, walked straight into
+//     the app without anyone pressing Sign In.
+//
+// So the flag is not "ignore the next load", it is "this tab is signed out". It stays
+// set for the whole logged-out visit and ONLY a real sign-in clears it.
+//
+// sessionStorage, not localStorage, and that is the trick: it is per TAB, so a tab that
+// got signed out asks for its own click while a working tab's ordinary refresh is
+// untouched — a refresh after signing in must not throw you out again.
 function requireSignInNextLoad() {
   try { sessionStorage.setItem('jjRequireSignIn', '1'); } catch(e) {}
+}
+function mustAskToSignIn() {
+  try { return sessionStorage.getItem('jjRequireSignIn') === '1'; } catch(e) { return false; }
+}
+function clearRequireSignIn() {
+  try { sessionStorage.removeItem('jjRequireSignIn'); } catch(e) {}
 }
 
 // Same channel, for a save that died rather than a session that ended. A failed save
@@ -13288,17 +13300,12 @@ function _saveDiedMessage(reason) {
 
 // Check if already logged in on page load
 db.auth.getSession().then(function(r) {
-  // Set by any sign-out in this tab. A session still sitting in storage on the load
-  // that follows must NOT be walked into — that is the auto-sign-in Jake asked us to
-  // stop. Throw it away and show the screen. Read-and-clear, so it only holds for the
-  // one load after the sign-out and an ordinary refresh later is unaffected.
-  var mustAsk = false;
-  try {
-    mustAsk = sessionStorage.getItem('jjRequireSignIn') === '1';
-    if (mustAsk) sessionStorage.removeItem('jjRequireSignIn');
-  } catch(e) {}
-  if (mustAsk && r.data && r.data.session) {
-    db.auth.signOut();          // whatever survived, it does not get to sign anyone in
+  // A session still sitting in storage when this load lands does NOT get to sign anyone
+  // in — see requireSignInNextLoad(). Deliberately not cleared here: the flag has to
+  // survive the whole logged-out visit, because the focus-driven SIGNED_IN below is the
+  // one that actually caught people out. Only doLogin() clears it.
+  if (mustAskToSignIn() && r.data && r.data.session) {
+    db.auth.signOut();
     r = { data: { session: null } };
   }
   if (r.data && r.data.session) {
@@ -13334,6 +13341,14 @@ db.auth.onAuthStateChange(function(event, session) {
     return;
   }
   if (event === 'SIGNED_IN' && !appLoaded && session) {
+    // THIS is the one that signed people in on a stray click. Supabase re-reads its
+    // stored session when the tab gets focus and fires SIGNED_IN when it restores one,
+    // so clicking anywhere on the sign-in screen — or just clicking the tab — landed
+    // here and loaded the app. A tab that has been signed out waits for the button.
+    // No signOut() call here on purpose: that would fire SIGNED_OUT, which reloads, and
+    // a restore-on-focus could then bounce the sign-in screen over and over. The load
+    // path above clears the stale session; this only has to refuse to use it.
+    if (mustAskToSignIn()) return;
     currentUser = session.user;
     onLoginSuccess();
     return;
@@ -13444,6 +13459,10 @@ async function doLogin() {
   }
 
   currentUser = r.data.user;
+  // Somebody pressed the button, which is the only thing that lifts the signed-out
+  // hold on this tab. Cleared here rather than on page load so that a refresh AFTER
+  // signing in keeps you signed in, while a refresh on the sign-in screen does not.
+  clearRequireSignIn();
   // Move the login artwork on by one, so next time this browser sees the sign-in
   // screen it gets a different sheet. Here and nowhere else: a page refresh or a
   // failed password must not shuffle it. Guarded because a browser still holding
@@ -18735,10 +18754,16 @@ function binSheetQuote(){
   if(!key) return {err:'no-key', area:area, size:size};
   var rental=parseFloat(bins[key]);
   if(!(rental>0)) return {err:'no-rate', area:area, key:key};
-  var perTonne=parseFloat(ap.binTonne||bins._tonne||0);
+  // 4s and 7s are a FLAT RATE — no dump fee (Jake, 2026-08-24). The per-tonne charge on
+  // the sheet is one number per town and was being added to every size, so a 4 yard dirt
+  // bin in Alliston quoted $519.80 when the real price is $367.25. Every 4 and 7 yard
+  // quote was going out about $153 high.
+  var perTonne=BIN_FLAT_RATE_SIZES.indexOf(size)!==-1
+    ? 0 : parseFloat(ap.binTonne||bins._tonne||0);
   var subtotal=rental+perTonne;
   return {area:area, key:key, size:size, days:days, rental:rental, perTonne:perTonne,
           subtotal:subtotal, total:subtotal*(1+HST_RATE),
+          flatRate:BIN_FLAT_RATE_SIZES.indexOf(size)!==-1,
           monthly:/^monthly /i.test(key)};
 }
 
@@ -18755,6 +18780,7 @@ function binSheetQuote(){
 // "All in" is what the customer actually pays: rental + one tonne + HST, the same
 // number the quote card reads out. Jake's examples: $450 all in takes $500, $420 all
 // in takes $450 — strictly above is what sends $450 to $500 rather than leaving it.
+var BIN_FLAT_RATE_SIZES = ['4 yard', '7 yard'];       // flat rate, no dump fee, no overage
 var BIN_DEPOSIT_STEP_SIZES = ['14 yard', '20 yard'];  // the only ones the $50 ladder applies to
 var BIN_DEPOSIT_FLOOR = 450;
 var BIN_DEPOSIT_3DAY = 400;
@@ -18860,7 +18886,9 @@ function renderBinPriceScript(){
     +'<div class="bps-row"><span>Bin rental</span><b>'+_bpsMoney(rental)+'</b></div>'
     +(perTonne>0
       ? '<div class="bps-row"><span>Dump fee &mdash; 1 tonne</span><b>'+_bpsMoney(perTonne)+'</b></div>'
-      : '<div class="bps-note">No per-tonne rate on the sheet for '+escHtml(area)+'.</div>')
+      : q.flatRate
+        ? '<div class="bps-row"><span>Dump fee</span><b>none &mdash; flat rate</b></div>'
+        : '<div class="bps-note">No per-tonne rate on the sheet for '+escHtml(area)+'.</div>')
     +'<div class="bps-row"><span>HST 13%</span><b>'+_bpsMoney(total-subtotal)+'</b></div>'
     +'<div class="bps-row bps-total"><span>Price</span><b>'+_bpsMoney(total)+'</b></div>'
     +(perTonne>0
