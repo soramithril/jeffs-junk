@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '618';
+var APP_VERSION = '619';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -942,6 +942,15 @@ function jobSchedDate(j) {
   if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbDate || j.date;
   if (j.service === 'Junk Removal' || j.service === 'Junk Quote' || j.service === 'Extra Jobs') return j.junkDate || j.date;
   return j.date;
+}
+
+// The time that goes with jobSchedDate — same split by service, because each one keeps
+// its time in its own column. A bin job carries two; the drop-off is the one a customer
+// is told when they book, so that is the one this returns.
+function jobSchedTime(j) {
+  if (j.service === 'Furniture Delivery' || j.service === 'Furniture Pickup') return j.fbTime || j.time || '';
+  if (j.service === 'Junk Removal' || j.service === 'Junk Quote' || j.service === 'Extra Jobs') return j.junkTime || j.time || '';
+  return j.binDropoffTime || j.time || '';
 }
 
 // A Landscaping "possible job" — no scheduled date yet (done whenever the crew is free).
@@ -13254,6 +13263,20 @@ function signOutWithReason(reason) {
   db.auth.signOut();
 }
 
+// Once you have been signed out, the next load must ASK — the way every other site
+// behaves, even with the password saved (Jake, 2026-08-24). Without this the page can
+// walk straight back in: signing out reloads, and if a session is still in storage when
+// the reload lands, getSession() finds it and nobody ever sees the sign-in screen. With
+// two tabs open that is easy to hit, because the other tab can refresh a session back
+// into storage between one tab's sign-out and its reload.
+//
+// sessionStorage, not localStorage, and that is the whole trick: it is per TAB, so every
+// tab that gets signed out asks for its own click, while a plain refresh of a tab that is
+// simply working carries on untouched. Only a sign-out sets it.
+function requireSignInNextLoad() {
+  try { sessionStorage.setItem('jjRequireSignIn', '1'); } catch(e) {}
+}
+
 // Same channel, for a save that died rather than a session that ended. A failed save
 // only ever announced itself in an alert box, and an overdue sign-out reloads the page
 // out from under it — which is how a real change went missing with nothing on screen
@@ -13265,6 +13288,19 @@ function _saveDiedMessage(reason) {
 
 // Check if already logged in on page load
 db.auth.getSession().then(function(r) {
+  // Set by any sign-out in this tab. A session still sitting in storage on the load
+  // that follows must NOT be walked into — that is the auto-sign-in Jake asked us to
+  // stop. Throw it away and show the screen. Read-and-clear, so it only holds for the
+  // one load after the sign-out and an ordinary refresh later is unaffected.
+  var mustAsk = false;
+  try {
+    mustAsk = sessionStorage.getItem('jjRequireSignIn') === '1';
+    if (mustAsk) sessionStorage.removeItem('jjRequireSignIn');
+  } catch(e) {}
+  if (mustAsk && r.data && r.data.session) {
+    db.auth.signOut();          // whatever survived, it does not get to sign anyone in
+    r = { data: { session: null } };
+  }
   if (r.data && r.data.session) {
     currentUser = r.data.session.user;
     onLoginSuccess();
@@ -13312,6 +13348,9 @@ db.auth.onAuthStateChange(function(event, session) {
     // machine always starts their own three hours.
     try { localStorage.removeItem('jjSessionStart'); } catch(e){}
     if (_redirecting) return;   // Darrin's kiosk signs out on its way to inventory.html
+    // Every sign-out lands here — the clock, the Sign Out button, an expired token —
+    // so this is the one place that has to arm it. See requireSignInNextLoad().
+    requireSignInNextLoad();
     // Reload instead of handing the login screen back inside this page. A window that
     // has sat open holds a stale connection, and signing in again on it is what leaves
     // the button hung on "Signing in..." — a fresh page starts a fresh one.
@@ -13946,6 +13985,9 @@ function fillEmailTemplate(template, j) {
     .replace(/{name}/g, realName(j))
     .replace(/{binSize}/g, j.binSize || 'bin')
     .replace(/{date}/g, fd(schedDate) || '')
+    // ft() turns 'anytime' into "Anytime", which is a real promise on a Junk Removal
+    // rather than a blank. A job with no time set says TBD instead of an empty gap.
+    .replace(/{time}/g, ft(jobSchedTime(j)) || 'TBD')
     .replace(/{dropoffDate}/g, fd(dropoffDate) || '')
     // fd('') returns '—' (truthy), so `fd(x) || 'TBD'` never fell back — 80
     // sent emails said "Scheduled pick-up: —". Test the raw value instead.
@@ -14300,6 +14342,7 @@ var ETPL_FIELDS = [
   {t:'{binSize}',     label:'Bin size'},
   {t:'{side}',        label:'Driveway side'},
   {t:'{date}',        label:'Job date'},
+  {t:'{time}',        label:'Job time'},
   {t:'{dropoffDate}', label:'Drop-off date'},
   {t:'{pickupDate}',  label:'Pick-up date'},
   {t:'{duration}',    label:'Rental length'},
@@ -18700,22 +18743,38 @@ function binSheetQuote(){
 }
 
 // ── What the deposit comes to (Jake, 2026-08-24) ──
-// Taken on 14 and 20 yard bins only, against the load going over.
-//   · a month out  — the deposit IS the price, to the cent
-//   · anything else — the next $50 ABOVE the all-in price, never below the floor
-// "All in" is the price the customer actually pays: rental + one tonne + HST, the same
-// number the quote card reads out. Jake's own examples: $450 all in takes $500, $420
-// all in takes $450. Strictly above is what makes $450 go to $500 rather than stay.
-var BIN_DEPOSIT_SIZES = ['14 yard', '20 yard'];
-var BIN_DEPOSIT_FLOOR = 450;        // the usual 7-day rental
-var BIN_DEPOSIT_FLOOR_3DAY = 400;   // a 3-day rental
+// Every bin takes one. Which rule applies depends on how it is rented:
+//   · a 3 day    — flat $400. Three-day rentals are one fixed price everywhere, so
+//                  the deposit is fixed too and the price is not consulted.
+//   · a month    — the deposit IS the price, to the cent.
+//   · a 4 or 7   — the deposit IS the price. Those carry no dump fee, so there is no
+//                  overage to protect against; the deposit just covers the bin.
+//   · everything else (the 7 day 14s and 20s) — the next $50 ABOVE the all-in price,
+//                  and never under $450.
+//
+// "All in" is what the customer actually pays: rental + one tonne + HST, the same
+// number the quote card reads out. Jake's examples: $450 all in takes $500, $420 all
+// in takes $450 — strictly above is what sends $450 to $500 rather than leaving it.
+var BIN_DEPOSIT_STEP_SIZES = ['14 yard', '20 yard'];  // the only ones the $50 ladder applies to
+var BIN_DEPOSIT_FLOOR = 450;
+var BIN_DEPOSIT_3DAY = 400;
 var BIN_DEPOSIT_STEP = 50;
 
 function binDepositFor(q){
+  if(q.days && q.days<=3) return BIN_DEPOSIT_3DAY;
   if(q.monthly) return q.total;
-  var floor=(q.days && q.days<=3) ? BIN_DEPOSIT_FLOOR_3DAY : BIN_DEPOSIT_FLOOR;
+  if(BIN_DEPOSIT_STEP_SIZES.indexOf(q.size)===-1) return q.total;   // a 4 or a 7
   var step=(Math.floor(q.total/BIN_DEPOSIT_STEP)+1)*BIN_DEPOSIT_STEP;
-  return Math.max(floor, step);
+  return Math.max(BIN_DEPOSIT_FLOOR, step);
+}
+
+// How to say it, so the block can explain itself rather than just showing a figure.
+function binDepositBasis(q){
+  if(q.days && q.days<=3) return 'A 3 day rental is a flat ' + _bpsMoney(BIN_DEPOSIT_3DAY) + ' deposit.';
+  if(q.monthly) return 'A month out, so the deposit is the price itself.';
+  if(BIN_DEPOSIT_STEP_SIZES.indexOf(q.size)===-1)
+    return 'No dump fee on a ' + escHtml(q.size) + ', so the deposit is just the price.';
+  return 'Price ' + _bpsMoney(q.total) + ', so the deposit is the next $50 above it.';
 }
 // Its own block, below the quote card rather than a row inside it: the card bails out
 // in four different ways — no town, no sheet price for the town, no rate for the size —
@@ -18731,37 +18790,41 @@ var BIN_NO_LIST = ['Hazardous Waste','Medical Waste','Tires','Propane Tanks',
 function renderBinDepositNote(){
   var el=document.getElementById('bin-deposit-note'); if(!el) return;
   var size=document.getElementById('f-bsize').value;
-  if(document.getElementById('f-svc').value!=='Bin Rental'
-     || BIN_DEPOSIT_SIZES.indexOf(size)===-1){ el.style.display='none'; return; }
+  if(document.getElementById('f-svc').value!=='Bin Rental' || !size){ el.style.display='none'; return; }
   el.style.display='block';
+
+  // The refusal list is for the big bins only — dirt and concrete are exactly what a
+  // 4 and a 7 are FOR, so reading "no dirt" out on one would be wrong.
+  var isBig=BIN_DEPOSIT_STEP_SIZES.indexOf(size)!==-1;
 
   var q=binSheetQuote(), head, sub;
   if(q.err){
-    // The size alone already says a deposit is due and what the least it can be is.
-    // The exact figure needs the town, so say which bit is missing instead of nothing.
-    head='At least '+_bpsMoney(BIN_DEPOSIT_FLOOR)+' deposit';
-    sub='Fill in the town and rental length above for the exact figure — it goes up with the price.';
+    // A 14 or a 20 has a floor, so the least it can be is known from the size alone.
+    // A 4 or a 7 is the price exactly, so without the town there is no figure at all.
+    head=isBig ? 'At least '+_bpsMoney(BIN_DEPOSIT_FLOOR)+' deposit' : 'Deposit — needs the town';
+    sub='Fill in the town and rental length above for the figure.';
   } else {
     head=_bpsMoney(binDepositFor(q))+' deposit';
-    sub=q.monthly
-      ? 'A month out, so the deposit is the price itself — '+escHtml(q.area)+' · '+escHtml(q.key)+'.'
-      : escHtml(q.area)+' · '+escHtml(q.key)
+    sub=escHtml(q.area)+' · '+escHtml(q.key)
         +(q.days?' · '+q.days+' day'+(q.days===1?'':'s'):'')
-        +' — price '+_bpsMoney(q.total)+', so the deposit is the next $50 above it.';
+        +' — '+binDepositBasis(q);
   }
 
   el.innerHTML='<div class="bps-over">'
       +'<div class="bps-over-h">💳 '+head+'</div>'
-      +'<div class="bps-over-b">Taken at booking on a <b>'+escHtml(size)+'</b>, in case the load goes over.</div>'
+      +'<div class="bps-over-b">Taken at booking on a <b>'+escHtml(size)+'</b>'
+        +(isBig?', in case the load goes over.':'.')+'</div>'
       +'<div class="bps-over-b" style="margin-top:4px;opacity:.8">'+sub+'</div>'
     +'</div>'
-    +'<div class="bps-no">'
-      +'<div class="bps-no-h">🚫 Read this out — what can\'t go in the bin</div>'
-      +'<ul class="bps-no-list">'
-      +BIN_NO_LIST.map(function(item){ return '<li><b>NO</b> '+escHtml(item)+'</li>'; }).join('')
-      +'</ul>'
-      +'<div class="bps-no-foot">Dirt and concrete do go, but only in a <b>4 or 7 yard</b> bin — those are priced separately on the sheet.</div>'
-    +'</div>';
+    +(isBig
+      ? '<div class="bps-no">'
+        +'<div class="bps-no-h">🚫 Read this out — what can\'t go in the bin</div>'
+        +'<ul class="bps-no-list">'
+        +BIN_NO_LIST.map(function(item){ return '<li><b>NO</b> '+escHtml(item)+'</li>'; }).join('')
+        +'</ul>'
+        +'<div class="bps-no-foot">Dirt and concrete do go, but only in a <b>4 or 7 yard</b> bin — those are priced separately on the sheet.</div>'
+      +'</div>'
+      : '');
 }
 
 function renderBinPriceScript(){
