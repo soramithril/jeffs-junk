@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '614';
+var APP_VERSION = '615';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -18633,7 +18633,31 @@ function _binPriceKey(bins, size, days, material){
   return bins[size]!=null ? size : null;
 }
 function _bpsMoney(n){ return '$'+Number(n).toFixed(2); }
+// A $450 deposit is taken at booking on the two big bins, against the load going over
+// (Jake, 2026-08-24). It is a separate block from the quote card below rather than a
+// row inside it, because it keys off the bin size ALONE: the card has half a dozen
+// early returns — no town, no sheet price for that town, no price filled in for that
+// size — and the deposit still has to show on every one of them.
+// Nothing here is saved with the job; it is a note for whoever is on the phone.
+var BIN_DEPOSIT = 450;
+var BIN_DEPOSIT_SIZES = ['14 yard', '20 yard'];
+
+function renderBinDepositNote(){
+  var el=document.getElementById('bin-deposit-note'); if(!el) return;
+  var size=document.getElementById('f-bsize').value;
+  if(document.getElementById('f-svc').value!=='Bin Rental'
+     || BIN_DEPOSIT_SIZES.indexOf(size)===-1){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.innerHTML='<div class="bps-over">'
+    +'<div class="bps-over-h">💳 '+_bpsMoney(BIN_DEPOSIT)+' deposit</div>'
+    +'<div class="bps-over-b">Taken at booking on a <b>'+escHtml(size)+'</b>, in case the load goes over.</div>'
+    +'</div>';
+}
+
 function renderBinPriceScript(){
+  // Runs before the early returns below, so the deposit shows even when the quote
+  // card can't work out a price.
+  renderBinDepositNote();
   var el=document.getElementById('bin-price-script'); if(!el) return;
   if(document.getElementById('f-svc').value!=='Bin Rental'){ el.style.display='none'; return; }
   el.style.display='block';

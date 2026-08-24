@@ -2132,6 +2132,12 @@
            size and duration already typed above. Bin Rental only, read-only — no dollar
            figure here is saved with the job. Filled by renderBinPriceScript(). -->
       <div id="bin-price-script" style="display:none"></div>
+
+      <!-- The $450 deposit, on 14 and 20 yard bins only. Its own block rather than a
+           row in the quote card above, because it keys off the bin size alone — it
+           still has to show when the town has no sheet price and the card above is
+           showing a hint instead of a total. Filled by renderBinDepositNote(). -->
+      <div id="bin-deposit-note" style="display:none"></div>
       </section>
       <!-- The Furniture Pickup panel is a FULL-WIDTH strip under all three columns, not a
            field inside section 2 — 133 item tiles and the truck need the whole page. Its
@@ -2921,7 +2927,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=614"></script>
+<script src="app.js?v=615"></script>
 <script src="app-jwg-scheduler.js?v=609"></script>
 <script src="app-cuttimes.js?v=499"></script>
 <script src="app-jwg-feed.js?v=554"></script>
