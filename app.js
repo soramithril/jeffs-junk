@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '626';
+var APP_VERSION = '627';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4679,6 +4679,11 @@ async function renderWillCallCard(){
   listEl.innerHTML=rows;
 }
 
+// A will-call bin is out until the customer rings in with a date, so it can never be
+// "overdue". See the note inside renderDashBinsOut() for why the line is 30 days and
+// not 14 — it comes off the real fleet, not a guess.
+var WILL_CALL_STALE_DAYS = 30;
+
 async function renderDashBinsOut(){
   var el=document.getElementById('dash-bins-out-list');if(!el)return;
   var todayS=todayStr();
@@ -4692,6 +4697,14 @@ async function renderDashBinsOut(){
     j._overdue=!!(j.binPickup && j.binPickup<todayS);
     j._overdueDays=j._overdue
       ? Math.max(0,Math.floor((Date.now()-new Date(j.binPickup+'T12:00:00').getTime())/86400000)) : 0;
+    // A will-call has no pickup date until the customer rings in and names one, so it can
+    // never be "overdue" — nothing was ever booked to be late for. That is the trap: the
+    // one most likely to be forgotten is the one the overdue check cannot see.
+    // 30 days is off the real fleet (2026-08-24): of the 11 will-calls out, the days-out
+    // ran 88, 43, 43, 42, then a clear gap to 20, 14, 12, 7, 5, 1, 1. They are nearly all
+    // contractors, who keep a bin for weeks quite legitimately, so 30 picks out the four
+    // genuine stragglers. 14 would have flagged six and turned into noise.
+    j._willCallStale=!!(j.binWillCall && !j.binPickup && j._days>=WILL_CALL_STALE_DAYS);
     j._attn=j._overdue || j._days>=7;
   });
   var nOut=droppedJobs.length;
@@ -4708,7 +4721,14 @@ async function renderDashBinsOut(){
   // reference — it collapses. (renderBinsAttention writes to #dash-attention-list,
   // which isn't in index.html, so this list is the ONLY place these surface.)
   var attn=droppedJobs.filter(function(j){return j._attn;});
-  attn.sort(function(a,b){ if(a._overdue!==b._overdue) return a._overdue?-1:1; return b._days-a._days; });
+  // Overdue first, then a will-call nobody has called about, then longest out. The stale
+  // will-calls sit above ordinary long rentals because they are the ones with no date on
+  // them at all — a long rental with a pickup booked is somebody else's problem already.
+  attn.sort(function(a,b){
+    if(a._overdue!==b._overdue) return a._overdue?-1:1;
+    if(a._willCallStale!==b._willCallStale) return a._willCallStale?-1:1;
+    return b._days-a._days;
+  });
   var grouped={};
   droppedJobs.filter(function(j){return !j._attn;}).forEach(function(j){ var sz=j.binSize||'Unknown'; (grouped[sz]=grouped[sz]||[]).push(j); });
   var sizeOrder=['4 yard','7 yard','14 yard','20 yard','Unknown'];
@@ -4732,7 +4752,10 @@ async function renderDashBinsOut(){
               ? 'overdue '+j._overdueDays+' days — was this actually picked up?'
                 + (j.binBid?'':' · no bin assigned')
               : 'overdue — pickup was '+fd(j.binPickup))
-          : ('out '+j._days+' days'))
+          : j._willCallStale
+            ? 'will-call · out '+j._days+' days, nobody has called to book a pickup'
+            : ('out '+j._days+' days'
+               + (j.binWillCall && !j.binPickup ? ' · will-call, no pickup booked' : '')))
       : [addr,(j.binPickup?'pickup '+fd(j.binPickup):'')].filter(Boolean).join(' · ');
     var daysPill='<span class="djj-days'+(j._days>=14?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+lineIcon('call',13)+_esc(j.phone)+'</a>':'';
@@ -6079,7 +6102,7 @@ function setJobFormBlacklistWarning(cl){
   if(nm)nm.textContent=on?((cl.name||'This customer')+' is blacklisted. Check with Jeff or Jake before you book this in.'):'';
 }
 
-// A billable account is invoiced after the job and takes no card up front, and it almost
+// A billable account is invoiced after the job with no pre-authorization taken, and it almost
 // always comes with a PO number — so the note sits with the PO field rather than anywhere
 // else (Jake, 2026-08-24). It rides along with the blacklist warning because that already
 // fires from every place a client gets attached to a booking: the picker, a phone match,
