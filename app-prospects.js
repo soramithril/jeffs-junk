@@ -78,8 +78,10 @@
   // already under target margin at list, so there is nothing to give away.
   var ZONE_FLOOR = { 1: 165, 2: 210 };
 
+  // town = the town whose doors are open (towns list when empty). due = the
+  // cross-town follow-up view. tsort orders the towns, dsort the doors inside one.
   var S = { rows:[], visits:{}, drive:[], prices:[], q:'', cat:'', band:'',
-            town:'', sel:null, loaded:false };
+            town:'', due:false, tsort:'near', dsort:'pri', sel:null, loaded:false };
 
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"]/g,function(c){
@@ -107,6 +109,15 @@
     for(var i=0;i<STAGES.length;i++){ if(STAGES[i][0]===v) return STAGES[i]; }
     return STAGES[0];
   }
+  // The Aug-2026 import wrote "Priority A - …" at the front of notes. Hand-added
+  // prospects have no rank and sort after C rather than pretending to one.
+  var PRI = { A:['A','rgba(34,197,94,.25)','#86efac'], B:['B','rgba(56,189,248,.2)','#7dd3fc'],
+              C:['C','rgba(148,163,184,.2)','#cbd5e1'] };
+  function prioOf(p){
+    var m = /^Priority ([ABC])\b/.exec(p.notes||'');
+    return m ? m[1] : '';
+  }
+  function priRank(p){ return { A:0, B:1, C:2 }[prioOf(p)] !== undefined ? { A:0, B:1, C:2 }[prioOf(p)] : 3; }
   function minutesFor(city){
     if(!city) return null;
     var c = String(city).trim().toLowerCase();
@@ -279,6 +290,24 @@
     +   '.jjp-door.open{position:relative;inset:auto;z-index:auto;}'
     +   '.jjp-back{display:none;}'
     + '}'
+    // 900–1024px is inside the mobile-header band, which pads the page down 72px.
+    // Full viewport height on top of that made the whole page scroll 72px while
+    // the list scrolled inside it — the laptop's double scrollbar.
+    + '@media(min-width:900px) and (max-width:1024px){'
+    +   '#prospects-page{height:calc(100vh - 72px);min-height:calc(100vh - 72px);}'
+    + '}'
+    // Scroll quietly: no stock grey bar on the dark panes. A slim thumb shows
+    // under the mouse; the .jjp-fade at the pane's foot says "more below" and
+    // fades out at the end of the list (render toggles .off).
+    + '.jjp-list,.jjp-dscroll,.jjp-sheet{scrollbar-width:thin;scrollbar-color:transparent transparent;}'
+    + '.jjp-list:hover,.jjp-dscroll:hover,.jjp-sheet:hover{scrollbar-color:rgba(255,255,255,.18) transparent;}'
+    + '.jjp-list::-webkit-scrollbar,.jjp-dscroll::-webkit-scrollbar,.jjp-sheet::-webkit-scrollbar{width:9px;height:9px;}'
+    + '.jjp-list::-webkit-scrollbar-track,.jjp-dscroll::-webkit-scrollbar-track,.jjp-sheet::-webkit-scrollbar-track{background:transparent;}'
+    + '.jjp-list::-webkit-scrollbar-thumb,.jjp-dscroll::-webkit-scrollbar-thumb,.jjp-sheet::-webkit-scrollbar-thumb{background:transparent;border-radius:99px;}'
+    + '.jjp-list:hover::-webkit-scrollbar-thumb,.jjp-dscroll:hover::-webkit-scrollbar-thumb,.jjp-sheet:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);}'
+    + '.jjp-fade{position:sticky;bottom:0;height:54px;margin-top:-40px;flex:none;pointer-events:none;'
+    +   'background:linear-gradient(to bottom,rgba(8,11,9,0),#080B09 82%);transition:opacity .25s;}'
+    + '.jjp-fade.off{opacity:0;}'
     // Past ~1240px a single column leaves half the pane empty, so the cards
     // that don't need full width pair up.
     + '@media(min-width:1240px){'
@@ -311,20 +340,29 @@
   };
 
   // ── The round (left pane) ────────────────────────────────────────────────
-  function rowHtml(p){
+  // showTown===true names the town on the row — search and Due now cross towns,
+  // so a row there has to say where it is.
+  function rowHtml(p, showTown){
     var cat = catOf(p.biz_type);
     var overdue = p.next_action_date && p.next_action_date <= today();
     var lv = lastVisit(p.id);
     var sm = stageMeta(p.stage);
     var hot = overdue || !lv;
+    var pri = prioOf(p);
     var sub = overdue ? ('Due ' + fdate(p.next_action_date))
             : lv ? ('Last in ' + fdate(lv.visited_on) + (lv.outcome ? ' — ' + lv.outcome : ''))
             : 'Never been in';
+    if(showTown===true && p.city) sub = p.city + ' · ' + sub; // esc()'d where sub is printed
     return '<div class="jjp-row ' + (hot ? 'jjp-hot' : 'jjp-fr') + (S.sel===p.id ? ' on' : '') + '" '
       + 'onclick="JJProspects.select(\'' + p.id + '\')">'
       + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:17px;font-weight:600;letter-spacing:-.4px;color:#F4F8F5;'
-          + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.business_name||'(no name)') + '</div>'
+          + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px">'
+          + (pri ? '<span style="flex:none;width:20px;height:20px;border-radius:7px;font-size:11px;'
+              + 'font-weight:800;display:inline-flex;align-items:center;justify-content:center;'
+              + 'background:' + PRI[pri][1] + ';color:' + PRI[pri][2] + '">' + pri + '</span>' : '')
+          + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'
+          + esc(p.business_name||'(no name)') + '</span></div>'
         + '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
           + (p.biz_type ? '<span class="jjp-chip" style="padding:3px 9px;font-size:11px;font-weight:700;'
               + 'background:' + cat[2] + '22;border-color:' + cat[2] + '44;color:' + cat[2] + '">' + esc(cat[1]) + '</span>' : '')
@@ -339,14 +377,108 @@
       + '</div>';
   }
 
+  // Every follow-up whose date has come, across every town — the day's call
+  // list. Deliberately ignores the distance/type filters: due is due.
+  function dueList(){
+    return S.rows.filter(function(p){
+      return !p.self_hauls && p.next_action_date && p.next_action_date <= today();
+    }).sort(function(a,b){ return String(a.next_action_date).localeCompare(String(b.next_action_date)); });
+  }
+
+  function backBar(title, sub, extra){
+    return '<div style="display:flex;align-items:center;gap:11px;padding:16px 16px 12px">'
+      + '<div class="jjp-fr" style="width:40px;height:40px;border-radius:999px;display:flex;'
+        + 'align-items:center;justify-content:center;flex:none;cursor:pointer;color:var(--jjp-ink)" '
+        + 'onclick="JJProspects.back()">' + ICON.back + '</div>'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:20px;font-weight:700;letter-spacing:-.5px;color:#F4F8F5;'
+          + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
+        + '<div style="font-size:12.5px;color:var(--jjp-dim);margin-top:1px">' + sub + '</div>'
+      + '</div>' + (extra||'') + '</div>';
+  }
+
+  function segRow(pairs, current, fn){
+    return '<div style="display:flex;gap:7px;padding:0 16px 12px">'
+      + pairs.map(function(s){
+          return '<div class="jjp-opt' + (current===s[0] ? ' on' : '') + '" style="flex:1;min-height:40px;'
+            + 'font-size:13px" onclick="JJProspects.' + fn + '(\'' + s[0] + '\')">' + s[1] + '</div>';
+        }).join('')
+      + '</div>';
+  }
+
+  function rowsBlock(list, showTown){
+    return '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px">'
+      + list.map(function(p){ return rowHtml(p, showTown===true); }).join('') + '</div>';
+  }
+
+  // Doors inside one town, in the order the sort asks for. Priority is the
+  // default: A first, and within a rank the doors nobody has been to yet.
+  function sortedDoors(list){
+    var c = list.slice();
+    if(S.dsort==='type'){
+      c.sort(function(a,b){
+        var d = catOf(a.biz_type)[1].localeCompare(catOf(b.biz_type)[1]);
+        return d || String(a.business_name||'').localeCompare(String(b.business_name||''));
+      });
+    } else if(S.dsort==='name'){
+      c.sort(function(a,b){ return String(a.business_name||'').localeCompare(String(b.business_name||'')); });
+    } else {
+      c.sort(function(a,b){
+        var d = priRank(a) - priRank(b);
+        if(d) return d;
+        d = (lastVisit(a.id)?1:0) - (lastVisit(b.id)?1:0);
+        if(d) return d;
+        return String(a.business_name||'').localeCompare(String(b.business_name||''));
+      });
+    }
+    return c;
+  }
+
   function listHtml(){
+    var q = S.q.trim();
+
+    // ── Search: flat matches across every town ─────────────────────────────
+    if(q){
+      var savedTown = S.town; S.town = '';       // search always looks everywhere
+      var hits = visible(); S.town = savedTown;
+      return '<div style="padding:16px 18px 10px">'
+        + '<input id="jjp-q" class="jjp-in" type="text" placeholder="Search a name, town or phone…" '
+          + 'value="' + attr(S.q) + '" oninput="JJProspects.setQ(this.value)">'
+        + '<div style="font-size:13px;color:var(--jjp-dim);padding:12px 4px 2px">'
+          + hits.length + (hits.length===1?' match':' matches')
+          + ' · <span style="color:var(--jjp-green-lt);cursor:pointer" onclick="JJProspects.setQ(\'\')">clear</span></div>'
+        + '</div>'
+        + rowsBlock(sortedDoors(hits), true)
+        + '<div class="jjp-fade"></div>';
+    }
+
+    // ── Due now: the cross-town call list ──────────────────────────────────
+    if(S.due){
+      var due = dueList();
+      return backBar('Due now', due.length + (due.length===1?' follow-up':' follow-ups') + ' whose date has come')
+        + (due.length ? rowsBlock(due, true)
+            : '<div style="padding:36px 24px;text-align:center;color:var(--jjp-dim);font-size:14px;line-height:1.5">'
+              + 'Nothing due. Set a "come back on" date when you log a visit and it lands here.</div>')
+        + '<div class="jjp-fade"></div>';
+    }
+
+    // ── One town open: its doors, best calls first ─────────────────────────
+    if(S.town){
+      var r1 = round();
+      var doors = r1.byTown[S.town] || [];
+      var m1 = minutesFor(S.town);
+      return backBar(esc(S.town), doors.length + (doors.length===1?' door':' doors')
+          + (m1 !== null ? ' · ' + m1 + ' min out' : ''))
+        + segRow([['pri','Priority'],['type','Type'],['name','Name']], S.dsort, 'setDsort')
+        + (doors.length ? rowsBlock(sortedDoors(doors), false)
+            : '<div style="padding:36px 24px;text-align:center;color:var(--jjp-dim);font-size:14px">'
+              + 'No doors here match the filters.</div>')
+        + '<div class="jjp-fade"></div>';
+    }
+
+    // ── Towns: the starting screen ─────────────────────────────────────────
     var r = round();
-    var mins = 0;
-    r.order.forEach(function(t){ var m = minutesFor(t); if(m) mins += m; });
-    var overdue = 0;
-    r.order.forEach(function(t){
-      r.byTown[t].forEach(function(p){ if(p.next_action_date && p.next_action_date <= today()) overdue++; });
-    });
+    var overdue = dueList().length;
 
     var head = '<div style="padding:20px 18px 4px">'
       + '<div style="display:flex;align-items:flex-end;gap:16px">'
@@ -357,13 +489,12 @@
             + (r.count===1 ? 'door' : 'doors') + ' to work</div>'
           + '<div style="font-size:13.5px;color:var(--jjp-dim);margin-top:3px">'
             + r.order.length + (r.order.length===1?' town':' towns')
-            + (overdue ? ' · <span style="color:#fbbf24">' + overdue + ' due now</span>' : '')
           + '</div>'
         + '</div>'
       + '</div></div>';
 
     var controls = '<div style="padding:16px 18px 10px;display:flex;flex-direction:column;gap:9px">'
-      + '<input class="jjp-in" type="text" placeholder="Search a name, town or phone…" value="' + attr(S.q) + '" '
+      + '<input id="jjp-q" class="jjp-in" type="text" placeholder="Search a name, town or phone…" value="' + attr(S.q) + '" '
         + 'oninput="JJProspects.setQ(this.value)">'
       + '<div style="display:flex;gap:9px">'
         + '<select class="jjp-in" onchange="JJProspects.setBand(this.value)" style="flex:1">'
@@ -380,6 +511,11 @@
         + '</select>'
       + '</div></div>';
 
+    var actions = '<div style="padding:0 18px 4px;display:flex;gap:9px">'
+      + '<button class="jjp-btn jjp-btn-q jjp-sm" style="flex:1" onclick="JJProspects.importCsv()">Import a list</button>'
+      + '<button class="jjp-btn jjp-btn-go jjp-sm" style="flex:1" onclick="JJProspects.add()">'
+      + ICON.plus + 'Add one</button></div>';
+
     var body;
     if(!S.rows.length){
       body = '<div style="padding:46px 24px;text-align:center">'
@@ -393,23 +529,43 @@
         + 'Nothing matches those filters.<br><button class="jjp-btn jjp-btn-q jjp-sm" style="margin-top:14px" '
         + 'onclick="JJProspects.clear()">Clear filters</button></div>';
     } else {
-      body = r.order.map(function(t){
-        var m = minutesFor(t);
-        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 10px">'
-            + '<span class="jjp-lab">' + esc(t) + ' · ' + r.byTown[t].length + '</span>'
-            + (m !== null ? '<span class="jjp-lab" style="color:rgba(134,239,172,.62)">' + m + ' min out</span>' : '')
-          + '</div>'
-          + '<div style="display:flex;flex-direction:column;gap:9px;padding:0 14px">'
-          + r.byTown[t].map(rowHtml).join('') + '</div>';
-      }).join('');
+      var order = r.order.slice();
+      if(S.tsort==='az') order.sort(function(a,b){ return a.localeCompare(b); });
+      else if(S.tsort==='count') order.sort(function(a,b){ return r.byTown[b].length - r.byTown[a].length; });
+      // 'near' keeps round()'s nearest-first order.
+
+      var dueCard = '<div class="jjp-row" style="margin:2px 14px 9px;'
+        + 'background:linear-gradient(140deg,rgba(251,191,36,.16),rgba(251,191,36,.04));'
+        + 'border:1px solid rgba(251,191,36,' + (overdue?'.4':'.18') + ')" onclick="JJProspects.openDue()">'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:16px;font-weight:600;letter-spacing:-.3px;color:'
+            + (overdue?'#fbbf24':'rgba(251,191,36,.55)') + '">Due now</div>'
+          + '<div style="font-size:12px;margin-top:3px;color:var(--jjp-faint)">follow-ups whose date has come</div>'
+        + '</div>'
+        + '<span style="font-size:24px;font-weight:300;letter-spacing:-1px;color:'
+          + (overdue?'#fbbf24':'rgba(251,191,36,.45)') + '">' + overdue + '</span>'
+        + '<span style="color:rgba(232,239,234,.42);flex:none">' + ICON.chev + '</span></div>';
+
+      body = segRow([['near','Nearest'],['az','A–Z'],['count','Most doors']], S.tsort, 'setTsort')
+        + dueCard
+        + '<div style="display:flex;flex-direction:column;gap:8px;padding:0 14px">'
+        + order.map(function(t){
+            var m = minutesFor(t);
+            return '<div class="jjp-row jjp-fr" onclick="JJProspects.openTown(\'' + attr(t) + '\')">'
+              + '<div style="flex:1;min-width:0">'
+                + '<div style="font-size:16.5px;font-weight:600;letter-spacing:-.35px;color:#F4F8F5;'
+                  + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t) + '</div>'
+                + (m !== null ? '<div style="font-size:12px;margin-top:3px;color:var(--jjp-dim)">' + m + ' min out</div>' : '')
+              + '</div>'
+              + '<span style="font-size:22px;font-weight:300;letter-spacing:-1px;'
+                + 'font-variant-numeric:tabular-nums;color:var(--jjp-green-lt)">' + r.byTown[t].length + '</span>'
+              + '<span style="color:rgba(232,239,234,.42);flex:none">' + ICON.chev + '</span>'
+              + '</div>';
+          }).join('')
+        + '</div>';
     }
 
-    var actions = '<div style="padding:0 18px 4px;display:flex;gap:9px">'
-      + '<button class="jjp-btn jjp-btn-q jjp-sm" style="flex:1" onclick="JJProspects.importCsv()">Import a list</button>'
-      + '<button class="jjp-btn jjp-btn-go jjp-sm" style="flex:1" onclick="JJProspects.add()">'
-      + ICON.plus + 'Add one</button></div>';
-
-    return head + controls + actions + body;
+    return head + controls + actions + body + '<div class="jjp-fade"></div>';
   }
 
   // ── The door (right pane / full screen on a phone) ───────────────────────
@@ -518,7 +674,7 @@
       + (hist || '<div style="font-size:14px;color:var(--jjp-faint)">Nothing yet \u2014 first time in</div>')
       + '</div>';
 
-    var body = '<div style="flex:1;overflow-y:auto;padding:22px 16px 12px">'
+    var body = '<div class="jjp-dscroll" style="flex:1;overflow-y:auto;padding:22px 16px 12px">'
       + '<div class="jjp-dbody" style="display:flex;flex-direction:column;gap:13px">'
       + nameBlock + sayBlock
       + '<div class="jjp-dcols">' + whyBlock + askBlock + priceBlock + histBlock + '</div>'
@@ -535,6 +691,8 @@
 
     return head + body + foot;
   }
+
+  var _viewKey = '';
 
   function wash(){
     return '<div class="jjp-wash" style="top:-150px;left:-110px;width:420px;height:420px;'
@@ -557,11 +715,40 @@
     });
     if(!onRound) S.sel = (wide && r.count) ? r.byTown[r.order[0]][0].id : null;
 
+    // Rebuilding innerHTML resets pane scroll and steals focus from the search
+    // box mid-word; both get put back so typing and picking a door feel inert.
+    var oldList = el.querySelector('.jjp-list');
+    // Same view re-rendering (a door picked, a letter typed) keeps its scroll;
+    // moving between views (towns → a town → due) starts at the top.
+    var viewKey = S.town + '|' + S.due + '|' + (S.q.trim() ? 'search' : '');
+    var keepScroll = (oldList && viewKey === _viewKey) ? oldList.scrollTop : 0;
+    _viewKey = viewKey;
+    var hadFocus = document.activeElement && document.activeElement.id === 'jjp-q';
+
     el.innerHTML = wash()
     + '<div class="jjp-grid">'
       + '<div class="jjp-list" style="position:relative">' + listHtml() + '</div>'
       + '<div class="jjp-door' + (S.sel ? ' open' : '') + '">' + doorHtml() + '</div>'
     + '</div>';
+
+    var list = el.querySelector('.jjp-list');
+    if(list){
+      list.scrollTop = keepScroll;
+      // The bottom fade says "more below"; it lies once you're actually at the
+      // bottom, so it fades out there.
+      var fade = list.querySelector('.jjp-fade');
+      var syncFade = function(){
+        if(!fade) return;
+        var atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
+        fade.classList.toggle('off', atEnd || list.scrollHeight <= list.clientHeight);
+      };
+      list.addEventListener('scroll', syncFade, { passive: true });
+      syncFade();
+    }
+    if(hadFocus){
+      var qEl = document.getElementById('jjp-q');
+      if(qEl){ qEl.focus(); qEl.setSelectionRange(qEl.value.length, qEl.value.length); }
+    }
   }
 
   // ── Editor ───────────────────────────────────────────────────────────────
@@ -863,7 +1050,12 @@
     setCat(v){ S.cat=v; render(); },
     setBand(v){ S.band=v; render(); },
     setTown(v){ S.town=v; render(); },
-    clear(){ S.q=''; S.cat=''; S.band=''; S.town=''; render(); },
+    setTsort(v){ S.tsort=v; render(); },
+    setDsort(v){ S.dsort=v; render(); },
+    openTown(t){ S.town=t; S.due=false; render(); },
+    openDue(){ S.due=true; S.town=''; render(); },
+    back(){ S.town=''; S.due=false; render(); },
+    clear(){ S.q=''; S.cat=''; S.band=''; S.town=''; S.due=false; render(); },
     select(id){ S.sel = id || null; render(); },
 
     // One handler for every tap-to-choose control in the visit sheet.
