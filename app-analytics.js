@@ -704,6 +704,10 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
     aWork.forEach(function(j){
       var r=(j.referral||'').trim();
       if(!r)return;
+      // An Extra Job for our own shop carries 'SHOP JOB' in the referral column as
+      // its flag (v633). It is not a source anyone can be referred from, so it
+      // neither gets a bar nor counts toward "source recorded on N of M jobs".
+      if(r==='SHOP JOB')return;
       refMap[r]=(refMap[r]||0)+1;known++;
     });
     var refColors={Google:'#4285f4','Word of Mouth':'var(--accent)',Facebook:'#1877f2',Instagram:'#e1306c',Kijiji:'#ff6b00','Repeat Customer':'var(--c-furn)',Other:'#888888'};
