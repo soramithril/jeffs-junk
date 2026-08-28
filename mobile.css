@@ -183,6 +183,45 @@
   .ny-actions{display:flex;gap:7px;flex-wrap:wrap;width:100%;}
   .ny-actions>*{flex:0 0 auto;}
 
+  /* ─── Clients: one row per client instead of a wall of tall cards ──────── */
+  .mclient-list{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  }
+  .mcl-row{
+    display:flex;align-items:center;gap:10px;padding:11px 13px;
+    border-bottom:1px solid var(--border);cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mcl-row:last-child{border-bottom:none;}
+  .mcl-row.bl{background:#2a0e11;}
+  .mcl-row.bl .mcl-name{color:#fff;}
+  .mcl-main{flex:1;min-width:0;}
+  .mcl-name{
+    font-size:14.5px;font-weight:700;color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .mcl-bl{
+    margin-left:7px;font-size:9.5px;font-weight:800;letter-spacing:.5px;
+    color:#fff;background:#b4232f;border-radius:5px;padding:2px 6px;vertical-align:1px;
+  }
+  .mcl-chips{display:flex;gap:5px;margin-top:4px;overflow-x:auto;scrollbar-width:none;}
+  .mcl-chips::-webkit-scrollbar{display:none;}
+  .mcl-chip{
+    flex:0 0 auto;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;
+  }
+  .mcl-tel{
+    flex:none;font-size:12.5px;font-weight:700;text-decoration:none;
+    color:#16a34a;border:1.5px solid #bbe6cc;border-radius:9px;padding:7px 11px;white-space:nowrap;
+  }
+
+  /* Client detail: the job history wraps rather than sliding sideways inside a
+     modal, which on a phone is a scroll nobody finds. */
+  .cdet-jobs{overflow-x:visible !important;}
+  .cdet-jobs table{table-layout:fixed;}
+  .cdet-jobs thead th{padding:8px 6px;font-size:9.5px;letter-spacing:.4px;}
+  .cdet-jobs tbody td{padding:8px 6px;font-size:12px;word-break:break-word;}
+  .cdet-jobs td span,.cdet-jobs td .badge,.cdet-jobs td .service-badge{white-space:normal !important;}
+
   /* ─── One "Filters" button per list page; the pile becomes a bottom sheet ─ */
   .mfilters-btn{
     display:inline-flex !important;align-items:center;gap:7px;

@@ -6966,7 +6966,36 @@ function renderClientsList(list) {
       + '</div>';
     return;
   }
-  el.innerHTML = '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+  // A phone gets one row per client instead of a wall of tall cards — the row
+  // carries the name, the counts and the phone number, and the tap target is
+  // the same client detail the card opens.
+  el.innerHTML = isMobileView()
+    ? '<div class="mclient-list">' + list.map(makeClientRow).join('') + '</div>'
+    : '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+}
+// Phone row. Deliberately not the card with things hidden: the card is built
+// from inline styles that CSS cannot unwind, and half a card is not a row.
+function makeClientRow(row){
+  var cid = row.cid, name = row.name||'';
+  var bl  = !!row.blacklisted;
+  var phones = (row.phones||[]).filter(function(p){return p&&p.num;});
+  if(!phones.length && row.phone) phones=[{num:row.phone}];
+  var phone = phones.length ? phones[0].num : '';
+  function chip(txt,col,bg){ return '<span class="mcl-chip" style="color:'+col+';background:'+bg+'">'+txt+'</span>'; }
+  var chips = '';
+  if(row._bins) chips += chip(row._bins+' bin'+(row._bins===1?'':'s'),'#0e7490','rgba(8,145,178,.12)');
+  if(row._junk) chips += chip(row._junk+' junk','#c2410c','rgba(230,126,34,.14)');
+  if(row._furn) chips += chip(row._furn+' furn','#7c3aed','rgba(139,92,246,.12)');
+  if(row.contractor) chips += chip('Contractor','#fff','#2563eb');
+  if(!chips) chips = chip('No jobs yet','var(--muted)','var(--surface2)');
+  if(row.city) chips += chip(escHtml(row.city),'var(--text-secondary)','var(--surface2)');
+  return '<div class="mcl-row'+(bl?' bl':'')+'" onclick="openClientDetailSafe(event,\''+cid+'\')">'
+    +'<div class="mcl-main">'
+      +'<div class="mcl-name">'+escHtml(name)+(bl?'<span class="mcl-bl">BLACKLISTED</span>':'')+'</div>'
+      +'<div class="mcl-chips">'+chips+'</div>'
+    +'</div>'
+    +(phone?'<a class="mcl-tel" href="tel:'+phone+'" onclick="event.stopPropagation()">'+escHtml(phone)+'</a>':'')
+  +'</div>';
 }
 // One button back to a clean list — four separate things can hide a customer and
 // there was no single control that let them all go.
@@ -7158,7 +7187,7 @@ async function openClientDetail(cid){
     +(furn?'<span class="client-stat cs-furn">🛋️ '+furn+' Furn</span>':'')
     +'<span style="font-size:12px;color:var(--muted)">'+loyalty+'</span>'
     +'</div>'
-    +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
+    +(jobRows?'<div class="table-wrap cdet-jobs" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +renderClientQuoteHistory(cl.cid)
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')

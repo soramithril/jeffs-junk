@@ -10,6 +10,13 @@
    Loaded after app.js, so newJob/setFormSvc/todayStr are already defined.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// Several pages choose between their desktop and phone layout at render time,
+// so crossing the breakpoint has to re-render the page that is showing. This
+// fires on the crossing itself, not on every pixel of a resize.
+window.matchMedia('(max-width:900px)').addEventListener('change', function(){
+  if(typeof refresh === 'function') refresh();
+});
+
 // ─── Create sheet: the two bookings that were desktop-only ─────────────────
 // Same booking modal the desktop "New Job" opens, with the service preselected.
 function mCreateBinRental(){ mCloseCreate(); newJob(); setFormSvc('Bin Rental'); }
