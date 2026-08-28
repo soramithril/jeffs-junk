@@ -1,0 +1,232 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE OVERHAUL — phone layout only (≤900px), plus the two desktop layout
+   fixes that came with it (dashboard column balance, needs-you name order).
+
+   Nothing here restyles the app: it is layout only, so a phone gets the same
+   colours, cards and type as the desktop, arranged for a thumb. Every rule is
+   inside @media(max-width:900px) unless it is one of the two desktop fixes,
+   which are marked as such.
+
+   "Phone" is the existing ≤900px breakpoint the mobile shell already uses.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Width-gated visibility helpers. An .mphone-only element is the phone's copy
+   of something the desktop shows another way, so on desktop it has to be gone
+   rather than invisible — otherwise it still takes part in flex/grid layout. */
+.mphone-only{display:none !important;}
+@media(max-width:900px){
+  .mphone-only{display:block !important;}
+  .mdesk-only{display:none !important;}
+}
+
+/* ─── Desktop fix: dashboard columns balance ───────────────────────────────
+   The day used to be emitted as three stacked pair-rows, so a short Drop-offs
+   column left dead space beside a long Pickups one and the next pair started
+   below the taller of the two. Two real columns instead: when Drop-offs ends
+   early, Junk Removals moves straight up under it. Below 1100px .mcol goes
+   display:contents so the six category blocks flow back into one column. */
+.tj-flow{display:block}
+.tj-flow .mcol{display:contents}
+@media(min-width:1100px){
+  .tj-flow{display:grid;grid-template-columns:1fr 1fr;column-gap:14px;align-items:start}
+  .tj-flow.tj-flow-single{grid-template-columns:1fr}
+  .tj-flow .mcol{display:block}
+  .tj-flow .tjr2{flex-wrap:wrap}
+  .tj-flow .tjr2-binslot{width:auto}
+  .tj-flow .tjr2-actions{min-width:0;margin-left:auto}
+  .tj-flow .djj-main{min-width:260px}
+}
+
+/* ─── Desktop fix: Needs-you rows lead with the name ───────────────────────
+   The row title used to read "Send confirmation email — NAME", so the name was
+   the half that got ellipsised away. Name first at both widths; the phone gets
+   its own one-line wording (below) and neither width ever drops the name. */
+.ny-t-phone{display:none}
+.ny-name{font-weight:800}
+/* The row's buttons are wrapped now so the phone can drop them to their own
+   line; on desktop that wrapper has to stay a plain inline strip. */
+.ny-actions{display:flex;align-items:center;gap:8px;flex:none}
+
+@media(max-width:900px){
+
+  /* ─── Bottom tab bar now carries five tabs ─────────────────────────────── */
+  .mtab{font-size:9.5px;padding:8px 2px 7px;}
+
+  /* ─── Create sheet lists five things now, so let it scroll ─────────────── */
+  .msheet{max-height:80vh;overflow-y:auto;}
+
+  /* ─── Chip rows that overflow sideways ──────────────────────────────────
+     Touch scroll plus an edge fade. The fade is the classic local/scroll
+     background pair: the two solid covers scroll WITH the content and the two
+     shadows stay put, so a cue only appears on the side that has more past the
+     edge, and a row that fits shows nothing. No JS, no measuring. */
+  .mscroll-x,
+  #dash-today-count>div,
+  #jobs-active-chips,
+  #jobs-show-seg,
+  #dash-crew-status,
+  #dash-vehicle-status{
+    flex-wrap:nowrap !important;
+    overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    background:
+      linear-gradient(90deg,var(--surface) 40%,rgba(255,255,255,0)) left center/22px 100% no-repeat local,
+      linear-gradient(90deg,rgba(255,255,255,0),var(--surface) 60%) right center/22px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.13),rgba(0,0,0,0)) left center/11px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.13),rgba(0,0,0,0)) right center/11px 100% no-repeat scroll;
+  }
+  .mscroll-x::-webkit-scrollbar,
+  #dash-today-count>div::-webkit-scrollbar,
+  #jobs-active-chips::-webkit-scrollbar,
+  #jobs-show-seg::-webkit-scrollbar,
+  #dash-crew-status::-webkit-scrollbar,
+  #dash-vehicle-status::-webkit-scrollbar{display:none;}
+  .mscroll-x>*,
+  #dash-today-count>div>*,
+  #jobs-active-chips>*,
+  #jobs-show-seg>*,
+  #dash-crew-status>*,
+  #dash-vehicle-status>*{flex:0 0 auto;}
+
+  /* ─── Collapsible dashboard cards (bins available, crew & vehicles) ─────
+     Collapsed to one line that says the answer; tap to open the full card.
+     No height transition on purpose — these hold live-updating content, and a
+     transition on auto height is a guess about how tall it is going to be. */
+  .mcollapse .mcollapse-head{display:none;}
+  .mcollapse .mcollapse-body{display:none !important;}
+  .mcollapse.m-open .mcollapse-body{display:flex !important;}
+  .mcollapse#card-binavail.m-open .mcollapse-body{display:block !important;}
+  .mcollapse-bar{
+    display:flex !important;align-items:center;gap:10px;width:100%;
+    background:none;border:none;padding:2px 0;cursor:pointer;
+    font-family:'Inter',sans-serif;text-align:left;color:var(--text);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mcollapse-sum{
+    flex:1;min-width:0;font-size:12.5px;font-weight:700;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .mcollapse-caret{flex:none;color:var(--muted);font-size:12px;transition:transform .18s;}
+  .mcollapse.m-open .mcollapse-caret{transform:rotate(180deg);}
+  /* Four bin cards across a phone is unreadable; two rows of two. */
+  #card-binavail.m-open #dash-bin-by-size{grid-template-columns:repeat(2,1fr) !important;}
+
+  /* ─── Green day-summary card at the top of the dashboard ───────────────── */
+  #mday-card{
+    margin:0 0 14px;padding:14px 16px;border-radius:14px;
+    background:linear-gradient(135deg,var(--green-s3),var(--green-s2));color:#fff;
+  }
+  #mday-date{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;opacity:.9;}
+  #mday-total{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1.1;letter-spacing:1px;margin-top:2px;}
+  #mday-counts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  #mday-counts span{
+    display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);
+    border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap;
+  }
+  #mday-counts b{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.5px;}
+
+  /* ─── Pinned jump chips. They live inside the jump bar that is already
+     sticky, so there is still only one thing stuck to the top. ──────────── */
+  .djj-jumpbar{flex-wrap:nowrap;flex-direction:column;align-items:stretch;gap:8px;padding:8px;}
+  .djj-jumpbar .djj-seg{display:none;}
+  #dash-datebar{margin-left:0 !important;min-width:0 !important;width:100%;}
+  .mjump{
+    display:flex !important;gap:6px;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .mjump::-webkit-scrollbar{display:none;}
+  .mseg{
+    flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+    padding:7px 12px;border:none;border-radius:99px;background:var(--surface2);
+    color:var(--text-secondary);font-family:inherit;font-size:12px;font-weight:700;
+    white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .mseg.is-active{background:var(--accent-light);color:var(--accent-hover);box-shadow:inset 0 0 0 1.5px var(--accent-hover);}
+  .mseg-badge{
+    min-width:18px;height:18px;padding:1px 6px;border-radius:99px;
+    background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);
+    font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .mseg.is-active .mseg-badge{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff;}
+  .mseg.is-empty{opacity:.45;}
+  /* Land jump targets clear of the sticky bar, which is two rows tall here. */
+  .tj-cat,#dash-needs-you,#sec-bookings,#card-today-jobs,#card-will-call,#sec-binsout{scroll-margin-top:124px;}
+
+  /* ─── Today's jobs: one column, in the order the jump chips read ───────── */
+  .tj-flow{display:flex;flex-direction:column;}
+  .tj-cat[data-mo="1"]{order:1}.tj-cat[data-mo="2"]{order:2}.tj-cat[data-mo="3"]{order:3}
+  .tj-cat[data-mo="4"]{order:4}.tj-cat[data-mo="5"]{order:5}.tj-cat[data-mo="6"]{order:6}
+
+  /* Job rows: the name used to be the only flexible thing between the crew
+     avatars and a 200px action block, so it was ellipsised down to nothing.
+     Here it wraps instead, keeps one action beside it, and the bin/status
+     chips drop to a second line. */
+  .tjr2{flex-wrap:wrap;align-items:flex-start;row-gap:7px;padding:10px 12px;margin:0 10px 7px;}
+  .tjr2>div:first-child{order:0;}
+  .tjr2 .tjr2-time{order:0;align-self:center;}
+  .tjr2 .djj-main{order:1;flex:1 1 120px;min-width:0;}
+  .tjr2 .djj-name{white-space:normal;overflow:visible;font-size:14px;line-height:1.25;}
+  .tjr2 .djj-sub{white-space:normal;overflow:visible;font-size:11.5px;line-height:1.3;}
+  .tjr2 .djj-main>div:first-child{flex-wrap:wrap;gap:5px;}
+  .tjr2-actions{order:2;min-width:0;flex:0 0 auto;max-width:46%;justify-content:flex-end;flex-wrap:wrap;gap:5px;}
+  .tjr2-actions .djj-btn{font-size:11px;padding:6px 9px;}
+  .tjr2-binslot{order:3;width:100%;justify-content:flex-start;flex-wrap:wrap;gap:5px;}
+
+  /* ─── Needs-you rows: "Send email · NAME · junk quote · today", button at
+     the end. The desktop wording is in the row too and swaps out here. ───── */
+  .ny-row{flex-wrap:wrap;row-gap:9px;padding:12px 13px !important;}
+  .ny-row .ny-title{font-size:13.5px;white-space:normal !important;line-height:1.35;}
+  .ny-t-desk{display:none;}
+  .ny-t-phone{display:inline;}
+  .ny-row .ny-meta{display:none;}
+  .ny-actions{display:flex;gap:7px;flex-wrap:wrap;width:100%;}
+  .ny-actions>*{flex:0 0 auto;}
+
+  /* ─── One "Filters" button per list page; the pile becomes a bottom sheet ─ */
+  .mfilters-btn{
+    display:inline-flex !important;align-items:center;gap:7px;
+    margin:0 0 10px;padding:9px 14px;border-radius:10px;
+    background:var(--surface);border:1px solid var(--border);color:var(--text);
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mfilters-count{
+    display:none;min-width:18px;height:18px;padding:0 6px;border-radius:99px;
+    background:var(--accent);color:#fff;font-size:10.5px;font-weight:800;
+    align-items:center;justify-content:center;
+  }
+  .mfilters-count.on{display:inline-flex;}
+  .mfilter-backdrop{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);display:none;}
+  .mfilter-backdrop.open{display:block;}
+  /* The pile is never moved in the DOM — these are the same nodes, only
+     repositioned. The atabs sliding highlights measure their own geometry and
+     a display:none ancestor measures zero, so the closed sheet is translated
+     off-screen rather than hidden. */
+  .mfilter-pile{
+    position:fixed;left:0;right:0;bottom:0;z-index:1000;
+    max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    background:var(--surface);border-radius:18px 18px 0 0;
+    padding:10px 16px calc(20px + env(safe-area-inset-bottom,0));
+    box-shadow:0 -8px 30px rgba(0,0,0,.25);
+    transform:translateY(105%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;gap:12px;align-items:stretch;margin:0;
+  }
+  .mfilter-pile.open{transform:translateY(0);}
+  .mfilter-head{
+    display:flex !important;align-items:center;justify-content:space-between;
+    padding-bottom:4px;border-bottom:1px solid var(--border);
+    font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+  }
+  .mfilter-done{
+    background:var(--accent);border:none;color:#fff;border-radius:9px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;
+    padding:7px 18px;cursor:pointer;text-transform:none;letter-spacing:0;
+  }
+  /* Inside the sheet everything is full width and stacked. */
+  .mfilter-pile>div{width:100%;margin:0;}
+  .mfilter-pile .atabs-wrap,.mfilter-pile .atabs-track{width:100%;}
+  .mfilter-pile .atabs-track{flex-wrap:wrap;}
+  .mfilter-pile #client-range-grid{grid-template-columns:1fr !important;}
+  .mfilter-pile #jobs-adv-filters{background:var(--surface2);}
+}

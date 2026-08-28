@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '628';
+var APP_VERSION = '629';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2676,6 +2676,11 @@ function go(name){
     if(n.getAttribute('onclick')==="go('"+name+"')")n.classList.add('active');
   });
   render(name);
+  // Every page switch starts at the top. Only the dashboard used to do this, so
+  // arriving on any other page from halfway down a long list dropped you into
+  // the middle of the new one.
+  var mainScroll=document.getElementById('main'); if(mainScroll) mainScroll.scrollTop=0;
+  window.scrollTo(0,0);
   if(el) animateView(el);
   closeSidebar();
   // The pricing family (sheet, editor, margin console) are full-screen pages:
@@ -2795,6 +2800,17 @@ function dashCountChipsHTML(c){
   return chips.length
     ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+chips.join('')+'</div>'
     : '<span style="color:var(--muted)">Nothing booked</span>';
+}
+// Today's jobs, laid out as two real columns instead of three stacked pair-rows.
+// A short Bin Drop-offs block used to leave dead space beside a long Bin Pickups
+// one, and the next pair started below the taller of the two; now the next
+// section in that column moves straight up into the gap. Only one side filled ->
+// one full-width column. On a phone the columns collapse (see mobile.css) and
+// each block's data-mo puts the day back in reading order.
+function tjFlow(left,right){
+  if(!left && !right) return '';
+  if(!left || !right) return '<div class="tj-flow tj-flow-single"><div class="mcol">'+(left||right)+'</div></div>';
+  return '<div class="tj-flow"><div class="mcol">'+left+'</div><div class="mcol">'+right+'</div></div>';
 }
 function updateDashDateLabel(){
   var dp=document.getElementById('dash-bin-date');
@@ -2943,7 +2959,6 @@ async function refreshDashBinStats(){
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:'+(isLow?'#b45309':'var(--muted)')+';margin-top:5px">'+(isFull?'all out':(isLow?'of '+tot+' — low':'of '+tot))+'</div>'
       +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
-      +'<div style="position:relative;width:100%"><button onclick="bookBin(\''+s+'\')" class="djj-book">Book</button></div>'
     +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');
@@ -2952,6 +2967,7 @@ async function refreshDashBinStats(){
     sc.querySelectorAll('[data-bincount]').forEach(function(el){ animCount(el,parseInt(el.getAttribute('data-bincount'),10)||0,'','',950); });
     requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){ el.style.width=el.getAttribute('data-binbar')+'%'; }); });
   }
+  if(typeof mSyncBinSummary==='function') mSyncBinSummary();
   renderNeedsYou();
 }
 
@@ -3040,7 +3056,12 @@ function renderNeedsYou(){
     // Line icons from JWGIcons, not emoji — same set the sidebar and the call
     // button below already use, so the row reads as one visual language.
     var icon=isCall?lineIcon('call',17,'#e67e22'):lineIcon('email',17,'#2563eb');
-    var title=isCall?('Confirm pickup — '+j.name):('Send confirmation email — '+j.name);
+    // The name used to sit at the END of this string inside a single-line
+    // ellipsis, so on a phone the row read "Send confirmation email — " and the
+    // customer was gone. Name first at both widths, and the phone gets its own
+    // one-line wording that carries the service and the day as well.
+    var actShort=isCall?'Call to confirm':'Send email';
+    var svcShort=(j.service==='Bin Rental'?'bin rental':(j.service||'job')).toLowerCase();
     // Bins say their size; everything else says its service, so a junk job in this
     // list doesn't sit there with a blank second line.
     var szClean=j.binSize?(j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):(j.service==='Bin Rental'?'':(j.service||''));
@@ -3049,6 +3070,10 @@ function renderNeedsYou(){
       : (j.junkDate||j.date);
     var daysUntil=dropD2?Math.round((new Date(dropD2+'T12:00:00').getTime()-new Date(today+'T12:00:00').getTime())/86400000):null;
     var meta=isCall?[szClean,'pickup tomorrow · confirm bin is ready'].filter(Boolean).join(' · '):szClean;
+    var whenTxt=isCall?'tomorrow':(daysUntil==null?'':daysUntil<=0?'today':daysUntil===1?'tomorrow':(daysUntil+' days'));
+    var nameHtml='<span class="ny-name">'+j.name+'</span>';
+    var titleHtml='<span class="ny-t-desk">'+nameHtml+' — '+(isCall?'confirm pickup':'send confirmation email')+'</span>'
+      +'<span class="ny-t-phone">'+actShort+' · '+nameHtml+' · '+svcShort+(whenTxt?' · '+whenTxt:'')+'</span>';
     var cdChip='';
     if(!isCall && dropD2 && daysUntil!=null){
       var cdc=daysUntil<=0?{bg:'#fdecee',fg:'#dc3545'}:daysUntil===1?{bg:'#fff2e6',fg:'#c2410c'}:daysUntil<=3?{bg:'#fffbeb',fg:'#b45309'}:{bg:'#f0fdf4',fg:'#16a34a'};
@@ -3061,11 +3086,11 @@ function renderNeedsYou(){
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
       : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
         +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
-    return '<div data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+    return '<div class="ny-row" data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title+'</div><div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div class="ny-title" style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+titleHtml+'</div><div class="ny-meta" style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
       +cdChip
-      +action
+      +'<div class="ny-actions">'+action+'</div>'
     +'</div>';
   }).join('');
   el.innerHTML='<div class="chart-card" style="padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
@@ -3676,7 +3701,7 @@ async function refreshDashJobs(){
   if(card) card.className = 'chart-card urgency-neutral';
 
   // Render job rows — column-aligned grid layout
-  function makeCat(title,color,list,isPickup,icon){
+  function makeCat(title,color,list,isPickup,icon,anchorId,mOrder){
     if(!list.length) return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
@@ -3690,7 +3715,7 @@ async function refreshDashJobs(){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div style="margin-bottom:4px">'
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
       +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
@@ -3756,17 +3781,22 @@ async function refreshDashJobs(){
   // only one side filled spans the full width via :only-child — so an empty half
   // never sits there. A wrapper is only emitted when its pair has something in it,
   // so an empty day still falls through to the empty state below.
-  function pair(a,b){ var h=a+b; return h ? '<div class="tj-cols">'+h+'</div>' : ''; }
-  var binCols = pair(
-    makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24})),
-    makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24})));
-  var restCats = pair(
-      makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'})),
-      makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24})))
-    + pair(
-      makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24})),
-      makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24})));
-  var html = binCols + restCats;
+  var html = tjFlow(
+    makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}),'dcat-dropoffs',1)
+    + makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}),'dcat-junk',3)
+    + makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24}),'dcat-quotes',4),
+    makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}),'dcat-pickups',2)
+    + makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}),'dcat-furniture',5)
+    + makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24}),'dcat-extra',6));
+
+  // The green card and jump-chip badges at the top of the phone dashboard read
+  // the numbers this render already worked out, so they can never disagree.
+  if(typeof mSetDaySummary==='function') mSetDaySummary({
+    dropoffs: dayDropoffs.length, pickups: dayPickups.length,
+    junkRemovals: junkRemovals.length, junkQuotes: junkQuotes.length,
+    landscaping: landscaping.length, furniture: furnPickups.length + furnDelivs.length,
+    calls: callsNeeded, emails: emailsNeeded
+  });
 
   // A newer click already went out while this one was fetching — its answer is the
   // one that belongs on screen, so drop this instead of overwriting the right day.
@@ -4355,7 +4385,7 @@ async function renderDash(bg){
   if(todayCard) todayCard.className = 'chart-card urgency-neutral';
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
-  function makeTodayCat(title,color,list,isPickup,icon){
+  function makeTodayCat(title,color,list,isPickup,icon,anchorId,mOrder){
     if(!list.length) return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
@@ -4369,7 +4399,7 @@ async function renderDash(bg){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div style="margin-bottom:4px">'
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
       +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
@@ -4433,17 +4463,20 @@ async function renderDash(bg){
   // strip below. Both paths must match or the layout would jump when the date
   // picker moves off today.
   // Same pairing as the picked-date path above — see the comment there.
-  function pairToday(a,b){ var h=a+b; return h ? '<div class="tj-cols">'+h+'</div>' : ''; }
-  var todayBinCols = pairToday(
-    makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24})),
-    makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24})));
-  var todayRestCats = pairToday(
-      makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'})),
-      makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24})))
-    + pairToday(
-      makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24})),
-      makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24})));
-  var todayHtml = todayBinCols + todayRestCats;
+  var todayHtml = tjFlow(
+    makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}),'dcat-dropoffs',1)
+    + makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}),'dcat-junk',3)
+    + makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24}),'dcat-quotes',4),
+    makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}),'dcat-pickups',2)
+    + makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24}),'dcat-furniture',5)
+    + makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24}),'dcat-extra',6));
+
+  if(typeof mSetDaySummary==='function') mSetDaySummary({
+    dropoffs: todayBinDropoffs.length, pickups: todayBinPickups.length,
+    junkRemovals: todayJunkRemovals.length, junkQuotes: todayJunkQuotes.length,
+    landscaping: todayLandscaping.length, furniture: todayFurnPickups.length + todayFurnDelivs.length,
+    calls: unconfirmedToday, emails: emailsToday
+  });
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
@@ -19122,6 +19155,7 @@ function renderDashCrewStatus(){
       +menu
     +'</div>';
   }).join('');
+  if(typeof mSyncCrewSummary==='function') mSyncCrewSummary();
 }
 function toggleCrewMenu(id){ var m=document.getElementById(id); if(!m) return; var open=m.style.display!=='none'; closeCrewMenus(); if(!open)m.style.display='block'; }
 function closeCrewMenus(){ document.querySelectorAll('[id^="crew-menu-"]').forEach(function(el){el.style.display='none';}); }
