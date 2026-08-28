@@ -71,9 +71,9 @@ needs it, so the first push of every session is blocked until
 
 The dashboard is one static site, three files at repo root:
 
-- `index.html` (~1,940 lines) — HTML structure only. References `style.css` and `app.js`.
-- `style.css` (~990 lines) — all CSS. Includes the `.modal-overlay` / `.modal-overlay.open` pattern that all modals rely on.
-- `app.js` (~12,800 lines) — all JavaScript. Big file but flat — grep for function names.
+- `index.html` (~3,025 lines) — HTML structure only. References `style.css` and `app.js`.
+- `style.css` (~3,370 lines) — all CSS. Includes the `.modal-overlay` / `.modal-overlay.open` pattern that all modals rely on.
+- `app.js` (~19,672 lines) — all JavaScript. Big file but flat — grep for function names.
 - `motion.min.js` — vendored motion.dev v12.43.0 animation library (140 KB, exposes `window.Motion`). Never edit; replace wholesale to upgrade.
 - `app-motion.js` — the motion layer (`window.JJMotion`, v541). Stamp and modal animations run off observers with no call sites; app.js calls the rest behind `window.JJMotion &&` guards so stale-HTML users (and reduced-motion users) keep the pre-motion CSS behavior.
 
@@ -108,10 +108,9 @@ Edit files in place — no temp clones, no copying around. Then:
    - `var APP_VERSION = 'N';` near the top of `app.js`
    - the contents of `version.txt` at repo root
    Without this, users will hit cached JS and not see the fix, and the auto-update banner will misfire.
-2b. Other files at repo root have their OWN separate `?v=` cache-busters in `index.html` (near the top). If you edit one, bump its query string too — to the same N as this deploy:
-   - `<link rel="stylesheet" href="style.css?v=N">` when you change `style.css`
-   - `<script src="app-bookings.js?v=N">` when you change `app-bookings.js` (the Bookings widget code)
-   These are SEPARATE from `app.js`'s `?v`. Forget one and browsers keep serving the old cached file: e.g. new markup renders with class names that have no matching CSS rules, so the page looks broken/unstyled even though the pushed file is correct. (Whenever `version.txt` changes, also bump `APP_VERSION` in lockstep — otherwise the auto-update banner misfires forever.)
+2b. Every other file the site loads has its OWN separate `?v=` cache-buster — 34 of them in `index.html` alone. If you edit a file, bump its `?v=` to this deploy's N. These are SEPARATE from `app.js`'s `?v`. Forget one and browsers keep serving the old cached file: new markup renders against stale CSS/JS, so the page looks broken even though the pushed file is correct. (Whenever `version.txt` changes, also bump `APP_VERSION` in lockstep — otherwise the auto-update banner misfires forever.)
+
+   **There are four HTML entry points, and each carries its own numbers for the same files**: `index.html`, `inventory.html` (Darrin's back-shop kiosk), `jeff.html` and `office-tv.html`. Bumping one does nothing for the others. This is not hypothetical — `inventory.html` asked for `app-jwg-scheduler.js?v=562` from 2026-08-17 while `index.html` moved on to 609, so the kiosk served a stale scheduler for eleven days. The pre-push tripwire now checks all four (it only read `index.html` before), so it will stop you — but check the page you actually changed.
 3. `git add`, `git commit -m "..."`, `git push origin main` — no push order needed
    (Jake lifted the ask-first rule 2026-07-11). GitHub Pages deploys in ~30s.
 4. After every push, verify live (always — it's nearly free):

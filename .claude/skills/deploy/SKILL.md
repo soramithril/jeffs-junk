@@ -23,9 +23,16 @@ then verify the LIVE site immediately. That live check is the safety net.
    - `var APP_VERSION = 'N';` near the top of `app.js`
    - the contents of `version.txt`
 
-4. **Every other changed file that `index.html` loads with `?v=`**
-   (style.css, app-motion.js, app-bookings.js, etc.) gets its own `?v=`
-   bumped to N. Forgetting one ships new markup against stale cached files.
+4. **Every other changed file loaded with `?v=` gets its own `?v=` bumped
+   to N - on EVERY page that loads it.** There are four HTML entry points and
+   each carries its own number for the same file: `index.html`,
+   `inventory.html` (Darrin's back-shop kiosk), `jeff.html`, `office-tv.html`.
+   Bumping one does nothing for the others - the kiosk sat eleven days on a
+   stale `app-jwg-scheduler.js` exactly that way. Find every page that loads
+   a file you changed:
+   ```bash
+   grep -ao 'CHANGED-FILE?v=[0-9]*' *.html
+   ```
 
 5. **Before pushing**, check the parse-check workflow isn't already red from
    a previous push (`gh run list --workflow=parse-check.yml --limit 1`).
