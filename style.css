@@ -2348,6 +2348,51 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
+/* Section shell and header. Both were inline on the elements until v632; they
+   live here so the desktop block below can retune them (an inline style beats a
+   stylesheet rule, so the collapse could never have won otherwise). These two
+   rules reproduce exactly what was inline, which is what the phone keeps. */
+.tj-cat{margin-bottom:4px}
+.tj-cat-hd{display:flex;align-items:center;gap:8px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;padding:8px 14px 4px}
+
+/* ── LEDGER LISTS (v632, desktop only) ───────────────────────────────────────
+   A card per row meant 40 borders and 40 shadows down a busy day, and the eye
+   had to re-find the columns on every one. One white surface per SECTION
+   instead: the border, radius and shadow belong to the section, the service
+   colour is a 2px rule under its header, and rows are separated by a hairline
+   with a faint alternating tint. The service-coloured left edge now means one
+   thing only — this job is booked to a set time — replacing the .fixed mint
+   tint. The address moves off its own second line and onto the main line after
+   the chips. Everything the row contains is untouched: same buttons, same
+   chips, same order, same 132px bin slot and 200px actions well.
+   Phone (<=900px) keeps the v629 cards. */
+@media(min-width:901px){
+  .tj-cat{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    box-shadow:var(--shadow-sm);margin:0 10px 12px;
+  }
+  .tj-cat-hd{padding:9px 14px 7px;border-bottom:2px solid var(--tjc,var(--border))}
+  .tjr2{
+    margin:0;padding:7px 12px;border:0;border-top:1px solid var(--border);
+    border-left:3px solid transparent;border-radius:0;background:transparent;
+  }
+  /* Child 1 is the header, so the rows are children 2..n — the first row sits
+     straight under the section rule and takes no line of its own. */
+  .tj-cat .tjr2:nth-child(2){border-top:0}
+  .tj-cat .tjr2:nth-child(even){background:rgba(15,23,42,.022)}
+  /* The last row's tint has to stop inside the section's radius. No overflow:hidden
+     on the section — that would clip the buttons' hover lift and shadow. */
+  .tj-cat .tjr2:last-child{border-radius:0 0 9px 9px}
+  /* A set time is now the ONLY thing the coloured left edge means, so .fixed gives
+     up the mint fill it used to carry. */
+  .tjr2.fixed{background:transparent;border-left-color:var(--tjr-c,#cdd5ce)}
+  .tj-cat .tjr2:hover{background:var(--surface2);box-shadow:none}
+  .tjr2 .djj-main{display:flex;align-items:center;gap:8px;min-width:0}
+  .tjr2 .djj-main>div:first-child{flex:0 1 auto;min-width:0}
+  .tjr2 .djj-sub{flex:1 1 auto;min-width:0}
+  .tjr2 .djj-sub::before{content:'·';margin-right:6px;color:var(--border)}
+}
+
 /* Today's Jobs runs in two columns — bin drop-offs beside pickups, junk beside
    furniture (v563; the one-list toggle is gone, Jake picked side by side).
    The reason it used to clip customer names was never the columns, it was the ROW:

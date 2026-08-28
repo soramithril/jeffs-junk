@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '631';
+var APP_VERSION = '632';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3811,8 +3811,12 @@ async function refreshDashJobs(){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+    // --tjc carries the section's service colour so the desktop rule under the
+    // header can draw in it. Everything else about the header is unchanged; its
+    // layout moved to .tj-cat-hd in style.css so the desktop block can retune the
+    // padding without an inline style beating it.
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="--tjc:'+color+'">'
+      +'<div class="tj-cat-hd" style="color:'+svcInk(color)+'">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         // A live load only ever shows on the drop-off side (one truck visit), so its
@@ -4495,8 +4499,12 @@ async function renderDash(bg){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+    // --tjc carries the section's service colour so the desktop rule under the
+    // header can draw in it. Everything else about the header is unchanged; its
+    // layout moved to .tj-cat-hd in style.css so the desktop block can retune the
+    // padding without an inline style beating it.
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="--tjc:'+color+'">'
+      +'<div class="tj-cat-hd" style="color:'+svcInk(color)+'">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         // A live load only ever shows on the drop-off side (one truck visit), so its
