@@ -12,6 +12,18 @@
             "statusMessage": "Pre-push tripwire: parsing JS + checking version lockstep"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["scripts/block_vendored.py"],
+            "timeout": 10,
+            "statusMessage": "Checking the target isn't a vendored file"
+          }
+        ]
       }
     ]
   }

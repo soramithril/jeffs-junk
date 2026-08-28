@@ -14,8 +14,14 @@ the content that would actually go live (HEAD, not the working tree):
   2. index.html's app.js?v=, APP_VERSION in app.js, and version.txt all
      carry the same number. Out of step = users keep cached JS and the
      auto-update banner misfires.
-  3. Any changed file that index.html loads with ?v= got its ?v= bumped.
-     Forgetting this ships new markup against stale cached CSS/JS.
+  3. Any changed file that an HTML entry point loads with ?v= got its ?v=
+     bumped - every page at the repo root, not just index.html. Each page
+     carries its OWN number for the same file, so bumping index.html does
+     nothing for the others. Forgetting this is silent: the pushed file is
+     correct, the browser simply never asks for it. inventory.html (the
+     back-shop kiosk) sat 47 versions behind index.html on
+     app-jwg-scheduler.js this way, from 2026-08-17 until it was caught on
+     2026-08-28 - the check only ever looked at index.html.
 
 On failure it prints a PreToolUse deny decision and the push never runs.
 Fixing the problem and pushing again is the only path through - by design.
@@ -98,22 +104,34 @@ def check_js_parses(changed):
                  % (path, str(e)[:400]))
 
 
-def check_cache_busters(changed, index_html):
-    old_index = file_at('origin/main', 'index.html')
-    if old_index is None:
-        return
-    for path in changed:
-        if path == 'index.html':
-            continue
-        ref = re.escape(path) + r'\?v=([^"\']+)'
-        m_new = re.search(ref, index_html)
-        if not m_new:
-            continue  # not loaded via index.html with a cache-buster
-        m_old = re.search(ref, old_index)
-        if m_old and m_old.group(1) == m_new.group(1):
-            deny('%s changed but index.html still loads %s?v=%s - bump its '
-                 '?v= or browsers will keep serving the old cached file.'
-                 % (path, path, m_new.group(1)))
+def html_entry_points():
+    """Every tracked HTML page at the repo root, discovered rather than listed
+    so a new entry point is guarded the day it lands instead of the day
+    someone remembers it."""
+    r = sh('git', 'ls-tree', '--name-only', 'HEAD')
+    return sorted(n.strip() for n in r.stdout.splitlines()
+                  if n.strip().endswith('.html'))
+
+
+def check_cache_busters(changed):
+    for page in html_entry_points():
+        new_page = file_at('HEAD', page)
+        old_page = file_at('origin/main', page)
+        if new_page is None or old_page is None:
+            continue  # page added in this push; nothing cached to go stale
+        for path in changed:
+            if path == page:
+                continue
+            ref = re.escape(path) + r'\?v=([^"\']+)'
+            m_new = re.search(ref, new_page)
+            if not m_new:
+                continue  # this page doesn't load it with a cache-buster
+            m_old = re.search(ref, old_page)
+            if m_old and m_old.group(1) == m_new.group(1):
+                deny('%s changed but %s still loads %s?v=%s - bump its ?v= '
+                     'in %s or browsers will keep serving the old cached '
+                     'file. Each page carries its own number.'
+                     % (path, page, path, m_new.group(1), page))
 
 
 def main():
@@ -135,7 +153,7 @@ def main():
     if r.returncode == 0:
         changed = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
         check_js_parses(changed)
-        check_cache_busters(changed, index_html)
+        check_cache_busters(changed)
 
     sys.exit(0)
 

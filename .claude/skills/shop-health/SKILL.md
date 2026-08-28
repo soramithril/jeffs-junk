@@ -48,7 +48,19 @@ everything is fine say so in one line.
      advisory only and once sat red for 20 hours while the site was dead. Red
      here = drop everything and check the live site loads.
 
-5. **Live console check** only if anything above looks off: load the live
+5. **Cache-buster drift between pages.** Each HTML entry point carries its
+   own `?v=` for the same shared file, so one page can quietly fall behind
+   and serve a stale copy. Report any file whose number differs across pages:
+   ```bash
+   for f in $(grep -haoE '[a-z0-9-]+\.(js|css)\?v=[0-9]+' *.html | sed 's/?.*//' | sort -u); do
+     echo "$f: $(grep -alo "$f?v=[0-9]*" *.html | while read p; do
+       printf '%s=%s ' "$p" "$(grep -ao "$f?v=[0-9]*" "$p" | head -1 | sed 's/.*v=//')"; done)"
+   done | awk '{n=0; for(i=2;i<=NF;i++){split($i,a,"="); if(!(a[2] in seen)){seen[a[2]]=1;n++}} delete seen; if(n>1) print "DRIFT: "$0}'
+   ```
+   The pre-push tripwire blocks NEW drift, but anything already live predates
+   that guard and needs a manual bump.
+
+6. **Live console check** only if anything above looks off: load the live
    site in Jake's real Chrome (claude-in-chrome, not the in-app Browser
    pane), confirm `APP_VERSION` via sync DOM eval, console free of errors
    (the intro-bg.mp4 autoplay AbortError noise is benign).
