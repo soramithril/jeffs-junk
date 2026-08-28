@@ -7342,6 +7342,9 @@ function renderPricing(){
   if(cb) cb.style.display = canAccessAnalytics() ? '' : 'none';
   renderPricingAreas();
   renderPricingRail();
+  // On a phone the nine-column sheet is replaced by a town-first walk that ends
+  // in this same rail — see app-mobile.js.
+  if(typeof renderPricingMobile==='function') renderPricingMobile();
   // Competitor comparison tables render on demand (pvToggleCompare); keep them
   // fresh if the section is already open.
   var cv = document.getElementById('pricing-classic-view');

@@ -151,3 +151,100 @@ function mSetJumpBadge(id, n){
   el.textContent = n;
   if(el.parentElement) el.parentElement.classList.toggle('is-empty', n===0);
 }
+
+/* ─── Bin Pricing on a phone: town first ───────────────────────────────────
+   The desktop sheet is a nine-column grid of every town against every size —
+   on a phone that squeezes to nothing. Same sheet, same math, walked in the
+   order the phone call actually goes: which town, then which bin, then the
+   quote. The quote itself is the desktop's own Quote Builder (renderPricingRail
+   off _pvSel), so the two surfaces can never read different numbers out to the
+   same customer. The Margin Console stays desktop-only. */
+var _pvmStage  = 'towns';
+var _pvmSearch = '';
+
+function pvmGo(stage){ _pvmStage = stage; renderPricingMobile(); }
+function pvmSearch(v){ _pvmSearch = String(v||'').toLowerCase(); renderPricingMobile(); }
+
+function pvmPickTown(area, town){
+  _pvSel.area = area; _pvSel.town = town;
+  pvmGo('prices');
+}
+function pvmPickSize(sz){
+  _pvSel.size = sz;
+  _pvmStage = 'quote';
+  renderPricingRail();
+  renderPricingMobile();
+}
+
+function renderPricingMobile(){
+  var host = document.getElementById('pv-mobile');
+  if(!host) return;
+  document.getElementById('view-pricing').classList.toggle('pvm-quote', _pvmStage==='quote');
+  if(!isMobileView()){ host.innerHTML=''; return; }
+
+  var rows = pvAllRows();
+  if(!rows.length){
+    host.innerHTML = '<div class="pvm-empty">No pricing areas yet — add one in Edit Our Prices.</div>';
+    return;
+  }
+
+  if(_pvmStage==='towns'){
+    var list = rows.filter(function(r){
+      return !_pvmSearch || String(r.town).toLowerCase().indexOf(_pvmSearch)!==-1;
+    }).sort(function(a,b){ return String(a.town).localeCompare(String(b.town)); });
+    host.innerHTML = '<div class="pvm-head"><span>Pick the town</span></div>'
+      + '<input class="pvm-search" type="text" placeholder="Search towns…" value="'+_pvEsc(_pvmSearch)+'" oninput="pvmSearch(this.value)">'
+      + (list.length
+          ? '<div class="pvm-list">'+list.map(_pvmTownRow).join('')+'</div>'
+          : '<div class="pvm-empty">No town matches that.</div>');
+    return;
+  }
+
+  var r = rows.find(function(x){ return x.area===_pvSel.area && x.town===_pvSel.town; });
+  if(!r){ pvmGo('towns'); return; }
+
+  if(_pvmStage==='prices'){
+    var priced = PV_TABLE_SIZES.filter(function(s){ return parseFloat(r.bins[s])>0; });
+    host.innerHTML = _pvmBack('towns', r.town, r.zone)
+      + (priced.length
+          ? '<div class="pvm-list">'+priced.map(function(sz){ return _pvmSizeRow(r, sz); }).join('')+'</div>'
+          : '<div class="pvm-empty">No bin prices set for '+_pvEsc(r.town)+' yet — add them in Edit Our Prices.</div>');
+    return;
+  }
+
+  // quote — the card itself is #pv-rail-host, which the phone CSS only shows here
+  host.innerHTML = _pvmBack('prices', _pvSizeLabel(_pvSel.size)+' bin · '+r.town, r.zone);
+}
+
+function _pvmBack(stage, title, zone){
+  return '<div class="pvm-head">'
+    + '<button type="button" class="pvm-back" onclick="pvmGo(\''+stage+'\')">‹ Back</button>'
+    + '<span class="pvm-head-t">'+_pvEsc(title)+'</span>'
+    + (zone?'<span class="pvm-head-z">'+_pvEsc(_pvZoneLabel(zone))+'</span>':'')
+    + '</div>';
+}
+
+function _pvmTownRow(r){
+  var base  = parseFloat(r.bins['14 yard']);
+  var allIn = base>0 ? pvCalcAllIn(base, '14 yard', r.tonne) : null;
+  return '<button type="button" class="pvm-row" onclick="pvmPickTown(\''+_pvArg(r.area)+'\',\''+_pvArg(r.town)+'\')">'
+    + '<span class="pvm-row-main">'
+      + '<span class="pvm-row-t">'+_pvEsc(r.town)+'</span>'
+      + (r.zone?'<span class="pvm-row-s">'+_pvEsc(_pvZoneLabel(r.zone))+'</span>':'')
+    + '</span>'
+    + '<span class="pvm-row-p">'+(allIn?pvFmtR(allIn):'—')+'<em>'+(allIn?'14yd all-in':'no 14yd price')+'</em></span>'
+    + '</button>';
+}
+
+function _pvmSizeRow(r, sz){
+  var base  = parseFloat(r.bins[sz]);
+  var allIn = pvCalcAllIn(base, sz, r.tonne);
+  var head  = PV_TABLE_HEADS[sz] || [sz,''];
+  return '<button type="button" class="pvm-row pv-g-'+(PV_SIZE_GROUP[sz]||'week')+'" onclick="pvmPickSize(\''+_pvArg(sz)+'\')">'
+    + '<span class="pvm-row-main">'
+      + '<span class="pvm-row-t">'+_pvEsc(head[0])+'</span>'
+      + '<span class="pvm-row-s">'+_pvEsc(head[1])+'</span>'
+    + '</span>'
+    + '<span class="pvm-row-p">'+pvFmtR(allIn)+'<em>$'+base+' before tax</em></span>'
+    + '</button>';
+}

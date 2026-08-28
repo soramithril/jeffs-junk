@@ -222,6 +222,53 @@
   .cdet-jobs tbody td{padding:8px 6px;font-size:12px;word-break:break-word;}
   .cdet-jobs td span,.cdet-jobs td .badge,.cdet-jobs td .service-badge{white-space:normal !important;}
 
+  /* ─── Bin Pricing: town → that town's prices → the quote card ──────────── */
+  #view-pricing .pv-hero-legend{display:none;}
+  #view-pricing #pv-areas{display:none;}
+  #view-pricing .pv-layout{display:block;}
+  /* The quote card is the desktop's own rail; it only appears at the last step. */
+  #view-pricing #pv-rail-host{display:none;}
+  #view-pricing.pvm-quote #pv-rail-host{display:block;}
+  .pvm-head{
+    display:flex;align-items:center;gap:9px;margin:0 0 10px;
+    font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
+  }
+  .pvm-head-t{
+    flex:1;min-width:0;font-size:14px;font-weight:800;letter-spacing:0;
+    text-transform:none;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .pvm-head-z{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:none;}
+  .pvm-back{
+    flex:none;background:var(--surface);border:1px solid var(--border);color:var(--text);
+    border-radius:9px;font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;
+    letter-spacing:0;text-transform:none;padding:7px 12px;cursor:pointer;
+  }
+  .pvm-search{
+    width:100%;height:44px;padding:0 14px;margin:0 0 10px;
+    border:1px solid var(--border);border-radius:11px;
+    background:var(--surface);color:var(--text);font-family:inherit;font-size:15px;outline:none;
+  }
+  .pvm-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .pvm-row{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:12px 14px;background:none;border:none;border-bottom:1px solid var(--border);
+    font-family:'Inter',sans-serif;text-align:left;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .pvm-row:last-child{border-bottom:none;}
+  .pvm-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .pvm-row-t{font-size:14.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pvm-row-s{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pvm-row-p{
+    flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+    font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;letter-spacing:.5px;color:var(--accent-hover);
+  }
+  .pvm-row-p em{font-family:'Inter',sans-serif;font-size:10px;font-style:normal;font-weight:600;color:var(--muted);letter-spacing:0;}
+  .pvm-empty{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:22px 18px;text-align:center;font-size:13px;color:var(--muted);line-height:1.5;
+  }
+
   /* ─── One "Filters" button per list page; the pile becomes a bottom sheet ─ */
   .mfilters-btn{
     display:inline-flex !important;align-items:center;gap:7px;

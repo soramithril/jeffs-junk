@@ -1231,11 +1231,14 @@
       <div class="pv-hero-legend" id="pv-zone-legend"></div>
     </div>
     <div class="pv-hero-actions">
-      <button class="btn btn-ghost" id="pv-console-btn" style="display:none" onclick="go('pricingconsole')">📈 Margin Console</button>
+      <button class="btn btn-ghost mdesk-only" id="pv-console-btn" style="display:none" onclick="go('pricingconsole')">📈 Margin Console</button>
       <button class="btn btn-ghost admin-only" onclick="go('ourpriceseditor')">Edit Our Prices</button>
       <button class="btn btn-primary" onclick="openAddCompetitor()">+ Add Competitor</button>
     </div>
   </div>
+
+  <!-- Phone: town first, then that town's prices, then the same quote card -->
+  <div id="pv-mobile" class="mphone-only"></div>
 
   <!-- All areas at once (left) + quote breakdown & phone script (right) -->
   <div class="pv-layout">
