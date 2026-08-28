@@ -1034,7 +1034,11 @@ async function renderDispatch(){
 // old board, one toggle away.
 
 function dispatchGetViewMode(){
-  return localStorage.getItem('dispatch_view') === 'list' ? 'list' : 'canvas';
+  var saved = localStorage.getItem('dispatch_view');
+  if(saved === 'list' || saved === 'canvas') return saved;
+  // Nothing chosen yet: a drag-and-pan canvas is not a phone board, so a phone
+  // opens on the List view. Once someone picks a view it is theirs either way.
+  return isMobileView() ? 'list' : 'canvas';
 }
 function dispatchSetViewMode(m){
   localStorage.setItem('dispatch_view', m);

@@ -47,6 +47,22 @@
    line; on desktop that wrapper has to stay a plain inline strip. */
 .ny-actions{display:flex;align-items:center;gap:8px;flex:none}
 
+/* ─── Both widths: All Jobs has one search box, not two ───────────────────
+   The AI ask-bar was a second full-width input under the first and read as a
+   duplicate of the search you had just typed into. One box, and a chip that
+   says whether the AI is the one answering. */
+.jsearch-bar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.jsearch-bar #ai-search-q{flex:1;min-width:0;height:46px;font-size:14.5px;border-radius:11px;margin:0}
+.jsearch-ai{
+  flex:none;display:inline-flex;align-items:center;gap:6px;height:46px;padding:0 16px;
+  border:1px solid var(--border);border-radius:11px;background:var(--surface);
+  color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s;
+}
+.jsearch-ai:hover{border-color:var(--accent);color:var(--text)}
+.jsearch-ai.on{background:var(--accent-light);border-color:var(--accent-hover);color:var(--accent-hover)}
+.jsearch-go{flex:none;height:46px;padding:0 20px;border-radius:11px;white-space:nowrap}
+
 @media(max-width:900px){
 
   /* ─── Bottom tab bar now carries five tabs ─────────────────────────────── */
@@ -367,6 +383,63 @@
     cursor:pointer;-webkit-tap-highlight-color:transparent;
   }
   .ljm-seg.on{background:var(--surface);color:var(--accent-hover);box-shadow:var(--shadow-sm);}
+
+  /* ─── All Jobs: table rows become cards ─────────────────────────────────
+     The rows are still rows — one full-width cell each — so the existing
+     row-click delegation and the cat-section collapse keep working. */
+  #view-jobs .table-wrap{overflow-x:visible !important;border:none;background:none;box-shadow:none;}
+  #view-jobs table,#view-jobs tbody{display:block;width:100%;}
+  #view-jobs thead{display:none;}
+  /* Every row, not just the cards — an empty-state row left as a table-row
+     inside a block tbody makes the browser build an anonymous table around it. */
+  #view-jobs tbody tr{display:block;margin:0 0 8px;}
+  #view-jobs tbody td{display:block;}
+  .jcard-td{
+    display:block;padding:12px 13px !important;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  }
+  .jcard-tr.is-cancelled .jcard-td{opacity:.62;}
+  .jcard-top{display:flex;align-items:baseline;gap:8px;}
+  .jcard-name{
+    flex:1;min-width:0;font-size:15px;font-weight:700;color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .jcard-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+  .jcard-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+  .jcard-addr{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.4;}
+  .jcard-acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
+  .jcard-acts .jcell-email:empty{display:none;}
+  #view-jobs .cat-section{border:none;background:none;}
+
+  /* ─── Furniture Quote: the running total pins above the tab bar ────────── */
+  #view-drdcalc .drdc-layout{display:block;}
+  /* The truck fill and its gauge stay exactly as they are, at the top. */
+  #view-drdcalc .drdc-quote{
+    position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom,0px));
+    z-index:120;margin:0;border-radius:14px 14px 0 0;
+    background:var(--surface);border-top:1px solid var(--border);
+    box-shadow:0 -6px 20px rgba(0,0,0,.12);
+    padding:9px 14px calc(9px + env(safe-area-inset-bottom,0px));
+  }
+  #view-drdcalc .drdc-money{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  #view-drdcalc .drdc-money__k{font-size:9.5px;letter-spacing:.4px;}
+  #view-drdcalc .drdc-money__v{font-size:17px !important;}
+  #view-drdcalc .drdc-quote>div:last-child{margin-top:7px !important;}
+  #view-drdcalc .drdc-quote .btn{flex:1;justify-content:center;font-size:13px;padding:8px 10px;}
+  /* Room for the pinned bar so the last row of the item grid is reachable. */
+  #view-drdcalc.active{padding-bottom:118px;}
+
+  /* ─── Analytics: tighten the header stack ───────────────────────────────── */
+  #view-analytics .page-header{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:12px;}
+  #view-analytics .page-header .page-sub{display:none;}
+  #view-analytics .ana-report-controls{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  }
+  #view-analytics .ana-report-lbl{font-size:11px;}
+  #view-analytics .ana-report-controls .btn{padding:6px 12px;font-size:12px;}
+  #view-analytics .atab{font-size:12px !important;padding:6px 11px !important;}
 
   /* ─── One "Filters" button per list page; the pile becomes a bottom sheet ─ */
   .mfilters-btn{

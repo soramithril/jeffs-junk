@@ -1779,6 +1779,29 @@ function doJobSearch(q) {
   loadJobsPage(0);
 }
 
+// One search box, two modes. The AI ask-bar used to be a second full-width input
+// sitting under the first, which read as a duplicate of the search you had just
+// typed into — so it went unused. Same box now: the chip says whether the AI is
+// answering. Off, it filters as you type; on, Enter asks the question.
+var _jobsAiMode = false;
+function toggleJobsAi(){
+  _jobsAiMode = !_jobsAiMode;
+  var inp  = document.getElementById('ai-search-q');
+  var chip = document.getElementById('jobs-ai-chip');
+  var go   = document.getElementById('jobs-ai-go');
+  chip.classList.toggle('on', _jobsAiMode);
+  go.style.display = _jobsAiMode ? '' : 'none';
+  inp.placeholder = _jobsAiMode
+    ? 'Ask the AI — e.g. "junk removals with a couch in Innisfil last summer"'
+    : 'Search name, phone, address, city, or job #…';
+  // Switching modes re-reads the box for the mode it is now in: a sentence left
+  // filtering the list would show "no jobs" for something nobody meant as a filter.
+  doJobSearch(_jobsAiMode ? '' : inp.value);
+  inp.focus();
+}
+function jobSearchInput(v){ if(!_jobsAiMode) doJobSearch(v); }
+function jobSearchEnter(){ if(_jobsAiMode) aiJobSearch(); }
+
 // ═══ AI (Gemini) shared helpers ═══
 // All AI calls go through the ai-advisor edge function, which holds the Google
 // key server-side and only answers signed-in employees. Until the GEMINI_API_KEY
@@ -5211,7 +5234,42 @@ function emailHtml(id, sent){
 }
 /* The address written on THIS booking — never the client's. See openEmailModal. */
 function jobEmail(j){return (j.emails&&j.emails[0])?j.emails[0]:'';}
+
+/* One job as a card, for phones. The tables run to eight or nine columns, which
+   on a phone is a sideways scroll with the customer's name off the left edge.
+   Same job, folded: name and number, the chips that say what and when, the
+   address, then Email and Edit. It is still a tr.job-row carrying a .jcell-email,
+   because that is what the row-click delegation reaches for. */
+function makeJobCard(j){
+  var isCancelled = j.status === 'Cancelled';
+  var addr = resolveAddr(j).display || '';
+  function chip(txt, col, bg){
+    return '<span class="jcard-chip" style="color:'+col+';background:'+bg+'">'+txt+'</span>';
+  }
+  var chips = sb(j.service) + stb(j.status);
+  if(j.city) chips += chip(escHtml(j.city), 'var(--text-secondary)', 'var(--surface2)');
+  chips += chip(fd(j.date)+(j.time?' · '+ft(j.time):''), 'var(--text-secondary)', 'var(--surface2)');
+  if(j.service === 'Bin Rental'){
+    var st = j.binInstatus || '';
+    chips += st==='pickedup' ? chip('✔ Picked up','#64748b','rgba(107,117,133,.12)')
+           : st==='dropped'  ? chip('🚛 Dropped','var(--accent-hover)','rgba(34,197,94,.12)')
+                             : chip('⏳ Not dropped','#c2410c','rgba(230,126,34,.14)');
+  }
+  if(j.service === 'Extra Jobs' && j.jobName) chips += chip('🌿 '+escHtml(j.jobName),'#3f6212','#eef5e0');
+  // Extra Jobs have no customer email step anywhere else either, so no button here.
+  var acts = '<span class="jcell-email">'+(j.service==='Extra Jobs'?'':emailHtml(j.id, j.emailSent))+'</span>'
+    + (isCancelled?'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'">↩ Restore</button>':'')
+    + '<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'">'+lineIcon('edit',14)+' Edit</button>';
+  return '<tr data-jid="'+j.id+'" class="job-row jcard-tr'+(isCancelled?' is-cancelled':'')+'">'
+    +'<td class="jcard-td" colspan="9">'
+      +'<div class="jcard-top"><span class="jcard-name">'+j.name+'</span>'+jid(j.id,j.service)+'</div>'
+      +'<div class="jcard-chips">'+chips+'</div>'
+      +(addr?'<div class="jcard-addr">'+addr+'</div>':'')
+      +'<div class="jcard-acts">'+acts+'</div>'
+    +'</td></tr>';
+}
 function makeJobRowNoSvc(j){
+  if(isMobileView()) return makeJobCard(j);
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
@@ -5229,6 +5287,7 @@ function makeJobRowNoSvc(j){
 // Landscaping list row — its own renderer so Bin/Junk/Quote tables stay untouched.
 // Columns: ID · Job Name · Customer · # Guys · Date · Address · Email · actions (8 cells).
 function makeLandscapingRow(j){
+  if(isMobileView()) return makeJobCard(j);
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
@@ -5244,6 +5303,7 @@ function makeLandscapingRow(j){
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('edit',15)+'</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('del',15)+'</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
+  if(isMobileView()) return makeJobCard(j);
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
@@ -5261,6 +5321,7 @@ function makeJobRowWithSvc(j){
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 function makeCancelledRow(j){
+  if(isMobileView()) return makeJobCard(j);
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
@@ -5273,6 +5334,7 @@ function makeCancelledRow(j){
     +'</div></td></tr>';
 }
 function makeCancelledRowWithSvc(j){
+  if(isMobileView()) return makeJobCard(j);
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
@@ -5287,6 +5349,7 @@ function makeCancelledRowWithSvc(j){
 }
 // Completed landscaping job row (shown in the "✅ Completed" jobs-page view) — 9 cols to match the single-view header.
 function makeCompletedRow(j){
+  if(isMobileView()) return makeJobCard(j);
   var done = j.completedAt ? fd(String(j.completedAt).slice(0,10)) : '—';
   return '<tr data-jid="'+j.id+'" class="job-row">'
     +'<td>'+jid(j.id,j.service)+'</td>'

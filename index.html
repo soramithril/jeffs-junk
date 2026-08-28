@@ -545,13 +545,12 @@
   </div>
   <div id="jobs-filters-area" style="margin-bottom:20px">
 
-    <!-- 1. Search leads -->
-    <input class="search-input search-icon" type="text" placeholder="Search name, phone, address, city, or job #…" oninput="doJobSearch(this.value)" style="width:100%;max-width:100%;height:46px;font-size:14.5px;margin:0 0 12px;border-radius:11px">
-
-    <!-- AI search: the AI turns the question into filters; the search itself runs against Supabase locally -->
-    <div class="jobs-ai-search" style="display:flex;gap:8px;margin:0 0 12px">
-      <input id="ai-search-q" type="text" placeholder='Ask the AI — e.g. "junk removals with a couch in Innisfil last summer"' style="flex:1;height:42px;font-size:14px;padding:0 14px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')aiJobSearch()">
-      <button class="ai-btn lead" onclick="aiJobSearch()" style="white-space:nowrap;padding:0 20px;border-radius:11px">AI Search</button>
+    <!-- 1. Search — one box, two modes. The AI chip decides whether what you type
+         filters the list as you go or gets asked as a question. -->
+    <div class="jsearch-bar">
+      <input id="ai-search-q" class="search-input search-icon" type="text" placeholder="Search name, phone, address, city, or job #…" oninput="jobSearchInput(this.value)" onkeydown="if(event.key==='Enter')jobSearchEnter()">
+      <button type="button" class="jsearch-ai" id="jobs-ai-chip" onclick="toggleJobsAi()" title="Ask the AI in plain English instead of filtering">✨ AI</button>
+      <button type="button" class="ai-btn lead jsearch-go" id="jobs-ai-go" style="display:none" onclick="aiJobSearch()">Ask</button>
     </div>
 
     <!-- Phone: the whole filter pile below collapses behind this one button -->
