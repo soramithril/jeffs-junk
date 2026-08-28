@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '633';
+var APP_VERSION = '634';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3349,10 +3349,28 @@ function renderDashFleetStrip(){
     : (crewMembers||[]);
   if(roster.length){
     var ds=dashSelectedDate();
+    // "Working today" has to mean carrying a job today, not merely un-booked-off.
+    // Nobody books themselves off, so the off-check alone returned the whole
+    // roster — office staff included — which is the wall of faces this strip
+    // exists to replace. Read the crew actually assigned to the day's jobs and
+    // show them; fall back to the off-check on a day nothing is assigned yet, so
+    // the strip never goes empty on an unplanned morning.
+    var onJobs={};
+    (typeof jobs!=='undefined'&&jobs?jobs:[]).forEach(function(j){
+      var d = j.service==='Bin Rental' ? null
+            : (j.service==='Furniture Pickup'||j.service==='Furniture Delivery') ? j.fbDate
+            : j.junkDate || j.date;
+      var hits = j.service==='Bin Rental' ? (j.binDropoff===ds||j.binPickup===ds) : (d===ds);
+      if(!hits) return;
+      [j.dropoffCrewId, j.pickupCrewId].concat(j.assignedCrewIds||[])
+        .forEach(function(id){ if(id) onJobs[id]=true; });
+    });
+    var anyAssigned=Object.keys(onJobs).length>0;
     var working=[], offCount=0;
     roster.forEach(function(c){
-      if(crewStatusForDate(c.id, ds).state==='off') offCount++;
-      else working.push(c);
+      if(crewStatusForDate(c.id, ds).state==='off'){ offCount++; return; }
+      if(anyAssigned && !onJobs[c.id]){ offCount++; return; }
+      working.push(c);
     });
     out.push('<span class="dfs-sep"></span>');
     if(!working.length) out.push('<span class="dfs-none">Nobody in</span>');
@@ -3361,7 +3379,10 @@ function renderDashFleetStrip(){
       out.push('<span class="dfs-pill" title="'+String(c.name||'').replace(/"/g,'&quot;')+'">'
         +teamAvatar(c.name, crewAvatarColor(c.id), 20)+escHtml(first)+'</span>');
     });
-    if(offCount) out.push('<span class="dfs-off">· '+offCount+' off today</span>');
+    // Says "not out" rather than "off": the count now holds everyone who isn't
+    // carrying a job today, which is booked-off people and unassigned people
+    // together. Calling that "off" would put the office on a day off.
+    if(offCount) out.push('<span class="dfs-off">· '+offCount+(anyAssigned?' not out today':' off today')+'</span>');
   }
 
   el.innerHTML=out.join('');
