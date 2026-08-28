@@ -2429,7 +2429,6 @@ input[type=date],input[type=time]{position:relative;}
    has jobs, so an empty half never sits there. */
 /* The two-column day layout moved to mobile.css (.tj-flow), where it became
    two real columns so a short Drop-offs block no longer strands the row. */
-}
 
 /* Sticky jump-to bar (dashboard) — status-pill row (v449 design refresh):
    surface tray, rounded pills, active pill goes solid green with a white
