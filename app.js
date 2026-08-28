@@ -2090,7 +2090,7 @@ function addClientAddress(){
 
 // ─── JOB FORM HELPERS (reuse client helpers + job-specific ones) ───
 function _jobNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+escHtml(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _jobPhoneRow(num,ext,type){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="f-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="f-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="f-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
@@ -6055,6 +6055,21 @@ function clientSearchDebounce(q){
   _clientSearchTimer=setTimeout(function(){clientSearchLive(q);},220);
 }
 
+// The search text behind the "use as a new customer" button. Held here rather than
+// passed through the onclick so a name with a quote or an apostrophe in it can't
+// break the attribute.
+var _newClientFromSearchQ='';
+function useSearchAsNewJobClient(){
+  var q=String(_newClientFromSearchQ||'').trim();
+  if(!q) return;
+  var wrap=document.getElementById('f-names-wrap');
+  if(wrap) wrap.innerHTML=_jobNameRow(toTitleCase(q));
+  var inp=document.getElementById('f-client-search'); if(inp) inp.value='';
+  var box=document.getElementById('f-client-results'); if(box) box.style.display='none';
+  _newClientFromSearchQ='';
+  toast(toTitleCase(q)+' will be added as a new client when you save.');
+}
+
 async function clientSearchLive(q){
   var box=document.getElementById('f-client-results');
   if(!box)return;
@@ -6069,7 +6084,17 @@ async function clientSearchLive(q){
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Search error: '+r.error.message+'</div>';return;}
-    if(!r.data||!r.data.length){box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found for "'+q+'"</div>';return;}
+    if(!r.data||!r.data.length){
+      // Searching for a customer who turns out to be new is how most new customers
+      // arrive, and the dead-end message meant typing the name a second time into
+      // the booking (Jake, 2026-08-27). One tap carries it across instead. Nothing
+      // is created here: saveJob still mints the client, so there is one creation
+      // path and an abandoned booking leaves no half-made client behind.
+      _newClientFromSearchQ = q;
+      box.innerHTML='<div style="padding:10px 14px 4px;color:var(--muted);font-size:13px">No clients found for "'+escHtml(q)+'"</div>'
+        +'<div style="padding:0 10px 10px"><button type="button" onclick="useSearchAsNewJobClient()" style="width:100%;background:var(--accent-light);border:1px solid #c5edd4;color:var(--accent-hover);font-family:inherit;font-size:13px;font-weight:700;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left">＋ Use “'+escHtml(q)+'” as a new customer</button></div>';
+      return;
+    }
     box.innerHTML=r.data.map(function(c){
       var ph=c.phone||(c.phones&&c.phones[0]?(c.phones[0].num||c.phones[0]):'');
       // A blacklisted customer looked exactly like everyone else in this picker, so one could
