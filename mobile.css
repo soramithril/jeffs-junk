@@ -1,0 +1,496 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE OVERHAUL — phone layout only (≤900px), plus the two desktop layout
+   fixes that came with it (dashboard column balance, needs-you name order).
+
+   Nothing here restyles the app: it is layout only, so a phone gets the same
+   colours, cards and type as the desktop, arranged for a thumb. Every rule is
+   inside @media(max-width:900px) unless it is one of the two desktop fixes,
+   which are marked as such.
+
+   "Phone" is the existing ≤900px breakpoint the mobile shell already uses.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Width-gated visibility helpers. An .mphone-only element is the phone's copy
+   of something the desktop shows another way, so on desktop it has to be gone
+   rather than invisible — otherwise it still takes part in flex/grid layout. */
+.mphone-only{display:none !important;}
+@media(max-width:900px){
+  .mphone-only{display:block !important;}
+  .mdesk-only{display:none !important;}
+}
+
+/* ─── Desktop fix: dashboard columns balance ───────────────────────────────
+   The day used to be emitted as three stacked pair-rows, so a short Drop-offs
+   column left dead space beside a long Pickups one and the next pair started
+   below the taller of the two. Two real columns instead: when Drop-offs ends
+   early, Junk Removals moves straight up under it. Below 1100px .mcol goes
+   display:contents so the six category blocks flow back into one column. */
+.tj-flow{display:block}
+.tj-flow .mcol{display:contents}
+@media(min-width:1100px){
+  .tj-flow{display:grid;grid-template-columns:1fr 1fr;column-gap:14px;align-items:start}
+  .tj-flow.tj-flow-single{grid-template-columns:1fr}
+  .tj-flow .mcol{display:block}
+  .tj-flow .tjr2{flex-wrap:wrap}
+  .tj-flow .tjr2-binslot{width:auto}
+  .tj-flow .tjr2-actions{min-width:0;margin-left:auto}
+  .tj-flow .djj-main{min-width:260px}
+}
+
+/* ─── Desktop fix: Needs-you rows lead with the name ───────────────────────
+   The row title used to read "Send confirmation email — NAME", so the name was
+   the half that got ellipsised away. Name first at both widths; the phone gets
+   its own one-line wording (below) and neither width ever drops the name. */
+.ny-t-phone{display:none}
+.ny-name{font-weight:800}
+/* The row's buttons are wrapped now so the phone can drop them to their own
+   line; on desktop that wrapper has to stay a plain inline strip. */
+.ny-actions{display:flex;align-items:center;gap:8px;flex:none}
+
+/* The filter pile is a real wrapper element so the phone can slide it up as one
+   sheet. On desktop it must not exist as a box: its children were direct flex
+   items of the clients .filters-bar, and wrapping them in a block would stack
+   what used to flow across the row. display:contents hands them straight back. */
+.mfilter-pile{display:contents}
+
+/* ─── Both widths: All Jobs has one search box, not two ───────────────────
+   The AI ask-bar was a second full-width input under the first and read as a
+   duplicate of the search you had just typed into. One box, and a chip that
+   says whether the AI is the one answering. */
+.jsearch-bar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.jsearch-bar #ai-search-q{flex:1;min-width:0;height:46px;font-size:14.5px;border-radius:11px;margin:0}
+.jsearch-ai{
+  flex:none;display:inline-flex;align-items:center;gap:6px;height:46px;padding:0 16px;
+  border:1px solid var(--border);border-radius:11px;background:var(--surface);
+  color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:700;
+  cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s;
+}
+.jsearch-ai:hover{border-color:var(--accent);color:var(--text)}
+.jsearch-ai.on{background:var(--accent-light);border-color:var(--accent-hover);color:var(--accent-hover)}
+.jsearch-go{flex:none;height:46px;padding:0 20px;border-radius:11px;white-space:nowrap}
+
+@media(max-width:900px){
+
+  /* ─── Bottom tab bar now carries five tabs ─────────────────────────────── */
+  .mtab{font-size:9.5px;padding:8px 2px 7px;}
+
+  /* ─── Create sheet lists five things now, so let it scroll ─────────────── */
+  .msheet{max-height:80vh;overflow-y:auto;}
+
+  /* ─── Chip rows that overflow sideways ──────────────────────────────────
+     Touch scroll plus an edge fade. The fade is the classic local/scroll
+     background pair: the two solid covers scroll WITH the content and the two
+     shadows stay put, so a cue only appears on the side that has more past the
+     edge, and a row that fits shows nothing. No JS, no measuring. */
+  .mscroll-x,
+  #dash-today-count>div,
+  #jobs-active-chips,
+  #jobs-show-seg,
+  #dash-crew-status,
+  #dash-vehicle-status{
+    flex-wrap:nowrap !important;
+    overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    background:
+      linear-gradient(90deg,var(--surface) 40%,rgba(255,255,255,0)) left center/22px 100% no-repeat local,
+      linear-gradient(90deg,rgba(255,255,255,0),var(--surface) 60%) right center/22px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.13),rgba(0,0,0,0)) left center/11px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.13),rgba(0,0,0,0)) right center/11px 100% no-repeat scroll;
+  }
+  .mscroll-x::-webkit-scrollbar,
+  #dash-today-count>div::-webkit-scrollbar,
+  #jobs-active-chips::-webkit-scrollbar,
+  #jobs-show-seg::-webkit-scrollbar,
+  #dash-crew-status::-webkit-scrollbar,
+  #dash-vehicle-status::-webkit-scrollbar{display:none;}
+  .mscroll-x>*,
+  #dash-today-count>div>*,
+  #jobs-active-chips>*,
+  #jobs-show-seg>*,
+  #dash-crew-status>*,
+  #dash-vehicle-status>*{flex:0 0 auto;}
+
+  /* ─── Collapsible dashboard cards (bins available, crew & vehicles) ─────
+     Collapsed to one line that says the answer; tap to open the full card.
+     No height transition on purpose — these hold live-updating content, and a
+     transition on auto height is a guess about how tall it is going to be. */
+  .mcollapse .mcollapse-head{display:none;}
+  .mcollapse .mcollapse-body{display:none !important;}
+  .mcollapse.m-open .mcollapse-body{display:flex !important;}
+  .mcollapse#card-binavail.m-open .mcollapse-body{display:block !important;}
+  .mcollapse-bar{
+    display:flex !important;align-items:center;gap:10px;width:100%;
+    background:none;border:none;padding:2px 0;cursor:pointer;
+    font-family:'Inter',sans-serif;text-align:left;color:var(--text);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mcollapse-sum{
+    flex:1;min-width:0;font-size:12.5px;font-weight:700;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .mcollapse-caret{flex:none;color:var(--muted);font-size:12px;transition:transform .18s;}
+  .mcollapse.m-open .mcollapse-caret{transform:rotate(180deg);}
+  /* Four bin cards across a phone is unreadable; two rows of two. */
+  #card-binavail.m-open #dash-bin-by-size{grid-template-columns:repeat(2,1fr) !important;}
+
+  /* ─── Green day-summary card at the top of the dashboard ───────────────── */
+  #mday-card{
+    margin:0 0 14px;padding:14px 16px;border-radius:14px;
+    background:linear-gradient(135deg,var(--green-s3),var(--green-s2));color:#fff;
+  }
+  #mday-date{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;opacity:.9;}
+  #mday-total{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1.1;letter-spacing:1px;margin-top:2px;}
+  #mday-counts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  #mday-counts span{
+    display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);
+    border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap;
+  }
+  #mday-counts b{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.5px;}
+
+  /* ─── Pinned jump chips. They live inside the jump bar that is already
+     sticky, so there is still only one thing stuck to the top. ──────────── */
+  .djj-jumpbar{flex-wrap:nowrap;flex-direction:column;align-items:stretch;gap:8px;padding:8px;}
+  .djj-jumpbar .djj-seg{display:none;}
+  #dash-datebar{margin-left:0 !important;min-width:0 !important;width:100%;}
+  .mjump{
+    display:flex !important;gap:6px;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .mjump::-webkit-scrollbar{display:none;}
+  .mseg{
+    flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+    padding:7px 12px;border:none;border-radius:99px;background:var(--surface2);
+    color:var(--text-secondary);font-family:inherit;font-size:12px;font-weight:700;
+    white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .mseg.is-active{background:var(--accent-light);color:var(--accent-hover);box-shadow:inset 0 0 0 1.5px var(--accent-hover);}
+  .mseg-badge{
+    min-width:18px;height:18px;padding:1px 6px;border-radius:99px;
+    background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);
+    font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .mseg.is-active .mseg-badge{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff;}
+  .mseg.is-empty{opacity:.45;}
+  /* Land jump targets clear of the sticky bar, which is two rows tall here. */
+  .tj-cat,#dash-needs-you,#sec-bookings,#card-today-jobs,#card-will-call,#sec-binsout{scroll-margin-top:124px;}
+
+  /* ─── Today's jobs: one column, in the order the jump chips read ───────── */
+  .tj-flow{display:flex;flex-direction:column;}
+  .tj-cat[data-mo="1"]{order:1}.tj-cat[data-mo="2"]{order:2}.tj-cat[data-mo="3"]{order:3}
+  .tj-cat[data-mo="4"]{order:4}.tj-cat[data-mo="5"]{order:5}.tj-cat[data-mo="6"]{order:6}
+
+  /* Job rows: the name used to be the only flexible thing between the crew
+     avatars and a 200px action block, so it was ellipsised down to nothing.
+     Here it wraps instead, keeps one action beside it, and the bin/status
+     chips drop to a second line. */
+  .tjr2{flex-wrap:wrap;align-items:flex-start;row-gap:7px;padding:10px 12px;margin:0 10px 7px;}
+  .tjr2>div:first-child{order:0;}
+  .tjr2 .tjr2-time{order:0;align-self:center;}
+  .tjr2 .djj-main{order:1;flex:1 1 120px;min-width:0;}
+  .tjr2 .djj-name{white-space:normal;overflow:visible;font-size:14px;line-height:1.25;}
+  .tjr2 .djj-sub{white-space:normal;overflow:visible;font-size:11.5px;line-height:1.3;}
+  .tjr2 .djj-main>div:first-child{flex-wrap:wrap;gap:5px;}
+  .tjr2-actions{order:2;min-width:0;flex:0 0 auto;max-width:46%;justify-content:flex-end;flex-wrap:wrap;gap:5px;}
+  .tjr2-actions .djj-btn{font-size:11px;padding:6px 9px;}
+  .tjr2-binslot{order:3;width:100%;justify-content:flex-start;flex-wrap:wrap;gap:5px;}
+
+  /* ─── Needs-you rows: "Send email · NAME · junk quote · today", button at
+     the end. The desktop wording is in the row too and swaps out here. ───── */
+  .ny-row{flex-wrap:wrap;row-gap:9px;padding:12px 13px !important;}
+  .ny-row .ny-title{font-size:13.5px;white-space:normal !important;line-height:1.35;}
+  .ny-t-desk{display:none;}
+  .ny-t-phone{display:inline;}
+  .ny-row .ny-meta{display:none;}
+  .ny-actions{display:flex;gap:7px;flex-wrap:wrap;width:100%;}
+  .ny-actions>*{flex:0 0 auto;}
+
+  /* ─── Clients: one row per client instead of a wall of tall cards ──────── */
+  .mclient-list{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  }
+  .mcl-row{
+    display:flex;align-items:center;gap:10px;padding:11px 13px;
+    border-bottom:1px solid var(--border);cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mcl-row:last-child{border-bottom:none;}
+  .mcl-row.bl{background:#2a0e11;}
+  .mcl-row.bl .mcl-name{color:#fff;}
+  .mcl-main{flex:1;min-width:0;}
+  .mcl-name{
+    font-size:14.5px;font-weight:700;color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .mcl-bl{
+    margin-left:7px;font-size:9.5px;font-weight:800;letter-spacing:.5px;
+    color:#fff;background:#b4232f;border-radius:5px;padding:2px 6px;vertical-align:1px;
+  }
+  .mcl-chips{display:flex;gap:5px;margin-top:4px;overflow-x:auto;scrollbar-width:none;}
+  .mcl-chips::-webkit-scrollbar{display:none;}
+  .mcl-chip{
+    flex:0 0 auto;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;
+  }
+  .mcl-tel{
+    flex:none;font-size:12.5px;font-weight:700;text-decoration:none;
+    color:#16a34a;border:1.5px solid #bbe6cc;border-radius:9px;padding:7px 11px;white-space:nowrap;
+  }
+
+  /* Client detail: the job history wraps rather than sliding sideways inside a
+     modal, which on a phone is a scroll nobody finds. */
+  .cdet-jobs{overflow-x:visible !important;}
+  .cdet-jobs table{table-layout:fixed;}
+  .cdet-jobs thead th{padding:8px 6px;font-size:9.5px;letter-spacing:.4px;}
+  .cdet-jobs tbody td{padding:8px 6px;font-size:12px;word-break:break-word;}
+  .cdet-jobs td span,.cdet-jobs td .badge,.cdet-jobs td .service-badge{white-space:normal !important;}
+
+  /* ─── Bin Pricing: town → that town's prices → the quote card ──────────── */
+  #view-pricing .pv-hero-legend{display:none;}
+  #view-pricing #pv-areas{display:none;}
+  #view-pricing .pv-layout{display:block;}
+  /* The quote card is the desktop's own rail; it only appears at the last step. */
+  #view-pricing #pv-rail-host{display:none;}
+  #view-pricing.pvm-quote #pv-rail-host{display:block;}
+  .pvm-head{
+    display:flex;align-items:center;gap:9px;margin:0 0 10px;
+    font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
+  }
+  .pvm-head-t{
+    flex:1;min-width:0;font-size:14px;font-weight:800;letter-spacing:0;
+    text-transform:none;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .pvm-head-z{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:none;}
+  .pvm-back{
+    flex:none;background:var(--surface);border:1px solid var(--border);color:var(--text);
+    border-radius:9px;font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;
+    letter-spacing:0;text-transform:none;padding:7px 12px;cursor:pointer;
+  }
+  .pvm-search{
+    width:100%;height:44px;padding:0 14px;margin:0 0 10px;
+    border:1px solid var(--border);border-radius:11px;
+    background:var(--surface);color:var(--text);font-family:inherit;font-size:15px;outline:none;
+  }
+  .pvm-list{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .pvm-row{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:12px 14px;background:none;border:none;border-bottom:1px solid var(--border);
+    font-family:'Inter',sans-serif;text-align:left;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .pvm-row:last-child{border-bottom:none;}
+  .pvm-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .pvm-row-t{font-size:14.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pvm-row-s{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pvm-row-p{
+    flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+    font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;letter-spacing:.5px;color:var(--accent-hover);
+  }
+  .pvm-row-p em{font-family:'Inter',sans-serif;font-size:10px;font-style:normal;font-weight:600;color:var(--muted);letter-spacing:0;}
+  .pvm-empty{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:22px 18px;text-align:center;font-size:13px;color:var(--muted);line-height:1.5;
+  }
+
+  /* ─── Crew Schedule: Week / Day / My week ───────────────────────────────
+     The scheduler's phone pattern, in the dashboard's own colours. */
+  .csm-nav{display:flex;justify-content:center;margin-bottom:10px;}
+  .csm-switch{
+    display:flex;gap:4px;margin:0 0 10px;padding:4px;
+    background:var(--surface2);border-radius:10px;
+  }
+  .csm-seg{
+    flex:1;border:none;background:none;border-radius:7px;min-height:38px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:var(--muted);
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .csm-seg.on{background:var(--surface);color:var(--accent-hover);box-shadow:var(--shadow-sm);}
+  .csm-list{display:flex;flex-direction:column;gap:7px;}
+  .csm-row,.csm-card,.csm-prow{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;font-family:'Inter',sans-serif;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .csm-row.is-today,.csm-prow.is-today{border-color:rgba(34,197,94,.5);box-shadow:inset 3px 0 0 var(--accent);}
+  .csm-row.quiet,.csm-prow.quiet,.csm-card.dim{opacity:.6;}
+  .csm-date{flex:none;width:42px;text-align:center;display:flex;flex-direction:column;gap:1px;}
+  .csm-dn{font-size:9.5px;font-weight:800;letter-spacing:.6px;color:var(--muted);}
+  .csm-dd{font-family:'Bebas Neue',sans-serif;font-size:19px;line-height:1;color:var(--text);}
+  .csm-date.tdy .csm-dd{color:var(--accent-hover);}
+  .csm-mid,.csm-cmid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .csm-sum{font-size:12.5px;color:var(--text-secondary);}
+  .csm-sum b{color:var(--text);font-weight:800;}
+  .csm-quiet{font-size:12px;color:var(--muted);font-weight:600;}
+  .csm-flags{display:flex;flex-wrap:wrap;gap:5px;}
+  .csm-flag{font-size:10.5px;font-weight:700;color:#c2410c;}
+  .csm-avs{display:flex;}
+  .csm-avs>*{margin-right:-5px;}
+  .csm-more{
+    width:22px;height:22px;border-radius:50%;background:var(--surface2);color:var(--muted);
+    font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .csm-arr{flex:none;color:var(--muted);font-size:17px;}
+  .csm-strip{display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;}
+  .csm-strip::-webkit-scrollbar{display:none;}
+  .csm-stab{
+    flex:1 0 42px;border:none;background:none;border-radius:10px;padding:6px 2px;
+    display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .csm-stab.sel{background:var(--accent-light);}
+  .csm-stab.sel .csm-dd{color:var(--accent-hover);}
+  .csm-stab.tdy:not(.sel) .csm-dd{color:var(--accent);}
+  .csm-ribbon{font-size:12px;color:var(--text-secondary);font-weight:600;margin:4px 0 8px;}
+  .csm-ribbon b{color:var(--text);font-weight:800;}
+  .csm-grp{
+    font-size:10px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--muted);margin:12px 0 6px;
+  }
+  .csm-name{font-size:13.5px;font-weight:700;color:var(--text);}
+  .csm-chips{display:flex;flex-wrap:wrap;gap:5px;min-width:0;}
+  .csm-chip{
+    font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;line-height:1.35;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .csm-badge{
+    flex:none;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+    border-radius:999px;padding:4px 9px;background:var(--surface2);color:var(--text-secondary);
+    border:1px solid var(--border);
+  }
+  .csm-none{font-size:12px;color:var(--muted);padding:8px 2px;}
+  .csm-pchips{display:flex;gap:5px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;}
+  .csm-pchips::-webkit-scrollbar{display:none;}
+  .csm-pchip{
+    flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+    border:1px solid var(--border);background:var(--surface);border-radius:999px;
+    padding:5px 12px 5px 5px;font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;
+    color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .csm-pchip.sel{background:var(--accent-light);border-color:var(--accent-hover);color:var(--accent-hover);}
+
+  /* ─── Live Jobs: driver cards first, map behind a toggle ───────────────── */
+  /* .active only — .view is display:none until it is the page you are on. */
+  #view-livejobs.active{display:flex;flex-direction:column;}
+  #view-livejobs .page-header{order:0;}
+  #view-livejobs .ljm-switch{order:1;}
+  #view-livejobs .lj-stats{order:2;}
+  #view-livejobs #lj-list{order:3;}
+  #view-livejobs #lj-map-wrap{order:4;display:none;}
+  #view-livejobs.ljm-map #lj-map-wrap{display:block;}
+  #view-livejobs.ljm-map .lj-stats,
+  #view-livejobs.ljm-map #lj-list{display:none;}
+  .ljm-switch{
+    display:flex !important;gap:4px;margin:0 0 12px;padding:4px;
+    background:var(--surface2);border-radius:10px;
+  }
+  .ljm-seg{
+    flex:1;border:none;background:none;border-radius:7px;min-height:38px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:var(--muted);
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .ljm-seg.on{background:var(--surface);color:var(--accent-hover);box-shadow:var(--shadow-sm);}
+
+  /* ─── All Jobs: table rows become cards ─────────────────────────────────
+     The rows are still rows — one full-width cell each — so the existing
+     row-click delegation and the cat-section collapse keep working. */
+  #view-jobs .table-wrap{overflow-x:visible !important;border:none;background:none;box-shadow:none;}
+  #view-jobs table,#view-jobs tbody{display:block;width:100%;}
+  #view-jobs thead{display:none;}
+  /* Every row, not just the cards — an empty-state row left as a table-row
+     inside a block tbody makes the browser build an anonymous table around it. */
+  #view-jobs tbody tr{display:block;margin:0 0 8px;}
+  #view-jobs tbody td{display:block;}
+  .jcard-td{
+    display:block;padding:12px 13px !important;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  }
+  .jcard-tr.is-cancelled .jcard-td{opacity:.62;}
+  .jcard-top{display:flex;align-items:baseline;gap:8px;}
+  .jcard-name{
+    flex:1;min-width:0;font-size:15px;font-weight:700;color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .jcard-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+  .jcard-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+  .jcard-addr{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.4;}
+  .jcard-acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
+  .jcard-acts .jcell-email:empty{display:none;}
+  #view-jobs .cat-section{border:none;background:none;}
+
+  /* ─── Furniture Quote: the running total pins above the tab bar ────────── */
+  #view-drdcalc .drdc-layout{display:block;}
+  /* The truck fill and its gauge stay exactly as they are, at the top. */
+  #view-drdcalc .drdc-quote{
+    position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom,0px));
+    z-index:120;margin:0;border-radius:14px 14px 0 0;
+    background:var(--surface);border-top:1px solid var(--border);
+    box-shadow:0 -6px 20px rgba(0,0,0,.12);
+    padding:9px 14px calc(9px + env(safe-area-inset-bottom,0px));
+  }
+  #view-drdcalc .drdc-money{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  #view-drdcalc .drdc-money__k{font-size:9.5px;letter-spacing:.4px;}
+  #view-drdcalc .drdc-money__v{font-size:17px !important;}
+  #view-drdcalc .drdc-quote>div:last-child{margin-top:7px !important;}
+  #view-drdcalc .drdc-quote .btn{flex:1;justify-content:center;font-size:13px;padding:8px 10px;}
+  /* Room for the pinned bar so the last row of the item grid is reachable. */
+  #view-drdcalc.active{padding-bottom:118px;}
+
+  /* ─── Analytics: tighten the header stack ───────────────────────────────── */
+  #view-analytics .page-header{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:12px;}
+  #view-analytics .page-header .page-sub{display:none;}
+  #view-analytics .ana-report-controls{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  }
+  #view-analytics .ana-report-lbl{font-size:11px;}
+  #view-analytics .ana-report-controls .btn{padding:6px 12px;font-size:12px;}
+  #view-analytics .atab{font-size:12px !important;padding:6px 11px !important;}
+
+  /* ─── One "Filters" button per list page; the pile becomes a bottom sheet ─ */
+  .mfilters-btn{
+    display:inline-flex !important;align-items:center;gap:7px;
+    margin:0 0 10px;padding:9px 14px;border-radius:10px;
+    background:var(--surface);border:1px solid var(--border);color:var(--text);
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mfilters-count{
+    display:none;min-width:18px;height:18px;padding:0 6px;border-radius:99px;
+    background:var(--accent);color:#fff;font-size:10.5px;font-weight:800;
+    align-items:center;justify-content:center;
+  }
+  .mfilters-count.on{display:inline-flex;}
+  .mfilter-backdrop{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);display:none;}
+  .mfilter-backdrop.open{display:block;}
+  /* The pile is never moved in the DOM — these are the same nodes, only
+     repositioned. The atabs sliding highlights measure their own geometry and
+     a display:none ancestor measures zero, so the closed sheet is translated
+     off-screen rather than hidden. */
+  .mfilter-pile{
+    position:fixed;left:0;right:0;bottom:0;z-index:1000;
+    max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    background:var(--surface);border-radius:18px 18px 0 0;
+    padding:10px 16px calc(20px + env(safe-area-inset-bottom,0));
+    box-shadow:0 -8px 30px rgba(0,0,0,.25);
+    transform:translateY(105%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;gap:12px;align-items:stretch;margin:0;
+  }
+  .mfilter-pile.open{transform:translateY(0);}
+  .mfilter-head{
+    display:flex !important;align-items:center;justify-content:space-between;
+    padding-bottom:4px;border-bottom:1px solid var(--border);
+    font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+  }
+  .mfilter-done{
+    background:var(--accent);border:none;color:#fff;border-radius:9px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;
+    padding:7px 18px;cursor:pointer;text-transform:none;letter-spacing:0;
+  }
+  /* Inside the sheet everything is full width and stacked. */
+  .mfilter-pile>div{width:100%;margin:0;}
+  .mfilter-pile .atabs-wrap,.mfilter-pile .atabs-track{width:100%;}
+  .mfilter-pile .atabs-track{flex-wrap:wrap;}
+  .mfilter-pile #client-range-grid{grid-template-columns:1fr !important;}
+  .mfilter-pile #jobs-adv-filters{background:var(--surface2);}
+}

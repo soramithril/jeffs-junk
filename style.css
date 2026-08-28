@@ -2357,20 +2357,8 @@ input[type=date],input[type=time]{position:relative;}
    instead of cutting the name off. Below 1100px it stacks: two columns of this on a
    small laptop is unreadable. :only-child spans the full width when only one side
    has jobs, so an empty half never sits there. */
-.tj-cols{display:grid;grid-template-columns:1fr;gap:0}
-@media(min-width:1100px){
-  .tj-cols{grid-template-columns:1fr 1fr;column-gap:14px}
-  .tj-cols>:only-child{grid-column:1/-1}
-  .tj-cols .tjr2{flex-wrap:wrap}
-  .tj-cols .tjr2-binslot{width:auto}
-  .tj-cols .tjr2-actions{min-width:0;margin-left:auto}
-  /* The wrap above never actually fired: the name block was the only flexible item,
-     so flex shrank IT to ~145px (of the 349px a full business name needs) long before
-     the row ran out of room. Measured on the live page. A floor forces the overflow,
-     which is what makes flex-wrap do its job — so a long name now pushes the buttons
-     onto a second line (row 58px -> 93px) instead of being cut in half, and short
-     names still sit on one line at 58px. */
-  .tj-cols .djj-main{min-width:260px}
+/* The two-column day layout moved to mobile.css (.tj-flow), where it became
+   two real columns so a short Drop-offs block no longer strands the row. */
 }
 
 /* Sticky jump-to bar (dashboard) — status-pill row (v449 design refresh):

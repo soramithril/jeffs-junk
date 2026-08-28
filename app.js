@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '628';
+var APP_VERSION = '629';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1779,6 +1779,29 @@ function doJobSearch(q) {
   loadJobsPage(0);
 }
 
+// One search box, two modes. The AI ask-bar used to be a second full-width input
+// sitting under the first, which read as a duplicate of the search you had just
+// typed into — so it went unused. Same box now: the chip says whether the AI is
+// answering. Off, it filters as you type; on, Enter asks the question.
+var _jobsAiMode = false;
+function toggleJobsAi(){
+  _jobsAiMode = !_jobsAiMode;
+  var inp  = document.getElementById('ai-search-q');
+  var chip = document.getElementById('jobs-ai-chip');
+  var go   = document.getElementById('jobs-ai-go');
+  chip.classList.toggle('on', _jobsAiMode);
+  go.style.display = _jobsAiMode ? '' : 'none';
+  inp.placeholder = _jobsAiMode
+    ? 'Ask the AI — e.g. "junk removals with a couch in Innisfil last summer"'
+    : 'Search name, phone, address, city, or job #…';
+  // Switching modes re-reads the box for the mode it is now in: a sentence left
+  // filtering the list would show "no jobs" for something nobody meant as a filter.
+  doJobSearch(_jobsAiMode ? '' : inp.value);
+  inp.focus();
+}
+function jobSearchInput(v){ if(!_jobsAiMode) doJobSearch(v); }
+function jobSearchEnter(){ if(_jobsAiMode) aiJobSearch(); }
+
 // ═══ AI (Gemini) shared helpers ═══
 // All AI calls go through the ai-advisor edge function, which holds the Google
 // key server-side and only answers signed-in employees. Until the GEMINI_API_KEY
@@ -2026,7 +2049,7 @@ async function nextBinItemId(size, type){
 var editClientId = null;
 
 function _clientNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+escHtml(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientPhoneRow(num,ext,type){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="c-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
@@ -2067,7 +2090,7 @@ function addClientAddress(){
 
 // ─── JOB FORM HELPERS (reuse client helpers + job-specific ones) ───
 function _jobNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="f-name-inp" placeholder="Full name" value="'+escHtml(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _jobPhoneRow(num,ext,type){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="f-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="f-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="f-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
@@ -2133,7 +2156,10 @@ function openAddClient(){
     editClientId=null;
     document.getElementById('client-modal-ttl').textContent='Add Client';
     document.getElementById('client-save-btn').textContent='Add Client';
-    document.getElementById('c-names-wrap').innerHTML=_clientNameRow('');
+    // Searched for someone, found nobody, hit Add Client — that search text is
+    // their name. Only after a search that actually came up empty.
+    document.getElementById('c-names-wrap').innerHTML=_clientNameRow(
+      _clientSearchNoMatch ? toTitleCase(String(clientSearchF).trim()) : '');
     document.getElementById('c-phones-wrap').innerHTML=_clientPhoneRow('','','cell');
     document.getElementById('c-emails-wrap').innerHTML=_clientEmailRow('');
     document.getElementById('c-addresses-wrap').innerHTML=_clientAddressRow('','Barrie',false);
@@ -2676,6 +2702,11 @@ function go(name){
     if(n.getAttribute('onclick')==="go('"+name+"')")n.classList.add('active');
   });
   render(name);
+  // Every page switch starts at the top. Only the dashboard used to do this, so
+  // arriving on any other page from halfway down a long list dropped you into
+  // the middle of the new one.
+  var mainScroll=document.getElementById('main'); if(mainScroll) mainScroll.scrollTop=0;
+  window.scrollTo(0,0);
   if(el) animateView(el);
   closeSidebar();
   // The pricing family (sheet, editor, margin console) are full-screen pages:
@@ -2795,6 +2826,17 @@ function dashCountChipsHTML(c){
   return chips.length
     ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'+chips.join('')+'</div>'
     : '<span style="color:var(--muted)">Nothing booked</span>';
+}
+// Today's jobs, laid out as two real columns instead of three stacked pair-rows.
+// A short Bin Drop-offs block used to leave dead space beside a long Bin Pickups
+// one, and the next pair started below the taller of the two; now the next
+// section in that column moves straight up into the gap. Only one side filled ->
+// one full-width column. On a phone the columns collapse (see mobile.css) and
+// each block's data-mo puts the day back in reading order.
+function tjFlow(left,right){
+  if(!left && !right) return '';
+  if(!left || !right) return '<div class="tj-flow tj-flow-single"><div class="mcol">'+(left||right)+'</div></div>';
+  return '<div class="tj-flow"><div class="mcol">'+left+'</div><div class="mcol">'+right+'</div></div>';
 }
 function updateDashDateLabel(){
   var dp=document.getElementById('dash-bin-date');
@@ -2943,7 +2985,6 @@ async function refreshDashBinStats(){
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:'+(isLow?'#b45309':'var(--muted)')+';margin-top:5px">'+(isFull?'all out':(isLow?'of '+tot+' — low':'of '+tot))+'</div>'
       +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
-      +'<div style="position:relative;width:100%"><button onclick="bookBin(\''+s+'\')" class="djj-book">Book</button></div>'
     +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');
@@ -2952,6 +2993,7 @@ async function refreshDashBinStats(){
     sc.querySelectorAll('[data-bincount]').forEach(function(el){ animCount(el,parseInt(el.getAttribute('data-bincount'),10)||0,'','',950); });
     requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){ el.style.width=el.getAttribute('data-binbar')+'%'; }); });
   }
+  if(typeof mSyncBinSummary==='function') mSyncBinSummary();
   renderNeedsYou();
 }
 
@@ -3040,7 +3082,12 @@ function renderNeedsYou(){
     // Line icons from JWGIcons, not emoji — same set the sidebar and the call
     // button below already use, so the row reads as one visual language.
     var icon=isCall?lineIcon('call',17,'#e67e22'):lineIcon('email',17,'#2563eb');
-    var title=isCall?('Confirm pickup — '+j.name):('Send confirmation email — '+j.name);
+    // The name used to sit at the END of this string inside a single-line
+    // ellipsis, so on a phone the row read "Send confirmation email — " and the
+    // customer was gone. Name first at both widths, and the phone gets its own
+    // one-line wording that carries the service and the day as well.
+    var actShort=isCall?'Call to confirm':'Send email';
+    var svcShort=(j.service==='Bin Rental'?'bin rental':(j.service||'job')).toLowerCase();
     // Bins say their size; everything else says its service, so a junk job in this
     // list doesn't sit there with a blank second line.
     var szClean=j.binSize?(j.binSize.replace(/\s*yard/i,'yd').toLowerCase()+' bin'):(j.service==='Bin Rental'?'':(j.service||''));
@@ -3049,6 +3096,10 @@ function renderNeedsYou(){
       : (j.junkDate||j.date);
     var daysUntil=dropD2?Math.round((new Date(dropD2+'T12:00:00').getTime()-new Date(today+'T12:00:00').getTime())/86400000):null;
     var meta=isCall?[szClean,'pickup tomorrow · confirm bin is ready'].filter(Boolean).join(' · '):szClean;
+    var whenTxt=isCall?'tomorrow':(daysUntil==null?'':daysUntil<=0?'today':daysUntil===1?'tomorrow':(daysUntil+' days'));
+    var nameHtml='<span class="ny-name">'+j.name+'</span>';
+    var titleHtml='<span class="ny-t-desk">'+nameHtml+' — '+(isCall?'confirm pickup':'send confirmation email')+'</span>'
+      +'<span class="ny-t-phone">'+actShort+' · '+nameHtml+' · '+svcShort+(whenTxt?' · '+whenTxt:'')+'</span>';
     var cdChip='';
     if(!isCall && dropD2 && daysUntil!=null){
       var cdc=daysUntil<=0?{bg:'#fdecee',fg:'#dc3545'}:daysUntil===1?{bg:'#fff2e6',fg:'#c2410c'}:daysUntil<=3?{bg:'#fffbeb',fg:'#b45309'}:{bg:'#f0fdf4',fg:'#16a34a'};
@@ -3061,11 +3112,11 @@ function renderNeedsYou(){
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
       : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
         +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
-    return '<div data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+    return '<div class="ny-row" data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title+'</div><div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div class="ny-title" style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+titleHtml+'</div><div class="ny-meta" style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
       +cdChip
-      +action
+      +'<div class="ny-actions">'+action+'</div>'
     +'</div>';
   }).join('');
   el.innerHTML='<div class="chart-card" style="padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
@@ -3676,7 +3727,7 @@ async function refreshDashJobs(){
   if(card) card.className = 'chart-card urgency-neutral';
 
   // Render job rows — column-aligned grid layout
-  function makeCat(title,color,list,isPickup,icon){
+  function makeCat(title,color,list,isPickup,icon,anchorId,mOrder){
     if(!list.length) return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
@@ -3690,7 +3741,7 @@ async function refreshDashJobs(){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div style="margin-bottom:4px">'
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
       +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
@@ -3756,21 +3807,26 @@ async function refreshDashJobs(){
   // only one side filled spans the full width via :only-child — so an empty half
   // never sits there. A wrapper is only emitted when its pair has something in it,
   // so an empty day still falls through to the empty state below.
-  function pair(a,b){ var h=a+b; return h ? '<div class="tj-cols">'+h+'</div>' : ''; }
-  var binCols = pair(
-    makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24})),
-    makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24})));
-  var restCats = pair(
-      makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'})),
-      makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24})))
-    + pair(
-      makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24})),
-      makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24})));
-  var html = binCols + restCats;
+  var html = tjFlow(
+    makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}),'dcat-dropoffs',1)
+    + makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}),'dcat-junk',3)
+    + makeCat('Junk Quotes','#0d6efd',junkQuotes,false,iconTile('junkQuote',{size:24}),'dcat-quotes',4),
+    makeCat('Bin Pickups','#ec4899',dayPickups,true,iconTile('binPickup',{size:24}),'dcat-pickups',2)
+    + makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}),'dcat-furniture',5)
+    + makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24}),'dcat-extra',6));
 
   // A newer click already went out while this one was fetching — its answer is the
   // one that belongs on screen, so drop this instead of overwriting the right day.
   if(_myTicket !== _dashJobsTicket) return;
+
+  // The green card and jump-chip badges at the top of the phone dashboard read
+  // the numbers this render already worked out, so they can never disagree.
+  if(typeof mSetDaySummary==='function') mSetDaySummary({
+    dropoffs: dayDropoffs.length, pickups: dayPickups.length,
+    junkRemovals: junkRemovals.length, junkQuotes: junkQuotes.length,
+    landscaping: landscaping.length, furniture: furnPickups.length + furnDelivs.length,
+    calls: callsNeeded, emails: emailsNeeded
+  });
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -4355,7 +4411,7 @@ async function renderDash(bg){
   if(todayCard) todayCard.className = 'chart-card urgency-neutral';
 
   // ── TODAY'S JOBS — full detail, actionable rows ───────────
-  function makeTodayCat(title,color,list,isPickup,icon){
+  function makeTodayCat(title,color,list,isPickup,icon,anchorId,mOrder){
     if(!list.length) return '';
     var showConfirm = isPickup || title.indexOf('Furniture')>=0;
     list = list.slice().sort(function(a,b){
@@ -4369,7 +4425,7 @@ async function renderDash(bg){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div style="margin-bottom:4px">'
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
       +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
@@ -4433,17 +4489,20 @@ async function renderDash(bg){
   // strip below. Both paths must match or the layout would jump when the date
   // picker moves off today.
   // Same pairing as the picked-date path above — see the comment there.
-  function pairToday(a,b){ var h=a+b; return h ? '<div class="tj-cols">'+h+'</div>' : ''; }
-  var todayBinCols = pairToday(
-    makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24})),
-    makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24})));
-  var todayRestCats = pairToday(
-      makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'})),
-      makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24})))
-    + pairToday(
-      makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24})),
-      makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24})));
-  var todayHtml = todayBinCols + todayRestCats;
+  var todayHtml = tjFlow(
+    makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}),'dcat-dropoffs',1)
+    + makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}),'dcat-junk',3)
+    + makeTodayCat('Junk Quotes','#0d6efd',todayJunkQuotes,false,iconTile('junkQuote',{size:24}),'dcat-quotes',4),
+    makeTodayCat('Bin Pickups','#ec4899',todayBinPickups,true,iconTile('binPickup',{size:24}),'dcat-pickups',2)
+    + makeTodayCat('Furniture Pickups','#8b5cf6',todayFurnPickups,false,iconTile('furniture',{size:24}),'dcat-furniture',5)
+    + makeTodayCat('Extra Jobs','#65a30d',todayLandscaping,false,iconTile('landscaping',{size:24}),'dcat-extra',6));
+
+  if(typeof mSetDaySummary==='function') mSetDaySummary({
+    dropoffs: todayBinDropoffs.length, pickups: todayBinPickups.length,
+    junkRemovals: todayJunkRemovals.length, junkQuotes: todayJunkQuotes.length,
+    landscaping: todayLandscaping.length, furniture: todayFurnPickups.length + todayFurnDelivs.length,
+    calls: unconfirmedToday, emails: emailsToday
+  });
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
 
@@ -5178,7 +5237,42 @@ function emailHtml(id, sent){
 }
 /* The address written on THIS booking — never the client's. See openEmailModal. */
 function jobEmail(j){return (j.emails&&j.emails[0])?j.emails[0]:'';}
+
+/* One job as a card, for phones. The tables run to eight or nine columns, which
+   on a phone is a sideways scroll with the customer's name off the left edge.
+   Same job, folded: name and number, the chips that say what and when, the
+   address, then Email and Edit. It is still a tr.job-row carrying a .jcell-email,
+   because that is what the row-click delegation reaches for. */
+function makeJobCard(j){
+  var isCancelled = j.status === 'Cancelled';
+  var addr = resolveAddr(j).display || '';
+  function chip(txt, col, bg){
+    return '<span class="jcard-chip" style="color:'+col+';background:'+bg+'">'+txt+'</span>';
+  }
+  var chips = sb(j.service) + stb(j.status);
+  if(j.city) chips += chip(escHtml(j.city), 'var(--text-secondary)', 'var(--surface2)');
+  chips += chip(fd(j.date)+(j.time?' · '+ft(j.time):''), 'var(--text-secondary)', 'var(--surface2)');
+  if(j.service === 'Bin Rental'){
+    var st = j.binInstatus || '';
+    chips += st==='pickedup' ? chip('✔ Picked up','#64748b','rgba(107,117,133,.12)')
+           : st==='dropped'  ? chip('🚛 Dropped','var(--accent-hover)','rgba(34,197,94,.12)')
+                             : chip('⏳ Not dropped','#c2410c','rgba(230,126,34,.14)');
+  }
+  if(j.service === 'Extra Jobs' && j.jobName) chips += chip('🌿 '+escHtml(j.jobName),'#3f6212','#eef5e0');
+  // Extra Jobs have no customer email step anywhere else either, so no button here.
+  var acts = '<span class="jcell-email">'+(j.service==='Extra Jobs'?'':emailHtml(j.id, j.emailSent))+'</span>'
+    + (isCancelled?'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'">↩ Restore</button>':'')
+    + '<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'">'+lineIcon('edit',14)+' Edit</button>';
+  return '<tr data-jid="'+j.id+'" class="job-row jcard-tr'+(isCancelled?' is-cancelled':'')+'">'
+    +'<td class="jcard-td" colspan="9">'
+      +'<div class="jcard-top"><span class="jcard-name">'+j.name+'</span>'+jid(j.id,j.service)+'</div>'
+      +'<div class="jcard-chips">'+chips+'</div>'
+      +(addr?'<div class="jcard-addr">'+addr+'</div>':'')
+      +'<div class="jcard-acts">'+acts+'</div>'
+    +'</td></tr>';
+}
 function makeJobRowNoSvc(j){
+  if(isMobileView()) return makeJobCard(j);
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
@@ -5196,6 +5290,7 @@ function makeJobRowNoSvc(j){
 // Landscaping list row — its own renderer so Bin/Junk/Quote tables stay untouched.
 // Columns: ID · Job Name · Customer · # Guys · Date · Address · Email · actions (8 cells).
 function makeLandscapingRow(j){
+  if(isMobileView()) return makeJobCard(j);
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
@@ -5211,6 +5306,7 @@ function makeLandscapingRow(j){
     +'<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('edit',15)+'</button><button class="btn btn-danger btn-sm" data-action="del" data-jid="'+j.id+'" style="font-size:14px;padding:8px 13px">'+lineIcon('del',15)+'</button></div></td></tr>';
 }
 function makeJobRowWithSvc(j){
+  if(isMobileView()) return makeJobCard(j);
   var isCancelled = j.status === 'Cancelled';
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
@@ -5228,6 +5324,7 @@ function makeJobRowWithSvc(j){
 }
 function emptyJobRow(cols){return '<tr><td colspan="'+cols+'"><div class="empty-state" style="padding:24px"><div class="ei" style="font-size:28px">📋</div><h3>No jobs</h3></div></td></tr>';}
 function makeCancelledRow(j){
+  if(isMobileView()) return makeJobCard(j);
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
@@ -5240,6 +5337,7 @@ function makeCancelledRow(j){
     +'</div></td></tr>';
 }
 function makeCancelledRowWithSvc(j){
+  if(isMobileView()) return makeJobCard(j);
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
@@ -5254,6 +5352,7 @@ function makeCancelledRowWithSvc(j){
 }
 // Completed landscaping job row (shown in the "✅ Completed" jobs-page view) — 9 cols to match the single-view header.
 function makeCompletedRow(j){
+  if(isMobileView()) return makeJobCard(j);
   var done = j.completedAt ? fd(String(j.completedAt).slice(0,10)) : '—';
   return '<tr data-jid="'+j.id+'" class="job-row">'
     +'<td>'+jid(j.id,j.service)+'</td>'
@@ -5956,6 +6055,21 @@ function clientSearchDebounce(q){
   _clientSearchTimer=setTimeout(function(){clientSearchLive(q);},220);
 }
 
+// The search text behind the "use as a new customer" button. Held here rather than
+// passed through the onclick so a name with a quote or an apostrophe in it can't
+// break the attribute.
+var _newClientFromSearchQ='';
+function useSearchAsNewJobClient(){
+  var q=String(_newClientFromSearchQ||'').trim();
+  if(!q) return;
+  var wrap=document.getElementById('f-names-wrap');
+  if(wrap) wrap.innerHTML=_jobNameRow(toTitleCase(q));
+  var inp=document.getElementById('f-client-search'); if(inp) inp.value='';
+  var box=document.getElementById('f-client-results'); if(box) box.style.display='none';
+  _newClientFromSearchQ='';
+  toast(toTitleCase(q)+' will be added as a new client when you save.');
+}
+
 async function clientSearchLive(q){
   var box=document.getElementById('f-client-results');
   if(!box)return;
@@ -5970,7 +6084,17 @@ async function clientSearchLive(q){
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
       .order('name').limit(12);
     if(r.error){box.innerHTML='<div style="padding:10px 14px;color:#dc3545;font-size:13px">Search error: '+r.error.message+'</div>';return;}
-    if(!r.data||!r.data.length){box.innerHTML='<div style="padding:10px 14px;color:var(--muted);font-size:13px">No clients found for "'+q+'"</div>';return;}
+    if(!r.data||!r.data.length){
+      // Searching for a customer who turns out to be new is how most new customers
+      // arrive, and the dead-end message meant typing the name a second time into
+      // the booking (Jake, 2026-08-27). One tap carries it across instead. Nothing
+      // is created here: saveJob still mints the client, so there is one creation
+      // path and an abandoned booking leaves no half-made client behind.
+      _newClientFromSearchQ = q;
+      box.innerHTML='<div style="padding:10px 14px 4px;color:var(--muted);font-size:13px">No clients found for "'+escHtml(q)+'"</div>'
+        +'<div style="padding:0 10px 10px"><button type="button" onclick="useSearchAsNewJobClient()" style="width:100%;background:var(--accent-light);border:1px solid #c5edd4;color:var(--accent-hover);font-family:inherit;font-size:13px;font-weight:700;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left">＋ Use “'+escHtml(q)+'” as a new customer</button></div>';
+      return;
+    }
     box.innerHTML=r.data.map(function(c){
       var ph=c.phone||(c.phones&&c.phones[0]?(c.phones[0].num||c.phones[0]):'');
       // A blacklisted customer looked exactly like everyone else in this picker, so one could
@@ -6908,9 +7032,14 @@ function startPlaybookCapture(){
   window.JJPlaybook.start((_allClientsFiltered||[]).slice(0,50).map(function(c){ return c.cid; }));
 }
 
+// Set when a search came back with nobody: Add Client then starts with that text
+// in the name field, because searching for a customer and not finding them is
+// exactly how you end up adding them (Jake, 2026-08-27).
+var _clientSearchNoMatch = false;
 function renderClientsList(list) {
   var el = document.getElementById('clients-list');
   if (!list.length) {
+    _clientSearchNoMatch = !!clientSearchF;
     // A bare "No clients found" sent people away believing a real customer wasn't
     // in the system — usually a filter is still on from earlier. Name whatever is
     // actually hiding them, and offer one button that clears the lot.
@@ -6933,7 +7062,37 @@ function renderClientsList(list) {
       + '</div>';
     return;
   }
-  el.innerHTML = '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+  // A phone gets one row per client instead of a wall of tall cards — the row
+  // carries the name, the counts and the phone number, and the tap target is
+  // the same client detail the card opens.
+  el.innerHTML = isMobileView()
+    ? '<div class="mclient-list">' + list.map(makeClientRow).join('') + '</div>'
+    : '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+  _clientSearchNoMatch = false;
+}
+// Phone row. Deliberately not the card with things hidden: the card is built
+// from inline styles that CSS cannot unwind, and half a card is not a row.
+function makeClientRow(row){
+  var cid = row.cid, name = row.name||'';
+  var bl  = !!row.blacklisted;
+  var phones = (row.phones||[]).filter(function(p){return p&&p.num;});
+  if(!phones.length && row.phone) phones=[{num:row.phone}];
+  var phone = phones.length ? phones[0].num : '';
+  function chip(txt,col,bg){ return '<span class="mcl-chip" style="color:'+col+';background:'+bg+'">'+txt+'</span>'; }
+  var chips = '';
+  if(row._bins) chips += chip(row._bins+' bin'+(row._bins===1?'':'s'),'#0e7490','rgba(8,145,178,.12)');
+  if(row._junk) chips += chip(row._junk+' junk','#c2410c','rgba(230,126,34,.14)');
+  if(row._furn) chips += chip(row._furn+' furn','#7c3aed','rgba(139,92,246,.12)');
+  if(row.contractor) chips += chip('Contractor','#fff','#2563eb');
+  if(!chips) chips = chip('No jobs yet','var(--muted)','var(--surface2)');
+  if(row.city) chips += chip(escHtml(row.city),'var(--text-secondary)','var(--surface2)');
+  return '<div class="mcl-row'+(bl?' bl':'')+'" onclick="openClientDetailSafe(event,\''+cid+'\')">'
+    +'<div class="mcl-main">'
+      +'<div class="mcl-name">'+escHtml(name)+(bl?'<span class="mcl-bl">BLACKLISTED</span>':'')+'</div>'
+      +'<div class="mcl-chips">'+chips+'</div>'
+    +'</div>'
+    +(phone?'<a class="mcl-tel" href="tel:'+phone+'" onclick="event.stopPropagation()">'+escHtml(phone)+'</a>':'')
+  +'</div>';
 }
 // One button back to a clean list — four separate things can hide a customer and
 // there was no single control that let them all go.
@@ -7125,7 +7284,7 @@ async function openClientDetail(cid){
     +(furn?'<span class="client-stat cs-furn">🛋️ '+furn+' Furn</span>':'')
     +'<span style="font-size:12px;color:var(--muted)">'+loyalty+'</span>'
     +'</div>'
-    +(jobRows?'<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
+    +(jobRows?'<div class="table-wrap cdet-jobs" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +renderClientQuoteHistory(cl.cid)
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
@@ -7280,6 +7439,9 @@ function renderPricing(){
   if(cb) cb.style.display = canAccessAnalytics() ? '' : 'none';
   renderPricingAreas();
   renderPricingRail();
+  // On a phone the nine-column sheet is replaced by a town-first walk that ends
+  // in this same rail — see app-mobile.js.
+  if(typeof renderPricingMobile==='function') renderPricingMobile();
   // Competitor comparison tables render on demand (pvToggleCompare); keep them
   // fresh if the section is already open.
   var cv = document.getElementById('pricing-classic-view');
@@ -19122,6 +19284,7 @@ function renderDashCrewStatus(){
       +menu
     +'</div>';
   }).join('');
+  if(typeof mSyncCrewSummary==='function') mSyncCrewSummary();
 }
 function toggleCrewMenu(id){ var m=document.getElementById(id); if(!m) return; var open=m.style.display!=='none'; closeCrewMenus(); if(!open)m.style.display='block'; }
 function closeCrewMenus(){ document.querySelectorAll('[id^="crew-menu-"]').forEach(function(el){el.style.display='none';}); }
@@ -19186,6 +19349,18 @@ async function renderCrew(){
 
   var days=[]; for(var i=0;i<7;i++){ var d=new Date(ws); d.setDate(d.getDate()+i); days.push(d); }
 
+  // Week nav is shared by both layouts — the phone board is the same week.
+  var weekNav='<div style="display:flex;align-items:center;gap:6px">'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">\u2039</button>'
+      +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' \u2013 '+fd(weS)+(_crewWeekOffset===0?' \u00b7 This week':'')+'</span>'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">\u203a</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
+    +'</div>';
+
+  // A phone gets the scheduler's Week / Day / My week board instead of a
+  // 760px-wide table it can only read a third of at a time.
+  if(isMobileView()){ host.innerHTML = _crewMobileHtml(days, assignMap, todayS, weekNav); return; }
+
   var legend='<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#0891b2"></span> Bins</span> '
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#eab308"></span> Junk</span> '
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#65a30d"></span> Extra Jobs</span> '
@@ -19193,12 +19368,7 @@ async function renderCrew(){
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545"></span> Time off</span>';
 
   var html='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
-    +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">‹</button>'
-      +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' – '+fd(weS)+(_crewWeekOffset===0?' · This week':'')+'</span>'
-      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">›</button>'
-      +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
-    +'</div>'
+    +weekNav
     +'<div style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
   +'</div>';
 
@@ -19242,6 +19412,147 @@ async function renderCrew(){
   });
   html+='</tbody></table></div>';
   host.innerHTML=html;
+}
+
+/* ── Crew Schedule on a phone ──────────────────────────────────────────────
+   Same week, same assignMap, in the JWG scheduler's phone pattern: Week at a
+   glance / Day board / My week, each with a per-day summary card. The desktop
+   grid is a 760px table — on a phone you can read a third of it at a time.
+   Every tap lands where the desktop cell's tap lands: a job chip opens the job,
+   a time-off chip removes it, the card itself books time off. */
+var _crewMView = 'week', _crewMDay = null, _crewMPerson = null;
+function crewMSetView(v){ _crewMView = v; renderCrew(); }
+function crewMOpenDay(ds){ _crewMView = 'day'; _crewMDay = ds; renderCrew(); }
+function crewMSetPerson(id){ _crewMView = 'person'; _crewMPerson = id; renderCrew(); }
+
+function _crewMobileHtml(days, assignMap, todayS, weekNav){
+  var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var dayKeys  = days.map(ymdLocal);
+  if(dayKeys.indexOf(_crewMDay) === -1) _crewMDay = dayKeys.indexOf(todayS) !== -1 ? todayS : dayKeys[1];
+  if(!crewMembers.some(function(c){ return c.id === _crewMPerson; })) _crewMPerson = crewMembers[0].id;
+
+  function evsFor(cid, ds){
+    return ((assignMap[cid]||{})[ds]||[]).slice()
+      .sort(function(a,b){ return (a.time||'~').localeCompare(b.time||'~'); });
+  }
+  function jobChip(ev){
+    var j = ev.j, col = _crewSvcColor(j.service, ev.type), icon = _crewSvcIcon(j.service, ev.type);
+    return '<span class="csm-chip" style="background:'+col+'22;color:'+col+'"'
+      + ' onclick="event.stopPropagation();openDetail(\''+j.id+'\')">'
+      + icon+' '+(ev.time?ft(ev.time)+' ':'')+escHtml(j.name)+'</span>';
+  }
+  function offChip(cid, ds, b){
+    var col = b.allDay ? '#dc3545' : '#e67e22';
+    var lbl = b.allDay ? 'Off' : (ft(b.slotStart)+'–'+ft(b.slotEnd));
+    return '<span class="csm-chip" style="background:'+col+'22;color:'+col+'"'
+      + ' onclick="event.stopPropagation();removeCrewBlockConfirm(\''+cid+'\',\''+ds+'\',\''+b.id+'\')">'
+      + '🚫 '+lbl+(b.role?' · '+escHtml(b.role):'')+'</span>';
+  }
+  function dateBadge(d){
+    var ds = ymdLocal(d);
+    return '<span class="csm-date'+(ds===todayS?' tdy':'')+'">'
+      + '<span class="csm-dn">'+dayNames[d.getDay()].toUpperCase()+'</span>'
+      + '<span class="csm-dd">'+d.getDate()+'</span></span>';
+  }
+
+  var h = '<div class="csm-nav">'+weekNav+'</div>'
+    + '<div class="csm-switch">'
+    + [['week','Week'],['day','Day'],['person','My week']].map(function(t){
+        return '<button type="button" class="csm-seg'+(_crewMView===t[0]?' on':'')
+          + '" onclick="crewMSetView(\''+t[0]+'\')">'+t[1]+'</button>';
+      }).join('')
+    + '</div>';
+
+  if(_crewMView === 'week'){
+    h += '<div class="csm-list">' + days.map(function(d){
+      var ds = ymdLocal(d), on = 0, legs = 0, avs = '', flags = '';
+      crewMembers.forEach(function(c){
+        var e = evsFor(c.id, ds);
+        if(e.length){
+          on++; legs += e.length;
+          if(on <= 8) avs += teamAvatar(c.name, crewAvatarColor(c.id), 22);
+        }
+        crewDayBlocks(c.id, ds).forEach(function(b){
+          if(b.allDay) flags += '<span class="csm-flag">'+escHtml(String(c.name).split(' ')[0])+' off</span>';
+        });
+      });
+      if(on > 8) avs += '<span class="csm-more">+'+(on-8)+'</span>';
+      var sum = legs
+        ? '<b>'+on+' on</b> · '+legs+' job'+(legs===1?'':'s')
+        : '<span class="csm-quiet">Nobody assigned</span>';
+      return '<button type="button" class="csm-row'+(ds===todayS?' is-today':'')+(legs?'':' quiet')+'"'
+        + ' onclick="crewMOpenDay(\''+ds+'\')">'
+        + dateBadge(d)
+        + '<span class="csm-mid"><span class="csm-sum">'+sum+'</span>'
+        + (flags?'<span class="csm-flags">'+flags+'</span>':'')
+        + (avs?'<span class="csm-avs">'+avs+'</span>':'')+'</span>'
+        + '<span class="csm-arr">›</span>'
+        + '</button>';
+    }).join('') + '</div>';
+    return h;
+  }
+
+  if(_crewMView === 'day'){
+    h += '<div class="csm-strip">' + days.map(function(d){
+      var ds = ymdLocal(d);
+      return '<button type="button" class="csm-stab'+(ds===_crewMDay?' sel':'')+(ds===todayS?' tdy':'')+'"'
+        + ' onclick="crewMOpenDay(\''+ds+'\')">'
+        + '<span class="csm-dn">'+dayNames[d.getDay()].toUpperCase()+'</span>'
+        + '<span class="csm-dd">'+d.getDate()+'</span></button>';
+    }).join('') + '</div>';
+
+    var working = [], resting = [], legTotal = 0;
+    crewMembers.forEach(function(c){
+      var e = evsFor(c.id, _crewMDay);
+      if(e.length){ working.push([c, e]); legTotal += e.length; } else { resting.push(c); }
+    });
+    h += '<div class="csm-ribbon"><b>'+working.length+' on</b> · '+legTotal+' job'+(legTotal===1?'':'s')+' assigned</div>';
+    h += '<div class="csm-grp">Working</div><div class="csm-list">';
+    h += working.length
+      ? working.map(function(pair){ return _crewMCard(pair[0], pair[1], _crewMDay, jobChip, offChip, false); }).join('')
+      : '<div class="csm-none">Nobody assigned — tap a name below to book time off</div>';
+    h += '</div><div class="csm-grp">Nothing assigned</div><div class="csm-list">';
+    h += resting.length
+      ? resting.map(function(c){ return _crewMCard(c, [], _crewMDay, jobChip, offChip, true); }).join('')
+      : '<div class="csm-none">Everyone has work</div>';
+    h += '</div>';
+    return h;
+  }
+
+  // My week — one person, their seven days
+  var me = crewMembers.find(function(c){ return c.id === _crewMPerson; });
+  h += '<div class="csm-pchips">' + crewMembers.map(function(c){
+    return '<button type="button" class="csm-pchip'+(c.id===_crewMPerson?' sel':'')+'"'
+      + ' onclick="crewMSetPerson(\''+c.id+'\')">'
+      + teamAvatar(c.name, crewAvatarColor(c.id), 22)
+      + escHtml(String(c.name).split(' ')[0])+'</button>';
+  }).join('') + '</div>';
+  var mineTotal = dayKeys.reduce(function(n, ds){ return n + evsFor(me.id, ds).length; }, 0);
+  h += '<div class="csm-ribbon"><b>'+escHtml(me.name)+'</b> · '+mineTotal+' job'+(mineTotal===1?'':'s')+' this week</div>';
+  h += '<div class="csm-list">' + days.map(function(d){
+    var ds = ymdLocal(d);
+    var chips = crewDayBlocks(me.id, ds).map(function(b){ return offChip(me.id, ds, b); }).join('')
+              + evsFor(me.id, ds).map(jobChip).join('');
+    return '<div class="csm-prow'+(ds===todayS?' is-today':'')+(chips?'':' quiet')+'"'
+      + ' onclick="openCrewBookoff(\''+me.id+'\',\''+ds+'\')">'
+      + dateBadge(d)
+      + '<span class="csm-chips">'+(chips||'<span class="csm-quiet">—</span>')+'</span>'
+      + '</div>';
+  }).join('') + '</div>';
+  return h;
+}
+
+// One crew card in the Day board. Tapping the card books time off (the desktop
+// cell's "+ off"); the chips inside it keep their own taps.
+function _crewMCard(c, evs, ds, jobChip, offChip, dim){
+  var chips = crewDayBlocks(c.id, ds).map(function(b){ return offChip(c.id, ds, b); }).join('')
+            + evs.map(jobChip).join('');
+  return '<div class="csm-card'+(dim?' dim':'')+'" onclick="openCrewBookoff(\''+c.id+'\',\''+ds+'\')">'
+    + teamAvatar(c.name, crewAvatarColor(c.id), 34)
+    + '<span class="csm-cmid"><span class="csm-name">'+escHtml(c.name)+'</span>'
+    + '<span class="csm-chips">'+(chips||'<span class="csm-quiet">Nothing on — tap to book off</span>')+'</span></span>'
+    + '<span class="csm-badge">'+(evs.length?evs.length+' job'+(evs.length===1?'':'s'):'Free')+'</span>'
+    + '</div>';
 }
 
 function removeCrewBlockConfirm(crewId, ds, blockId){
