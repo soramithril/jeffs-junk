@@ -2348,6 +2348,31 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
+/* ── EXTRA JOBS: who is this for? (v633) ────────────────────────────────────
+   Two large side-by-side buttons as the first question of a new Extra Job, so
+   "this one is for our own shop" cannot be missed the way a line of small print
+   was. Same tokens as the rest of the form; the chosen side takes the accent. */
+.ej-who{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.ej-who-btn{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:16px 10px;border:2px solid var(--border);border-radius:12px;
+  background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer;text-align:center;
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.ej-who-btn svg{width:26px;height:26px;color:var(--muted);margin-bottom:2px}
+.ej-who-btn:hover{border-color:var(--accent);background:var(--accent-light)}
+.ej-who-btn.active{border-color:var(--accent);background:var(--accent-light);box-shadow:0 4px 14px rgba(34,197,94,.16)}
+.ej-who-btn.active svg{color:var(--accent-hover)}
+.ej-who-t{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.2px;line-height:1}
+.ej-who-btn.active .ej-who-t{color:var(--accent-hover)}
+.ej-who-s{font-size:11.5px;color:var(--muted)}
+/* Shop jobs read as ours at a glance wherever an Extra Job is listed. */
+.shop-badge{
+  display:inline-flex;align-items:center;gap:4px;flex:none;
+  font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+  color:#fff;background:#1f2937;border-radius:5px;padding:2px 7px;white-space:nowrap;
+}
+
 /* Section shell and header. Both were inline on the elements until v632; they
    live here so the desktop block below can retune them (an inline style beats a
    stylesheet rule, so the collapse could never have won otherwise). These two
