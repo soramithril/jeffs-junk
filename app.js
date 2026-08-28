@@ -19252,6 +19252,18 @@ async function renderCrew(){
 
   var days=[]; for(var i=0;i<7;i++){ var d=new Date(ws); d.setDate(d.getDate()+i); days.push(d); }
 
+  // Week nav is shared by both layouts — the phone board is the same week.
+  var weekNav='<div style="display:flex;align-items:center;gap:6px">'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">\u2039</button>'
+      +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' \u2013 '+fd(weS)+(_crewWeekOffset===0?' \u00b7 This week':'')+'</span>'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">\u203a</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
+    +'</div>';
+
+  // A phone gets the scheduler's Week / Day / My week board instead of a
+  // 760px-wide table it can only read a third of at a time.
+  if(isMobileView()){ host.innerHTML = _crewMobileHtml(days, assignMap, todayS, weekNav); return; }
+
   var legend='<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#0891b2"></span> Bins</span> '
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#eab308"></span> Junk</span> '
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#65a30d"></span> Extra Jobs</span> '
@@ -19259,12 +19271,7 @@ async function renderCrew(){
     +'<span style="white-space:nowrap"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#dc3545"></span> Time off</span>';
 
   var html='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">'
-    +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(-1)" aria-label="Previous week">‹</button>'
-      +'<span style="font-size:14px;font-weight:700;min-width:170px;text-align:center">'+fd(wsS)+' – '+fd(weS)+(_crewWeekOffset===0?' · This week':'')+'</span>'
-      +'<button class="btn btn-ghost btn-sm" onclick="crewShiftWeek(1)" aria-label="Next week">›</button>'
-      +'<button class="btn btn-ghost btn-sm" onclick="crewThisWeek()">Today</button>'
-    +'</div>'
+    +weekNav
     +'<div style="font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div>'
   +'</div>';
 
@@ -19308,6 +19315,147 @@ async function renderCrew(){
   });
   html+='</tbody></table></div>';
   host.innerHTML=html;
+}
+
+/* ── Crew Schedule on a phone ──────────────────────────────────────────────
+   Same week, same assignMap, in the JWG scheduler's phone pattern: Week at a
+   glance / Day board / My week, each with a per-day summary card. The desktop
+   grid is a 760px table — on a phone you can read a third of it at a time.
+   Every tap lands where the desktop cell's tap lands: a job chip opens the job,
+   a time-off chip removes it, the card itself books time off. */
+var _crewMView = 'week', _crewMDay = null, _crewMPerson = null;
+function crewMSetView(v){ _crewMView = v; renderCrew(); }
+function crewMOpenDay(ds){ _crewMView = 'day'; _crewMDay = ds; renderCrew(); }
+function crewMSetPerson(id){ _crewMView = 'person'; _crewMPerson = id; renderCrew(); }
+
+function _crewMobileHtml(days, assignMap, todayS, weekNav){
+  var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var dayKeys  = days.map(ymdLocal);
+  if(dayKeys.indexOf(_crewMDay) === -1) _crewMDay = dayKeys.indexOf(todayS) !== -1 ? todayS : dayKeys[1];
+  if(!crewMembers.some(function(c){ return c.id === _crewMPerson; })) _crewMPerson = crewMembers[0].id;
+
+  function evsFor(cid, ds){
+    return ((assignMap[cid]||{})[ds]||[]).slice()
+      .sort(function(a,b){ return (a.time||'~').localeCompare(b.time||'~'); });
+  }
+  function jobChip(ev){
+    var j = ev.j, col = _crewSvcColor(j.service, ev.type), icon = _crewSvcIcon(j.service, ev.type);
+    return '<span class="csm-chip" style="background:'+col+'22;color:'+col+'"'
+      + ' onclick="event.stopPropagation();openDetail(\''+j.id+'\')">'
+      + icon+' '+(ev.time?ft(ev.time)+' ':'')+escHtml(j.name)+'</span>';
+  }
+  function offChip(cid, ds, b){
+    var col = b.allDay ? '#dc3545' : '#e67e22';
+    var lbl = b.allDay ? 'Off' : (ft(b.slotStart)+'–'+ft(b.slotEnd));
+    return '<span class="csm-chip" style="background:'+col+'22;color:'+col+'"'
+      + ' onclick="event.stopPropagation();removeCrewBlockConfirm(\''+cid+'\',\''+ds+'\',\''+b.id+'\')">'
+      + '🚫 '+lbl+(b.role?' · '+escHtml(b.role):'')+'</span>';
+  }
+  function dateBadge(d){
+    var ds = ymdLocal(d);
+    return '<span class="csm-date'+(ds===todayS?' tdy':'')+'">'
+      + '<span class="csm-dn">'+dayNames[d.getDay()].toUpperCase()+'</span>'
+      + '<span class="csm-dd">'+d.getDate()+'</span></span>';
+  }
+
+  var h = '<div class="csm-nav">'+weekNav+'</div>'
+    + '<div class="csm-switch">'
+    + [['week','Week'],['day','Day'],['person','My week']].map(function(t){
+        return '<button type="button" class="csm-seg'+(_crewMView===t[0]?' on':'')
+          + '" onclick="crewMSetView(\''+t[0]+'\')">'+t[1]+'</button>';
+      }).join('')
+    + '</div>';
+
+  if(_crewMView === 'week'){
+    h += '<div class="csm-list">' + days.map(function(d){
+      var ds = ymdLocal(d), on = 0, legs = 0, avs = '', flags = '';
+      crewMembers.forEach(function(c){
+        var e = evsFor(c.id, ds);
+        if(e.length){
+          on++; legs += e.length;
+          if(on <= 8) avs += teamAvatar(c.name, crewAvatarColor(c.id), 22);
+        }
+        crewDayBlocks(c.id, ds).forEach(function(b){
+          if(b.allDay) flags += '<span class="csm-flag">'+escHtml(String(c.name).split(' ')[0])+' off</span>';
+        });
+      });
+      if(on > 8) avs += '<span class="csm-more">+'+(on-8)+'</span>';
+      var sum = legs
+        ? '<b>'+on+' on</b> · '+legs+' job'+(legs===1?'':'s')
+        : '<span class="csm-quiet">Nobody assigned</span>';
+      return '<button type="button" class="csm-row'+(ds===todayS?' is-today':'')+(legs?'':' quiet')+'"'
+        + ' onclick="crewMOpenDay(\''+ds+'\')">'
+        + dateBadge(d)
+        + '<span class="csm-mid"><span class="csm-sum">'+sum+'</span>'
+        + (flags?'<span class="csm-flags">'+flags+'</span>':'')
+        + (avs?'<span class="csm-avs">'+avs+'</span>':'')+'</span>'
+        + '<span class="csm-arr">›</span>'
+        + '</button>';
+    }).join('') + '</div>';
+    return h;
+  }
+
+  if(_crewMView === 'day'){
+    h += '<div class="csm-strip">' + days.map(function(d){
+      var ds = ymdLocal(d);
+      return '<button type="button" class="csm-stab'+(ds===_crewMDay?' sel':'')+(ds===todayS?' tdy':'')+'"'
+        + ' onclick="crewMOpenDay(\''+ds+'\')">'
+        + '<span class="csm-dn">'+dayNames[d.getDay()].toUpperCase()+'</span>'
+        + '<span class="csm-dd">'+d.getDate()+'</span></button>';
+    }).join('') + '</div>';
+
+    var working = [], resting = [], legTotal = 0;
+    crewMembers.forEach(function(c){
+      var e = evsFor(c.id, _crewMDay);
+      if(e.length){ working.push([c, e]); legTotal += e.length; } else { resting.push(c); }
+    });
+    h += '<div class="csm-ribbon"><b>'+working.length+' on</b> · '+legTotal+' job'+(legTotal===1?'':'s')+' assigned</div>';
+    h += '<div class="csm-grp">Working</div><div class="csm-list">';
+    h += working.length
+      ? working.map(function(pair){ return _crewMCard(pair[0], pair[1], _crewMDay, jobChip, offChip, false); }).join('')
+      : '<div class="csm-none">Nobody assigned — tap a name below to book time off</div>';
+    h += '</div><div class="csm-grp">Nothing assigned</div><div class="csm-list">';
+    h += resting.length
+      ? resting.map(function(c){ return _crewMCard(c, [], _crewMDay, jobChip, offChip, true); }).join('')
+      : '<div class="csm-none">Everyone has work</div>';
+    h += '</div>';
+    return h;
+  }
+
+  // My week — one person, their seven days
+  var me = crewMembers.find(function(c){ return c.id === _crewMPerson; });
+  h += '<div class="csm-pchips">' + crewMembers.map(function(c){
+    return '<button type="button" class="csm-pchip'+(c.id===_crewMPerson?' sel':'')+'"'
+      + ' onclick="crewMSetPerson(\''+c.id+'\')">'
+      + teamAvatar(c.name, crewAvatarColor(c.id), 22)
+      + escHtml(String(c.name).split(' ')[0])+'</button>';
+  }).join('') + '</div>';
+  var mineTotal = dayKeys.reduce(function(n, ds){ return n + evsFor(me.id, ds).length; }, 0);
+  h += '<div class="csm-ribbon"><b>'+escHtml(me.name)+'</b> · '+mineTotal+' job'+(mineTotal===1?'':'s')+' this week</div>';
+  h += '<div class="csm-list">' + days.map(function(d){
+    var ds = ymdLocal(d);
+    var chips = crewDayBlocks(me.id, ds).map(function(b){ return offChip(me.id, ds, b); }).join('')
+              + evsFor(me.id, ds).map(jobChip).join('');
+    return '<div class="csm-prow'+(ds===todayS?' is-today':'')+(chips?'':' quiet')+'"'
+      + ' onclick="openCrewBookoff(\''+me.id+'\',\''+ds+'\')">'
+      + dateBadge(d)
+      + '<span class="csm-chips">'+(chips||'<span class="csm-quiet">—</span>')+'</span>'
+      + '</div>';
+  }).join('') + '</div>';
+  return h;
+}
+
+// One crew card in the Day board. Tapping the card books time off (the desktop
+// cell's "+ off"); the chips inside it keep their own taps.
+function _crewMCard(c, evs, ds, jobChip, offChip, dim){
+  var chips = crewDayBlocks(c.id, ds).map(function(b){ return offChip(c.id, ds, b); }).join('')
+            + evs.map(jobChip).join('');
+  return '<div class="csm-card'+(dim?' dim':'')+'" onclick="openCrewBookoff(\''+c.id+'\',\''+ds+'\')">'
+    + teamAvatar(c.name, crewAvatarColor(c.id), 34)
+    + '<span class="csm-cmid"><span class="csm-name">'+escHtml(c.name)+'</span>'
+    + '<span class="csm-chips">'+(chips||'<span class="csm-quiet">Nothing on — tap to book off</span>')+'</span></span>'
+    + '<span class="csm-badge">'+(evs.length?evs.length+' job'+(evs.length===1?'':'s'):'Free')+'</span>'
+    + '</div>';
 }
 
 function removeCrewBlockConfirm(crewId, ds, blockId){

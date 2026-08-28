@@ -269,6 +269,105 @@
     padding:22px 18px;text-align:center;font-size:13px;color:var(--muted);line-height:1.5;
   }
 
+  /* ─── Crew Schedule: Week / Day / My week ───────────────────────────────
+     The scheduler's phone pattern, in the dashboard's own colours. */
+  .csm-nav{display:flex;justify-content:center;margin-bottom:10px;}
+  .csm-switch{
+    display:flex;gap:4px;margin:0 0 10px;padding:4px;
+    background:var(--surface2);border-radius:10px;
+  }
+  .csm-seg{
+    flex:1;border:none;background:none;border-radius:7px;min-height:38px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:var(--muted);
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .csm-seg.on{background:var(--surface);color:var(--accent-hover);box-shadow:var(--shadow-sm);}
+  .csm-list{display:flex;flex-direction:column;gap:7px;}
+  .csm-row,.csm-card,.csm-prow{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;font-family:'Inter',sans-serif;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .csm-row.is-today,.csm-prow.is-today{border-color:rgba(34,197,94,.5);box-shadow:inset 3px 0 0 var(--accent);}
+  .csm-row.quiet,.csm-prow.quiet,.csm-card.dim{opacity:.6;}
+  .csm-date{flex:none;width:42px;text-align:center;display:flex;flex-direction:column;gap:1px;}
+  .csm-dn{font-size:9.5px;font-weight:800;letter-spacing:.6px;color:var(--muted);}
+  .csm-dd{font-family:'Bebas Neue',sans-serif;font-size:19px;line-height:1;color:var(--text);}
+  .csm-date.tdy .csm-dd{color:var(--accent-hover);}
+  .csm-mid,.csm-cmid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .csm-sum{font-size:12.5px;color:var(--text-secondary);}
+  .csm-sum b{color:var(--text);font-weight:800;}
+  .csm-quiet{font-size:12px;color:var(--muted);font-weight:600;}
+  .csm-flags{display:flex;flex-wrap:wrap;gap:5px;}
+  .csm-flag{font-size:10.5px;font-weight:700;color:#c2410c;}
+  .csm-avs{display:flex;}
+  .csm-avs>*{margin-right:-5px;}
+  .csm-more{
+    width:22px;height:22px;border-radius:50%;background:var(--surface2);color:var(--muted);
+    font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .csm-arr{flex:none;color:var(--muted);font-size:17px;}
+  .csm-strip{display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;}
+  .csm-strip::-webkit-scrollbar{display:none;}
+  .csm-stab{
+    flex:1 0 42px;border:none;background:none;border-radius:10px;padding:6px 2px;
+    display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .csm-stab.sel{background:var(--accent-light);}
+  .csm-stab.sel .csm-dd{color:var(--accent-hover);}
+  .csm-stab.tdy:not(.sel) .csm-dd{color:var(--accent);}
+  .csm-ribbon{font-size:12px;color:var(--text-secondary);font-weight:600;margin:4px 0 8px;}
+  .csm-ribbon b{color:var(--text);font-weight:800;}
+  .csm-grp{
+    font-size:10px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--muted);margin:12px 0 6px;
+  }
+  .csm-name{font-size:13.5px;font-weight:700;color:var(--text);}
+  .csm-chips{display:flex;flex-wrap:wrap;gap:5px;min-width:0;}
+  .csm-chip{
+    font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;line-height:1.35;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .csm-badge{
+    flex:none;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+    border-radius:999px;padding:4px 9px;background:var(--surface2);color:var(--text-secondary);
+    border:1px solid var(--border);
+  }
+  .csm-none{font-size:12px;color:var(--muted);padding:8px 2px;}
+  .csm-pchips{display:flex;gap:5px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;}
+  .csm-pchips::-webkit-scrollbar{display:none;}
+  .csm-pchip{
+    flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+    border:1px solid var(--border);background:var(--surface);border-radius:999px;
+    padding:5px 12px 5px 5px;font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;
+    color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .csm-pchip.sel{background:var(--accent-light);border-color:var(--accent-hover);color:var(--accent-hover);}
+
+  /* ─── Live Jobs: driver cards first, map behind a toggle ───────────────── */
+  /* .active only — .view is display:none until it is the page you are on. */
+  #view-livejobs.active{display:flex;flex-direction:column;}
+  #view-livejobs .page-header{order:0;}
+  #view-livejobs .ljm-switch{order:1;}
+  #view-livejobs .lj-stats{order:2;}
+  #view-livejobs #lj-list{order:3;}
+  #view-livejobs #lj-map-wrap{order:4;display:none;}
+  #view-livejobs.ljm-map #lj-map-wrap{display:block;}
+  #view-livejobs.ljm-map .lj-stats,
+  #view-livejobs.ljm-map #lj-list{display:none;}
+  .ljm-switch{
+    display:flex !important;gap:4px;margin:0 0 12px;padding:4px;
+    background:var(--surface2);border-radius:10px;
+  }
+  .ljm-seg{
+    flex:1;border:none;background:none;border-radius:7px;min-height:38px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:var(--muted);
+    cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .ljm-seg.on{background:var(--surface);color:var(--accent-hover);box-shadow:var(--shadow-sm);}
+
   /* ─── One "Filters" button per list page; the pile becomes a bottom sheet ─ */
   .mfilters-btn{
     display:inline-flex !important;align-items:center;gap:7px;

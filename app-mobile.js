@@ -248,3 +248,17 @@ function _pvmSizeRow(r, sz){
     + '<span class="pvm-row-p">'+pvFmtR(allIn)+'<em>$'+base+' before tax</em></span>'
     + '</button>';
 }
+
+/* ─── Live Jobs on a phone: drivers first, map behind a toggle ─────────────
+   The map is the tallest thing on the page and the driver progress cards are
+   what the office actually reads. Cards first, map one tap away. Leaflet
+   measures its container when it is shown, so switching to the map re-runs
+   LiveMap.start() — it is idempotent and invalidates the map's size. */
+function ljSetMobile(mode){
+  var v = document.getElementById('view-livejobs');
+  var isMap = mode === 'map';
+  v.classList.toggle('ljm-map', isMap);
+  document.getElementById('ljm-seg-drivers').classList.toggle('on', !isMap);
+  document.getElementById('ljm-seg-map').classList.toggle('on', isMap);
+  if(isMap) LiveMap.start();
+}
