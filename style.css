@@ -2464,6 +2464,45 @@ input[type=date],input[type=time]{position:relative;}
 #dash-strip-date{
   font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent-hover);
 }
+
+/* ── COMMAND BAR (global search, v630) ───────────────────────────────────────
+   Sizing lives here rather than inline so the desktop treatment — own row,
+   taller box, "press /" hint — can be gated to min-width:901px and leave the
+   phone strip exactly as v629 shipped it. */
+#global-search-wrap{flex:0 1 300px;min-width:200px;max-width:380px}
+.gs-input{
+  width:100%;box-sizing:border-box;padding:7px 12px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+.gs-input:hover,.gs-input:focus{border-color:var(--accent)}
+.gs-hint{display:none}
+.gs-results{
+  display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:3000;
+}
+.gs-head{
+  padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--muted);background:var(--surface2);
+}
+.gs-row{padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px}
+.gs-row:hover,.gs-row.sel{background:var(--surface2)}
+.gs-row.sel{box-shadow:inset 3px 0 0 var(--accent)}
+.gs-msg{padding:12px 14px;color:var(--muted);font-size:13px}
+@media(min-width:901px){
+  /* Date on its own line, the bar full width underneath it. */
+  #dash-strip-date{flex:1 1 100%}
+  #global-search-wrap{flex:1 1 100%;max-width:none;min-width:0;margin-top:2px}
+  .gs-input{padding:13px 92px 13px 12px;font-size:14.5px;border-radius:10px}
+  .gs-input:focus{box-shadow:0 0 0 3px rgba(34,197,94,.16)}
+  .gs-hint{
+    display:inline-flex;align-items:center;position:absolute;right:12px;top:50%;
+    transform:translateY(-50%);pointer-events:none;
+    font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--muted);
+    background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;
+  }
+}
 /* Section marker — replaces the emoji that used to sit here. A coloured tick
    reads as structure; an emoji reads as decoration. */
 .jj-sec-chip{

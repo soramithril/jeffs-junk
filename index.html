@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=629">
+<link rel="stylesheet" href="style.css?v=630">
 <link rel="stylesheet" href="mobile.css?v=629">
 <link rel="stylesheet" href="login-art.css?v=612">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
@@ -283,9 +283,15 @@
        animated, only the half-empty placeholder did. -->
   <section id="dash-strip">
     <div id="dash-strip-date"></div>
-    <div id="global-search-wrap" style="position:relative;z-index:1001;flex:0 1 300px;min-width:200px;max-width:380px;">
-      <input id="global-search-input" class="search-icon" type="text" placeholder="Search jobs, clients, or address…" autocomplete="off" oninput="globalSearchDebounce(this.value)" onfocus="if(this.value.length>=2)globalSearchLive(this.value)" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('global-search-results').style.display='none';this.blur();}" style="width:100%;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:3000;"></div>
+    <!-- The command bar (v630). Staff did not know this box finds everything, so on
+         desktop it is no longer a 300px afterthought beside the date: it gets its own
+         full-width row under the date line, the placeholder says what it searches, and
+         the hint chip teaches the "/" shortcut. Sizing lives in style.css (.gs-*) so the
+         phone layout that shipped in v629 keeps the small box it already had. -->
+    <div id="global-search-wrap" style="position:relative;z-index:1001">
+      <input id="global-search-input" class="search-icon gs-input" type="text" placeholder="Search anything — a name, phone, address, job #…" autocomplete="off" oninput="globalSearchDebounce(this.value)" onfocus="if(this.value.length>=2)globalSearchLive(this.value)" onkeydown="globalSearchKey(event)">
+      <span class="gs-hint" aria-hidden="true">press /</span>
+      <div id="global-search-results" class="gs-results"></div>
     </div>
   </section>
 
@@ -3008,7 +3014,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=629"></script>
+<script src="app.js?v=630"></script>
 <script src="app-mobile.js?v=629"></script>
 <script src="app-jwg-scheduler.js?v=609"></script>
 <script src="app-cuttimes.js?v=499"></script>

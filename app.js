@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '629';
+var APP_VERSION = '630';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6119,13 +6119,94 @@ function globalSearchDebounce(q){
   clearTimeout(_globalSearchTimer);
   _globalSearchTimer = setTimeout(function(){ globalSearchLive(q); }, 220);
 }
+// The typed query behind the two Actions rows. Held here rather than baked into an
+// onclick so a name with a quote or an apostrophe in it can't break the attribute —
+// same reason as _newClientFromSearchQ above.
+var _globalSearchQ = '';
+// Index of the arrow-key highlighted row, -1 for none. Reset on every repaint.
+var _gsSel = -1;
+function _gsRows(){
+  var box=document.getElementById('global-search-results');
+  return box ? [].slice.call(box.querySelectorAll('.gs-row')) : [];
+}
+function _gsMove(step){
+  var rows=_gsRows();
+  if(!rows.length) return;
+  if(_gsSel>=0 && rows[_gsSel]) rows[_gsSel].classList.remove('sel');
+  _gsSel = (_gsSel + step + rows.length) % rows.length;
+  rows[_gsSel].classList.add('sel');
+  rows[_gsSel].scrollIntoView({block:'nearest'});
+}
+function _gsClose(clear){
+  var box=document.getElementById('global-search-results');
+  if(box) box.style.display='none';
+  _gsSel=-1;
+  if(clear){ var inp=document.getElementById('global-search-input'); if(inp) inp.value=''; }
+}
+// One keydown handler for the command bar: arrows walk the grouped list, Enter opens
+// the highlighted row (by clicking it, so every row keeps the behaviour it already
+// had), Escape closes and clears.
+function globalSearchKey(e){
+  var box=document.getElementById('global-search-results');
+  var open = box && box.style.display!=='none';
+  if(e.key==='Escape'){ _gsClose(true); if(e.target&&e.target.blur) e.target.blur(); return; }
+  if(!open) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _gsMove(1); return; }
+  if(e.key==='ArrowUp'){ e.preventDefault(); _gsMove(-1); return; }
+  if(e.key==='Enter'){
+    var rows=_gsRows();
+    if(_gsSel>=0 && rows[_gsSel]){ e.preventDefault(); rows[_gsSel].click(); }
+  }
+}
+// "/" anywhere puts the cursor in the command bar — the shortcut the hint chip
+// advertises. Never while someone is typing into a field, and never when the bar
+// is hidden (a modal is open, per the body:has rule in style.css).
+document.addEventListener('keydown', function(e){
+  if(e.key!=='/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  var t=e.target;
+  if(t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable)) return;
+  var inp=document.getElementById('global-search-input');
+  if(!inp || !inp.offsetParent) return;
+  e.preventDefault();
+  inp.focus(); inp.select();
+});
+// Action row 1 — carry the typed name straight into a new bin booking. Nothing is
+// created here: saveJob still mints the client, exactly as useSearchAsNewJobClient.
+function globalSearchBookBin(){
+  var q=String(_globalSearchQ||'').trim();
+  _gsClose(true);
+  newJob();
+  setFormSvc('Bin Rental');
+  if(q){
+    var wrap=document.getElementById('f-names-wrap');
+    if(wrap) wrap.innerHTML=_jobNameRow(toTitleCase(q));
+  }
+}
+// Action row 2 — hand the same words to the AI job search on the Jobs page.
+function globalSearchAskAi(){
+  var q=String(_globalSearchQ||'').trim();
+  _gsClose(true);
+  if(!q) return;
+  go('jobs');
+  if(!_jobsAiMode) toggleJobsAi();
+  var inp=document.getElementById('ai-search-q');
+  if(inp) inp.value=q;
+  aiJobSearch();
+}
+function _gsActionsHtml(q){
+  return '<div class="gs-head">Actions</div>'
+    + '<div class="gs-row" onclick="globalSearchBookBin()">＋ Book a bin for “<strong>'+escHtml(q)+'</strong>”…</div>'
+    + '<div class="gs-row" onclick="globalSearchAskAi()">✨ Ask the AI about “<strong>'+escHtml(q)+'</strong>”…</div>';
+}
 async function globalSearchLive(q){
   var box = document.getElementById('global-search-results');
   if(!box) return;
   q = (q||'').trim();
-  if(q.length < 2){ box.style.display='none'; return; }
+  if(q.length < 2){ _gsClose(false); return; }
+  _globalSearchQ = q;
+  _gsSel = -1;
   box.style.display = 'block';
-  box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching…</div>';
+  box.innerHTML = '<div class="gs-msg">Searching…</div>';
   try {
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
@@ -6136,29 +6217,14 @@ async function globalSearchLive(q){
     var results = await Promise.all([clientsP, jobsP]);
     var cs = (results[0].data||[]);
     var js = (results[1].data||[]);
-    if(!cs.length && !js.length){
-      box.innerHTML = '<div style="padding:12px 14px;color:var(--muted);font-size:13px">No matches for "'+escHtml(q)+'"</div>';
-      return;
-    }
+    // Jobs first, then Clients, then Actions — the order staff actually look in.
+    // Actions render even with no matches: a name nobody has yet IS the booking case.
     var html = '';
-    if(cs.length){
-      html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Clients</div>';
-      html += cs.map(function(c){
-        var ph = c.phone || '';
-        var cLoc=[c.address?(c.address.split(',')[0]):'',c.city].filter(Boolean).join(' · ');
-        return '<div onclick="_openClientFromGlobalSearch(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-          +'<strong>'+escHtml(c.name||'—')+'</strong>'
-          +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
-          +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
-          +(cLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(cLoc)+'</div>':'')
-          +'</div>';
-      }).join('');
-    }
     if(js.length){
-      html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Jobs</div>';
+      html += '<div class="gs-head">Jobs</div>';
       html += js.map(function(j){
         var jLoc=[j.address?(j.address.split(',')[0]):'',j.city].filter(Boolean).join(' · ');
-        return '<div onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        return '<div class="gs-row" onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')">'
           +jid(j.job_id, j.service)
           +' <strong style="margin-left:6px">'+escHtml(j.name||'—')+'</strong>'
           +(j.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(j.business_name)+'</span>':'')
@@ -6168,32 +6234,38 @@ async function globalSearchLive(q){
           +'</div>';
       }).join('');
     }
-    box.innerHTML = html;
+    if(cs.length){
+      html += '<div class="gs-head">Clients</div>';
+      html += cs.map(function(c){
+        var ph = c.phone || '';
+        var cLoc=[c.address?(c.address.split(',')[0]):'',c.city].filter(Boolean).join(' · ');
+        return '<div class="gs-row" onclick="_openClientFromGlobalSearch(\''+c.cid+'\')">'
+          +'<strong>'+escHtml(c.name||'—')+'</strong>'
+          +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
+          +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
+          +(cLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(cLoc)+'</div>':'')
+          +'</div>';
+      }).join('');
+    }
+    if(!js.length && !cs.length) html += '<div class="gs-msg">No matches for "'+escHtml(q)+'"</div>';
+    box.innerHTML = html + _gsActionsHtml(q);
+    _gsSel = -1;
   } catch(ex){
-    box.innerHTML = '<div style="padding:10px 14px;color:#dc3545;font-size:13px">Error: '+escHtml(ex.message)+'</div>';
+    box.innerHTML = '<div class="gs-msg" style="color:#dc3545">Error: '+escHtml(ex.message)+'</div>';
   }
 }
 function _openClientFromGlobalSearch(cid){
-  var box=document.getElementById('global-search-results');
-  if(box) box.style.display='none';
-  var input=document.getElementById('global-search-input');
-  if(input) input.value='';
+  _gsClose(true);
   openClientDetail(cid);
 }
 function _openJobFromGlobalSearch(jobId){
-  var box=document.getElementById('global-search-results');
-  if(box) box.style.display='none';
-  var input=document.getElementById('global-search-input');
-  if(input) input.value='';
+  _gsClose(true);
   openDetail(jobId);
 }
 document.addEventListener('click', function(e){
   var wrap=document.getElementById('global-search-wrap');
   if(!wrap) return;
-  if(!wrap.contains(e.target)){
-    var box=document.getElementById('global-search-results');
-    if(box) box.style.display='none';
-  }
+  if(!wrap.contains(e.target)) _gsClose(false);
 });
 
 function selectClientResult(cid){
