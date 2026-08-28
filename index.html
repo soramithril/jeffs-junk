@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Jeff's Junk">
 <meta name="theme-color" content="#16a34a">
-<link rel="stylesheet" href="style.css?v=630">
+<link rel="stylesheet" href="style.css?v=631">
 <link rel="stylesheet" href="mobile.css?v=629">
 <link rel="stylesheet" href="login-art.css?v=612">
 <link rel="stylesheet" href="app-jwg-scheduler.css?v=562">
@@ -321,7 +321,15 @@
     <button type="button" class="mcollapse-bar mphone-only" onclick="mToggleCollapse('card-fleetcrew')">
       <span class="mcollapse-sum" id="mcrew-summary">Crew &amp; vehicles</span><span class="mcollapse-caret">▾</span>
     </button>
-    <div class="mcollapse-body" style="display:flex;flex-wrap:wrap;align-items:center;gap:18px">
+    <!-- FLEET STRIP (v631, desktop only) — the vehicles row and the crew row as one
+         slim line: healthy trucks as a count, anything not in good standing named,
+         then only the people actually working today. Expand restores the two rows
+         below, which are unchanged. Filled by renderDashFleetStrip(). -->
+    <div class="dfs-strip">
+      <div class="dfs-items" id="dash-fleet-strip-items"></div>
+      <button type="button" class="dfs-toggle" id="dash-fleet-strip-toggle" onclick="toggleFleetStrip()">▾ expand</button>
+    </div>
+    <div class="mcollapse-body dfs-full">
       <div style="display:flex;align-items:center;gap:10px;min-width:0">
         <div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary);text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;flex:none"><span class="jj-sec-chip cyan" style="height:12px"></span>Vehicles</div>
         <div id="dash-vehicle-status" style="display:flex;gap:8px;flex-wrap:wrap;min-width:0"></div>
@@ -3014,7 +3022,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=630"></script>
+<script src="app.js?v=631"></script>
 <script src="app-mobile.js?v=629"></script>
 <script src="app-jwg-scheduler.js?v=609"></script>
 <script src="app-cuttimes.js?v=499"></script>

@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '630';
+var APP_VERSION = '631';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3255,7 +3255,7 @@ function updateDashBinStatsDirect(){refreshDashBinStats();}
 function renderDashVehicleStatus(){
   var el=document.getElementById('dash-vehicle-status');if(!el)return;
   var dashVehicles=vehicles.filter(function(v){return !v.leaderboardOnly;});
-  if(!dashVehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
+  if(!dashVehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';renderDashFleetStrip();return;}
   var todayS=todayStr();
   el.innerHTML=dashVehicles.map(function(v){
     var blocks=vehBlocks[v.vid]||{};
@@ -3301,6 +3301,76 @@ function renderDashVehicleStatus(){
       +menuHtml
       +'</div>';
   }).join('');
+  renderDashFleetStrip();
+}
+
+// ── Dashboard fleet strip (desktop) ─────────────────────────────────────────
+// The vehicles row and the crew row said the same thing every day at full length:
+// five identical green truck chips and the entire roster, whether they were in or
+// not. The strip says only what changed — a count for the healthy trucks, a named
+// chip for every truck that isn't, and pills for the people actually working today
+// with the rest as a muted "· N off today". Trucks and people stay separate items:
+// a driver's name never goes inside a truck chip (Jake). '▾ expand' puts the two
+// original rows back, unchanged.
+function renderDashFleetStrip(){
+  var el=document.getElementById('dash-fleet-strip-items'); if(!el) return;
+  var out=[];
+
+  // Trucks — read against the real today, same as the vehicle row it summarises.
+  var todayS=todayStr();
+  var fleet=(typeof vehicles!=='undefined'&&vehicles?vehicles:[]).filter(function(v){return !v.leaderboardOnly;});
+  var ready=0;
+  var down=[];
+  fleet.forEach(function(v){
+    var blk=(vehBlocks[v.vid]||{})[todayS];
+    if(!blk){ ready++; return; }
+    var reason=blk.reason||'Blocked';
+    down.push({
+      name:v.name||'Truck',
+      // Open-ended means nobody has said when it comes back — that's the red one.
+      col: blk.openEnded ? '#dc3545' : '#e67e22',
+      phrase: /service|repair|shop/i.test(reason) ? 'in the shop' : reason
+    });
+  });
+  if(!fleet.length) out.push('<span class="dfs-none">No vehicles</span>');
+  else {
+    if(ready) out.push('<span class="dfs-item"><i class="dfs-dot" style="background:var(--accent)"></i>'
+      +ready+' truck'+(ready===1?'':'s')+' ready</span>');
+    down.forEach(function(d){
+      out.push('<span class="dfs-item" title="Click ▾ expand to manage"><i class="dfs-dot" style="background:'+d.col+'"></i>'
+        +escHtml(d.name)+' '+escHtml(d.phrase)+'</span>');
+    });
+  }
+
+  // People — read against the dashboard's selected date, same as the crew row.
+  var roster=(typeof teamRoster!=='undefined'&&teamRoster.length)
+    ? teamRoster.filter(function(r){ return r.active!==false; })
+        .slice().sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); })
+    : (crewMembers||[]);
+  if(roster.length){
+    var ds=dashSelectedDate();
+    var working=[], offCount=0;
+    roster.forEach(function(c){
+      if(crewStatusForDate(c.id, ds).state==='off') offCount++;
+      else working.push(c);
+    });
+    out.push('<span class="dfs-sep"></span>');
+    if(!working.length) out.push('<span class="dfs-none">Nobody in</span>');
+    working.forEach(function(c){
+      var first=String(c.name||'').trim().split(/\s+/)[0]||'—';
+      out.push('<span class="dfs-pill" title="'+String(c.name||'').replace(/"/g,'&quot;')+'">'
+        +teamAvatar(c.name, crewAvatarColor(c.id), 20)+escHtml(first)+'</span>');
+    });
+    if(offCount) out.push('<span class="dfs-off">· '+offCount+' off today</span>');
+  }
+
+  el.innerHTML=out.join('');
+}
+function toggleFleetStrip(){
+  var card=document.getElementById('card-fleetcrew'); if(!card) return;
+  var open=card.classList.toggle('dfs-open');
+  var btn=document.getElementById('dash-fleet-strip-toggle');
+  if(btn) btn.textContent=open?'▴ collapse':'▾ expand';
 }
 
 function markVehicleNotOperational(vid){
@@ -19327,7 +19397,7 @@ function renderDashCrewStatus(){
     ? teamRoster.filter(function(r){ return r.active!==false; })
         .slice().sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); })
     : crewMembers;
-  if(!roster.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
+  if(!roster.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; renderDashFleetStrip(); return; }
   var ds=dashSelectedDate();
   // Everyone shows, as a bare initials avatar — the whole roster has to fit one
   // line, so the name lives in the hover tooltip and the ring carries the status:
@@ -19357,6 +19427,7 @@ function renderDashCrewStatus(){
       +menu
     +'</div>';
   }).join('');
+  renderDashFleetStrip();
   if(typeof mSyncCrewSummary==='function') mSyncCrewSummary();
 }
 function toggleCrewMenu(id){ var m=document.getElementById(id); if(!m) return; var open=m.style.display!=='none'; closeCrewMenus(); if(!open)m.style.display='block'; }

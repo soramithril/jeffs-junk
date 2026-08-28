@@ -2503,6 +2503,38 @@ input[type=date],input[type=time]{position:relative;}
     background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;
   }
 }
+/* ── FLEET STRIP (v631) ──────────────────────────────────────────────────────
+   Desktop collapses the vehicles row and the crew row into one slim line. The
+   phone keeps the v629 card, so the strip is display:none until 901px and the
+   full rows carry their old inline flex here instead (an inline display would
+   have beaten the collapse rule below). */
+.dfs-full{display:flex;flex-wrap:wrap;align-items:center;gap:18px}
+.dfs-strip{display:none}
+@media(min-width:901px){
+  .dfs-strip{display:flex;align-items:center;gap:12px;min-width:0}
+  .dfs-items{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1}
+  #card-fleetcrew:not(.dfs-open) .dfs-full{display:none}
+  #card-fleetcrew.dfs-open .dfs-items{display:none}
+  .dfs-item{
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+    font-size:12px;font-weight:600;color:var(--text);
+  }
+  .dfs-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+  .dfs-sep{width:1px;height:16px;background:var(--border);flex:none}
+  .dfs-pill{
+    display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+    font-size:12px;font-weight:600;color:var(--text);
+    background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:2px 9px 2px 3px;
+  }
+  .dfs-off{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .dfs-none{font-size:12px;color:var(--muted)}
+  .dfs-toggle{
+    flex:none;margin-left:auto;background:none;border:none;cursor:pointer;font-family:inherit;
+    font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--accent);padding:4px 2px;
+  }
+  .dfs-toggle:hover{text-decoration:underline}
+}
+
 /* Section marker — replaces the emoji that used to sit here. A coloured tick
    reads as structure; an emoji reads as decoration. */
 .jj-sec-chip{
