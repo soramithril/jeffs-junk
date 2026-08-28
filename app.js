@@ -3802,11 +3802,11 @@ async function refreshDashJobs(){
       }).join('')+'</div>';
   }
 
-  // The whole day runs in pairs (v563): bin drop-offs beside pickups, junk beside
-  // furniture, quotes beside extra jobs. Each pair is its own row, and a pair with
-  // only one side filled spans the full width via :only-child — so an empty half
-  // never sits there. A wrapper is only emitted when its pair has something in it,
-  // so an empty day still falls through to the empty state below.
+  // Two real columns, not three stacked pair-rows (v629). Drop-offs still sit
+  // beside pickups, but each column keeps flowing: when Drop-offs ends early,
+  // Junk Removals moves up into the gap instead of the whole next pair starting
+  // below the taller side. tjFlow() emits nothing when both sides are empty, so
+  // an empty day still falls through to the empty state below.
   var html = tjFlow(
     makeCat('Bin Drop-offs','#0891b2',dayDropoffs,false,iconTile('binDrop',{size:24}),'dcat-dropoffs',1)
     + makeCat('Junk Removals','#eab308',junkRemovals,false,iconTile('junk',{size:24,color:'yellow'}),'dcat-junk',3)
@@ -4485,10 +4485,8 @@ async function renderDash(bg){
         +'</div>';
       }).join('')+'</div>';
   }
-  // Same split as refreshDashJobs: bins in the two columns, the rest as one
-  // strip below. Both paths must match or the layout would jump when the date
-  // picker moves off today.
-  // Same pairing as the picked-date path above — see the comment there.
+  // The same two columns as refreshDashJobs, in the same order. Both paths must
+  // match or the layout would jump when the date picker moves off today.
   var todayHtml = tjFlow(
     makeTodayCat('Bin Drop-offs','#0891b2',todayBinDropoffs,false,iconTile('binDrop',{size:24}),'dcat-dropoffs',1)
     + makeTodayCat('Junk Removals','#eab308',todayJunkRemovals,false,iconTile('junk',{size:24,color:'yellow'}),'dcat-junk',3)
@@ -5260,8 +5258,11 @@ function makeJobCard(j){
   }
   if(j.service === 'Extra Jobs' && j.jobName) chips += chip('🌿 '+escHtml(j.jobName),'#3f6212','#eef5e0');
   // Extra Jobs have no customer email step anywhere else either, so no button here.
+  // Email and Edit, plus the one way back out of whichever dead end the job is in.
+  // Cancel and delete are deliberately not here: they are one mistap on a phone.
   var acts = '<span class="jcell-email">'+(j.service==='Extra Jobs'?'':emailHtml(j.id, j.emailSent))+'</span>'
     + (isCancelled?'<button class="btn btn-ghost btn-sm" data-action="uncancel" data-jid="'+j.id+'">↩ Restore</button>':'')
+    + (j.completed?'<button class="btn btn-ghost btn-sm" data-action="reopen-complete" data-jid="'+j.id+'">↩ Reopen</button>':'')
     + '<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'">'+lineIcon('edit',14)+' Edit</button>';
   return '<tr data-jid="'+j.id+'" class="job-row jcard-tr'+(isCancelled?' is-cancelled':'')+'">'
     +'<td class="jcard-td" colspan="9">'
