@@ -47,6 +47,12 @@
    line; on desktop that wrapper has to stay a plain inline strip. */
 .ny-actions{display:flex;align-items:center;gap:8px;flex:none}
 
+/* The filter pile is a real wrapper element so the phone can slide it up as one
+   sheet. On desktop it must not exist as a box: its children were direct flex
+   items of the clients .filters-bar, and wrapping them in a block would stack
+   what used to flow across the row. display:contents hands them straight back. */
+.mfilter-pile{display:contents}
+
 /* ─── Both widths: All Jobs has one search box, not two ───────────────────
    The AI ask-bar was a second full-width input under the first and read as a
    duplicate of the search you had just typed into. One box, and a chip that

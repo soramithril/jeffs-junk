@@ -2049,7 +2049,7 @@ async function nextBinItemId(size, type){
 var editClientId = null;
 
 function _clientNameRow(val){
-  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
+  return '<div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" class="c-name-inp" placeholder="Full name" value="'+escHtml(val||'')+'" onblur="this.value=toTitleCase(this.value)" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
 }
 function _clientPhoneRow(num,ext,type){
   return '<div style="display:flex;gap:8px;margin-bottom:8px"><select class="c-phone-type-sel" style="flex:.8;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><option value="cell"'+((!type||type==='cell')?'selected':'')+'">Cell</option><option value="home"'+(type==='home'?'selected':'')+'">Home</option><option value="office"'+(type==='office'?'selected':'')+'">Office</option></select><input type="tel" class="c-phone-inp" placeholder="(705) 555-0000" value="'+(num||'')+'" style="flex:2;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><input type="text" class="c-ext-inp" placeholder="Ext" value="'+(ext||'')+'" style="flex:.6;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"><button type="button" class="jf-row-x" onclick="this.parentNode.remove()" style="background:rgba(220,53,69,.12);border:1px solid rgba(220,53,69,.3);color:#dc3545;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14px">✕</button></div>';
@@ -2156,7 +2156,10 @@ function openAddClient(){
     editClientId=null;
     document.getElementById('client-modal-ttl').textContent='Add Client';
     document.getElementById('client-save-btn').textContent='Add Client';
-    document.getElementById('c-names-wrap').innerHTML=_clientNameRow('');
+    // Searched for someone, found nobody, hit Add Client — that search text is
+    // their name. Only after a search that actually came up empty.
+    document.getElementById('c-names-wrap').innerHTML=_clientNameRow(
+      _clientSearchNoMatch ? toTitleCase(String(clientSearchF).trim()) : '');
     document.getElementById('c-phones-wrap').innerHTML=_clientPhoneRow('','','cell');
     document.getElementById('c-emails-wrap').innerHTML=_clientEmailRow('');
     document.getElementById('c-addresses-wrap').innerHTML=_clientAddressRow('','Barrie',false);
@@ -3812,6 +3815,10 @@ async function refreshDashJobs(){
     + makeCat('Furniture Pickups','#8b5cf6',furnPickups,false,iconTile('furniture',{size:24}),'dcat-furniture',5)
     + makeCat('Extra Jobs','#65a30d',landscaping,false,iconTile('landscaping',{size:24}),'dcat-extra',6));
 
+  // A newer click already went out while this one was fetching — its answer is the
+  // one that belongs on screen, so drop this instead of overwriting the right day.
+  if(_myTicket !== _dashJobsTicket) return;
+
   // The green card and jump-chip badges at the top of the phone dashboard read
   // the numbers this render already worked out, so they can never disagree.
   if(typeof mSetDaySummary==='function') mSetDaySummary({
@@ -3820,10 +3827,6 @@ async function refreshDashJobs(){
     landscaping: landscaping.length, furniture: furnPickups.length + furnDelivs.length,
     calls: callsNeeded, emails: emailsNeeded
   });
-
-  // A newer click already went out while this one was fetching — its answer is the
-  // one that belongs on screen, so drop this instead of overwriting the right day.
-  if(_myTicket !== _dashJobsTicket) return;
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
@@ -7004,9 +7007,14 @@ function startPlaybookCapture(){
   window.JJPlaybook.start((_allClientsFiltered||[]).slice(0,50).map(function(c){ return c.cid; }));
 }
 
+// Set when a search came back with nobody: Add Client then starts with that text
+// in the name field, because searching for a customer and not finding them is
+// exactly how you end up adding them (Jake, 2026-08-27).
+var _clientSearchNoMatch = false;
 function renderClientsList(list) {
   var el = document.getElementById('clients-list');
   if (!list.length) {
+    _clientSearchNoMatch = !!clientSearchF;
     // A bare "No clients found" sent people away believing a real customer wasn't
     // in the system — usually a filter is still on from earlier. Name whatever is
     // actually hiding them, and offer one button that clears the lot.
@@ -7035,6 +7043,7 @@ function renderClientsList(list) {
   el.innerHTML = isMobileView()
     ? '<div class="mclient-list">' + list.map(makeClientRow).join('') + '</div>'
     : '<div class="clients-grid">' + list.map(makeClientCard).join('') + '</div>';
+  _clientSearchNoMatch = false;
 }
 // Phone row. Deliberately not the card with things hidden: the card is built
 // from inline styles that CSS cannot unwind, and half a card is not a row.
