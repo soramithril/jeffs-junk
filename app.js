@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '629';
+var APP_VERSION = '633';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3255,7 +3255,7 @@ function updateDashBinStatsDirect(){refreshDashBinStats();}
 function renderDashVehicleStatus(){
   var el=document.getElementById('dash-vehicle-status');if(!el)return;
   var dashVehicles=vehicles.filter(function(v){return !v.leaderboardOnly;});
-  if(!dashVehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';return;}
+  if(!dashVehicles.length){el.innerHTML='<span style="font-size:11px;color:var(--muted)">No vehicles</span>';renderDashFleetStrip();return;}
   var todayS=todayStr();
   el.innerHTML=dashVehicles.map(function(v){
     var blocks=vehBlocks[v.vid]||{};
@@ -3301,6 +3301,76 @@ function renderDashVehicleStatus(){
       +menuHtml
       +'</div>';
   }).join('');
+  renderDashFleetStrip();
+}
+
+// ── Dashboard fleet strip (desktop) ─────────────────────────────────────────
+// The vehicles row and the crew row said the same thing every day at full length:
+// five identical green truck chips and the entire roster, whether they were in or
+// not. The strip says only what changed — a count for the healthy trucks, a named
+// chip for every truck that isn't, and pills for the people actually working today
+// with the rest as a muted "· N off today". Trucks and people stay separate items:
+// a driver's name never goes inside a truck chip (Jake). '▾ expand' puts the two
+// original rows back, unchanged.
+function renderDashFleetStrip(){
+  var el=document.getElementById('dash-fleet-strip-items'); if(!el) return;
+  var out=[];
+
+  // Trucks — read against the real today, same as the vehicle row it summarises.
+  var todayS=todayStr();
+  var fleet=(typeof vehicles!=='undefined'&&vehicles?vehicles:[]).filter(function(v){return !v.leaderboardOnly;});
+  var ready=0;
+  var down=[];
+  fleet.forEach(function(v){
+    var blk=(vehBlocks[v.vid]||{})[todayS];
+    if(!blk){ ready++; return; }
+    var reason=blk.reason||'Blocked';
+    down.push({
+      name:v.name||'Truck',
+      // Open-ended means nobody has said when it comes back — that's the red one.
+      col: blk.openEnded ? '#dc3545' : '#e67e22',
+      phrase: /service|repair|shop/i.test(reason) ? 'in the shop' : reason
+    });
+  });
+  if(!fleet.length) out.push('<span class="dfs-none">No vehicles</span>');
+  else {
+    if(ready) out.push('<span class="dfs-item"><i class="dfs-dot" style="background:var(--accent)"></i>'
+      +ready+' truck'+(ready===1?'':'s')+' ready</span>');
+    down.forEach(function(d){
+      out.push('<span class="dfs-item" title="Click ▾ expand to manage"><i class="dfs-dot" style="background:'+d.col+'"></i>'
+        +escHtml(d.name)+' '+escHtml(d.phrase)+'</span>');
+    });
+  }
+
+  // People — read against the dashboard's selected date, same as the crew row.
+  var roster=(typeof teamRoster!=='undefined'&&teamRoster.length)
+    ? teamRoster.filter(function(r){ return r.active!==false; })
+        .slice().sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); })
+    : (crewMembers||[]);
+  if(roster.length){
+    var ds=dashSelectedDate();
+    var working=[], offCount=0;
+    roster.forEach(function(c){
+      if(crewStatusForDate(c.id, ds).state==='off') offCount++;
+      else working.push(c);
+    });
+    out.push('<span class="dfs-sep"></span>');
+    if(!working.length) out.push('<span class="dfs-none">Nobody in</span>');
+    working.forEach(function(c){
+      var first=String(c.name||'').trim().split(/\s+/)[0]||'—';
+      out.push('<span class="dfs-pill" title="'+String(c.name||'').replace(/"/g,'&quot;')+'">'
+        +teamAvatar(c.name, crewAvatarColor(c.id), 20)+escHtml(first)+'</span>');
+    });
+    if(offCount) out.push('<span class="dfs-off">· '+offCount+' off today</span>');
+  }
+
+  el.innerHTML=out.join('');
+}
+function toggleFleetStrip(){
+  var card=document.getElementById('card-fleetcrew'); if(!card) return;
+  var open=card.classList.toggle('dfs-open');
+  var btn=document.getElementById('dash-fleet-strip-toggle');
+  if(btn) btn.textContent=open?'▴ collapse':'▾ expand';
 }
 
 function markVehicleNotOperational(vid){
@@ -3741,8 +3811,12 @@ async function refreshDashJobs(){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+    // --tjc carries the section's service colour so the desktop rule under the
+    // header can draw in it. Everything else about the header is unchanged; its
+    // layout moved to .tj-cat-hd in style.css so the desktop block can retune the
+    // padding without an inline style beating it.
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="--tjc:'+color+'">'
+      +'<div class="tj-cat-hd" style="color:'+svcInk(color)+'">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         // A live load only ever shows on the drop-off side (one truck visit), so its
@@ -3762,6 +3836,7 @@ async function refreshDashJobs(){
         // Landscaping: surface the job name + crew so jobs are distinguishable without tapping in.
         var landChip = '';
         if(j.service==='Extra Jobs'){
+          if(isShopJob(j)) landChip += shopBadgeHtml();
           if(j.jobName) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">🌿 '+escHtml(j.jobName)+'</span>';
           if(j.crewSize) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">👷 '+j.crewSize+'</span>';
         }
@@ -4425,8 +4500,12 @@ async function renderDash(bg){
       if(ta && !tb) return -1; if(!ta && tb) return 1;
       if(ta && tb) return ta.localeCompare(tb); return 0;
     });
-    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="margin-bottom:4px">'
-      +'<div style="display:flex;align-items:center;gap:8px;font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:1.5px;color:'+svcInk(color)+';padding:8px 14px 4px">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
+    // --tjc carries the section's service colour so the desktop rule under the
+    // header can draw in it. Everything else about the header is unchanged; its
+    // layout moved to .tj-cat-hd in style.css so the desktop block can retune the
+    // padding without an inline style beating it.
+    return '<div class="tj-cat" id="'+anchorId+'" data-mo="'+mOrder+'" style="--tjc:'+color+'">'
+      +'<div class="tj-cat-hd" style="color:'+svcInk(color)+'">'+(icon||'')+'<span>'+title+'</span><span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;background:rgba(0,0,0,.06);border-radius:10px;padding:1px 8px">'+list.length+'</span></div>'
       +list.map(function(j){
         var cfm=j.confirmed, isBin=j.service==='Bin Rental';
         // A live load only ever shows on the drop-off side (one truck visit), so its
@@ -4446,6 +4525,7 @@ async function renderDash(bg){
         // Landscaping: surface the job name + crew so jobs are distinguishable without tapping in.
         var landChip = '';
         if(j.service==='Extra Jobs'){
+          if(isShopJob(j)) landChip += shopBadgeHtml();
           if(j.jobName) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">🌿 '+escHtml(j.jobName)+'</span>';
           if(j.crewSize) landChip += '<span class="djj-biz" style="color:#3f6212;background:#eef5e0">👷 '+j.crewSize+'</span>';
         }
@@ -4588,7 +4668,7 @@ function renderPossibleJobsList(){
     var toolsBlock=items.length?'<div class="pj-sec"><div class="pj-lbl">Tools / materials</div><div class="pj-body">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
     var thumbs=photos.map(function(url,i){ return '<div class="photo-thumb" onclick="event.stopPropagation();_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')"><img src="'+_cloudinaryDeliveryUrl(url,{width:200})+'" alt="" loading="lazy"></div>'; }).join('');
     var photosBlock=photos.length?'<div class="pj-sec"><div class="pj-lbl">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
-    var jobNameHtml=j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'';
+    var jobNameHtml=(isShopJob(j)?shopBadgeHtml():'')+(j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'');
     var crewChip=j.crewSize?'<span class="pj-pill">👷 '+j.crewSize+' needed</span>':'';
     return '<div class="pj-card" onclick="openDetail(\''+j.id+'\')">'
       +'<div class="pj-head">'
@@ -4616,24 +4696,30 @@ async function renderLandscapingPage(){
   var possible  = list.filter(function(j){ return !j.completed && !j.junkDate && !j.date; });
   var scheduled = list.filter(function(j){ return !j.completed && (j.junkDate || j.date); });
   var completed = list.filter(function(j){ return j.completed; });
+  // Our own shop work, dated or not — a cross-cutting filter, so these jobs also
+  // still appear under Possible or Scheduled.
+  var shop      = list.filter(function(j){ return !j.completed && isShopJob(j); });
   possible.sort(function(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); });
   scheduled.sort(function(a,b){ return (a.junkDate||a.date||'').localeCompare(b.junkDate||b.date||''); });
   completed.sort(function(a,b){ return (b.completedAt||'').localeCompare(a.completedAt||''); });
+  shop.sort(function(a,b){ return (a.junkDate||a.date||'9999').localeCompare(b.junkDate||b.date||'9999'); });
   _renderLsSection('ls-possible', possible, 'possible');
   _renderLsSection('ls-scheduled', scheduled, 'scheduled');
   _renderLsSection('ls-completed', completed, 'completed');
+  _renderLsSection('ls-shop', shop, 'shop');
 }
-// Extra Jobs tabs — Possible / Scheduled / Completed, one section visible at a time.
+// Extra Jobs tabs — Possible / Scheduled / Completed / Our Shop, one at a time.
+var LS_TABS = ['possible','scheduled','completed','shop'];
 function setLsTab(kind, btn){
   document.querySelectorAll('#ls-tabs .lb-period-btn').forEach(function(b){ b.classList.toggle('active', b===btn); });
-  ['possible','scheduled','completed'].forEach(function(k){
+  LS_TABS.forEach(function(k){
     document.getElementById('ls-'+k+'-body').style.display = (k===kind) ? '' : 'none';
   });
 }
 function _renderLsSection(prefix, list, kind){
   var countEl=document.getElementById(prefix+'-count'); if(countEl) countEl.textContent=list.length;
   var body=document.getElementById(prefix+'-body'); if(!body) return;
-  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 4px;font-style:italic">'+(kind==='possible'?'No undated jobs — every extra job has a date. 🎉':kind==='scheduled'?'No scheduled extra jobs.':'No completed jobs yet.')+'</div>'; return; }
+  if(!list.length){ body.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 4px;font-style:italic">'+(kind==='possible'?'No undated jobs — every extra job has a date. 🎉':kind==='scheduled'?'No scheduled extra jobs.':kind==='shop'?'No open jobs for our own shop.':'No completed jobs yet.')+'</div>'; return; }
   body.innerHTML=list.map(function(j){ return _landscapeCardHTML(j, kind); }).join('');
 }
 // How long a "possible" job has been waiting, tinted once it starts going cold.
@@ -4671,8 +4757,11 @@ function _landscapeCardHTML(j, kind){
   var toolsBlock=items.length?'<div class="pj-sec"><div class="pj-lbl">Tools / materials</div><div class="pj-body">'+items.map(function(s){return '• '+escHtml(s);}).join('<br>')+'</div></div>':'';
   var thumbs=photos.map(function(url,i){ return '<div class="photo-thumb" onclick="event.stopPropagation();_openPhotoLightbox('+i+',\'job\',\''+j.id+'\')"><img src="'+_cloudinaryDeliveryUrl(url,{width:200})+'" alt="" loading="lazy"></div>'; }).join('');
   var photosBlock=photos.length?'<div class="pj-sec"><div class="pj-lbl">📷 Photos ('+photos.length+')</div><div class="photo-thumb-grid photo-thumb-grid-sm">'+thumbs+'</div></div>':'';
-  var jobNameHtml=j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'';
+  var jobNameHtml=(isShopJob(j)?shopBadgeHtml():'')+(j.jobName?'<span class="pj-name">🌿 '+escHtml(j.jobName)+'</span>':'');
   var crewChip=j.crewSize?'<span class="pj-pill">👷 '+j.crewSize+' needed</span>':'';
+  // The Our Shop tab is a filter across the other three, so its cards borrow whichever
+  // status pill and buttons the job would have had in its own section.
+  if(kind==='shop') kind=(j.junkDate||j.date)?'scheduled':'possible';
   var statusPill;
   if(kind==='completed') statusPill='<span class="pj-pill" style="background:rgba(34,197,94,.12);color:#16a34a">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+'</span>';
   else if(kind==='scheduled'){ var d=j.junkDate||j.date; statusPill='<span class="pj-pill" style="background:#e0f2f7;color:#0e7490">📅 '+(d?fd(d):'')+(j.junkTime?' '+ft(j.junkTime):'')+'</span>'; }
@@ -5278,7 +5367,7 @@ function makeJobRowNoSvc(j){
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j)+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
@@ -5297,7 +5386,7 @@ function makeLandscapingRow(j){
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td style="font-size:14px">'+(j.jobName?'<strong style="color:#65a30d">'+escHtml(j.jobName)+'</strong>':'<span style="color:var(--muted)">—</span>')+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j)+'</span></td>'
     +'<td style="text-align:center;font-size:15px;font-weight:700;color:#65a30d">'+(j.crewSize?('👷 '+j.crewSize):'<span style="color:var(--muted);font-weight:400">—</span>')+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
@@ -5312,7 +5401,7 @@ function makeJobRowWithSvc(j){
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+(j.referral?' · 📣 '+j.referral:'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j)+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
@@ -6119,13 +6208,94 @@ function globalSearchDebounce(q){
   clearTimeout(_globalSearchTimer);
   _globalSearchTimer = setTimeout(function(){ globalSearchLive(q); }, 220);
 }
+// The typed query behind the two Actions rows. Held here rather than baked into an
+// onclick so a name with a quote or an apostrophe in it can't break the attribute —
+// same reason as _newClientFromSearchQ above.
+var _globalSearchQ = '';
+// Index of the arrow-key highlighted row, -1 for none. Reset on every repaint.
+var _gsSel = -1;
+function _gsRows(){
+  var box=document.getElementById('global-search-results');
+  return box ? [].slice.call(box.querySelectorAll('.gs-row')) : [];
+}
+function _gsMove(step){
+  var rows=_gsRows();
+  if(!rows.length) return;
+  if(_gsSel>=0 && rows[_gsSel]) rows[_gsSel].classList.remove('sel');
+  _gsSel = (_gsSel + step + rows.length) % rows.length;
+  rows[_gsSel].classList.add('sel');
+  rows[_gsSel].scrollIntoView({block:'nearest'});
+}
+function _gsClose(clear){
+  var box=document.getElementById('global-search-results');
+  if(box) box.style.display='none';
+  _gsSel=-1;
+  if(clear){ var inp=document.getElementById('global-search-input'); if(inp) inp.value=''; }
+}
+// One keydown handler for the command bar: arrows walk the grouped list, Enter opens
+// the highlighted row (by clicking it, so every row keeps the behaviour it already
+// had), Escape closes and clears.
+function globalSearchKey(e){
+  var box=document.getElementById('global-search-results');
+  var open = box && box.style.display!=='none';
+  if(e.key==='Escape'){ _gsClose(true); if(e.target&&e.target.blur) e.target.blur(); return; }
+  if(!open) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _gsMove(1); return; }
+  if(e.key==='ArrowUp'){ e.preventDefault(); _gsMove(-1); return; }
+  if(e.key==='Enter'){
+    var rows=_gsRows();
+    if(_gsSel>=0 && rows[_gsSel]){ e.preventDefault(); rows[_gsSel].click(); }
+  }
+}
+// "/" anywhere puts the cursor in the command bar — the shortcut the hint chip
+// advertises. Never while someone is typing into a field, and never when the bar
+// is hidden (a modal is open, per the body:has rule in style.css).
+document.addEventListener('keydown', function(e){
+  if(e.key!=='/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  var t=e.target;
+  if(t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable)) return;
+  var inp=document.getElementById('global-search-input');
+  if(!inp || !inp.offsetParent) return;
+  e.preventDefault();
+  inp.focus(); inp.select();
+});
+// Action row 1 — carry the typed name straight into a new bin booking. Nothing is
+// created here: saveJob still mints the client, exactly as useSearchAsNewJobClient.
+function globalSearchBookBin(){
+  var q=String(_globalSearchQ||'').trim();
+  _gsClose(true);
+  newJob();
+  setFormSvc('Bin Rental');
+  if(q){
+    var wrap=document.getElementById('f-names-wrap');
+    if(wrap) wrap.innerHTML=_jobNameRow(toTitleCase(q));
+  }
+}
+// Action row 2 — hand the same words to the AI job search on the Jobs page.
+function globalSearchAskAi(){
+  var q=String(_globalSearchQ||'').trim();
+  _gsClose(true);
+  if(!q) return;
+  go('jobs');
+  if(!_jobsAiMode) toggleJobsAi();
+  var inp=document.getElementById('ai-search-q');
+  if(inp) inp.value=q;
+  aiJobSearch();
+}
+function _gsActionsHtml(q){
+  return '<div class="gs-head">Actions</div>'
+    + '<div class="gs-row" onclick="globalSearchBookBin()">＋ Book a bin for “<strong>'+escHtml(q)+'</strong>”…</div>'
+    + '<div class="gs-row" onclick="globalSearchAskAi()">✨ Ask the AI about “<strong>'+escHtml(q)+'</strong>”…</div>';
+}
 async function globalSearchLive(q){
   var box = document.getElementById('global-search-results');
   if(!box) return;
   q = (q||'').trim();
-  if(q.length < 2){ box.style.display='none'; return; }
+  if(q.length < 2){ _gsClose(false); return; }
+  _globalSearchQ = q;
+  _gsSel = -1;
   box.style.display = 'block';
-  box.innerHTML = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Searching…</div>';
+  box.innerHTML = '<div class="gs-msg">Searching…</div>';
   try {
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
@@ -6136,29 +6306,14 @@ async function globalSearchLive(q){
     var results = await Promise.all([clientsP, jobsP]);
     var cs = (results[0].data||[]);
     var js = (results[1].data||[]);
-    if(!cs.length && !js.length){
-      box.innerHTML = '<div style="padding:12px 14px;color:var(--muted);font-size:13px">No matches for "'+escHtml(q)+'"</div>';
-      return;
-    }
+    // Jobs first, then Clients, then Actions — the order staff actually look in.
+    // Actions render even with no matches: a name nobody has yet IS the booking case.
     var html = '';
-    if(cs.length){
-      html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Clients</div>';
-      html += cs.map(function(c){
-        var ph = c.phone || '';
-        var cLoc=[c.address?(c.address.split(',')[0]):'',c.city].filter(Boolean).join(' · ');
-        return '<div onclick="_openClientFromGlobalSearch(\''+c.cid+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-          +'<strong>'+escHtml(c.name||'—')+'</strong>'
-          +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
-          +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
-          +(cLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(cLoc)+'</div>':'')
-          +'</div>';
-      }).join('');
-    }
     if(js.length){
-      html += '<div style="padding:6px 14px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:var(--surface2)">Jobs</div>';
+      html += '<div class="gs-head">Jobs</div>';
       html += js.map(function(j){
         var jLoc=[j.address?(j.address.split(',')[0]):'',j.city].filter(Boolean).join(' · ');
-        return '<div onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')" style="padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        return '<div class="gs-row" onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')">'
           +jid(j.job_id, j.service)
           +' <strong style="margin-left:6px">'+escHtml(j.name||'—')+'</strong>'
           +(j.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(j.business_name)+'</span>':'')
@@ -6168,32 +6323,38 @@ async function globalSearchLive(q){
           +'</div>';
       }).join('');
     }
-    box.innerHTML = html;
+    if(cs.length){
+      html += '<div class="gs-head">Clients</div>';
+      html += cs.map(function(c){
+        var ph = c.phone || '';
+        var cLoc=[c.address?(c.address.split(',')[0]):'',c.city].filter(Boolean).join(' · ');
+        return '<div class="gs-row" onclick="_openClientFromGlobalSearch(\''+c.cid+'\')">'
+          +'<strong>'+escHtml(c.name||'—')+'</strong>'
+          +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
+          +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
+          +(cLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(cLoc)+'</div>':'')
+          +'</div>';
+      }).join('');
+    }
+    if(!js.length && !cs.length) html += '<div class="gs-msg">No matches for "'+escHtml(q)+'"</div>';
+    box.innerHTML = html + _gsActionsHtml(q);
+    _gsSel = -1;
   } catch(ex){
-    box.innerHTML = '<div style="padding:10px 14px;color:#dc3545;font-size:13px">Error: '+escHtml(ex.message)+'</div>';
+    box.innerHTML = '<div class="gs-msg" style="color:#dc3545">Error: '+escHtml(ex.message)+'</div>';
   }
 }
 function _openClientFromGlobalSearch(cid){
-  var box=document.getElementById('global-search-results');
-  if(box) box.style.display='none';
-  var input=document.getElementById('global-search-input');
-  if(input) input.value='';
+  _gsClose(true);
   openClientDetail(cid);
 }
 function _openJobFromGlobalSearch(jobId){
-  var box=document.getElementById('global-search-results');
-  if(box) box.style.display='none';
-  var input=document.getElementById('global-search-input');
-  if(input) input.value='';
+  _gsClose(true);
   openDetail(jobId);
 }
 document.addEventListener('click', function(e){
   var wrap=document.getElementById('global-search-wrap');
   if(!wrap) return;
-  if(!wrap.contains(e.target)){
-    var box=document.getElementById('global-search-results');
-    if(box) box.style.display='none';
-  }
+  if(!wrap.contains(e.target)) _gsClose(false);
 });
 
 function selectClientResult(cid){
@@ -9527,6 +9688,11 @@ function toggleBin(){
   if(durInp){ durInp.step=isExtra?'0.5':'15'; durInp.placeholder=isExtra?'hours':'minutes'; }
   var refMark=document.getElementById('referral-req-mark');
   if(refMark) refMark.style.display=isExtra?'none':'';
+  // The shop/customer question is an Extra Jobs question only. Every other service
+  // hides it and goes back to the full customer block — one state, no leftovers.
+  var whoWrap=document.getElementById('ej-who-wrap');
+  if(whoWrap) whoWrap.style.display=isExtra?'block':'none';
+  if(!isExtra) setExtraJobShop(false);
   var isFurn=svc==='Furniture Delivery'||svc==='Furniture Pickup';
   var fbWrap=document.getElementById('fb-schedule-wrap');
   if(fbWrap){
@@ -9549,6 +9715,36 @@ function toggleBin(){
     setTimeout(function(){initBinPicker('','');},50);
   }
   renderBinPriceScript();
+}
+// ── Extra Jobs: our own shop, or a customer? ────────────────────────────────
+// Some Extra Jobs are work for our own shop with no customer at all. The flag is
+// stored in `referral` — the "where did this job come from" column, which Extra
+// Jobs never use (saveJob explicitly exempts them from needing one, and toggleBin
+// hides its required mark) and which a job with no customer can never have a real
+// value for. No migration, and it stays readable in the database.
+var SHOP_JOB_REFERRAL = 'SHOP JOB';
+function isShopJob(j){ return !!j && j.service==='Extra Jobs' && j.referral===SHOP_JOB_REFERRAL; }
+function shopBadgeHtml(){ return '<span class="shop-badge">🔧 Shop</span>'; }
+// The flag lives in `referral`, so every place that prints a referral has to say
+// what it actually means rather than "📣 SHOP JOB".
+function _refInline(j){
+  if(isShopJob(j)) return ' · 🔧 Our shop';
+  return j.referral ? ' · 📣 '+j.referral : '';
+}
+// Flip the New Extra Job form between the two answers. OUR SHOP hides the whole
+// customer block and the address; nothing is cleared here, because someone who
+// taps the wrong button should get their typing back. saveJob is what drops the
+// customer fields on a shop job, so there is one place that decides.
+function setExtraJobShop(on){
+  var f=document.getElementById('f-shop-job'); if(f) f.value=on?'1':'';
+  var cb=document.getElementById('ej-who-customer'); if(cb) cb.classList.toggle('active', !on);
+  var sb=document.getElementById('ej-who-shop');     if(sb) sb.classList.toggle('active', !!on);
+  var cust=document.getElementById('ej-customer-block'); if(cust) cust.style.display=on?'none':'';
+  var addr=document.getElementById('jf-addr-block');     if(addr) addr.style.display=on?'none':'';
+}
+function isShopJobForm(){
+  var f=document.getElementById('f-shop-job');
+  return !!(f && f.value==='1');
 }
 // Landscaping "no date yet" toggle — hides the date/time inputs and clears them.
 function toggleLandscapeNoDate(){
@@ -10552,6 +10748,9 @@ function newJob(){
   var ftkN=document.getElementById('f-tasks');if(ftkN)ftkN.value='';
   var fcsN=document.getElementById('f-crew-size');if(fcsN)fcsN.value='';
   var fpoN=document.getElementById('f-po-number');if(fpoN)fpoN.value='';
+  // Same stale-field trap as the dates: without this, the next Extra Job is born a
+  // shop job because the last one you opened was.
+  setExtraJobShop(false);
   var lndFieldsN=document.getElementById('landscape-fields-wrap');if(lndFieldsN)lndFieldsN.style.display='none';
   var ddgN=document.getElementById('junk-datetime-grid');if(ddgN)ddgN.style.display='grid';
   document.getElementById('f-notes').value='';var fin=document.getElementById('f-internal-notes');if(fin)fin.value='';document.getElementById('f-items-wrap').innerHTML=_jobItemRow('');document.getElementById('items-wrap').style.display='none';document.getElementById('bin-extra').style.display='none';var tnw2=document.getElementById('tools-needed-wrap');if(tnw2)tnw2.style.display='none';
@@ -10855,6 +11054,9 @@ function bookBin(size, presetDays){
 // re-derives the current address, so it never goes stale).
 function realName(j){
   if(j.service==='Extra Jobs' && j.name && j.name===j.address) return '';
+  // "Our Shop" is a display label, not a person — the name field stays empty so
+  // switching a shop job back to a customer job starts from blank.
+  if(isShopJob(j)) return '';
   return j.name || '';
 }
 async function openEdit(id){
@@ -10878,6 +11080,9 @@ async function openEdit(id){
   setTimeout(function(){
     document.getElementById('modal-ttl').textContent='Edit Job';document.getElementById('save-btn').textContent='Update Job';
     setFormSvc(j.service||'');document.getElementById('f-status').value=j.status||'';
+    // setFormSvc -> toggleBin already reset this to CUSTOMER JOB; re-answer it from
+    // the job so re-opening a shop job shows OUR SHOP with the block still hidden.
+    if(j.service==='Extra Jobs') setExtraJobShop(isShopJob(j));
     // Populate names from job's names array, falling back to single name.
     // realName() blanks an address-derived Landscaping name so the field stays empty.
     var editNames=j.names&&j.names.length?j.names:[realName(j)];
@@ -10904,7 +11109,10 @@ async function openEdit(id){
     document.getElementById('f-price').value=j.price||'';document.getElementById('f-paid').value=j.paid||'Unpaid';
     document.getElementById('f-paymethod').value=j.payMethod||'';
     var refSel=document.getElementById('f-referral');
-    var refVal=j.referral||'';
+    // The shop-job flag rides in `referral`. It is not a referral source, so it must
+    // never be selected here — or the line below would add it to the dropdown as one.
+    // setExtraJobShop above has already answered the question it stands for.
+    var refVal=isShopJob(j)?'':(j.referral||'');
     refSel.value=refVal;
     // If the saved referral doesn't match any dropdown option, add it so it's preserved
     if(refVal&&refSel.value!==refVal){var opt=document.createElement('option');opt.value=refVal;opt.textContent=refVal;refSel.appendChild(opt);refSel.value=refVal;}
@@ -11085,6 +11293,11 @@ async function saveJob(e){
   // Primary name for backward compat and UI display
   var name=names.length?names[0]:'';
   var svc      = document.getElementById('f-svc').value;
+  // A shop job has no customer at all. Drop whatever is still sitting in the hidden
+  // customer fields HERE, before the client-matching and client-creating blocks
+  // below can act on it — hiding the block is not the same as emptying it.
+  var isShop = (svc==='Extra Jobs') && isShopJobForm();
+  if(isShop){ names=[]; name=''; phones=[]; emails=[]; }
   var date     = document.getElementById('f-date').value;
   var referral = document.getElementById('f-referral').value;
   if(referral==='__add_new__') referral='';
@@ -11179,7 +11392,7 @@ async function saveJob(e){
     }
   }
 
-  var cid    = document.getElementById('f-client-select').value;
+  var cid    = isShop ? '' : document.getElementById('f-client-select').value;
 
   // Wrong-client guard: if the typed name isn't on the linked client's file,
   // this is almost always a booking being saved onto the wrong client (a
@@ -11202,9 +11415,9 @@ async function saveJob(e){
     }
   }
 
-  var street = document.getElementById('f-addr').value.trim();
+  var street = isShop ? '' : document.getElementById('f-addr').value.trim();
   // Auto-extract city: prefer city field (set by autofill/client picker), fall back to parsing address
-  var city = toTitleCase((document.getElementById('f-city').value || '').trim()) || extractCity(street, '');
+  var city = isShop ? '' : (toTitleCase((document.getElementById('f-city').value || '').trim()) || extractCity(street, ''));
   // Strip city from street if user typed it there to avoid duplication (e.g. "123 Main St, Barrie" + city "Barrie")
   if(city && street.toLowerCase().endsWith(city.toLowerCase())){
     street = street.substring(0, street.length - city.length).replace(/[,\s]+$/,'');
@@ -11259,7 +11472,7 @@ async function saveJob(e){
     internalNotes: (document.getElementById('f-internal-notes')||{value:''}).value.trim(),
     items:     (svc==='Furniture Pickup') ? JSON.stringify({drd:_collectDrdFromModal()}) : [].map.call(document.querySelectorAll('.f-item-inp'),function(inp){return inp.value.trim();}).filter(function(s){return s.length>0;}).join('\n'),
     clientId:  cid || '',
-    businessName: document.getElementById('f-business-name').value.trim(),
+    businessName: isShop ? '' : document.getElementById('f-business-name').value.trim(),
     fbDate: document.getElementById('f-fb-date').value,
     fbTime: _timeFieldVal('f-fb-time'),
     junkDate: document.getElementById('f-junk-date').value,
@@ -11469,7 +11682,15 @@ async function saveJob(e){
   // Stored as the job name so it renders everywhere a name appears. Set AFTER the
   // client blocks above so it never auto-creates a client named after an address;
   // the edit form / email greeting use realName() to keep it truly nameless.
-  if(svc==='Extra Jobs' && !names.length){ job.name = job.address; }
+  // A shop job has no address either, so it takes a name of its own and carries the
+  // flag in `referral` — the one place that decides what a shop job saves as.
+  if(svc==='Extra Jobs'){
+    if(isShop){ job.name='Our Shop'; job.referral=SHOP_JOB_REFERRAL; }
+    else {
+      if(job.referral===SHOP_JOB_REFERRAL) job.referral='';   // switched back to a customer
+      if(!names.length) job.name = job.address;
+    }
+  }
 
   // Booking the run is what makes the Recurring tick mean anything. Fire it only on
   // the moment a job becomes recurring — a new booking, or the box ticked on an
@@ -11892,7 +12113,7 @@ async function openDetail(id, returnCid){
       +(j.crewSize?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:'+(j.jobName?'2px':'0')+'">👷 '+j.crewSize+' '+(j.crewSize==1?'person':'people')+' needed</div>':'')
       +(j.tasks?'<div style="font-size:13px;margin-top:6px;line-height:1.7">'+j.tasks.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean).map(function(t){return '<div>☐ '+escHtml(t)+'</div>';}).join('')+'</div>':'')
       +'</div>':'')
-    +'<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':'')+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
+    +'<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(isShopJob(j)?shopBadgeHtml():(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':''))+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
     +'<div style="font-size:11px;color:var(--muted);margin-top:6px">Created '+fd(j.date)+(j.time?' · '+ft(j.time):'')+'</div>'
     +'</div>'
     +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
@@ -17413,6 +17634,7 @@ async function printLandscaping(jobId){
   var items = _notesToItems(j.items || '');
   var _lsCl = clients.find(function(c){ return c.cid === j.clientId; });
   var _lsBillable = !!(_lsCl && _lsCl.billable);
+  var _lsShop = isShopJob(j);
   function line(w){ return '<span class="fill" style="min-width:'+w+'">&nbsp;</span>'; }
   var dateCell = when ? (fd(when)+(j.junkTime?' '+ft(j.junkTime):'')) : line('130px');
   var jobNameCell = j.jobName ? escHtml(j.jobName) : line('260px');
@@ -17436,17 +17658,24 @@ async function printLandscaping(jobId){
     return '<div class="wo">'
     + '<div class="hdr"><div class="brand"><img class="logo" src="'+JWG_LOGO_URL+'" onerror="this.style.display=\'none\'"><div><div class="co">JEFF WHITE GROUP</div><div class="divn">EXTRA JOBS</div></div></div>'
       + '<div><div class="wt">CREW WORK ORDER</div><div class="wm">Job #'+j.id+'<br>PO #: '+(j.poNumber?'<b>'+escHtml(j.poNumber)+'</b>':line('90px'))+'<br>Date: '+dateCell+'<br>Copy: <b>'+copy+'</b></div></div></div>'
-    + '<div class="jobbar"><div><div class="lbl">JOB NAME</div><div class="jobname">'+jobNameCell+'</div></div>'
+    + '<div class="jobbar"><div><div class="lbl">JOB NAME</div><div class="jobname">'+jobNameCell+(_lsShop?' <span class="shopstamp">SHOP</span>':'')+'</div></div>'
       + '<div class="crewbox"><div class="lbl">CREW NEEDED</div><div class="n">'+crewCell+'</div></div></div>'
     + (_lsBillable ? '<div class="billable">🧾 Billable account — no pre-authorization, invoiced after the job</div>' : '')
     + '<div class="cols">'
-      + '<div class="col"><div class="sec">Customer &amp; Site</div><div class="kv">'
-        + '<div><span class="k">Name:</span> <b>'+escHtml(name)+'</b></div>'
-        + (j.businessName?'<div><span class="k">Business:</span> '+escHtml(j.businessName)+'</div>':'')
-        + '<div><span class="k">Phone:</span> '+escHtml(phone)+'</div>'
-        + (email?'<div><span class="k">Email:</span> '+escHtml(email)+'</div>':'')
-        + '<div><span class="k">Site:</span> '+escHtml(addr)+'</div>'
-      + '</div></div>'
+      // Our own shop work has no customer, so the whole customer column would print
+      // as empty labels. It says what it is instead.
+      + (_lsShop
+        ? '<div class="col"><div class="sec">Customer &amp; Site</div><div class="kv">'
+          + '<div><b>Our shop — no customer.</b></div>'
+          + '<div>This is Jeff White Group\'s own work.</div>'
+        + '</div></div>'
+        : '<div class="col"><div class="sec">Customer &amp; Site</div><div class="kv">'
+          + '<div><span class="k">Name:</span> <b>'+escHtml(name)+'</b></div>'
+          + (j.businessName?'<div><span class="k">Business:</span> '+escHtml(j.businessName)+'</div>':'')
+          + '<div><span class="k">Phone:</span> '+escHtml(phone)+'</div>'
+          + (email?'<div><span class="k">Email:</span> '+escHtml(email)+'</div>':'')
+          + '<div><span class="k">Site:</span> '+escHtml(addr)+'</div>'
+        + '</div></div>')
       + '<div class="col"><div class="sec">Schedule &amp; Crew</div><div class="kv">'
         + (dur?'<div><span class="k">Est. duration:</span> <b>'+dur+'</b></div>':'')
         + '<div><span class="k">Crew on site:</span> '+line('150px')+'</div>'
@@ -17482,6 +17711,10 @@ async function printLandscaping(jobId){
       + 'font-size:11px;font-weight:bold;letter-spacing:.6px;text-transform:uppercase}'
     + '.lbl{font-size:10px;letter-spacing:1.5px;color:#555}'
     + '.jobname{font-size:19px;font-weight:bold;line-height:1.15}'
+    // Solid black fill, same reason as .billable: it has to survive whatever is in
+    // the office printer, and a tint would go to flat grey on paper.
+    + '.shopstamp{display:inline-block;vertical-align:3px;background:#111;color:#fff;'
+      + 'font-size:10px;font-weight:bold;letter-spacing:1.4px;padding:2px 8px;border-radius:3px}'
     + '.crewbox{border:1.5px solid #111;border-radius:4px;padding:5px 16px;text-align:center}'
     + '.crewbox .n{font-size:21px;font-weight:bold;line-height:1.15}'
     + '.cols{display:flex;border-bottom:1px solid #ccc}'
@@ -17617,7 +17850,9 @@ function _rptAnalyze(jobs) {
     byService[s] = (byService[s] || 0) + 1;
     var c = j.city || '';
     if (c) byCity[c] = (byCity[c] || 0) + 1;
-    var ref = j.referral || 'Unknown';
+    // A shop job's referral column carries the shop-job flag, not a lead source —
+    // it belongs with the other Extra Jobs, which have no source either.
+    var ref = isShopJob(j) ? 'Unknown' : (j.referral || 'Unknown');
     byReferral[ref] = (byReferral[ref] || 0) + 1;
     if (j.date) {
       var day = parseInt(j.date.split('-')[2]);
@@ -19255,7 +19490,7 @@ function renderDashCrewStatus(){
     ? teamRoster.filter(function(r){ return r.active!==false; })
         .slice().sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); })
     : crewMembers;
-  if(!roster.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; return; }
+  if(!roster.length){ el.innerHTML='<span style="font-size:11px;color:var(--muted)">No crew</span>'; renderDashFleetStrip(); return; }
   var ds=dashSelectedDate();
   // Everyone shows, as a bare initials avatar — the whole roster has to fit one
   // line, so the name lives in the hover tooltip and the ring carries the status:
@@ -19285,6 +19520,7 @@ function renderDashCrewStatus(){
       +menu
     +'</div>';
   }).join('');
+  renderDashFleetStrip();
   if(typeof mSyncCrewSummary==='function') mSyncCrewSummary();
 }
 function toggleCrewMenu(id){ var m=document.getElementById(id); if(!m) return; var open=m.style.display!=='none'; closeCrewMenus(); if(!open)m.style.display='block'; }

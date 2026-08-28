@@ -2348,6 +2348,76 @@ input[type=date],input[type=time]{position:relative;}
 .tjr2-actions{display:flex;gap:6px;flex:none;align-items:center;justify-content:flex-end;min-width:200px}
 @media(max-width:720px){.tjr2{flex-wrap:wrap}.tjr2-binslot{width:auto}.tjr2-actions{min-width:0;width:100%;justify-content:flex-start}}
 
+/* ── EXTRA JOBS: who is this for? (v633) ────────────────────────────────────
+   Two large side-by-side buttons as the first question of a new Extra Job, so
+   "this one is for our own shop" cannot be missed the way a line of small print
+   was. Same tokens as the rest of the form; the chosen side takes the accent. */
+.ej-who{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.ej-who-btn{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:16px 10px;border:2px solid var(--border);border-radius:12px;
+  background:var(--surface);color:var(--text);font-family:inherit;cursor:pointer;text-align:center;
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.ej-who-btn svg{width:26px;height:26px;color:var(--muted);margin-bottom:2px}
+.ej-who-btn:hover{border-color:var(--accent);background:var(--accent-light)}
+.ej-who-btn.active{border-color:var(--accent);background:var(--accent-light);box-shadow:0 4px 14px rgba(34,197,94,.16)}
+.ej-who-btn.active svg{color:var(--accent-hover)}
+.ej-who-t{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.2px;line-height:1}
+.ej-who-btn.active .ej-who-t{color:var(--accent-hover)}
+.ej-who-s{font-size:11.5px;color:var(--muted)}
+/* Shop jobs read as ours at a glance wherever an Extra Job is listed. */
+.shop-badge{
+  display:inline-flex;align-items:center;gap:4px;flex:none;
+  font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+  color:#fff;background:#1f2937;border-radius:5px;padding:2px 7px;white-space:nowrap;
+}
+
+/* Section shell and header. Both were inline on the elements until v632; they
+   live here so the desktop block below can retune them (an inline style beats a
+   stylesheet rule, so the collapse could never have won otherwise). These two
+   rules reproduce exactly what was inline, which is what the phone keeps. */
+.tj-cat{margin-bottom:4px}
+.tj-cat-hd{display:flex;align-items:center;gap:8px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;padding:8px 14px 4px}
+
+/* ── LEDGER LISTS (v632, desktop only) ───────────────────────────────────────
+   A card per row meant 40 borders and 40 shadows down a busy day, and the eye
+   had to re-find the columns on every one. One white surface per SECTION
+   instead: the border, radius and shadow belong to the section, the service
+   colour is a 2px rule under its header, and rows are separated by a hairline
+   with a faint alternating tint. The service-coloured left edge now means one
+   thing only — this job is booked to a set time — replacing the .fixed mint
+   tint. The address moves off its own second line and onto the main line after
+   the chips. Everything the row contains is untouched: same buttons, same
+   chips, same order, same 132px bin slot and 200px actions well.
+   Phone (<=900px) keeps the v629 cards. */
+@media(min-width:901px){
+  .tj-cat{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    box-shadow:var(--shadow-sm);margin:0 10px 12px;
+  }
+  .tj-cat-hd{padding:9px 14px 7px;border-bottom:2px solid var(--tjc,var(--border))}
+  .tjr2{
+    margin:0;padding:7px 12px;border:0;border-top:1px solid var(--border);
+    border-left:3px solid transparent;border-radius:0;background:transparent;
+  }
+  /* Child 1 is the header, so the rows are children 2..n — the first row sits
+     straight under the section rule and takes no line of its own. */
+  .tj-cat .tjr2:nth-child(2){border-top:0}
+  .tj-cat .tjr2:nth-child(even){background:rgba(15,23,42,.022)}
+  /* The last row's tint has to stop inside the section's radius. No overflow:hidden
+     on the section — that would clip the buttons' hover lift and shadow. */
+  .tj-cat .tjr2:last-child{border-radius:0 0 9px 9px}
+  /* A set time is now the ONLY thing the coloured left edge means, so .fixed gives
+     up the mint fill it used to carry. */
+  .tjr2.fixed{background:transparent;border-left-color:var(--tjr-c,#cdd5ce)}
+  .tj-cat .tjr2:hover{background:var(--surface2);box-shadow:none}
+  .tjr2 .djj-main{display:flex;align-items:center;gap:8px;min-width:0}
+  .tjr2 .djj-main>div:first-child{flex:0 1 auto;min-width:0}
+  .tjr2 .djj-sub{flex:1 1 auto;min-width:0}
+  .tjr2 .djj-sub::before{content:'·';margin-right:6px;color:var(--border)}
+}
+
 /* Today's Jobs runs in two columns — bin drop-offs beside pickups, junk beside
    furniture (v563; the one-list toggle is gone, Jake picked side by side).
    The reason it used to clip customer names was never the columns, it was the ROW:
@@ -2464,6 +2534,77 @@ input[type=date],input[type=time]{position:relative;}
 #dash-strip-date{
   font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent-hover);
 }
+
+/* ── COMMAND BAR (global search, v630) ───────────────────────────────────────
+   Sizing lives here rather than inline so the desktop treatment — own row,
+   taller box, "press /" hint — can be gated to min-width:901px and leave the
+   phone strip exactly as v629 shipped it. */
+#global-search-wrap{flex:0 1 300px;min-width:200px;max-width:380px}
+.gs-input{
+  width:100%;box-sizing:border-box;padding:7px 12px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  font-size:13px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+.gs-input:hover,.gs-input:focus{border-color:var(--accent)}
+.gs-hint{display:none}
+.gs-results{
+  display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:3000;
+}
+.gs-head{
+  padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--muted);background:var(--surface2);
+}
+.gs-row{padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px}
+.gs-row:hover,.gs-row.sel{background:var(--surface2)}
+.gs-row.sel{box-shadow:inset 3px 0 0 var(--accent)}
+.gs-msg{padding:12px 14px;color:var(--muted);font-size:13px}
+@media(min-width:901px){
+  /* Date on its own line, the bar full width underneath it. */
+  #dash-strip-date{flex:1 1 100%}
+  #global-search-wrap{flex:1 1 100%;max-width:none;min-width:0;margin-top:2px}
+  .gs-input{padding:13px 92px 13px 12px;font-size:14.5px;border-radius:10px}
+  .gs-input:focus{box-shadow:0 0 0 3px rgba(34,197,94,.16)}
+  .gs-hint{
+    display:inline-flex;align-items:center;position:absolute;right:12px;top:50%;
+    transform:translateY(-50%);pointer-events:none;
+    font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--muted);
+    background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;
+  }
+}
+/* ── FLEET STRIP (v631) ──────────────────────────────────────────────────────
+   Desktop collapses the vehicles row and the crew row into one slim line. The
+   phone keeps the v629 card, so the strip is display:none until 901px and the
+   full rows carry their old inline flex here instead (an inline display would
+   have beaten the collapse rule below). */
+.dfs-full{display:flex;flex-wrap:wrap;align-items:center;gap:18px}
+.dfs-strip{display:none}
+@media(min-width:901px){
+  .dfs-strip{display:flex;align-items:center;gap:12px;min-width:0}
+  .dfs-items{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1}
+  #card-fleetcrew:not(.dfs-open) .dfs-full{display:none}
+  #card-fleetcrew.dfs-open .dfs-items{display:none}
+  .dfs-item{
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+    font-size:12px;font-weight:600;color:var(--text);
+  }
+  .dfs-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+  .dfs-sep{width:1px;height:16px;background:var(--border);flex:none}
+  .dfs-pill{
+    display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+    font-size:12px;font-weight:600;color:var(--text);
+    background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:2px 9px 2px 3px;
+  }
+  .dfs-off{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .dfs-none{font-size:12px;color:var(--muted)}
+  .dfs-toggle{
+    flex:none;margin-left:auto;background:none;border:none;cursor:pointer;font-family:inherit;
+    font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--accent);padding:4px 2px;
+  }
+  .dfs-toggle:hover{text-decoration:underline}
+}
+
 /* Section marker — replaces the emoji that used to sit here. A coloured tick
    reads as structure; an emoji reads as decoration. */
 .jj-sec-chip{
