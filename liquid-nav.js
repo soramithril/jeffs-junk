@@ -17,7 +17,7 @@
   window.__liquidNav = true;
 
   /* ---- tunables (variant 8) ---- */
-  var FILL      = '#f8f9fa'; // must match --bg (page background)
+  var FILL      = '#f7f9f8'; // must match --bg (page background) — Foundation v638
   var RR        = 14;        // concave fillet radius (carve into the page)
   var RL        = 15;        // rounded left-corner radius
   var DUR       = 560;       // ms
