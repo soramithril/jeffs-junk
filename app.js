@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '642';
+var APP_VERSION = '643';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6369,7 +6369,7 @@ var PALETTE_PAGES=[
   {p:'drdcalc',       n:'Furniture Quote',   h:'Fill the truck', a:'quote drd calculator junk'},
   {p:'livejobs',      n:'Live Jobs',         h:'Trucks on the road right now', a:'gps tracking'},
   {p:'dispatch',      n:'Dispatch',          h:'Plan the runs', a:'routes'},
-  {p:'crew',          n:'Crew Schedule',     h:'Who is working', a:'schedule staff shifts'},
+  {p:'crew',          n:'Crew Schedule',     h:'Who is on which job that week', a:'schedule staff shifts jobs assignments'},
   {p:'vehicles',      n:'Vehicles',          h:'The fleet', a:'trucks'},
   {p:'maintenance',   n:'Maintenance',       h:'Vehicles > Maintenance', a:'repairs service shop'},
   {p:'damage',        n:'Damage Reports',    h:'What got broken', a:'drd'},
