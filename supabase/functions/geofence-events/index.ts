@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: geofence-events (v17)
+ * Supabase Edge Function: geofence-events (v18)
  *
  * Crosses bin jobs off the Live Jobs board by watching truck GPS trails.
  *
@@ -29,14 +29,24 @@
  * requirement still filters passing traffic, so a wider circle catches real
  * visits without false-tripping on drive-bys.
  *
+ * v18 (2026-08-29): DWELL_MS 150 s -> 60 s, ZONE_RADIUS_M 75 -> 100. Measured
+ * over 2026-07-08..08-28: 137 of 743 legs (18%) never crossed off, and NO
+ * recorded visit was shorter than 5 min — a drop that takes a minute was being
+ * filtered out as passing traffic. Both knobs loosen detection, so this is the
+ * least strict this function has run: dwell is measured breadcrumb-to-breadcrumb,
+ * which OVER-states real dwell when GPS points are sparse, and a truck idling at
+ * a light inside the circle can now clear 60 s. Acceptable only because this
+ * function is visual-only — a false cross-off is cosmetic and never touches job
+ * data. Tighten DWELL_MS first if false cross-offs show up.
+ *
  * POST {"dryRun": true} computes and reports what it WOULD do — no writes.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEOTAB_AUTH_URL = "https://my.geotab.com/apiv1";
-const ZONE_RADIUS_M = 75;        // widened from 30 m (v17): geocode is often 40-80 m off where the truck parks; the 2.5-min DWELL below still screens out drive-bys
-const DWELL_MS = 150000;         // must stay >=2.5 min inside — filters passing traffic
+const ZONE_RADIUS_M = 100;       // geocode is often 40-80 m off where the truck parks; DWELL below screens out drive-bys
+const DWELL_MS = 60000;          // must stay >=1 min inside — a quick drop is a real visit
 const EXIT_CONFIRM_MS = 120000;  // outside >=2 min after last inside point = truly left
 
 interface GeotabCredentials {

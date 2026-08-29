@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '636';
+var APP_VERSION = '637';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -5800,6 +5800,23 @@ async function renderLiveJobs(){
     (rNotif.data||[]).forEach(function(x){ if(geoNotifs[x.status]) geoNotifs[x.status].add(x.job_id); });
   } catch(e) { console.warn('geofence notif load error:', e); }
 
+  // Which of today's jobs actually got a map pin this morning. The 6 am sync
+  // skips any address it cannot geocode and only says so in a log nobody reads,
+  // so those jobs can NEVER be crossed off automatically — the row has to say
+  // that out loud instead of sitting there looking like nobody has been yet.
+  // Only trusted once at least one pin exists: before the 6 am sync and after
+  // the 10 pm cleanup the table is empty for everyone, and badging every row
+  // then would be noise, not news.
+  var zonedJobs=new Set(), zonesKnown=false;
+  if(todayJobs.length){
+    try {
+      var rZone = await db.from('geofences').select('job_id')
+        .in('job_id', todayJobs.map(function(j){ return j.id; }));
+      (rZone.data||[]).forEach(function(z){ zonedJobs.add(z.job_id); });
+      zonesKnown = zonedJobs.size > 0;
+    } catch(e) { console.warn('geofence zone load error:', e); }
+  }
+
   // One row per bin LEG. On a swap day the drop leg owns the live Geotab
   // signal until it completes, then the pickup leg does.
   var legs=[];
@@ -5899,6 +5916,9 @@ async function renderLiveJobs(){
 
   function buildLegRow(l){
     var j=l.j, st=ST[l.status]||ST.notstarted;
+    // No map pin = the truck-GPS check cannot reach this job today. Say so on
+    // the rows still waiting; a finished leg needs no warning.
+    var noZone=zonesKnown && l.status!=='complete' && !zonedJobs.has(j.id);
     var legNote=j.binLiveLoad?' · live load':(l.swap?' · swap':'');
     var legChip=(l.leg==='dropoff')
       ?'<span class="lj-leg-chip lj-leg-drop">🚛 Drop-off'+legNote+'</span>'
@@ -5927,6 +5947,7 @@ async function renderLiveJobs(){
         +'<span class="lj-size">'+escHtml(sizeTxt||'—')+'</span>'
         +(j.city?'<span class="lj-city">'+escHtml(j.city)+'</span>':'')
         +legChip
+        +(noZone?'<span class="lj-leg-chip lj-nozone" title="This address could not be put on the map this morning, so the truck-GPS check cannot cross this off. Mark it done by hand.">⚠ check by hand</span>':'')
         +jobCrewAvatarsHTML(j, l.leg)
         +'<div class="lj-info">'
           +'<span class="lj-client">'+escHtml(j.name)+'</span>'
