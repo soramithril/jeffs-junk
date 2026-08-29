@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '640';
+var APP_VERSION = '641';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6247,8 +6247,40 @@ var _globalSearchQ = '';
 // Index of the arrow-key highlighted row, -1 for none. Reset on every repaint.
 var _gsSel = -1;
 function _gsRows(){
-  var box=document.getElementById('global-search-results');
-  return box ? [].slice.call(box.querySelectorAll('.gs-row')) : [];
+  var box=document.getElementById('pal-list');
+  return box ? [].slice.call(box.querySelectorAll('.pal-row')) : [];
+}
+// The strip's search box is only a handle: it is readonly and every keystroke happens
+// in here instead. One search UI, one set of shortcuts, one place results are drawn.
+function openPalette(){
+  var p=document.getElementById('palette'), sc=document.getElementById('pal-scrim');
+  if(!p) return;
+  p.classList.add('open'); sc.classList.add('open');
+  document.body.classList.add('pal-open');
+  var i=document.getElementById('pal-q');
+  i.value=''; _globalSearchQ=''; _gsSel=-1;
+  document.getElementById('pal-list').innerHTML=_palIdleHtml();
+  i.focus();
+  var strip=document.getElementById('global-search-input');
+  if(strip) strip.blur();   // it opened us on focus; leaving it focused re-opens on every Esc
+}
+function closePalette(){
+  var p=document.getElementById('palette'), sc=document.getElementById('pal-scrim');
+  if(!p) return;
+  p.classList.remove('open'); sc.classList.remove('open');
+  document.body.classList.remove('pal-open');
+  document.getElementById('pal-q').value='';
+  _globalSearchQ=''; _gsSel=-1;
+}
+// Opening on nothing typed should still be worth something, so it offers the pages
+// people actually open. Same rows, same keys, just no query yet.
+function _palIdleHtml(){
+  var top=['dashboard','clients','jobs','bininventory','livejobs'];
+  return '<div class="pal-group">Go to</div>'+top.map(function(p){
+    var pg=null; PALETTE_PAGES.forEach(function(x){ if(x.p===p) pg=x; });
+    if(!pg || !_paletteCanOpen(pg.p)) return '';
+    return _palRow('_paletteOpen(\''+pg.p+'\')','page',escHtml(pg.n),escHtml(pg.h),'');
+  }).join('');
 }
 function _gsMove(step){
   var rows=_gsRows();
@@ -6258,20 +6290,12 @@ function _gsMove(step){
   rows[_gsSel].classList.add('sel');
   rows[_gsSel].scrollIntoView({block:'nearest'});
 }
-function _gsClose(clear){
-  var box=document.getElementById('global-search-results');
-  if(box) box.style.display='none';
-  _gsSel=-1;
-  if(clear){ var inp=document.getElementById('global-search-input'); if(inp) inp.value=''; }
-}
+
 // One keydown handler for the command bar: arrows walk the grouped list, Enter opens
 // the highlighted row (by clicking it, so every row keeps the behaviour it already
 // had), Escape closes and clears.
 function globalSearchKey(e){
-  var box=document.getElementById('global-search-results');
-  var open = box && box.style.display!=='none';
-  if(e.key==='Escape'){ _gsClose(true); if(e.target&&e.target.blur) e.target.blur(); return; }
-  if(!open) return;
+  if(e.key==='Escape'){ closePalette(); return; }
   if(e.key==='ArrowDown'){ e.preventDefault(); _gsMove(1); return; }
   if(e.key==='ArrowUp'){ e.preventDefault(); _gsMove(-1); return; }
   if(e.key==='Enter'){
@@ -6283,19 +6307,23 @@ function globalSearchKey(e){
 // advertises. Never while someone is typing into a field, and never when the bar
 // is hidden (a modal is open, per the body:has rule in style.css).
 document.addEventListener('keydown', function(e){
-  if(e.key!=='/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  // Ctrl/Cmd-K works from anywhere, including out of a field — it is what every other
+  // tool binds and it is the one people try first. "/" keeps working, but only when
+  // nobody is typing, and the hint chip in the strip still advertises it.
+  var isK = (e.key==='k' || e.key==='K') && (e.ctrlKey || e.metaKey) && !e.altKey;
   var t=e.target;
-  if(t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable)) return;
-  var inp=document.getElementById('global-search-input');
-  if(!inp || !inp.offsetParent) return;
+  var typing = t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable);
+  var isSlash = e.key==='/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typing;
+  if(!isK && !isSlash) return;
+  if(document.querySelector('.modal-overlay.open')) return;   // a modal owns the screen
   e.preventDefault();
-  inp.focus(); inp.select();
+  openPalette();
 });
 // Action row 1 — carry the typed name straight into a new bin booking. Nothing is
 // created here: saveJob still mints the client, exactly as useSearchAsNewJobClient.
 function globalSearchBookBin(){
   var q=String(_globalSearchQ||'').trim();
-  _gsClose(true);
+  closePalette();
   newJob();
   setFormSvc('Bin Rental');
   if(q){
@@ -6306,7 +6334,7 @@ function globalSearchBookBin(){
 // Action row 2 — hand the same words to the AI job search on the Jobs page.
 function globalSearchAskAi(){
   var q=String(_globalSearchQ||'').trim();
-  _gsClose(true);
+  closePalette();
   if(!q) return;
   go('jobs');
   if(!_jobsAiMode) toggleJobsAi();
@@ -6356,6 +6384,26 @@ var PALETTE_PAGES=[
   {p:'usage',         n:'Usage',             h:'Who opens what', a:'views'},
   {p:'jwg',           n:'Jeff White Group',  h:'Schedule · Summer · Winter', a:'jwg landscaping schedule'}
 ];
+// Every palette row is built here, so they cannot drift into five different shapes.
+// Phosphor-ish line icons at 17px, matching the rest of the app's icon weight.
+var PAL_ICO = {
+  job:    '<path d="M14 3v5h5"/><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2z"/>',
+  client: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  bin:    '<path d="M4 8.5 12 5l8 3.5v7L12 19l-8-3.5z"/><path d="M4 8.5 12 12l8-3.5M12 12v7"/>',
+  page:   '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>',
+  plus:   '<path d="M12 5v14M5 12h14"/>',
+  ai:     '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>'
+};
+function _palIco(k){
+  return '<span class="ico"><svg viewBox="0 0 24 24">'+(PAL_ICO[k]||PAL_ICO.page)+'</svg></span>';
+}
+function _palRow(onclick, ico, main, sub, keys){
+  return '<div class="pal-row" onclick="'+onclick+'">'
+    + _palIco(ico)
+    + '<span class="pal-txt">'+main+(sub?' <span class="sub">· '+sub+'</span>':'')+'</span>'
+    + (keys?'<span class="keys">'+keys+'</span>':'')
+    + '</div>';
+}
 // Never list a page the person can't actually open -- a palette that offers a locked
 // door is worse than one that stays quiet about it.
 function _paletteCanOpen(p){
@@ -6365,14 +6413,14 @@ function _paletteCanOpen(p){
   return true;
 }
 function _paletteOpen(p){
-  _gsClose(true);
+  closePalette();
   if(p==='jwg') goJwg('schedule'); else go(p);
 }
 // A bare number is a bin number far more often than anything else, so offer the jump.
 // It lands on Bin Fleet with the fleet search already filled in, which is exactly what
 // the person would have typed there anyway.
 function _paletteBin(num){
-  _gsClose(true);
+  closePalette();
   go('bininventory');
   fleetQ=String(num);
   var s=document.getElementById('fleet-search-input');
@@ -6408,38 +6456,33 @@ function _gsGoHtml(q){
   hits=hits.slice(0,5);
   var html='';
   if(hits.length){
-    html+='<div class="gs-head">Go to</div>';
+    html+='<div class="pal-group">Go to</div>';
     html+=hits.map(function(h){
-      return '<div class="gs-row" onclick="_paletteOpen(\''+h.pg.p+'\')">'
-        +'<span class="gs-go">&rarr;</span> <strong>'+escHtml(h.pg.n)+'</strong>'
-        +' <span style="color:var(--muted);font-size:11px">· '+escHtml(h.pg.h)+'</span>'
-        +'</div>';
+      return _palRow('_paletteOpen(\''+h.pg.p+'\')','page',escHtml(h.pg.n),escHtml(h.pg.h),'');
     }).join('');
   }
   if(/^[0-9]{1,3}$/.test(q)){
-    html+='<div class="gs-head">Bins</div>'
-      +'<div class="gs-row" onclick="_paletteBin(\''+q+'\')">'
-      +'<span class="gs-go">&rarr;</span> Bin <strong>'+escHtml(q)+'</strong>'
-      +' <span style="color:var(--muted);font-size:11px">· open it in Bin Fleet</span>'
-      +'</div>';
+    html+='<div class="pal-group">Bins</div>'
+      +_palRow('_paletteBin(\''+q+'\')','bin','Bin <b>'+escHtml(q)+'</b>','open it in Bin Fleet','');
   }
   return html;
 }
 function _gsActionsHtml(q){
-  return '<div class="gs-head">Actions</div>'
-    + '<div class="gs-row" onclick="globalSearchBookBin()">＋ Book a bin for “<strong>'+escHtml(q)+'</strong>”…</div>'
-    + '<div class="gs-row" onclick="globalSearchAskAi()">✨ Ask the AI about “<strong>'+escHtml(q)+'</strong>”…</div>';
+  return '<div class="pal-group">Create</div>'
+    + _palRow('globalSearchBookBin()','plus','Book a bin for <b>'+escHtml(q)+'</b>','','<span class="kbd">N</span>')
+    + _palRow('globalSearchAskAi()','ai','Ask the AI about <b>'+escHtml(q)+'</b>','','');
 }
 async function globalSearchLive(q){
-  var box = document.getElementById('global-search-results');
+  var box = document.getElementById('pal-list');
   if(!box) return;
   q = (q||'').trim();
-  if(q.length < 2){ _gsClose(false); return; }
+  // Backing out of a query returns to the idle list. It must NOT close the palette —
+  // deleting your own typing is not a request to be thrown out of the search.
+  if(q.length < 2){ _globalSearchQ=''; _gsSel=-1; box.innerHTML=_palIdleHtml(); return; }
   _globalSearchQ = q;
   _gsSel = -1;
-  box.style.display = 'block';
   var goHtml = _gsGoHtml(q);
-  box.innerHTML = goHtml + '<div class="gs-msg">Searching…</div>';
+  box.innerHTML = goHtml + '<div class="pal-msg">Searching…</div>';
   try {
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
@@ -6454,52 +6497,44 @@ async function globalSearchLive(q){
     // Actions render even with no matches: a name nobody has yet IS the booking case.
     var html = goHtml;
     if(js.length){
-      html += '<div class="gs-head">Jobs</div>';
+      html += '<div class="pal-group">Jobs</div>';
       html += js.map(function(j){
-        var jLoc=[j.address?(j.address.split(',')[0]):'',j.city].filter(Boolean).join(' · ');
-        return '<div class="gs-row" onclick="_openJobFromGlobalSearch(\''+j.job_id+'\')">'
-          +jid(j.job_id, j.service)
-          +' <strong style="margin-left:6px">'+escHtml(j.name||'—')+'</strong>'
-          +(j.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(j.business_name)+'</span>':'')
-          +' <span style="color:var(--muted);font-size:11px">· '+escHtml(j.service||'')+'</span>'
-          +(j.date?' <span style="color:var(--muted);font-size:11px">· '+fd(j.date)+'</span>':'')
-          +(jLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(jLoc)+'</div>':'')
-          +'</div>';
+        var bits=[j.service||'', j.date?fd(j.date):'',
+                  [j.address?(j.address.split(',')[0]):'', j.city].filter(Boolean).join(' ')]
+                 .filter(Boolean).join(' · ');
+        return _palRow('_openJobFromGlobalSearch(\''+j.job_id+'\')','job',
+          jid(j.job_id, j.service)+' <b>'+escHtml(j.name||'—')+'</b>'
+            +(j.business_name?' <span style="color:var(--accent)">🏢 '+escHtml(j.business_name)+'</span>':''),
+          escHtml(bits), '');
       }).join('');
     }
     if(cs.length){
-      html += '<div class="gs-head">Clients</div>';
+      html += '<div class="pal-group">Clients</div>';
       html += cs.map(function(c){
-        var ph = c.phone || '';
-        var cLoc=[c.address?(c.address.split(',')[0]):'',c.city].filter(Boolean).join(' · ');
-        return '<div class="gs-row" onclick="_openClientFromGlobalSearch(\''+c.cid+'\')">'
-          +'<strong>'+escHtml(c.name||'—')+'</strong>'
-          +(c.business_name?' <span style="color:var(--accent);font-size:11px;font-weight:600">· 🏢 '+escHtml(c.business_name)+'</span>':'')
-          +(ph?' <span style="color:var(--muted);font-size:11px">· '+escHtml(ph)+'</span>':'')
-          +(cLoc?'<div style="color:var(--muted);font-size:11px;margin-top:2px">📍 '+escHtml(cLoc)+'</div>':'')
-          +'</div>';
+        var bits=[c.phone||'', [c.address?(c.address.split(',')[0]):'', c.city].filter(Boolean).join(' ')]
+                 .filter(Boolean).join(' · ');
+        return _palRow('_openClientFromGlobalSearch(\''+c.cid+'\')','client',
+          '<b>'+escHtml(c.name||'—')+'</b>'
+            +(c.business_name?' <span style="color:var(--accent)">🏢 '+escHtml(c.business_name)+'</span>':''),
+          escHtml(bits), '');
       }).join('');
     }
-    if(!js.length && !cs.length) html += '<div class="gs-msg">No matches for "'+escHtml(q)+'"</div>';
+    if(!js.length && !cs.length) html += '<div class="pal-msg">No job or client matches “'+escHtml(q)+'”.</div>';
     box.innerHTML = html + _gsActionsHtml(q);
     _gsSel = -1;
   } catch(ex){
-    box.innerHTML = '<div class="gs-msg" style="color:var(--bad)">Error: '+escHtml(ex.message)+'</div>';
+    box.innerHTML = '<div class="pal-msg" style="color:var(--bad)">Error: '+escHtml(ex.message)+'</div>';
   }
 }
 function _openClientFromGlobalSearch(cid){
-  _gsClose(true);
+  closePalette();
   openClientDetail(cid);
 }
 function _openJobFromGlobalSearch(jobId){
-  _gsClose(true);
+  closePalette();
   openDetail(jobId);
 }
-document.addEventListener('click', function(e){
-  var wrap=document.getElementById('global-search-wrap');
-  if(!wrap) return;
-  if(!wrap.contains(e.target)) _gsClose(false);
-});
+
 
 function selectClientResult(cid){
   var cl=clients.find(function(c){return c.cid===cid;});
@@ -8527,20 +8562,23 @@ function makeBinCard(b){
   var statusStyle='display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
   var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes;
-  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px;'+(b.damage==='damage'?'border-left:3px solid var(--bad)':'');
-  return '<div style="'+cardStyle+'">'
+  // The whole card opens the panel. Hanging it on the bin number alone left the one
+  // way in as a 21px string with nothing to say so — which is why the panel read as
+  // a feature that had never been built.
+  var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px;cursor:pointer;'+(b.damage==='damage'?'border-left:3px solid var(--bad)':'');
+  return '<div onclick="openBinPeek(\''+b.bid+'\')" style="'+cardStyle+'">'
     +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">'
       +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span>'
-      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
-      +'<button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="event.stopPropagation();openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
+      +'<button onclick="event.stopPropagation();quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
     +'</div>'
     +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<span>'+binMetaHtml(b)+'</span></div>'
     +(flags.length?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px">'+flags.join('')+'</div>':'')
     // The two buttons carry words now, so on a narrow card (the grid goes down to
     // 224px) they wrap onto their own line rather than squeezing the note to nothing.
     +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;row-gap:8px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
-      +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1 1 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
-      +'<button onclick="openBinPeek(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
+      +'<span onclick="event.stopPropagation();openBinNote(\''+b.bid+'\')" style="flex:1 1 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
+      +'<button onclick="event.stopPropagation();openBinPeek(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
       +'<button onclick="openBinMenu(\''+b.bid+'\',event)" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button>'
     +'</div></div>';
 }
@@ -8549,13 +8587,13 @@ function makeBinTableRow(b){
   var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
   var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes, td='padding:10px 13px;border-bottom:1px solid var(--border)';
-  return '<tr style="'+(b.damage==='damage'?'background:rgba(220,38,38,.035)':'')+'">'
-    +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
+  return '<tr onclick="openBinPeek(\''+b.bid+'\')" style="cursor:pointer;'+(b.damage==='damage'?'background:rgba(220,38,38,.035)':'')+'">'
+    +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="event.stopPropagation();openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
     +'<td style="'+td+'">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<div style="font-size:11px;color:var(--muted);margin-top:3px">'+binMetaHtml(b)+'</div></td>'
-    +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button></td>'
+    +'<td style="'+td+'"><button onclick="event.stopPropagation();quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button></td>'
     +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
-    +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
-    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinPeek(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
+    +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="event.stopPropagation();openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
+    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="event.stopPropagation();openBinPeek(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
   +'</tr>';
 }
 // -- Bin peek panel ------------------------------------------------------------

@@ -2585,6 +2585,62 @@ input[type=date],input[type=time]{position:relative;}
   font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent-hover);
 }
 
+/* ── COMMAND PALETTE ──────────────────────────────────────────────────────────
+   A centred overlay, not a dropdown hanging off the search box. The search pill in
+   the strip is now only the handle that opens it; everything happens in here.
+   Deliberately NOT built on .modal-overlay: that class carries modalScaleIn with
+   fill:both, and an animation outranks the cascade, so a modal-based palette could
+   never own its own entrance. (Same trap the bin peek hit in v639.) */
+.pal-scrim{position:fixed;inset:0;z-index:2000;background:rgba(11,25,17,.34);
+  opacity:0;pointer-events:none;transition:opacity .2s cubic-bezier(.22,1,.36,1);}
+.pal-scrim.open{opacity:1;pointer-events:all;}
+.palette{position:fixed;top:82px;left:50%;width:620px;max-width:calc(100vw - 32px);z-index:2001;
+  border-radius:var(--radius-lg);overflow:hidden;background:var(--n1);
+  box-shadow:0 24px 60px rgba(26,33,30,.18),0 32px 80px rgba(26,33,30,.14);
+  transform:translate(-50%,-8px) scale(.98);opacity:0;pointer-events:none;
+  transform-origin:top center;
+  transition:opacity .2s cubic-bezier(.22,1,.36,1),transform .2s cubic-bezier(.22,1,.36,1);}
+.palette.open{opacity:1;pointer-events:all;transform:translate(-50%,0) scale(1);}
+.pal-input{display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid var(--n4);}
+.pal-input svg{width:18px;height:18px;stroke:var(--n9);fill:none;stroke-width:2;stroke-linecap:round;flex:none;}
+.pal-input input{flex:1;border:none;outline:none;background:transparent;color:var(--n12);
+  font-size:17px;font-family:inherit;min-width:0;}
+.pal-input input::placeholder{color:var(--n9);}
+.pal-list{max-height:392px;overflow-y:auto;padding:7px;}
+.pal-group{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--n10);padding:10px 11px 5px;}
+.pal-row{display:flex;align-items:center;gap:11px;min-height:42px;padding:6px 11px;
+  border-radius:var(--radius-sm);font-size:14px;color:var(--n12);cursor:pointer;}
+.pal-row .ico{width:22px;height:22px;flex:none;display:grid;place-items:center;color:var(--n10);}
+.pal-row .ico svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;}
+.pal-row .pal-txt{flex:1;min-width:0;}
+.pal-row .sub{color:var(--n10);font-size:13px;}
+.pal-row .keys{margin-left:auto;display:flex;gap:4px;flex:none;}
+.pal-row:hover{background:var(--n3);}
+.pal-row.sel{background:color-mix(in oklab,var(--accent) 10%,white);font-weight:500;
+  box-shadow:inset 0 0 0 1px rgba(22,163,74,.28);}
+.pal-row.sel .ico{color:var(--ok-ink);}
+.pal-foot{display:flex;align-items:center;gap:16px;padding:9px 16px;border-top:1px solid var(--n4);
+  background:var(--n2);font-size:12px;color:var(--n11);flex-wrap:wrap;}
+.pal-foot span{display:inline-flex;align-items:center;gap:6px;}
+.pal-tag{margin-left:auto;color:var(--n10);}
+.pal-msg{padding:14px 12px;color:var(--n10);font-size:13px;}
+.kbd{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px;line-height:1.5;padding:1px 6px;border-radius:var(--radius-xs);color:var(--n11);
+  background:linear-gradient(var(--n1),var(--n3));
+  box-shadow:inset 0 0 0 1px var(--n7),0 1px 0 rgba(0,0,0,.10);}
+body.pal-open{overflow:hidden;}
+/* The strip search is a handle now — it never holds text, so give it the pointer. */
+.gs-input{cursor:pointer;}
+@media(max-width:640px){
+  .palette{top:12px;width:calc(100vw - 20px);}
+  .pal-list{max-height:60vh;}
+  .pal-tag{display:none;}
+}
+@media (prefers-reduced-motion: reduce){
+  .palette,.pal-scrim{transition:none;}
+}
 /* ── COMMAND BAR (global search, v630) ───────────────────────────────────────
    Sizing lives here rather than inline so the desktop treatment — own row,
    taller box, "press /" hint — can be gated to min-width:901px and leave the
@@ -2597,21 +2653,6 @@ input[type=date],input[type=time]{position:relative;}
 }
 .gs-input:hover,.gs-input:focus{border-color:var(--accent)}
 .gs-hint{display:none}
-.gs-results{
-  display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;
-  background:var(--surface);border:1px solid var(--border);border-radius:8px;
-  box-shadow:0 10px 30px rgba(0,0,0,.25);max-height:420px;overflow-y:auto;z-index:3000;
-}
-.gs-head{
-  padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:.5px;
-  text-transform:uppercase;color:var(--muted);background:var(--surface2);
-}
-.gs-row{padding:10px 14px;cursor:pointer;border-top:1px solid var(--border);font-size:13px}
-.gs-row:hover,.gs-row.sel{background:var(--surface2)}
-.gs-row.sel{box-shadow:inset 3px 0 0 var(--accent)}
-.gs-msg{padding:12px 14px;color:var(--muted);font-size:13px}
-/* The arrow marks a row that MOVES you rather than opening a record. */
-.gs-go{color:var(--accent);font-weight:700;margin-right:2px}
 @media(min-width:901px){
   /* Date on its own line, the bar full width underneath it. */
   #dash-strip-date{flex:1 1 100%}
