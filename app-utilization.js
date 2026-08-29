@@ -11,7 +11,7 @@ async function renderUtilization(){
   var win30Start=new Date(Date.now()-window30*86400000).toISOString().split('T')[0];
   var totalBinCount=binItems.length;
   var totalPossibleDays=totalBinCount*windowDays;
-  var sizeColors={'4 yard':'#4ade80','7 yard':'#f0932b','14 yard':'#818cf8','20 yard':'#e76f7e'};
+  var sizeColors={'4 yard':'var(--size1)','7 yard':'var(--size2)','14 yard':'var(--size3)','20 yard':'var(--size4)'};
 
   // Fetch all bin rental jobs from Supabase (not the limited in-memory set)
   var utilJobs=[];

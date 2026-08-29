@@ -2944,37 +2944,27 @@ async function refreshDashBinStats(){
     if(!j.binPickup||j.binPickup>=today)return;
     if(sizeOverdue.hasOwnProperty(j.binSize))sizeOverdue[j.binSize]++;
   });
-  /* One shade per size, ascending size -> deeper green, so the four cards read
-     as four things instead of one green block. Applies to both the number and
-     its bar so a card is a single colour idea. */
-  var BIN_SHADE={'4 yard':'var(--green-s1)','7 yard':'var(--green-s2)','14 yard':'var(--green-s3)','20 yard':'var(--green-s4)'};
-  // The bar takes the bright ramp, the number the readable one — same step,
-  // one notch apart. A 40px number can't wear #4ade80 (1.7:1 on white) but a
-  // 4px bar can, and the bar is what you see across the room.
-  var BIN_BAR={'4 yard':'var(--green-b1)','7 yard':'var(--green-b2)','14 yard':'var(--green-b3)','20 yard':'var(--green-b4)'};
-  // Glow tint per size, matching that card's bar. Kept as rgba rather than the
-  // token because it needs an alpha the ramp doesn't carry. Alphas pulled back
-  // roughly by half in v484 — with the top edge gone the glow is the only thing
-  // washing the card, and at .22 it was adding to the green pile-up rather than
-  // just hinting at the size.
-  var BIN_GLOW={'4 yard':'rgba(74,222,128,.13)','7 yard':'rgba(34,197,94,.11)','14 yard':'rgba(22,163,74,.10)','20 yard':'rgba(21,128,61,.09)'};
   var sizeHtml=sizes.map(function(s){
     var out=Math.min(sizeOut[s],sizeTotal[s]);var tot=sizeTotal[s];var inY=Math.max(0,tot-out);
     var od=sizeOverdue[s]||0;
     var isFull=(tot>0&&inY===0);
     var availPct=tot?Math.round(inY/tot*100):0;
-    var shade=BIN_SHADE[s]||'var(--accent)';
-    var barColor=isFull?'#dc3545':(BIN_BAR[s]||'var(--accent-hero)');
-    // Colour by meaning, not by category: none left reads red, running low
-    // reads amber, healthy keeps its green. A worrying number and a fine one
-    // used to look identical.
+    // ITEM 28 (Jake's own call, v638). The four sizes used to be four shades of
+    // green, which encoded the SIZE — something the label and the photo already
+    // say — while telling you nothing about whether you were in trouble. Now the
+    // number and its bar are a traffic light and say the same thing at a glance,
+    // from across the room: none left is red, a quarter or less is amber,
+    // anything healthier is green. Thresholds match the "low" rule the page has
+    // always used, so nothing that reads as low today stops reading as low.
     var isLow=(!isFull && tot>0 && availPct<=25);
-    var numColor=isFull?'#dc3545':(isLow?'#b45309':shade);
+    var statusColor=isFull?'var(--bad)':(isLow?'var(--warn)':'var(--ok)');
+    var numColor=statusColor;
+    var barColor=statusColor;
     // Overdue pill moves to the top-LEFT: the size label took the top-right
     // corner when it came out of the card's flow (v481).
-    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:8.5px;font-weight:700;color:#dc3545;background:#fdecee;padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
+    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:8.5px;font-weight:700;color:var(--bad-ink);background:var(--bad-soft);padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
-    return '<div class="jj-bin jj-card-lift" style="--binGlow:'+(BIN_GLOW[s]||'rgba(34,197,94,.10)')+'">'
+    return '<div class="jj-bin jj-card-lift" style="--binGlow:'+(isFull?'rgba(220,38,38,.10)':(isLow?'rgba(217,119,6,.11)':'rgba(22,163,74,.09)'))+'">'
       +'<div class="jj-bin-breathe"></div>'
       +'<div class="jj-bin-sheen"></div>'
       +odPill
@@ -7557,7 +7547,7 @@ function makeBarChart(data, colorFn, displayFn){
   return data.map(function(d){
     var pct = Math.round((d.val||0)/max*100);
     var display = displayFn ? displayFn(d.val) : (d.display!==undefined ? d.display : d.val);
-    var color = colorFn ? colorFn(d.key, data.indexOf(d)) : 'var(--accent)';
+    var color = colorFn ? colorFn(d.key, data.indexOf(d)) : 'var(--data)';
     return '<div class="bar-row">'
       +'<div class="bar-label" title="'+d.key+'">'+d.key+'</div>'
       +'<div class="bar-track"><div class="bar-fill bar-anim" data-w="'+pct+'%" style="background:'+color+'"></div></div>'

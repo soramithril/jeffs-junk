@@ -61,6 +61,13 @@
      sight. Allowed in exactly two places: a chip, and a 3px left stripe. */
   --c-bin:#0891b2;--c-junk:#eab308;--c-furn:#8b5cf6;--c-furn-del:#f97316;--c-landscaping:#65a30d;
 
+  /* DATA COLOURS (items 40-42). Green was the default fill for every chart, so
+     a bar chart of cities quietly read as "these cities are doing well". Data
+     moves onto the cyan already used for bins; green is kept for bars that
+     genuinely mean good. One ramp for the four bin sizes, everywhere. */
+  --size1:#a5e5f0;--size2:#5bc4dc;--size3:#0891b2;--size4:#0e5f75;
+  --data:#0e7490;          /* default series */
+  --data-cmp:var(--n8);    /* last period — a reference, not a competitor */
   --sidebar-w:240px;        /* expanded rail (hover) */
   --sidebar-rail:82px;      /* resting rail (icons only) — .main is laid out against this */
 
