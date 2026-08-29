@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '641';
+var APP_VERSION = '642';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2674,7 +2674,7 @@ function go(name){
     toast('⚠ You don\'t have access to this page.');return;
   }
   // Staff check-in shows who is in and out — owners only, not the marketing or sales lead.
-  if(name==='staffcheckin' && !canAccessOwner()){
+  if(OWNER_PAGES.indexOf(name)!==-1 && !canAccessOwner()){
     toast('⚠ You don\'t have access to this page.');return;
   }
   if(name==='usage' && !canAccessDev()){
@@ -2693,7 +2693,9 @@ function go(name){
   else if(name==='analytics'){ _anaTab='overview'; }
   else if(name==='pricingconsole'){ _opTab='console'; name='ourprices'; }
   else if(name==='ourpriceseditor'){ _opTab='prices'; name='ourprices'; }
-  else if(name==='ourprices'){ _opTab='console'; }
+  // A page called "Bin & Junk Prices" opening on the Margin Console is how leads ended
+  // up looking at margins without ever asking to. It opens on the prices now.
+  else if(name==='ourprices'){ _opTab='prices'; }
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var el=document.getElementById('view-'+name);
@@ -6345,6 +6347,10 @@ function globalSearchAskAi(){
 // -- Command palette -----------------------------------------------------------
 // Which pages the analytics tiers gate. go() reads this too, so the router and the
 // palette can never disagree about what someone is allowed to open.
+// Owners and the dev only. Margins are what a job actually earns, which is a different
+// question from what it costs — the price list stays open to everyone who quotes work.
+// Josh and Sam are 'lead': the analytics tier, so before this they could open it.
+var OWNER_PAGES=['staffcheckin','pricingconsole'];
 var RESTRICTED_PAGES=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates','prospects'];
 
 // The command bar answers page names as well as records. This is the promise that makes
@@ -6382,7 +6388,7 @@ var PALETTE_PAGES=[
   {p:'team',          n:'Team',              h:'Admin > People', a:'staff employees crew'},
   {p:'staffcheckin',  n:'Staff Check-In',    h:'Who is in today', a:'punch in out hours'},
   {p:'usage',         n:'Usage',             h:'Who opens what', a:'views'},
-  {p:'jwg',           n:'Jeff White Group',  h:'Schedule · Summer · Winter', a:'jwg landscaping schedule'}
+  {p:'jwg',           n:'Schedule',          h:'Whole team · summer & winter', a:'jwg staff roster landscaping'}
 ];
 // Every palette row is built here, so they cannot drift into five different shapes.
 // Phosphor-ish line icons at 17px, matching the rest of the app's icon weight.
@@ -6408,7 +6414,7 @@ function _palRow(onclick, ico, main, sub, keys){
 // door is worse than one that stays quiet about it.
 function _paletteCanOpen(p){
   if(p==='usage') return canAccessDev();
-  if(p==='staffcheckin') return canAccessOwner();
+  if(OWNER_PAGES.indexOf(p)!==-1) return canAccessOwner();
   if(RESTRICTED_PAGES.indexOf(p)!==-1) return canAccessAnalytics();
   return true;
 }
@@ -16719,6 +16725,13 @@ function switchAnalyticsTab(tab){
 }
 // Bin & Junk Prices page: Prices | Margin Console tabs (console merged in v444)
 function switchOurPricesTab(tab){
+  // The console is a tab, not a page, so gating go() alone left the button sitting there
+  // for anyone already on the prices page to click. One place decides: the button
+  // disappears for everyone but owners, and asking for it anyway lands on Prices.
+  var maySeeMargins = canAccessOwner();
+  var bcBtn = document.getElementById('op-tab-btn-console');
+  if(bcBtn) bcBtn.style.display = maySeeMargins ? '' : 'none';
+  if(!maySeeMargins) tab = 'prices';
   var isPrices = tab !== 'console';
   _opTab = isPrices ? 'prices' : 'console';
   var pp=document.getElementById('op-tab-prices'), pc=document.getElementById('view-pricingconsole');
