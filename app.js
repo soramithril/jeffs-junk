@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '635';
+var APP_VERSION = '636';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11735,11 +11735,11 @@ async function saveJob(e){
     // gone server-side, so the write could never have landed — and the sign-out
     // reload wiped the warning before he read it, which made it look like it saved.
     //
-    // The five-minute grace deliberately lets somebody mid-booking finish, so this
-    // does NOT refuse to save once the clock is up. It proves the login still works
-    // first. A good refresh and the save goes ahead as normal; a failed one is refused
-    // while the form is still on screen to copy from, and leaves a message that
-    // survives the reload.
+    // Still worth checking even now the 4:15 lock has replaced the sign-out, because
+    // the lock goes up on the every-minute tick: a save started in the minute after
+    // 4:15 gets here first. This does NOT refuse the save. It proves the login still
+    // works first — a good refresh and the save goes ahead as normal; a failed one is
+    // refused while the form is still on screen to copy from.
     if(sessionOverdue()){
       var stillAlive = await refreshSessionNow();
       if(!stillAlive){
@@ -13815,7 +13815,7 @@ setInterval(function() {
   // This is what ends the day's session. It cannot hang off the tab going hidden and
   // coming back: a laptop that wakes with the dashboard already the front tab never
   // fires that. This runs every minute whatever else happens, so it asks the clock.
-  if (endSessionIfDue()) return;
+  if (lockScreenIfDue()) return;
   db.auth.getSession().then(function(r) {
     if (!r.data || !r.data.session) {
       signOutWithReason('⚠ Session expired — please sign in again.');
@@ -14302,44 +14302,54 @@ function handleAdminBtn() {
   }
 }
 
-// ── The session runs three hours, and never past 4:15 PM ──
-// The 30-minute inactivity logout that used to sit here was the ONLY thing signing
-// anyone out: Supabase caps nothing on this project (auth.sessions.not_after is NULL
-// on every row) and the access token refreshes itself all day. But idle time is the
-// wrong measure. The problem is not an abandoned screen, it is a busy one: Kelly
-// leaves around 4 and Rachel carries on at Kelly's desk, still signed in as Kelly, so
-// every booking after that is filed under the wrong name. A screen somebody else is
-// using is never idle, so an idle timer is the one thing that can never catch it.
+// ── The session ends at 4:15 PM, and asks who is there ──
+// Two rules used to live here and both are gone (v636). First a 30-minute inactivity
+// logout, then a three-hour cap counted from sign-in. Neither caught the thing this
+// exists for: Kelly leaves around 4 and Rachel carries on at Kelly's desk, still signed
+// in as Kelly, so every booking after that is filed under the wrong name. An idle timer
+// can never catch it — a screen somebody else is using is not idle. And the three-hour
+// cap only caught it by luck, whenever Kelly's three hours happened to run out, which
+// might be minutes after Rachel sat down or nearly three hours later. What it did
+// reliably was throw whoever was working out mid-job: four sign-ins in one day, two of
+// them inside a booking call (Rachel, 2026-08-28).
 //
-// The clock runs from the sign-in instead, and there are two of them:
-//   · three hours after signing in, whatever is happening on screen;
-//   · 4:15 PM, whatever the session age — that is the desk handover.
-// Kelly files 305 of her 310 bookings before 4, so a 4:15 sign-out costs her nothing.
-var SESSION_MAX_MS = 3 * 60 * 60 * 1000;   // three hours from sign-in
+// The handover happens at a known time, so one clock does the whole job. And it no
+// longer signs anybody out: it locks the screen and asks for a password, leaving the
+// page exactly as it was. The right password carries straight on; a different person
+// signs in as themselves. Identity is re-proven either way — which was always the
+// point — and a half-typed booking survives it.
+//
+// Staying signed in between locks is safe. Supabase caps nothing on this project
+// (auth.sessions.not_after is NULL on all 296 sessions) and the longest session on
+// record ran 42 days, renewing itself throughout. A save dying on a slept laptop is a
+// separate problem with its own fix — refreshSessionNow(), and the retry in patchJob.
 var END_OF_DAY_HOUR = 16;                  // 4:15 PM local — the desk handover
 var END_OF_DAY_MIN = 15;
-// Longest a sign-out is held back for somebody mid-booking: long enough to finish the
-// call in front of you, short enough that 4:15 still means 4:15.
-var SIGN_OUT_GRACE_MS = 5 * 60 * 1000;
-var _dueSince = 0;   // when the sign-out first came due but the screen was busy
 
-// When this session began. Kept in localStorage because a page reload must not hand
-// anybody a fresh three hours, and stamped with the email so a stamp left behind by
-// the last person can never sign the next one out on sight. Missing or somebody
-// else's, it stamps now — a session whose start we don't know starts here.
+// When this session began. Kept in localStorage because a page reload must not push
+// the lock back by a day, and stamped with the email so a stamp left behind by the
+// last person can never lock the next one on sight. Missing or somebody else's, it
+// stamps now — a session whose start we don't know starts here.
 function sessionStart() {
   var email = (currentUser && currentUser.email) || '';
   var raw = '';
   try { raw = localStorage.getItem('jjSessionStart') || ''; } catch(e) {}
   var parts = raw.split('|');
   if (parts[0] === email && +parts[1]) return +parts[1];
+  return restampSession();
+}
+
+// Starts the clock again from now. Called on unlock, so clearing the lock buys the
+// rest of the day instead of locking again on the next tick.
+function restampSession() {
+  var email = (currentUser && currentUser.email) || '';
   var now = Date.now();
   try { localStorage.setItem('jjSessionStart', email + '|' + now); } catch(e) {}
   return now;
 }
 
-// The first 4:15 PM strictly after `from`. Strictly, so signing back in at 4:20 does
-// not land on today's 4:15 and throw you out again on sight.
+// The first 4:15 PM strictly after `from`. Strictly, so unlocking at 4:20 does not
+// land on today's 4:15 and lock again on sight.
 function nextEndOfDay(from) {
   var t = new Date(from);
   t.setHours(END_OF_DAY_HOUR, END_OF_DAY_MIN, 0, 0);
@@ -14347,44 +14357,82 @@ function nextEndOfDay(from) {
   return t.getTime();
 }
 
-// Both rules read the clock rather than counting timer ticks, because a timer counts
-// awake seconds: a laptop that slept through 4:15 would fire hours late, or never.
-// Returns why the session is over, or '' if it isn't.
+// Reads the clock rather than counting timer ticks, because a timer counts awake
+// seconds: a laptop that slept through 4:15 would fire hours late, or never.
 function sessionOverdue() {
-  var start = sessionStart();
-  if (Date.now() >= nextEndOfDay(start)) return 'day';
-  if (Date.now() - start >= SESSION_MAX_MS) return 'age';
-  return '';
+  return Date.now() >= nextEndOfDay(sessionStart());
 }
 
-// Signing out reloads the page, so whatever is on screen goes with it. Nobody should
-// lose a half-typed booking to the clock.
-function screenIsBusy() {
-  if (document.querySelector('.modal-overlay.open')) return true;
-  var el = document.activeElement;
-  return !!(el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'));
+// The 4:15 lock. Sits over the page without touching it, so whatever was open — a
+// half-typed booking, an open modal — is still there when it clears. No grace period
+// and no check for a busy screen: both of those existed because the old sign-out
+// reloaded the page and destroyed work. This destroys nothing, so it can go up at once.
+function showDeskLock() {
+  if (document.getElementById('desk-lock')) return;
+  var who = (currentUser && currentUser.displayName) || ((currentUser && currentUser.email) || '').split('@')[0];
+  var o = document.createElement('div');
+  o.id = 'desk-lock';
+  o.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(10,12,15,0.92);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px';
+  o.innerHTML =
+    '<div style="background:#fff;border-radius:20px;padding:34px 30px;width:min(420px,calc(100vw - 48px));box-shadow:0 20px 60px rgba(0,0,0,0.6);text-align:center">'+
+      '<div style="font-size:22px;font-weight:800;margin-bottom:10px;color:var(--text)">Still you, '+escHtml(who)+'?</div>'+
+      '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:22px">It is gone 4:15, so the dashboard checks who is at the desk. Everything you had open is still here — put your password in to carry on.</div>'+
+      '<input id="desk-lock-pw" type="password" autocomplete="current-password" placeholder="Password" style="width:100%;box-sizing:border-box;padding:13px 14px;font-size:16px;font-family:inherit;border:2px solid var(--border);border-radius:10px;margin-bottom:10px">'+
+      '<div id="desk-lock-err" style="min-height:18px;font-size:13px;color:#b02633;margin-bottom:12px"></div>'+
+      '<button id="desk-lock-go" style="background:var(--accent-hero);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">Carry on</button>'+
+      '<button id="desk-lock-other" style="background:none;border:0;color:var(--text-secondary);font-size:13px;font-family:inherit;cursor:pointer;margin-top:14px;text-decoration:underline">Someone else is at this desk</button>'+
+    '</div>';
+  document.body.appendChild(o);
+  var pw  = document.getElementById('desk-lock-pw');
+  var err = document.getElementById('desk-lock-err');
+  var go  = document.getElementById('desk-lock-go');
+  function fail(m) {
+    err.textContent = m;
+    pw.value = '';
+    go.disabled = false;
+    go.textContent = 'Carry on';
+    pw.focus();
+  }
+  function unlock() {
+    var pass = pw.value;
+    if (!pass) { fail('Put your password in.'); return; }
+    err.textContent = '';
+    go.disabled = true;
+    go.textContent = 'Checking...';
+    // Signing in again as the same person is what re-proves who is at the desk, and it
+    // hands back a fresh token on the way through. currentUser is deliberately left
+    // alone: it carries displayName, and losing that would stamp the wrong editor onto
+    // every save made after this.
+    db.auth.signInWithPassword({ email: currentUser.email, password: pass }).then(function(r) {
+      if (r.error) {
+        var m = r.error.message || 'That did not work.';
+        if (/invalid login/i.test(m)) m = 'That password did not match.';
+        else if (/too many requests/i.test(m)) m = 'Too many tries — wait a minute and go again.';
+        fail(m);
+        return;
+      }
+      restampSession();
+      o.remove();
+    }).catch(function() {
+      fail('Could not reach the server — check the internet and go again.');
+    });
+  }
+  go.onclick = unlock;
+  pw.onkeydown = function(e) { if (e.key === 'Enter') unlock(); };
+  // The other way out: a real sign-out, which reloads to the sign-in screen. This is
+  // the handover the whole rule exists for.
+  document.getElementById('desk-lock-other').onclick = function() {
+    signOutWithReason('Signed out at 4:15 — please sign in again.');
+  };
+  setTimeout(function() { pw.focus(); }, 50);
 }
 
-// Called from the every-minute check and from the wake-up path. Returns true if it
-// signed out, so the caller knows to stop.
-function endSessionIfDue() {
+// Called from the every-minute check and from the wake-up path. Returns true if the
+// lock went up, so the caller knows to stop.
+function lockScreenIfDue() {
   if (!currentUser) return false;
-  var why = sessionOverdue();
-  if (!why) { _dueSince = 0; return false; }
-  if (!_dueSince) _dueSince = Date.now();
-  // A save in flight waits with NO cap. Signing out reloads the page, and saveJob runs
-  // for seconds — two 1.2s backoffs and a token refresh in the worst case — so a reload
-  // landing inside one loses real work. The grace below is capped precisely because a
-  // parked cursor could hold a session open all evening; a save cannot, it is over in
-  // seconds. This is above the cap so a save that starts on minute six is safe too.
-  if (_saveJobLock) return false;
-  // A busy screen buys time to finish, not a reprieve: once the grace is up the
-  // sign-out goes ahead, or a cursor parked in a box would hold the session open all
-  // evening — which is the whole thing this exists to stop.
-  if (screenIsBusy() && Date.now() - _dueSince < SIGN_OUT_GRACE_MS) return false;
-  signOutWithReason(why === 'day'
-    ? 'Signed out at 4:15 — please sign in again.'
-    : 'Signed out after 3 hours — please sign in again.');
+  if (!sessionOverdue()) return false;
+  showDeskLock();
   return true;
 }
 
@@ -14406,7 +14454,7 @@ document.addEventListener('visibilitychange', function() {
   if (!currentUser) return;
   // A tab nobody is looking at can miss the every-minute check for a while — browsers
   // throttle timers they cannot see — so ask the clock again on the way back in.
-  if (endSessionIfDue()) return;
+  if (lockScreenIfDue()) return;
   // A quick alt-tab never killed the token, and asking for a new one on every tab
   // switch would pile the whole office — one IP — up against Supabase's limit on
   // token refreshes. Only a real absence gets one: a slept laptop, a tab left all
@@ -14427,7 +14475,7 @@ document.addEventListener('visibilitychange', function() {
 // session already running picks the stamp back up and keeps the time it has left.
 function startSessionGuards() {
   sessionStart();
-  endSessionIfDue();
+  lockScreenIfDue();
 }
 
 // ═══════════════════════════════════════
