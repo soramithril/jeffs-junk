@@ -110,7 +110,7 @@
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'active',p.active,p.active?'Active':'Inactive','#6b7280')+'</td>'
       + (canGift() ? '<td style="padding:9px 8px;text-align:center">'+giftCell(p)+'</td>' : '')
       + '<td style="padding:9px 12px;text-align:right">'
-        + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove — history is kept, but their schedule from today on is cleared" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:16px">×</button>' : '')
+        + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove — history is kept, but their schedule from today on is cleared" style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:16px">×</button>' : '')
       + '</td>';
     return '<tr style="border-bottom:1px solid var(--border)'+(p.active?'':';background:rgba(0,0,0,.02)')+'">'+cells+'</tr>';
   }
@@ -189,7 +189,7 @@
     var n = mine.reduce(function(s,g){ return s+(g.qty||1); }, 0);
     return '<button onclick="TeamMgr.openGift(\''+p.id+'\')" title="Gift cards given to '+esc(p.name)+'" '
       + 'style="cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:99px;white-space:nowrap;'
-      + (n ? 'background:rgba(245,158,11,.12);color:#b45309;border:1.5px solid rgba(245,158,11,.4);'
+      + (n ? 'background:rgba(245,158,11,.12);color:var(--warn-ink);border:1.5px solid rgba(245,158,11,.4);'
            : 'background:#fff;color:#adb5bd;border:1.5px solid #e9ecef;')
       + '">🎁 '+n+'</button>';
   }
@@ -202,7 +202,7 @@
         + '<span style="font-weight:700;white-space:nowrap">'+esc(g.gift_card)+(g.qty>1?' ×'+g.qty:'')+'</span>'
         + '<span style="flex:1;color:var(--muted)">'+esc(g.reason||'')+'</span>'
         + '<span style="color:var(--muted);font-size:11.5px;white-space:nowrap">'+d+(g.created_by?' · '+esc(g.created_by):'')+'</span>'
-        + '<button onclick="TeamMgr.removeGift(\''+g.id+'\')" title="Remove entry" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:14px">×</button>'
+        + '<button onclick="TeamMgr.removeGift(\''+g.id+'\')" title="Remove entry" style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:14px">×</button>'
         + '</div>';
     }).join('') : '<div style="padding:18px 0;color:var(--muted);font-size:13px;text-align:center">No gift cards logged yet.</div>';
     var types = GIFT_SEED.slice();
@@ -330,8 +330,8 @@
     // Clicking "Add person" with no name used to silently do nothing — the #1
     // confusion on this page. Say exactly what's missing and point at the field.
     if(!name){
-      inp.style.borderColor = '#dc3545';
-      inp.style.boxShadow = '0 0 0 3px rgba(220,53,69,.15)';
+      inp.style.borderColor = 'var(--bad)';
+      inp.style.boxShadow = '0 0 0 3px rgba(220,38,38,.15)';
       inp.placeholder = 'Type their name here first…';
       inp.focus();
       toast('⚠ Type the person\'s name in the box first, then hit Add person.', 'error');

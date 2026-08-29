@@ -63,7 +63,7 @@ async function renderBookings(){
     .lt('created_at', endISO)
     .order('created_at', { ascending: false });
   if(r.error){
-    host.innerHTML = '<div style="color:#dc3545;padding:20px">Error loading bookings: ' + _bkEsc(r.error.message) + '</div>';
+    host.innerHTML = '<div style="color:var(--bad);padding:20px">Error loading bookings: ' + _bkEsc(r.error.message) + '</div>';
     return;
   }
   var list = r.data || [];

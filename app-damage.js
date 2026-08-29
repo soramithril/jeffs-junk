@@ -59,7 +59,7 @@ function damageCardHtml(d){
     : '<div style="width:74px;height:74px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">⚠️</div>';
   var statusBadge = d.status==='resolved'
     ? '<span style="font-size:11px;font-weight:700;background:rgba(34,197,94,.13);color:var(--accent);border-radius:6px;padding:2px 9px">✓ Resolved</span>'
-    : '<span style="font-size:11px;font-weight:700;background:rgba(220,53,69,.12);color:#dc3545;border-radius:6px;padding:2px 9px">● Open</span>';
+    : '<span style="font-size:11px;font-weight:700;background:rgba(220,38,38,.12);color:var(--bad);border-radius:6px;padding:2px 9px">● Open</span>';
   var morePhotos = photos.length>1 ? '<span style="font-size:10px;color:var(--muted)">+'+(photos.length-1)+' photo'+(photos.length-1>1?'s':'')+'</span>' : '';
   var costStr = (d.cost!=null && d.cost!=='') ? fm(d.cost) : '';
   return '<div class="chart-card" style="padding:14px 16px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start;cursor:pointer" onclick="openDamageDetail(\''+d.id+'\')">'
@@ -137,7 +137,7 @@ function renderDamageBinPicker(selectedBid){
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+_dEsc(b.num||b.bid)+'</div>'
       +'<div style="font-size:10px;color:'+col+';margin-top:2px">'+_dEsc(b.size||'')+'</div>'
-      +'<div style="font-size:10px;color:'+(isOut?'#dc3545':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'var(--bad)':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
       +'</div>';
   }).join('');
   grid.innerHTML=html;
@@ -302,7 +302,7 @@ function _binDamageModal(){
       + '<button class="btn btn-ghost btn-sm" onclick="closeM(\'bin-damage-modal\')">Close</button>'
     + '</div>'
     + '<div id="bindmg-bin" style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px"></div>'
-    + '<div id="bindmg-already" style="display:none;font-size:12.5px;background:rgba(220,53,69,.1);color:#b02633;border-radius:8px;padding:8px 10px;margin-bottom:10px">This bin is already marked damaged. Saving adds another report.</div>'
+    + '<div id="bindmg-already" style="display:none;font-size:12.5px;background:rgba(220,38,38,.1);color:var(--bad-ink);border-radius:8px;padding:8px 10px;margin-bottom:10px">This bin is already marked damaged. Saving adds another report.</div>'
     + '<label for="bindmg-desc" style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px">What is wrong with it?</label>'
     + '<textarea id="bindmg-desc" placeholder="e.g. Back door hinge is bent, sticks when you close it" style="width:100%;box-sizing:border-box;min-height:110px;background:var(--surface2);border:1px solid var(--border-strong);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--text);resize:vertical"></textarea>'
     + '<div style="font-size:12px;color:var(--muted);margin-top:9px;line-height:1.45">The bin keeps renting. This flags it as damaged on the fleet and files a report on the Damage Reports page.</div>'

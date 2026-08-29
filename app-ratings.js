@@ -28,7 +28,7 @@
     classic: { name:'Classic', c:['#d6453d','#f0a13c','#2fa863'] },
     ocean:   { name:'Ocean',   c:['#d97706','#f4c163','#3987bf'] },
     earth:   { name:'Earth',   c:['#c2410c','#f4a261','#2a968c'] },
-    plum:    { name:'Plum',    c:['#b91c1c','#e59866','#8a63d2'] }
+    plum:    { name:'Plum',    c:['var(--bad-ink)','#e59866','#8a63d2'] }
   };
   var WEEK_PRESETS = [4, 8, 12, 24, 'ytd', 'all'];
   var CELL_GAP = 2;      // gap between day squares in the team grid

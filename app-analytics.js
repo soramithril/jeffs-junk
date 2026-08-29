@@ -584,13 +584,13 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
   var bCol=document.getElementById('busiest-b-col');
   var bGrid=document.getElementById('busiest-grid');
   if(dates.custom&&bJobs.length>0){
-    var cB=buildDayChart(bJobs,'#e67e22');
+    var cB=buildDayChart(bJobs,'var(--data-cmp)');
     bCol.style.display='block';
     bGrid.style.gridTemplateColumns='1fr 1fr';
-    document.getElementById('busiest-b-lbl').innerHTML='<span style="color:#e67e22">● '+anaEsc(dates.b.label)+'</span>';
+    document.getElementById('busiest-b-lbl').innerHTML='<span style="color:var(--n11)">● '+anaEsc(dates.b.label)+'</span>';
     document.getElementById('chart-busiest-b').innerHTML=cB.html;
     document.getElementById('busiest-insight-b').innerHTML=cB.insight
-      +(cA.busiestDay&&cB.busiestDay?(cA.busiestDay!==cB.busiestDay?'<br><span style="color:#e67e22">Shift: '+cB.busiestDay+' → '+cA.busiestDay+'</span>':' · same day'):'');
+      +(cA.busiestDay&&cB.busiestDay?(cA.busiestDay!==cB.busiestDay?'<br><span style="color:var(--n11)">Shift: '+cB.busiestDay+' → '+cA.busiestDay+'</span>':' · same day'):'');
     requestAnimationFrame(function(){animateBars(document.getElementById('chart-busiest-b'));});
   } else {
     bCol.style.display='none';
@@ -673,14 +673,14 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
 
   // ── Bins by size ──
   var sizeOrder=['4 yard','7 yard','14 yard','20 yard'];
-  var sizeRamp={'4 yard':'var(--green-b1)','7 yard':'var(--green-b2)','14 yard':'var(--green-b3)','20 yard':'var(--green-b4)'};
+  var sizeRamp={'4 yard':'var(--size1)','7 yard':'var(--size2)','14 yard':'var(--size3)','20 yard':'var(--size4)'};
   var sizes={};
   var aBinJobs=aWork.filter(function(j){return j.service==='Bin Rental'&&j.binSize;});
   aBinJobs.forEach(function(j){sizes[j.binSize]=(sizes[j.binSize]||0)+1;});
   var sizeKeys=sizeOrder.filter(function(k){return sizes[k];}).concat(Object.keys(sizes).filter(function(k){return sizeOrder.indexOf(k)<0;}).sort());
   var totBins=aBinJobs.length||1;
   var sizeData=sizeKeys.map(function(k){return{key:k,val:sizes[k],display:anaFmtInt(sizes[k])+' · '+Math.round(sizes[k]/totBins*100)+'%'};});
-  document.getElementById('chart-bin-size').innerHTML=makeBarChart(sizeData,function(k){return sizeRamp[k]||'var(--green-b2)';});
+  document.getElementById('chart-bin-size').innerHTML=makeBarChart(sizeData,function(k){return sizeRamp[k]||'var(--size3)';});
 
   // ── By city (top 10 + rest) ──
   var cityMap={};
@@ -693,7 +693,7 @@ function _renderAnalyticsWithJobs(dates,aJobs,bJobs){
     var restN=restKeys.reduce(function(s,k){return s+cityMap[k];},0);
     topCities.push({key:restKeys.length+' other cities',val:restN,display:anaFmtInt(restN)+' · '+Math.round(restN/totCity*100)+'%'});
   }
-  var cityRamp=['var(--green-b2)','var(--green-b2)','var(--green-b2)','var(--green-b1)','var(--green-b1)','var(--green-b1)','var(--green-b1)','var(--green-b1)','var(--green-b1)','var(--green-b1)','#94a3b8'];
+  var cityRamp=['var(--size4)','#136f8c','#1584a3','var(--size3)','#2ba0bd','#41b0c9','var(--size2)','#7ad2e3','#90dceb','var(--size1)','var(--n8)'];
   document.getElementById('chart-city').innerHTML=makeBarChart(topCities.map(function(d){return{key:anaEsc(d.key),val:d.val,display:d.display};}),function(k,i){return cityRamp[Math.min(i,cityRamp.length-1)];});
 
   // ── Referral sources (only tracked since 2026 — be honest about coverage) ──
