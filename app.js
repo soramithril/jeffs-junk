@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '639';
+var APP_VERSION = '640';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -13935,32 +13935,6 @@ function signOutWithReason(reason) {
   db.auth.signOut();
 }
 
-// ── Signed out means signed out, until somebody presses the button ──
-// Every other site behaves this way, even with the password saved (Jake, 2026-08-24).
-//
-// Two separate things used to sign people back in on their own:
-//   · the page load, if a session was still sitting in storage when it landed;
-//   · and the bigger one — Supabase re-checks its stored session whenever the tab
-//     gets focus and fires SIGNED_IN when it restores one. That is why clicking
-//     anywhere on the sign-in screen, or just clicking the tab, walked straight into
-//     the app without anyone pressing Sign In.
-//
-// So the flag is not "ignore the next load", it is "this tab is signed out". It stays
-// set for the whole logged-out visit and ONLY a real sign-in clears it.
-//
-// sessionStorage, not localStorage, and that is the trick: it is per TAB, so a tab that
-// got signed out asks for its own click while a working tab's ordinary refresh is
-// untouched — a refresh after signing in must not throw you out again.
-function requireSignInNextLoad() {
-  try { sessionStorage.setItem('jjRequireSignIn', '1'); } catch(e) {}
-}
-function mustAskToSignIn() {
-  try { return sessionStorage.getItem('jjRequireSignIn') === '1'; } catch(e) { return false; }
-}
-function clearRequireSignIn() {
-  try { sessionStorage.removeItem('jjRequireSignIn'); } catch(e) {}
-}
-
 // Same channel, for a save that died rather than a session that ended. A failed save
 // only ever announced itself in an alert box, and an overdue sign-out reloads the page
 // out from under it — which is how a real change went missing with nothing on screen
@@ -13970,26 +13944,33 @@ function _saveDiedMessage(reason) {
   try { sessionStorage.setItem('jjSignOutReason', reason); } catch(e) {}
 }
 
-// Check if already logged in on page load
+// ── Signed out means signed out, and so does a fresh page ──
+// Every other site behaves this way, even with the password saved (Jake, 2026-08-24,
+// restated 2026-08-29: "all users have to hit sign in no matter what").
+//
+// The previous attempt held a per-TAB flag in sessionStorage so that a refresh AFTER
+// signing in would not throw you out. That concession was the hole: sessionStorage dies
+// with the browser and the Supabase token in localStorage does not, so closing the
+// browser without signing out left a session and no flag — and the next visit walked
+// straight in. Supabase also re-reads that token when the tab regains focus, which is a
+// second door into the same room.
+//
+// So there is no flag now and no condition. A page load NEVER signs anyone in. A session
+// still sitting in storage is somebody's OLD session, not permission to enter: it gets
+// thrown away and the sign-in screen comes up. doLogin() is the only door.
+// The cost is real and intended — a refresh mid-shift means typing the password again.
 db.auth.getSession().then(function(r) {
-  // A session still sitting in storage when this load lands does NOT get to sign anyone
-  // in — see requireSignInNextLoad(). Deliberately not cleared here: the flag has to
-  // survive the whole logged-out visit, because the focus-driven SIGNED_IN below is the
-  // one that actually caught people out. Only doLogin() clears it.
-  if (mustAskToSignIn() && r.data && r.data.session) {
-    db.auth.signOut();
-    r = { data: { session: null } };
-  }
-  if (r.data && r.data.session) {
-    currentUser = r.data.session.user;
-    onLoginSuccess();
-  } else {
-    document.getElementById('login-screen').style.display = 'flex';
-    var reason = null;
-    try { reason = sessionStorage.getItem('jjSignOutReason'); sessionStorage.removeItem('jjSignOutReason'); } catch(e) {}
-    if (reason) document.getElementById('login-error').textContent = reason;
-    setTimeout(function(){ document.getElementById('login-username').focus(); }, 100);
-  }
+  if (!(r.data && r.data.session)) return;
+  // scope:'local' refuses the session on THIS device only. That is the whole intent —
+  // it is not a security revocation — and because it makes no network call it cannot
+  // still be in flight a moment later and clear the session a real sign-in just made.
+  return db.auth.signOut({ scope: 'local' });
+}).then(function() {
+  document.getElementById('login-screen').style.display = 'flex';
+  var reason = null;
+  try { reason = sessionStorage.getItem('jjSignOutReason'); sessionStorage.removeItem('jjSignOutReason'); } catch(e) {}
+  if (reason) document.getElementById('login-error').textContent = reason;
+  setTimeout(function(){ document.getElementById('login-username').focus(); }, 100);
 });
 
 // Periodic session check — signs out if token expired (catches stale tabs)
@@ -14008,21 +13989,14 @@ setInterval(function() {
 
 // Listen for auth changes (e.g. session expiry)
 db.auth.onAuthStateChange(function(event, session) {
-  if (event === 'SIGNED_IN' && appLoaded) {
-    // Already handled by doLogin() or getSession() — ignore duplicate
-    return;
-  }
-  if (event === 'SIGNED_IN' && !appLoaded && session) {
-    // THIS is the one that signed people in on a stray click. Supabase re-reads its
-    // stored session when the tab gets focus and fires SIGNED_IN when it restores one,
-    // so clicking anywhere on the sign-in screen — or just clicking the tab — landed
-    // here and loaded the app. A tab that has been signed out waits for the button.
-    // No signOut() call here on purpose: that would fire SIGNED_OUT, which reloads, and
-    // a restore-on-focus could then bounce the sign-in screen over and over. The load
-    // path above clears the stale session; this only has to refuse to use it.
-    if (mustAskToSignIn()) return;
-    currentUser = session.user;
-    onLoginSuccess();
+  if (event === 'SIGNED_IN') {
+    // Nobody enters through this event, in either direction. When the app is already
+    // loaded it is a duplicate of doLogin(). When it is not, it is Supabase re-reading
+    // its stored token because the tab got focus — which is how clicking anywhere on the
+    // sign-in screen, or just clicking the tab, used to walk straight into the app.
+    // doLogin() sets currentUser and calls onLoginSuccess() itself, so nothing is lost.
+    // No signOut() here on purpose: that fires SIGNED_OUT, which reloads, and a
+    // restore-on-focus could then bounce the sign-in screen over and over.
     return;
   }
   if (event === 'TOKEN_REFRESHED' && !session) {
@@ -14035,9 +14009,11 @@ db.auth.onAuthStateChange(function(event, session) {
     // machine always starts their own three hours.
     try { localStorage.removeItem('jjSessionStart'); } catch(e){}
     if (_redirecting) return;   // Darrin's kiosk signs out on its way to inventory.html
-    // Every sign-out lands here — the clock, the Sign Out button, an expired token —
-    // so this is the one place that has to arm it. See requireSignInNextLoad().
-    requireSignInNextLoad();
+    // The boot path above throws away a stale session on every load, and that fires
+    // SIGNED_OUT too. Reloading there would reload a page that is already fresh — and if
+    // clearing ever lost a race with the reload, it would do it again, forever. appLoaded
+    // is the honest test: nobody has been let in yet, so there is nothing to reload for.
+    if (!appLoaded) return;
     // Reload instead of handing the login screen back inside this page. A window that
     // has sat open holds a stale connection, and signing in again on it is what leaves
     // the button hung on "Signing in..." — a fresh page starts a fresh one.
@@ -14131,10 +14107,6 @@ async function doLogin() {
   }
 
   currentUser = r.data.user;
-  // Somebody pressed the button, which is the only thing that lifts the signed-out
-  // hold on this tab. Cleared here rather than on page load so that a refresh AFTER
-  // signing in keeps you signed in, while a refresh on the sign-in screen does not.
-  clearRequireSignIn();
   // Move the login artwork on by one, so next time this browser sees the sign-in
   // screen it gets a different sheet. Here and nowhere else: a page refresh or a
   // failed password must not shuffle it. Guarded because a browser still holding
