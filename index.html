@@ -2480,18 +2480,22 @@
   </div>
 </div>
 
-<!-- ═══════════ BIN HISTORY MODAL ═══════════ -->
-<div class="modal-overlay" id="bin-history-modal">
-  <div class="modal" style="width:720px">
-    <div class="modal-header">
-      <div class="modal-title" id="bin-history-ttl">Bin History</div>
-      <button class="modal-close" onclick="closeM('bin-history-modal')">&#x2715;</button>
+<!-- ═══════════ BIN PEEK PANEL ═══════════ -->
+<div class="modal-overlay peek" id="bin-peek" onclick="if(event.target===this)closeM('bin-peek')">
+    <div class="modal">
+      <div class="peek-head">
+        <div class="modal-title" id="bin-peek-ttl">Bin</div>
+        <button class="modal-close" onclick="closeM('bin-peek')">&#x2715;</button>
+      </div>
+      <div class="peek-body">
+        <div id="bin-peek-top"></div>
+        <div class="peek-sec">History</div>
+        <div id="bin-peek-hist"></div>
+      </div>
     </div>
-    <div id="bin-history-body" style="max-height:60vh;overflow-y:auto"></div>
   </div>
-</div>
 
-<!-- ═══════════ ASSIGN BIN MODAL ═══════════ -->
+  <!-- ═══════════ ASSIGN BIN MODAL ═══════════ -->
 <div class="modal-overlay" id="assign-bin-modal">
   <div class="modal" style="width:600px">
     <div class="modal-header">

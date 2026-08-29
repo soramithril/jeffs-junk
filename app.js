@@ -8531,7 +8531,7 @@ function makeBinCard(b){
   return '<div style="'+cardStyle+'">'
     +'<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">'
       +'<span style="width:13px;height:13px;border-radius:50%;flex:none;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span>'
-      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
+      +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:.5px;line-height:1;cursor:pointer" onclick="openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span>'
       +'<button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
     +'</div>'
     +'<div style="font-size:12px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<span>'+binMetaHtml(b)+'</span></div>'
@@ -8540,7 +8540,7 @@ function makeBinCard(b){
     // 224px) they wrap onto their own line rather than squeezing the note to nothing.
     +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;row-gap:8px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
       +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1 1 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
-      +'<button onclick="openBinHistory(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
+      +'<button onclick="openBinPeek(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
       +'<button onclick="openBinMenu(\''+b.bid+'\',event)" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button>'
     +'</div></div>';
 }
@@ -8550,13 +8550,83 @@ function makeBinTableRow(b){
   var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes, td='padding:10px 13px;border-bottom:1px solid var(--border)';
   return '<tr style="'+(b.damage==='damage'?'background:rgba(220,38,38,.035)':'')+'">'
-    +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinHistory(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
+    +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
     +'<td style="'+td+'">'+(b.size==='14 yard'?'<span style="'+typeStyle+'">'+(_binIsLow(b)?'Low-Wide':'Regular')+'</span>':'')+'<div style="font-size:11px;color:var(--muted);margin-top:3px">'+binMetaHtml(b)+'</div></td>'
     +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button></td>'
     +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
     +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
-    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinHistory(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
+    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinPeek(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
   +'</tr>';
+}
+// -- Bin peek panel ------------------------------------------------------------
+// One source of truth for what you can DO to a bin. The ... menu and the peek panel
+// both build their buttons from this, so an action can never appear in one place and
+// go quietly missing from the other.
+function binActions(b){
+  var a=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"}];
+  // Report damage is NOT behind canDelete on purpose: bin_items UPDATE is open to
+  // every signed-in user, and the crew who find the damage aren't admins. "Mark bin
+  // fixed" is the way back out for those same people -- without it the flag was a
+  // one-way door and only the three admins could undo a mis-click.
+  a.push(b.damage==='damage'
+    ? {lbl:'✅ Mark bin fixed',fn:"clearBinDamage('"+b.bid+"')"}
+    : {lbl:'⚠ Report damage',fn:"openBinDamageReport('"+b.bid+"')"});
+  if(canDelete){
+    a.push({lbl:'✏️ Edit',fn:"editBinItem('"+b.bid+"')"});
+    a.push({lbl:'🗑️ Delete',fn:"delBinItem('"+b.bid+"')",danger:true});
+  }
+  return a;
+}
+// The panel arrives from the right and leaves the fleet list untouched behind it, so
+// checking one bin never costs you your place among ninety-odd of them. It replaces
+// the old History modal outright -- everything that modal showed is its bottom half.
+async function openBinPeek(bid){
+  var b=binItems.find(function(x){return x.bid===bid;});
+  if(!b) throw new Error('openBinPeek: no bin with bid '+bid);
+  var ttl=document.getElementById('bin-peek-ttl');
+  ttl.innerHTML='<span style="width:13px;height:13px;border-radius:50%;flex:none;display:inline-block;background:'
+    +_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span> '+escHtml(b.num||'')
+    +'<span style="font-family:inherit;font-size:12.5px;letter-spacing:0;color:var(--muted);font-weight:600;margin-left:9px">'
+    +escHtml(b.size||'')+(b.size==='14 yard'?' · '+(_binIsLow(b)?'Low-Wide':'Regular'):'')+'</span>';
+  _renderBinPeekTop(b);
+  document.getElementById('bin-peek-hist').innerHTML='';
+  document.getElementById('bin-peek').classList.add('open');
+  await renderBinHistoryInto(bid, document.getElementById('bin-peek-hist'), 'bin-peek');
+}
+// Split out from openBinPeek so flipping the status repaints the top half only. Going
+// through openBinPeek again would re-run the history query for a fact it already has.
+function _renderBinPeekTop(b){
+  var el=document.getElementById('bin-peek-top');
+  if(!el) return;
+  var isIn=b.status==='in', flags=binFlags(b);
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'
+    +(isIn?'background:var(--ok-soft);color:var(--ok-ink)':'background:var(--warn-soft);color:var(--warn-ink)');
+  el.innerHTML=
+    '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">'
+      +'<button onclick="_binPeekToggle(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
+      // Anything inside the meta line opens a job, which opens a modal of its own --
+      // so close the panel on the way out rather than leaving two sheets stacked.
+      +'<span onclick="closeM(\'bin-peek\')" style="font-size:12.5px">'+binMetaHtml(b)+'</span>'
+    +'</div>'
+    +'<div class="peek-sec">Flags</div>'
+    +(flags.length
+      ?'<div style="display:flex;flex-wrap:wrap;gap:5px">'+flags.join('')+'</div>'
+      :'<div style="font-size:12.5px;color:var(--muted)">Nothing flagged.</div>')
+    +'<div class="peek-sec">Note</div>'
+    +'<div style="font-size:13px;line-height:1.5'+(b.notes?'':';color:var(--muted)')+'">'
+      +(b.notes?escHtml(b.notes):'No note yet.')+'</div>'
+    +'<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="closeM(\'bin-peek\');openBinNote(\''+b.bid+'\')">✏️ '
+      +(b.notes?'Edit note':'Add a note')+'</button>'
+    +'<div class="peek-sec">Actions</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:7px">'+binActions(b).map(function(it){
+        return '<button class="btn btn-ghost btn-sm"'+(it.danger?' style="color:var(--bad);border-color:rgba(220,38,38,.28)"':'')
+          +' onclick="closeM(\'bin-peek\');'+it.fn+'">'+it.lbl+'</button>';
+      }).join('')+'</div>';
+}
+function _binPeekToggle(bid){
+  quickToggleStatus(bid);
+  var b=binItems.find(function(x){return x.bid===bid;});
+  if(b) _renderBinPeekTop(b);
 }
 // Lightweight More menu: Book + Report damage (everyone) · Edit/Delete (admins).
 function openBinMenu(bid,ev){
@@ -8564,16 +8634,7 @@ function openBinMenu(bid,ev){
   var b=null; binItems.forEach(function(x){if(x.bid===bid)b=x;}); if(!b)return;
   var m=document.createElement('div'); m.id='bin-ctx-menu';
   m.style.cssText='position:fixed;z-index:99999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:5px;min-width:150px';
-  // Report damage is NOT behind canDelete on purpose: bin_items UPDATE is open to
-  // every signed-in user, and the crew who find the damage aren't admins. The modal
-  // lives in app-damage.js. "Mark bin fixed" is the way back out for those same
-  // people — without it the flag was a one-way door and only the three admins could
-  // undo a mis-click.
-  var items=[{lbl:'📅 Book',fn:"bookBin('"+b.size+"')"}];
-  items.push(b.damage==='damage'
-    ? {lbl:'✅ Mark bin fixed',fn:"clearBinDamage('"+bid+"')"}
-    : {lbl:'⚠ Report damage',fn:"openBinDamageReport('"+bid+"')"});
-  if(canDelete){items.push({lbl:'✏️ Edit',fn:"editBinItem('"+bid+"')"});items.push({lbl:'🗑️ Delete',fn:"delBinItem('"+bid+"')",danger:true});}
+  var items=binActions(b);
   // The hover hint promised Edit and Delete to everyone, but the menu only builds
   // them for admins — so most staff opened it expecting three choices and got one.
   m.innerHTML=items.map(function(it){return '<button onclick="closeBinMenu();'+it.fn+'" style="display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:none;cursor:pointer;border-radius:7px;font-size:13px;font-family:inherit;'+(it.danger?'color:var(--bad)':'color:var(--text)')+'" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'none\'">'+it.lbl+'</button>';}).join('');
@@ -9045,12 +9106,6 @@ async function linkBinToJob(bid,jobId){
   loadBinJobsThenRender();
 }
 
-async function openBinHistory(bid){
-  var b=binItems.find(function(bi){return bi.bid===bid;});if(!b)return;
-  document.getElementById('bin-history-ttl').textContent='📜 History — Bin #'+b.num+' ('+b.size+')';
-  document.getElementById('bin-history-modal').classList.add('open');
-  await renderBinHistoryInto(bid, document.getElementById('bin-history-body'), 'bin-history-modal');
-}
 async function renderBinHistoryInto(bid, bodyEl, closeModalId){
   if(!bodyEl) return;
   bodyEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Loading history...</div>';
