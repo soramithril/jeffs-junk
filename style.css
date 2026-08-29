@@ -2592,6 +2592,8 @@ input[type=date],input[type=time]{position:relative;}
 .gs-row:hover,.gs-row.sel{background:var(--surface2)}
 .gs-row.sel{box-shadow:inset 3px 0 0 var(--accent)}
 .gs-msg{padding:12px 14px;color:var(--muted);font-size:13px}
+/* The arrow marks a row that MOVES you rather than opening a record. */
+.gs-go{color:var(--accent);font-weight:700;margin-right:2px}
 @media(min-width:901px){
   /* Date on its own line, the bar full width underneath it. */
   #dash-strip-date{flex:1 1 100%}

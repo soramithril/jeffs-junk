@@ -2669,7 +2669,7 @@ function closeMoreFlyout(){
   var arrow=document.getElementById('nav-more-arrow'); if(arrow) arrow.style.transform='rotate(-90deg)';
 }
 function go(name){
-  var restricted=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates','prospects'];
+  var restricted=RESTRICTED_PAGES;
   if(restricted.indexOf(name)!==-1 && !canAccessAnalytics()){
     toast('⚠ You don\'t have access to this page.');return;
   }
@@ -6314,6 +6314,117 @@ function globalSearchAskAi(){
   if(inp) inp.value=q;
   aiJobSearch();
 }
+// -- Command palette -----------------------------------------------------------
+// Which pages the analytics tiers gate. go() reads this too, so the router and the
+// palette can never disagree about what someone is allowed to open.
+var RESTRICTED_PAGES=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates','prospects'];
+
+// The command bar answers page names as well as records. This is the promise that makes
+// the nav reorganization safe: no page is ever lost, because typing its name -- including
+// the name it had BEFORE it was folded into a tab -- still lands on it. Every row routes
+// through go(), so tab-merging and access rules stay decided in exactly one place.
+// `a` is extra words to match on: what someone might type instead of the real label.
+var PALETTE_PAGES=[
+  {p:'dashboard',     n:'Dashboard',         h:'Your day at a glance', a:'today home'},
+  {p:'clients',       n:'Clients',           h:'Customer list & history', a:'customers'},
+  {p:'jobs',          n:'All Jobs',          h:'Find & edit any job', a:'search jobs'},
+  {p:'bininventory',  n:'Bin Fleet',         h:'Where every bin is', a:'bins bin inventory'},
+  {p:'binmap',        n:'Bin Map',           h:'Bin Fleet > Map', a:'map where'},
+  {p:'landscaping',   n:'Extra Jobs',        h:'Possible · scheduled · done', a:'extra'},
+  {p:'pricing',       n:'Bin Pricing',       h:'Quote a bin rental', a:'quote price bin'},
+  {p:'drdcalc',       n:'Furniture Quote',   h:'Fill the truck', a:'quote drd calculator junk'},
+  {p:'livejobs',      n:'Live Jobs',         h:'Trucks on the road right now', a:'gps tracking'},
+  {p:'dispatch',      n:'Dispatch',          h:'Plan the runs', a:'routes'},
+  {p:'crew',          n:'Crew Schedule',     h:'Who is working', a:'schedule staff shifts'},
+  {p:'vehicles',      n:'Vehicles',          h:'The fleet', a:'trucks'},
+  {p:'maintenance',   n:'Maintenance',       h:'Vehicles > Maintenance', a:'repairs service shop'},
+  {p:'damage',        n:'Damage Reports',    h:'What got broken', a:'drd'},
+  {p:'documents',     n:'Documents',         h:'Business PDFs', a:'files paperwork'},
+  {p:'suggestions',   n:'Suggestions',       h:'The note board', a:'notes ideas'},
+  {p:'bookings',      n:'Bookings',          h:'What came in from the website', a:'website online'},
+  {p:'emailtemplates',n:'Email Templates',   h:'What we send', a:'email'},
+  {p:'ourprices',     n:'Bin & Junk Prices', h:'The price list', a:'prices rates'},
+  {p:'ourpriceseditor',n:'Price Lists',      h:'Edit the price list', a:'edit prices'},
+  {p:'pricingconsole',n:'Margin Console',    h:'Bin & Junk Prices > Margins', a:'margins profit'},
+  {p:'analytics',     n:'Analytics',         h:'The numbers', a:'reports stats charts'},
+  {p:'utilization',   n:'Bin Utilization',   h:'Analytics > Utilization', a:'busy bins'},
+  {p:'leaderboard',   n:'Leaderboard',       h:'Analytics > Leaderboard', a:'drivers scores'},
+  {p:'advisor',       n:'AI Advisor',        h:'Analytics > Advisor', a:'ai gemini'},
+  {p:'prospects',     n:'Prospects',         h:'Admin > People', a:'leads'},
+  {p:'team',          n:'Team',              h:'Admin > People', a:'staff employees crew'},
+  {p:'staffcheckin',  n:'Staff Check-In',    h:'Who is in today', a:'punch in out hours'},
+  {p:'usage',         n:'Usage',             h:'Who opens what', a:'views'},
+  {p:'jwg',           n:'Jeff White Group',  h:'Schedule · Summer · Winter', a:'jwg landscaping schedule'}
+];
+// Never list a page the person can't actually open -- a palette that offers a locked
+// door is worse than one that stays quiet about it.
+function _paletteCanOpen(p){
+  if(p==='usage') return canAccessDev();
+  if(p==='staffcheckin') return canAccessOwner();
+  if(RESTRICTED_PAGES.indexOf(p)!==-1) return canAccessAnalytics();
+  return true;
+}
+function _paletteOpen(p){
+  _gsClose(true);
+  if(p==='jwg') goJwg('schedule'); else go(p);
+}
+// A bare number is a bin number far more often than anything else, so offer the jump.
+// It lands on Bin Fleet with the fleet search already filled in, which is exactly what
+// the person would have typed there anyway.
+function _paletteBin(num){
+  _gsClose(true);
+  go('bininventory');
+  fleetQ=String(num);
+  var s=document.getElementById('fleet-search-input');
+  if(s) s.value=fleetQ;
+  renderFleet();
+}
+// Matches must land on a WORD boundary. A plain substring test looked reasonable until
+// "ai" pulled up Maintenance and Email Templates, which is noise pretending to be an answer.
+function _wordAt(hay,q){
+  var i=hay.indexOf(q);
+  while(i!==-1){
+    if(i===0 || !/[a-z0-9]/.test(hay.charAt(i-1))) return i;
+    i=hay.indexOf(q,i+1);
+  }
+  return -1;
+}
+// Rank: a page whose name STARTS with what you typed beats one that matches a later word,
+// which beats one that only matched on an alias. Five rows max -- past that it stops
+// being an answer and becomes a list to read.
+function _gsGoHtml(q){
+  var ql=q.toLowerCase();
+  var hits=[];
+  PALETTE_PAGES.forEach(function(pg){
+    if(!_paletteCanOpen(pg.p)) return;
+    var n=pg.n.toLowerCase();
+    var rank=-1;
+    if(n.indexOf(ql)===0) rank=0;
+    else if(_wordAt(n,ql)>0) rank=1;
+    else if(_wordAt(pg.a||'',ql)!==-1) rank=2;
+    if(rank>=0) hits.push({pg:pg,r:rank});
+  });
+  hits.sort(function(a,b){ return a.r-b.r; });
+  hits=hits.slice(0,5);
+  var html='';
+  if(hits.length){
+    html+='<div class="gs-head">Go to</div>';
+    html+=hits.map(function(h){
+      return '<div class="gs-row" onclick="_paletteOpen(\''+h.pg.p+'\')">'
+        +'<span class="gs-go">&rarr;</span> <strong>'+escHtml(h.pg.n)+'</strong>'
+        +' <span style="color:var(--muted);font-size:11px">· '+escHtml(h.pg.h)+'</span>'
+        +'</div>';
+    }).join('');
+  }
+  if(/^[0-9]{1,3}$/.test(q)){
+    html+='<div class="gs-head">Bins</div>'
+      +'<div class="gs-row" onclick="_paletteBin(\''+q+'\')">'
+      +'<span class="gs-go">&rarr;</span> Bin <strong>'+escHtml(q)+'</strong>'
+      +' <span style="color:var(--muted);font-size:11px">· open it in Bin Fleet</span>'
+      +'</div>';
+  }
+  return html;
+}
 function _gsActionsHtml(q){
   return '<div class="gs-head">Actions</div>'
     + '<div class="gs-row" onclick="globalSearchBookBin()">＋ Book a bin for “<strong>'+escHtml(q)+'</strong>”…</div>'
@@ -6327,7 +6438,8 @@ async function globalSearchLive(q){
   _globalSearchQ = q;
   _gsSel = -1;
   box.style.display = 'block';
-  box.innerHTML = '<div class="gs-msg">Searching…</div>';
+  var goHtml = _gsGoHtml(q);
+  box.innerHTML = goHtml + '<div class="gs-msg">Searching…</div>';
   try {
     var clientsP = db.from('clients').select('cid,name,business_name,phone,address,city')
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
@@ -6340,7 +6452,7 @@ async function globalSearchLive(q){
     var js = (results[1].data||[]);
     // Jobs first, then Clients, then Actions — the order staff actually look in.
     // Actions render even with no matches: a name nobody has yet IS the booking case.
-    var html = '';
+    var html = goHtml;
     if(js.length){
       html += '<div class="gs-head">Jobs</div>';
       html += js.map(function(j){
