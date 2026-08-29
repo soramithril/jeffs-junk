@@ -45,7 +45,7 @@ function leaderboardEvtRow(label,count,color,icon){
 function leaderboardCleanBadge(totalEvents){
   return totalEvents===0
     ?'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(34,197,94,.08);color:#16a34a;font-size:10px;font-weight:700;letter-spacing:.3px">✓ CLEAN RECORD</div>'
-    :'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(220,53,69,.08);color:#dc3545;font-size:10px;font-weight:700;letter-spacing:.3px">'+totalEvents+' event'+(totalEvents!==1?'s':'')+'</div>';
+    :'<div style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 10px;border-radius:20px;background:rgba(220,38,38,.08);color:#dc2626;font-size:10px;font-weight:700;letter-spacing:.3px">'+totalEvents+' event'+(totalEvents!==1?'s':'')+'</div>';
 }
 
 // ── Vehicle Leaderboard ──
@@ -94,11 +94,11 @@ async function renderDriverLeaderboard(){
   el.innerHTML=drivers.map(function(d,i){
     var v=vehMap[d.vid]||{name:d.name,color:'var(--accent)'};
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#e67e22':'#dc3545';
+    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#d97706':'#dc2626';
 
-    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
+    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc2626','🛑')
       +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
-      +leaderboardEvtRow('Speeding',d.speeding,'#e67e22','🏎️')
+      +leaderboardEvtRow('Speeding',d.speeding,'#d97706','🏎️')
       +leaderboardEvtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓')
       +leaderboardEvtRow('Cornering',d.cornering,'#8b5cf6','↩️');
 
@@ -170,11 +170,11 @@ async function renderCrewLeaderboard(){
   var medals=['🥇','🥈','🥉'];
   el.innerHTML=crew.map(function(d,i){
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#e67e22':'#dc3545';
+    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#d97706':'#dc2626';
 
-    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
+    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc2626','🛑')
       +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
-      +leaderboardEvtRow('Speeding',d.speeding,'#e67e22','🏎️')
+      +leaderboardEvtRow('Speeding',d.speeding,'#d97706','🏎️')
       +leaderboardEvtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓')
       +leaderboardEvtRow('Cornering',d.cornering,'#8b5cf6','↩️');
 
@@ -473,7 +473,7 @@ function renderLbWinnerBanner(rows,range,isCrewMode){
       +'<div style="font-size:13px;color:var(--muted);margin-top:2px;">'+Math.round(winner.distance)+' km driven · '+winner.days+' day'+(winner.days!==1?'s':'')+' active · '+winner.totalEvents+' event'+(winner.totalEvents!==1?'s':'')+'</div>'
     +'</div>'
     +'<div style="text-align:center;">'
-      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:56px;color:'+(winner.avgSafety>=90?'var(--accent)':winner.avgSafety>=70?'#e67e22':'#dc3545')+';line-height:1;">'+winner.avgSafety+'</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:56px;color:'+(winner.avgSafety>=90?'var(--accent)':winner.avgSafety>=70?'#d97706':'#dc2626')+';line-height:1;">'+winner.avgSafety+'</div>'
       +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Avg Safety Score</div>'
     +'</div>'
   +'</div>';
@@ -496,8 +496,8 @@ function renderLbStatCards(rows,range,isCrewMode){
   agg.forEach(function(d){totalDriveHrs+=d.driveMin;});
   var driveDisplay=totalDriveHrs>=60?Math.round(totalDriveHrs/60)+'h':Math.round(totalDriveHrs)+'m';
 
-  el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'var(--accent)':fleetAvg>=70?'#e67e22':'#dc3545','analytics',fleetAvg>=90?'green':fleetAvg>=70?'amber':'red')
-    +lbStatCard('Total Events',totalEvents,totalEvents===0?'var(--accent)':'#dc3545','damage',totalEvents===0?'green':'red')
+  el.innerHTML=lbStatCard('Fleet Avg Safety',fleetAvg,fleetAvg>=90?'var(--accent)':fleetAvg>=70?'#d97706':'#dc2626','analytics',fleetAvg>=90?'green':fleetAvg>=70?'amber':'red')
+    +lbStatCard('Total Events',totalEvents,totalEvents===0?'var(--accent)':'#dc2626','damage',totalEvents===0?'green':'red')
     +lbStatCard('Clean Records',cleanCount+'/'+agg.length,'var(--accent)','confirmed','green')
     +lbStatCard('Total Distance',Math.round(totalDist)+' km','var(--text)','directions','blue')
     +lbStatCard('Drive Time',driveDisplay,'var(--text)','liveJobs','indigo');
@@ -528,7 +528,7 @@ function renderLbTrendChart(rows,isCrewMode){
   rows.forEach(function(r){if(allDates.indexOf(r.period_date)===-1)allDates.push(r.period_date);});
   allDates.sort();
 
-  var colors=['#22c55e','#3b82f6','#f97316','#8b5cf6','#ec4899','#14b8a6','#eab308','#dc3545'];
+  var colors=['#22c55e','#3b82f6','#f97316','#8b5cf6','#ec4899','#14b8a6','#eab308','#dc2626'];
   var datasets=[];var ci=0;
   Object.keys(entities).forEach(function(key){
     var ent=entities[key];
@@ -584,9 +584,9 @@ function renderLbEventsChart(rows,isCrewMode){
     data:{
       labels:labels,
       datasets:[
-        {label:'Hard Braking',data:agg.map(function(d){return d.harshBrake;}),backgroundColor:'#dc3545'},
+        {label:'Hard Braking',data:agg.map(function(d){return d.harshBrake;}),backgroundColor:'#dc2626'},
         {label:'Hard Accel',data:agg.map(function(d){return d.harshAccel;}),backgroundColor:'#f97316'},
-        {label:'Speeding',data:agg.map(function(d){return d.speeding;}),backgroundColor:'#e67e22'},
+        {label:'Speeding',data:agg.map(function(d){return d.speeding;}),backgroundColor:'#d97706'},
         {label:'Seatbelt Off',data:agg.map(function(d){return d.seatbelt;}),backgroundColor:'#dc2626'},
         {label:'Cornering',data:agg.map(function(d){return d.cornering;}),backgroundColor:'#8b5cf6'}
       ]
@@ -800,8 +800,8 @@ function renderLbImprovement(rows,range,isCrewMode){
 
   // ── Cards: detailed breakdown per person ──
   cardsEl.innerHTML=improvements.map(function(d){
-    var safeColor=d.safetyDelta>0?'var(--accent)':d.safetyDelta<0?'#dc3545':'var(--muted)';
-    var evtColor=d.eventsDelta<0?'var(--accent)':d.eventsDelta>0?'#dc3545':'var(--muted)';
+    var safeColor=d.safetyDelta>0?'var(--accent)':d.safetyDelta<0?'#dc2626':'var(--muted)';
+    var evtColor=d.eventsDelta<0?'var(--accent)':d.eventsDelta>0?'#dc2626':'var(--muted)';
     var safeArrow=d.safetyDelta>0?'▲':d.safetyDelta<0?'▼':'—';
     var evtArrow=d.eventsDelta<0?'▼':d.eventsDelta>0?'▲':'—';
 
@@ -822,7 +822,7 @@ function renderLbImprovement(rows,range,isCrewMode){
         +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">'
           +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;">'+firstLabel+'</div>'
           +'<div style="display:flex;align-items:baseline;gap:8px;">'
-            +'<span style="font-size:24px;font-weight:800;color:'+(d.firstSafety>=90?'var(--accent)':d.firstSafety>=70?'#e67e22':'#dc3545')+'">'+d.firstSafety+'</span>'
+            +'<span style="font-size:24px;font-weight:800;color:'+(d.firstSafety>=90?'var(--accent)':d.firstSafety>=70?'#d97706':'#dc2626')+'">'+d.firstSafety+'</span>'
             +'<span style="font-size:11px;color:var(--muted)">safety avg</span>'
           +'</div>'
           +'<div style="height:4px;background:rgba(0,0,0,.06);border-radius:2px;margin-top:6px;"><div style="height:100%;width:'+firstW+'%;background:rgba(59,130,246,.5);border-radius:2px;"></div></div>'
@@ -831,7 +831,7 @@ function renderLbImprovement(rows,range,isCrewMode){
         +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">'
           +'<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;">'+secondLabel+'</div>'
           +'<div style="display:flex;align-items:baseline;gap:8px;">'
-            +'<span style="font-size:24px;font-weight:800;color:'+(d.secondSafety>=90?'var(--accent)':d.secondSafety>=70?'#e67e22':'#dc3545')+'">'+d.secondSafety+'</span>'
+            +'<span style="font-size:24px;font-weight:800;color:'+(d.secondSafety>=90?'var(--accent)':d.secondSafety>=70?'#d97706':'#dc2626')+'">'+d.secondSafety+'</span>'
             +'<span style="font-size:11px;color:var(--muted)">safety avg</span>'
           +'</div>'
           +'<div style="height:4px;background:rgba(0,0,0,.06);border-radius:2px;margin-top:6px;"><div style="height:100%;width:'+secondW+'%;background:rgba(34,197,94,.6);border-radius:2px;"></div></div>'
@@ -867,13 +867,13 @@ function renderLbRankings(rows,range,isCrewMode){
 
   el.innerHTML=agg.map(function(d,i){
     var medal=i<3?medals[i]:'<span style="font-size:14px;color:var(--muted);font-weight:700;width:22px;display:inline-block;text-align:center">'+(i+1)+'</span>';
-    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#e67e22':'#dc3545';
+    var safeColor=d.avgSafety>=90?'var(--accent)':d.avgSafety>=70?'#d97706':'#dc2626';
     var v=isCrewMode?null:vehMap[d.id];
     var dotHtml=v?'<span style="width:9px;height:9px;border-radius:50%;background:'+(v.color||'#22c55e')+'"></span>':'';
 
-    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc3545','🛑')
+    var evtHtml=leaderboardEvtRow('Hard Braking',d.harshBrake,'#dc2626','🛑')
       +leaderboardEvtRow('Hard Accel',d.harshAccel,'#f97316','⚡')
-      +leaderboardEvtRow('Speeding',d.speeding,'#e67e22','🏎️')
+      +leaderboardEvtRow('Speeding',d.speeding,'#d97706','🏎️')
       +leaderboardEvtRow('Seatbelt Off',d.seatbelt,'#dc2626','🔓')
       +leaderboardEvtRow('Cornering',d.cornering,'#8b5cf6','↩️');
 

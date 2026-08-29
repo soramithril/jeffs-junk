@@ -1190,7 +1190,7 @@ function buildGrid(){
         <div class="emp-cell-inner">
           ${S.sortAlpha?"":`<span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>`}
           <div class="avatar" data-tip="${tipText}" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
-          <div><div class="emp-name">${esc(emp.name)}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:#b45309;background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
+          <div><div class="emp-name">${esc(emp.name)}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--warn-ink);background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
         </div>
       </td>`;
     S.activeDays.forEach(d=>{

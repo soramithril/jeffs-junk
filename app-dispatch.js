@@ -686,7 +686,7 @@ function dispatchPreviewBannerHtml(){
       h += '<span style="color:#adb5bd;font-family:ui-monospace,monospace">'+b.stops+' &middot; '+dispatchFmtTotal(b.mins)+'</span>';
       h += '<span style="color:#adb5bd">&rarr;</span>';
       h += '<span style="font-weight:700;color:'+(same?'#adb5bd':'#1a1a2e')+';font-family:ui-monospace,monospace">'+a.stops+' &middot; '+dispatchFmtTotal(a.mins)+'</span>'
-         + (a.misses?' <span title="Would miss '+a.misses+' timed drop'+(a.misses===1?'':'s')+'" style="color:#dc3545;font-weight:800">&#9888;'+a.misses+'</span>':'');
+         + (a.misses?' <span title="Would miss '+a.misses+' timed drop'+(a.misses===1?'':'s')+'" style="color:var(--bad);font-weight:800">&#9888;'+a.misses+'</span>':'');
       h += '</span>';
     });
     h += '</div>';
@@ -970,8 +970,8 @@ async function renderDispatch(){
       // The day's span includes waiting for timed drops — that's real clock time.
       var spanMins = sim ? (sim.endMins - startMins) : 0;
       var _pct = Math.min(Math.round(spanMins/480*100),100);
-      var _barCol = _pct<60?'var(--accent)':(_pct<90?'#f59e0b':'#dc3545');
-      var _noteCol = _pct>=90?'#dc3545':(_pct>=60?'#c2410c':'#15803d');
+      var _barCol = _pct<60?'var(--accent)':(_pct<90?'#f59e0b':'var(--bad)');
+      var _noteCol = _pct>=90?'var(--bad)':(_pct>=60?'#c2410c':'#15803d');
       var _note = laneJobs.length ? (_pct+'% of an 8-hr day &middot; done ~'+dispatchFmtClock(sim.endMins)+(sim.waitMins?' &middot; '+sim.waitMins+'m waiting':'')) : 'Empty &mdash; add stops';
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
       // lane header: avatar + name/count + load bar
@@ -1245,7 +1245,7 @@ function dcvCrewCardHtml(c, T, p, selected){
   var _sim = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : null;
   var total = _sim ? (_sim.endMins - startMins) : 0; // day span incl. waiting for timed drops
   var pct = Math.min(Math.round(total/480*100), 100);
-  var barCol = pct < 60 ? 'var(--accent)' : (pct < 90 ? '#f59e0b' : '#dc3545');
+  var barCol = pct < 60 ? 'var(--accent)' : (pct < 90 ? '#f59e0b' : 'var(--bad)');
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
   var h = '<div data-node="c:'+c.id+'" style="position:absolute;top:0;left:0;width:'+DCV_CREW_W+'px;cursor:grab;transform:translate('+p.x+'px,'+p.y+'px)">';
   h += '<div data-card style="'+outline+'background:'+T.surface+';border:1px solid '+T.border+';border-radius:15px;box-shadow:0 8px 26px rgba(0,0,0,.35);overflow:hidden">';
@@ -1315,7 +1315,7 @@ function dcvGhostPanelHtml(g, real, T, pos){
   h += '<div style="font-size:25px;font-weight:800;letter-spacing:-.5px;color:'+T.ink+';line-height:1">'+g.jobs.length+'<span style="font-size:12px;font-weight:700;color:'+T.sub+'"> stop'+(g.jobs.length===1?'':'s')+'</span></div>';
   h += '<div style="font-size:12.5px;font-family:ui-monospace,monospace;color:'+T.sub+'">'+dispatchFmtTotal(mins)+'</div>';
   h += '<div style="font-size:11px;font-weight:700;color:'+dCol+'">'+(same ? 'no change' : sgn(dStops)+' stop'+(Math.abs(dStops)===1?'':'s')+' &middot; '+sgn(dMins)+'m')+'</div>';
-  if(_gSim && _gSim.misses) h += '<div style="font-size:10.5px;font-weight:800;color:#dc3545">&#9888; would miss '+_gSim.misses+' timed drop'+(_gSim.misses===1?'':'s')+'</div>';
+  if(_gSim && _gSim.misses) h += '<div style="font-size:10.5px;font-weight:800;color:var(--bad)">&#9888; would miss '+_gSim.misses+' timed drop'+(_gSim.misses===1?'':'s')+'</div>';
   h += '</div>';
   if(!g.jobs.length) h += '<div style="position:absolute;left:0;right:0;bottom:15px;text-align:center;font-size:11.5px;color:'+T.sub+';font-style:italic">Nothing assigned</div>';
   h += '</div>';
@@ -1846,7 +1846,7 @@ function dcvInspectorHtml(){
     h += row('Driver', cr ? escHtml(cr.name) : '<span style="color:#d97706">Unassigned — drag its ○ onto a crew card</span>');
     h += '<div style="display:flex;gap:8px;margin-top:18px">';
     h += '<button onclick="dcvFocusSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e9ecef;background:#f8f9fa;color:#343a40;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Focus</button>';
-    if(cid) h += '<button onclick="dcvUnassignSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(220,53,69,.3);background:rgba(220,53,69,.07);color:#dc3545;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Unassign</button>';
+    if(cid) h += '<button onclick="dcvUnassignSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(220,38,38,.3);background:rgba(220,38,38,.07);color:var(--bad);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Unassign</button>';
     h += '</div></div>';
     return h;
   }

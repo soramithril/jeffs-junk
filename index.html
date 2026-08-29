@@ -213,7 +213,7 @@
     <button class="nav-item" onclick="go('drdcalc')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="12" y1="10" x2="14" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="12" y1="14" x2="14" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="12" y1="18" x2="14" y2="18"/><line x1="16" y1="18" x2="16.01" y2="18"/></svg></span><span>Furniture Quote</span></button>
     <div class="nav-label">Office</div>
     <button class="nav-item" onclick="go('documents')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span>Documents</span></button>
-    <button class="nav-item" onclick="go('suggestions')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span><span>Suggestions</span><span id="nav-sugg-badge" title="Notes still open" style="display:none;align-items:center;justify-content:center;margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:99px;background:#e67e22;color:#fff;font-size:10.5px;font-weight:800"></span></button>
+    <button class="nav-item" onclick="go('suggestions')"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></span><span>Suggestions</span><span id="nav-sugg-badge" title="Notes still open" style="display:none;align-items:center;justify-content:center;margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:99px;background:var(--warn);color:#fff;font-size:10.5px;font-weight:800"></span></button>
     <button class="nav-item" onclick="openPushSettings()"><span class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><span>Notifications</span></button>
     <div class="nav-label" id="nav-settings-label" style="display:none">Admin</div>
     <div id="nav-settings" style="display:none">
@@ -342,7 +342,7 @@
   </div>
 
   <!-- MAINTENANCE ALERT BANNER -->
-  <div id="dash-maint-alert" style="display:none;margin-bottom:16px;padding:10px 16px;border-radius:10px;background:rgba(220,53,69,.06);border:1px solid rgba(220,53,69,.25);font-size:13px;color:var(--text)"></div>
+  <div id="dash-maint-alert" style="display:none;margin-bottom:16px;padding:10px 16px;border-radius:10px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25);font-size:13px;color:var(--text)"></div>
 
   <!-- STICKY JUMP-TO BAR (segmented control) -->
   <div class="djj-jumpbar" role="tablist" aria-label="Jump to dashboard section">
@@ -433,7 +433,7 @@
     <div class="chart-card" id="card-will-call" style="padding:0;overflow:hidden;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="display:inline-flex;color:#e67e22"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+          <span style="display:inline-flex;color:var(--warn)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
           <div>
             <div class="card-head" style="margin:0">Waiting on Customer Call</div>
             <div id="dash-will-call-count" style="font-size:12px;color:var(--muted);margin-top:2px;"></div>
@@ -815,10 +815,10 @@
             </div>
           </div>
           <!-- Junk -->
-          <div class="crange-card" data-color="#e67e22" data-color-dim="rgba(230,126,34,.12)">
+          <div class="crange-card" data-color="var(--warn)" data-color-dim="rgba(217,119,6,.12)">
             <div class="crange-card-header">
-              <span class="crange-dot" style="background:#e67e22;box-shadow:0 0 6px rgba(230,126,34,.5)"></span>
-              <span class="crange-label" style="color:#e67e22">Junk Removal</span>
+              <span class="crange-dot" style="background:var(--warn);box-shadow:0 0 6px rgba(217,119,6,.5)"></span>
+              <span class="crange-label" style="color:var(--warn)">Junk Removal</span>
             </div>
             <div class="crange-inputs">
               <div class="crange-field">
@@ -833,10 +833,10 @@
             </div>
           </div>
           <!-- Furniture -->
-          <div class="crange-card" data-color="#dc3545" data-color-dim="rgba(220,53,69,.12)">
+          <div class="crange-card" data-color="var(--bad)" data-color-dim="rgba(220,38,38,.12)">
             <div class="crange-card-header">
-              <span class="crange-dot" style="background:#dc3545;box-shadow:0 0 6px rgba(220,53,69,.5)"></span>
-              <span class="crange-label" style="color:#dc3545">Furniture</span>
+              <span class="crange-dot" style="background:var(--bad);box-shadow:0 0 6px rgba(220,38,38,.5)"></span>
+              <span class="crange-label" style="color:var(--bad)">Furniture</span>
             </div>
             <div class="crange-inputs">
               <div class="crange-field">
@@ -995,7 +995,7 @@
           <div id="busiest-insight-a" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
         </div>
         <div id="busiest-b-col" style="display:none">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#e67e22;margin-bottom:8px" id="busiest-b-lbl">COMPARE TO</div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--warn);margin-bottom:8px" id="busiest-b-lbl">COMPARE TO</div>
           <div class="bar-chart" id="chart-busiest-b"></div>
           <div id="busiest-insight-b" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
         </div>
@@ -1174,7 +1174,7 @@
 
   <!-- Ranked driver/crew cards -->
   <div style="font-weight:700;font-size:16px;margin-bottom:4px;" id="lb-rankings-title">Rankings</div>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Safety score: <span style="color:var(--accent);font-weight:600">90+ great</span> · <span style="color:#e67e22;font-weight:600">70–89 okay</span> · <span style="color:#dc3545;font-weight:600">under 70 needs attention</span></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Safety score: <span style="color:var(--accent);font-weight:600">90+ great</span> · <span style="color:var(--warn);font-weight:600">70–89 okay</span> · <span style="color:var(--bad);font-weight:600">under 70 needs attention</span></div>
   <div id="page-leaderboard"></div>
 
   <!-- Crew Assignments (admin task — kept below the rankings) -->
@@ -1568,8 +1568,8 @@
         </div>
       </div>
 
-      <div id="drdc-over" style="display:none;align-items:center;gap:10px;background:rgba(220,53,69,.06);border:1px solid rgba(220,53,69,.25);border-radius:8px;padding:9px 12px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <div id="drdc-over" style="display:none;align-items:center;gap:10px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25);border-radius:8px;padding:9px 12px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         <span style="font-size:12.5px;color:#b02a37;font-weight:600">Over by <span id="drdc-over-vol">0</span> ft³ — won&rsquo;t fit one box truck. You&rsquo;ll need <span id="drdc-over-trips">2</span> trips.</span>
       </div>
 
@@ -1593,7 +1593,7 @@
 
     <div class="drdc-main">
       <!-- Says so when the last caller's items are still loaded (see drdcStaleNotice) -->
-      <div id="drdc-stale" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;padding:10px 14px;border-radius:9px;background:rgba(230,126,34,.10);border:1px solid rgba(230,126,34,.4);font-size:13px;color:var(--text)"></div>
+      <div id="drdc-stale" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;padding:10px 14px;border-radius:9px;background:rgba(217,119,6,.10);border:1px solid rgba(217,119,6,.4);font-size:13px;color:var(--text)"></div>
       <div class="drdc-searchbar">
         <input id="drdc-search" class="search-icon" type="text" placeholder="Search items — e.g. sofa, mattress, dresser…" oninput="drdcFilter()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif">
       </div>
@@ -1777,16 +1777,16 @@
     </div>
     <div class="form-group"><label>Color</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px" id="v-color-picker">
-        <div class="veh-color-opt" data-color="#dc3545" style="background:#dc3545" onclick="selectVehColor('#dc3545',this)"></div>
+        <div class="veh-color-opt" data-color="var(--bad)" style="background:var(--bad)" onclick="selectVehColor('var(--bad)',this)"></div>
         <div class="veh-color-opt" data-color="#f97316" style="background:#f97316" onclick="selectVehColor('#f97316',this)"></div>
-        <div class="veh-color-opt" data-color="#e67e22" style="background:#e67e22" onclick="selectVehColor('#e67e22',this)"></div>
+        <div class="veh-color-opt" data-color="var(--warn)" style="background:var(--warn)" onclick="selectVehColor('var(--warn)',this)"></div>
         <div class="veh-color-opt" data-color="#22c55e" style="background:#22c55e" onclick="selectVehColor('#22c55e',this)"></div>
         <div class="veh-color-opt" data-color="#3b82f6" style="background:#3b82f6" onclick="selectVehColor('#3b82f6',this)"></div>
         <div class="veh-color-opt" data-color="#a78bfa" style="background:#a78bfa" onclick="selectVehColor('#a78bfa',this)"></div>
         <div class="veh-color-opt" data-color="#f472b6" style="background:#f472b6" onclick="selectVehColor('#f472b6',this)"></div>
         <div class="veh-color-opt" data-color="#94a3b8" style="background:#94a3b8" onclick="selectVehColor('#94a3b8',this)"></div>
       </div>
-      <input type="hidden" id="v-color" value="#dc3545">
+      <input type="hidden" id="v-color" value="var(--bad)">
     </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px">
       <button class="btn btn-ghost" onclick="closeM('vehicle-modal')">Cancel</button>
@@ -1942,7 +1942,7 @@
         <!-- Shown by setJobFormBlacklistWarning() whenever the linked client is blacklisted.
              Stays up for the whole booking on purpose — it does not block the save, it just
              has to be impossible to miss. -->
-        <div id="f-client-blacklist-warning" style="display:none;margin-top:8px;background:#b4232f;border:2px solid #dc3545;border-radius:8px;padding:10px 12px;color:#fff">
+        <div id="f-client-blacklist-warning" style="display:none;margin-top:8px;background:var(--bad-ink);border:2px solid var(--bad);border-radius:8px;padding:10px 12px;color:#fff">
           <div style="font-size:13px;font-weight:800;letter-spacing:.5px">🚫 BLACKLISTED CUSTOMER</div>
           <div id="f-client-blacklist-name" style="font-size:12.5px;font-weight:600;margin-top:3px;color:#ffdfe2"></div>
         </div>
@@ -2056,7 +2056,7 @@
             <label>Pickup Date</label>
             <div style="display:flex;gap:6px"><input id="f-bpick" type="date" style="flex:1"><input id="f-bpick-time" type="time" placeholder="Time" style="width:110px"></div>
             <input type="checkbox" id="f-bwillcall" style="display:none">
-            <button type="button" id="f-bwillcall-btn" onclick="toggleWillCallForm()" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:6px;font-size:12px;font-weight:700;color:#e67e22;border-color:rgba(230,126,34,.4);padding:7px 14px">📞 Waiting on call — no pickup date set</button>
+            <button type="button" id="f-bwillcall-btn" onclick="toggleWillCallForm()" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:6px;font-size:12px;font-weight:700;color:var(--warn);border-color:rgba(217,119,6,.4);padding:7px 14px">📞 Waiting on call — no pickup date set</button>
           </div>
         </div>
 
@@ -2084,7 +2084,7 @@
         <!-- Stands in for Duration on a will-call. There is no pickup date, so there is
              no number of days to pick — offering the box invited a length that means
              nothing and quietly disagreed with the empty pickup date above. -->
-        <div id="bin-willcall-banner" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px solid #e67e22;border-left:4px solid #e67e22;background:rgba(230,126,34,.10);border-radius:8px">
+        <div id="bin-willcall-banner" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px solid var(--warn);border-left:4px solid var(--warn);background:rgba(217,119,6,.10);border-radius:8px">
           <div style="font-size:14px;font-weight:800;color:#b35309;letter-spacing:.04em">📞 WILL CALL</div>
           <div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45">No pickup date and no rental length — the customer calls when they are ready and we book the pickup then.</div>
         </div>
@@ -2208,7 +2208,7 @@
       <div class="form-group" id="po-number-group" style="display:none;margin-bottom:14px">
         <label>🧾 PO Number <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">— prints on the work order</span></label>
         <input id="f-po-number" type="text" placeholder="Purchase order #">
-        <div id="po-billable-hint" style="display:none;margin-top:6px;padding:8px 11px;border:1px solid #b45309;border-left:4px solid #b45309;background:rgba(180,83,9,.09);border-radius:7px;font-size:12px;color:#8a4308;line-height:1.45"></div>
+        <div id="po-billable-hint" style="display:none;margin-top:6px;padding:8px 11px;border:1px solid var(--warn-ink);border-left:4px solid var(--warn-ink);background:rgba(180,83,9,.09);border-radius:7px;font-size:12px;color:#8a4308;line-height:1.45"></div>
       </div>
 
       <div class="form-group" style="margin-bottom:14px">
@@ -2328,7 +2328,7 @@
       </div>
       </div><!-- /.jf-cols -->
 
-      <div id="job-form-errors" style="display:none;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#dc3545;"></div>
+      <div id="job-form-errors" style="display:none;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--bad);"></div>
       <div class="form-actions job-form-actions-sticky">
         <button type="button" class="btn btn-ghost" onclick="closeJobModal()">Cancel</button>
         <button type="button" class="btn btn-primary" id="save-btn" onclick="saveJob(event)">Save Job</button>
@@ -2679,8 +2679,8 @@
       </div>
 
       <div class="form-group" style="margin-bottom:10px">
-        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#b45309">
-          <input type="checkbox" id="c-billable" style="width:15px;height:15px;flex:none;margin-top:1px;accent-color:#b45309">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:var(--warn-ink)">
+          <input type="checkbox" id="c-billable" style="width:15px;height:15px;flex:none;margin-top:1px;accent-color:var(--warn-ink)">
           <span>🧾 Billable account — no pre-authorization
             <span style="display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:2px">No pre-authorization taken — invoiced after the job. Prints on the work order.</span>
           </span>
@@ -2696,8 +2696,8 @@
       </div>
 
       <div class="form-group" style="margin-bottom:10px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:#dc3545">
-          <input type="checkbox" id="c-blacklisted" style="width:15px;height:15px;accent-color:#dc3545">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;color:var(--bad)">
+          <input type="checkbox" id="c-blacklisted" style="width:15px;height:15px;accent-color:var(--bad)">
           🚫 Blacklisted — do not contact for promotions
         </label>
       </div>
@@ -2781,14 +2781,14 @@
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('junk_removal')">Junk Removal</button>
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('furniture_bank')">🛋️ Furniture Bank</button>
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('junk_quote')">📋 Junk Quote</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('bin_cancelled')" style="color:#dc3545;border-color:rgba(220,53,69,.4)">🚫 Bin Cancelled</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('review_request')" style="color:#b45309;border-color:rgba(234,179,8,.5)">⭐ Review Request</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('bin_cancelled')" style="color:var(--bad);border-color:rgba(220,38,38,.4)">🚫 Bin Cancelled</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('review_request')" style="color:var(--warn-ink);border-color:rgba(234,179,8,.5)">⭐ Review Request</button>
       </div>
       <!-- There are no pencil buttons on that row, so this used to send people
            hunting for a control that doesn't exist. Point at the real one. -->
       <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Wording not right? Use ⚙️ Edit Templates below.</div>
     </div>
-    <div id="email-no-address-note" style="display:none;padding:10px 12px;border-radius:8px;background:rgba(230,126,34,.1);border:1px solid rgba(230,126,34,.35);color:#c2410c;font-size:13px;font-weight:600;margin-bottom:12px"></div>
+    <div id="email-no-address-note" style="display:none;padding:10px 12px;border-radius:8px;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.35);color:#c2410c;font-size:13px;font-weight:600;margin-bottom:12px"></div>
     <div class="form-group" style="margin-bottom:12px">
       <label>To (Email)</label>
       <input id="email-to" type="email" placeholder="customer@example.com" oninput="clearErr('email-to')">
@@ -2854,10 +2854,10 @@
             <span style="font-size:18px;color:var(--muted);">←</span>
           </div>
           <!-- Secondary card -->
-          <div id="merge-card-secondary" style="border:2px solid rgba(220,53,69,0.35);border-radius:10px;overflow:hidden;">
-            <div style="background:rgba(220,53,69,0.07);padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#b91c1c;display:flex;justify-content:space-between;align-items:center;">
+          <div id="merge-card-secondary" style="border:2px solid rgba(220,38,38,0.35);border-radius:10px;overflow:hidden;">
+            <div style="background:rgba(220,38,38,0.07);padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--bad-ink);display:flex;justify-content:space-between;align-items:center;">
               <span>✕ SECONDARY — DELETED</span>
-              <span id="merge-secondary-jobs-badge" style="font-size:10px;background:rgba(220,53,69,0.15);padding:2px 7px;border-radius:10px;"></span>
+              <span id="merge-secondary-jobs-badge" style="font-size:10px;background:rgba(220,38,38,0.15);padding:2px 7px;border-radius:10px;"></span>
             </div>
             <div id="merge-secondary-body" style="padding:10px 12px;font-size:12px;line-height:1.9;"></div>
           </div>
@@ -2866,7 +2866,7 @@
         <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted);justify-content:flex-end;">
           <span><span style="color:#15803d;font-weight:700;">+ green</span> = added from secondary</span>
           <span><span style="color:var(--muted);">grey</span> = unchanged / already present</span>
-          <span><span style="color:#b91c1c;text-decoration:line-through;">red</span> = removed</span>
+          <span><span style="color:var(--bad-ink);text-decoration:line-through;">red</span> = removed</span>
         </div>
       </div>
     </div>
@@ -2883,9 +2883,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6/dist/d3-delaunay.min.js"></script>
 <div class="modal-overlay" id="bin-avail-warning-modal">
-  <div style="background:rgba(220,53,69,0.08);border:1.5px solid rgba(220,53,69,0.45);border-radius:14px;padding:28px 26px;max-width:480px;width:90%;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(220,53,69,0.18),inset 0 1px 0 rgba(255,255,255,0.04)">
+  <div style="background:rgba(220,38,38,0.08);border:1.5px solid rgba(220,38,38,0.45);border-radius:14px;padding:28px 26px;max-width:480px;width:90%;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(220,38,38,0.18),inset 0 1px 0 rgba(255,255,255,0.04)">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
-      <div style="width:44px;height:44px;border-radius:50%;background:rgba(220,53,69,0.18);border:1px solid rgba(220,53,69,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <div style="width:44px;height:44px;border-radius:50%;background:rgba(220,38,38,0.18);border:1px solid rgba(220,38,38,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#ff6b75;line-height:1">No Bins Available</div>
@@ -2894,7 +2894,7 @@
     <div style="font-size:13px;line-height:1.5;color:#9ca0a8;margin-bottom:22px">Please double-check inventory before continuing — proceeding may result in an overbooking.</div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button type="button" onclick="resolveBinAvailWarning(false)" style="padding:9px 18px;background:transparent;color:#cfd2d8;border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
-      <button type="button" onclick="resolveBinAvailWarning(true)" style="padding:9px 18px;background:rgba(220,53,69,0.85);color:#fff;border:1px solid rgba(220,53,69,1);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Proceed Anyway</button>
+      <button type="button" onclick="resolveBinAvailWarning(true)" style="padding:9px 18px;background:rgba(220,38,38,0.85);color:#fff;border:1px solid rgba(220,38,38,1);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Proceed Anyway</button>
     </div>
   </div>
 </div>
@@ -2975,7 +2975,7 @@
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📷 Add photos<input type="file" accept="image/*" multiple onchange="damageAddPhotos(this)" style="display:none"></label>
     </div>
     <div style="display:flex;gap:10px;align-items:center;padding:14px 22px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost" id="dmg-del-btn" onclick="delDamageReport()" style="color:#dc3545;border-color:rgba(220,53,69,.4);display:none">🗑 Delete</button>
+      <button class="btn btn-ghost" id="dmg-del-btn" onclick="delDamageReport()" style="color:var(--bad);border-color:rgba(220,38,38,.4);display:none">🗑 Delete</button>
       <div style="display:flex;gap:10px;margin-left:auto">
         <button class="btn btn-ghost" onclick="closeM('damage-modal')">Cancel</button>
         <button class="btn btn-primary" id="dmg-save-btn" onclick="saveDamageReport()">Save report</button>
