@@ -801,7 +801,11 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
    won would have come down to DOM order — a bug waiting for its first new modal. */
 .modal-overlay.peek{align-items:stretch;justify-content:flex-end;z-index:490;background:rgba(26,33,30,.30);}
 .modal-overlay.peek .modal{width:480px;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;border-top:none;border-right:none;border-bottom:none;padding:0;display:flex;flex-direction:column;overflow:hidden;transform:translateX(26px);box-shadow:-18px 0 48px rgba(26,33,30,.13);}
-.modal-overlay.peek.open .modal{transform:translateX(0);}
+/* .modal-overlay.open .modal carries animation:modalScaleIn BOTH, and an animation
+   outranks the cascade -- so without this the panel scaled up from the middle like a
+   dialog and the slide never ran at all. Same timing, different direction. */
+@keyframes peekSlideIn{from{opacity:0;transform:translateX(26px);}to{opacity:1;transform:translateX(0);}}
+.modal-overlay.peek.open .modal{transform:translateX(0);animation:peekSlideIn .25s cubic-bezier(.22,1,.36,1) both;}
 @media(max-width:560px){.modal-overlay.peek .modal{width:100vw;}}
 .peek-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid var(--border);flex:none;}
 .peek-head .modal-title{display:flex;align-items:center;gap:9px;margin:0;}
