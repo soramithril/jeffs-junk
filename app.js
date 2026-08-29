@@ -2962,7 +2962,7 @@ async function refreshDashBinStats(){
     var barColor=statusColor;
     // Overdue pill moves to the top-LEFT: the size label took the top-right
     // corner when it came out of the card's flow (v481).
-    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:8.5px;font-weight:700;color:var(--bad-ink);background:var(--bad-soft);padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
+    var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:9px;font-weight:700;color:var(--bad-ink);background:var(--bad-soft);padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
     var imgKey=({'4 yard':'bin-4yd','7 yard':'bin-7yd','14 yard':'bin-14yd','20 yard':'bin-20yd'})[s];
     return '<div class="jj-bin jj-card-lift" style="--binGlow:'+(isFull?'rgba(220,38,38,.10)':(isLow?'rgba(217,119,6,.11)':'rgba(22,163,74,.09)'))+'">'
       +'<div class="jj-bin-breathe"></div>'
@@ -3095,16 +3095,16 @@ function renderNeedsYou(){
       var cdc=daysUntil<=0?{bg:'#fdecee',fg:'var(--bad)'}:daysUntil===1?{bg:'#fff2e6',fg:'#c2410c'}:daysUntil<=3?{bg:'#fffbeb',fg:'var(--warn-ink)'}:{bg:'#f0fdf4',fg:'#16a34a'};
       var isBinJob=j.service==='Bin Rental';
       var cdTxt=daysUntil<=0?(isBinJob?'out today':'today'):daysUntil===1?(isBinJob?'out tomorrow':'tomorrow'):(new Date(dropD2+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+daysUntil+'d');
-      cdChip='<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:11.5px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">'+lineIcon('schedule',12,cdc.fg)+cdTxt+'</span>';
+      cdChip='<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:12px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">'+lineIcon('schedule',12,cdc.fg)+cdTxt+'</span>';
     }
     var action=isCall
-      ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">'+lineIcon('call',13)+' '+j.phone+'</a>':'')
+      ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">'+lineIcon('call',13)+' '+j.phone+'</a>':'')
         +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
       : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
-        +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
+        +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
     return '<div class="ny-row" data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
-      +'<div style="flex:1;min-width:0"><div class="ny-title" style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+titleHtml+'</div><div class="ny-meta" style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div class="ny-title" style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+titleHtml+'</div><div class="ny-meta" style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
       +cdChip
       +'<div class="ny-actions">'+action+'</div>'
     +'</div>';
@@ -3118,7 +3118,7 @@ function renderNeedsYou(){
       +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Needs you before end of day</span>'
       +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'+items.length+' left &middot; '+doneToday+' done</span>'
     +'</div>'
-    +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
+    +'<div style="font-size:12px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
     +rowsHtml
   +'</div>';
   // Surviving rows glide to their new spot, then buzz the genuinely new ones
@@ -3221,10 +3221,10 @@ async function renderReviewFollowups(){
     var meta=[x.service, 'finished '+fd(x.done)+' · '+days+(days===1?' day ago':' days ago')].filter(Boolean).join(' · ');
     return '<div style="display:flex;align-items:center;gap:14px;background:#fffdf5;border:1px solid var(--border);border-left:3px solid #eab308;border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#fef9e7">⭐</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask for a review — '+x.name+'</div>'
-      +'<div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask for a review — '+x.name+'</div>'
+      +'<div style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
       +'<button class="djj-btn green" onclick="openEmailModal(\''+x.id+'\',\'review_request\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send request</button>'
-      +'<button title="Changed your mind — take this one off the list" onclick="skipReviewAsk(\''+x.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">Skip</button>'
+      +'<button title="Changed your mind — take this one off the list" onclick="skipReviewAsk(\''+x.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">Skip</button>'
     +'</div>';
   }).join('');
   el.innerHTML='<div class="chart-card" style="padding:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
@@ -3233,7 +3233,7 @@ async function renderReviewFollowups(){
       +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--warn-ink)">Review follow-ups</span>'
       +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'+due.length+' to ask</span>'
     +'</div>'
-    +'<div style="font-size:11.5px;color:var(--muted);padding:0 4px 12px">Customers someone flagged as happy, '+REVIEW_DELAY_DAYS+'+ days after the job was finished.</div>'
+    +'<div style="font-size:12px;color:var(--muted);padding:0 4px 12px">Customers someone flagged as happy, '+REVIEW_DELAY_DAYS+'+ days after the job was finished.</div>'
     +rowsHtml
   +'</div>';
 }
@@ -4124,7 +4124,7 @@ async function renderBinsAttention(){
     var actionBtn=hasBin
       ? '<button class="btn btn-ghost btn-sm" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:var(--accent);border-color:rgba(34,197,94,.35);justify-self:end">'+_svgIcon('check',12,'margin-right:4px')+'Picked Up</button>'
       : '<button class="btn btn-ghost btn-sm" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()" style="font-size:11px;white-space:nowrap;color:var(--warn);border-color:rgba(217,119,6,.4);justify-self:end">'+_svgIcon('box',12,'margin-right:4px')+'Assign Bin</button>';
-    return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:12.5px" onclick="openDetail(\''+j.id+'\')">'
+    return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-left:5px solid '+c.bd+';border-radius:0 8px 8px 0;cursor:pointer;font-size:13px" onclick="openDetail(\''+j.id+'\')">'
       +binPill
       +'<div style="min-width:0;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden">'
         +'<span style="font-weight:700;font-size:13px;flex-shrink:0">'+_esc(j.name)+'</span>'
@@ -4937,7 +4937,7 @@ async function renderDashBinsOut(){
   if(sizeKeys.length){
     var nRest=sizeKeys.reduce(function(t,sz){return t+grouped[sz].length;},0);
     html+='<div class="djj-section-h" style="color:#9aa39b;font-size:14px;letter-spacing:.8px">STILL OUT · '+nRest
-      +' <span style="font-family:Inter,sans-serif;font-size:10.5px;font-weight:600;text-transform:none;letter-spacing:0">— tap a size to open</span></div>';
+      +' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0">— tap a size to open</span></div>';
     html+=sizeKeys.map(function(sz){
       var label=sz==='Unknown'?'UNKNOWN':sz.replace(/\s*yard/i,' YD').toUpperCase();
       var items=grouped[sz], slug=binsOutSlug(sz), open=!!_binsOutOpen[sz];
@@ -5270,7 +5270,7 @@ function toggleJdd(wrap){
    One builder so the day list, the All Jobs row and the job detail all say the same
    thing at the same size — a live load is the whole shape of the visit, not a footnote. */
 function liveLoadBadge(){
-  return '<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:11.5px;font-weight:800;letter-spacing:.4px;color:#7c3aed;background:#f3f0fb;border:1px solid #c4b5fd;border-radius:6px;padding:3px 9px;white-space:nowrap">⚡ LIVE LOAD</span>';
+  return '<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:12px;font-weight:800;letter-spacing:.4px;color:#7c3aed;background:#f3f0fb;border:1px solid #c4b5fd;border-radius:6px;padding:3px 9px;white-space:nowrap">⚡ LIVE LOAD</span>';
 }
 function binDropBtn(j){
   if(j.service!=='Bin Rental') return '<td></td>';
@@ -6632,7 +6632,7 @@ function _phoneMatchScan(inputEl){
   _phoneMatchShownCids=key;
   box.innerHTML='<div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.35);border-radius:10px;padding:8px 10px;position:relative">'
     +'<button type="button" onclick="_phoneMatchDismiss()" title="Dismiss" style="position:absolute;top:5px;right:7px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px;line-height:1">✕</button>'
-    +'<div style="font-size:10.5px;font-weight:700;color:var(--accent);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px">📞 This number is already a client</div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px">📞 This number is already a client</div>'
     +matches.map(function(m){
       var c=m.c;
       // This box is green all over — "already a client" reads as good news. A blacklisted
@@ -7013,13 +7013,13 @@ function renderEmailListModal(skipped, noEmail, log, blocked) {
   var history = batchKeys.length
     ? batchKeys.map(function(k){
         var b = batches[k];
-        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px">'
+        return '<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px">'
           + '<span style="color:var(--text)"><strong>' + b.n + '</strong> ' + (b.n===1?'person':'people') + '</span>'
           + '<span style="color:var(--muted)">' + fd(b.on) + (b.by ? ' · ' + escHtml(b.by) : '') + '</span></div>';
       }).join('')
-    : '<div style="font-size:12.5px;color:var(--muted);padding:7px 0">No pulls yet.</div>';
+    : '<div style="font-size:13px;color:var(--muted);padding:7px 0">No pulls yet.</div>';
 
-  var note = function(txt){ return '<div style="font-size:12.5px;color:var(--muted);line-height:1.7">' + txt + '</div>'; };
+  var note = function(txt){ return '<div style="font-size:13px;color:var(--muted);line-height:1.7">' + txt + '</div>'; };
 
   document.getElementById('email-list-body').innerHTML =
      '<div style="padding:4px 0 16px">'
@@ -7038,7 +7038,7 @@ function renderEmailListModal(skipped, noEmail, log, blocked) {
           + '<label for="mktg-count" style="font-size:13px;font-weight:700;color:var(--text)">How many do you want?</label>'
           + '<input id="mktg-count" type="number" min="1" max="' + avail + '" value="' + avail + '" oninput="syncEmailListCount()"'
           + ' style="width:110px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;font-weight:700">'
-          + '<span style="font-size:12.5px;color:var(--muted)">of ' + avail.toLocaleString() + '</span>'
+          + '<span style="font-size:13px;color:var(--muted)">of ' + avail.toLocaleString() + '</span>'
         + '</div>'
         + note('You get the customers who have gone longest without a bin first, so the next pull picks up where this one left off.')
         + '<button class="btn btn-primary" id="mktg-go" onclick="confirmEmailListExport()" style="margin-top:14px;width:100%">Export ' + avail.toLocaleString() + ' and mark as sent</button>'
@@ -7433,7 +7433,7 @@ function makeClientCard(row){
   var cTxt2  = bl ? '#f7d4d7' : 'var(--text-secondary)';
   var cMuted = bl ? '#e7b3b7' : 'var(--muted)';
   var cLine  = bl ? 'rgba(255,255,255,.22)' : 'var(--border)';
-  var chip=function(icon,n,label,col,bg){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+(bl?'#fff':col)+';background:'+(bl?'rgba(255,255,255,.15)':bg)+'">'+icon+'<span>'+n+' '+label+'</span></span>';};
+  var chip=function(icon,n,label,col,bg){return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 8px;border-radius:7px;color:'+(bl?'#fff':col)+';background:'+(bl?'rgba(255,255,255,.15)':bg)+'">'+icon+'<span>'+n+' '+label+'</span></span>';};
   var chips='';
   if(bins) chips+=chip(iconTile('bins',{size:15}),bins,'Bin','#0e7490','rgba(8,145,178,.1)');
   if(junk) chips+=chip(iconTile('junk',{size:15,color:'yellow'}),junk,'Junk','#c2410c','rgba(217,119,6,.12)');
@@ -7441,12 +7441,12 @@ function makeClientCard(row){
   // No blacklisted chip any more — the band across the top of the card says it far louder.
   var tag='';
   if(isDormant) tag='<span style="font-size:11px;font-weight:700;color:'+(bl?'#fff':'#c2410c')+';background:'+(bl?'rgba(255,255,255,.15)':'rgba(217,119,6,.1)')+';border:1px solid '+(bl?'rgba(255,255,255,.3)':'#f0d2b0')+';padding:2px 8px;border-radius:6px">😴 Dormant</span>';
-  var contractorBadge = row.contractor?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;color:#fff;background:#2563eb;padding:2px 8px;border-radius:6px;letter-spacing:.3px">🏗️ CONTRACTOR</span>':'';
+  var contractorBadge = row.contractor?'<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#fff;background:#2563eb;padding:2px 8px;border-radius:6px;letter-spacing:.3px">🏗️ CONTRACTOR</span>':'';
   var cardStyle='border-radius:14px;box-shadow:var(--shadow-sm);cursor:pointer;overflow:hidden;'
     +(bl?'background:#2a0e11;border:2px solid var(--bad);'
         :'background:var(--surface);border:1px solid var(--border-strong);'+(row.contractor?'border-left:4px solid #2563eb;':''));
   var band = bl?'<div style="background:var(--bad-ink);color:#fff;font-size:12px;font-weight:800;letter-spacing:.6px;text-align:center;padding:7px 10px">BLACKLISTED — do not book</div>':'';
-  var line=function(icon,val,muted){return '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:'+(muted?cMuted:cTxt2)+';min-width:0"><span style="flex:none;width:15px;text-align:center">'+icon+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(val)+'</span></div>';};
+  var line=function(icon,val,muted){return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:'+(muted?cMuted:cTxt2)+';min-width:0"><span style="flex:none;width:15px;text-align:center">'+icon+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(val)+'</span></div>';};
   // Padding moved off the card and onto an inner wrapper so the band can run edge to edge.
   return '<div'+(bl?' class="client-card-blacklisted"':'')+' onclick="openClientDetailSafe(event,\''+cid+'\')" style="'+cardStyle+'">'
     +band
@@ -7460,7 +7460,7 @@ function makeClientCard(row){
       +'<button onclick="event.preventDefault();event.stopPropagation();editClient(\''+cid+'\')" style="min-height:32px;padding:0 12px;border:1px solid '+(bl?'rgba(255,255,255,.45)':'var(--border)')+';background:transparent;color:'+(bl?'#fff':'var(--muted)')+';border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex:none">✏ Edit</button>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px">'
-      +'<span style="font-size:11.5px;font-weight:700;color:'+cTxt2+'">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+cTxt2+'">'+(totalJobs===0?'No jobs yet':totalJobs+(totalJobs===1?' job':' jobs'))+'</span>'
       +((row._recent||0)>=2?'<span style="font-size:11px;font-weight:800;color:'+(bl?'#fff':'#15803d')+';background:'+(bl?'rgba(255,255,255,.15)':'rgba(34,197,94,.12)')+';border:1px solid '+(bl?'rgba(255,255,255,.3)':'rgba(34,197,94,.35)')+';padding:2px 8px;border-radius:6px">⭐ '+row._recent+' in 180d</span>':'')
       +(chips?'<span style="color:'+cLine+'">·</span>'+chips:'')+(tag?' '+tag:'')
     +'</div>'
@@ -8323,7 +8323,7 @@ async function renderMap(){
     var isOverdue=!!(j.binPickup && j.binPickup<today);
     var popup='<div class="p-id">'+j.id+(binNum?' · Bin '+escHtml(binNum):'')+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
-      +(isOverdue?'<div style="font-size:11.5px;font-weight:700;color:var(--bad);margin-bottom:4px">Overdue — pickup was '+fd(j.binPickup)+'</div>':'')
+      +(isOverdue?'<div style="font-size:12px;font-weight:700;color:var(--bad);margin-bottom:4px">Overdue — pickup was '+fd(j.binPickup)+'</div>':'')
       +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(binNum?'<br>🗑 Bin '+escHtml(binNum):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'<br>⬆ No pickup booked')+'</div>'
       +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
     var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status,isOverdue)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
@@ -8435,12 +8435,12 @@ function fleetClearAllFilters(){
 
 function renderFleet(){
   // filter chips
-  var chipBase='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var chipBase='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mkChip=function(f,lbl,dot){var on=fleetF===f;return '<button onclick="setFleetF(\''+f+'\')" style="'+chipBase+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+fleetCount(f)+'</span></button>';};
   var chipsEl=document.getElementById('fleet-chips');
   if(chipsEl)chipsEl.innerHTML=[mkChip('all','All bins'),mkChip('in','In yard','var(--accent)'),mkChip('out','Out','var(--bad)'),mkChip('oos','Damaged / out of rotation'),mkChip('prep','Being prepped / painted','#f97316'),mkChip('nfr','Not for rent'),mkChip('green','Green','var(--accent)'),mkChip('black','Black','#34373b'),mkChip('4 yard','4 yd'),mkChip('7 yard','7 yd'),mkChip('14 yard','14 yd'),mkChip('20 yard','20 yd')].join('');
   // sort chips
-  var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var sortBase='display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   // Sort chips were byte-identical to the filter chips above them, so a control that
   // changes WHAT YOU SEE looked exactly like one that changes THE ORDER. Filters keep
   // the solid fill; sort now uses the outlined treatment the view toggle already uses.
@@ -8487,7 +8487,7 @@ function renderFleet(){
   if(fleetView==='cards'){
     if(tableEl)tableEl.innerHTML='';
     if(cardsEl)cardsEl.innerHTML='<div style="display:flex;flex-direction:column;gap:20px">'+groups.map(function(g){
-      return '<div><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+g.pill+'<span style="font-size:12.5px;color:var(--text-secondary);font-weight:600">'+g.line+'</span></div><div class="fleet-card-grid">'+g.bins.map(makeBinCard).join('')+'</div></div>';
+      return '<div><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+g.pill+'<span style="font-size:13px;color:var(--text-secondary);font-weight:600">'+g.line+'</span></div><div class="fleet-card-grid">'+g.bins.map(makeBinCard).join('')+'</div></div>';
     }).join('')+'</div>';
   } else {
     if(cardsEl)cardsEl.innerHTML='';
@@ -8500,7 +8500,7 @@ function renderFleet(){
 }
 // Flag chips shared by card + table views.
 function binFlags(b){
-  var fb='display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;', out=[];
+  var fb='display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;', out=[];
   if(b.damage==='damage')out.push('<span style="'+fb+'background:var(--warn-soft);color:var(--warn-ink)">⚠ Damaged - still rents</span>');
   if(b.rotation==='oor')out.push('<span style="'+fb+'background:var(--n3);color:var(--n11)">♻ Out of rotation</span>');
   if(b.rotation==='prep')out.push('<span style="'+fb+'background:rgba(139,92,246,.12);color:#6d28d9">🎨 Being prepped / painted</span>');
@@ -8524,8 +8524,8 @@ function _binColorHex(b){return b.color==='green'?'var(--accent)':'#34373b';}
 function _binIsLow(b){return b.type==='low'||b.type==='wide';}
 function makeBinCard(b){
   var isIn=b.status==='in';
-  var statusStyle='display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
-  var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
+  var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes;
   var cardStyle='background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px;'+(b.damage==='damage'?'border-left:3px solid var(--bad)':'');
   return '<div style="'+cardStyle+'">'
@@ -8540,14 +8540,14 @@ function makeBinCard(b){
     // 224px) they wrap onto their own line rather than squeezing the note to nothing.
     +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;row-gap:8px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:9px;margin-top:2px">'
       +'<span onclick="openBinNote(\''+b.bid+'\')" style="flex:1 1 120px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted);font-style:italic')+'">'+(hasNote?escHtml(b.notes):'No notes · + note')+'</span>'
-      +'<button onclick="openBinPeek(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
-      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button>'
+      +'<button onclick="openBinPeek(\''+b.bid+'\')" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button>'
+      +'<button onclick="openBinMenu(\''+b.bid+'\',event)" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;height:34px;padding:0 11px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button>'
     +'</div></div>';
 }
 function makeBinTableRow(b){
   var isIn=b.status==='in';
-  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
-  var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
+  var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes, td='padding:10px 13px;border-bottom:1px solid var(--border)';
   return '<tr style="'+(b.damage==='damage'?'background:rgba(220,38,38,.035)':'')+'">'
     +'<td style="'+td+';font-size:13px"><span style="display:inline-flex;align-items:center;gap:7px"><span style="width:10px;height:10px;border-radius:50%;background:'+_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span><span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;letter-spacing:.4px;cursor:pointer" onclick="openBinPeek(\''+b.bid+'\')">'+escHtml(b.num||'')+'</span></span></td>'
@@ -8555,7 +8555,7 @@ function makeBinTableRow(b){
     +'<td style="'+td+'"><button onclick="quickToggleStatus(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button></td>'
     +'<td style="'+td+'">'+(flags.length?'<span style="display:inline-flex;flex-wrap:wrap;gap:4px">'+flags.join('')+'</span>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>'
     +'<td style="'+td+';font-size:12px;'+(hasNote?'color:var(--text-secondary)':'color:var(--muted)')+'"><span onclick="openBinNote(\''+b.bid+'\')" style="cursor:pointer">'+(hasNote?escHtml(b.notes):'+ note')+'</span></td>'
-    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinPeek(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
+    +'<td style="'+td+';text-align:right;white-space:nowrap"><button onclick="openBinPeek(\''+b.bid+'\')" style="height:32px;padding:0 9px;border:1px solid rgba(34,197,94,.4);background:var(--surface);color:#15803d;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">🕘 History</button> <button onclick="openBinMenu(\''+b.bid+'\',event)" style="height:32px;padding:0 9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap">⋯ More</button></td>'
   +'</tr>';
 }
 // -- Bin peek panel ------------------------------------------------------------
@@ -8586,7 +8586,7 @@ async function openBinPeek(bid){
   var ttl=document.getElementById('bin-peek-ttl');
   ttl.innerHTML='<span style="width:13px;height:13px;border-radius:50%;flex:none;display:inline-block;background:'
     +_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span> '+escHtml(b.num||'')
-    +'<span style="font-family:inherit;font-size:12.5px;letter-spacing:0;color:var(--muted);font-weight:600;margin-left:9px">'
+    +'<span style="font-family:inherit;font-size:13px;letter-spacing:0;color:var(--muted);font-weight:600;margin-left:9px">'
     +escHtml(b.size||'')+(b.size==='14 yard'?' · '+(_binIsLow(b)?'Low-Wide':'Regular'):'')+'</span>';
   _renderBinPeekTop(b);
   document.getElementById('bin-peek-hist').innerHTML='';
@@ -8599,19 +8599,19 @@ function _renderBinPeekTop(b){
   var el=document.getElementById('bin-peek-top');
   if(!el) return;
   var isIn=b.status==='in', flags=binFlags(b);
-  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:6px 13px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'
     +(isIn?'background:var(--ok-soft);color:var(--ok-ink)':'background:var(--warn-soft);color:var(--warn-ink)');
   el.innerHTML=
     '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">'
       +'<button onclick="_binPeekToggle(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
       // Anything inside the meta line opens a job, which opens a modal of its own --
       // so close the panel on the way out rather than leaving two sheets stacked.
-      +'<span onclick="closeM(\'bin-peek\')" style="font-size:12.5px">'+binMetaHtml(b)+'</span>'
+      +'<span onclick="closeM(\'bin-peek\')" style="font-size:13px">'+binMetaHtml(b)+'</span>'
     +'</div>'
     +'<div class="peek-sec">Flags</div>'
     +(flags.length
       ?'<div style="display:flex;flex-wrap:wrap;gap:5px">'+flags.join('')+'</div>'
-      :'<div style="font-size:12.5px;color:var(--muted)">Nothing flagged.</div>')
+      :'<div style="font-size:13px;color:var(--muted)">Nothing flagged.</div>')
     +'<div class="peek-sec">Note</div>'
     +'<div style="font-size:13px;line-height:1.5'+(b.notes?'':';color:var(--muted)')+'">'
       +(b.notes?escHtml(b.notes):'No note yet.')+'</div>'
@@ -10581,7 +10581,7 @@ function _jjBriefCard(it){
       + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--warn);margin-bottom:8px">Needs a bin number</div>'
       + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.id)+'</div>'
       + '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">Dropped '+fd(j.binDropoff)+', and we still don\'t know which bin went out.</div>'
-      + '<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">'+escHtml(sub)+'</div>'
+      + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+escHtml(sub)+'</div>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
         + '<button class="btn btn-primary" onclick="jjBriefAssignBin(\''+j.id+'\')">Pick the bin</button>'
         + '<button class="btn btn-ghost" onclick="jjBriefSkip()">Skip for now</button>'
@@ -10599,7 +10599,7 @@ function _jjBriefCard(it){
     + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d6efd;margin-bottom:8px">No confirmation sent</div>'
     + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.job_id)+'</div>'
     + '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">Booked yesterday'+(t?' at '+t:'')+' and never got a confirmation email.</div>'
-    + '<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">'+escHtml([j.job_id, j.service].filter(Boolean).join(' · '))+'</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+escHtml([j.job_id, j.service].filter(Boolean).join(' · '))+'</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
       + '<button class="btn btn-primary" onclick="jjBriefSendEmail(\''+j.job_id+'\')">Send the confirmation</button>'
       + (cl ? '<button class="btn btn-ghost" onclick="jjBriefNoConfirm(\''+cl.cid+'\')">'+escHtml(first)+' never needs one</button>' : '')
@@ -12184,7 +12184,7 @@ function renderReopenModal(j, prev){
     + (isBin
         ? field('reopen-date','Drop-off date', prev['Drop-off'], true) + field('reopen-pickup','Pickup date', prev['Pickup'], false)
         : field('reopen-date','Job date', prev['Date'], true))
-    + '<div id="reopen-err" style="display:none;font-size:12.5px;color:var(--bad);font-weight:600;margin-bottom:10px"></div>'
+    + '<div id="reopen-err" style="display:none;font-size:13px;color:var(--bad);font-weight:600;margin-bottom:10px"></div>'
     + '<div style="display:flex;gap:8px;margin-top:6px">'
       + '<button class="btn btn-ghost" onclick="closeM(\'reopen-modal\')" style="flex:1">Keep Postponed</button>'
       + '<button class="btn btn-primary" id="reopen-go" onclick="confirmReopenJob()" style="flex:2">Reopen job</button>'
@@ -12259,12 +12259,12 @@ async function openDetail(id, returnCid){
     var assignedBin = j.binBid ? binItems.find(function(b){return b.bid===j.binBid;}) : null;
     var binLabel = assignedBin ? (assignedBin.num+' · '+assignedBin.size+(assignedBin.color?' · '+(assignedBin.color==='green'?'🟢 Green':'⚫ Black'):'')) : (j.binSize||'—');
     bin='<div class="detail-section"><div class="detail-section-title">🚛 Bin Details</div>'
-      +(j.binLiveLoad?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 13px;border:1px solid #c4b5fd;background:#f3f0fb;border-radius:8px"><span style="font-size:14px;font-weight:800;letter-spacing:.5px;color:#7c3aed">⚡ LIVE LOAD</span><span style="font-size:12.5px;color:var(--muted)">Truck waits while it is loaded — the bin comes back the same day.</span></div>':'')
+      +(j.binLiveLoad?'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 13px;border:1px solid #c4b5fd;background:#f3f0fb;border-radius:8px"><span style="font-size:14px;font-weight:800;letter-spacing:.5px;color:#7c3aed">⚡ LIVE LOAD</span><span style="font-size:13px;color:var(--muted)">Truck waits while it is loaded — the bin comes back the same day.</span></div>':'')
       +'<div class="detail-grid">'
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
-      +'<div class="detail-item"><label>Pickup Date <button class="btn btn-ghost btn-sm" style="padding:1px 9px;font-size:10.5px;margin-left:6px;vertical-align:middle" onclick="openBinPickup(\''+j.id+'\')" title="Change the pickup date without opening Edit">'+lineIcon('calendar',11)+' Change</button></label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(217,119,6,.12);color:var(--warn);border:1px solid rgba(217,119,6,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
+      +'<div class="detail-item"><label>Pickup Date <button class="btn btn-ghost btn-sm" style="padding:1px 9px;font-size:11px;margin-left:6px;vertical-align:middle" onclick="openBinPickup(\''+j.id+'\')" title="Change the pickup date without opening Edit">'+lineIcon('calendar',11)+' Change</button></label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(217,119,6,.12);color:var(--warn);border:1px solid rgba(217,119,6,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?binSideLabel(j.binSide):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
@@ -12673,9 +12673,9 @@ function _drdPrintHtml(d){
         +'<td style="border:1px solid #000;padding:1.5px 3px;text-align:center;white-space:nowrap">$'+x.val+'</td>'
         +'<td style="border:1px solid #000;padding:1.5px 3px;text-align:center;font-weight:800;min-width:22px">'+(x.qty>0?x.qty:'')+'</td></tr>';
     }).join('');
-    cols+='<table style="border-collapse:collapse;width:100%;font-size:8.4px"><thead><tr>'
+    cols+='<table style="border-collapse:collapse;width:100%;font-size:8px"><thead><tr>'
       +'<th style="border:1px solid #000;padding:2px 4px;text-align:left;font-size:8px">ITEM</th>'
-      +'<th style="border:1px solid #000;padding:2px 2px;font-size:7.2px">RECEIPT<br>VALUE#</th>'
+      +'<th style="border:1px solid #000;padding:2px 2px;font-size:7px">RECEIPT<br>VALUE#</th>'
       +'<th style="border:1px solid #000;padding:2px 3px;font-size:8px">QTY</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
   var otherRows=d.others.map(function(o){
@@ -12692,7 +12692,7 @@ function _drdPrintHtml(d){
   return '<!DOCTYPE html><html><head><title>Donation Receiving Document</title><style>'
     +'*{box-sizing:border-box;margin:0}body{font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px 24px;font-size:10px}'
     +'@media print{@page{size:letter portrait;margin:7mm}body{padding:0}}'
-    +'.grn{background:#3faa4c;color:#fff;font-weight:800;padding:2px 10px;font-size:9.5px;letter-spacing:.4px;display:inline-block}'
+    +'.grn{background:#3faa4c;color:#fff;font-weight:800;padding:2px 10px;font-size:10px;letter-spacing:.4px;display:inline-block}'
     +'</style></head><body>'
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px">'
     +'<div style="font-size:15px;font-weight:800;white-space:nowrap">&#128666; JEFF&#8217;S JUNK<span style="font-size:10px">.ca</span></div>'
@@ -12707,15 +12707,15 @@ function _drdPrintHtml(d){
     +'<div style="flex:1;border:1.6px solid #000;padding:5px 8px"><span class="grn">DONATION DATE</span><div style="font-weight:700;font-size:12px;min-height:16px;padding-top:3px">'+esc(d.date?fd(d.date):'')+'</div></div>'
     +'</div>'
     +'<div style="display:flex;gap:12px;margin-bottom:10px">'
-    +'<ol style="flex:1;padding-left:16px;font-size:8.6px;line-height:1.45;color:#222">'+terms.map(function(t){return '<li style="margin-bottom:5px">'+t+'</li>';}).join('')+'</ol>'
+    +'<ol style="flex:1;padding-left:16px;font-size:9px;line-height:1.45;color:#222">'+terms.map(function(t){return '<li style="margin-bottom:5px">'+t+'</li>';}).join('')+'</ol>'
     +'<div style="flex:1.15;border:1.6px solid #000;padding:8px 12px"><span class="grn">DONOR INFORMATION</span>'
-    +'<div style="font-size:8.4px;color:#333;margin-top:3px">*Must have full mailing address &amp; signature to issue tax receipt</div>'
+    +'<div style="font-size:8px;color:#333;margin-top:3px">*Must have full mailing address &amp; signature to issue tax receipt</div>'
     +line('Donor Name:',d.donorName)+line('Mailing Address:',d.addr)+line('City:',d.city)+line('Postal Code:',d.postal)+line('Email:',d.email)+line('Phone:',d.phone)
     +'<div style="display:flex;gap:10px">'+line('Contact Person if Different Than Donor',d.contact,true)+line('Phone &amp; Email:',d.contactInfo,true)+'</div>'
     +'</div></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;align-items:start;margin-bottom:8px">'+cols+'</div>'
     +'<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">'
-    +'<div style="flex:1.3"><table style="border-collapse:collapse;width:100%;font-size:8.6px"><thead><tr><th style="border:1px solid #000;padding:2px 5px;text-align:left;font-size:8px">OTHER ITEM FROM FB LIST</th><th style="border:1px solid #000;padding:2px 4px;font-size:8px;width:34px">QTY</th></tr></thead><tbody>'+otherRows+'</tbody></table></div>'
+    +'<div style="flex:1.3"><table style="border-collapse:collapse;width:100%;font-size:9px"><thead><tr><th style="border:1px solid #000;padding:2px 5px;text-align:left;font-size:8px">OTHER ITEM FROM FB LIST</th><th style="border:1px solid #000;padding:2px 4px;font-size:8px;width:34px">QTY</th></tr></thead><tbody>'+otherRows+'</tbody></table></div>'
     +'<div style="flex:1"><table style="width:100%;font-size:9px;border-collapse:separate;border-spacing:0 8px">'
     +'<tr><td style="text-align:right;padding-right:8px">Number of Items:</td><td style="border:1.6px solid #000;width:86px;text-align:center;font-weight:800;font-size:13px;padding:4px">'+(d.totalItems||'')+'</td></tr>'
     +'<tr><td style="text-align:right;padding-right:8px">INKIND GIFT AMOUNT ($)</td><td style="border:1.6px solid #000;text-align:center;font-weight:800;font-size:13px;padding:4px">'+(d.inkind?'$'+d.inkind.toFixed(2):'')+'</td></tr>'
@@ -13869,7 +13869,7 @@ function undoToast(msg, onUndo) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.textContent = 'Undo';
-  btn.style.cssText = 'margin-left:14px;background:transparent;border:1.5px solid currentColor;color:inherit;font-family:inherit;font-size:12.5px;font-weight:800;padding:4px 12px;border-radius:7px;cursor:pointer';
+  btn.style.cssText = 'margin-left:14px;background:transparent;border:1.5px solid currentColor;color:inherit;font-family:inherit;font-size:13px;font-weight:800;padding:4px 12px;border-radius:7px;cursor:pointer';
   btn.onclick = function(){
     clearTimeout(t._tid);
     t.classList.remove('show');
@@ -14214,7 +14214,7 @@ async function openPushSettings(){
   } else if (!_pushSupported()) {
     body = '<div style="font-size:14px">This browser doesn\'t support notifications. On an iPhone, add the dashboard to your Home Screen first and open it from there.</div>';
   } else {
-    body = '<div id="push-status" style="font-size:13.5px;color:var(--muted);margin-bottom:14px">Checking this device…</div>'
+    body = '<div id="push-status" style="font-size:14px;color:var(--muted);margin-bottom:14px">Checking this device…</div>'
       + '<button class="btn btn-primary" onclick="enablePush()" style="width:100%;justify-content:center;padding:13px">🔔 Enable notifications on this device</button>';
   }
   var ov = document.createElement('div');
@@ -14222,7 +14222,7 @@ async function openPushSettings(){
   ov.onclick = function(e){ if (e.target === ov) ov.remove(); };
   ov.innerHTML = '<div class="modal" style="max-width:440px;width:92vw">'
     + '<h3 style="margin:0 0 4px">🔔 Notifications</h3>'
-    + '<div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">New junk quotes go to Jeff; the morning bin summary goes to Jeff, Barbara and Jake. Enabling on a device that isn\'t on those lists does nothing bad — it just stays quiet.</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">New junk quotes go to Jeff; the morning bin summary goes to Jeff, Barbara and Jake. Enabling on a device that isn\'t on those lists does nothing bad — it just stays quiet.</div>'
     + body
     + '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn btn-ghost" onclick="document.getElementById(\'push-settings-overlay\').remove()">Close</button></div>'
     + '</div>';
@@ -15596,8 +15596,8 @@ function renderDrdModalGrid(){
           :'<span style="width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)">'+JWGIcons.svg('furniture',{size:17})+'</span>';
         mhtml+='<div style="display:flex;align-items:center;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:8px">'
           +thumb
-          +'<div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
-          +'<div style="font-size:9.5px;color:var(--muted)">$'+item.val+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+          +'<div style="font-size:10px;color:var(--muted)">$'+item.val+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:5px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdModalStep('+i+',-1)" aria-label="Remove one">&minus;</button>'
           +'<input type="number" class="drd-m-qty" id="drd-m-qty-'+i+'" min="0" placeholder="0" oninput="drdModalRecalc()">'
@@ -16361,7 +16361,7 @@ function renderVehicles(){
   if(sub) sub.textContent = dash.length+' truck'+(dash.length!==1?'s':'')+' · '+good+' good · '+needs+' need attention · '+shop+' in the shop';
   if(inboxEl) inboxEl.innerHTML = _renderVehAttention(rows);
   if(filtersEl) filtersEl.innerHTML = _renderVehToolbar(rows.length, good, needs, shop);
-  var legend = '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:0 2px 14px">'
+  var legend = '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 2px 14px">'
     +_vehLegend('var(--accent)','All good')+_vehLegend('#eab308','Attention soon')+_vehLegend('var(--bad)','Service due now')+_vehLegend('var(--warn)','In the shop')+'</div>';
   var filtered = rows.filter(function(x){return vehFilterPass(x.ov,_vehFilter);});
   var body;
@@ -16395,14 +16395,14 @@ function _renderVehAttention(rows){
     +'<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a3412;margin-bottom:11px;display:flex;align-items:center;gap:7px">⚠️ Needs attention <span style="background:var(--warn);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px">'+out.length+'</span></div>'
     +'<div style="display:grid;gap:9px">'+out.map(function(a){
       return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:'+a.dot+'"></span>'
-        +'<div style="flex:1;min-width:140px"><span style="font-weight:700;font-size:13px">'+escHtml(a.name||'')+'</span> <span style="color:var(--muted);font-size:12.5px">— '+a.reason+'</span></div>'
+        +'<div style="flex:1;min-width:140px"><span style="font-weight:700;font-size:13px">'+escHtml(a.name||'')+'</span> <span style="color:var(--muted);font-size:13px">— '+a.reason+'</span></div>'
         +(a.act?'<button onclick="markOilServicedQuick(\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark serviced</button>':'')
         +(a.fixId?'<button onclick="vehFixIssue(\''+a.fixId+'\',\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ Fixed</button>':'')
       +'</div>';
     }).join('')+'</div></div>';
 }
 function _renderVehToolbar(total,good,needs,shop){
-  var cb='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var cb='display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var mk=function(f,lbl,n,dot){var on=_vehFilter===f;return '<button onclick="setVehFilter(\''+f+'\')" style="'+cb+(on?'background:#16a34a;color:#fff;border-color:#16a34a':'background:var(--surface);color:var(--muted)')+'">'+(dot?'<span style="width:8px;height:8px;border-radius:50%;flex:none;background:'+dot+'"></span>':'')+lbl+' <span style="opacity:.6;font-weight:700">'+n+'</span></button>';};
   return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
     +'<div class="bf-scroll" style="display:flex;gap:7px;overflow-x:auto;flex:1;min-width:0">'+mk('all','All',total)+mk('good','Good',good,'var(--accent)')+mk('needs','Needs service',needs,'var(--bad)')+mk('shop','In the shop',shop,'var(--warn)')+'</div>'
@@ -16410,22 +16410,22 @@ function _renderVehToolbar(total,good,needs,shop){
   +'</div>';
 }
 function _vehInfoRow(label,value,color){
-  return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span style="color:var(--muted)">'+label+'</span><span style="font-weight:700;color:'+color+'">'+escHtml(value)+'</span></div>';
+  return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px"><span style="color:var(--muted)">'+label+'</span><span style="font-weight:700;color:'+color+'">'+escHtml(value)+'</span></div>';
 }
 function _vehShopPanel(vid){
   var reasons=['Maintenance','Repair','Safety check','Tires','Other'];
-  var rc='font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
+  var rc='font-size:12px;font-weight:600;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:inherit;border:1px solid var(--border);';
   var chips=reasons.map(function(r){var on=_vehShop.reason===r;return '<button onclick="vehShopReason(\''+r+'\')" style="'+rc+(on?'background:#fff7ed;color:#c2410c;border-color:#f0b27a':'background:var(--surface);color:var(--muted)')+'">'+r+'</button>';}).join('');
   var note = _vehShop.reason==='Other' ? '<input value="'+String(_vehShop.note||'').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'" oninput="_vehShop.note=this.value" placeholder="Tell us what for… (required)" style="width:100%;border:1.5px solid #f0b27a;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:11px;outline:none;box-sizing:border-box">' : '';
   var canSend = _vehShop.reason && (_vehShop.reason!=='Other' || (_vehShop.note && _vehShop.note.trim()));
-  var sendStyle='flex:1;min-height:38px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;font-family:inherit;'+(canSend?'background:var(--warn);color:#fff;cursor:pointer':'background:#f0d2b0;color:#fff;cursor:not-allowed');
+  var sendStyle='flex:1;min-height:38px;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;'+(canSend?'background:var(--warn);color:#fff;cursor:pointer':'background:#f0d2b0;color:#fff;cursor:not-allowed');
   return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px">'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">Send to the shop</div>'
     +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">What for?</div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px">'+chips+'</div>'+note
     +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px">Back by <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional)</span></div>'
     +'<input type="date" value="'+String(_vehShop.backBy||'')+'" min="'+todayStr()+'" oninput="_vehShop.backBy=this.value" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:10px;box-sizing:border-box">'
-    +'<div style="display:flex;gap:7px">'+(canSend?'<button onclick="vehConfirmShop(\''+vid+'\')"':'<button disabled')+' style="'+sendStyle+'">🔧 Send to shop</button><button onclick="closeVehShop()" style="min-height:38px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button></div>'
+    +'<div style="display:flex;gap:7px">'+(canSend?'<button onclick="vehConfirmShop(\''+vid+'\')"':'<button disabled')+' style="'+sendStyle+'">🔧 Send to shop</button><button onclick="closeVehShop()" style="min-height:38px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button></div>'
   +'</div>';
 }
 // ── Fleet Focus hero (v555, from Jake's Claude Design mockup) ──
@@ -16521,7 +16521,7 @@ function _vehHeroRow(x,featVid){
     +(photos.length?'<div class="ffv-thumb"><img src="'+photos[0]+'" alt="" loading="lazy" draggable="false"></div>':'')
     +'<div style="flex:1;min-width:0">'
       +'<div class="ffv-row-name">'+escHtml(v.name||'')+'</div>'
-      +'<div class="ffv-mono" style="font-size:10.5px;margin-top:3px">'+escHtml((v.notes||'').trim()||v.type||'')+' · '+_vehStatusTxt(v)+'</div>'
+      +'<div class="ffv-mono" style="font-size:11px;margin-top:3px">'+escHtml((v.notes||'').trim()||v.type||'')+' · '+_vehStatusTxt(v)+'</div>'
     +'</div>'
     +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none">'
       +'<span style="'+pillStyle+'">'+m.pill+'</span>'
@@ -16591,7 +16591,7 @@ function _vehFeatCard(v,ov){
   } else if(ov==='due'){ bIcon='🔧'; bTitle='Service due now'; bMsg=escHtml(probs.join(' · '))||'Needs attention'; bColor='var(--bad-ink)'; }
   else if(ov==='soon'){ bIcon='⚠️'; bTitle='Attention soon'; bMsg=escHtml(probs.join(' · '))||'Coming up'; bColor='#a16207'; }
   else { bIcon='🛡️'; bTitle='All good'; bMsg='No issues detected'; bColor='#15803d'; }
-  h+='<div class="ffv-banner"><span style="font-size:24px">'+bIcon+'</span><div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:800;color:'+bColor+'">'+bTitle+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+bMsg+'</div></div></div>';
+  h+='<div class="ffv-banner"><span style="font-size:24px">'+bIcon+'</span><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800;color:'+bColor+'">'+bTitle+'</div><div style="font-size:13px;color:var(--muted);margin-top:1px">'+bMsg+'</div></div></div>';
   var oilLast=v.oilDate?fd(v.oilDate):'Not tracked';
   var oilSched=(_maintCache[v.vid]||[]).find(function(x){return /oil/i.test(x.maintenance_type||'');});
   var oilEvery=oilSched&&oilSched.interval_km?('every '+oilSched.interval_km.toLocaleString()+' km'):(v.oilInterval?('every '+parseInt(v.oilInterval).toLocaleString()+' km'):'no interval set');
@@ -16601,7 +16601,7 @@ function _vehFeatCard(v,ov){
   h+='<div class="ffv-tiles">'
     +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(o.state)+'">🛢️ Oil service</div><div class="ffv-tile-v">Last '+oilLast+'</div><div class="ffv-tile-s">'+oilEvery+' · '+_vehOilText(o).toLowerCase()+(oilDueTxt?' · due '+oilDueTxt:'')+'</div></div>'
     +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(s.state)+'">📋 Safety sticker</div><div class="ffv-tile-v">'+escHtml(_vehStickerText(s))+'</div><div class="ffv-tile-s">'+(s.days==null?'set it in Edit':(s.days<0?Math.abs(s.days)+' days expired':s.days+' days left'))+'</div>'
-      +(s.days!=null?'<button onclick="vehStickerRenewed(\''+v.vid+'\')" style="margin-top:8px;min-height:30px;padding:0 11px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Renewed — bump a year</button>':'')+'</div>'
+      +(s.days!=null?'<button onclick="vehStickerRenewed(\''+v.vid+'\')" style="margin-top:8px;min-height:30px;padding:0 11px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Renewed — bump a year</button>':'')+'</div>'
     +'<div class="ffv-tile"><div class="ffv-mono-lbl">👷 Crew today</div><div class="ffv-tile-v">'+(crew.length?escHtml(crew.join(', ')):'No one assigned')+'</div><div class="ffv-tile-s">from today\'s truck assignments</div></div>'
     +'<div class="ffv-tile"><div class="ffv-mono-lbl">🏷️ Plate / Notes</div><div class="ffv-tile-v">'+escHtml((v.notes||'').trim()||'—')+'</div><div class="ffv-tile-s">'+escHtml(v.type||'')+'</div></div>'
   +'</div>';
@@ -16617,7 +16617,7 @@ function _vehFeatCard(v,ov){
         +'<button onclick="vehFixIssue(\''+i.id+'\',\''+v.vid+'\')" style="min-height:32px;padding:0 12px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ Fixed</button>'
       +'</div>';
     }).join(''):'<div class="ffv-tile-s" style="margin-bottom:8px">Nothing reported — truck\'s clean.</div>')
-    +'<div style="display:flex;gap:7px"><input id="ffv-issue-in" placeholder="Report a problem — e.g. tarp system broken" style="flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key===\'Enter\')vehAddIssue(\''+v.vid+'\')">'
+    +'<div style="display:flex;gap:7px"><input id="ffv-issue-in" placeholder="Report a problem — e.g. tarp system broken" style="flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key===\'Enter\')vehAddIssue(\''+v.vid+'\')">'
     +'<button onclick="vehAddIssue(\''+v.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">+ Add</button></div>'
   +'</div>';
   // Service history — shop stays, logged services, fixed problems (newest first)
@@ -16627,7 +16627,7 @@ function _vehFeatCard(v,ov){
       +'<summary class="ffv-mono-lbl" style="cursor:pointer;user-select:none">📜 Service history — '+lg.length+' entr'+(lg.length!==1?'ies':'y')+'</summary>'
       +'<div style="margin-top:9px;display:grid;gap:7px">'
       +lg.slice(0,15).map(function(e){
-        return '<div style="display:flex;gap:10px;align-items:baseline;font-size:12.5px"><span class="ffv-mono" style="font-size:10.5px;flex:none">'+e.when+'</span><div style="min-width:0"><b>'+escHtml(e.kind)+'</b>'+(e.detail?' — '+escHtml(e.detail):'')+(e.cost!=null?' · $'+e.cost.toFixed(2):'')+'</div></div>';
+        return '<div style="display:flex;gap:10px;align-items:baseline;font-size:13px"><span class="ffv-mono" style="font-size:11px;flex:none">'+e.when+'</span><div style="min-width:0"><b>'+escHtml(e.kind)+'</b>'+(e.detail?' — '+escHtml(e.detail):'')+(e.cost!=null?' · $'+e.cost.toFixed(2):'')+'</div></div>';
       }).join('')
       +(lg.length>15?'<div class="ffv-tile-s">…and '+(lg.length-15)+' more</div>':'')
       +'</div></details>';
@@ -16652,7 +16652,7 @@ function makeVehicleListRow(v,ov){
   var pillStyle='font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
   var h='<div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)">'
     +'<span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+m.dot+'"></span>'
-    +'<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</div><div style="font-size:11.5px;color:var(--muted)">Oil '+_vehOilText(o)+' · Sticker '+_vehStickerText(s)+'</div></div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</div><div style="font-size:12px;color:var(--muted)">Oil '+_vehOilText(o)+' · Sticker '+_vehStickerText(s)+'</div></div>'
     +'<span style="'+pillStyle+'">'+m.pill+'</span>';
   if(ov==='shop') h+='<button onclick="vehBackInService(\''+v.vid+'\')" style="min-height:36px;padding:0 12px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Back in service</button>';
   else h+='<button onclick="openVehShop(\''+v.vid+'\')" style="min-height:36px;padding:0 12px;border:1px solid #f0b27a;background:#fff7ed;color:#c2410c;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Shop</button>';
@@ -17280,10 +17280,10 @@ function askNameMismatch(clientName, typedName){
         + '<div style="font-size:14px;color:var(--text);margin-bottom:14px">This booking is attached to one customer file, but a different name is typed on it.</div>'
         + '<div style="display:flex;gap:10px;margin-bottom:16px">'
           + '<div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">'
-            + '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px">Attached to</div>'
+            + '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px">Attached to</div>'
             + '<div style="font-size:14px;font-weight:700">'+esc(clientName)+'</div></div>'
           + '<div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">'
-            + '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px">Typed on the job</div>'
+            + '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:3px">Typed on the job</div>'
             + '<div style="font-size:14px;font-weight:700">'+esc(typedName)+'</div></div>'
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:8px">'
@@ -17811,7 +17811,7 @@ function openQuoteInvite(jobId){
   }).join('');
   ov.innerHTML='<div class="modal" style="max-width:430px;width:92vw">'
     +'<h3 style="margin:0 0 4px">📅 Calendar invite</h3>'
-    +'<div style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Pick who gets invited, then open the downloaded file to add the quote to Apple Calendar.</div>'
+    +'<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Pick who gets invited, then open the downloaded file to add the quote to Apple Calendar.</div>'
     +checks
     +'<input id="qi-extra" type="text" placeholder="Another email (optional)" style="width:100%;margin-top:8px;padding:9px 11px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:13px">'
     +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">'

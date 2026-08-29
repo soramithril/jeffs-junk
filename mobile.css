@@ -58,7 +58,7 @@
    duplicate of the search you had just typed into. One box, and a chip that
    says whether the AI is the one answering. */
 .jsearch-bar{display:flex;align-items:center;gap:8px;margin:0 0 12px}
-.jsearch-bar #ai-search-q{flex:1;min-width:0;height:46px;font-size:14.5px;border-radius:11px;margin:0}
+.jsearch-bar #ai-search-q{flex:1;min-width:0;height:46px;font-size:15px;border-radius:11px;margin:0}
 .jsearch-ai{
   flex:none;display:inline-flex;align-items:center;gap:6px;height:46px;padding:0 16px;
   border:1px solid var(--border);border-radius:11px;background:var(--surface);
@@ -72,7 +72,7 @@
 @media(max-width:900px){
 
   /* ─── Bottom tab bar now carries five tabs ─────────────────────────────── */
-  .mtab{font-size:9.5px;padding:8px 2px 7px;}
+  .mtab{font-size:10px;padding:8px 2px 7px;}
 
   /* ─── Create sheet lists five things now, so let it scroll ─────────────── */
   .msheet{max-height:80vh;overflow-y:auto;}
@@ -125,7 +125,7 @@
     -webkit-tap-highlight-color:transparent;
   }
   .mcollapse-sum{
-    flex:1;min-width:0;font-size:12.5px;font-weight:700;
+    flex:1;min-width:0;font-size:13px;font-weight:700;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   .mcollapse-caret{flex:none;color:var(--muted);font-size:12px;transition:transform .18s;}
@@ -144,7 +144,7 @@
   #mday-counts span{
     display:inline-flex;align-items:center;gap:5px;
     background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);
-    border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap;
+    border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700;white-space:nowrap;
   }
   #mday-counts b{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.5px;}
 
@@ -168,7 +168,7 @@
   .mseg-badge{
     min-width:18px;height:18px;padding:1px 6px;border-radius:99px;
     background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);
-    font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;
   }
   .mseg.is-active .mseg-badge{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff;}
   .mseg.is-empty{opacity:.45;}
@@ -189,7 +189,7 @@
   .tjr2 .tjr2-time{order:0;align-self:center;}
   .tjr2 .djj-main{order:1;flex:1 1 120px;min-width:0;}
   .tjr2 .djj-name{white-space:normal;overflow:visible;font-size:14px;line-height:1.25;}
-  .tjr2 .djj-sub{white-space:normal;overflow:visible;font-size:11.5px;line-height:1.3;}
+  .tjr2 .djj-sub{white-space:normal;overflow:visible;font-size:12px;line-height:1.3;}
   .tjr2 .djj-main>div:first-child{flex-wrap:wrap;gap:5px;}
   .tjr2-actions{order:2;min-width:0;flex:0 0 auto;max-width:46%;justify-content:flex-end;flex-wrap:wrap;gap:5px;}
   .tjr2-actions .djj-btn{font-size:11px;padding:6px 9px;}
@@ -198,7 +198,7 @@
   /* ─── Needs-you rows: "Send email · NAME · junk quote · today", button at
      the end. The desktop wording is in the row too and swaps out here. ───── */
   .ny-row{flex-wrap:wrap;row-gap:9px;padding:12px 13px !important;}
-  .ny-row .ny-title{font-size:13.5px;white-space:normal !important;line-height:1.35;}
+  .ny-row .ny-title{font-size:14px;white-space:normal !important;line-height:1.35;}
   .ny-t-desk{display:none;}
   .ny-t-phone{display:inline;}
   .ny-row .ny-meta{display:none;}
@@ -219,11 +219,11 @@
   .mcl-row.bl .mcl-name{color:#fff;}
   .mcl-main{flex:1;min-width:0;}
   .mcl-name{
-    font-size:14.5px;font-weight:700;color:var(--text);
+    font-size:15px;font-weight:700;color:var(--text);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   .mcl-bl{
-    margin-left:7px;font-size:9.5px;font-weight:800;letter-spacing:.5px;
+    margin-left:7px;font-size:10px;font-weight:800;letter-spacing:.5px;
     color:#fff;background:var(--bad-ink);border-radius:5px;padding:2px 6px;vertical-align:1px;
   }
   .mcl-chips{display:flex;gap:5px;margin-top:4px;overflow-x:auto;scrollbar-width:none;}
@@ -232,7 +232,7 @@
     flex:0 0 auto;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;
   }
   .mcl-tel{
-    flex:none;font-size:12.5px;font-weight:700;text-decoration:none;
+    flex:none;font-size:13px;font-weight:700;text-decoration:none;
     color:#16a34a;border:1.5px solid #bbe6cc;border-radius:9px;padding:7px 11px;white-space:nowrap;
   }
 
@@ -240,7 +240,7 @@
      modal, which on a phone is a scroll nobody finds. */
   .cdet-jobs{overflow-x:visible !important;}
   .cdet-jobs table{table-layout:fixed;}
-  .cdet-jobs thead th{padding:8px 6px;font-size:9.5px;letter-spacing:.4px;}
+  .cdet-jobs thead th{padding:8px 6px;font-size:10px;letter-spacing:.4px;}
   .cdet-jobs tbody td{padding:8px 6px;font-size:12px;word-break:break-word;}
   .cdet-jobs td span,.cdet-jobs td .badge,.cdet-jobs td .service-badge{white-space:normal !important;}
 
@@ -259,10 +259,10 @@
     flex:1;min-width:0;font-size:14px;font-weight:800;letter-spacing:0;
     text-transform:none;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
-  .pvm-head-z{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:none;}
+  .pvm-head-z{flex:none;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:none;}
   .pvm-back{
     flex:none;background:var(--surface);border:1px solid var(--border);color:var(--text);
-    border-radius:9px;font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;
+    border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;
     letter-spacing:0;text-transform:none;padding:7px 12px;cursor:pointer;
   }
   .pvm-search{
@@ -279,8 +279,8 @@
   }
   .pvm-row:last-child{border-bottom:none;}
   .pvm-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-  .pvm-row-t{font-size:14.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .pvm-row-s{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pvm-row-t{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pvm-row-s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .pvm-row-p{
     flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;
     font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;letter-spacing:.5px;color:var(--accent-hover);
@@ -314,15 +314,15 @@
   .csm-row.is-today,.csm-prow.is-today{border-color:rgba(34,197,94,.5);box-shadow:inset 3px 0 0 var(--accent);}
   .csm-row.quiet,.csm-prow.quiet,.csm-card.dim{opacity:.6;}
   .csm-date{flex:none;width:42px;text-align:center;display:flex;flex-direction:column;gap:1px;}
-  .csm-dn{font-size:9.5px;font-weight:800;letter-spacing:.6px;color:var(--muted);}
+  .csm-dn{font-size:10px;font-weight:800;letter-spacing:.6px;color:var(--muted);}
   .csm-dd{font-family:'Bebas Neue',sans-serif;font-size:19px;line-height:1;color:var(--text);}
   .csm-date.tdy .csm-dd{color:var(--accent-hover);}
   .csm-mid,.csm-cmid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
-  .csm-sum{font-size:12.5px;color:var(--text-secondary);}
+  .csm-sum{font-size:13px;color:var(--text-secondary);}
   .csm-sum b{color:var(--text);font-weight:800;}
   .csm-quiet{font-size:12px;color:var(--muted);font-weight:600;}
   .csm-flags{display:flex;flex-wrap:wrap;gap:5px;}
-  .csm-flag{font-size:10.5px;font-weight:700;color:#c2410c;}
+  .csm-flag{font-size:11px;font-weight:700;color:#c2410c;}
   .csm-avs{display:flex;}
   .csm-avs>*{margin-right:-5px;}
   .csm-more{
@@ -346,14 +346,14 @@
     font-size:10px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;
     color:var(--muted);margin:12px 0 6px;
   }
-  .csm-name{font-size:13.5px;font-weight:700;color:var(--text);}
+  .csm-name{font-size:14px;font-weight:700;color:var(--text);}
   .csm-chips{display:flex;flex-wrap:wrap;gap:5px;min-width:0;}
   .csm-chip{
-    font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;line-height:1.35;
+    font-size:11px;font-weight:700;border-radius:7px;padding:3px 7px;line-height:1.35;
     max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .csm-badge{
-    flex:none;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+    flex:none;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
     border-radius:999px;padding:4px 9px;background:var(--surface2);color:var(--text-secondary);
     border:1px solid var(--border);
   }
@@ -363,7 +363,7 @@
   .csm-pchip{
     flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
     border:1px solid var(--border);background:var(--surface);border-radius:999px;
-    padding:5px 12px 5px 5px;font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;
+    padding:5px 12px 5px 5px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
     color:var(--text-secondary);cursor:pointer;-webkit-tap-highlight-color:transparent;
   }
   .csm-pchip.sel{background:var(--accent-light);border-color:var(--accent-hover);color:var(--accent-hover);}
@@ -412,7 +412,7 @@
   }
   .jcard-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
   .jcard-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;}
-  .jcard-addr{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.4;}
+  .jcard-addr{font-size:13px;color:var(--muted);margin-top:7px;line-height:1.4;}
   .jcard-acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
   .jcard-acts .jcell-email:empty{display:none;}
   #view-jobs .cat-section{border:none;background:none;}
@@ -430,7 +430,7 @@
   #view-drdcalc .drdc-money{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
   }
-  #view-drdcalc .drdc-money__k{font-size:9.5px;letter-spacing:.4px;}
+  #view-drdcalc .drdc-money__k{font-size:10px;letter-spacing:.4px;}
   #view-drdcalc .drdc-money__v{font-size:17px !important;}
   #view-drdcalc .drdc-quote>div:last-child{margin-top:7px !important;}
   #view-drdcalc .drdc-quote .btn{flex:1;justify-content:center;font-size:13px;padding:8px 10px;}
@@ -457,7 +457,7 @@
   }
   .mfilters-count{
     display:none;min-width:18px;height:18px;padding:0 6px;border-radius:99px;
-    background:var(--accent);color:#fff;font-size:10.5px;font-weight:800;
+    background:var(--accent);color:#fff;font-size:11px;font-weight:800;
     align-items:center;justify-content:center;
   }
   .mfilters-count.on{display:inline-flex;}
