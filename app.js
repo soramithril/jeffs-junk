@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '644';
+var APP_VERSION = '645';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2929,7 +2929,7 @@ async function refreshDashBinStats(){
   // it stays on the real today — otherwise browsing next week silently rewrites it.
   if(dateStr===today){ var mbEl=document.getElementById('m-bins'); if(mbEl)mbEl.textContent=binsOut; }
   var fdLbl=document.getElementById('dash-fleet-deployed-lbl');
-  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span style="color:var(--accent);font-weight:800">'+outPct+'%</span>';
+  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span style="color:var(--data);font-weight:800">'+outPct+'%</span>';
   setTimeout(function(){
     var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
     var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% deployed';
@@ -2961,7 +2961,13 @@ async function refreshDashBinStats(){
     var isLow=(!isFull && tot>0 && availPct<=25);
     var statusColor=isFull?'var(--bad)':(isLow?'var(--warn)':'var(--ok)');
     var numColor=statusColor;
-    var barColor=statusColor;
+    // The bar used to repeat the number's colour, which put a second green next to
+    // the green bin photo and said nothing the number had not already said. It now
+    // carries HOW MUCH OF THIS SIZE IS OUT, on the same cyan ramp the charts use —
+    // palest when most are sitting in the yard, deepest when nearly all are earning.
+    // The number keeps the traffic light: that is the part that is a judgement.
+    var outPctSize=tot?Math.round((tot-inY)/tot*100):0;
+    var barColor=outPctSize>=75?'var(--size4)':(outPctSize>=50?'var(--data)':(outPctSize>=25?'var(--size2)':'var(--size1)'));
     // Overdue pill moves to the top-LEFT: the size label took the top-right
     // corner when it came out of the card's flow (v481).
     var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:9px;font-weight:700;color:var(--bad-ink);background:var(--bad-soft);padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
@@ -8432,7 +8438,7 @@ function renderBinInventory(){
   var sumEl=document.getElementById('fleet-summary');
   if(sumEl) sumEl.innerHTML=
     '<div class="fleet-summary-bars">'
-      +bar('Fleet deployed', out+' of '+total+' out · '+deployedPct+'%', deployedPct, 'linear-gradient(90deg,var(--bad),#f97316)')
+      +bar('Fleet deployed', out+' of '+total+' out · '+deployedPct+'%', deployedPct, 'linear-gradient(90deg,var(--data-edge),var(--size4))')
       +bar('🖌️ All-green conversion', greens+' of '+total+' green · '+blacks+' still black', greenPct, 'var(--accent)')
     +'</div><div class="fleet-tiles">'
       +mkTile('decals',needDecals,'Needs decals',false)

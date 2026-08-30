@@ -39,7 +39,6 @@
      looked identical. It now has its own deeper green. */
   --accent-hero:#22c55e;--accent:#16a34a;--accent-light:#f0fdf4;--accent-hover:#15803d;
   --green-s1:#22c55e;--green-s2:#16a34a;--green-s3:#15803d;--green-s4:#166534;
-  --green-b1:#4ade80;--green-b2:#22c55e;--green-b3:#16a34a;--green-b4:#15803d;
   --accent-warm:#c2410c;
 
   /* STATUS — strict traffic light (item 04). Six reds became one; four ambers
@@ -66,7 +65,8 @@
      moves onto the cyan already used for bins; green is kept for bars that
      genuinely mean good. One ramp for the four bin sizes, everywhere. */
   --size1:#a5e5f0;--size2:#5bc4dc;--size3:#0891b2;--size4:#0e5f75;
-  --data:#0e7490;          /* default series */
+  --data:#0e7490;
+  --data-soft:rgba(8,145,178,.13); --data-edge:#0891b2;          /* default series */
   --data-cmp:var(--n8);    /* last period — a reference, not a competitor */
   --sidebar-w:240px;        /* expanded rail (hover) */
   --sidebar-rail:82px;      /* resting rail (icons only) — .main is laid out against this */
@@ -2577,12 +2577,12 @@ input[type=date],input[type=time]{position:relative;}
 #dash-strip{
   display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
   margin-bottom:16px;padding:10px 16px;
-  border:1px solid var(--border);border-left:3px solid var(--accent-hero);border-radius:12px;
-  background:linear-gradient(100deg,rgba(34,197,94,.16),rgba(34,197,94,.04) 42%,var(--surface) 78%);
+  border:1px solid var(--border);border-left:3px solid var(--data-edge);border-radius:12px;
+  background:linear-gradient(100deg,var(--data-soft),rgba(8,145,178,.035) 42%,var(--surface) 78%);
   box-shadow:0 6px 20px rgba(0,0,0,.07);
 }
 #dash-strip-date{
-  font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent-hover);
+  font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--data);
 }
 
 /* ── COMMAND PALETTE ──────────────────────────────────────────────────────────

@@ -23,6 +23,35 @@
   var _loading={};                  // weekKey -> true while fetching
   var _observer=null;
   var _timer=null;
+  // ── SHOW JOBS ──
+  // Normally a junk job is hidden as soon as a real shift of the same kind covers it —
+  // the scheduler is king and the feed only fills the gaps. Turning this on lifts that
+  // one filter, so the week shows the shifts AND the jobs underneath them. A day marked
+  // off or sick still wins outright: that is the scheduler making a statement, not a gap.
+  var _showAll=(function(){try{return localStorage.getItem("jjFeedShowJobs")==="1";}catch(e){return false;}})();
+  function toggleShowJobs(){
+    _showAll=!_showAll;
+    try{localStorage.setItem("jjFeedShowJobs",_showAll?"1":"0");}catch(e){}
+    schedulePaint();
+  }
+  // The button lives in the scheduler's own control bar but is injected from here, so the
+  // generated bundle stays untouched — same rule the chips follow.
+  function ensureToggle(view,count){
+    var bar=view.querySelector(".ctrl-bar .ctrl-actions");
+    if(!bar)return;
+    var btn=bar.querySelector(".jwg-showjobs");
+    if(!btn){
+      btn=document.createElement("button");
+      btn.className="ctrl-btn jwg-showjobs";
+      btn.onclick=toggleShowJobs;
+      bar.appendChild(btn);
+    }
+    btn.className="ctrl-btn jwg-showjobs"+(_showAll?" ctrl-btn-accent":"");
+    btn.title=_showAll
+      ? "Hide the junk jobs that a shift already covers"
+      : "Also show the junk jobs that a shift already covers";
+    btn.textContent=(_showAll?"🚚 Jobs shown":"🚚 Show jobs")+(count?" · "+count:"");
+  }
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   function pad(n){return String(n).padStart(2,"0");}
@@ -199,6 +228,7 @@
     if(!entries.length)return [];
     var dd=(S.schedule[emp.id]||{})[day]||{};
     if(dd.status==="dayoff"||dd.status==="sick"||dd.status==="nonworking")return [];
+    if(_showAll)return entries.slice();
     var labels=[];
     (dd.shifts||[]).forEach(function(sh){(sh.tasks||(sh.task?[sh.task]:[])).forEach(function(tid){labels.push(tmap[tid]||String(tid).toLowerCase());});});
     return entries.filter(function(en){return !coveredBy(labels,en.taskKey);});
@@ -291,7 +321,7 @@
               // Per-entry hiding: a real shift only covers ghosts of the SAME kind (e.g. a real
               // Bins shift hides the Bins ghost but leaves an uncovered Junk Removal ghost showing).
               var realLabels=[].map.call(cell.querySelectorAll(".shift-bar:not(.jwg-junk-chip) .shift-label"),function(n){return (n.textContent||"").toLowerCase();});
-              var visible=entries.filter(function(en){return !coveredBy(realLabels,en.taskKey);});
+              var visible=_showAll?entries.slice():entries.filter(function(en){return !coveredBy(realLabels,en.taskKey);});
               if(visible.length){
                 // Chips join the cell's existing stack so real shifts and junk jobs share
                 // one layout flow (the compact grid needs a single container to count).
@@ -310,6 +340,7 @@
         }
       });
       paintMobile(view,S,occ);
+      ensureToggle(view,grid.querySelectorAll(".jwg-junk-chip").length);
     }catch(err){console.warn("[jwg-feed] paint failed",err);}
     finally{reobserve();}
   }
@@ -425,6 +456,6 @@
     schedulePaint();
   }
 
-  window.JWGFeed={init:init,refresh:schedulePaint,_apply:applyGhost};
+  window.JWGFeed={init:init,refresh:schedulePaint,toggleShowJobs:toggleShowJobs,_apply:applyGhost};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
