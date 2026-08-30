@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '646';
+var APP_VERSION = '647';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2552,11 +2552,14 @@ function _patchAtabs() {
 // ─── ANIMATION UTILITIES ───
 // Last number shown per bin size, so the count animates from where it was rather than
 // restarting at zero every time the dashboard refreshes.
-var _binCountLast = {};
-function animCount(el, target, prefix, suffix, dur){
+var _binCountLast = {}, _binBarLast = {};
+function animCount(el, target, prefix, suffix, dur, from){
   if(!el) return;
   prefix = prefix||''; suffix = suffix||''; dur = dur||1420;
-  var start=0, startTime=null;
+  // `from` is where the number is coming FROM. Omitted, it counts up from zero,
+  // which is right on a first paint and wrong on a change — 11 going to 9 should
+  // travel two steps, not fall to nothing and climb back.
+  var start=(typeof from==='number'&&isFinite(from))?from:0, startTime=null;
   var isFloat = target !== Math.floor(target);
   function step(ts){
     if(!startTime) startTime=ts;
@@ -2994,7 +2997,7 @@ async function refreshDashBinStats(){
       +'<img src="assets/'+imgKey+'.png?v=608" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
       +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" data-binsize="'+s+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+(_binCountLast[s]==null?0:_binCountLast[s])+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:'+(isLow?'var(--warn-ink)':'var(--muted)')+';margin-top:5px">'+(isFull?'all out':(isLow?'of '+tot+' — low':'of '+tot))+'</div>'
-      +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
+      +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" data-binsize="'+s+'" style="height:100%;width:'+(_binBarLast[s]==null?0:_binBarLast[s])+'%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
     +'</div>';
   }).join('');
   var sc=document.getElementById('dash-bin-by-size');
@@ -3007,9 +3010,13 @@ async function refreshDashBinStats(){
       // Nothing changed — leave the number alone rather than replaying the count at
       // someone who is just using the page.
       if(from===to){ el.textContent=to; return; }
-      animCount(el,to,'','',from==null?950:520);
+      animCount(el,to,'','',from==null?950:520,from);
     });
-    requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){ el.style.width=el.getAttribute('data-binbar')+'%'; }); });
+    requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){
+      var w=el.getAttribute('data-binbar');
+      _binBarLast[el.getAttribute('data-binsize')]=parseFloat(w)||0;
+      el.style.width=w+'%';
+    }); });
   }
   if(typeof mSyncBinSummary==='function') mSyncBinSummary();
   renderNeedsYou();
@@ -10817,8 +10824,8 @@ function _removeBinChip(){
 }
 
 function _renderBinChip(list){
-  var header = document.querySelector('#view-dashboard .page-header');
   var searchWrap = document.getElementById('global-search-wrap');
+  var header = searchWrap && searchWrap.parentElement;
   if(!header || !searchWrap){ return; }
   var chip = document.getElementById('bin-alert-chip');
   if(!chip){

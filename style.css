@@ -1744,7 +1744,11 @@ input[type=date],input[type=time]{position:relative;}
 .btn-ghost:hover,.btn-blue-solid:hover,.bin-book-btn:hover,.bin-quick-dur:hover,.bin-dur-btn:hover,.lb-period-btn:hover,.cal-nav:hover,.filter-chip:hover{
   border-color:var(--n7) !important;
   background:var(--n3) !important;
-  box-shadow:0 1px 3px rgba(26,33,30,.10);
+  /* The lift is the part worth keeping. One pixel, not three, and a real
+     shadow instead of a 44px coloured glow — it still feels like the button
+     comes to meet you, without shouting. */
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(26,33,30,.13), 0 1px 2px rgba(26,33,30,.07);
 }
 .btn-ghost:active,.btn-blue-solid:active,.bin-book-btn:active,.bin-quick-dur:active,.bin-dur-btn:active,.lb-period-btn:active,.cal-nav:active,.filter-chip:active{
   transform:scale(.97);
