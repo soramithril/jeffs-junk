@@ -383,7 +383,6 @@ body{
 }
 /* ── page slide-in ── */
 @keyframes slideUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
-.page-animate{animation:slideUp .32s ease both;}
 /* ── DASHBOARD ENTRANCE ANIMATIONS ── */
 @keyframes dashFadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 .dash-section{opacity:0;animation:dashFadeUp .28s ease forwards;}
@@ -403,17 +402,6 @@ body{
   .dash-section{opacity:1;animation:none;}
 }
 /* ── BIN SIZE CARD depth ── */
-.bin-size-card{
-  background:transparent;
-  border:none;
-  border-radius:0;
-  padding:14px 10px;text-align:center;
-  box-shadow:none;
-  transition:none;
-}
-.bin-size-card + .bin-size-card{
-  border-left:1px solid rgba(255,255,255,0.05);
-}
 /* ── URGENCY STATES ── */
 .chart-card.urgency-warn{
   border-left:3px solid var(--red);
@@ -441,8 +429,6 @@ body{
 .week-day-col{border-right:1px solid var(--border);min-height:120px;}
 /* vertical bar grow */
 @keyframes barGrowV{from{height:0;}to{height:var(--bh);}}
-.bar-v-anim{animation:barGrowV .5s cubic-bezier(.22,.68,0,1.2) both;}
-
 /* ── VEHICLE PAGE ── */
 .veh-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;}
 .veh-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--vcolor,var(--accent));}
@@ -1408,7 +1394,6 @@ input[type=date],input[type=time]{position:relative;}
 /* The login screen itself moved out to login-art.css (v611) — nine poster sheets
    that rotate one per sign-in. The Pastel Drift scene that used to live here went
    with it; the office TV board keeps its own copy of those sprites and keyframes. */
-@keyframes loadProgress{from{width:0%}to{width:var(--prog,0%)}}
 @keyframes logoFadeIn{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 
 /* ═══ ANIMATION SYSTEM ═══ */
@@ -1416,8 +1401,6 @@ input[type=date],input[type=time]{position:relative;}
 /* ── Keyframes ── */
 @keyframes modalSlideUp{from{opacity:0;transform:translateY(40px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
 @keyframes modalScaleIn{from{opacity:0;transform:scale(0.94);}to{opacity:1;transform:scale(1);}}
-@keyframes rowFlash{0%{background:rgba(34,197,94,.2);}100%{background:transparent;}}
-@keyframes subtlePulse{0%,100%{box-shadow:var(--glass-shadow);}50%{box-shadow:var(--glass-shadow),0 0 0 2px rgba(34,197,94,.1);}}
 @keyframes svcPickerFlash{0%,100%{box-shadow:0 0 0 0 rgba(168,85,247,0);}25%{box-shadow:0 0 0 4px rgba(168,85,247,.55);}}
 
 /* ── Change Job Type: highlight the service picker when jumped to ── */
@@ -1440,8 +1423,6 @@ input[type=date],input[type=time]{position:relative;}
 .modal-overlay.fullpage.open .modal{transform:translateY(0)!important;animation:modalSlideUp .32s cubic-bezier(.22,1,.36,1) both!important;}
 
 /* ── Table row flash for new jobs ── */
-.job-row.row-flash{animation:rowFlash .8s ease-out;}
-
 /* ── Nav item polish ── */
 .nav-item{transition:background .18s ease,color .18s ease,transform .12s ease;}
 .nav-item:active{transform:scale(0.97);}
@@ -1744,7 +1725,7 @@ input[type=date],input[type=time]{position:relative;}
    On hover: bg becomes that color, text/icons go white, big colored
    shadow drops. Default --bc fallback is brand green.
    ════════════════════════════════════════════════════════════════ */
-.btn-ghost,.btn-blue-solid,.bin-book-btn,.bin-quick-dur,.bin-dur-btn,.lb-period-btn,.cal-nav,.filter-chip,.pv-area-btn{
+.btn-ghost,.btn-blue-solid,.bin-book-btn,.bin-quick-dur,.bin-dur-btn,.lb-period-btn,.cal-nav,.filter-chip{
   transition:transform .22s cubic-bezier(.22,1,.36,1),background .2s ease,color .2s ease,box-shadow .22s ease,border-color .2s ease,filter .2s ease;
 }
 /* item 10 — the loudest thing in the app. Every one of these used to fill
@@ -2054,36 +2035,12 @@ input[type=date],input[type=time]{position:relative;}
 /* ── Bin fleet cards: compact for mobile so all 4 fit in view ── */
 @media (max-width: 768px) {
   /* Photo zone: shrink from 140px → 70px */
-  .bin-size-card > div:first-child {
-    height: 70px !important;
-  }
   /* Tighten the body of the card */
-  .bin-size-card > div:last-child {
-    padding: 8px 8px 10px !important;
-  }
   /* Big availability number: shrink from 68px → 36px */
-  .bin-size-card > div:last-child > div:first-child > div:first-child {
-    font-size: 36px !important;
-  }
   /* "of N available" label */
-  .bin-size-card > div:last-child > div:first-child > div:last-child {
-    font-size: 9px !important;
-    letter-spacing: 1px !important;
-  }
   /* Margin between number block and Book button */
-  .bin-size-card > div:last-child > div:first-child {
-    margin-bottom: 6px !important;
-  }
   /* Book button slimmer */
-  .bin-size-card .bin-book-btn {
-    padding: 6px 8px !important;
-    font-size: 10px !important;
-  }
   /* Size chip on photo */
-  .bin-size-card > div:first-child > div:last-child {
-    font-size: 10px !important;
-    padding: 1px 5px !important;
-  }
 }
 
 /* ── Unassigned bin alert banner ── */

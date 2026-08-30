@@ -184,6 +184,14 @@
     setTimeout(forceFinal, 3000);                    // hidden-tab stall insurance
   };
 
+  /* ── one settle, for a value that has just changed under you ───────────── */
+  // countUp already does this at the end of its own run; pulled out so a number
+  // animated by anything else can land the same way.
+  J.pop = function (el) {
+    if (!el) return;
+    animate(el, { scale: [1.08, 1] }, { type: 'spring', stiffness: 480, damping: 24 })
+      .finished.then(clearTransform(el));
+  };
   /* ── numbers: count up with commas, small pulse on landing (v546) ──────── */
   J.countUp = function (el, target, dur) {
     if (!el) return;
