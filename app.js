@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '645';
+var APP_VERSION = '646';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2550,6 +2550,9 @@ function _patchAtabs() {
 
 // ─── VIEWS ───
 // ─── ANIMATION UTILITIES ───
+// Last number shown per bin size, so the count animates from where it was rather than
+// restarting at zero every time the dashboard refreshes.
+var _binCountLast = {};
 function animCount(el, target, prefix, suffix, dur){
   if(!el) return;
   prefix = prefix||''; suffix = suffix||''; dur = dur||1420;
@@ -2929,11 +2932,18 @@ async function refreshDashBinStats(){
   // it stays on the real today — otherwise browsing next week silently rewrites it.
   if(dateStr===today){ var mbEl=document.getElementById('m-bins'); if(mbEl)mbEl.textContent=binsOut; }
   var fdLbl=document.getElementById('dash-fleet-deployed-lbl');
-  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span style="color:var(--data);font-weight:800">'+outPct+'%</span>';
+  if(fdLbl)fdLbl.innerHTML=binsOut+' of '+totalBins+' out &middot; <span id="dash-fleet-deployed-pct" style="font-weight:800">'+outPct+'%</span>';
   setTimeout(function(){
     var ob=document.getElementById('s-bins-out-bar');if(ob)ob.style.width=outPct+'%';
     var pl=document.getElementById('s-bins-pct-lbl');if(pl)pl.textContent=outPct+'% deployed';
-    var fdBar=document.getElementById('dash-fleet-deployed-bar');if(fdBar)fdBar.style.width=outPct+'%';
+    // The bar's LENGTH is how much is out; its COLOUR is how much is left. So a long
+    // red bar reads exactly as it should: nearly everything is gone.
+    var availAll=100-outPct;
+    var fdCol=availAll<25?'var(--bad)':(availAll<75?'var(--warn)':'var(--ok)');
+    var fdBar=document.getElementById('dash-fleet-deployed-bar');
+    if(fdBar){ fdBar.style.width=outPct+'%'; fdBar.style.background=fdCol; }
+    var fdPct=document.getElementById('dash-fleet-deployed-pct');
+    if(fdPct)fdPct.style.color=fdCol;
   },50);
 
   // Minimal fleet card: big number = available, single "X/Y out" subline,
@@ -2958,16 +2968,18 @@ async function refreshDashBinStats(){
     // from across the room: none left is red, a quarter or less is amber,
     // anything healthier is green. Thresholds match the "low" rule the page has
     // always used, so nothing that reads as low today stops reading as low.
-    var isLow=(!isFull && tot>0 && availPct<=25);
-    var statusColor=isFull?'var(--bad)':(isLow?'var(--warn)':'var(--ok)');
+    // Jake's call: read it as an inventory gauge, in three bands rather than two.
+    // Three quarters of the size still on the yard is healthy; a quarter or less is
+    // trouble; the middle is the warning you want before it becomes trouble.
+    var isLow=(!isFull && tot>0 && availPct<25);
+    var statusColor=isFull?'var(--bad)':(availPct<25?'var(--bad)':(availPct<75?'var(--warn)':'var(--ok)'));
     var numColor=statusColor;
     // The bar used to repeat the number's colour, which put a second green next to
     // the green bin photo and said nothing the number had not already said. It now
     // carries HOW MUCH OF THIS SIZE IS OUT, on the same cyan ramp the charts use —
     // palest when most are sitting in the yard, deepest when nearly all are earning.
     // The number keeps the traffic light: that is the part that is a judgement.
-    var outPctSize=tot?Math.round((tot-inY)/tot*100):0;
-    var barColor=outPctSize>=75?'var(--size4)':(outPctSize>=50?'var(--data)':(outPctSize>=25?'var(--size2)':'var(--size1)'));
+    var barColor=statusColor;   // the bar says the same thing as the number above it
     // Overdue pill moves to the top-LEFT: the size label took the top-right
     // corner when it came out of the card's flow (v481).
     var odPill=od>0?'<span title="'+od+' overdue pickup'+(od===1?'':'s')+'" style="position:absolute;top:8px;left:8px;z-index:1;font-size:9px;font-weight:700;color:var(--bad-ink);background:var(--bad-soft);padding:2px 5px;border-radius:7px;white-space:nowrap">&#9888; '+od+'</span>':'';
@@ -2980,7 +2992,7 @@ async function refreshDashBinStats(){
       // shorter by a whole line without the photo giving up any of its 180px.
       +'<div style="position:absolute;top:7px;right:10px;z-index:1;font-family:\'Bebas Neue\',sans-serif;font-size:21px;letter-spacing:1px;line-height:1;color:var(--accent-warm)">'+s.replace(/\s*yard/i,' yd')+'</div>'
       +'<img src="assets/'+imgKey+'.png?v=608" alt="'+s+' bin" style="position:relative;width:100%;max-width:320px;height:auto;margin-bottom:4px'+(isFull?';opacity:.35;filter:grayscale(.4)':'')+'">'
-      +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+inY+'</span></div>'
+      +'<div style="position:relative;margin-top:8px;line-height:1"><span data-bincount="'+inY+'" data-binsize="'+s+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;color:'+numColor+'">'+(_binCountLast[s]==null?0:_binCountLast[s])+'</span></div>'
       +'<div style="position:relative;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;color:'+(isLow?'var(--warn-ink)':'var(--muted)')+';margin-top:5px">'+(isFull?'all out':(isLow?'of '+tot+' — low':'of '+tot))+'</div>'
       +'<div style="position:relative;width:100%;height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin:14px 0 12px"><div data-binbar="'+availPct+'" style="height:100%;width:0%;background:'+barColor+';border-radius:99px;transition:width 1s cubic-bezier(.22,1,.36,1)"></div></div>'
     +'</div>';
@@ -2988,7 +3000,15 @@ async function refreshDashBinStats(){
   var sc=document.getElementById('dash-bin-by-size');
   if(sc){
     sc.innerHTML=sizeHtml;
-    sc.querySelectorAll('[data-bincount]').forEach(function(el){ animCount(el,parseInt(el.getAttribute('data-bincount'),10)||0,'','',950); });
+    sc.querySelectorAll('[data-bincount]').forEach(function(el){
+      var to=parseInt(el.getAttribute('data-bincount'),10)||0, size=el.getAttribute('data-binsize');
+      var from=_binCountLast[size];
+      _binCountLast[size]=to;
+      // Nothing changed — leave the number alone rather than replaying the count at
+      // someone who is just using the page.
+      if(from===to){ el.textContent=to; return; }
+      animCount(el,to,'','',from==null?950:520);
+    });
     requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){ el.style.width=el.getAttribute('data-binbar')+'%'; }); });
   }
   if(typeof mSyncBinSummary==='function') mSyncBinSummary();
@@ -8438,7 +8458,7 @@ function renderBinInventory(){
   var sumEl=document.getElementById('fleet-summary');
   if(sumEl) sumEl.innerHTML=
     '<div class="fleet-summary-bars">'
-      +bar('Fleet deployed', out+' of '+total+' out · '+deployedPct+'%', deployedPct, 'linear-gradient(90deg,var(--data-edge),var(--size4))')
+      +bar('Fleet deployed', out+' of '+total+' out · '+deployedPct+'%', deployedPct, (deployedPct>75?'var(--bad)':(deployedPct>25?'var(--warn)':'var(--ok)')))
       +bar('🖌️ All-green conversion', greens+' of '+total+' green · '+blacks+' still black', greenPct, 'var(--accent)')
     +'</div><div class="fleet-tiles">'
       +mkTile('decals',needDecals,'Needs decals',false)
