@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '650';
+var APP_VERSION = '651';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -241,7 +241,7 @@ function _isNeutralColor(c){
 }
 // All button-like classes that participate in the punchy hover system.
 // _decorateGhostButtons() scans these and stores each button's accent color as --bc.
-var _BTN_HOVER_SELECTOR = '.btn-ghost,.btn-blue-solid,.bin-book-btn,.bin-quick-dur,.bin-dur-btn,.lb-period-btn,.cal-nav,.filter-chip,.pv-area-btn';
+var _BTN_HOVER_SELECTOR = '.btn-ghost,.btn-blue-solid,.bin-book-btn,.bin-quick-dur,.bin-dur-btn,.lb-period-btn,.cal-nav,.filter-chip';
 function _decorateGhostButtons(root){
   var scope = root && root.querySelectorAll ? root : document;
   scope.querySelectorAll(_BTN_HOVER_SELECTOR).forEach(function(btn){
@@ -2553,7 +2553,7 @@ function _patchAtabs() {
 // Last number shown per bin size, so the count animates from where it was rather than
 // restarting at zero every time the dashboard refreshes.
 var _binCountLast = {}, _binBarLast = {};
-function animCount(el, target, prefix, suffix, dur, from){
+function animCount(el, target, prefix, suffix, dur, from, done){
   if(!el) return;
   prefix = prefix||''; suffix = suffix||''; dur = dur||1420;
   // `from` is where the number is coming FROM. Omitted, it counts up from zero,
@@ -2568,7 +2568,7 @@ function animCount(el, target, prefix, suffix, dur, from){
     var val=isFloat?(start+(target-start)*ease).toFixed(0):(Math.round(start+(target-start)*ease));
     el.textContent=prefix+val+suffix;
     if(p<1) requestAnimationFrame(step);
-    else el.textContent=prefix+(isFloat?target.toFixed(0):target)+suffix;
+    else { el.textContent=prefix+(isFloat?target.toFixed(0):target)+suffix; if(done) done(el); }
   }
   requestAnimationFrame(step);
 }
@@ -3010,7 +3010,12 @@ async function refreshDashBinStats(){
       // Nothing changed — leave the number alone rather than replaying the count at
       // someone who is just using the page.
       if(from===to){ el.textContent=to; return; }
-      animCount(el,to,'','',from==null?950:520,from);
+      // A small settle on landing. Only when the number actually moved — a pulse on
+      // every repaint would be the breathing loop all over again.
+      animCount(el,to,'','',from==null?950:520,from,function(node){
+        if(from==null) return;
+        if(window.JJMotion && JJMotion.pop) JJMotion.pop(node);
+      });
     });
     requestAnimationFrame(function(){ sc.querySelectorAll('[data-binbar]').forEach(function(el){
       var w=el.getAttribute('data-binbar');
@@ -3417,6 +3422,12 @@ function toggleFleetStrip(){
   var open=card.classList.toggle('dfs-open');
   var btn=document.getElementById('dash-fleet-strip-toggle');
   if(btn) btn.textContent=open?'▴ collapse':'▾ expand';
+  // The two halves swap with display:none, so the card used to jump between sizes
+  // with nothing in between. The full half glides — the same call the bins-out
+  // panels two functions away already make. Person-caused and rare, which is
+  // exactly when motion is worth spending.
+  var full=card.querySelector('.dfs-full');
+  if(full && window.JJMotion && JJMotion.glide) JJMotion.glide(full, open, 'flex');
 }
 
 function markVehicleNotOperational(vid){
