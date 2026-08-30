@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '643';
+var APP_VERSION = '644';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8565,7 +8565,7 @@ function _binColorHex(b){return b.color==='green'?'var(--accent)':'#34373b';}
 function _binIsLow(b){return b.type==='low'||b.type==='wide';}
 function makeBinCard(b){
   var isIn=b.status==='in';
-  var statusStyle='display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:var(--ok-soft);color:var(--ok-ink)':'background:var(--n3);color:var(--n11)');
   var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes;
   // The whole card opens the panel. Hanging it on the bin number alone left the one
@@ -8590,7 +8590,7 @@ function makeBinCard(b){
 }
 function makeBinTableRow(b){
   var isIn=b.status==='in';
-  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:rgba(34,197,94,.14);color:#15803d':'background:rgba(220,38,38,.1);color:var(--bad-ink)');
+  var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'+(isIn?'background:var(--ok-soft);color:var(--ok-ink)':'background:var(--n3);color:var(--n11)');
   var typeStyle='display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;'+(_binIsLow(b)?'background:rgba(168,85,247,.14);color:#9b59b6':'background:rgba(107,117,133,.14);color:#6b7280');
   var flags=binFlags(b), hasNote=!!b.notes, td='padding:10px 13px;border-bottom:1px solid var(--border)';
   return '<tr onclick="openBinPeek(\''+b.bid+'\')" style="cursor:pointer;'+(b.damage==='damage'?'background:rgba(220,38,38,.035)':'')+'">'
@@ -8644,7 +8644,7 @@ function _renderBinPeekTop(b){
   if(!el) return;
   var isIn=b.status==='in', flags=binFlags(b);
   var statusStyle='display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:6px 13px;border-radius:99px;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;'
-    +(isIn?'background:var(--ok-soft);color:var(--ok-ink)':'background:var(--warn-soft);color:var(--warn-ink)');
+    +(isIn?'background:var(--ok-soft);color:var(--ok-ink)':'background:var(--n3);color:var(--n11)');
   el.innerHTML=
     '<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">'
       +'<button onclick="_binPeekToggle(\''+b.bid+'\')" style="'+statusStyle+'">'+(isIn?'✓ In yard':'↗ Out on job')+'</button>'
