@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '648';
+var APP_VERSION = '649';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -8658,8 +8658,11 @@ function binActions(b){
 // checking one bin never costs you your place among ninety-odd of them. It replaces
 // the old History modal outright -- everything that modal showed is its bottom half.
 async function openBinPeek(bid){
+  // Wired straight to onclick in four places, so anything thrown here becomes an
+  // unhandled rejection and the app's global handler shows "a background operation
+  // failed" — which tells the person nothing. Say what actually happened instead.
   var b=binItems.find(function(x){return x.bid===bid;});
-  if(!b) throw new Error('openBinPeek: no bin with bid '+bid);
+  if(!b){ toast('That bin is no longer in the list — refresh and try again.','error'); return; }
   var ttl=document.getElementById('bin-peek-ttl');
   ttl.innerHTML='<span style="width:13px;height:13px;border-radius:50%;flex:none;display:inline-block;background:'
     +_binColorHex(b)+';border:1px solid rgba(0,0,0,.12)"></span> '+escHtml(b.num||'')
@@ -8668,7 +8671,12 @@ async function openBinPeek(bid){
   _renderBinPeekTop(b);
   document.getElementById('bin-peek-hist').innerHTML='';
   document.getElementById('bin-peek').classList.add('open');
-  await renderBinHistoryInto(bid, document.getElementById('bin-peek-hist'), 'bin-peek');
+  try {
+    await renderBinHistoryInto(bid, document.getElementById('bin-peek-hist'), 'bin-peek');
+  } catch(ex) {
+    var hist = document.getElementById('bin-peek-hist');
+    if (hist) hist.innerHTML = '<div class="pal-msg" style="color:var(--bad)">Couldn\'t load this bin\'s history \u2014 ' + escHtml(ex.message) + '</div>';
+  }
 }
 // Split out from openBinPeek so flipping the status repaints the top half only. Going
 // through openBinPeek again would re-run the history query for a fact it already has.
@@ -14042,13 +14050,21 @@ db.auth.getSession().then(function(r) {
   // it is not a security revocation — and because it makes no network call it cannot
   // still be in flight a moment later and clear the session a real sign-in just made.
   return db.auth.signOut({ scope: 'local' });
-}).then(function() {
-  document.getElementById('login-screen').style.display = 'flex';
+}).then(_showLoginScreen).catch(function(e) {
+  // Whatever went wrong, the sign-in screen is the safe place to land. Failing to
+  // reach Supabase must never mean failing to show a way in.
+  console.warn('Boot session check failed:', e);
+  _showLoginScreen();
+});
+function _showLoginScreen() {
+  var scr = document.getElementById('login-screen');
+  if (scr) scr.style.display = 'flex';
   var reason = null;
   try { reason = sessionStorage.getItem('jjSignOutReason'); sessionStorage.removeItem('jjSignOutReason'); } catch(e) {}
-  if (reason) document.getElementById('login-error').textContent = reason;
-  setTimeout(function(){ document.getElementById('login-username').focus(); }, 100);
-});
+  var err = document.getElementById('login-error');
+  if (reason && err) err.textContent = reason;
+  setTimeout(function(){ var u = document.getElementById('login-username'); if (u) u.focus(); }, 100);
+}
 
 // Periodic session check — signs out if token expired (catches stale tabs)
 setInterval(function() {
