@@ -387,11 +387,21 @@ body{
 /* ── DASHBOARD ENTRANCE ANIMATIONS ── */
 @keyframes dashFadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 .dash-section{opacity:0;animation:dashFadeUp .28s ease forwards;}
-.dash-s1{animation-delay:.04s;}
-.dash-s2{animation-delay:.10s;}
-.dash-s3{animation-delay:.18s;}
-.dash-s4{animation-delay:.26s;}
-.dash-s5{animation-delay:.34s;}
+/* Timing lives on its own classes, applied in document order, because .dash-s1 and
+   .dash-s4 also carry the phone stacking rules further down and cannot be renumbered.
+   Two sections used to have no delay at all, so they arrived AHEAD of .dash-s1, and
+   .dash-s4 was defined for nothing. The wave is continuous now. */
+.dash-d1{animation-delay:0s;}     .dash-d2{animation-delay:.04s;}
+.dash-d3{animation-delay:.08s;}   .dash-d4{animation-delay:.12s;}
+.dash-d5{animation-delay:.16s;}   .dash-d6{animation-delay:.20s;}
+.dash-d7{animation-delay:.24s;}   .dash-d8{animation-delay:.28s;}
+.dash-d9{animation-delay:.32s;}
+/* .dash-section starts at opacity:0 and is only made visible BY the animation, so if
+   animation never runs the content is invisible. Say so explicitly for anyone who has
+   asked their system to stop moving things. */
+@media (prefers-reduced-motion: reduce){
+  .dash-section{opacity:1;animation:none;}
+}
 /* ── BIN SIZE CARD depth ── */
 .bin-size-card{
   background:transparent;
@@ -2724,7 +2734,7 @@ body.pal-open{overflow:hidden;}
 /* Glow is tinted per card (--binGlow, set inline per size) so the colour
    identity carries even when you're not reading the number. Tints are gentle
    on purpose — see the v484 note on the top edge. */
-.jj-bin-breathe{position:absolute;inset:0;background:radial-gradient(120px 90px at 50% 8%,var(--binGlow,rgba(34,197,94,.10)),transparent 70%);animation:jjBreathe 6s ease-in-out infinite;pointer-events:none;}
+.jj-bin-breathe{position:absolute;inset:0;background:radial-gradient(120px 90px at 50% 8%,var(--binGlow,rgba(34,197,94,.10)),transparent 70%);pointer-events:none;}
 /* NO .jj-bin-edge (added v483, removed v484). It put a third green horizontal
    line into one block — fleet-deployed bar above, card top edge, availability
    bar below — and v482 had just brightened the other two. The card's identity

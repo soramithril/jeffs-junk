@@ -62,7 +62,12 @@
       if (isOpen === o._jjWasOpen) return;
       o._jjWasOpen = isOpen;
       if (!isOpen) return;
-      var card = o.querySelector(':scope > .modal');
+      // Four overlays hold their sheet in a plain div rather than a .modal — the photo
+      // lightbox, the bin note, the bin-availability warning and the maintenance popup.
+      // They were silently skipped. Falling back to the first child springs them too,
+      // without giving any of them the modal card's styling, which would wreck the
+      // lightbox.
+      var card = o.querySelector(':scope > .modal') || o.firstElementChild;
       if (!card) return;
       var anim = o.classList.contains('fullpage')
         ? animate(card, { y: [14, 0], opacity: [0, 1] }, { duration: 0.28, ease: [0.22, 1, 0.36, 1] })
