@@ -2577,12 +2577,12 @@ input[type=date],input[type=time]{position:relative;}
 #dash-strip{
   display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
   margin-bottom:16px;padding:10px 16px;
-  border:1px solid var(--border);border-left:3px solid var(--data-edge);border-radius:12px;
-  background:linear-gradient(100deg,var(--data-soft),rgba(8,145,178,.035) 42%,var(--surface) 78%);
+  border:1px solid var(--border);border-left:3px solid var(--n8);border-radius:12px;
+  background:var(--surface);
   box-shadow:0 6px 20px rgba(0,0,0,.07);
 }
 #dash-strip-date{
-  font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--data);
+  font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--n11);
 }
 
 /* ── COMMAND PALETTE ──────────────────────────────────────────────────────────
