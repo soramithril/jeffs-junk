@@ -155,6 +155,30 @@
     pass.focus();
   });
 
+  // ── THE NINE ──
+  // Nine posters is only a nice thing if anyone finds out there are nine. The dots
+  // say how many there are and which one you are on, and any of them can be picked
+  // outright. The sheet is built once, at page load — see the top of this file — so
+  // choosing one reloads rather than trying to rebuild it underneath you.
+  var dots = document.getElementById('jjl-dots');
+  if (dots) {
+    var here = storedIndex();
+    SHEETS.forEach(function (sh, n) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'jjl-dot' + (n === here ? ' on' : '');
+      b.title = sh.key;
+      b.setAttribute('aria-label', 'Sign-in artwork ' + (n + 1) + ' of ' + SHEETS.length + ': ' + sh.key);
+      if (n === here) b.setAttribute('aria-current', 'true');
+      b.addEventListener('click', function () {
+        if (n === here) return;
+        try { localStorage.setItem(STORE, String(n)); } catch (e) {}
+        location.reload();
+      });
+      dots.appendChild(b);
+    });
+  }
+
   window.JJLoginArt = {
     // Called by app.js once Supabase has accepted the password, so the next
     // time this browser lands on the login screen it gets the next sheet.

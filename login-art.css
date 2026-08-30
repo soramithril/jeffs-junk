@@ -355,6 +355,22 @@
   color: #626a63; font: 600 .55rem/1.4 var(--jjl-mono); letter-spacing: .09em;
 }
 
+/* The nine dots. They inherit the footer's colour, so every sheet gets them in its
+   own ink without nine separate rules — the footer is already re-tinted per sheet
+   (see .jjl-classic .jjl-footer). Deliberately quiet: this is a sign-in screen, not
+   a gallery, and the dots are for the person who notices them. */
+.jjl-dots { display: flex; align-items: center; gap: 6px; }
+.jjl-dot {
+  width: 6px; height: 6px; padding: 0; border: 0; border-radius: 99px;
+  background: currentColor; opacity: .28; cursor: pointer;
+  transition: opacity .18s ease, width .18s ease, transform .18s ease;
+}
+.jjl-dot:hover { opacity: .7; transform: scale(1.25); }
+.jjl-dot.on { width: 17px; opacity: .95; cursor: default; }
+.jjl-dot.on:hover { transform: none; }
+.jjl-dot:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; opacity: .95; }
+@media (prefers-reduced-motion: reduce) { .jjl-dot { transition: none; } }
+
 /* ═══ 01 — the original map ═══ */
 #login-screen.jjl-classic { background: #f0dfbd; }
 .jjl-classic .jjl-art { background-image: url("assets/login/jeffs-junk-classic.webp"); }
