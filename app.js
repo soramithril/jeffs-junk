@@ -2767,7 +2767,34 @@ function render(name, bg){
 }
 // Background refresh (realtime / auto-updates): re-render the active view without
 // arrival behaviors (skeletons, animations, scroll reset) — see renderDash(bg).
-function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''), true);}
+// Re-rendering replaces the whole view's markup, which drops you back at the top of the
+// page. That is what sent someone to the top after every bin pickup and every confirmation
+// email, when the whole point of those lists is to work down them doing all of them
+// (Jake, 2026-08-31). Hold the position across the rebuild.
+//
+// It cannot be one scrollTo: the renderers fetch before they paint, so for a moment the
+// page is short and the browser would clamp the scroll to nothing. Keep putting it back
+// until it lands, give up after ~800ms, and stop immediately if the person scrolls
+// themselves — being yanked back would be worse than the problem.
+function _holdScroll(y){
+  if(!y) return;
+  var tries=0, done=false;
+  function stop(){ done=true; }
+  ['wheel','touchmove','keydown'].forEach(function(ev){ window.addEventListener(ev, stop, {once:true, passive:true}); });
+  (function put(){
+    if(done) return;
+    window.scrollTo(0,y);
+    if(++tries<20 && Math.abs(window.scrollY-y)>1) setTimeout(put,40);
+    else ['wheel','touchmove','keydown'].forEach(function(ev){ window.removeEventListener(ev, stop); });
+  })();
+}
+function refresh(){
+  var a=document.querySelector('.view.active');
+  if(!a) return;
+  var y=window.scrollY;
+  render(a.id.replace('view-',''), true);
+  _holdScroll(y);
+}
 
 // ─── BADGES ───
 // Human label for a bin_side value: left/right get "Side" appended, others
@@ -11160,6 +11187,44 @@ function newJob(){
 // ─── BIN PICKER ───────────────────────────────────────────────────────────
 var binPickerSzFilter = 'all';
 
+// The dates the bin picker is judging against — the rental window on the form.
+function _binPickerWindow(){
+  return {drop:(document.getElementById('f-bdrop')||{value:''}).value,
+          pick:(document.getElementById('f-bpick')||{value:''}).value};
+}
+
+// Is this bin already spoken for on a day THIS job needs it? Same overlap rule the size
+// counter uses: a rental holds its bin from drop-off up to the day BEFORE pickup, because
+// the pickup day belongs to the next customer.
+//
+// The picker used to ask a different question entirely — is the bin out right now — which
+// is the wrong question for a rental that has already ended. 14R-06 came back on the Monday
+// morning and went straight out again, so its status read 'out' while the Friday job that
+// ended that same morning never overlapped the new one at all. The bin could not be
+// assigned, and clicking through offered to close out the live job instead
+// (Jake, 2026-08-31). Returns the clashing job, or null when the bin is free.
+function binClashForWindow(bid, dropStr, pickStr, exceptJobId){
+  if(!bid || !dropStr) return null;
+  var d0=_dayNum(dropStr);
+  var d1=pickStr?Math.max(d0,_dayNum(pickStr)-1):d0+30;
+  var todayNum=_dayNum(todayStr());
+  var hit=null;
+  jobs.forEach(function(j){
+    if(hit) return;
+    if(j.binBid!==bid || j.status==='Cancelled' || j.binInstatus==='pickedup') return;
+    if(exceptJobId && j.id===exceptJobId) return;
+    var drop=j.binDropoff||j.date; if(!drop) return;
+    var st=_dayNum(drop), en;
+    // Out with no pickup booked, or one already behind us: it holds the bin from its
+    // drop-off until a person marks it back in, however long that takes.
+    if((st<=todayNum||j.binInstatus==='dropped')&&(!j.binPickup||_dayNum(j.binPickup)<todayNum)) en=Math.max(st,todayNum,d1);
+    else if(!j.binPickup) en=st+30;
+    else en=Math.max(st,_dayNum(j.binPickup)-1);
+    if(st<=d1 && en>=d0) hit=j;
+  });
+  return hit;
+}
+
 function renderBinPicker(selectedBid){
   var grid = document.getElementById('bin-picker-grid');
   if(!grid) return;
@@ -11170,18 +11235,29 @@ function renderBinPicker(selectedBid){
     grid.innerHTML='<div style="grid-column:1/-1;color:var(--muted);font-size:13px;padding:12px;text-align:center">No bins in fleet for this size</div>';
     return;
   }
-  // Sort: in-yard first, then by bin number
+  // Judged against the rental window on the form. With no drop-off date typed yet there is
+  // no window to judge, so the bin's status right now is the only honest answer.
+  var _w = _binPickerWindow();
+  var clashOf = function(b){
+    return _w.drop ? binClashForWindow(b.bid, _w.drop, _w.pick, editId||null)
+                   : (b.status==='out' ? binCurrentJob(b.bid) : null);
+  };
+  // Sort: usable for THIS job first, then by bin number
   filtered = [].concat(filtered).sort(function(a,b){
-    if(a.status==='in'&&b.status!=='in') return -1;
-    if(a.status!=='in'&&b.status==='in') return 1;
+    var ca=!!clashOf(a), cb=!!clashOf(b);
+    if(ca!==cb) return ca?1:-1;
     return (a.num||'').localeCompare(b.num||'');
   });
   grid.innerHTML = filtered.map(function(b){
-    var isOut = b.status==='out';
+    var outJob = clashOf(b);
+    var isOut = !!outJob;
     var isSel = b.bid === selectedBid;
     var col = sizeColors[b.size]||'#22c55e';
-    var outJob = isOut ? binCurrentJob(b.bid) : null;
-    var outTitle = isOut ? ('Out'+(outJob?(' at '+(outJob.name||'').replace(/"/g,'')):'')+' — click to reassign (will offer to pick up the old job)') : '';
+    // Free for these dates but physically out today — worth saying so plainly, because
+    // that is exactly the case that used to look like a refusal.
+    var freeLater = !isOut && b.status==='out';
+    var outTitle = isOut ? ('Out'+(outJob?(' at job '+outJob.id+(outJob.name?' — '+(outJob.name||'').replace(/"/g,''):'')):'')+' over these dates — click to reassign (will offer to pick up the old job)')
+                         : (freeLater ? 'Out right now, but free over this job\'s dates' : '');
     var baseStyle = 'border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;'
       +'border:2px solid '+(isSel?col:(isOut?'rgba(231,111,126,.35)':'rgba(255,255,255,.1)'))+';'
       +'background:'+(isSel?'rgba(34,197,94,.12)':(isOut?'rgba(60,60,60,.3)':'var(--surface)'))+'';
@@ -11189,7 +11265,7 @@ function renderBinPicker(selectedBid){
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:'+(isOut?'var(--muted)':'var(--text)')+'">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+(isOut?'var(--muted)':col)+';margin-top:2px">'+b.size+'</div>'
-      +'<div style="font-size:10px;color:'+(isOut?'var(--bad)':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'var(--bad)':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':(freeLater?'Free then':'In Yard'))+'</div>'
       +'</div>';
   }).join('');
 }
@@ -11197,10 +11273,14 @@ function renderBinPicker(selectedBid){
 function selectBinFromPicker(bid){
   var b = binItems.find(function(x){return x.bid===bid;});
   if(!b) return;
-  // Picking a bin that's still dropped on ANOTHER live job: offer to mark that
-  // old job picked up, since the bin is physically moving to this job.
+  // Picking a bin that another job actually holds OVER THESE DATES: offer to mark that
+  // old job picked up, since the bin is physically moving to this job. Judged on the
+  // window, not on the bin's status, so recording a rental that has already ended no
+  // longer offers to close out the live job the bin went to afterwards.
   if(b.status==='out'){
-    var other=binDroppedElsewhere(bid, editId);
+    var _pw=_binPickerWindow();
+    var other=_pw.drop ? binClashForWindow(bid, _pw.drop, _pw.pick, editId||null)
+                       : binDroppedElsewhere(bid, editId);
     if(other){
       if(!confirm('Bin '+b.num+' is still marked dropped at job '+other.id+' ('+other.name+').\n\nMark it picked up there and use it here? (The bin is moving to this job.)')) return;
       _pickupBinFromJob(other.id);
@@ -11400,7 +11480,11 @@ function initBinPicker(existingBid, existingSize){
   // is judged on the drop-off/pickup dates, not on the job's booking date.
   ['f-bdrop','f-bpick'].forEach(function(id){
     var el=document.getElementById(id);
-    if(el && !el._binAvailHooked){ el._binAvailHooked=true; el.addEventListener('change', renderBinSizeAvailability); }
+    if(el && !el._binAvailHooked){ el._binAvailHooked=true; el.addEventListener('change', function(){
+      renderBinSizeAvailability();
+      // The picker is judged on these dates too, so it has to be rebuilt with them.
+      renderBinPicker(getPickedBinBid?getPickedBinBid():'');
+    }); }
   });
   renderBinSizeAvailability();
   var sel = document.getElementById('bin-picker-selected');
