@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '652';
+var APP_VERSION = '653';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4863,17 +4863,19 @@ async function renderWillCallCard(){
     var ab=j.binBid?binItems.find(function(b){return b.bid===j.binBid;}):null;
     var bid=ab?ab.bid:j.binBid;
     var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-    var addr=j.address?j.address.split(',')[0]:'';
-    var detail=[sz,(bid?'#'+bid:''),addr,j.city].filter(Boolean).join(' · ');
+    // Escaped like the near-identical binRow() below — a name or address carrying a
+    // quote or an angle bracket broke this row's markup while rendering fine there.
+    var addr=j.address?_esc(j.address.split(',')[0]):'';
+    var detail=[sz,(bid?'#'+_esc(bid):''),addr,_esc(j.city)].filter(Boolean).join(' · ');
     var dropD=j.binDropoff||j.date;
     var days=binDaysOut(dropD);
     var daysPill='<span class="djj-days'+(days>=15?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
-    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>':'';
-    var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+j.phone+'</a>':'';
+    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+_esc(j.businessName)+'</span>':'';
+    var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+_esc(j.phone)+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
     return '<div class="djj-row" style="--djj-c:var(--warn)" onclick="openDetail(\''+j.id+'\')">'
       +'<span style="flex:none;width:30px;height:30px;border-radius:8px;background:#f3f0fb;color:#7c3aed;display:flex;align-items:center;justify-content:center">'+lineIcon('clients',15,'#7c3aed')+'</span>'
-      +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+bizChip+'</div>'+(detail?'<div class="djj-sub">'+detail+'</div>':'')+'</div>'
+      +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+_esc(j.name)+'</span>'+bizChip+'</div>'+(detail?'<div class="djj-sub">'+detail+'</div>':'')+'</div>'
       +daysPill
       +phoneBtn
       +'<div onclick="event.stopPropagation()" style="flex:none;display:flex;gap:6px">'+schedBtn+'</div>'
@@ -6781,7 +6783,7 @@ async function _offerLastBinSetup(cid){
   var p=r.data[0];
   if(!p.bin_size) return;
   var bits=[p.bin_size];
-  if(p.bin_duration) bits.push(p.bin_duration+' days');
+  if(p.bin_duration) bits.push(p.bin_duration);   // already reads "3 days" — don't say days twice
   if(p.bin_side) bits.push(p.bin_side+' side');
   box.innerHTML='<button type="button" class="btn btn-ghost btn-sm" style="white-space:normal;text-align:left"'
     +' onclick="_useLastBinSetup(\''+encodeURIComponent(p.bin_size)+'\',\''+encodeURIComponent(p.bin_duration||'')+'\',\''+encodeURIComponent(p.bin_side||'')+'\')">'
@@ -6791,7 +6793,11 @@ async function _offerLastBinSetup(cid){
 function _useLastBinSetup(size, dur, side){
   size=decodeURIComponent(size); dur=decodeURIComponent(dur); side=decodeURIComponent(side);
   if(size && typeof initBinPicker==='function') initBinPicker('', size);
-  if(dur && typeof setBinDuration==='function'){ window._binPresetDays=null; setBinDuration(dur); }
+  // p.bin_duration is the stored label ("3 days"), and setBinDuration wants a number —
+  // handing it the words made an Invalid Date and threw, so the chip filled the size and
+  // then died before the side field and the toast.
+  var durDays = typeof binDurationDays==='function' ? binDurationDays(dur) : 0;
+  if(durDays>0 && typeof setBinDuration==='function'){ window._binPresetDays=null; setBinDuration(durDays); }
   if(side){ var s=document.getElementById('f-bside'); if(s) s.value=side; }
   toast('Filled in from their last rental — change anything that\'s different.');
 }
@@ -6813,36 +6819,81 @@ function fillClientFromSelect(cid){
   document.getElementById('f-business-name').value=cl.businessName||'';
   if(cl.referral) document.getElementById('f-referral').value = cl.referral;
 
-  // Build address list
-  var addrs=[];
-  if(cl.addresses&&cl.addresses.length) addrs=cl.addresses;
-  else if(cl.address) addrs=[{street:(cl.address.split(',')[0]||'').trim(),city:cl.city||'Barrie'}];
+  _fillClientAddresses(cid, cl);
+}
 
+// Addresses offered for the picked client, most recent job first.
+var _clientAddrOptions = [];
+
+// Where the address box gets its suggestion. NOT the client record: 1,142 clients have
+// worked at more than one address but only 15 have more than one saved on the record,
+// because the only thing that ever added a second one lived inside a dropdown that needed
+// two addresses before it would appear. The job history has them all.
+//
+// A contractor or roofer is at a new site nearly every job, so their last address is the
+// wrong thing to drop in the box. The test is whether they have been back to it: of the
+// 485 clients who take a new address almost every time only 4 ever returned to their most
+// recent one, while all 2,263 single-address clients did. So an address they have used
+// before gets filled in, and a one-off leaves the box empty to be typed (Jake, 2026-08-31).
+async function _fillClientAddresses(cid, cl){
   var picker=document.getElementById('f-addr-picker');
   var sel=document.getElementById('f-addr-select');
-  // Never clobber an address the user TYPED — the silent swap here is how jobs ended up
-  // saved (and printed) with the client's old home address instead of the site. An address
-  // this code auto-filled for a previously picked client is fair game to replace.
-  var typedAddr=_addrAutoFilled ? '' : document.getElementById('f-addr').value.trim();
+  var addrEl=document.getElementById('f-addr'), cityEl=document.getElementById('f-city');
+  if(!addrEl||!cityEl) return;
+  var key=function(a){ return ((a.street||'')+'|'+(a.city||'')).trim().toLowerCase(); };
 
-  if(addrs.length>1 && picker && sel){
-    var opts=addrs.map(function(a,i){
+  var opts=[], offer=false;
+  var r=await db.from('jobs')
+    .select('address,city,date')
+    .eq('client_cid',cid).neq('status','Cancelled')
+    .not('address','is',null)
+    .order('date',{ascending:false,nullsFirst:false}).limit(200);
+  var rows=(r.data||[]).map(function(j){
+    return {street:String(j.address||'').split(',')[0].trim(), city:String(j.city||'').trim()};
+  }).filter(function(a){ return a.street; });
+
+  if(rows.length){
+    var count={};
+    rows.forEach(function(a){ var k=key(a); if(count[k]===undefined){ count[k]=0; opts.push(a); } count[k]++; });
+    offer = count[key(rows[0])] > 1;      // they have been back to it, so it is worth offering
+  } else {
+    // No job history at all — a brand-new client, where the record holds the address that
+    // was just typed to create them. That is the only address there is, so offer it.
+    opts = (cl.addresses&&cl.addresses.length) ? cl.addresses
+         : (cl.address ? [{street:(cl.address.split(',')[0]||'').trim(), city:cl.city||'Barrie'}] : []);
+    offer = opts.length>0;
+  }
+  _clientAddrOptions=opts;
+
+  // Read this AFTER the lookup, not before it: the user may have started typing while it
+  // ran. Never clobber an address they TYPED — the silent swap is how jobs ended up saved
+  // (and printed) with the client's old home address instead of the site. An address this
+  // code auto-filled for a previously picked client is fair game to replace.
+  var typedAddr=_addrAutoFilled ? '' : addrEl.value.trim();
+
+  if(!offer){
+    // They are somewhere new nearly every job, so a guess would be wrong far more often
+    // than right. Leave it empty and let the site address be typed.
+    if(picker) picker.style.display='none';
+    if(!typedAddr){ addrEl.value=''; cityEl.value=cl.city||'Barrie'; _addrAutoFilled=true; }
+    return;
+  }
+
+  if(opts.length>1 && picker && sel){
+    var html=opts.map(function(a,i){
       var label=a.street?(a.street+(a.city?', '+a.city:'')):(a.city||'');
-      return '<option value="'+i+'">'+label+'</option>';
+      return '<option value="'+i+'">'+escHtml(label)+'</option>';
     }).join('');
-    opts+='<option value="new">+ Use a new address for this job...</option>';
-    if(typedAddr) opts='<option value="typed" selected>Keep typed address: '+typedAddr+'</option>'+opts;
-    sel.innerHTML=opts;
+    html+='<option value="new">+ Use a new address for this job...</option>';
+    if(typedAddr) html='<option value="typed" selected>Keep typed address: '+escHtml(typedAddr)+'</option>'+html;
+    sel.innerHTML=html;
     picker.style.display='block';
-    // Fill first address only when the field is empty
     if(!typedAddr) pickClientAddress('0');
   } else {
     if(picker) picker.style.display='none';
     if(!typedAddr){
-      var st=(addrs[0]&&addrs[0].street)||'';
-      var cy=(addrs[0]&&addrs[0].city)||cl.city||'Barrie';
-      document.getElementById('f-addr').value=st;
-      document.getElementById('f-city').value=cy;
+      addrEl.value=(opts[0]&&opts[0].street)||'';
+      cityEl.value=(opts[0]&&opts[0].city)||cl.city||'Barrie';
       _addrAutoFilled=true;
     }
   }
@@ -6851,7 +6902,7 @@ function fillClientFromSelect(cid){
 function pickClientAddress(val){
   var cl=_selectedClientObj;
   if(!cl)return;
-  var addrs=cl.addresses&&cl.addresses.length?cl.addresses:(cl.address?[{street:(cl.address.split(',')[0]||'').trim(),city:cl.city||'Barrie'}]:[]);
+  var addrs=_clientAddrOptions;      // built by _fillClientAddresses from their job history
   if(val==='typed') return; // user is keeping the address they typed
   if(val==='new'){
     document.getElementById('f-addr').value='';
@@ -11226,6 +11277,20 @@ function _avoidSundayPickup(dateStr){
 // buttons and the re-run when the drop-off date moves come through here. When this
 // arithmetic lived in both of them they drifted: fixing the button alone still left
 // the other one putting the extra day straight back the moment the drop date was edited.
+// The duration box holds WORDS ("3 days", "1 month"), but the price sheet and the preset
+// buttons both need a number of days. Taking the digits off the front read "1 month" as 1,
+// which put every monthly rental on the flat 3-day rate and its deposit (Jake, 2026-08-31).
+// "3 days" and "7 days" only ever worked by luck. One reader now, so there is one answer.
+function binDurationDays(txt){
+  var t=String(txt||'').trim().toLowerCase();
+  if(!t) return 0;
+  var n=parseFloat(t);
+  if(isNaN(n)) return /month/.test(t)?30:/week/.test(t)?7:0;   // bare "a month"
+  if(/month/.test(t)) return Math.round(n*30);
+  if(/week/.test(t))  return Math.round(n*7);
+  return Math.round(n);
+}
+
 function _binPickupAfter(dropStr, days){
   var d=new Date(dropStr+'T12:00:00');
   d.setDate(d.getDate()+days-1);
@@ -14818,7 +14883,7 @@ var defaultPresets = {
   },
   bin_extension: {
     subject: 'Your Bin Rental – Extension Confirmation',
-    body: 'Hi {name},\n\nThis confirms that your {binSize} bin rental has been extended.\n\nExtension rate: $25 per day, billed for each additional day past your original pick-up date of {pickupDate}.\n\nWhen you\'re ready for pick-up, just give us a call or reply to this email and we\'ll schedule it.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThis confirms that your {binSize} bin rental has been extended.\n\nNew pick-up date: {pickupDate}\n\nExtra days are billed at $25 per day past your original pick-up date.\n\nIf you need the bin longer, just give us a call or reply to this email.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   }
 };
 
@@ -19692,7 +19757,7 @@ function binSheetQuote(){
   var area=_priceAreaForCity(city);
   if(!area) return {err:'no-area', city:city, size:size};
   var ap=ourPricesV2[area]||{}, bins=ap.bins||{};
-  var days=parseInt(document.getElementById('f-bdur').value,10)||0;
+  var days=binDurationDays(document.getElementById('f-bdur').value);
   var material=(document.getElementById('f-material-type')||{}).value||'';
   var key=_binPriceKey(bins, size, days, material);
   if(!key) return {err:'no-key', area:area, size:size};
@@ -19715,7 +19780,8 @@ function binSheetQuote(){
 // Every bin takes one. Which rule applies depends on how it is rented:
 //   · a 3 day    — flat $400. Three-day rentals are one fixed price everywhere, so
 //                  the deposit is fixed too and the price is not consulted.
-//   · a month    — the deposit IS the price, to the cent.
+//   · a month    — the same $50-above-the-price ladder as any other 14 or 20 (Jake,
+//                  2026-08-31; it used to be the price to the cent).
 //   · a 4 or 7   — the deposit IS the price. Those carry no dump fee, so there is no
 //                  overage to protect against; the deposit just covers the bin.
 //   · everything else (the 7 day 14s and 20s) — the next $50 ABOVE the all-in price,
@@ -19732,7 +19798,6 @@ var BIN_DEPOSIT_STEP = 50;
 
 function binDepositFor(q){
   if(q.days && q.days<=3) return BIN_DEPOSIT_3DAY;
-  if(q.monthly) return q.total;
   if(BIN_DEPOSIT_STEP_SIZES.indexOf(q.size)===-1) return q.total;   // a 4 or a 7
   var step=(Math.floor(q.total/BIN_DEPOSIT_STEP)+1)*BIN_DEPOSIT_STEP;
   return Math.max(BIN_DEPOSIT_FLOOR, step);
@@ -19741,7 +19806,6 @@ function binDepositFor(q){
 // How to say it, so the block can explain itself rather than just showing a figure.
 function binDepositBasis(q){
   if(q.days && q.days<=3) return 'A 3 day rental is a flat ' + _bpsMoney(BIN_DEPOSIT_3DAY) + ' deposit.';
-  if(q.monthly) return 'A month out, so the deposit is the price itself.';
   if(BIN_DEPOSIT_STEP_SIZES.indexOf(q.size)===-1)
     return 'No dump fee on a ' + escHtml(q.size) + ', so the deposit is just the price.';
   return 'Price ' + _bpsMoney(q.total) + ', so the deposit is the next $50 above it.';
