@@ -603,7 +603,7 @@ db.channel('notif-history')
 // Alliston job, Aug 2026). The key is referer-locked to this site and day-capped in
 // the Google console below the 10K/month free tier; a capped or failed Google call
 // falls back to Nominatim so suggestions never just stop.
-var GOOGLE_PLACES_KEY = ''; // empty = Nominatim only (pre-Google behavior)
+var GOOGLE_PLACES_KEY = 'AIzaSyC3L8D8PMPHF0wu_a1RGv_9iNGd5-r16uI'; // referer-locked to this site, Places API (New) only, empty = Nominatim only
 var _acGoogleRetryAt = 0;   // after a Google failure, ride Nominatim until this time
 
 var _acDebounceTimers = {};
