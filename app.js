@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '651';
+var APP_VERSION = '652';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -854,7 +854,7 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 // Column list for list/calendar views. names/phones/emails ARE loaded — job lists show the
 // contact under the name, and the email screen reads emails off the job (see openEmailModal).
 // Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,bin_live_load,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at';
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,bin_live_load,bin_will_call,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
@@ -4866,8 +4866,8 @@ async function renderWillCallCard(){
     var addr=j.address?j.address.split(',')[0]:'';
     var detail=[sz,(bid?'#'+bid:''),addr,j.city].filter(Boolean).join(' · ');
     var dropD=j.binDropoff||j.date;
-    var days=dropD?Math.max(0,Math.floor((Date.now()-new Date(dropD+'T12:00:00'))/86400000)):0;
-    var daysPill='<span class="djj-days'+(days>=14?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
+    var days=binDaysOut(dropD);
+    var daysPill='<span class="djj-days'+(days>=15?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
     var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>':'';
     var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+j.phone+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
@@ -4884,8 +4884,9 @@ async function renderWillCallCard(){
 
 // A will-call bin is out until the customer rings in with a date, so it can never be
 // "overdue". See the note inside renderDashBinsOut() for why the line is 30 days and
-// not 14 — it comes off the real fleet, not a guess.
-var WILL_CALL_STALE_DAYS = 30;
+// not 14 — it comes off the real fleet, not a guess. (30/14 became 31/15 when the
+// drop-off day started counting as day 1, so the lines themselves did not move.)
+var WILL_CALL_STALE_DAYS = 31;
 
 async function renderDashBinsOut(){
   var el=document.getElementById('dash-bins-out-list');if(!el)return;
@@ -4896,7 +4897,7 @@ async function renderDashBinsOut(){
   droppedJobs.forEach(function(j){ if(!jobs.find(function(x){return x.id===j.id;})) jobs.push(j); });
   droppedJobs.forEach(function(j){
     var drop=j.binDropoff||j.date;
-    j._days=drop?Math.max(0,Math.floor((Date.now()-new Date(drop+'T12:00:00').getTime())/86400000)):0;
+    j._days=binDaysOut(drop);
     j._overdue=!!(j.binPickup && j.binPickup<todayS);
     j._overdueDays=j._overdue
       ? Math.max(0,Math.floor((Date.now()-new Date(j.binPickup+'T12:00:00').getTime())/86400000)) : 0;
@@ -4908,7 +4909,7 @@ async function renderDashBinsOut(){
     // contractors, who keep a bin for weeks quite legitimately, so 30 picks out the four
     // genuine stragglers. 14 would have flagged six and turned into noise.
     j._willCallStale=!!(j.binWillCall && !j.binPickup && j._days>=WILL_CALL_STALE_DAYS);
-    j._attn=j._overdue || j._days>=7;
+    j._attn=j._overdue || j._days>=8;
   });
   var nOut=droppedJobs.length;
   var nAttn=droppedJobs.filter(function(j){return j._attn;}).length;
@@ -4959,10 +4960,10 @@ async function renderDashBinsOut(){
             ? 'will-call · out '+j._days+' days, nobody has called to book a pickup'
             : ('out '+j._days+' days'
                + (j.binWillCall && !j.binPickup ? ' · will-call, no pickup booked' : '')))
-      : [addr,(j.binPickup?'pickup '+fd(j.binPickup):'')].filter(Boolean).join(' · ');
-    var daysPill='<span class="djj-days'+(j._days>=14?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
+      : [addr,(j.binWillCall?'will call':(j.binPickup?'pickup '+fd(j.binPickup):''))].filter(Boolean).join(' · ');
+    var daysPill='<span class="djj-days'+(j._days>=15?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+lineIcon('call',13)+_esc(j.phone)+'</a>':'';
-    var dateBtn='<button class="djj-btn" onclick="openBinPickup(\''+j.id+'\',event)" title="Change pickup date">'+lineIcon('calendar',13)+' '+(j.binPickup?fd(j.binPickup):'Set pickup')+'</button>';
+    var dateBtn='<button class="djj-btn" onclick="openBinPickup(\''+j.id+'\',event)" title="Change pickup date">'+lineIcon('calendar',13)+' '+(binPickupLabel(j)||'Set pickup')+'</button>';
     var callBtn=attn?'<button class="djj-btn danger" onclick="event.stopPropagation();'+(j.phone?('window.location.href=\''+'tel:'+_esc(j.phone)+'\''):('openDetail(\''+j.id+'\')'))+'">'+lineIcon('call',14)+' Call customer</button>':'';
     return '<div class="djj-row'+(attn?' attn':'')+'" onclick="openDetail(\''+j.id+'\')">'
       +'<span style="flex:none;font-family:\'Bebas Neue\',sans-serif;font-size:15px;letter-spacing:.5px;color:'+bidColor+';width:46px">'+bidTxt+'</span>'
@@ -5216,7 +5217,7 @@ function renderJobsBinsOut(){
     var dropDate=curJob?(curJob.binDropoff||curJob.date):'';
     var pickDate=curJob?curJob.binPickup:'';
     var daysOut='';
-    if(dropDate){var d0=new Date(dropDate+'T12:00:00'),now=new Date();daysOut=Math.max(0,Math.floor((now-d0)/(86400000)))+' days out';}
+    if(dropDate){var nD=binDaysOut(dropDate);daysOut=nD+' day'+(nD===1?'':'s')+' out';}
     return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid var(--bad);border-radius:0 8px 8px 0;background:var(--surface2);cursor:pointer" onclick="'+(curJob?'openDetail(\''+jobId+'\')':'')+'">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:12px;background:rgba(220,38,38,.12);color:var(--bad);border:1px solid rgba(220,38,38,.35);border-radius:5px;padding:2px 8px;font-weight:700">'+b.num+' · '+b.size+'</span>'
@@ -5224,7 +5225,7 @@ function renderJobsBinsOut(){
         +(phone?'<span style="font-size:12px;color:var(--muted)">'+phone+'</span>':'')
         +(daysOut?'<span style="font-size:11px;color:var(--warn);margin-left:auto;font-weight:600">'+daysOut+'</span>':'')
       +'</div>'
-      +(addr?'<div style="font-size:12px;color:var(--muted);margin-top:3px">📍 '+addr+(city?' · '+city:'')+(pickDate?' · Pickup: '+fd(pickDate):'')+(jobId?' · '+jobId:'')+'</div>':'')
+      +(addr?'<div style="font-size:12px;color:var(--muted);margin-top:3px">📍 '+addr+(city?' · '+city:'')+(curJob&&binPickupLabel(curJob)?' · Pickup: '+binPickupLabel(curJob):'')+(jobId?' · '+jobId:'')+'</div>':'')
     +'</div>';
   }).join('')+'</div>';
 }
@@ -5860,11 +5861,15 @@ async function renderLiveJobs(){
     var dropToday=j.binDropoff===today, pickToday=j.binPickup===today;
     var geoPicked=geoNotifs.pickedup.has(j.id);
     var dropDone=j.binInstatus==='pickedup'||geoPicked||geoNotifs.dropped.has(j.id);
-    // A live load is both legs on the same day too, but it is not a swap-out —
-    // the truck waits and brings the same bin back, it does not exchange bins.
-    var isSwap=dropToday&&pickToday&&!j.binLiveLoad;
-    if(dropToday) legs.push({j:j,leg:'dropoff',time:j.binDropoffTime||'',crewId:j.dropoffCrewId,swap:isSwap,liveOwner:!dropDone||!pickToday});
-    if(pickToday) legs.push({j:j,leg:'pickup',time:j.binPickupTime||'',crewId:j.pickupCrewId,swap:isSwap,liveOwner:!dropToday||dropDone});
+    // Both legs on one job on one day is a ONE-DAY RENTAL, not a swap-out. It used to
+    // be labelled 'swap', which was never right: a real swap-out is two separate jobs
+    // (_doSwapOutBin pickup-dates the old one and creates a new drop), so neither of
+    // them ever has both legs itself. Since the drop-off day started counting as day 1
+    // the 1 Day preset produces exactly this shape, which is what made it worth fixing.
+    // A live load is same-day too, and keeps its own badge below.
+    var isOneDay=dropToday&&pickToday&&!j.binLiveLoad;
+    if(dropToday) legs.push({j:j,leg:'dropoff',time:j.binDropoffTime||'',crewId:j.dropoffCrewId,oneDay:isOneDay,liveOwner:!dropDone||!pickToday});
+    if(pickToday) legs.push({j:j,leg:'pickup',time:j.binPickupTime||'',crewId:j.pickupCrewId,oneDay:isOneDay,liveOwner:!dropToday||dropDone});
   });
 
   // Base status per leg (the En Route upgrade happens after grouping below)
@@ -5955,7 +5960,7 @@ async function renderLiveJobs(){
     // No map pin = the truck-GPS check cannot reach this job today. Say so on
     // the rows still waiting; a finished leg needs no warning.
     var noZone=zonesKnown && l.status!=='complete' && !zonedJobs.has(j.id);
-    var legNote=j.binLiveLoad?' · live load':(l.swap?' · swap':'');
+    var legNote=j.binLiveLoad?' · live load':(l.oneDay?' · 1 day rental':'');
     var legChip=(l.leg==='dropoff')
       ?'<span class="lj-leg-chip lj-leg-drop">🚛 Drop-off'+legNote+'</span>'
       :'<span class="lj-leg-chip lj-leg-pick">🚚 Pick-up'+legNote+'</span>';
@@ -8385,7 +8390,7 @@ async function renderMap(){
     var overdue=!!(j.binPickup && j.binPickup<today);
     var pickTxt = overdue
       ? '<span style="font-size:11px;color:var(--bad);font-weight:700">Overdue — pickup was '+fd(j.binPickup)+'</span>'
-      : (j.binPickup?'<span style="font-size:11px;color:var(--muted)">Pickup: '+fd(j.binPickup)+'</span>'
+      : (binPickupLabel(j)?'<span style="font-size:11px;color:var(--muted)">Pickup: '+binPickupLabel(j)+'</span>'
                     :'<span style="font-size:11px;color:#c2410c">No pickup booked</span>');
     return '<div class="bin-row'+(overdue?' attn':'')+'" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')"'+(overdue?' style="border-left:3px solid var(--bad)"':'')+'>'
     +'<div class="bin-row-name">'+(binNum?'<span style="font-weight:800;color:var(--accent)">'+escHtml(binNum)+'</span> · ':'')+j.name+'</div>'
@@ -8409,7 +8414,7 @@ async function renderMap(){
     var popup='<div class="p-id">'+j.id+(binNum?' · Bin '+escHtml(binNum):'')+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
       +(isOverdue?'<div style="font-size:12px;font-weight:700;color:var(--bad);margin-bottom:4px">Overdue — pickup was '+fd(j.binPickup)+'</div>':'')
-      +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(binNum?'<br>🗑 Bin '+escHtml(binNum):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(j.binPickup?'<br>⬆ Pickup: '+fd(j.binPickup):'<br>⬆ No pickup booked')+'</div>'
+      +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(binNum?'<br>🗑 Bin '+escHtml(binNum):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(binPickupLabel(j)?'<br>⬆ Pickup: '+binPickupLabel(j):'<br>⬆ No pickup booked')+'</div>'
       +'<button class="p-btn" onclick="openDetail(\''+j.id+'\')">View Details →</button>';
     var marker=L.marker([geo.lat,geo.lng],{icon:pinIcon(j.status,isOverdue)}).bindPopup(popup,{maxWidth:260}).addTo(leafMap);
     marker.on('click',function(){highlightRow(j.id);});
@@ -9230,7 +9235,7 @@ async function renderBinHistoryInto(bid, bodyEl, closeModalId){
         +(j.city?' · '+j.city:'')
         +(j.phone?' · '+j.phone:'')
         +(j.binDropoff?' · Drop: '+fd(j.binDropoff):'')
-        +(j.binPickup?' · Pick: '+fd(j.binPickup):'')
+        +(binPickupLabel(j)?' · Pick: '+binPickupLabel(j):'')
       +'</div>'
     +'</div>';
   }).join('');
@@ -11216,6 +11221,34 @@ function _avoidSundayPickup(dateStr){
   return dateStr;
 }
 
+// The drop-off day is day 1 of the rental (Jake, 2026-08-31), so a 3 day rental
+// dropped Monday comes back Wednesday, not Thursday - hence days-1. Both the preset
+// buttons and the re-run when the drop-off date moves come through here. When this
+// arithmetic lived in both of them they drifted: fixing the button alone still left
+// the other one putting the extra day straight back the moment the drop date was edited.
+function _binPickupAfter(dropStr, days){
+  var d=new Date(dropStr+'T12:00:00');
+  d.setDate(d.getDate()+days-1);
+  return _avoidSundayPickup(d.toISOString().split('T')[0]);
+}
+
+// Days a bin has been out, counting the drop-off day as day 1 (Jake, 2026-08-31) - the
+// same rule the booking form uses, so "out 3 days" and a 3 day rental now agree. The
+// attention thresholds that read this moved 7/14/30 -> 8/15/31 in the same change, so
+// nothing starts flagging a day earlier than the lines Jake set off the real fleet.
+function binDaysOut(dropStr){
+  if(!dropStr) return 0;
+  return Math.max(0,Math.floor((Date.now()-new Date(dropStr+'T12:00:00').getTime())/86400000))+1;
+}
+
+// A will-call has no pickup date - the customer rings in when the bin is ready - so
+// every screen that would print one prints WILL CALL in its place. Returns '' for an
+// ordinary job with no date yet, so callers keep their own "not booked" wording.
+function binPickupLabel(j){
+  if(j.binWillCall) return 'Will call';
+  return j.binPickup ? fd(j.binPickup) : '';
+}
+
 function fmtDur(min){
   var m=parseInt(min,10);
   if(!m||m<=0) return '';
@@ -11257,10 +11290,7 @@ function setBinDuration(days){
   }
   var bdrop=document.getElementById('f-bdrop');
   if(!bdrop.value) bdrop.value=new Date().toISOString().split('T')[0];
-  var drop=bdrop.value;
-  var d=new Date(drop+'T12:00:00');
-  d.setDate(d.getDate()+days);
-  document.getElementById('f-bpick').value=_avoidSundayPickup(d.toISOString().split('T')[0]);
+  document.getElementById('f-bpick').value=_binPickupAfter(bdrop.value,days);
   var label=days===30?'1 month':days===1?'1 day':days+' days';
   document.getElementById('f-bdur').value=label;
   window._binPresetDays=days;
@@ -11280,9 +11310,7 @@ function setBinDuration(days){
 function applyBinPresetDuration(){
   var days=window._binPresetDays;if(!days)return;
   var drop=document.getElementById('f-bdrop').value;if(!drop)return;
-  var d=new Date(drop+'T12:00:00');
-  d.setDate(d.getDate()+days);
-  document.getElementById('f-bpick').value=_avoidSundayPickup(d.toISOString().split('T')[0]);
+  document.getElementById('f-bpick').value=_binPickupAfter(drop,days);
   renderBinSizeAvailability();
 }
 
@@ -12360,7 +12388,7 @@ async function openDetail(id, returnCid){
       +'<div class="detail-item"><label>Bin</label><span>'+binLabel+'</span></div>'
       +'<div class="detail-item"><label>Duration</label><span>'+(j.binDuration||'—')+'</span></div>'
       +'<div class="detail-item"><label>Drop-off</label><span>'+fd(j.binDropoff)+(j.binDropoffTime?' · '+ft(j.binDropoffTime):'')+'</span></div>'
-      +'<div class="detail-item"><label>Pickup Date <button class="btn btn-ghost btn-sm" style="padding:1px 9px;font-size:11px;margin-left:6px;vertical-align:middle" onclick="openBinPickup(\''+j.id+'\')" title="Change the pickup date without opening Edit">'+lineIcon('calendar',11)+' Change</button></label><span>'+fd(j.binPickup)+(j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(217,119,6,.12);color:var(--warn);border:1px solid rgba(217,119,6,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
+      +'<div class="detail-item"><label>Pickup Date <button class="btn btn-ghost btn-sm" style="padding:1px 9px;font-size:11px;margin-left:6px;vertical-align:middle" onclick="openBinPickup(\''+j.id+'\')" title="Change the pickup date without opening Edit">'+lineIcon('calendar',11)+' Change</button></label><span>'+(binPickupLabel(j)||'—')+(j.binPickup&&j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(217,119,6,.12);color:var(--warn);border:1px solid rgba(217,119,6,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?binSideLabel(j.binSide):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
       +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
@@ -13590,7 +13618,16 @@ function toggleWillCall(id,e){
   if(!j)return;
   var next=!j.binWillCall;
   j.binWillCall=next;
-  patchJob(id,{binWillCall:next});
+  // A will-call has no pickup date - that is the whole promise - so turning it on
+  // clears any date already booked. The Edit form already did this on save; doing it
+  // here too means the flag and a stale date can never sit on the same job, which is
+  // what left every screen guessing which of the two was true.
+  var patch={binWillCall:next};
+  if(next && (j.binPickup||j.binPickupTime)){
+    j.binPickup=''; j.binPickupTime='';
+    patch.binPickup=null; patch.binPickupTime='';
+  }
+  patchJob(id,patch);
   toast(next?'Marked waiting on customer call — pickup is tentative':'Waiting on customer call cleared');
   refresh();
 }
@@ -14806,7 +14843,9 @@ function fillEmailTemplate(template, j) {
     .replace(/{dropoffDate}/g, fd(dropoffDate) || '')
     // fd('') returns '—' (truthy), so `fd(x) || 'TBD'` never fell back — 80
     // sent emails said "Scheduled pick-up: —". Test the raw value instead.
-    .replace(/{pickupDate}/g, pickupDate ? fd(pickupDate) : 'TBD')
+    // A will-call has no date by design, so it says so rather than the bare 'TBD' that
+    // an ordinary job with a date still to come gets.
+    .replace(/{pickupDate}/g, j.binWillCall ? 'Will call' : (pickupDate ? fd(pickupDate) : 'TBD'))
     .replace(/{duration}/g, duration || 'TBD')
     .replace(/{address}/g, ((j.address||'')+(j.city?', '+j.city:'')) || '')
     .replace(/{price}/g, (j.price !== '' && j.price != null ? fm(j.price) : ''))
@@ -15171,7 +15210,7 @@ var _etplFocus = 'etpl-body';
 function _etplSample(){
   return {service:'Bin Rental', name:'Sarah Thompson', address:'142 Bayfield St', city:'Barrie',
           binSize:'14 yard', binSide:'left', binDuration:'7 days',
-          date:'2026-08-03', binDropoff:'2026-08-03', binPickup:'2026-08-10', price:485};
+          date:'2026-08-03', binDropoff:'2026-08-03', binPickup:'2026-08-09', price:485};
 }
 /* Keep whatever's on screen before we navigate away from it. */
 function etplStash(){
@@ -17447,13 +17486,6 @@ async function printBinRental(jobId) {
     var binNum = assignedBin ? assignedBin.num : '';
     var binSize = assignedBin ? assignedBin.size : (j.binSize || '');
 
-    // Format date helper
-    function fmtDate(d) {
-      if (!d) return '';
-      var parts = d.split('-');
-      if (parts.length === 3) return parts[1] + '/' + parts[2] + '/' + parts[0];
-      return d;
-    }
 
     // Street + city come from the JOB row only — grafting the client's city onto the
     // job's street printed mismatched addresses whenever the job city was blank.
@@ -17499,8 +17531,10 @@ async function printBinRental(jobId) {
     // ── RIGHT COLUMN: Bin Info ──
     drawText(binNum, 395, 70);          // Bin #
     drawText(binSize, 390, 110);        // Size
-    drawText(fmtDate(j.binDropoff) + (j.binDropoff && j.binDropoffTime ? ' ' + _fmtTime(j.binDropoffTime) : ''), 440, 130);  // Drop Off Date + time
-    drawText(fmtDate(j.binPickup) + (j.binPickup && j.binPickupTime ? ' ' + _fmtTime(j.binPickupTime) : ''), 430, 150);   // Pick Up Date + time
+    drawText(_fmtDate(j.binDropoff) + (j.binDropoff && j.binDropoffTime ? ' ' + _fmtTime(j.binDropoffTime) : ''), 440, 130);  // Drop Off Date + time
+    // A will-call goes to the truck with WILL CALL where the date would be, so the crew
+    // is not left reading a blank line and guessing whether one was simply forgotten.
+    drawText(j.binWillCall ? 'WILL CALL' : _fmtDate(j.binPickup) + (j.binPickup && j.binPickupTime ? ' ' + _fmtTime(j.binPickupTime) : ''), 430, 150);   // Pick Up Date + time
 
     // ── TABLE: Line Items ──
     var price = parseFloat(j.price) || 0;
@@ -17671,8 +17705,13 @@ async function _loadFormClientData(j) {
 function _fmtDate(d) {
   if (!d) return '';
   var parts = d.split('-');
-  if (parts.length === 3) return parts[1] + '/' + parts[2] + '/' + parts[0];
-  return d;
+  if (parts.length !== 3) return d;
+  var num = parts[1] + '/' + parts[2] + '/' + parts[0];
+  // The weekday goes after the numbers (Jake, 2026-08-31): a bare date on a printed
+  // sheet does not tell the crew which day of the week it actually lands on.
+  var dt = new Date(d + 'T12:00:00');
+  if (isNaN(dt.getTime())) return num;
+  return num + ' ' + dt.toLocaleDateString('en-US', { weekday: 'short' });
 }
 
 function _fmtTime(t) {
@@ -18199,7 +18238,8 @@ function _rptAnalyze(jobs) {
   var repeatJobs = active.filter(function(j) { return j.referral === 'Repeat Customer'; }).length;
   var rentalDays = [];
   active.filter(function(j) { return j.service === 'Bin Rental' && j.bin_dropoff && j.bin_pickup; }).forEach(function(j) {
-    var days = Math.round((new Date(j.bin_pickup) - new Date(j.bin_dropoff)) / 86400000);
+    // Drop-off day is day 1, so a Mon->Wed rental is 3 days, not the bare 2-day gap.
+    var days = Math.round((new Date(j.bin_pickup) - new Date(j.bin_dropoff)) / 86400000) + 1;
     if (days > 0) rentalDays.push(days);
   });
   var avgRental = rentalDays.length ? Math.round(rentalDays.reduce(function(a, b) { return a + b; }, 0) / rentalDays.length * 10) / 10 : 0;
@@ -18679,6 +18719,11 @@ function _pvSpoken(sz){
   return monthly ? s+' monthly' : s;
 }
 function pvFmtR(v){ return v==null?'—':'$'+Math.round(v); }
+// The grid prints money to the cent (Jake, 2026-08-31). An all-in is base + dump fee
+// + 13%, so it almost never lands on a whole dollar and the rounded figure never quite
+// matched what the customer is actually charged. pvFmtR stays for the competitor chips,
+// which are prefixed with a tilde precisely because they are estimates.
+function pvFmtC(v){ return v==null?'—':'$'+Number(v).toFixed(2); }
 // Every household 14/20 yd price (3-day, weekly, monthly) includes the dump fee;
 // dirt & concrete bins are flat rate — same math as the pricing doc's "+Tax" columns.
 function _pvHasDump(sz){ return sz.indexOf('dirt')<0 && sz.indexOf('concrete')<0; }
@@ -18812,8 +18857,8 @@ function _pvCell(r, sz, aq, tq){
   var allIn = pvCalcAllIn(base, sz, r.tonne);
   var sel = (r.area===_pvSel.area && r.town===_pvSel.town && sz===_pvSel.size);
   return '<td class="pv-cell pv-g-'+(PV_SIZE_GROUP[sz]||'week')+(sel?' pv-selected':'')+'" onclick="pvPick(\''+aq+'\',\''+tq+'\',\''+sz+'\')">'
-    + '<div class="pv-c-allin">'+pvFmtR(allIn)+'</div>'
-    + '<div class="pv-c-base">$'+base+' before tax</div>'
+    + '<div class="pv-c-allin">'+pvFmtC(allIn)+'</div>'
+    + '<div class="pv-c-base">'+pvFmtC(base)+' before tax</div>'
     + '</td>';
 }
 
