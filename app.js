@@ -9961,6 +9961,56 @@ function closeJobModal(){
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
 function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
+
+// The Back button — the browser's, and the only one a phone has — closes the modal you are
+// in, because that is what your hand already does: client, job, back, next job
+// (Jake, 2026-08-31).
+//
+// Driven off an observer rather than openM/closeM. Only 7 modals go through openM() and 40
+// add the class straight to the element, so hooking the helpers would have covered almost
+// nothing — and a Back press on one of the other 40 would have walked out of the app
+// entirely. Watching the class means every route in and out is covered, including the
+// modals built in JS, with no call sites to keep in step. Same reason the motion layer
+// runs off observers.
+//
+// One entry for the whole stack, never more: opening the first modal pushes it, Back pops
+// it and closes the top modal (re-arming if others are still open), and closing any other
+// way — the X, Escape, a save — walks that entry back off. A spare entry would show up as
+// one Back press that visibly does nothing.
+(function(){
+  function armModalBack(){
+    var pushed=false;    // one entry of ours is outstanding
+    var selfPop=false;   // the popstate about to arrive is ours, not the person's
+    var queued=false;
+    function openEls(){ return document.querySelectorAll('.modal-overlay.open'); }
+    function ensure(){
+      var n=openEls().length;
+      if(n>0 && !pushed){ pushed=true; history.pushState({jjModal:1},''); }
+      else if(n===0 && pushed){ pushed=false; selfPop=true; history.back(); }
+    }
+    // Coalesce to one check a frame: the observer watches the whole body for class
+    // changes, and a render churns through a great many of them.
+    function schedule(){
+      if(queued) return;
+      queued=true;
+      requestAnimationFrame(function(){ queued=false; ensure(); });
+    }
+    window.addEventListener('popstate', function(){
+      if(selfPop){ selfPop=false; return; }
+      var els=openEls();
+      if(!els.length){ pushed=false; return; }   // not ours — leave the navigation alone
+      pushed=false;                              // Back just consumed our entry
+      var top=els[els.length-1];
+      top.classList.remove('open');
+      if(!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-open');
+      else schedule();                           // more still open — arm Back for the next one
+    });
+    new MutationObserver(schedule).observe(document.body,
+      {attributes:true, subtree:true, childList:true, attributeFilter:['class']});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', armModalBack);
+  else armModalBack();
+})();
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     var openModals=document.querySelectorAll('.modal-overlay.open');
@@ -12517,13 +12567,20 @@ async function openDetail(id, returnCid){
   document.getElementById('det-ttl').textContent = j.name || ('Job '+j.id);
   // When opened from a client's job list, show a clickable "Back to <client>" crumb
   // so you can return and pick another job. Otherwise show the normal breadcrumb.
+  // 43 places open a job and only ONE ever passed the client through, so this link almost
+  // never appeared — and where it did it inherited 11px grey uppercase and read as a
+  // heading rather than something you could click (Jake, 2026-08-31). The client now comes
+  // off the job itself when the caller did not name one, so every route in gets it, and it
+  // is styled as the button it should always have been.
   var _crumbEl=document.getElementById('det-crumb');
-  if(returnCid){
-    var _rc=clients.find(function(c){return c.cid===returnCid;});
-    var _rcName=_rc?_rc.name:'Client';
-    _crumbEl.innerHTML='<span onclick="closeM(\'detail-modal\');openClientDetail(\''+returnCid+'\')" style="cursor:pointer;color:var(--accent);font-weight:600">‹ Back to '+escHtml(_rcName)+'</span>';
+  var _backCid=returnCid||j.clientId||'';
+  var _bc=_backCid?clients.find(function(c){return c.cid===_backCid;}):null;
+  var _jobBit='<span class="det-crumb-job">Job '+escHtml(j.id)+' · '+escHtml(j.service||'Job')+'</span>';
+  if(_backCid){
+    _crumbEl.innerHTML='<span class="det-back" onclick="closeM(\'detail-modal\');openClientDetail(\''+_backCid+'\')">'
+      +'‹ '+escHtml(_bc?_bc.name:'Client')+'</span>'+_jobBit;
   } else {
-    _crumbEl.textContent='Job '+j.id+' · '+(j.service||'Job');
+    _crumbEl.innerHTML=_jobBit;
   }
   var bin='';
   if(j.service==='Bin Rental'){
