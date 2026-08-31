@@ -17486,13 +17486,6 @@ async function printBinRental(jobId) {
     var binNum = assignedBin ? assignedBin.num : '';
     var binSize = assignedBin ? assignedBin.size : (j.binSize || '');
 
-    // Format date helper
-    function fmtDate(d) {
-      if (!d) return '';
-      var parts = d.split('-');
-      if (parts.length === 3) return parts[1] + '/' + parts[2] + '/' + parts[0];
-      return d;
-    }
 
     // Street + city come from the JOB row only — grafting the client's city onto the
     // job's street printed mismatched addresses whenever the job city was blank.
@@ -17538,10 +17531,10 @@ async function printBinRental(jobId) {
     // ── RIGHT COLUMN: Bin Info ──
     drawText(binNum, 395, 70);          // Bin #
     drawText(binSize, 390, 110);        // Size
-    drawText(fmtDate(j.binDropoff) + (j.binDropoff && j.binDropoffTime ? ' ' + _fmtTime(j.binDropoffTime) : ''), 440, 130);  // Drop Off Date + time
+    drawText(_fmtDate(j.binDropoff) + (j.binDropoff && j.binDropoffTime ? ' ' + _fmtTime(j.binDropoffTime) : ''), 440, 130);  // Drop Off Date + time
     // A will-call goes to the truck with WILL CALL where the date would be, so the crew
     // is not left reading a blank line and guessing whether one was simply forgotten.
-    drawText(j.binWillCall ? 'WILL CALL' : fmtDate(j.binPickup) + (j.binPickup && j.binPickupTime ? ' ' + _fmtTime(j.binPickupTime) : ''), 430, 150);   // Pick Up Date + time
+    drawText(j.binWillCall ? 'WILL CALL' : _fmtDate(j.binPickup) + (j.binPickup && j.binPickupTime ? ' ' + _fmtTime(j.binPickupTime) : ''), 430, 150);   // Pick Up Date + time
 
     // ── TABLE: Line Items ──
     var price = parseFloat(j.price) || 0;
@@ -17712,8 +17705,13 @@ async function _loadFormClientData(j) {
 function _fmtDate(d) {
   if (!d) return '';
   var parts = d.split('-');
-  if (parts.length === 3) return parts[1] + '/' + parts[2] + '/' + parts[0];
-  return d;
+  if (parts.length !== 3) return d;
+  var num = parts[1] + '/' + parts[2] + '/' + parts[0];
+  // The weekday goes after the numbers (Jake, 2026-08-31): a bare date on a printed
+  // sheet does not tell the crew which day of the week it actually lands on.
+  var dt = new Date(d + 'T12:00:00');
+  if (isNaN(dt.getTime())) return num;
+  return num + ' ' + dt.toLocaleDateString('en-US', { weekday: 'short' });
 }
 
 function _fmtTime(t) {
@@ -18721,6 +18719,11 @@ function _pvSpoken(sz){
   return monthly ? s+' monthly' : s;
 }
 function pvFmtR(v){ return v==null?'—':'$'+Math.round(v); }
+// The grid prints money to the cent (Jake, 2026-08-31). An all-in is base + dump fee
+// + 13%, so it almost never lands on a whole dollar and the rounded figure never quite
+// matched what the customer is actually charged. pvFmtR stays for the competitor chips,
+// which are prefixed with a tilde precisely because they are estimates.
+function pvFmtC(v){ return v==null?'—':'$'+Number(v).toFixed(2); }
 // Every household 14/20 yd price (3-day, weekly, monthly) includes the dump fee;
 // dirt & concrete bins are flat rate — same math as the pricing doc's "+Tax" columns.
 function _pvHasDump(sz){ return sz.indexOf('dirt')<0 && sz.indexOf('concrete')<0; }
@@ -18854,8 +18857,8 @@ function _pvCell(r, sz, aq, tq){
   var allIn = pvCalcAllIn(base, sz, r.tonne);
   var sel = (r.area===_pvSel.area && r.town===_pvSel.town && sz===_pvSel.size);
   return '<td class="pv-cell pv-g-'+(PV_SIZE_GROUP[sz]||'week')+(sel?' pv-selected':'')+'" onclick="pvPick(\''+aq+'\',\''+tq+'\',\''+sz+'\')">'
-    + '<div class="pv-c-allin">'+pvFmtR(allIn)+'</div>'
-    + '<div class="pv-c-base">$'+base+' before tax</div>'
+    + '<div class="pv-c-allin">'+pvFmtC(allIn)+'</div>'
+    + '<div class="pv-c-base">'+pvFmtC(base)+' before tax</div>'
     + '</td>';
 }
 
