@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '652';
+var APP_VERSION = '653';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -598,12 +598,16 @@ db.channel('notif-history')
   .subscribe();
 
 // ── Address Autocomplete ──────────────────────────────────────────────────
-// Google Places (New) is the primary source once GOOGLE_PLACES_KEY is set — OSM's
-// address book is thin in the smaller towns (a Barrie address got booked onto an
-// Alliston job, Aug 2026). The key is referer-locked to this site and day-capped in
-// the Google console below the 10K/month free tier; a capped or failed Google call
-// falls back to Nominatim so suggestions never just stop.
-var GOOGLE_PLACES_KEY = ''; // empty = Nominatim only (pre-Google behavior)
+// Google Places (New) is the primary source — OSM's address book is thin in the
+// smaller towns (a Barrie address got booked onto an Alliston job, Aug 2026).
+//
+// The key is NOT here. It lives as a secret on the places-proxy edge function, because
+// anything in this file is public: it ships in client JS and it is in the repo's git
+// history forever. A referrer restriction would not save it either — that is enforced by
+// the browser, so anything that is not a browser can forge one and spend the day's quota.
+// Behind the proxy the key is unpublished AND only a signed-in employee can spend it.
+//
+// A failed or capped call falls back to Nominatim so suggestions never just stop.
 var _acGoogleRetryAt = 0;   // after a Google failure, ride Nominatim until this time
 
 var _acDebounceTimers = {};
@@ -707,7 +711,7 @@ function attachAddressAutocomplete(inputEl, onPick) {
 
 // Both providers normalize to { street, city, extra } so one dropdown serves both.
 function _acFetchSuggestions(q) {
-  if (GOOGLE_PLACES_KEY && Date.now() >= _acGoogleRetryAt) {
+  if (Date.now() >= _acGoogleRetryAt) {
     return _acFetchGoogle(q).catch(function(){
       _acGoogleRetryAt = Date.now() + 60*60*1000;
       return _acFetchNominatim(q);
@@ -716,28 +720,27 @@ function _acFetchSuggestions(q) {
   return _acFetchNominatim(q);
 }
 
+// Through the places-proxy edge function rather than Google directly, so the key stays
+// off this page. The proxy pins the Barrie bias and the region itself and hands back the
+// same {street, city, extra} shape Nominatim does, so the dropdown serves both unchanged.
+//
+// No session token means signed out, which throws and rides the Nominatim path below like
+// any other failure — the proxy only answers signed-in staff, by design.
 function _acFetchGoogle(q) {
-  return fetch('https://places.googleapis.com/v1/places:autocomplete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GOOGLE_PLACES_KEY },
-    body: JSON.stringify({
-      input: q,
-      includedRegionCodes: ['ca'],
-      // Bias (never restrict) toward the service area; 50 km is the API's max radius
-      locationBias: { circle: { center: { latitude: _acLat, longitude: _acLon }, radius: 50000.0 } }
-    })
+  return db.auth.getSession().then(function(sess){
+    var token = sess && sess.data && sess.data.session && sess.data.session.access_token;
+    if (!token) throw new Error('not signed in');
+    return fetch(SUPABASE_URL + '/functions/v1/places-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ input: q })
+    });
   }).then(function(res){
-    if (!res.ok) throw new Error('places:autocomplete HTTP ' + res.status);
+    if (!res.ok) throw new Error('places-proxy HTTP ' + res.status);
     return res.json();
   }).then(function(data){
-    return (data.suggestions || []).map(function(s){
-      var p = (s && s.placePrediction) || {};
-      var sf = p.structuredFormat || {};
-      var main = (sf.mainText && sf.mainText.text) || (p.text && p.text.text) || '';
-      var sec  = (sf.secondaryText && sf.secondaryText.text) || '';
-      var parts = sec.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
-      return { street: main, city: parts[0] || '', extra: parts.slice(1).join(', ') };
-    });
+    if (data.error) throw new Error(data.error);   // includes not_configured
+    return data.suggestions || [];
   });
 }
 
@@ -2767,7 +2770,34 @@ function render(name, bg){
 }
 // Background refresh (realtime / auto-updates): re-render the active view without
 // arrival behaviors (skeletons, animations, scroll reset) — see renderDash(bg).
-function refresh(){var a=document.querySelector('.view.active');if(a)render(a.id.replace('view-',''), true);}
+// Re-rendering replaces the whole view's markup, which drops you back at the top of the
+// page. That is what sent someone to the top after every bin pickup and every confirmation
+// email, when the whole point of those lists is to work down them doing all of them
+// (Jake, 2026-08-31). Hold the position across the rebuild.
+//
+// It cannot be one scrollTo: the renderers fetch before they paint, so for a moment the
+// page is short and the browser would clamp the scroll to nothing. Keep putting it back
+// until it lands, give up after ~800ms, and stop immediately if the person scrolls
+// themselves — being yanked back would be worse than the problem.
+function _holdScroll(y){
+  if(!y) return;
+  var tries=0, done=false;
+  function stop(){ done=true; }
+  ['wheel','touchmove','keydown'].forEach(function(ev){ window.addEventListener(ev, stop, {once:true, passive:true}); });
+  (function put(){
+    if(done) return;
+    window.scrollTo(0,y);
+    if(++tries<20 && Math.abs(window.scrollY-y)>1) setTimeout(put,40);
+    else ['wheel','touchmove','keydown'].forEach(function(ev){ window.removeEventListener(ev, stop); });
+  })();
+}
+function refresh(){
+  var a=document.querySelector('.view.active');
+  if(!a) return;
+  var y=window.scrollY;
+  render(a.id.replace('view-',''), true);
+  _holdScroll(y);
+}
 
 // ─── BADGES ───
 // Human label for a bin_side value: left/right get "Side" appended, others
@@ -4863,17 +4893,19 @@ async function renderWillCallCard(){
     var ab=j.binBid?binItems.find(function(b){return b.bid===j.binBid;}):null;
     var bid=ab?ab.bid:j.binBid;
     var sz=(j.binSize||'').replace(/\s*yard/i,' YD').toUpperCase();
-    var addr=j.address?j.address.split(',')[0]:'';
-    var detail=[sz,(bid?'#'+bid:''),addr,j.city].filter(Boolean).join(' · ');
+    // Escaped like the near-identical binRow() below — a name or address carrying a
+    // quote or an angle bracket broke this row's markup while rendering fine there.
+    var addr=j.address?_esc(j.address.split(',')[0]):'';
+    var detail=[sz,(bid?'#'+_esc(bid):''),addr,_esc(j.city)].filter(Boolean).join(' · ');
     var dropD=j.binDropoff||j.date;
     var days=binDaysOut(dropD);
     var daysPill='<span class="djj-days'+(days>=15?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
-    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>':'';
-    var phoneBtn=j.phone?'<a href="tel:'+j.phone+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+j.phone+'</a>':'';
+    var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+_esc(j.businessName)+'</span>':'';
+    var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+_esc(j.phone)+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
     return '<div class="djj-row" style="--djj-c:var(--warn)" onclick="openDetail(\''+j.id+'\')">'
       +'<span style="flex:none;width:30px;height:30px;border-radius:8px;background:#f3f0fb;color:#7c3aed;display:flex;align-items:center;justify-content:center">'+lineIcon('clients',15,'#7c3aed')+'</span>'
-      +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+bizChip+'</div>'+(detail?'<div class="djj-sub">'+detail+'</div>':'')+'</div>'
+      +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+_esc(j.name)+'</span>'+bizChip+'</div>'+(detail?'<div class="djj-sub">'+detail+'</div>':'')+'</div>'
       +daysPill
       +phoneBtn
       +'<div onclick="event.stopPropagation()" style="flex:none;display:flex;gap:6px">'+schedBtn+'</div>'
@@ -6781,7 +6813,7 @@ async function _offerLastBinSetup(cid){
   var p=r.data[0];
   if(!p.bin_size) return;
   var bits=[p.bin_size];
-  if(p.bin_duration) bits.push(p.bin_duration+' days');
+  if(p.bin_duration) bits.push(p.bin_duration);   // already reads "3 days" — don't say days twice
   if(p.bin_side) bits.push(p.bin_side+' side');
   box.innerHTML='<button type="button" class="btn btn-ghost btn-sm" style="white-space:normal;text-align:left"'
     +' onclick="_useLastBinSetup(\''+encodeURIComponent(p.bin_size)+'\',\''+encodeURIComponent(p.bin_duration||'')+'\',\''+encodeURIComponent(p.bin_side||'')+'\')">'
@@ -6791,7 +6823,11 @@ async function _offerLastBinSetup(cid){
 function _useLastBinSetup(size, dur, side){
   size=decodeURIComponent(size); dur=decodeURIComponent(dur); side=decodeURIComponent(side);
   if(size && typeof initBinPicker==='function') initBinPicker('', size);
-  if(dur && typeof setBinDuration==='function'){ window._binPresetDays=null; setBinDuration(dur); }
+  // p.bin_duration is the stored label ("3 days"), and setBinDuration wants a number —
+  // handing it the words made an Invalid Date and threw, so the chip filled the size and
+  // then died before the side field and the toast.
+  var durDays = typeof binDurationDays==='function' ? binDurationDays(dur) : 0;
+  if(durDays>0 && typeof setBinDuration==='function'){ window._binPresetDays=null; setBinDuration(durDays); }
   if(side){ var s=document.getElementById('f-bside'); if(s) s.value=side; }
   toast('Filled in from their last rental — change anything that\'s different.');
 }
@@ -6813,36 +6849,81 @@ function fillClientFromSelect(cid){
   document.getElementById('f-business-name').value=cl.businessName||'';
   if(cl.referral) document.getElementById('f-referral').value = cl.referral;
 
-  // Build address list
-  var addrs=[];
-  if(cl.addresses&&cl.addresses.length) addrs=cl.addresses;
-  else if(cl.address) addrs=[{street:(cl.address.split(',')[0]||'').trim(),city:cl.city||'Barrie'}];
+  _fillClientAddresses(cid, cl);
+}
 
+// Addresses offered for the picked client, most recent job first.
+var _clientAddrOptions = [];
+
+// Where the address box gets its suggestion. NOT the client record: 1,142 clients have
+// worked at more than one address but only 15 have more than one saved on the record,
+// because the only thing that ever added a second one lived inside a dropdown that needed
+// two addresses before it would appear. The job history has them all.
+//
+// A contractor or roofer is at a new site nearly every job, so their last address is the
+// wrong thing to drop in the box. The test is whether they have been back to it: of the
+// 485 clients who take a new address almost every time only 4 ever returned to their most
+// recent one, while all 2,263 single-address clients did. So an address they have used
+// before gets filled in, and a one-off leaves the box empty to be typed (Jake, 2026-08-31).
+async function _fillClientAddresses(cid, cl){
   var picker=document.getElementById('f-addr-picker');
   var sel=document.getElementById('f-addr-select');
-  // Never clobber an address the user TYPED — the silent swap here is how jobs ended up
-  // saved (and printed) with the client's old home address instead of the site. An address
-  // this code auto-filled for a previously picked client is fair game to replace.
-  var typedAddr=_addrAutoFilled ? '' : document.getElementById('f-addr').value.trim();
+  var addrEl=document.getElementById('f-addr'), cityEl=document.getElementById('f-city');
+  if(!addrEl||!cityEl) return;
+  var key=function(a){ return ((a.street||'')+'|'+(a.city||'')).trim().toLowerCase(); };
 
-  if(addrs.length>1 && picker && sel){
-    var opts=addrs.map(function(a,i){
+  var opts=[], offer=false;
+  var r=await db.from('jobs')
+    .select('address,city,date')
+    .eq('client_cid',cid).neq('status','Cancelled')
+    .not('address','is',null)
+    .order('date',{ascending:false,nullsFirst:false}).limit(200);
+  var rows=(r.data||[]).map(function(j){
+    return {street:String(j.address||'').split(',')[0].trim(), city:String(j.city||'').trim()};
+  }).filter(function(a){ return a.street; });
+
+  if(rows.length){
+    var count={};
+    rows.forEach(function(a){ var k=key(a); if(count[k]===undefined){ count[k]=0; opts.push(a); } count[k]++; });
+    offer = count[key(rows[0])] > 1;      // they have been back to it, so it is worth offering
+  } else {
+    // No job history at all — a brand-new client, where the record holds the address that
+    // was just typed to create them. That is the only address there is, so offer it.
+    opts = (cl.addresses&&cl.addresses.length) ? cl.addresses
+         : (cl.address ? [{street:(cl.address.split(',')[0]||'').trim(), city:cl.city||'Barrie'}] : []);
+    offer = opts.length>0;
+  }
+  _clientAddrOptions=opts;
+
+  // Read this AFTER the lookup, not before it: the user may have started typing while it
+  // ran. Never clobber an address they TYPED — the silent swap is how jobs ended up saved
+  // (and printed) with the client's old home address instead of the site. An address this
+  // code auto-filled for a previously picked client is fair game to replace.
+  var typedAddr=_addrAutoFilled ? '' : addrEl.value.trim();
+
+  if(!offer){
+    // They are somewhere new nearly every job, so a guess would be wrong far more often
+    // than right. Leave it empty and let the site address be typed.
+    if(picker) picker.style.display='none';
+    if(!typedAddr){ addrEl.value=''; cityEl.value=cl.city||'Barrie'; _addrAutoFilled=true; }
+    return;
+  }
+
+  if(opts.length>1 && picker && sel){
+    var html=opts.map(function(a,i){
       var label=a.street?(a.street+(a.city?', '+a.city:'')):(a.city||'');
-      return '<option value="'+i+'">'+label+'</option>';
+      return '<option value="'+i+'">'+escHtml(label)+'</option>';
     }).join('');
-    opts+='<option value="new">+ Use a new address for this job...</option>';
-    if(typedAddr) opts='<option value="typed" selected>Keep typed address: '+typedAddr+'</option>'+opts;
-    sel.innerHTML=opts;
+    html+='<option value="new">+ Use a new address for this job...</option>';
+    if(typedAddr) html='<option value="typed" selected>Keep typed address: '+escHtml(typedAddr)+'</option>'+html;
+    sel.innerHTML=html;
     picker.style.display='block';
-    // Fill first address only when the field is empty
     if(!typedAddr) pickClientAddress('0');
   } else {
     if(picker) picker.style.display='none';
     if(!typedAddr){
-      var st=(addrs[0]&&addrs[0].street)||'';
-      var cy=(addrs[0]&&addrs[0].city)||cl.city||'Barrie';
-      document.getElementById('f-addr').value=st;
-      document.getElementById('f-city').value=cy;
+      addrEl.value=(opts[0]&&opts[0].street)||'';
+      cityEl.value=(opts[0]&&opts[0].city)||cl.city||'Barrie';
       _addrAutoFilled=true;
     }
   }
@@ -6851,7 +6932,7 @@ function fillClientFromSelect(cid){
 function pickClientAddress(val){
   var cl=_selectedClientObj;
   if(!cl)return;
-  var addrs=cl.addresses&&cl.addresses.length?cl.addresses:(cl.address?[{street:(cl.address.split(',')[0]||'').trim(),city:cl.city||'Barrie'}]:[]);
+  var addrs=_clientAddrOptions;      // built by _fillClientAddresses from their job history
   if(val==='typed') return; // user is keeping the address they typed
   if(val==='new'){
     document.getElementById('f-addr').value='';
@@ -9883,6 +9964,56 @@ function closeJobModal(){
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
 function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
+
+// The Back button — the browser's, and the only one a phone has — closes the modal you are
+// in, because that is what your hand already does: client, job, back, next job
+// (Jake, 2026-08-31).
+//
+// Driven off an observer rather than openM/closeM. Only 7 modals go through openM() and 40
+// add the class straight to the element, so hooking the helpers would have covered almost
+// nothing — and a Back press on one of the other 40 would have walked out of the app
+// entirely. Watching the class means every route in and out is covered, including the
+// modals built in JS, with no call sites to keep in step. Same reason the motion layer
+// runs off observers.
+//
+// One entry for the whole stack, never more: opening the first modal pushes it, Back pops
+// it and closes the top modal (re-arming if others are still open), and closing any other
+// way — the X, Escape, a save — walks that entry back off. A spare entry would show up as
+// one Back press that visibly does nothing.
+(function(){
+  function armModalBack(){
+    var pushed=false;    // one entry of ours is outstanding
+    var selfPop=false;   // the popstate about to arrive is ours, not the person's
+    var queued=false;
+    function openEls(){ return document.querySelectorAll('.modal-overlay.open'); }
+    function ensure(){
+      var n=openEls().length;
+      if(n>0 && !pushed){ pushed=true; history.pushState({jjModal:1},''); }
+      else if(n===0 && pushed){ pushed=false; selfPop=true; history.back(); }
+    }
+    // Coalesce to one check a frame: the observer watches the whole body for class
+    // changes, and a render churns through a great many of them.
+    function schedule(){
+      if(queued) return;
+      queued=true;
+      requestAnimationFrame(function(){ queued=false; ensure(); });
+    }
+    window.addEventListener('popstate', function(){
+      if(selfPop){ selfPop=false; return; }
+      var els=openEls();
+      if(!els.length){ pushed=false; return; }   // not ours — leave the navigation alone
+      pushed=false;                              // Back just consumed our entry
+      var top=els[els.length-1];
+      top.classList.remove('open');
+      if(!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-open');
+      else schedule();                           // more still open — arm Back for the next one
+    });
+    new MutationObserver(schedule).observe(document.body,
+      {attributes:true, subtree:true, childList:true, attributeFilter:['class']});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', armModalBack);
+  else armModalBack();
+})();
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     var openModals=document.querySelectorAll('.modal-overlay.open');
@@ -11109,6 +11240,44 @@ function newJob(){
 // ─── BIN PICKER ───────────────────────────────────────────────────────────
 var binPickerSzFilter = 'all';
 
+// The dates the bin picker is judging against — the rental window on the form.
+function _binPickerWindow(){
+  return {drop:(document.getElementById('f-bdrop')||{value:''}).value,
+          pick:(document.getElementById('f-bpick')||{value:''}).value};
+}
+
+// Is this bin already spoken for on a day THIS job needs it? Same overlap rule the size
+// counter uses: a rental holds its bin from drop-off up to the day BEFORE pickup, because
+// the pickup day belongs to the next customer.
+//
+// The picker used to ask a different question entirely — is the bin out right now — which
+// is the wrong question for a rental that has already ended. 14R-06 came back on the Monday
+// morning and went straight out again, so its status read 'out' while the Friday job that
+// ended that same morning never overlapped the new one at all. The bin could not be
+// assigned, and clicking through offered to close out the live job instead
+// (Jake, 2026-08-31). Returns the clashing job, or null when the bin is free.
+function binClashForWindow(bid, dropStr, pickStr, exceptJobId){
+  if(!bid || !dropStr) return null;
+  var d0=_dayNum(dropStr);
+  var d1=pickStr?Math.max(d0,_dayNum(pickStr)-1):d0+30;
+  var todayNum=_dayNum(todayStr());
+  var hit=null;
+  jobs.forEach(function(j){
+    if(hit) return;
+    if(j.binBid!==bid || j.status==='Cancelled' || j.binInstatus==='pickedup') return;
+    if(exceptJobId && j.id===exceptJobId) return;
+    var drop=j.binDropoff||j.date; if(!drop) return;
+    var st=_dayNum(drop), en;
+    // Out with no pickup booked, or one already behind us: it holds the bin from its
+    // drop-off until a person marks it back in, however long that takes.
+    if((st<=todayNum||j.binInstatus==='dropped')&&(!j.binPickup||_dayNum(j.binPickup)<todayNum)) en=Math.max(st,todayNum,d1);
+    else if(!j.binPickup) en=st+30;
+    else en=Math.max(st,_dayNum(j.binPickup)-1);
+    if(st<=d1 && en>=d0) hit=j;
+  });
+  return hit;
+}
+
 function renderBinPicker(selectedBid){
   var grid = document.getElementById('bin-picker-grid');
   if(!grid) return;
@@ -11119,18 +11288,29 @@ function renderBinPicker(selectedBid){
     grid.innerHTML='<div style="grid-column:1/-1;color:var(--muted);font-size:13px;padding:12px;text-align:center">No bins in fleet for this size</div>';
     return;
   }
-  // Sort: in-yard first, then by bin number
+  // Judged against the rental window on the form. With no drop-off date typed yet there is
+  // no window to judge, so the bin's status right now is the only honest answer.
+  var _w = _binPickerWindow();
+  var clashOf = function(b){
+    return _w.drop ? binClashForWindow(b.bid, _w.drop, _w.pick, editId||null)
+                   : (b.status==='out' ? binCurrentJob(b.bid) : null);
+  };
+  // Sort: usable for THIS job first, then by bin number
   filtered = [].concat(filtered).sort(function(a,b){
-    if(a.status==='in'&&b.status!=='in') return -1;
-    if(a.status!=='in'&&b.status==='in') return 1;
+    var ca=!!clashOf(a), cb=!!clashOf(b);
+    if(ca!==cb) return ca?1:-1;
     return (a.num||'').localeCompare(b.num||'');
   });
   grid.innerHTML = filtered.map(function(b){
-    var isOut = b.status==='out';
+    var outJob = clashOf(b);
+    var isOut = !!outJob;
     var isSel = b.bid === selectedBid;
     var col = sizeColors[b.size]||'#22c55e';
-    var outJob = isOut ? binCurrentJob(b.bid) : null;
-    var outTitle = isOut ? ('Out'+(outJob?(' at '+(outJob.name||'').replace(/"/g,'')):'')+' — click to reassign (will offer to pick up the old job)') : '';
+    // Free for these dates but physically out today — worth saying so plainly, because
+    // that is exactly the case that used to look like a refusal.
+    var freeLater = !isOut && b.status==='out';
+    var outTitle = isOut ? ('Out'+(outJob?(' at job '+outJob.id+(outJob.name?' — '+(outJob.name||'').replace(/"/g,''):'')):'')+' over these dates — click to reassign (will offer to pick up the old job)')
+                         : (freeLater ? 'Out right now, but free over this job\'s dates' : '');
     var baseStyle = 'border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;'
       +'border:2px solid '+(isSel?col:(isOut?'rgba(231,111,126,.35)':'rgba(255,255,255,.1)'))+';'
       +'background:'+(isSel?'rgba(34,197,94,.12)':(isOut?'rgba(60,60,60,.3)':'var(--surface)'))+'';
@@ -11138,7 +11318,7 @@ function renderBinPicker(selectedBid){
       +'<div style="font-size:18px;margin-bottom:4px">'+(b.color==='green'?'🟢':'⚫')+(b.show_bin?' ⭐':'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:'+(isOut?'var(--muted)':'var(--text)')+'">'+b.num+'</div>'
       +'<div style="font-size:10px;color:'+(isOut?'var(--muted)':col)+';margin-top:2px">'+b.size+'</div>'
-      +'<div style="font-size:10px;color:'+(isOut?'var(--bad)':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':'In Yard')+'</div>'
+      +'<div style="font-size:10px;color:'+(isOut?'var(--bad)':'var(--accent)')+';margin-top:2px">'+(isOut?'Out':(freeLater?'Free then':'In Yard'))+'</div>'
       +'</div>';
   }).join('');
 }
@@ -11146,10 +11326,14 @@ function renderBinPicker(selectedBid){
 function selectBinFromPicker(bid){
   var b = binItems.find(function(x){return x.bid===bid;});
   if(!b) return;
-  // Picking a bin that's still dropped on ANOTHER live job: offer to mark that
-  // old job picked up, since the bin is physically moving to this job.
+  // Picking a bin that another job actually holds OVER THESE DATES: offer to mark that
+  // old job picked up, since the bin is physically moving to this job. Judged on the
+  // window, not on the bin's status, so recording a rental that has already ended no
+  // longer offers to close out the live job the bin went to afterwards.
   if(b.status==='out'){
-    var other=binDroppedElsewhere(bid, editId);
+    var _pw=_binPickerWindow();
+    var other=_pw.drop ? binClashForWindow(bid, _pw.drop, _pw.pick, editId||null)
+                       : binDroppedElsewhere(bid, editId);
     if(other){
       if(!confirm('Bin '+b.num+' is still marked dropped at job '+other.id+' ('+other.name+').\n\nMark it picked up there and use it here? (The bin is moving to this job.)')) return;
       _pickupBinFromJob(other.id);
@@ -11226,6 +11410,20 @@ function _avoidSundayPickup(dateStr){
 // buttons and the re-run when the drop-off date moves come through here. When this
 // arithmetic lived in both of them they drifted: fixing the button alone still left
 // the other one putting the extra day straight back the moment the drop date was edited.
+// The duration box holds WORDS ("3 days", "1 month"), but the price sheet and the preset
+// buttons both need a number of days. Taking the digits off the front read "1 month" as 1,
+// which put every monthly rental on the flat 3-day rate and its deposit (Jake, 2026-08-31).
+// "3 days" and "7 days" only ever worked by luck. One reader now, so there is one answer.
+function binDurationDays(txt){
+  var t=String(txt||'').trim().toLowerCase();
+  if(!t) return 0;
+  var n=parseFloat(t);
+  if(isNaN(n)) return /month/.test(t)?30:/week/.test(t)?7:0;   // bare "a month"
+  if(/month/.test(t)) return Math.round(n*30);
+  if(/week/.test(t))  return Math.round(n*7);
+  return Math.round(n);
+}
+
 function _binPickupAfter(dropStr, days){
   var d=new Date(dropStr+'T12:00:00');
   d.setDate(d.getDate()+days-1);
@@ -11335,7 +11533,11 @@ function initBinPicker(existingBid, existingSize){
   // is judged on the drop-off/pickup dates, not on the job's booking date.
   ['f-bdrop','f-bpick'].forEach(function(id){
     var el=document.getElementById(id);
-    if(el && !el._binAvailHooked){ el._binAvailHooked=true; el.addEventListener('change', renderBinSizeAvailability); }
+    if(el && !el._binAvailHooked){ el._binAvailHooked=true; el.addEventListener('change', function(){
+      renderBinSizeAvailability();
+      // The picker is judged on these dates too, so it has to be rebuilt with them.
+      renderBinPicker(getPickedBinBid?getPickedBinBid():'');
+    }); }
   });
   renderBinSizeAvailability();
   var sel = document.getElementById('bin-picker-selected');
@@ -12368,13 +12570,20 @@ async function openDetail(id, returnCid){
   document.getElementById('det-ttl').textContent = j.name || ('Job '+j.id);
   // When opened from a client's job list, show a clickable "Back to <client>" crumb
   // so you can return and pick another job. Otherwise show the normal breadcrumb.
+  // 43 places open a job and only ONE ever passed the client through, so this link almost
+  // never appeared — and where it did it inherited 11px grey uppercase and read as a
+  // heading rather than something you could click (Jake, 2026-08-31). The client now comes
+  // off the job itself when the caller did not name one, so every route in gets it, and it
+  // is styled as the button it should always have been.
   var _crumbEl=document.getElementById('det-crumb');
-  if(returnCid){
-    var _rc=clients.find(function(c){return c.cid===returnCid;});
-    var _rcName=_rc?_rc.name:'Client';
-    _crumbEl.innerHTML='<span onclick="closeM(\'detail-modal\');openClientDetail(\''+returnCid+'\')" style="cursor:pointer;color:var(--accent);font-weight:600">‹ Back to '+escHtml(_rcName)+'</span>';
+  var _backCid=returnCid||j.clientId||'';
+  var _bc=_backCid?clients.find(function(c){return c.cid===_backCid;}):null;
+  var _jobBit='<span class="det-crumb-job">Job '+escHtml(j.id)+' · '+escHtml(j.service||'Job')+'</span>';
+  if(_backCid){
+    _crumbEl.innerHTML='<span class="det-back" onclick="closeM(\'detail-modal\');openClientDetail(\''+_backCid+'\')">'
+      +'‹ '+escHtml(_bc?_bc.name:'Client')+'</span>'+_jobBit;
   } else {
-    _crumbEl.textContent='Job '+j.id+' · '+(j.service||'Job');
+    _crumbEl.innerHTML=_jobBit;
   }
   var bin='';
   if(j.service==='Bin Rental'){
@@ -14818,7 +15027,7 @@ var defaultPresets = {
   },
   bin_extension: {
     subject: 'Your Bin Rental – Extension Confirmation',
-    body: 'Hi {name},\n\nThis confirms that your {binSize} bin rental has been extended.\n\nExtension rate: $25 per day, billed for each additional day past your original pick-up date of {pickupDate}.\n\nWhen you\'re ready for pick-up, just give us a call or reply to this email and we\'ll schedule it.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThis confirms that your {binSize} bin rental has been extended.\n\nNew pick-up date: {pickupDate}\n\nExtra days are billed at $25 per day past your original pick-up date.\n\nIf you need the bin longer, just give us a call or reply to this email.\n\nThank you for choosing Jeff\'s Junk!\n\nBest regards,\nJeff\'s Junk'
   }
 };
 
@@ -19692,7 +19901,7 @@ function binSheetQuote(){
   var area=_priceAreaForCity(city);
   if(!area) return {err:'no-area', city:city, size:size};
   var ap=ourPricesV2[area]||{}, bins=ap.bins||{};
-  var days=parseInt(document.getElementById('f-bdur').value,10)||0;
+  var days=binDurationDays(document.getElementById('f-bdur').value);
   var material=(document.getElementById('f-material-type')||{}).value||'';
   var key=_binPriceKey(bins, size, days, material);
   if(!key) return {err:'no-key', area:area, size:size};
@@ -19715,7 +19924,8 @@ function binSheetQuote(){
 // Every bin takes one. Which rule applies depends on how it is rented:
 //   · a 3 day    — flat $400. Three-day rentals are one fixed price everywhere, so
 //                  the deposit is fixed too and the price is not consulted.
-//   · a month    — the deposit IS the price, to the cent.
+//   · a month    — the same $50-above-the-price ladder as any other 14 or 20 (Jake,
+//                  2026-08-31; it used to be the price to the cent).
 //   · a 4 or 7   — the deposit IS the price. Those carry no dump fee, so there is no
 //                  overage to protect against; the deposit just covers the bin.
 //   · everything else (the 7 day 14s and 20s) — the next $50 ABOVE the all-in price,
@@ -19732,7 +19942,6 @@ var BIN_DEPOSIT_STEP = 50;
 
 function binDepositFor(q){
   if(q.days && q.days<=3) return BIN_DEPOSIT_3DAY;
-  if(q.monthly) return q.total;
   if(BIN_DEPOSIT_STEP_SIZES.indexOf(q.size)===-1) return q.total;   // a 4 or a 7
   var step=(Math.floor(q.total/BIN_DEPOSIT_STEP)+1)*BIN_DEPOSIT_STEP;
   return Math.max(BIN_DEPOSIT_FLOOR, step);
@@ -19741,7 +19950,6 @@ function binDepositFor(q){
 // How to say it, so the block can explain itself rather than just showing a figure.
 function binDepositBasis(q){
   if(q.days && q.days<=3) return 'A 3 day rental is a flat ' + _bpsMoney(BIN_DEPOSIT_3DAY) + ' deposit.';
-  if(q.monthly) return 'A month out, so the deposit is the price itself.';
   if(BIN_DEPOSIT_STEP_SIZES.indexOf(q.size)===-1)
     return 'No dump fee on a ' + escHtml(q.size) + ', so the deposit is just the price.';
   return 'Price ' + _bpsMoney(q.total) + ', so the deposit is the next $50 above it.';
