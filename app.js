@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '654';
+var APP_VERSION = '655';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14737,14 +14737,128 @@ var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landsca
   ourprices:'Prices · Editor',pricingconsole:'Prices · Margin Console',
   drdcalc:'Furniture Quote',pricing:'Pricing',
   bookings:'Bookings',team:'Team',staffcheckin:'Staff Check-In'};
+// ─── GOOGLE SPEND ───────────────────────────────────────────────────────────
+// What the dashboard costs us at Google. Counted by the places-proxy edge function,
+// which is the only thing here that talks to Google, so this is every call — a tally
+// kept in the browser would miss anything that did not come from a job form.
+//
+// Google bills each service separately and gives each one its own monthly free calls,
+// so each gets its own row and its own bar. Switching a second service on never eats
+// into the first one's allowance. Add a line here the day one goes live.
+//   free  — Google's free calls per month for that service
+//   daily — the cap we set ourselves in the Cloud console
+var GOOGLE_SERVICES={
+  places_autocomplete:{label:'Address autocomplete',free:10000,daily:300}
+};
+
+// Local YYYY-MM-DD. The counter stamps Toronto days and the office reads it in Toronto,
+// so the browser's own date is the same day the row was written under.
+function _gDay(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+async function googleUsageHtml(){
+  var wrap=function(inner){
+    return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Google usage</div>'
+      +'<div style="border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:28px">'+inner+'</div>';
+  };
+  var r=await db.from('google_api_usage').select('day,api,calls').order('day',{ascending:false}).limit(400);
+  if(r.error)return wrap('<div style="color:var(--bad);font-size:13px">Couldn\'t load Google usage: '+escHtml(r.error.message)+'</div>');
+  var rows=r.data||[];
+  if(!rows.length)return wrap('<div style="color:var(--muted);font-size:13px">Nothing counted yet — the tally starts with the next address someone types.</div>');
+
+  var now=new Date();
+  var today=_gDay(now);
+  var monthPrefix=today.slice(0,7);
+  var daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+
+  // Every day of the last 14, so a quiet day shows as a gap rather than closing up
+  var last14=[];
+  for(var i=13;i>=0;i--){
+    var d=new Date(now); d.setDate(d.getDate()-i);
+    last14.push(_gDay(d));
+  }
+
+  var firstDay=rows[rows.length-1].day;
+  var byApi={};
+  rows.forEach(function(x){
+    var a=byApi[x.api]||(byApi[x.api]={month:0,today:0,days:{},total:0});
+    a.total+=x.calls;
+    a.days[x.day]=(a.days[x.day]||0)+x.calls;
+    if(x.day.slice(0,7)===monthPrefix)a.month+=x.calls;
+    if(x.day===today)a.today+=x.calls;
+  });
+
+  var html='';
+  Object.keys(byApi).sort(function(a,b){return byApi[b].month-byApi[a].month;}).forEach(function(api,idx){
+    var d=byApi[api];
+    var cfg=GOOGLE_SERVICES[api]||{label:api,free:10000,daily:0};
+    var monthPct=Math.min(100,Math.round(d.month/cfg.free*1000)/10);
+    // Projected across the days actually counted, not the calendar day of the month.
+    // Counting began mid-month, so dividing by the date would invent traffic for days
+    // nobody was watching — and on the 1st it would multiply one busy morning by 30.
+    var apiFirst=Object.keys(d.days).sort()[0];
+    var monthStart=monthPrefix+'-01';
+    var countedFrom=apiFirst>monthStart?apiFirst:monthStart;
+    var counted=Math.round((new Date(today+'T12:00:00')-new Date(countedFrom+'T12:00:00'))/86400000)+1;
+    var pace=counted>=3?Math.round(d.month/counted*daysInMonth):null;
+    var over=pace!==null&&pace>cfg.free;
+    var bar=function(pct,colour){
+      return '<div class="bar-track" style="height:14px;flex:1"><div class="bar-fill" style="width:'+Math.max(0.6,pct)+'%;background:'+colour+'"></div></div>';
+    };
+
+    html+=(idx?'<div style="height:1px;background:var(--border);margin:18px 0"></div>':'')
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">'
+      +'<strong style="font-size:14px">'+escHtml(cfg.label)+'</strong>'
+      +'<span style="font-size:13px"><b>'+d.month.toLocaleString()+'</b> <span style="color:var(--muted)">of '+cfg.free.toLocaleString()+' free this month</span></span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'+bar(monthPct,over?'var(--bad)':'var(--accent)')
+      +'<span style="font-size:12px;font-weight:600;min-width:44px">'+monthPct+'%</span></div>'
+      +'<div style="font-size:12px;color:'+(over?'var(--bad)':'var(--muted)')+';margin-bottom:16px">'
+      +(pace===null
+        ? 'Only '+counted+' day'+(counted===1?'':'s')+' counted so far — too early to call the month.'
+        : 'On pace for about <b>'+pace.toLocaleString()+'</b> this month'
+          +(over?' — that would go past the free calls and start costing money.':' — comfortably inside the free calls.'))
+      +'</div>';
+
+    if(cfg.daily){
+      var dayPct=Math.min(100,Math.round(d.today/cfg.daily*1000)/10);
+      html+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">'
+        +'<span style="font-size:13px;color:var(--muted)">Today</span>'
+        +'<span style="font-size:13px"><b>'+d.today.toLocaleString()+'</b> <span style="color:var(--muted)">of our own '+cfg.daily.toLocaleString()+'/day cap</span></span>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'+bar(dayPct,'var(--accent)')
+        +'<span style="font-size:12px;font-weight:600;min-width:44px">'+dayPct+'%</span></div>';
+    }
+
+    var peak=Math.max.apply(null,last14.map(function(k){return d.days[k]||0;}))||1;
+    html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Last 14 days</div>'
+      +'<div style="display:flex;align-items:flex-end;gap:4px;height:46px">'
+      +last14.map(function(k){
+        var v=d.days[k]||0;
+        return '<div title="'+k+': '+v+'" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">'
+          +'<div style="height:'+Math.max(2,Math.round(v/peak*100))+'%;background:'+(v?'var(--accent)':'var(--border)')+';border-radius:3px 3px 0 0"></div></div>';
+      }).join('')
+      +'</div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">'
+      +'<span>'+last14[0].slice(5)+'</span><span>peak '+peak+'</span><span>'+last14[13].slice(5)+'</span></div>';
+  });
+
+  html+='<div style="font-size:12px;color:var(--muted);margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">'
+    +'Counting since <b style="color:var(--text)">'+new Date(firstDay+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'</b>. '
+    +'Anything before that only exists in the Google Cloud console.</div>';
+  return wrap(html);
+}
+
 async function renderUsage(){
   var box=document.getElementById('usage-body');
   if(!box)return;
   box.innerHTML='<div style="padding:28px;color:var(--muted);font-size:13px">Loading usage data…</div>';
+  var gHtml=await googleUsageHtml();
   var r=await db.rpc('page_usage_rollup');
-  if(r.error){box.innerHTML='<div style="padding:28px;color:var(--bad);font-size:13px">Couldn\'t load usage data: '+r.error.message+'</div>';return;}
+  if(r.error){box.innerHTML=gHtml+'<div style="padding:28px;color:var(--bad);font-size:13px">Couldn\'t load usage data: '+r.error.message+'</div>';return;}
   var rows=r.data||[];
-  if(!rows.length){box.innerHTML='<div style="padding:28px;color:var(--muted);font-size:13px">Nothing recorded yet — counts start the moment people use the app.</div>';return;}
+  if(!rows.length){box.innerHTML=gHtml+'<div style="padding:28px;color:var(--muted);font-size:13px">Nothing recorded yet — counts start the moment people use the app.</div>';return;}
 
   var total=0,byPage={},userTotals={},minDay=null;
   var now=new Date();
@@ -14813,7 +14927,7 @@ async function renderUsage(){
       +userList.map(function(u){var v=byPage[p].users[u]||0;return '<td style="'+(v?'':'color:var(--border)')+'">'+(v||'·')+'</td>';}).join('')+'</tr>';
   });
   html+='</tbody></table></div>';
-  box.innerHTML=html;
+  box.innerHTML=gHtml+html;
 }
 
 function handleAdminBtn() {
