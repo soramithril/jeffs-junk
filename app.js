@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '655';
+var APP_VERSION = '656';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9109,16 +9109,28 @@ function openLinkBinFromJob(jobId){
   var grid=document.getElementById('link-bin-from-job-grid');
   var sizeColors={'4 yard':'#15803d','7 yard':'var(--warn-ink)','14 yard':'var(--warn-ink)','20 yard':'var(--bad-ink)'};
   var byNum=function(a,b){return (a.num||'').localeCompare(b.num||'');};
+  // Judged on THIS job's rental window, not on where the bin happens to be standing right
+  // now — a bin that came back this morning is free for a rental that ended this morning.
+  // Same rule and same helper as the picker in the Edit form. Both of these copies still
+  // asked plain 'is it out?' after that one was fixed, which is why a bin the Edit form
+  // called free still read 'Out (other job)' here (Jake, 2026-08-31).
+  // With no drop-off date on the job there is no window to judge, so the bin's status now
+  // is the only honest answer.
+  var clashOf=function(b){
+    return j.binDropoff ? binClashForWindow(b.bid, j.binDropoff, j.binPickup, j.id)
+                        : (b.status==='out' ? binCurrentJob(b.bid) : null);
+  };
   var available=[],unavailable=[];
   binItems.forEach(function(b){
     if(!binInService(b))return; // skip out of rotation / in the shop
-    if(b.status==='in')available.push(b);
-    else unavailable.push(b);
+    if(clashOf(b))unavailable.push(b);
+    else available.push(b);
   });
   available.sort(byNum);unavailable.sort(byNum);
   function cardHtml(b,isAvail){
     var col=sizeColors[b.size]||'#22c55e';
-    var statusLbl=isAvail?'In Yard':'Out (other job)';
+    // Out today but free over this job's dates is the case that used to look like a refusal.
+    var statusLbl=isAvail?(b.status==='out'?'Free then':'In Yard'):'Held these dates';
     var statusCol=isAvail?'var(--accent)':'var(--bad)';
     var clickHandler=isAvail
       ?"linkBinFromJob('"+b.bid+"')"
@@ -9139,7 +9151,7 @@ function openLinkBinFromJob(jobId){
     html+=available.map(function(b){return cardHtml(b,true);}).join('');
   }
   if(unavailable.length){
-    html+='<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 4px 0;padding-top:14px;border-top:1px solid var(--border)">🔄 Unavailable — currently out (tap to transfer)</div>';
+    html+='<div style="grid-column:1/-1;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 4px 0;padding-top:14px;border-top:1px solid var(--border)">🔄 Held over these dates (tap to transfer)</div>';
     html+=unavailable.map(function(b){return cardHtml(b,false);}).join('');
   }
   if(!available.length && !unavailable.length){
@@ -9361,8 +9373,20 @@ async function openAssignBinPicker(jobId){
   var size=j.binSize;
   var matchSize=function(b){ return !size || b.size===size; };
   var sortByNum=function(a,b){return (a.num||'').localeCompare(b.num||'',undefined,{numeric:true,sensitivity:'base'});};
-  var availBins=binItems.filter(function(b){return b.status==='in'&&matchSize(b)&&binInService(b);}).sort(sortByNum);
-  var unavailBins=binItems.filter(function(b){return b.status==='out'&&matchSize(b)&&binInService(b);}).sort(sortByNum);
+  // Judged on THIS job's rental window, not on where the bin happens to be standing right
+  // now — a bin that came back this morning is free for a rental that ended this morning.
+  // Same rule and same helper as the picker in the Edit form. Both of these copies still
+  // asked plain 'is it out?' after that one was fixed, which is why a bin the Edit form
+  // called free still read 'Out (other job)' here (Jake, 2026-08-31).
+  // With no drop-off date on the job there is no window to judge, so the bin's status now
+  // is the only honest answer.
+  var clashOf=function(b){
+    return j.binDropoff ? binClashForWindow(b.bid, j.binDropoff, j.binPickup, j.id)
+                        : (b.status==='out' ? binCurrentJob(b.bid) : null);
+  };
+  var inPlay=binItems.filter(function(b){return matchSize(b)&&binInService(b);});
+  var availBins=inPlay.filter(function(b){return !clashOf(b);}).sort(sortByNum);
+  var unavailBins=inPlay.filter(function(b){return !!clashOf(b);}).sort(sortByNum);
 
   var html='';
   // ── Available section ──
@@ -9376,6 +9400,7 @@ async function openAssignBinPicker(jobId){
         +'<div style="font-weight:700;font-size:14px">#'+b.num+'</div>'
         +'<div style="font-size:11px;color:var(--muted)">'+b.size+'</div>'
         +'<div style="font-size:10px;color:'+(b.color==='green'?'var(--accent)':'#888')+'">'+b.color+'</div>'
+        +(b.status==='out'?'<div style="font-size:10px;color:var(--warn);font-weight:700">Free then</div>':'')
         +'</div>';
     });
     html+='</div>';
@@ -9383,13 +9408,13 @@ async function openAssignBinPicker(jobId){
 
   // ── Unavailable section (transfer option) ──
   if(unavailBins.length){
-    html+='<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔄 Unavailable — currently out (tap to transfer)</div>';
+    html+='<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔄 Held over these dates (tap to transfer)</div>';
     html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">';
     unavailBins.forEach(function(b){
       html+='<div style="padding:10px;border:2px solid rgba(220,38,38,.25);border-radius:8px;text-align:center;cursor:pointer;background:var(--surface2);opacity:.85;transition:all .15s" onmouseover="this.style.borderColor=\'var(--bad)\';this.style.opacity=\'1\'" onmouseout="this.style.borderColor=\'rgba(220,38,38,.25)\';this.style.opacity=\'.85\'" onclick="_confirmReassignBinFromJob(\''+b.bid+'\',\''+jobId+'\')">'
         +'<div style="font-weight:700;font-size:14px">#'+b.num+'</div>'
         +'<div style="font-size:11px;color:var(--muted)">'+b.size+'</div>'
-        +'<div style="font-size:10px;color:var(--bad)">Out (other job)</div>'
+        +'<div style="font-size:10px;color:var(--bad)">Held these dates</div>'
         +'</div>';
     });
     html+='</div>';
