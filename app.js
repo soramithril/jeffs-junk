@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '653';
+var APP_VERSION = '654';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -620,6 +620,17 @@ function attachAddressAutocomplete(inputEl, onPick) {
   if (!inputEl || inputEl._acAttached) return;
   inputEl._acAttached = true;
   inputEl.setAttribute('autocomplete', 'off');
+
+  // Chrome offers its OWN saved addresses on anything it decides is an address field —
+  // and it decides that from the label, so "Street Address" is enough. Its dropdown is drawn
+  // by the browser, above the page, so it lands on top of ours and hides the suggestions
+  // (Jake, 2026-08-31). autocomplete="off" does NOT fix this: Chrome deliberately ignores it
+  // for address fields. An unrecognised token does, and is Chromium's own recommendation —
+  // Chrome only autofills fields whose token it recognises.
+  //
+  // Set here rather than on each input so every field that gets our dropdown is covered,
+  // including the client rows built in JS, with no call site left to remember.
+  inputEl.setAttribute('autocomplete', 'new-user-street-address');
 
   // Wrap in relative container so dropdown positions correctly
   var parent = inputEl.parentNode;
@@ -2066,7 +2077,7 @@ function _clientAddressRow(street, city, removable){
     +'<div style="flex:2"><label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">Street</label>'
     +'<input type="text" class="c-street-inp" data-places="1" placeholder="123 Main St" value="'+(street||'')+'" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
     +'<div style="flex:1"><label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:4px">City</label>'
-    +'<input type="text" class="c-city-inp" placeholder="Barrie" value="'+(city||'Barrie')+'" onblur="this.value=toTitleCase(this.value)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
+    +'<input type="text" class="c-city-inp" autocomplete="new-user-city" placeholder="Barrie" value="'+(city||'Barrie')+'" onblur="this.value=toTitleCase(this.value)" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:14px"></div>'
     +rmBtn+'</div>';
 }
 function _attachClientAddressAutocompletes() {
@@ -3943,7 +3954,8 @@ async function refreshDashJobs(){
           }
         }
         var btns='';
-        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
+        // Nothing to assign on a live load — the bin stays on the truck.
+        if(isBin && !isPickup && !j.binBid && !j.binLiveLoad) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
         if(isBin && isPickLeg){ btns+=(j.binInstatus==='pickedup')
           ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
@@ -4632,7 +4644,8 @@ async function renderDash(bg){
           }
         }
         var btns='';
-        if(isBin && !isPickup && !j.binBid) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
+        // Nothing to assign on a live load — the bin stays on the truck.
+        if(isBin && !isPickup && !j.binBid && !j.binLiveLoad) btns+='<button class="djj-btn assign" onclick="openAssignBinPicker(\''+j.id+'\');event.stopPropagation()">'+lineIcon('binDrop',14)+' Assign</button>';
         if(isBin && isPickLeg){ btns+=(j.binInstatus==='pickedup')
           ? '<button class="djj-btn done" title="Click to undo" onclick="markDropped(\''+j.id+'\');event.stopPropagation()">✓ Picked up</button>'
           : '<button class="djj-btn pickup" onclick="markPickedUp(\''+j.id+'\',event);event.stopPropagation()">→ Pick up</button>'; }
@@ -10562,6 +10575,9 @@ async function _loadUnassignedBinAlertJobs(force){
     if(!r.error && r.data){
       r.data.forEach(function(row){
         if(row.bin_bid) return; // skip jobs that already have a bin
+        // A live load is loaded off the truck and leaves on it — the bin never comes off,
+        // so there is nothing to assign and this banner would nag forever (Jake, 2026-08-31).
+        if(row.bin_live_load) return;
         var j = dbToJob(row);
         var idx = jobs.findIndex(function(x){ return x.id === j.id; });
         if(idx >= 0) jobs[idx] = j; else jobs.push(j);
@@ -10586,6 +10602,7 @@ function _getUnassignedBinJobs(){
   return jobs.filter(function(j){
     if(j.service !== 'Bin Rental') return false;
     if(j.binBid) return false;
+    if(j.binLiveLoad) return false;   // never gets a bin — see the note in the fetch above
     if(!j.binDropoff) return false;
     if(j.status === 'Cancelled') return false;
     return j.binDropoff <= cutoffStr && j.binDropoff >= floorStr;
