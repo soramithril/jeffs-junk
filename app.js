@@ -598,12 +598,16 @@ db.channel('notif-history')
   .subscribe();
 
 // ── Address Autocomplete ──────────────────────────────────────────────────
-// Google Places (New) is the primary source once GOOGLE_PLACES_KEY is set — OSM's
-// address book is thin in the smaller towns (a Barrie address got booked onto an
-// Alliston job, Aug 2026). The key is referer-locked to this site and day-capped in
-// the Google console below the 10K/month free tier; a capped or failed Google call
-// falls back to Nominatim so suggestions never just stop.
-var GOOGLE_PLACES_KEY = 'AIzaSyC3L8D8PMPHF0wu_a1RGv_9iNGd5-r16uI'; // referer-locked to this site, Places API (New) only, empty = Nominatim only
+// Google Places (New) is the primary source — OSM's address book is thin in the
+// smaller towns (a Barrie address got booked onto an Alliston job, Aug 2026).
+//
+// The key is NOT here. It lives as a secret on the places-proxy edge function, because
+// anything in this file is public: it ships in client JS and it is in the repo's git
+// history forever. A referrer restriction would not save it either — that is enforced by
+// the browser, so anything that is not a browser can forge one and spend the day's quota.
+// Behind the proxy the key is unpublished AND only a signed-in employee can spend it.
+//
+// A failed or capped call falls back to Nominatim so suggestions never just stop.
 var _acGoogleRetryAt = 0;   // after a Google failure, ride Nominatim until this time
 
 var _acDebounceTimers = {};
@@ -707,7 +711,7 @@ function attachAddressAutocomplete(inputEl, onPick) {
 
 // Both providers normalize to { street, city, extra } so one dropdown serves both.
 function _acFetchSuggestions(q) {
-  if (GOOGLE_PLACES_KEY && Date.now() >= _acGoogleRetryAt) {
+  if (Date.now() >= _acGoogleRetryAt) {
     return _acFetchGoogle(q).catch(function(){
       _acGoogleRetryAt = Date.now() + 60*60*1000;
       return _acFetchNominatim(q);
@@ -716,28 +720,27 @@ function _acFetchSuggestions(q) {
   return _acFetchNominatim(q);
 }
 
+// Through the places-proxy edge function rather than Google directly, so the key stays
+// off this page. The proxy pins the Barrie bias and the region itself and hands back the
+// same {street, city, extra} shape Nominatim does, so the dropdown serves both unchanged.
+//
+// No session token means signed out, which throws and rides the Nominatim path below like
+// any other failure — the proxy only answers signed-in staff, by design.
 function _acFetchGoogle(q) {
-  return fetch('https://places.googleapis.com/v1/places:autocomplete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GOOGLE_PLACES_KEY },
-    body: JSON.stringify({
-      input: q,
-      includedRegionCodes: ['ca'],
-      // Bias (never restrict) toward the service area; 50 km is the API's max radius
-      locationBias: { circle: { center: { latitude: _acLat, longitude: _acLon }, radius: 50000.0 } }
-    })
+  return db.auth.getSession().then(function(sess){
+    var token = sess && sess.data && sess.data.session && sess.data.session.access_token;
+    if (!token) throw new Error('not signed in');
+    return fetch(SUPABASE_URL + '/functions/v1/places-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ input: q })
+    });
   }).then(function(res){
-    if (!res.ok) throw new Error('places:autocomplete HTTP ' + res.status);
+    if (!res.ok) throw new Error('places-proxy HTTP ' + res.status);
     return res.json();
   }).then(function(data){
-    return (data.suggestions || []).map(function(s){
-      var p = (s && s.placePrediction) || {};
-      var sf = p.structuredFormat || {};
-      var main = (sf.mainText && sf.mainText.text) || (p.text && p.text.text) || '';
-      var sec  = (sf.secondaryText && sf.secondaryText.text) || '';
-      var parts = sec.split(',').map(function(x){ return x.trim(); }).filter(Boolean);
-      return { street: main, city: parts[0] || '', extra: parts.slice(1).join(', ') };
-    });
+    if (data.error) throw new Error(data.error);   // includes not_configured
+    return data.suggestions || [];
   });
 }
 
