@@ -7,8 +7,38 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // Google Maps key. PUBLIC BY DESIGN — a browser map key cannot be hidden the
+  // way the Places key is (that one lives as a secret on the places-proxy edge
+  // function; a map has to load in the page, so its key rides along). What
+  // protects it is not secrecy:
+  //   · locked to https://soramithril.github.io/*  (website restriction)
+  //   · restricted to the Maps JavaScript API alone
+  //   · capped daily under APIs & Services → Maps JavaScript API → Quotas
+  // Worst case if someone lifts it: they draw a map, and the cap stops that too.
+  //
+  // Cost: only a MAP LOAD is billed, and the map is built once per page load and
+  // reused — every pan, zoom and truck-to-truck hop after that is free. The board
+  // reloads itself on deploy, so roughly 170 loads a month against 10,000 free.
+  // The traffic layer is a layer over that same map: no extra billable event.
+  var GMAPS_KEY = 'AIzaSyDP9mUAQ0DCWBt8GRQN6649senq4hIDIG8';
+  // Defined HERE, in the same block that injects the loader, so it cannot lose a
+  // race with it. The board's own script runs later and hangs its work on
+  // __onGmaps; if Maps happened to land first, that script checks .done and
+  // catches up. Google will call an undefined callback and give up silently.
+  window.__gmapsReady = function(){
+    window.__gmapsReady.done = true;
+    if(window.__onGmaps) window.__onGmaps();
+  };
+  (function(){
+    if(!GMAPS_KEY) return;               // no key, no map panel — the rest of the board runs
+    var s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(GMAPS_KEY)
+          + '&v=weekly&loading=async&callback=__gmapsReady';
+    s.async = true;
+    document.head.appendChild(s);
+  })();
+</script>
 <style>
   /* ── "Roadside" office TV board — warm cream + spruce green, Baloo 2 / Hanken.
      Authored on a fixed 1920×1080 stage (design handoff) and scaled to fill any
@@ -280,12 +310,22 @@
   #opsWrap{height:100%; display:flex; min-height:0}
   .lo-card{flex:1 1 auto; background:var(--card); border-radius:28px; box-shadow:0 8px 0 rgba(23,64,42,.13);
     overflow:hidden; display:flex; flex-direction:column; min-height:0}
-  #tvmap{flex:1 1 auto; min-height:0; background:#dfe4da}
-  /* pull the raw OSM tiles toward the board's warm palette so the map reads as ours */
-  .leaflet-container{font-family:'Hanken Grotesk',sans-serif; background:#dfe4da}
-  .leaflet-tile-pane{filter:saturate(.6) brightness(1.06) contrast(.92) sepia(.12)}
-  .leaflet-control-attribution{font:600 11px/1.4 'Hanken Grotesk'; background:rgba(255,251,240,.78); color:#7a7c5f}
-  .leaflet-control-attribution a{color:#7a7c5f}
+  /* The map is pulled toward the board's warm palette by MAP_STYLE, not by a CSS
+     filter. A filter could only tint the finished picture — it dimmed the labels
+     along with everything else, which is why road names read so faintly before.
+     Google restyles the map itself, so the roads go cream and the labels stay
+     crisp. Google's own attribution is left alone on purpose: hiding it breaks
+     the terms of use. */
+  #tvmap{flex:1 1 auto; min-height:0; background:#dfe4da; font-family:'Hanken Grotesk',sans-serif}
+  /* Pins and cards are our own HTML laid over the map, so they must not swallow
+     clicks meant for it — and on a wall nothing is clicked anyway. The overlays
+     are absolutely-positioned siblings, so DOM order alone would decide what
+     covers what; these say it outright instead. A truck always beats a job pin. */
+  #tvmap .lo-mk-yard, #tvmap .lo-mk-job, #tvmap .lo-mk-truck, #tvmap .lo-pop{pointer-events:none}
+  .lo-mk-yard{z-index:1}
+  .lo-mk-job{z-index:2}
+  .lo-mk-truck{z-index:3}
+  .lo-pop{z-index:4}
   /* Truck pin — the mockup's marker, scaled 1.5x for the 1920-wide board:
      glossed disc, white ring, name chip, and a ping ring while it's moving. */
   @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
@@ -304,11 +344,17 @@
   .lo-tk.sel .b svg{width:30px; height:30px}
   .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--card), 0 4px 10px rgba(23,64,42,.3)}
-  /* Focused-truck card. A permanent Leaflet tooltip, so it rides with the pin —
-     there's no cursor on a wall, so nothing could ever hover it. */
-  .leaflet-tooltip.lo-pop{background:none; border:0; box-shadow:none; padding:0; margin:0;
-    white-space:normal}
-  .leaflet-tooltip.lo-pop::before{display:none}
+  /* Today's work, pinned by town. Deliberately unlike a truck pin — no white ring,
+     no gloss, no name chip — so a glance never reads "there is work here" as
+     "a truck is here". The number is what is LEFT to do in that town. */
+  .lo-job{display:flex; align-items:center; justify-content:center; min-width:36px; height:36px;
+    padding:0 11px; border-radius:13px; background:var(--spruce); color:var(--soft);
+    font:800 20px/1 'Hanken Grotesk'; border:3px solid var(--card);
+    box-shadow:0 5px 14px rgba(23,64,42,.32)}
+  .lo-job.done{background:#9aa38c}
+  /* Focused-truck card. An HTML overlay pinned above the truck, so it rides with
+     the pin — there's no cursor on a wall, so nothing could ever hover it. */
+  .lo-pop{white-space:normal}
   .lo-pop .card{width:250px; background:var(--card); border-radius:15px; overflow:hidden;
     box-shadow:0 16px 38px rgba(23,64,42,.32)}
   .lo-pop .hd{display:flex; align-items:center; gap:10px; padding:10px 15px}
@@ -333,10 +379,9 @@
     box-shadow:0 5px 14px rgba(23,64,42,.22)}
   #loLegend b{display:flex; align-items:center; gap:9px; font:700 18px/1 'Hanken Grotesk'; color:var(--muted-2)}
   #loLegend i{width:13px; height:13px; border-radius:50%}
-  /* Trail — the mockup's flowing dashed route line, scaled 1.5x for this board.
-     The dash offset animates, so the path reads as movement even once drawn. */
-  @keyframes trailflow{to{stroke-dashoffset:-34}}
-  .lo-trail{stroke-dasharray:9 8; animation:trailflow .8s linear infinite}
+  /* The trail's dashes and their flow are drawn by the map now (repeated symbols
+     on the polyline, offset animated in replayTrail) — there is no SVG path here
+     for CSS to dash any more. */
   /* where the focused truck is, top-right of the map */
   #loTown{position:absolute; right:20px; top:20px; z-index:400; display:none; align-items:center; gap:12px;
     background:var(--spruce); border-radius:16px; padding:12px 20px; box-shadow:0 6px 16px rgba(23,64,42,.3)}
@@ -1038,13 +1083,18 @@
     // TV never writes to jobs or to MyGeotab.
     var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
     // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
-    var TRUCK_C = { moving:'#2f8a4e', stopped:'#c9861c' };
-    var _map = null, _markers = {};
+    // Brighter than the board's other greens and ambers on purpose — these are
+    // read from across the room, on a pale map, at 45px across. The muted pair
+    // (#2f8a4e / #c9861c) still belongs everywhere else on the board; it is only
+    // the pins that need to shout. Stopped is orange rather than a brighter amber
+    // so it cannot be mistaken for the gold yard dot.
+    var TRUCK_C = { moving:'#22c55e', stopped:'#f97316' };
+    var _map = null, _markers = {}, _jobMarkers = {};
     // _cycleGen invalidates in-flight cycles. Without it a second startCycle (panel
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
-    var _trailLine = null, _replayRaf = null;
+    var _trailLine = null, _replayRaf = null, _trailFlow = null, _replayOf = null;
     // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
     // short deliberately: with a full fleet out, each truck only holds the screen
     // for panelMs/n — 15s at six trucks — so a longer replay would still be
@@ -1170,32 +1220,97 @@
       }catch(e){ console.warn('truck positions failed', e); }
     }
 
+    // The board's palette, applied to the map itself rather than filtered over the
+    // top of it. Roads go cream, water and parks go muted, and the label colours
+    // are set deliberately so town names stay readable from across the room —
+    // which is the whole reason for being on Google rather than raw tiles.
+    var MAP_STYLE = [
+      { elementType:'geometry',            stylers:[{ color:'#efeade' }] },
+      { elementType:'labels.text.fill',    stylers:[{ color:'#5c6150' }] },
+      { elementType:'labels.text.stroke',  stylers:[{ color:'#fffbf0' }] },
+      { featureType:'water',          elementType:'geometry', stylers:[{ color:'#c5d6cf' }] },
+      { featureType:'landscape.natural', elementType:'geometry', stylers:[{ color:'#e6e6d4' }] },
+      { featureType:'poi.park',       elementType:'geometry', stylers:[{ color:'#d9e3cd' }] },
+      { featureType:'road',           elementType:'geometry', stylers:[{ color:'#fffbf0' }] },
+      { featureType:'road.arterial',  elementType:'geometry', stylers:[{ color:'#f6efdc' }] },
+      { featureType:'road.highway',   elementType:'geometry', stylers:[{ color:'#f0d9a5' }] },
+      { featureType:'road.highway',   elementType:'geometry.stroke', stylers:[{ color:'#e2c184' }] },
+      { featureType:'administrative', elementType:'geometry.stroke', stylers:[{ color:'#cfc9b4' }] },
+      // Shops and businesses are noise on a dispatch wall — roads and towns only.
+      { featureType:'poi',     elementType:'labels', stylers:[{ visibility:'off' }] },
+      { featureType:'transit', stylers:[{ visibility:'off' }] }
+    ];
+
+    // Our pins and cards are HTML, not map images, so they ride on an overlay that
+    // converts a lat/lng into a pixel spot every time the map moves. `above` puts
+    // the focus card over the truck instead of centred on it.
+    function htmlMarker(latLng, html, cls, above){
+      var o = new google.maps.OverlayView();
+      o.__ll = latLng; o.__html = html;
+      o.onAdd = function(){
+        var d = document.createElement('div');
+        d.style.position = 'absolute';
+        if(cls) d.className = cls;
+        d.innerHTML = o.__html;
+        o.__div = d;
+        o.getPanes().floatPane.appendChild(d);
+      };
+      o.draw = function(){
+        var proj = o.getProjection();
+        if(!proj || !o.__div) return;
+        var p = proj.fromLatLngToDivPixel(o.__ll);
+        if(!p) return;
+        var w = o.__div.offsetWidth, h = o.__div.offsetHeight;
+        o.__div.style.left = (p.x - w / 2) + 'px';
+        o.__div.style.top  = (p.y - (above ? h + 34 : h / 2)) + 'px';
+      };
+      o.onRemove = function(){
+        if(o.__div && o.__div.parentNode) o.__div.parentNode.removeChild(o.__div);
+        o.__div = null;
+      };
+      o.setContent = function(h){ o.__html = h; if(o.__div){ o.__div.innerHTML = h; o.draw(); } };
+      o.setPosition = function(ll){ o.__ll = ll; o.draw(); };
+      o.setMap(_map);
+      return o;
+    }
+
     function ensureTruckMap(){
       if(_map) return _map;
-      if(typeof L === 'undefined') return null;
+      if(typeof google === 'undefined' || !google.maps) return null;
       var host = el('tvmap');
       if(!host) return null;
       // Fully inert — it's a wall, there's nobody to pan or zoom it.
-      _map = L.map(host, { zoomControl:false, attributionControl:true, dragging:false,
-                           scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false,
-                           keyboard:false, touchZoom:false, tap:false })
-              .setView([YARD.lat, YARD.lng], 10);
-      // keepBuffer well above the default 2: the tour laps the same ground every
-      // rotation, so holding the off-screen tiles means coming back to a truck
-      // costs nothing instead of re-fetching the whole view.
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom:19, keepBuffer:6, attribution:'© OpenStreetMap'
-      }).addTo(_map);
+      _map = new google.maps.Map(host, {
+        center:{ lat:YARD.lat, lng:YARD.lng }, zoom:10,
+        disableDefaultUI:true, gestureHandling:'none', keyboardShortcuts:false,
+        clickableIcons:false, styles:MAP_STYLE
+      });
+      // Live traffic. It is a layer over the map that is already loaded, so it
+      // costs nothing on top of the map load — and it is the one thing here that
+      // tells the office something they could not already see.
+      new google.maps.TrafficLayer().setMap(_map);
+      // Creating the map is the ONE thing Google bills, so this is counted here and
+      // nowhere else — every pan, zoom and truck hop after this is free and must not
+      // be tallied, or the Usage page would invent traffic that was never charged.
+      // Same table the address autocomplete writes to, so both show on one page.
+      // Fire-and-forget: a counter that failed must never stop the map drawing.
+      db.rpc('bump_google_api', { p_api:'maps_dynamic' }).then(function(r){
+        if(r.error) console.warn('map load not counted', r.error.message);
+      });
       // A bare landmark dot, no label. A text chip here collides constantly —
       // Barrie sits right on top of the yard, and truck labels hang down into it.
       // How many trucks are parked here needs no chip either: "5 of 6 out" says it.
-      L.marker([YARD.lat, YARD.lng], {
-        interactive:false, zIndexOffset:-1000, icon: L.divIcon({
-          className:'', iconSize:[22,22], iconAnchor:[11,11], html:'<div class="lo-yard"></div>'
-        })
-      }).addTo(_map);
+      htmlMarker(new google.maps.LatLng(YARD.lat, YARD.lng), '<div class="lo-yard"></div>', 'lo-mk-yard');
       return _map;
     }
+
+    // Runs once the Maps library is in. The board boots long before the Live Ops
+    // panel comes round, so normally the map is ready and waiting — but if the
+    // panel is already up when this lands, draw into it straight away.
+    window.__onGmaps = function(){
+      if(PANELS[panelIdx] === 'liveops'){ drawTrucks(); startCycle(); }
+    };
+    if(window.__gmapsReady.done) window.__onGmaps();
 
     // Only trucks that are actually OUT get a pin — the yarded ones would all land
     // on the same pixel. This is also what the "N of M out" tag counts.
@@ -1224,13 +1339,14 @@
     // The mockup's marker: glossed disc, white ring, name chip, and a ping ring
     // while the truck is moving. `sel` is the truck the map is focused on.
     function truckIcon(t, sel){
-      var st = truckState(t), c = TRUCK_C[st], d = sel ? 57 : 45;
+      var st = truckState(t), c = TRUCK_C[st];
       var gloss = 'radial-gradient(circle at 34% 28%, color-mix(in srgb, '+c+' 55%, #fff), '+c+')';
       var ping = st === 'moving' ? '<span class="ping" style="color:'+c+'"></span>' : '';
-      return L.divIcon({ className:'', iconSize:[d, d+30], iconAnchor:[d/2, d/2],
-        html:'<div class="lo-tk'+(sel ? ' sel' : '')+'">'
+      // The disc sizes itself off .lo-tk / .lo-tk.sel in CSS, so there is no pixel
+      // size to declare here the way a Leaflet icon needed one.
+      return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'
            + '<span class="b" style="background:'+gloss+'">'+TRUCK_SVG+ping+'</span>'
-           + '<span class="n">'+esc(t.name)+'</span></div>' });
+           + '<span class="n">'+esc(t.name)+'</span></div>';
     }
 
     // Each truck's regular driver — the same pairing app-leaderboard.js encodes as
@@ -1320,32 +1436,94 @@
       list.forEach(function(t){
         seen[t.id] = 1;
         var m = _markers[t.id];
-        if(m){ m.setLatLng([t.lat, t.lng]); m.setIcon(truckIcon(t, t.id === _focusId)); }
-        else {
-          m = L.marker([t.lat, t.lng], { icon:truckIcon(t, false), interactive:false }).addTo(map);
-          _markers[t.id] = m;
+        if(m){
+          m.setPosition(new google.maps.LatLng(t.lat, t.lng));
+          m.setContent(truckIcon(t, t.id === _focusId));
+        } else {
+          _markers[t.id] = htmlMarker(new google.maps.LatLng(t.lat, t.lng), truckIcon(t, false), 'lo-mk-truck');
         }
       });
       Object.keys(_markers).forEach(function(id){
-        if(!seen[id]){ map.removeLayer(_markers[id]); delete _markers[id]; }
+        if(!seen[id]){ _markers[id].setMap(null); delete _markers[id]; }
       });
-      // The panel is hidden when the map is first built, so Leaflet needs a nudge
-      // to pick up its real size.
-      map.invalidateSize();
+      // The panel is hidden when the map is first built, so the map needs a nudge
+      // to pick up its real size — otherwise it renders against a zero-width box
+      // and comes back blank. Re-centring after is what actually puts it right.
+      google.maps.event.trigger(map, 'resize');
+      drawJobPins();
+    }
+
+    // Today's work, pinned by TOWN rather than address. Two reasons, and both are
+    // deliberate: the board frames the whole service area, where two addresses in
+    // the same town land on the same pixel — and jobs carry no coordinates, only an
+    // address the wall must never hand to a geocoder (see the note above TOWNS).
+    // The town a job already names is enough to say where the day's work is.
+    var TOWN_LL = {};
+    TOWNS.forEach(function(t){ TOWN_LL[t[0].toLowerCase()] = t; });
+
+    function townOf(city){
+      if(!city) return null;
+      // "Barrie, ON" and "barrie " both have to find Barrie.
+      return TOWN_LL[String(city).toLowerCase().replace(/,.*$/, '').trim()] || null;
+    }
+
+    function drawJobPins(){
+      if(!_map) return;
+      var by = {}, missed = {};
+      (DATA.jobs || []).forEach(function(j){
+        var t = townOf(j.city);
+        if(!t){ if(j.city) missed[j.city] = 1; return; }
+        var g = by[t[0]] || (by[t[0]] = { town:t, total:0, done:0 });
+        g.total++;
+        if(j.completed) g.done++;
+      });
+      // A town we cannot place is silently missing from the wall, which looks like a
+      // quiet day rather than a gap. Name them once so the list can be extended.
+      var miss = Object.keys(missed);
+      if(miss.length) console.warn('job pins: no town match for', miss.join(', '));
+
+      Object.keys(by).forEach(function(name){
+        var g = by[name], left = g.total - g.done;
+        var html = '<div class="lo-job'+(left ? '' : ' done')+'">'+(left || '✓')+'</div>';
+        if(_jobMarkers[name]) _jobMarkers[name].setContent(html);
+        else _jobMarkers[name] = htmlMarker(
+          new google.maps.LatLng(g.town[1], g.town[2]), html, 'lo-mk-job');
+      });
+      Object.keys(_jobMarkers).forEach(function(name){
+        if(!by[name]){ _jobMarkers[name].setMap(null); delete _jobMarkers[name]; }
+      });
     }
 
     // Frame everything — the overview we fall back to when there's nobody to focus.
     function frameAll(){
       if(!_map) return;
-      var pts = outTrucks().map(function(t){ return [t.lat, t.lng]; });
-      pts.push([YARD.lat, YARD.lng]);
-      _map.fitBounds(pts, { padding:[80,90], maxZoom:12, animate:false });
+      var b = new google.maps.LatLngBounds();
+      outTrucks().forEach(function(t){ b.extend(new google.maps.LatLng(t.lat, t.lng)); });
+      b.extend(new google.maps.LatLng(YARD.lat, YARD.lng));
+      _map.fitBounds(b, { top:90, right:80, bottom:90, left:80 });
+      // Google has no maxZoom on fitBounds, and with everyone parked the bounds
+      // collapse to the yard alone — which would slam the map to street level.
+      google.maps.event.addListenerOnce(_map, 'idle', function(){
+        if(_map.getZoom() > 12) _map.setZoom(12);
+      });
     }
 
     // ── trail replay ──────────────────────────────────────────────────────────
+    // Move a truck's pin — and its card, when it is the focused one — to a spot.
+    // Called with no lat/lng it puts the pin back where the truck actually is.
+    function seatTruck(t, lat, lng){
+      var ll = new google.maps.LatLng(lat == null ? t.lat : lat, lng == null ? t.lng : lng);
+      if(_markers[t.id]) _markers[t.id].setPosition(ll);
+      if(_card && _focusId === t.id) _card.setPosition(ll);
+    }
+
     function stopReplay(){
       if(_replayRaf){ cancelAnimationFrame(_replayRaf); _replayRaf = null; }
-      if(_trailLine){ _trailLine.remove(); _trailLine = null; }
+      if(_trailFlow){ clearInterval(_trailFlow); _trailFlow = null; }
+      if(_trailLine){ _trailLine.setMap(null); _trailLine = null; }
+      // A replay cut short would leave the pin parked partway along the route,
+      // somewhere the truck isn't. Put it back on its real position first.
+      if(_replayOf){ seatTruck(_replayOf); _replayOf = null; }
     }
 
     // Draw the focused truck's recent path, growing it from oldest to newest so
@@ -1356,15 +1534,31 @@
       var pts = (DATA.trails || {})[t.id];
       if(!pts || pts.length < 2 || !_map) return;
       var c = TRUCK_C[truckState(t)];
-      _trailLine = L.polyline([pts[0]], {
-        color:c, weight:6, opacity:.85, lineCap:'round', lineJoin:'round',
-        interactive:false, className:'lo-trail'
-      }).addTo(_map);
+      var path = pts.map(function(p){ return { lat:p[0], lng:p[1] }; });
+      // Google has no dash array on a polyline, so the dashes are repeated symbols
+      // along an invisible line (strokeOpacity 0), and the flow that made the path
+      // read as a run rather than a drawn line is an animated offset below.
+      _trailLine = new google.maps.Polyline({
+        path:[path[0]], strokeOpacity:0, clickable:false, zIndex:5, map:_map,
+        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:c, strokeOpacity:.85,
+                        strokeWeight:6, scale:3 }, offset:'0', repeat:'17px' }]
+      });
+      _trailFlow = setInterval(function(){
+        if(!_trailLine) return;
+        var ic = _trailLine.get('icons');
+        ic[0].offset = (((parseFloat(ic[0].offset) || 0) + 1.5) % 100) + '%';
+        _trailLine.set('icons', ic);
+      }, 60);
       // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
       // the tab is hidden, which would strand the line part-drawn — the same reason
       // countUp() bails when hidden. Nobody is watching then, so just draw the whole
       // path and skip the animation.
-      if(document.hidden){ _trailLine.setLatLngs(pts); return; }
+      if(document.hidden){ _trailLine.setPath(path); return; }
+      // The pin runs the route with the line rather than waiting at the end of it,
+      // so the last 90 minutes replay as a journey. _replayOf marks it as displaced
+      // — everything that ends a replay puts it back on its real position.
+      _replayOf = t;
+      seatTruck(t, path[0].lat, path[0].lng);
       var start = null;
       function frame(ts){
         if(gen !== _cycleGen){ return; }
@@ -1372,9 +1566,11 @@
         var p = Math.min(1, (ts - start) / REPLAY_MS);
         // ease-out so it charges away and settles, rather than crawling linearly
         var e = 1 - Math.pow(1 - p, 2);
-        _trailLine.setLatLngs(pts.slice(0, Math.max(2, Math.round(e * pts.length))));
+        var drawn = path.slice(0, Math.max(2, Math.round(e * path.length)));
+        _trailLine.setPath(drawn);
+        seatTruck(t, drawn[drawn.length - 1].lat, drawn[drawn.length - 1].lng);
         if(p < 1) _replayRaf = requestAnimationFrame(frame);
-        else _replayRaf = null;
+        else { _replayRaf = null; _replayOf = null; seatTruck(t); }
       }
       _replayRaf = requestAnimationFrame(frame);
     }
@@ -1385,9 +1581,7 @@
       _cycleGen++;                       // any chain still in flight now bails out
       clearTimeout(_cycleTimer); _cycleTimer = null; _focusId = null;
       el('loTown').classList.remove('on');
-      // .remove(), not map.closeTooltip() — these are added as layers, and
-      // closeTooltip only clears ones opened via openTooltip.
-      if(_card){ _card.remove(); _card = null; }
+      if(_card){ _card.setMap(null); _card = null; }
     }
 
     function focusTruck(i, gen){
@@ -1408,23 +1602,23 @@
       var town = el('loTown');
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
-      if(_card) _card.remove();
-      _card = L.tooltip({ permanent:true, direction:'top', offset:[0,-34],
-                          className:'lo-pop', interactive:false })
-        .setLatLng([t.lat, t.lng]).setContent(truckCard(t)).addTo(_map);
+      if(_card) _card.setMap(null);
+      _card = htmlMarker(new google.maps.LatLng(t.lat, t.lng), truckCard(t), 'lo-pop', true);
       // Move at a fixed zoom, never through one. flyTo used to swoop — zoom out on
       // a curve, slide, zoom back in — so every level between here and there was
       // fetched and binned, which is what made the whole map rebuild at each truck.
       //
-      // A near hop glides; a far one cuts. That split is Leaflet's own threshold:
-      // past about one screen of offset an animated pan smears tiles in Chrome
-      // (its #2602), and a clean cut beats a smear on a wall.
-      var to = L.latLng(t.lat, t.lng);
-      var off = _map.latLngToContainerPoint(to).subtract(_map.getSize().divideBy(2));
-      if(_map.getZoom() === TOUR_ZOOM && _map.getSize().contains(off)){
-        _map.panTo(to, { animate:true, duration:0.7 });
+      // A near hop glides; a far one cuts. The split is whether the next truck is
+      // already on screen: panTo across the visible map reads as a glide, while
+      // dragging the world past at speed just smears, and a clean cut beats a
+      // smear on a wall.
+      var to = new google.maps.LatLng(t.lat, t.lng);
+      var b = _map.getBounds();
+      if(_map.getZoom() === TOUR_ZOOM && b && b.contains(to)){
+        _map.panTo(to);
       } else {
-        _map.setView(to, TOUR_ZOOM, { animate:false });
+        _map.setZoom(TOUR_ZOOM);
+        _map.setCenter(to);
       }
       replayTrail(t, gen);
       // Split the screen's dwell across however many trucks are out, with a floor
@@ -1458,7 +1652,8 @@
 
       el('loLegend').innerHTML = '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
         + '<b><i style="background:'+TRUCK_C.stopped+'"></i>Stopped</b>'
-        + '<b><i style="background:var(--gold)"></i>Yard</b>';
+        + '<b><i style="background:var(--gold)"></i>Yard</b>'
+        + '<b><i style="background:var(--spruce)"></i>Jobs left</b>';
       // No clock here — the header already has one. This slot only speaks up when
       // the GPS feed has given us nothing, which the header can't tell you.
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
