@@ -1509,12 +1509,17 @@
       var host = el('tvmap');
       if(!host){ move(); return; }
       host.classList.add('cut');
-      move();
-      // Two frames: one for the browser to paint the blanked panel, one to drop
-      // the class so the transition actually runs instead of being collapsed.
-      requestAnimationFrame(function(){
-        requestAnimationFrame(function(){ host.classList.remove('cut'); });
-      });
+      try {
+        move();
+      } finally {
+        // finally, not catch: a real error still propagates to the console, but a
+        // throw can never strand the panel black on the wall for the evening.
+        // Two frames: one for the browser to paint the blanked panel, one to drop
+        // the class so the transition actually runs instead of being collapsed.
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){ host.classList.remove('cut'); });
+        });
+      }
     }
 
     // The overview. Framed on the trucks THEMSELVES, as tight as they allow —
