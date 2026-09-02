@@ -142,11 +142,16 @@
   /* Rotation is a conveyor since v543-era slide upgrade: waiting panels sit off-right,
      the exiting one (.was, set by showPanel for ~.7s) rides off-left. Class-driven end
      states, so a hidden tab that skips the transition still lands correct. */
+  /* The scale is what turns a flat slide into cards on a conveyor: a panel sits
+     back slightly while it waits and while it leaves, and comes fully forward
+     only when it is the one being read. The curve overshoots a touch so it
+     settles rather than stops dead — the same friendliness as the Baloo 2 type.
+     Duration stays inside the .7s that showPanel waits before stripping .was. */
   .panel{position:absolute; inset:0; display:flex; flex-direction:column; gap:24px; min-height:0;
-    opacity:0; visibility:hidden; transform:translateX(103%);
-    transition:transform .55s cubic-bezier(.32,.72,0,1), opacity .55s ease, visibility .55s}
-  .panel.on{opacity:1; visibility:visible; transform:translateX(0)}
-  .panel.was{opacity:0; visibility:visible; transform:translateX(-103%)}
+    opacity:0; visibility:hidden; transform:translateX(103%) scale(.94);
+    transition:transform .6s cubic-bezier(.3,1.12,.4,1), opacity .55s ease, visibility .6s}
+  .panel.on{opacity:1; visibility:visible; transform:translateX(0) scale(1)}
+  .panel.was{opacity:0; visibility:visible; transform:translateX(-103%) scale(.94)}
   .p-head{display:flex; align-items:center; gap:20px; padding:0 4px; flex:0 0 auto}
   .p-head .bar{width:15px; height:46px; background:var(--gold); border-radius:6px; flex:0 0 auto}
   .p-head h2{margin:0; font:700 54px/1 'Baloo 2'; color:var(--spruce); white-space:nowrap}
@@ -228,6 +233,31 @@
   .panel[data-panel="schedule"] .rname,
   .panel[data-panel="schedule"] .cell{ animation:tvIn .55s both; animation-delay:calc(var(--i,0) * 55ms) }
   .panel[data-panel="bins"] .bb-row{ animation:tvIn .5s both; animation-delay:calc(var(--i,0) * 45ms + 120ms) }
+  /* Operations lanes arrive one after another like the bins and schedule rows.
+     :not(.beat) matters — a lane that beat last year owns its animation slot for
+     the celebrate pulse, and stealing it would kill the thing worth watching. */
+  .panel[data-panel="kpis"] .opsl:not(.beat){ animation:tvIn .55s both; animation-delay:calc(var(--i,0) * 95ms + 150ms) }
+  /* The heading arrives ahead of its content: the gold bar grows up out of
+     nothing, the title slides in behind it, then the status chips. Keyed to
+     .on so it replays every time the screen comes round, not just on render. */
+  @keyframes pHeadBar{ from{transform:scaleY(0); opacity:0} to{transform:scaleY(1); opacity:1} }
+  @keyframes pHeadIn{ from{opacity:0; transform:translateX(-22px)} to{opacity:1; transform:none} }
+  .panel.on .p-head .bar{ transform-origin:50% 100%;
+    animation:pHeadBar .5s .05s both cubic-bezier(.3,1.3,.4,1) }
+  .panel.on .p-head h2{ animation:pHeadIn .5s .14s both cubic-bezier(.32,.72,0,1) }
+  .panel.on .p-head .tag,
+  .panel.on .p-head .status{ animation:pHeadIn .5s .24s both cubic-bezier(.32,.72,0,1) }
+  /* Truck wipe, once per full lap. It drives RIGHT TO LEFT because the artwork
+     faces left — flipping it would mirror the JEFF'S JUNK.ca sign into gibberish
+     — and that happens to run with the outgoing panel, which rides off left too.
+     Two elements: .rig drives, the img bobs, because one element cannot animate
+     transform two ways at once. */
+  #tvWipe{position:absolute; inset:0; z-index:40; pointer-events:none; overflow:hidden; display:none}
+  #tvWipe.go{display:block}
+  #tvWipe .rig{position:absolute; bottom:7%; left:100%;
+    animation:truckWipe 1.7s cubic-bezier(.42,0,.4,1) both}
+  #tvWipe .rig img{display:block; width:360px; animation:bob .45s ease-in-out infinite}
+  @keyframes truckWipe{ from{transform:translateX(0)} to{transform:translateX(-128vw)} }
   /* crew grid is a fixed 7-column grid (name + Mon–Sat) — stagger columns L→R */
   #schedWrap > :nth-child(7n+2){--i:1} #schedWrap > :nth-child(7n+3){--i:2}
   #schedWrap > :nth-child(7n+4){--i:3} #schedWrap > :nth-child(7n+5){--i:4}
@@ -476,6 +506,9 @@
           </div></div>
         </section>
 
+        <!-- Once-a-lap truck wipe. Same artwork as the ambient #tvtruck, so it is
+             already cached and costs no extra download. -->
+        <div id="tvWipe" aria-hidden="true"><span class="rig"><img src="assets/tv-truck.png" alt=""></span></div>
       </div>
     </div>
   </div>
@@ -1021,7 +1054,7 @@
 
     // 2A — standings lanes
     function renderOpsLanes(services, MONTH){
-      return services.map(function(s){
+      return services.map(function(s, i){
         var scale=Math.max(s.proj, s.last, 1)*1.14, W=function(v){ return Math.max(0,Math.min(100,v/scale*100)); };
         var solid=W(s.cur), projW=W(s.proj), tick=W(s.last);
         var ghostL=Math.min(solid,projW), ghostW=Math.max(0,projW-ghostL);
@@ -1032,7 +1065,7 @@
         var sub =s.beat?('ahead by '+(s.cur-s.last))
                 :s.onPace?('on track, +'+Math.max(0,s.proj-s.last))
                 :((s.last-s.proj)+' short of '+s.last);
-        return '<div class="opsl'+(s.beat?' beat':'')+'">'
+        return '<div class="opsl'+(s.beat?' beat':'')+'" style="--i:'+i+'">'
           +'<div class="accent" style="background:'+s.accent+'"></div>'
           +'<div class="who"><div class="nm">'+esc(s.name)+'</div>'
             +(s.beat?'<div class="beatchip">★ BEAT LAST '+MONTH.slice(0,3).toUpperCase()+'</div>':'')
@@ -1744,6 +1777,20 @@
     }
 
     // ── rotation ─────────────────────────────────────────────────────────────
+    // Send the truck across. Hidden tabs are skipped — CSS animations stall while
+    // the tab is hidden, so it would otherwise sit frozen mid-screen and then jump
+    // across the moment someone wakes the board.
+    var _wipeTimer = null;
+    function truckWipe(){
+      var w = el('tvWipe');
+      if(!w || document.hidden) return;
+      clearTimeout(_wipeTimer);
+      w.classList.remove('go');
+      void w.offsetWidth;               // reflow, so the animation restarts from the top
+      w.classList.add('go');
+      _wipeTimer = setTimeout(function(){ w.classList.remove('go'); }, 1800);
+    }
+
     function showPanel(i){
       panelIdx = (i+PANELS.length)%PANELS.length;
       var name = PANELS[panelIdx];
@@ -1759,6 +1806,10 @@
         prev.classList.add('was');
         setTimeout(function(){ prev.classList.remove('was'); }, 700);
       }
+      // Truck runs the change once per full lap. Every panel would be every 20s,
+      // which stops being a treat by the second hour; a lap is about 2.5 minutes.
+      // `prev` guards the very first paint, where nothing is being replaced yet.
+      if(panelIdx === 0 && prev) truckWipe();
       // Pull fresh truck positions as the map rotates in — once every lap rather
       // than on a timer of its own, so the pins are current exactly when they're
       // on screen and we spend nothing on Geotab's quota the rest of the time.
