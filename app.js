@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '656';
+var APP_VERSION = '657';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -14773,7 +14773,12 @@ var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landsca
 //   free  — Google's free calls per month for that service
 //   daily — the cap we set ourselves in the Cloud console
 var GOOGLE_SERVICES={
-  places_autocomplete:{label:'Address autocomplete',free:10000,daily:300}
+  places_autocomplete:{label:'Address autocomplete',free:10000,daily:300},
+  // The office TV board's map. Counted by the board itself, not an edge function:
+  // a map load happens in the browser, so there is no server call to hook. Only
+  // the map's CREATION bills, and the board builds one per page load, so this
+  // tracks reloads rather than anything the screen does all day.
+  maps_dynamic:{label:'Office TV map',free:10000,daily:50}
 };
 
 // Local YYYY-MM-DD. The counter stamps Toronto days and the office reads it in Toronto,

@@ -21,7 +21,7 @@
   // reused — every pan, zoom and truck-to-truck hop after that is free. The board
   // reloads itself on deploy, so roughly 170 loads a month against 10,000 free.
   // The traffic layer is a layer over that same map: no extra billable event.
-  var GMAPS_KEY = '';
+  var GMAPS_KEY = 'AIzaSyDP9mUAQ0DCWBt8GRQN6649senq4hIDIG8';
   // Defined HERE, in the same block that injects the loader, so it cannot lose a
   // race with it. The board's own script runs later and hangs its work on
   // __onGmaps; if Maps happened to land first, that script checks .done and
@@ -317,9 +317,15 @@
      crisp. Google's own attribution is left alone on purpose: hiding it breaks
      the terms of use. */
   #tvmap{flex:1 1 auto; min-height:0; background:#dfe4da; font-family:'Hanken Grotesk',sans-serif}
-  /* Truck pins and the focus card are our own HTML laid over the map, so they
-     must not swallow clicks meant for it — and on a wall nothing is clicked. */
-  #tvmap .lo-tk, #tvmap .lo-pop{pointer-events:none}
+  /* Pins and cards are our own HTML laid over the map, so they must not swallow
+     clicks meant for it — and on a wall nothing is clicked anyway. The overlays
+     are absolutely-positioned siblings, so DOM order alone would decide what
+     covers what; these say it outright instead. A truck always beats a job pin. */
+  #tvmap .lo-mk-yard, #tvmap .lo-mk-job, #tvmap .lo-mk-truck, #tvmap .lo-pop{pointer-events:none}
+  .lo-mk-yard{z-index:1}
+  .lo-mk-job{z-index:2}
+  .lo-mk-truck{z-index:3}
+  .lo-pop{z-index:4}
   /* Truck pin — the mockup's marker, scaled 1.5x for the 1920-wide board:
      glossed disc, white ring, name chip, and a ping ring while it's moving. */
   @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
@@ -338,6 +344,14 @@
   .lo-tk.sel .b svg{width:30px; height:30px}
   .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--card), 0 4px 10px rgba(23,64,42,.3)}
+  /* Today's work, pinned by town. Deliberately unlike a truck pin — no white ring,
+     no gloss, no name chip — so a glance never reads "there is work here" as
+     "a truck is here". The number is what is LEFT to do in that town. */
+  .lo-job{display:flex; align-items:center; justify-content:center; min-width:36px; height:36px;
+    padding:0 11px; border-radius:13px; background:var(--spruce); color:var(--soft);
+    font:800 20px/1 'Hanken Grotesk'; border:3px solid var(--card);
+    box-shadow:0 5px 14px rgba(23,64,42,.32)}
+  .lo-job.done{background:#9aa38c}
   /* Focused-truck card. An HTML overlay pinned above the truck, so it rides with
      the pin — there's no cursor on a wall, so nothing could ever hover it. */
   .lo-pop{white-space:normal}
@@ -1075,12 +1089,12 @@
     // the pins that need to shout. Stopped is orange rather than a brighter amber
     // so it cannot be mistaken for the gold yard dot.
     var TRUCK_C = { moving:'#22c55e', stopped:'#f97316' };
-    var _map = null, _markers = {};
+    var _map = null, _markers = {}, _jobMarkers = {};
     // _cycleGen invalidates in-flight cycles. Without it a second startCycle (panel
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
-    var _trailLine = null, _replayRaf = null, _trailFlow = null;
+    var _trailLine = null, _replayRaf = null, _trailFlow = null, _replayOf = null;
     // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
     // short deliberately: with a full fleet out, each truck only holds the screen
     // for panelMs/n — 15s at six trucks — so a longer replay would still be
@@ -1275,10 +1289,18 @@
       // costs nothing on top of the map load — and it is the one thing here that
       // tells the office something they could not already see.
       new google.maps.TrafficLayer().setMap(_map);
+      // Creating the map is the ONE thing Google bills, so this is counted here and
+      // nowhere else — every pan, zoom and truck hop after this is free and must not
+      // be tallied, or the Usage page would invent traffic that was never charged.
+      // Same table the address autocomplete writes to, so both show on one page.
+      // Fire-and-forget: a counter that failed must never stop the map drawing.
+      db.rpc('bump_google_api', { p_api:'maps_dynamic' }).then(function(r){
+        if(r.error) console.warn('map load not counted', r.error.message);
+      });
       // A bare landmark dot, no label. A text chip here collides constantly —
       // Barrie sits right on top of the yard, and truck labels hang down into it.
       // How many trucks are parked here needs no chip either: "5 of 6 out" says it.
-      htmlMarker(new google.maps.LatLng(YARD.lat, YARD.lng), '<div class="lo-yard"></div>');
+      htmlMarker(new google.maps.LatLng(YARD.lat, YARD.lng), '<div class="lo-yard"></div>', 'lo-mk-yard');
       return _map;
     }
 
@@ -1418,7 +1440,7 @@
           m.setPosition(new google.maps.LatLng(t.lat, t.lng));
           m.setContent(truckIcon(t, t.id === _focusId));
         } else {
-          _markers[t.id] = htmlMarker(new google.maps.LatLng(t.lat, t.lng), truckIcon(t, false));
+          _markers[t.id] = htmlMarker(new google.maps.LatLng(t.lat, t.lng), truckIcon(t, false), 'lo-mk-truck');
         }
       });
       Object.keys(_markers).forEach(function(id){
@@ -1428,6 +1450,48 @@
       // to pick up its real size — otherwise it renders against a zero-width box
       // and comes back blank. Re-centring after is what actually puts it right.
       google.maps.event.trigger(map, 'resize');
+      drawJobPins();
+    }
+
+    // Today's work, pinned by TOWN rather than address. Two reasons, and both are
+    // deliberate: the board frames the whole service area, where two addresses in
+    // the same town land on the same pixel — and jobs carry no coordinates, only an
+    // address the wall must never hand to a geocoder (see the note above TOWNS).
+    // The town a job already names is enough to say where the day's work is.
+    var TOWN_LL = {};
+    TOWNS.forEach(function(t){ TOWN_LL[t[0].toLowerCase()] = t; });
+
+    function townOf(city){
+      if(!city) return null;
+      // "Barrie, ON" and "barrie " both have to find Barrie.
+      return TOWN_LL[String(city).toLowerCase().replace(/,.*$/, '').trim()] || null;
+    }
+
+    function drawJobPins(){
+      if(!_map) return;
+      var by = {}, missed = {};
+      (DATA.jobs || []).forEach(function(j){
+        var t = townOf(j.city);
+        if(!t){ if(j.city) missed[j.city] = 1; return; }
+        var g = by[t[0]] || (by[t[0]] = { town:t, total:0, done:0 });
+        g.total++;
+        if(j.completed) g.done++;
+      });
+      // A town we cannot place is silently missing from the wall, which looks like a
+      // quiet day rather than a gap. Name them once so the list can be extended.
+      var miss = Object.keys(missed);
+      if(miss.length) console.warn('job pins: no town match for', miss.join(', '));
+
+      Object.keys(by).forEach(function(name){
+        var g = by[name], left = g.total - g.done;
+        var html = '<div class="lo-job'+(left ? '' : ' done')+'">'+(left || '✓')+'</div>';
+        if(_jobMarkers[name]) _jobMarkers[name].setContent(html);
+        else _jobMarkers[name] = htmlMarker(
+          new google.maps.LatLng(g.town[1], g.town[2]), html, 'lo-mk-job');
+      });
+      Object.keys(_jobMarkers).forEach(function(name){
+        if(!by[name]){ _jobMarkers[name].setMap(null); delete _jobMarkers[name]; }
+      });
     }
 
     // Frame everything — the overview we fall back to when there's nobody to focus.
@@ -1445,10 +1509,21 @@
     }
 
     // ── trail replay ──────────────────────────────────────────────────────────
+    // Move a truck's pin — and its card, when it is the focused one — to a spot.
+    // Called with no lat/lng it puts the pin back where the truck actually is.
+    function seatTruck(t, lat, lng){
+      var ll = new google.maps.LatLng(lat == null ? t.lat : lat, lng == null ? t.lng : lng);
+      if(_markers[t.id]) _markers[t.id].setPosition(ll);
+      if(_card && _focusId === t.id) _card.setPosition(ll);
+    }
+
     function stopReplay(){
       if(_replayRaf){ cancelAnimationFrame(_replayRaf); _replayRaf = null; }
       if(_trailFlow){ clearInterval(_trailFlow); _trailFlow = null; }
       if(_trailLine){ _trailLine.setMap(null); _trailLine = null; }
+      // A replay cut short would leave the pin parked partway along the route,
+      // somewhere the truck isn't. Put it back on its real position first.
+      if(_replayOf){ seatTruck(_replayOf); _replayOf = null; }
     }
 
     // Draw the focused truck's recent path, growing it from oldest to newest so
@@ -1479,6 +1554,11 @@
       // countUp() bails when hidden. Nobody is watching then, so just draw the whole
       // path and skip the animation.
       if(document.hidden){ _trailLine.setPath(path); return; }
+      // The pin runs the route with the line rather than waiting at the end of it,
+      // so the last 90 minutes replay as a journey. _replayOf marks it as displaced
+      // — everything that ends a replay puts it back on its real position.
+      _replayOf = t;
+      seatTruck(t, path[0].lat, path[0].lng);
       var start = null;
       function frame(ts){
         if(gen !== _cycleGen){ return; }
@@ -1486,9 +1566,11 @@
         var p = Math.min(1, (ts - start) / REPLAY_MS);
         // ease-out so it charges away and settles, rather than crawling linearly
         var e = 1 - Math.pow(1 - p, 2);
-        _trailLine.setPath(path.slice(0, Math.max(2, Math.round(e * path.length))));
+        var drawn = path.slice(0, Math.max(2, Math.round(e * path.length)));
+        _trailLine.setPath(drawn);
+        seatTruck(t, drawn[drawn.length - 1].lat, drawn[drawn.length - 1].lng);
         if(p < 1) _replayRaf = requestAnimationFrame(frame);
-        else _replayRaf = null;
+        else { _replayRaf = null; _replayOf = null; seatTruck(t); }
       }
       _replayRaf = requestAnimationFrame(frame);
     }
@@ -1570,7 +1652,8 @@
 
       el('loLegend').innerHTML = '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
         + '<b><i style="background:'+TRUCK_C.stopped+'"></i>Stopped</b>'
-        + '<b><i style="background:var(--gold)"></i>Yard</b>';
+        + '<b><i style="background:var(--gold)"></i>Yard</b>'
+        + '<b><i style="background:var(--spruce)"></i>Jobs left</b>';
       // No clock here — the header already has one. This slot only speaks up when
       // the GPS feed has given us nothing, which the header can't tell you.
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
