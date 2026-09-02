@@ -1069,7 +1069,12 @@
     // TV never writes to jobs or to MyGeotab.
     var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
     // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
-    var TRUCK_C = { moving:'#2f8a4e', stopped:'#c9861c' };
+    // Brighter than the board's other greens and ambers on purpose — these are
+    // read from across the room, on a pale map, at 45px across. The muted pair
+    // (#2f8a4e / #c9861c) still belongs everywhere else on the board; it is only
+    // the pins that need to shout. Stopped is orange rather than a brighter amber
+    // so it cannot be mistaken for the gold yard dot.
+    var TRUCK_C = { moving:'#22c55e', stopped:'#f97316' };
     var _map = null, _markers = {};
     // _cycleGen invalidates in-flight cycles. Without it a second startCycle (panel
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
