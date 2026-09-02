@@ -316,7 +316,14 @@
      Google restyles the map itself, so the roads go cream and the labels stay
      crisp. Google's own attribution is left alone on purpose: hiding it breaks
      the terms of use. */
-  #tvmap{flex:1 1 auto; min-height:0; background:#dfe4da; font-family:'Hanken Grotesk',sans-serif}
+  #tvmap{flex:1 1 auto; min-height:0; background:#dfe4da; font-family:'Hanken Grotesk',sans-serif;
+    transition:opacity .34s ease}
+  /* A jump to a different zoom can't be tweened on this map, so it lands as a
+     snap. .cut blacks the panel out instantly, the jump happens where nobody can
+     see it, and removing the class fades the new view up — a deliberate cut
+     rather than a lurch. Only the map dips; the legend and town chip are its
+     siblings, so they hold steady through it. */
+  #tvmap.cut{opacity:0; transition:none}
   /* Pins and cards are our own HTML laid over the map, so they must not swallow
      clicks meant for it — and on a wall nothing is clicked anyway. The overlays
      are absolutely-positioned siblings, so DOM order alone would decide what
@@ -1495,17 +1502,71 @@
     }
 
     // Frame everything — the overview we fall back to when there's nobody to focus.
+    // Move the map somewhere it cannot glide to. Blank the panel first so the
+    // jump happens unseen, then let it fade back up. Synchronous on purpose —
+    // deferring the move with a timer would let the next tour step overtake it.
+    function cutTo(move){
+      var host = el('tvmap');
+      if(!host){ move(); return; }
+      host.classList.add('cut');
+      try {
+        move();
+      } finally {
+        // finally, not catch: a real error still propagates to the console, but a
+        // throw can never strand the panel black on the wall for the evening.
+        // Two frames: one for the browser to paint the blanked panel, one to drop
+        // the class so the transition actually runs instead of being collapsed.
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){ host.classList.remove('cut'); });
+        });
+      }
+    }
+
+    // The overview. Framed on the trucks THEMSELVES, as tight as they allow —
+    // a fixed zoom either buries a tight cluster in empty countryside or pushes
+    // a spread-out crew off the edges. The yard is deliberately not forced into
+    // the bounds: with everyone up in Muskoka it would drag Barrie into frame
+    // and spend half the screen on fields nobody is working in.
     function frameAll(){
       if(!_map) return;
+      var out = outTrucks();
+      if(!out.length){
+        // Nobody out, so there are no pins and nothing to frame — sit on the yard
+        // at the width the board always used for this. Deliberately unchanged:
+        // an empty map reads the same at any zoom, and widening it here would be
+        // the opposite of what the rest of this change is for.
+        cutTo(function(){
+          _map.setZoom(12);
+          _map.setCenter(new google.maps.LatLng(YARD.lat, YARD.lng));
+        });
+        return;
+      }
       var b = new google.maps.LatLngBounds();
-      outTrucks().forEach(function(t){ b.extend(new google.maps.LatLng(t.lat, t.lng)); });
-      b.extend(new google.maps.LatLng(YARD.lat, YARD.lng));
+      out.forEach(function(t){ b.extend(new google.maps.LatLng(t.lat, t.lng)); });
+      // Blanked across BOTH moves, not just the first. fitBounds settles a frame
+      // or two later, and the clamp below can then change the zoom again — reveal
+      // after the first and you would watch it jump a second time.
+      var host = el('tvmap');
+      if(host) host.classList.add('cut');
+      var shown = false;
+      function reveal(){
+        if(shown || !host) return;
+        shown = true;
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){ host.classList.remove('cut'); });
+        });
+      }
       _map.fitBounds(b, { top:90, right:80, bottom:90, left:80 });
-      // Google has no maxZoom on fitBounds, and with everyone parked the bounds
-      // collapse to the yard alone — which would slam the map to street level.
+      // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
+      // point — which would slam the map to rooftop level. Never closer than the
+      // single-truck tour view.
       google.maps.event.addListenerOnce(_map, 'idle', function(){
-        if(_map.getZoom() > 12) _map.setZoom(12);
+        if(_map.getZoom() > TOUR_ZOOM) _map.setZoom(TOUR_ZOOM);
+        reveal();
       });
+      // 'idle' is the normal path; this only matters if it never arrives, and a
+      // map panel left black on a wall all evening is not a failure worth risking.
+      setTimeout(reveal, 900);
     }
 
     // ── trail replay ──────────────────────────────────────────────────────────
@@ -1617,8 +1678,10 @@
       if(_map.getZoom() === TOUR_ZOOM && b && b.contains(to)){
         _map.panTo(to);
       } else {
-        _map.setZoom(TOUR_ZOOM);
-        _map.setCenter(to);
+        cutTo(function(){
+          _map.setZoom(TOUR_ZOOM);
+          _map.setCenter(to);
+        });
       }
       replayTrail(t, gen);
       // Split the screen's dwell across however many trucks are out, with a floor
