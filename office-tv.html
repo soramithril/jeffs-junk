@@ -544,6 +544,9 @@
     // trail can span half the county, so a long one now runs off-screen; the truck
     // itself staying readable is worth more on a wall.
     var TOUR_ZOOM  = 13;
+    // How close the all-trucks overview may go. Only bites when the crew is
+    // clustered tight enough that fitBounds would otherwise pick street level.
+    var MAX_FRAME_ZOOM = 16;
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     var TV_BINS = ['tv-bin-4.png','tv-bin-14.png','tv-bin-20.png'];   // bottom overlay picks one at random each load
 
@@ -1589,12 +1592,19 @@
           requestAnimationFrame(function(){ host.classList.remove('cut'); });
         });
       }
-      _map.fitBounds(b, { top:90, right:80, bottom:90, left:80 });
+      // Padding keeps pins from hiding under the legend (bottom-left) and the town
+      // chip (top-right), and nothing more — it used to be generous enough to cost
+      // a quarter of the panel height.
+      _map.fitBounds(b, { top:64, right:64, bottom:78, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
-      // point — which would slam the map to rooftop level. Never closer than the
-      // single-truck tour view.
+      // point, which would slam the map to rooftop level. THAT is the only case
+      // worth clamping. Capping at TOUR_ZOOM was wrong and made this look like a
+      // fixed zoom: zoom 13 covers about 24 km, a crew working one town is inside
+      // five, so the clamp fired every time and left the pins bunched in the
+      // middle of an empty map. 16 is roughly a 3 km view — close enough to read
+      // the streets, wide enough that a tight cluster still has context.
       google.maps.event.addListenerOnce(_map, 'idle', function(){
-        if(_map.getZoom() > TOUR_ZOOM) _map.setZoom(TOUR_ZOOM);
+        if(_map.getZoom() > MAX_FRAME_ZOOM) _map.setZoom(MAX_FRAME_ZOOM);
         reveal();
       });
       // 'idle' is the normal path; this only matters if it never arrives, and a
