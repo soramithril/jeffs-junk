@@ -1581,6 +1581,21 @@
         </div>
       </div>
 
+      <!-- Pickup trip charge: a zone minimum for driving out to the pickup. Shown on its
+           own and NOT added into Customer Pays. Whether it stacks on top of the items or
+           only applies when the items come to less is still to be decided (Jake, 2026-09-03). -->
+      <div class="drdc-quote" style="border-top-color:#d97706">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <div class="drdc-money__k">Pickup trip charge</div>
+          <div style="font-size:11px;color:var(--muted)">Not included in Customer Pays</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+          <input id="drdc-town" list="drdc-town-list" type="text" placeholder="Pickup town" oninput="drdcTripRender()" autocomplete="off" style="flex:1;min-width:140px;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif">
+          <datalist id="drdc-town-list"></datalist>
+          <div id="drdc-trip" style="min-width:120px;text-align:right"></div>
+        </div>
+      </div>
+
       <div id="drdc-loaded-wrap" style="display:none">
         <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px">On the truck</div>
         <div id="drdc-loaded" style="display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -3044,7 +3059,7 @@
   </div>
 </div>
 <script src="app-documents.js?v=562"></script>
-<script src="app-drdcalc.js?v=582"></script>
+<script src="app-drdcalc.js?v=658"></script>
 <script src="app-dispatch.js?v=638"></script>
 <script src="app-leaderboard.js?v=638"></script>
 <script src="app-analytics.js?v=638"></script>
@@ -3068,7 +3083,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=657"></script>
+<script src="app.js?v=658"></script>
 <script src="app-mobile.js?v=629"></script>
 <script src="app-jwg-scheduler.js?v=638"></script>
 <script src="app-cuttimes.js?v=499"></script>
