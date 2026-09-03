@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '659';
+var APP_VERSION = '660';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6873,11 +6873,10 @@ var _clientAddrOptions = [];
 // because the only thing that ever added a second one lived inside a dropdown that needed
 // two addresses before it would appear. The job history has them all.
 //
-// A contractor or roofer is at a new site nearly every job, so their last address is the
-// wrong thing to drop in the box. The test is whether they have been back to it: of the
-// 485 clients who take a new address almost every time only 4 ever returned to their most
-// recent one, while all 2,263 single-address clients did. So an address they have used
-// before gets filled in, and a one-off leaves the box empty to be typed (Jake, 2026-08-31).
+// The most recent address always goes in the box, with the rest in the picker. A one-off
+// address used to leave the box empty (a contractor is somewhere new nearly every job),
+// but that read as the address not filling in at all. Filled and replaceable beats empty
+// (Jake, 2026-09-03, reversing 2026-08-31).
 async function _fillClientAddresses(cid, cl){
   var picker=document.getElementById('f-addr-picker');
   var sel=document.getElementById('f-addr-select');
@@ -6896,9 +6895,9 @@ async function _fillClientAddresses(cid, cl){
   }).filter(function(a){ return a.street; });
 
   if(rows.length){
-    var count={};
-    rows.forEach(function(a){ var k=key(a); if(count[k]===undefined){ count[k]=0; opts.push(a); } count[k]++; });
-    offer = count[key(rows[0])] > 1;      // they have been back to it, so it is worth offering
+    var seen={};                          // one entry per address, most recent first
+    rows.forEach(function(a){ var k=key(a); if(!seen[k]){ seen[k]=true; opts.push(a); } });
+    offer = true;
   } else {
     // No job history at all — a brand-new client, where the record holds the address that
     // was just typed to create them. That is the only address there is, so offer it.
@@ -6915,8 +6914,7 @@ async function _fillClientAddresses(cid, cl){
   var typedAddr=_addrAutoFilled ? '' : addrEl.value.trim();
 
   if(!offer){
-    // They are somewhere new nearly every job, so a guess would be wrong far more often
-    // than right. Leave it empty and let the site address be typed.
+    // A brand-new client with no address on the record and no jobs yet: nothing to offer.
     if(picker) picker.style.display='none';
     if(!typedAddr){ addrEl.value=''; cityEl.value=cl.city||'Barrie'; _addrAutoFilled=true; }
     return;
