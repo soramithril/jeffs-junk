@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '657';
+var APP_VERSION = '661';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11376,6 +11376,17 @@ function selectBinFromPicker(bid){
     var _pw=_binPickerWindow();
     var other=_pw.drop ? binClashForWindow(bid, _pw.drop, _pw.pick, editId||null)
                        : binDroppedElsewhere(bid, editId);
+    // The pickup day is free, so a bin coming off one job the same day it goes out to
+    // the next is no clash by the window. But it is still marked dropped at the old
+    // job, and the save then refuses to count this as the drop: 14LW-12 went from
+    // Waller to Eccleshall on 2026-09-01 and sat 'not dropped' with nobody asked.
+    // A bin still dropped at an EARLIER job is on its way here, so ask the same
+    // question. A LATER job is the bin's next life after a rental being backfilled,
+    // and that one is left alone.
+    if(!other && _pw.drop){
+      var held=binDroppedElsewhere(bid, editId);
+      if(held && (held.binDropoff||held.date||'') < _pw.drop) other=held;
+    }
     if(other){
       if(!confirm('Bin '+b.num+' is still marked dropped at job '+other.id+' ('+other.name+').\n\nMark it picked up there and use it here? (The bin is moving to this job.)')) return;
       _pickupBinFromJob(other.id);
