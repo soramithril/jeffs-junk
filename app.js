@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '657';
+var APP_VERSION = '659';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -18203,12 +18203,11 @@ async function printJunkRemoval(jobId) {
     dt(_fmtDate(j.junkDate || j.date), 478, 174);      // Junk Removal Date
     dt(_fmtTime(j.junkTime || j.time), 478, 192);     // Junk Removal Time
 
-    // Line total at top of quoted price row
-    // For Junk Removal, prefer the quoted amount (printed form is the customer-facing quote);
-    // fall back to price for legacy jobs that don't have a separate quoted amount.
+    // Line total at top of the quoted price row. For Junk Removal, prefer the quoted
+    // amount; fall back to price for legacy jobs that don't have a separate one.
+    // Drawn further down, AFTER the copies exist, because it doesn't go on every copy.
     var priceSource = (j.service==='Junk Removal' && j.quotedAmount!==''&&j.quotedAmount!=null) ? j.quotedAmount : j.price;
     var price = parseFloat(priceSource) || 0;
-    if (price > 0) dt('$' + price.toFixed(2), 525, 296);
 
     // Items list (rows of table)
     var items = _notesToItems(j.items);
@@ -18271,6 +18270,16 @@ async function printJunkRemoval(jobId) {
     }
 
     await _addOfficeDriverCopies(pdfDoc, font, { x: 395, y: 114 }, null, fontBold);
+    // The price goes on once the copies exist, so it can be placed per copy. A Junk
+    // Quote is the customer's paper, so both copies show it. A Junk Removal shows it on
+    // the OFFICE copy only (Jake, 2026-09-03): the driver's sheet stays price-free.
+    if (price > 0) {
+      var copyPages = pdfDoc.getPages(), perCopy = copyPages.length / 2;
+      var priceOn = j.service === 'Junk Quote' ? [copyPages[0], copyPages[perCopy]] : [copyPages[0]];
+      priceOn.forEach(function(p) {
+        p.drawText('$' + price.toFixed(2), { x: 525, y: H - 296, size: 10, font: font, color: black });
+      });
+    }
     var filledBytes = await pdfDoc.save();
     var blob = new Blob([filledBytes], { type: 'application/pdf' });
     w.location = URL.createObjectURL(blob);
