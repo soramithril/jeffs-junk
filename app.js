@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '663';
+var APP_VERSION = '664';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -9491,7 +9491,8 @@ function teamColorByName(name){
 // the workhorse — three quarters of every job — so they take the quiet slate and
 // leave the louder colours for the sizes worth noticing. Sizes are stored as
 // "14 yard" strings, hence the parseInt.
-var BIN_SIZE_COLORS = {4:'#0d9488', 7:'#7c3aed', 14:'#64748b', 20:'#c2410c'};
+// Jake picked these 2026-09-04: four hues no driver uses (see crew_members.color).
+var BIN_SIZE_COLORS = {4:'#b07a1e', 7:'#8a5a3c', 14:'#2f6f8f', 20:'#7a1f3d'};
 function binSizeColor(size){
   return BIN_SIZE_COLORS[parseInt(size, 10)] || '#868e96';
 }

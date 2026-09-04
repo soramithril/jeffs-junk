@@ -420,13 +420,170 @@ function dispatchShiftDate(days){
   _dispatchDate = d.toISOString().split('T')[0];
   renderDispatch();
 }
+// ─── One check before anything saves ───
+// Every write on this board — a drag, the Assign menu, the canvas port, the plan
+// buttons, undo — goes through this dialog first. Jake (2026-09-04): the board must
+// double-check before it changes who is doing what. Resolves true on the green button.
+function dispatchConfirm(o){
+  return new Promise(function(resolve){
+    var ov = document.getElementById('dispatch-confirm');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'dispatch-confirm';
+      ov.className = 'modal-overlay';
+      document.body.appendChild(ov);
+    }
+    var okBg = o.danger ? '#d97706' : 'var(--accent)';
+    ov.innerHTML = '<div style="width:470px;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto;background:var(--surface);color:var(--text);border-radius:16px;box-shadow:0 30px 60px rgba(0,0,0,.45);font-family:inherit">'
+      + '<div style="padding:16px 20px 12px"><div style="font-size:17px;font-weight:800;letter-spacing:-.2px">'+o.title+'</div>'
+      + (o.sub ? '<div style="font-size:12.5px;color:var(--muted);margin-top:3px">'+o.sub+'</div>' : '')+'</div>'
+      + (o.body ? '<div style="padding:0 20px 14px">'+o.body+'</div>' : '')
+      + '<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px 16px;border-top:1px solid var(--border)">'
+      + '<button data-x="0" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);padding:9px 15px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">'+(o.cancel||'Cancel')+'</button>'
+      + '<button data-x="1" style="border:0;background:'+okBg+';color:#fff;padding:9px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">'+(o.ok||'Yes')+'</button>'
+      + '</div></div>';
+    function done(v){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown', onKey);
+      resolve(v);
+    }
+    function onKey(e){ if(e.key === 'Escape') done(false); }
+    ov.querySelectorAll('button[data-x]').forEach(function(b){ b.onclick = function(){ done(b.getAttribute('data-x') === '1'); }; });
+    ov.onclick = function(e){ if(e.target === ov) done(false); };
+    document.addEventListener('keydown', onKey);
+    ov.classList.add('open');
+    ov.querySelector('button[data-x="1"]').focus();
+  });
+}
+function dispatchCrewById(id){ return id ? crewMembers.find(function(c){ return c.id === id; }) : null; }
+function dispatchCrewDot(c){
+  var col = c ? (c.color || crewAvatarColor(c.id)) : '#868e96';
+  return '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+col+';vertical-align:-1px;margin-right:6px"></span>';
+}
+function dispatchStopLabel(j){ return escHtml(j.name || j.city || ('#'+j.id))+' &middot; '+escHtml(j.city || '—')+' &middot; '+(j._isPickup ? 'pickup' : 'drop'); }
+function dispatchStopSub(j){
+  var sz = binSizeLabel(j.binSize);
+  return '#'+j.id+' &middot; '+escHtml(j.name || '—')+(sz ? ' &middot; '+sz : '')+' &middot; '+escHtml(j.city || '—')+' &middot; about '+(j._estMinutes||0)+' min';
+}
+function dispatchSizeTag(j){
+  var n = parseInt(j.binSize, 10);
+  return '<span style="display:inline-block;min-width:34px;text-align:center;font-family:\'Bebas Neue\',sans-serif;font-size:15px;letter-spacing:.5px;color:#fff;background:'+binSizeColor(j.binSize)+';border-radius:4px;padding:1px 5px">'+(isNaN(n) ? 'BIN' : n)+'</span>';
+}
+// What a driver's day looks like with a given set of stops.
+function dispatchLoadOf(crewId, list){
+  var start = dispatchParseClock(dispatchGetLaneStart(crewId)) || 480;
+  if(!list.length) return {stops:0, mins:0, misses:0, endMins:start};
+  var sim = dispatchSimulateLane(list, start);
+  return {stops:list.length, mins:sim.endMins - start, misses:sim.misses, endMins:sim.endMins};
+}
+function dispatchLoadTxt(l){ return l.stops+' stop'+(l.stops===1?'':'s')+(l.stops ? ' &middot; '+dispatchFmtTotal(l.mins) : ''); }
+// Both drivers' days before and after one stop changes hands. toId '' = back to the pool.
+function dispatchMoveSummaryHtml(job, fromId, toId){
+  function others(id){ return _dispatchJobsCache.filter(function(x){ return x !== job && ((x._isPickup ? x.pickupCrewId : x.dropoffCrewId) || '') === id; }); }
+  var warns = [];
+  function side(label, id, gains){
+    var c = dispatchCrewById(id);
+    var bd = gains && c ? (c.color || crewAvatarColor(c.id)) : 'var(--border)';
+    var h = '<div style="border:1px solid '+bd+';border-radius:10px;padding:10px 12px;min-width:0">';
+    h += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700">'+label+'</div>';
+    h += '<div style="font-size:14px;font-weight:800;margin-top:3px">'+dispatchCrewDot(c)+(c ? escHtml(c.name) : 'Unassigned')+'</div>';
+    if(c){
+      var o = others(id);
+      var before = dispatchLoadOf(id, gains ? o : o.concat([job]));
+      var after  = dispatchLoadOf(id, gains ? o.concat([job]) : o);
+      h += '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+dispatchLoadTxt(before)+' &rarr; <b style="color:var(--text)">'+dispatchLoadTxt(after)+'</b>'+(gains && after.stops ? ' &middot; done ~'+dispatchFmtClock(after.endMins) : '')+'</div>';
+      if(gains && after.misses > before.misses) warns.push(escHtml(c.name)+' would miss a timed drop with this on the run.');
+    } else {
+      var pool = _dispatchJobsCache.filter(function(x){ return x !== job && !((x._isPickup ? x.pickupCrewId : x.dropoffCrewId)); }).length;
+      h += '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(gains ? pool : pool+1)+' waiting &rarr; <b style="color:var(--text)">'+(gains ? pool+1 : pool)+' waiting</b></div>';
+    }
+    return h+'</div>';
+  }
+  var h = '<div style="display:grid;grid-template-columns:1fr 22px 1fr;gap:10px;align-items:center">'
+    + side('From', fromId, false)
+    + '<div style="text-align:center;font-size:18px;color:var(--muted)">&rarr;</div>'
+    + side('To', toId, true) + '</div>';
+  if(toId && dispatchNeedsBigTruck(job) && toId !== dispatchBigTruckDriverId()) warns.push(DISPATCH_BIG_TRUCK_DRIVER+' only &mdash; a loaded '+binSizeLabel(job.binSize)+' needs the big truck.');
+  warns.forEach(function(w){ h += '<div style="margin-top:10px;font-size:12px;background:#f59e0b1a;border:1px solid #f59e0b66;color:#92400e;border-radius:8px;padding:7px 10px">&#9888; '+w+'</div>'; });
+  return h;
+}
+// The plan, spelled out: every stop that changes hands under the driver who gets it,
+// with where it came from, and each driver's day before and after. Shown in the
+// preview banner and in the check before Auto-assign / Replan write anything.
+function dispatchPlanListHtml(assignments){
+  var proposed = {};
+  assignments.forEach(function(a){ proposed[String(a.jobId)] = a.crewId || ''; });
+  function curOf(j){ return (j._isPickup ? j.pickupCrewId : j.dropoffCrewId) || ''; }
+  function newOf(j){ return proposed.hasOwnProperty(String(j.id)) ? proposed[String(j.id)] : curOf(j); }
+  var before = {}, after = {}, gains = {}, loses = {}, moved = 0;
+  _dispatchJobsCache.forEach(function(j){
+    var c = curOf(j), n = newOf(j);
+    if(c) (before[c] = before[c] || []).push(j);
+    if(n) (after[n] = after[n] || []).push(j);
+    if(c === n) return;
+    moved++;
+    if(n) (gains[n] = gains[n] || []).push(j);
+    else (loses[c] = loses[c] || []).push(j);
+  });
+  var ids = [];
+  Object.keys(after).concat(Object.keys(before)).forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
+  var rowSt = 'display:flex;align-items:center;gap:8px;padding:4px 0 4px 16px;font-size:12.5px;border-bottom:1px dashed var(--border)';
+  var h = '';
+  ids.forEach(function(id){
+    var c = dispatchCrewById(id);
+    if(!c) return;
+    var b = dispatchLoadOf(id, before[id] || []), a = dispatchLoadOf(id, after[id] || []);
+    var same = (b.stops === a.stops && b.mins === a.mins);
+    h += '<div style="margin-top:10px"><div style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800">'+dispatchCrewDot(c)+escHtml(c.name)
+      + '<span style="margin-left:auto;font-family:ui-monospace,monospace;font-size:11px;font-weight:500;color:var(--muted)">'+dispatchLoadTxt(b)+(same ? ' &middot; no change' : ' &rarr; <b style="color:var(--text)">'+dispatchLoadTxt(a)+'</b>')
+      + (a.misses ? ' <span title="Would miss '+a.misses+' timed drop'+(a.misses===1?'':'s')+'" style="color:var(--bad);font-weight:800">&#9888;'+a.misses+'</span>' : '')+'</span></div>';
+    (gains[id] || []).forEach(function(j){
+      var f = dispatchCrewById(curOf(j));
+      h += '<div style="'+rowSt+'">'+dispatchSizeTag(j)+'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+dispatchStopLabel(j)+'</span>'
+        + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">'+(f ? 'from <b style="color:#d97706">'+escHtml(f.name)+'</b>' : 'was <b style="color:var(--accent)">unassigned</b>')+'</span></div>';
+    });
+    (loses[id] || []).forEach(function(j){
+      h += '<div style="'+rowSt+'">'+dispatchSizeTag(j)+'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+dispatchStopLabel(j)+'</span>'
+        + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">back to <b>unassigned</b></span></div>';
+    });
+    h += '</div>';
+  });
+  if(!moved) h += '<div style="font-size:12.5px;color:var(--muted);font-style:italic;padding:6px 0">Nothing would change hands.</div>';
+  return {html:h, moved:moved};
+}
+// Toolbar button: what it does on the first line, a one-line hint under it. Only
+// the two that change the whole day carry colour.
+function dispatchBtnHtml(onclick, label, hint, kind, T, dim, attrs){
+  var base = (dim ? 'opacity:.4;' : '')+'display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1.2;padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;';
+  var look = kind === 'go'  ? 'background:var(--accent);color:#fff;border:0;'
+           : kind === 'hot' ? 'background:#f59e0b18;border:1px solid #f59e0b80;color:#d97706;'
+           : T ? 'background:'+T.chip+';border:1px solid '+T.chipbd+';color:'+T.ink+';'
+               : 'background:var(--surface2);border:1px solid var(--border);color:var(--text);';
+  var hintCol = kind === 'go' ? 'rgba(255,255,255,.85)' : kind === 'hot' ? '#d97706' : (T ? T.sub : 'var(--muted)');
+  return '<button '+(attrs||'')+' onclick="'+onclick+'" style="'+base+look+'">'+label+'<small style="font-weight:500;font-size:10.5px;color:'+hintCol+'">'+hint+'</small></button>';
+}
 async function dispatchAssignJob(jobId, crewId, leg){
   // A preview is a mock-up: block every write path until it's applied or discarded.
   if(_dispatchPreview){ toast('Apply or discard the preview first.'); return; }
+  crewId = crewId || '';
+  var job = _dispatchJobsCache.find(function(j){return j.id===jobId;});
+  var fromId = job ? ((leg === 'pickup' ? job.pickupCrewId : job.dropoffCrewId) || '') : '';
+  if(job && fromId === crewId){ _dispatchMenu = null; renderDispatch(); return; }
+  if(job){
+    var to = dispatchCrewById(crewId), from = dispatchCrewById(fromId);
+    var legTxt = leg === 'pickup' ? 'pickup' : 'drop';
+    var title = !to ? 'Take this '+legTxt+' off '+escHtml(from ? from.name : '')+'?'
+              : !from ? 'Give this '+legTxt+' to '+escHtml(to.name)+'?'
+              : 'Move this '+legTxt+' to '+escHtml(to.name)+'?';
+    var ok = await dispatchConfirm({title:title, sub:dispatchStopSub(job), body:dispatchMoveSummaryHtml(job, fromId, crewId),
+      ok: !to ? 'Take it off' : (from ? 'Move to ' : 'Give to ')+escHtml(to.name),
+      cancel: from ? 'Keep it on '+escHtml(from.name) : 'Leave it'});
+    if(!ok){ _dispatchMenu = null; renderDispatch(); return; }
+  }
   _dispatchMenu = null; // close any open Assign/Move menu on assignment
   var col = leg === 'pickup' ? 'pickup_crew_id' : 'dropoff_crew_id';
   var update = {}; update[col] = crewId || null;
-  var local = _dispatchJobsCache.find(function(j){return j.id===jobId;});
+  var local = job;
   if(local){
     if(leg === 'pickup') local.pickupCrewId = crewId || null;
     else local.dropoffCrewId = crewId || null;
@@ -633,11 +790,16 @@ async function dispatchUndoLastChange(){
     return c.changed_by === newest.changed_by && new Date(c.changed_at).getTime() >= cutoff;
   });
   // Oldest first, first write wins: if a leg moved A -> B -> C inside the batch it goes back to A.
-  var perJob = {};
+  var perJob = {}, lines = [];
   batch.slice().reverse().forEach(function(c){
     var col = DISPATCH_DRIVER_FIELDS[c.field_name];
     if(!perJob[c.job_id]) perJob[c.job_id] = {};
-    if(!(col in perJob[c.job_id])) perJob[c.job_id][col] = c.old_value;
+    if(col in perJob[c.job_id]) return;
+    perJob[c.job_id][col] = c.old_value;
+    var j = _dispatchJobsCache.find(function(x){ return String(x.id) === String(c.job_id); });
+    lines.push('<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;border-bottom:1px dashed var(--border)">'+(j ? dispatchSizeTag(j) : '')
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(j ? escHtml(j.name||j.city||'') : '#'+c.job_id)+' &middot; '+(col === 'pickup_crew_id' ? 'pickup' : 'drop')+'</span>'
+      + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">back to <b style="color:var(--text)">'+(c.old_value ? escHtml(c.old_value) : 'unassigned')+'</b></span></div>');
   });
   // The log holds names; the job holds ids. teamRoster is the whole roster, removed
   // people included, so a driver who has since left still maps back.
@@ -655,7 +817,10 @@ async function dispatchUndoLastChange(){
   }
   var when = new Date(newest.changed_at).toLocaleTimeString('en-CA', {hour:'numeric', minute:'2-digit'});
   var who = (newest.changed_by || 'system').split('@')[0];
-  if(!confirm('Undo '+who+"'s change from "+when+'? '+legs+' leg'+(legs===1?'':'s')+' on '+jobIds.length+' job'+(jobIds.length===1?'':'s')+' go back to the driver they had before.')) return;
+  var ok = await dispatchConfirm({title:'Undo '+escHtml(who)+"'s change from "+when+'?',
+    sub: legs+' leg'+(legs===1?'':'s')+' on '+jobIds.length+' job'+(jobIds.length===1?'':'s')+' go back to the driver they had before.',
+    body: lines.join(''), ok:'Undo it', cancel:'Leave it'});
+  if(!ok) return;
   // Only the two leg columns are written; the database keeps assigned_crew_ids in
   // step (sync_bin_assigned_crew_ids) and logs the change (log_job_changes).
   for(var k = 0; k < jobIds.length; k++){
@@ -672,9 +837,16 @@ async function dispatchBalanceRoutes(mode){
   if(_dispatchPreview){ toast('Apply or discard the preview first.'); return; }
   var plan = dispatchPlanBalance(mode);
   if(plan.error){ toast(plan.error); return; }
-  if(mode === 'all' && !confirm('Redo the whole day across '+plan.working.length+' driver(s)? This replaces the assignments you have now.')) return;
+  var list = dispatchPlanListHtml(plan.assignments);
+  var n = plan.assignments.length;
+  var ok = await dispatchConfirm({
+    title: mode === 'all' ? 'Replan the whole day?' : 'Auto-assign '+n+' stop'+(n===1?'':'s')+'?',
+    sub: mode === 'all' ? 'Every driver is chosen again from scratch. '+list.moved+' stop'+(list.moved===1?'':'s')+' would change hands.'
+                        : 'Only stops with no driver yet. Everything you set by hand stays.',
+    body: list.html, ok: mode === 'all' ? 'Replan the day' : 'Assign them', cancel: 'Leave it', danger: mode === 'all'});
+  if(!ok) return;
   await dispatchApplyPlan(plan.assignments);
-  toast((mode==='all'?'Redid the day — ':'Filled ')+plan.assignments.length+' stop(s) across '+plan.working.length+' driver(s).'+dispatchBigTruckNote(plan.flagged));
+  toast((mode==='all'?'Replanned the day — ':'Assigned ')+plan.assignments.length+' stop(s) across '+plan.working.length+' driver(s).'+dispatchBigTruckNote(plan.flagged));
   renderDispatch();
 }
 // Spells out any 4/7 yard pickups the balancer deliberately refused to place, so a
@@ -719,38 +891,17 @@ function dispatchDiscardPreview(){
 function dispatchPreviewBannerHtml(){
   var p = _dispatchPreview;
   if(!p) return '';
-  var st = dispatchPreviewStats();
-  var after = st.after;
-  var ids = Object.keys(after);
-  Object.keys(st.before).forEach(function(id){ if(ids.indexOf(id) < 0) ids.push(id); });
-  var h = '<div style="background:#fff;border:1px solid #e9ecef;border-left:4px solid #f59e0b;border-radius:14px;padding:13px 16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(26,26,46,.10);color:#1a1a2e">';
+  var assignments = Object.keys(p.byJob).map(function(id){ return {jobId:id, leg:p.byJob[id].leg, crewId:p.byJob[id].crewId}; });
+  var list = dispatchPlanListHtml(assignments);
+  var h = '<div style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-left:4px solid #f59e0b;border-radius:14px;padding:13px 16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(26,26,46,.10)">';
   h += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
-  h += '<div style="line-height:1.25"><div style="font-size:14px;font-weight:800;letter-spacing:-.2px">Preview &mdash; nothing saved yet</div>';
-  h += '<div style="font-size:11.5px;color:#868e96">'+p.moved+' stop'+(p.moved===1?'':'s')+' would move &mdash; each driver\'s proposed run is the faded column beside them. Apply to write it, or discard to leave today alone.</div></div>';
+  h += '<div style="line-height:1.25"><div style="font-size:14px;font-weight:800;letter-spacing:-.2px">Suggested plan &mdash; nothing saved yet</div>';
+  h += '<div style="font-size:11.5px;color:var(--muted)">'+list.moved+' stop'+(list.moved===1?'':'s')+' would change hands. Drivers keep everything not listed here. On the canvas each driver\'s proposed run is the faded column beside them.</div></div>';
   h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  h += '<button onclick="dispatchDiscardPreview()" style="background:#f8f9fa;border:1px solid #e9ecef;color:#495057;padding:8px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Discard</button>';
+  h += '<button onclick="dispatchDiscardPreview()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Discard</button>';
   h += '<button onclick="dispatchApplyPreview()" style="background:var(--accent);border:0;color:#fff;padding:8px 16px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Apply this plan</button>';
   h += '</div></div>';
-  if(ids.length){
-    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px">';
-    ids.forEach(function(id){
-      var crew = crewMembers.find(function(c){ return c.id === id; });
-      if(!crew) return;
-      var col = crew.color || crewAvatarColor(crew.id);
-      var b = st.before[id] || {stops:0, mins:0};
-      var a = after[id] || {stops:0, mins:0};
-      var same = (b.stops === a.stops && b.mins === a.mins);
-      h += '<span style="display:inline-flex;align-items:center;gap:7px;background:#f8f9fa;border:1px solid #e9ecef;border-radius:99px;padding:5px 12px;font-size:11.5px">';
-      h += '<span style="width:8px;height:8px;border-radius:50%;background:'+col+'"></span>';
-      h += '<span style="font-weight:700;color:#343a40">'+escHtml(crew.name)+'</span>';
-      h += '<span style="color:#adb5bd;font-family:ui-monospace,monospace">'+b.stops+' &middot; '+dispatchFmtTotal(b.mins)+'</span>';
-      h += '<span style="color:#adb5bd">&rarr;</span>';
-      h += '<span style="font-weight:700;color:'+(same?'#adb5bd':'#1a1a2e')+';font-family:ui-monospace,monospace">'+a.stops+' &middot; '+dispatchFmtTotal(a.mins)+'</span>'
-         + (a.misses?' <span title="Would miss '+a.misses+' timed drop'+(a.misses===1?'':'s')+'" style="color:var(--bad);font-weight:800">&#9888;'+a.misses+'</span>':'');
-      h += '</span>';
-    });
-    h += '</div>';
-  }
+  h += list.html;
   h += '</div>';
   return h;
 }
@@ -960,13 +1111,10 @@ async function renderDispatch(){
   html += '</div>';
   // Balance routes (primary action, icon, pushed to right via margin-left:auto)
   html += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  html += '<button data-tour="dispatch-fill" onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the jobs that have no driver yet — keeps your manual assignments" style="background:var(--accent);color:#fff;border:0;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit">';
-  html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>';
-  html += 'Fill empty stops';
-  html += '</button>';
-  html += '<button onclick="dispatchPreviewBalance()" title="Draws a suggested plan beside the real one so you can compare. Saves nothing until you press Apply." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Show me a plan first</button>';
-  html += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Throws away every current assignment and shares the whole day out again from scratch" style="background:#f59e0b18;border:1px solid #f59e0b80;color:#d97706;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Redo the whole day</button>';
-  html += '<button onclick="dispatchUndoLastChange()" title="Puts the drivers for this day back to how they were before the most recent change, whoever made it. Works from the job history, so it can be undone again." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Undo last change</button>';
+  html += dispatchBtnHtml("dispatchBalanceRoutes('fill')", 'Auto-assign the rest', 'only stops with no driver yet', 'go', null, false, 'data-tour="dispatch-fill" title="Gives a driver to every stop that has none, and asks first. Everything you set by hand stays."');
+  html += dispatchBtnHtml("dispatchPreviewBalance()", 'Preview a full replan', 'look first, save nothing', '', null, false, 'title="Draws a suggested plan beside the real one and lists every stop that would move. Saves nothing until you press Apply."');
+  html += dispatchBtnHtml("dispatchBalanceRoutes('all')", 'Replan the whole day', 'replaces every driver', 'hot', null, false, 'title="Chooses every driver again from scratch. Shows you the plan and asks before it saves."');
+  html += dispatchBtnHtml("dispatchUndoLastChange()", 'Undo', 'last change, by anyone', '', null, false, 'title="Puts the drivers for this day back to how they were before the most recent change, whoever made it. Works from the job history, so it can be undone again."');
   html += '</div>';
   html += '</div></div>';
   html += dispatchPreviewBannerHtml();
@@ -1445,10 +1593,10 @@ function dcvMount(){
   h += '</div>';
   var _dim = _dispatchPreview ? 'opacity:.4;' : '';
   h += '<div style="display:inline-flex;gap:8px;margin-left:auto">';
-  h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the stops that have no driver yet — keeps everything you set by hand" style="'+_dim+'background:var(--accent);color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill empty stops</button>';
-  h += '<button onclick="dispatchPreviewBalance()" title="Draws a suggested plan beside the real one so you can compare. Saves nothing until you press Apply." style="background:'+T.chip+';border:1px solid '+T.chipbd+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Show me a plan first</button>';
-  h += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Throws away every current assignment and shares the whole day out again from scratch" style="'+_dim+'background:#f59e0b18;border:1px solid #f59e0b80;color:#d97706;padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Redo the whole day</button>';
-  h += '<button onclick="dispatchUndoLastChange()" title="Puts the drivers for this day back to how they were before the most recent change, whoever made it. Works from the job history, so it can be undone again." style="'+_dim+'background:'+T.chip+';border:1px solid '+T.chipbd+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Undo last change</button>';
+  h += dispatchBtnHtml("dispatchBalanceRoutes('fill')", 'Auto-assign the rest', 'only stops with no driver yet', 'go', T, !!_dispatchPreview, 'title="Gives a driver to every stop that has none, and asks first. Everything you set by hand stays."');
+  h += dispatchBtnHtml("dispatchPreviewBalance()", 'Preview a full replan', 'look first, save nothing', '', T, false, 'title="Draws a suggested plan beside the real one and lists every stop that would move. Saves nothing until you press Apply."');
+  h += dispatchBtnHtml("dispatchBalanceRoutes('all')", 'Replan the whole day', 'replaces every driver', 'hot', T, !!_dispatchPreview, 'title="Chooses every driver again from scratch. Shows you the plan and asks before it saves."');
+  h += dispatchBtnHtml("dispatchUndoLastChange()", 'Undo', 'last change, by anyone', '', T, !!_dispatchPreview, 'title="Puts the drivers for this day back to how they were before the most recent change, whoever made it. Works from the job history, so it can be undone again."');
   h += '</div>';
   h += '</div>';
   // crew strip — the old "Working today" toggles, themed and moved inside
