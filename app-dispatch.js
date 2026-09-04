@@ -607,6 +607,66 @@ async function dispatchApplyPlan(assignments){
   if(typeof refreshDashJobs==='function') refreshDashJobs();
   if(typeof renderLiveJobs==='function') renderLiveJobs();
 }
+// ─── Undo the last driver change ───
+// Every driver change is written to the job history by the database itself (the
+// log_job_changes trigger, migration 20260904_log_crew_assignments), so a plan that
+// landed wrong is reverted from the log instead of rebuilt from GPS. "Last change"
+// is the newest driver row on this day's bin jobs plus every row the same person
+// wrote in the two minutes before it: a plan is twenty-odd single-job writes a few
+// hundred milliseconds apart, so they group as one; two people working the board
+// an hour apart do not. The undo is itself logged, so it can be undone again.
+var DISPATCH_UNDO_WINDOW_MS = 2*60*1000;
+var DISPATCH_DRIVER_FIELDS = {'Drop-off Driver':'dropoff_crew_id', 'Pickup Driver':'pickup_crew_id'};
+async function dispatchUndoLastChange(){
+  if(_dispatchPreview){ toast('Apply or discard the preview first.'); return; }
+  var ids = _dispatchJobsCache.map(function(j){ return j.id; });
+  if(!ids.length){ toast('Nothing on this day to undo.'); return; }
+  var r = await db.from('job_changes').select('job_id,field_name,old_value,changed_by,changed_at')
+    .in('job_id', ids).in('field_name', Object.keys(DISPATCH_DRIVER_FIELDS))
+    .order('changed_at', {ascending:false}).limit(400);
+  if(r.error){ toast('Could not read the job history: '+r.error.message, 'error'); return; }
+  var rows = r.data || [];
+  if(!rows.length){ toast('No driver changes in the history for this day yet.'); return; }
+  var newest = rows[0];
+  var cutoff = new Date(newest.changed_at).getTime() - DISPATCH_UNDO_WINDOW_MS;
+  var batch = rows.filter(function(c){
+    return c.changed_by === newest.changed_by && new Date(c.changed_at).getTime() >= cutoff;
+  });
+  // Oldest first, first write wins: if a leg moved A -> B -> C inside the batch it goes back to A.
+  var perJob = {};
+  batch.slice().reverse().forEach(function(c){
+    var col = DISPATCH_DRIVER_FIELDS[c.field_name];
+    if(!perJob[c.job_id]) perJob[c.job_id] = {};
+    if(!(col in perJob[c.job_id])) perJob[c.job_id][col] = c.old_value;
+  });
+  // The log holds names; the job holds ids. teamRoster is the whole roster, removed
+  // people included, so a driver who has since left still maps back.
+  var idByName = {};
+  teamRoster.forEach(function(c){ idByName[c.name] = c.id; });
+  var legs = 0, jobIds = Object.keys(perJob);
+  for(var i = 0; i < jobIds.length; i++){
+    var u = perJob[jobIds[i]];
+    for(var col in u){
+      legs++;
+      if(u[col] === null){ continue; }
+      if(!idByName[u[col]]){ toast('Cannot undo: "'+u[col]+'" is not on the roster.', 'error'); return; }
+      u[col] = idByName[u[col]];
+    }
+  }
+  var when = new Date(newest.changed_at).toLocaleTimeString('en-CA', {hour:'numeric', minute:'2-digit'});
+  var who = (newest.changed_by || 'system').split('@')[0];
+  if(!confirm('Undo '+who+"'s change from "+when+'? '+legs+' leg'+(legs===1?'':'s')+' on '+jobIds.length+' job'+(jobIds.length===1?'':'s')+' go back to the driver they had before.')) return;
+  // Only the two leg columns are written; the database keeps assigned_crew_ids in
+  // step (sync_bin_assigned_crew_ids) and logs the change (log_job_changes).
+  for(var k = 0; k < jobIds.length; k++){
+    var w = await db.from('jobs').update(perJob[jobIds[k]]).eq('job_id', jobIds[k]);
+    if(w.error){ toast('Undo stopped at job '+jobIds[k]+': '+w.error.message, 'error'); break; }
+  }
+  if(typeof refreshDashJobs==='function') refreshDashJobs();
+  if(typeof renderLiveJobs==='function') renderLiveJobs();
+  renderDispatch();
+  toast('Put '+legs+' leg'+(legs===1?'':'s')+' back.');
+}
 async function dispatchBalanceRoutes(mode){
   mode = mode || 'fill';
   if(_dispatchPreview){ toast('Apply or discard the preview first.'); return; }
@@ -906,6 +966,7 @@ async function renderDispatch(){
   html += '</button>';
   html += '<button onclick="dispatchPreviewBalance()" title="Draws a suggested plan beside the real one so you can compare. Saves nothing until you press Apply." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Show me a plan first</button>';
   html += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Throws away every current assignment and shares the whole day out again from scratch" style="background:#f59e0b18;border:1px solid #f59e0b80;color:#d97706;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Redo the whole day</button>';
+  html += '<button onclick="dispatchUndoLastChange()" title="Puts the drivers for this day back to how they were before the most recent change, whoever made it. Works from the job history, so it can be undone again." style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Undo last change</button>';
   html += '</div>';
   html += '</div></div>';
   html += dispatchPreviewBannerHtml();
@@ -1387,6 +1448,7 @@ function dcvMount(){
   h += '<button onclick="dispatchBalanceRoutes(\'fill\')" title="Assign only the stops that have no driver yet — keeps everything you set by hand" style="'+_dim+'background:var(--accent);color:#fff;border:0;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Fill empty stops</button>';
   h += '<button onclick="dispatchPreviewBalance()" title="Draws a suggested plan beside the real one so you can compare. Saves nothing until you press Apply." style="background:'+T.chip+';border:1px solid '+T.chipbd+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Show me a plan first</button>';
   h += '<button onclick="dispatchBalanceRoutes(\'all\')" title="Throws away every current assignment and shares the whole day out again from scratch" style="'+_dim+'background:#f59e0b18;border:1px solid #f59e0b80;color:#d97706;padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Redo the whole day</button>';
+  h += '<button onclick="dispatchUndoLastChange()" title="Puts the drivers for this day back to how they were before the most recent change, whoever made it. Works from the job history, so it can be undone again." style="'+_dim+'background:'+T.chip+';border:1px solid '+T.chipbd+';color:'+T.ink+';padding:7px 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">Undo last change</button>';
   h += '</div>';
   h += '</div>';
   // crew strip — the old "Working today" toggles, themed and moved inside
