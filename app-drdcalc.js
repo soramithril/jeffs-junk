@@ -123,7 +123,6 @@ function renderDrdCalc(){
   drdcRecalc();
   drdcFilter();
   drdcTownList();
-  drdcTripRender();
   drdcStaleNotice();
 }
 
@@ -161,22 +160,10 @@ var drdcQty={};
 var _drdcStartedAt=null;
 function drdcQtyOf(i){ return drdcQty[i]||0; }
 
-// ── Pickup trip charge ──
-// A zone minimum for driving out to a Furniture Pickup, over and above what the items
-// cost. It sits beside the quote but is never added into Customer Pays: whether it
-// stacks on the items or only applies when the items come to less is still to be
-// decided (Jake, 2026-09-03). Zones come off the price sheet (our_prices), same as bins.
-var DRDC_ZONE_MIN = {1:0, 2:150, 3:250, 4:300, 5:350};
-// Town -> {zone, amount}, or null when the town isn't on the price sheet.
-function drdcTripFor(town){
-  var area=_priceAreaForCity(town);
-  if(!area) return null;
-  var m=/zone\s*(\d)/i.exec(getAreaPrices(area).zone||'');
-  if(!m) throw new Error('Price sheet area "'+area+'" has no zone');
-  var z=parseInt(m[1],10);
-  if(!(z in DRDC_ZONE_MIN)) throw new Error('No trip charge set for zone '+z);
-  return {zone:z, amount:DRDC_ZONE_MIN[z]};
-}
+// ── Zone minimum ──
+// Customer Pays is the items lifted to the pickup town's zone minimum (see
+// furnitureCustomerPays in app.js). The town box feeds it; the readout under the
+// quote says whether the minimum kicked in.
 function drdcTown(){ return (document.getElementById('drdc-town').value||'').trim(); }
 // Every area and town on the price sheet, for the town box's suggestions.
 function drdcTownList(){
@@ -188,24 +175,6 @@ function drdcTownList(){
     String(ourPricesV2[a].towns||'').split(',').forEach(function(t){ t=t.trim(); if(t) names[t]=1; });
   });
   dl.innerHTML=Object.keys(names).sort().map(function(n){ return '<option value="'+n.replace(/"/g,'&quot;')+'">'; }).join('');
-}
-function drdcTripRender(){
-  var box=document.getElementById('drdc-trip');
-  if(!box) return;
-  var town=drdcTown();
-  if(!town){ box.innerHTML='<div style="font-size:12px;color:var(--muted)">Type the town to see its zone</div>'; return; }
-  var t=drdcTripFor(town);
-  if(!t){ box.innerHTML='<div style="font-size:12px;color:#b02a37;font-weight:600">Not on the price sheet</div>'; return; }
-  box.innerHTML='<div class="drdc-money__v" style="color:#d97706">'+(t.amount?'$'+t.amount:'None')+'</div>'
-    +'<div style="font-size:11px;color:var(--muted)">Zone '+t.zone+(t.amount?' minimum':' &middot; no charge')+'</div>';
-}
-// The trip charge as one line of text for the Copy button; '' when no town is typed.
-function drdcTripLine(){
-  var town=drdcTown();
-  if(!town) return '';
-  var t=drdcTripFor(town);
-  if(!t) return 'Pickup trip charge: '+town+' is not on the price sheet';
-  return 'Pickup trip charge (Zone '+t.zone+', '+town+'): '+(t.amount?'$'+t.amount+' \u2014 not included in Customer Pays':'none');
 }
 // One step on an item's stepper. Repaints just that row, then the totals.
 function drdcStep(i,delta){
@@ -238,11 +207,14 @@ function drdcRecalc(){
     var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
     totalItems+=qty; totalFee+=qty*fee; totalVal+=qty*val;
   });
+  var floor=furnitureCustomerPays(totalFee, drdcTown());
   var ti=document.getElementById('drdc-total-items');
   var tf=document.getElementById('drdc-total-pay');
   var tv=document.getElementById('drdc-total-receipt');
+  var tn=document.getElementById('drdc-trip');
   if(ti)ti.textContent=totalItems;
-  if(tf)tf.textContent=totalFee.toFixed(2);
+  if(tf)tf.textContent=floor.pay.toFixed(2);
+  if(tn)tn.textContent=floor.note;
   if(tv)tv.textContent=totalVal.toFixed(2);
   drdcRenderTruck();
 }
@@ -427,7 +399,7 @@ function drdcClear(skipConfirm){
   });
   document.getElementById('drdc-other-rows').innerHTML='';
   drdcAddOtherRow();drdcRecalc();
-  document.getElementById('drdc-town').value='';drdcTripRender();
+  document.getElementById('drdc-town').value='';drdcRecalc();
   var s=document.getElementById('drdc-search');if(s)s.value='';
   drdcFilter();
   if(!skipConfirm) toast('Cleared.');
@@ -446,10 +418,10 @@ function drdcCopy(){
   drdcCustomRows().forEach(function(c){
     if(c.name) lines.push('  ' + (c.qty||1) + ' x ' + c.name);
   });
-  var trip=drdcTripLine();
+  var trip=document.getElementById('drdc-trip').textContent;   // the note already painted under the quote
   var text=items+' items · Customer pays $'+pay+' · Tax receipt $'+rec
     + (lines.length ? '\n' + lines.join('\n') : '')
-    + (trip ? '\n' + trip : '');
+    + (drdcTown() ? '\n' + trip : '');
   if(navigator.clipboard) navigator.clipboard.writeText(text);
   toast('Copied the quote and its item list.');
 }

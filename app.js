@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '661';
+var APP_VERSION = '662';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -6267,6 +6267,7 @@ var _selectedClientObj=null;
 // address, but never one the user typed. Typing in f-addr hands ownership back to the user.
 var _addrAutoFilled=false;
 document.addEventListener('input', function(e){ if(e.target && e.target.id==='f-addr') _addrAutoFilled=false; });
+document.addEventListener('input', function(e){ if(e.target && e.target.id==='f-city' && document.getElementById('drd-m-total-pay')) drdModalRecalc(); });
 
 function clientSearchDebounce(q){
   clearTimeout(_clientSearchTimer);
@@ -12893,6 +12894,7 @@ function _parseDrdData(j){
 function renderDrdInDetail(j){
   var wrap=document.getElementById('drd-detail-section');
   if(!wrap) return;
+  wrap.setAttribute('data-svc', j.service||'');   // drdDetailRecalc applies the pickup floor off this
   var drd=_parseDrdData(j)||{};
   var sources=drd.sources||['fb'];
   var opp=drd.opp||'';
@@ -12945,7 +12947,7 @@ function renderDrdInDetail(j){
     +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#a855f7;font-weight:700;margin-bottom:8px">👤 Donor Information</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
     +'<div class="form-group" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Address</label><input type="text" id="drd-d-addr" class="form-input" value="'+_esc(donorAddr)+'" style="font-size:12px;padding:6px 8px"></div>'
-    +'<div class="form-group" style="margin:0"><label style="font-size:11px">City</label><input type="text" id="drd-d-city" class="form-input" value="'+_esc(donorCity)+'" style="font-size:12px;padding:6px 8px"></div>'
+    +'<div class="form-group" style="margin:0"><label style="font-size:11px">City</label><input type="text" id="drd-d-city" class="form-input" value="'+_esc(donorCity)+'" oninput="drdDetailRecalc()" style="font-size:12px;padding:6px 8px"></div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Postal Code</label><input type="text" id="drd-d-postal" class="form-input" value="'+_esc(donorPostal)+'" style="font-size:12px;padding:6px 8px"></div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Email</label><input type="email" id="drd-d-email" class="form-input" value="'+_esc(donorEmail)+'" style="font-size:12px;padding:6px 8px"></div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Phone</label><input type="tel" id="drd-d-phone" class="form-input" value="'+_esc(donorPhone)+'" style="font-size:12px;padding:6px 8px"></div>'
@@ -12986,7 +12988,7 @@ function renderDrdInDetail(j){
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">'
     +'<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Items</div><div style="font-size:22px;font-weight:800" id="drd-d-total-items">0</div></div>'
-    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:var(--accent);font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:var(--accent);font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div><div id="drd-d-floor-note" style="font-size:11px;color:#b45309;margin-top:4px"></div></div>'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Tax Receipt Value</div><div style="font-size:28px;font-weight:800;color:#0d6efd;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-value">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Donation receipt total</div></div>'
     +'</div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-d-emailed" class="form-input" value="'+_esc(emailedDate)+'" style="font-size:12px;padding:4px 8px"></div>'
@@ -13167,11 +13169,17 @@ function drdDetailRecalc(){
     var val=parseFloat(otherVals[i]?otherVals[i].value:0)||0;
     totalItems+=qty; totalFee+=qty*fee; totalVal+=qty*val;
   });
+  var sec=document.getElementById('drd-detail-section');
+  var cityEl=document.getElementById('drd-d-city');
+  var floor=(sec&&sec.getAttribute('data-svc')==='Furniture Pickup')
+    ? furnitureCustomerPays(totalFee, cityEl?cityEl.value:'') : {pay:totalFee, note:''};
   var ti=document.getElementById('drd-d-total-items');
   var tf=document.getElementById('drd-d-total-pay');
   var tv=document.getElementById('drd-d-total-value');
+  var tn=document.getElementById('drd-d-floor-note');
   if(ti)ti.textContent=totalItems;
-  if(tf)tf.textContent=totalFee.toFixed(2);
+  if(tf)tf.textContent=floor.pay.toFixed(2);
+  if(tn)tn.textContent=floor.note;
   if(tv)tv.textContent=totalVal.toFixed(2);
 }
 
@@ -16133,7 +16141,10 @@ function drdModalRecalc(){
     totalItems+=qty;totalFee+=qty*fee;totalVal+=qty*val;
   });
   var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent=totalItems;
-  var tf=document.getElementById('drd-m-total-pay');if(tf)tf.textContent='$'+totalFee.toFixed(2);
+  var isPickup=document.getElementById('f-svc').value==='Furniture Pickup';
+  var floor=isPickup?furnitureCustomerPays(totalFee, document.getElementById('f-city').value):{pay:totalFee, note:''};
+  var tf=document.getElementById('drd-m-total-pay');if(tf)tf.textContent='$'+floor.pay.toFixed(2);
+  var tn=document.getElementById('drd-m-floor-note');if(tn)tn.textContent=floor.note;
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
   _syncDrdToJobItems();
   drdcRenderModalTruck();
@@ -20044,6 +20055,34 @@ function clearCrewDay(crewId, dateStr){
 // tonne (Jake, 2026-08-17) — 2,204.62 lb, not a 2,000 lb short ton. This only feeds the
 // cents-per-pound line; every per-tonne figure on the card is the same either way.
 var LB_PER_TONNE = 2204.62, HST_RATE = 0.13;
+// ── Furniture Pickup zone minimum ────────────────────────────────────────────
+// Driving out to a pickup has a floor by price-sheet zone: the customer pays the items
+// or the zone minimum, whichever is higher, and zone 1 has none (Jake, 2026-09-03).
+// Read-only like the bin script above: nothing here is saved with the job.
+var FURN_ZONE_MIN = {1:0, 2:150, 3:250, 4:300, 5:350};
+// Town -> {zone, min}, or null when the town isn't on the price sheet.
+function furnitureZoneMin(town){
+  var area=_priceAreaForCity(town);
+  if(!area) return null;
+  var m=/zone\s*(\d)/i.exec(getAreaPrices(area).zone||'');
+  if(!m) throw new Error('Price sheet area "'+area+'" has no zone');
+  var z=parseInt(m[1],10);
+  if(!(z in FURN_ZONE_MIN)) throw new Error('No furniture minimum set for zone '+z);
+  return {zone:z, min:FURN_ZONE_MIN[z]};
+}
+// What the customer pays for a furniture pickup: the items, lifted to the zone minimum.
+// Returns {pay, note}; the note says why the number is what it is, and every screen
+// that shows the number shows the note beside it.
+function furnitureCustomerPays(itemsTotal, town){
+  town=String(town||'').trim();
+  if(!town) return {pay:itemsTotal, note:'No town yet, so no zone minimum'};
+  var z=furnitureZoneMin(town);
+  if(!z) return {pay:itemsTotal, note:town+' is not on the price sheet, so no zone minimum'};
+  if(!z.min) return {pay:itemsTotal, note:'Zone '+z.zone+', no minimum'};
+  if(itemsTotal<z.min) return {pay:z.min, note:'Zone '+z.zone+' minimum of $'+z.min+' applies (items come to $'+itemsTotal.toFixed(2)+')'};
+  return {pay:itemsTotal, note:'Items are over the zone '+z.zone+' minimum of $'+z.min+', so no trip charge'};
+}
+
 // The sheet is one row per town, with an area's other towns listed in `towns`.
 function _priceAreaForCity(city){
   var c=String(city||'').trim().toLowerCase();
