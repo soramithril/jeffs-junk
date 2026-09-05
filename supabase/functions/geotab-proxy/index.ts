@@ -46,6 +46,7 @@ const DEFAULT_WHITELIST = [
   "Hino 2019",
   "Hino 2020",
   "Hino L7 2023",
+  "Darrin Truck",   // Jake 2026-09-05: on the wall so the office can see where he is; no bin legs
 ];
 
 function getWhitelist(): string[] {
@@ -106,10 +107,10 @@ async function handleDeviceStatus(): Promise<{ devices: ProxyDevice[] }> {
     id: string;
     name: string;
   }>;
-  const allowed = allDevices.filter((d) => whitelist.has(d.name));
+  const allowed = allDevices.filter((d) => whitelist.has(d.name.trim()));
   if (allowed.length === 0) return { devices: [] };
   const allowedIds = new Set(allowed.map((d) => d.id));
-  const nameById = new Map(allowed.map((d) => [d.id, d.name]));
+  const nameById = new Map(allowed.map((d) => [d.id, d.name.trim()]));
 
   const statuses = (await call("Get", { typeName: "DeviceStatusInfo" })) as Array<{
     device: { id: string };
@@ -184,7 +185,7 @@ async function handleDevices(): Promise<
   const whitelist = new Set(getWhitelist());
   return {
     devices: all
-      .map((d) => ({ id: d.id, name: d.name, listed: whitelist.has(d.name) }))
+      .map((d) => ({ id: d.id, name: d.name, listed: whitelist.has(d.name.trim()) }))
       .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
@@ -209,7 +210,7 @@ async function handleTrails(): Promise<{ trails: ProxyTrail[] }> {
     name: string;
   }>;
   const nameById = new Map(
-    allDevices.filter((d) => whitelist.has(d.name)).map((d) => [d.id, d.name]),
+    allDevices.filter((d) => whitelist.has(d.name.trim())).map((d) => [d.id, d.name]),
   );
   if (nameById.size === 0) return { trails: [] };
 
