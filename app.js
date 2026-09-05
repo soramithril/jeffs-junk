@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '665';
+var APP_VERSION = '666';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -19773,7 +19773,7 @@ function _rcRenderFoot(){
 // distance rings from the yard, and a live-price pill per town. Colours follow
 // the pricing sheet's zones, or flip to raw distance rings via the toggle.
 // From the Claude Design "Margin Console" project (v421).
-var RC_YARD={lat:44.3683,lng:-79.6831};   // 92 Davidson St
+var RC_YARD={lat:44.4040,lng:-79.6911};   // 92 Davidson St (re-geocoded 2026-09-05; the old point was Tower Crescent, 4 km south)
 var RC_ZEMOJI=['','🏠','🚛','🛣️','⛰️','🌲'];
 function _rcStraightKm(c){
   var R=6371, toR=Math.PI/180;

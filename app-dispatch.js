@@ -2,7 +2,8 @@
 // Depends on app.js globals: db, toast, todayStr, fd, dbToJob, crewMembers,
 // crewAvatarColor, refreshDashJobs, renderLiveJobs.
 // Called by render('dispatch') in app.js.
-var YARD_LATLNG = {lat: 44.3683, lng: -79.6831};
+// 92 Davidson St. Re-geocoded 2026-09-05 — the old 44.3683,-79.6831 was Tower Crescent, 4 km south.
+var YARD_LATLNG = {lat: 44.4040, lng: -79.6911};
 var _dispatchCityTimes = {};
 var _dispatchDate = null;
 var _dispatchJobsCache = [];

@@ -535,7 +535,11 @@
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     var PANELS = ['bins','schedule','kpis','liveops'];
-    var YARD = { lat:44.3683, lng:-79.6831 };   // 92 Davidson St — home base
+    // 92 Davidson St — home base. Re-geocoded 2026-09-05: the old point (44.3683,
+    // -79.6831) was Tower Crescent, 4 km south, so every truck parked at the depot
+    // counted as OUT — "5 of 5 out" all night, and the overview framed the depot
+    // alongside whoever was really working, which is why it always sat zoomed out.
+    var YARD = { lat:44.4040, lng:-79.6911 };
     var YARD_KM = 0.6;                          // inside this ring a truck reads "at the yard"
     // ONE zoom for the whole tour, never changed while it runs. Fitting each
     // truck's trail used to pick its own zoom per truck, and every change made
@@ -666,7 +670,7 @@
     // ── state ────────────────────────────────────────────────────────────────
     var DATA = { jobs:[], crew:{}, crewColor:{}, jwgColor:{}, emps:[], sched:{}, tasks:{},
                  inv:[], cats:{}, kpi:{}, junk:{}, binBoard:[], trucks:[], trucksAt:0,
-                 crewAll:{}, trails:{}, trailsAt:0 };
+                 crewAll:{}, trails:{}, trailsAt:0, truckDriver:{} };
     var panelIdx = 0, rotTimer = null;
 
     function jobTime(j){
@@ -709,6 +713,32 @@
     // (geofence_notifications), NOT the job's bin_instatus. The TV never calls
     // Geotab. A drop leg counts as done on a zone visit (dropped OR pickedup
     // notif = the truck was there); a pick leg once the truck has left (pickedup).
+    // Who is in which truck today, read off the trucks themselves: every zone visit
+    // names a device and a job, and the job's leg for today names a driver. The
+    // driver a truck is seen with most is its driver — so when two people swap
+    // trucks it shows on the pin by the second stop, with nobody typing anything.
+    // Until a truck has stood in a zone the regular pairing (TRUCK_DRIVERS) holds.
+    function buildTruckDrivers(rows, visits, today){
+      var byJob = {};
+      rows.forEach(function(j){ byJob[j.job_id] = j; });
+      var tally = {};
+      (visits||[]).forEach(function(v){
+        var j = byJob[v.job_id];
+        if(!j) return;
+        var crewId = (j.bin_dropoff === today && j.dropoff_crew_id) ? j.dropoff_crew_id : j.pickup_crew_id;
+        var name = crewId && DATA.crewAll[crewId];
+        if(!name) return;
+        var t = tally[v.device_id] = tally[v.device_id] || {};
+        t[name] = (t[name] || 0) + 1;
+      });
+      var out = {};
+      Object.keys(tally).forEach(function(dev){
+        var best = null;
+        Object.keys(tally[dev]).forEach(function(n){ if(best === null || tally[dev][n] > tally[dev][best]) best = n; });
+        out[dev] = best;
+      });
+      return out;
+    }
     function buildBinBoard(rows, today, notifRows){
       var geo = {dropped:{}, pickedup:{}};
       (notifRows||[]).forEach(function(n){ if(geo[n.status]) geo[n.status][n.job_id]=1; });
@@ -836,7 +866,9 @@
         db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyMonthEnd).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Bin Rental').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
         db.from('jobs').select('*',{count:'exact',head:true}).eq('service','Junk Removal').gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
-        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled')
+        db.from('jobs').select('*',{count:'exact',head:true}).in('service',['Furniture Pickup','Furniture Delivery']).gte('date',lyStart).lt('date',lyCut).neq('status','Cancelled'),
+        // which truck stood in which job's zone today — names the driver on each pin
+        db.from('geofence_visits').select('device_id,job_id').gte('entered_at', dayStartIso)
       ]);
       // Every query is critical — fail fast so the board never renders half-loaded.
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
@@ -859,6 +891,8 @@
 
       // bin board — today's bin legs grouped by driver (needs DATA.crew)
       DATA.binBoard = buildBinBoard(res[0].data||[], today, res[11].data||[]);
+      // who is in which truck today (needs DATA.crewAll)
+      DATA.truckDriver = buildTruckDrivers(res[0].data||[], res[21].data||[], today);
 
       // employees + ordering
       var empName = {}; (res[2].data||[]).forEach(function(e){ empName[e.id]=e.name; });
@@ -1137,6 +1171,10 @@
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
+    // Every lap of the tour opens on the whole crew at once, framed as tight as
+    // they fit (frameAll), before stepping through them one by one. Jake
+    // (2026-09-05): "the best zoom showing all the vehicles at the same time".
+    var OVERVIEW_MS = 8000;
     var _trailLine = null, _replayRaf = null, _trailFlow = null, _replayOf = null;
     // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
     // short deliberately: with a full fleet out, each truck only holds the screen
@@ -1389,7 +1427,7 @@
       // size to declare here the way a Leaflet icon needed one.
       return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'
            + '<span class="b" style="background:'+gloss+'">'+TRUCK_SVG+ping+'</span>'
-           + '<span class="n">'+esc(t.name)+'</span></div>';
+           + '<span class="n">'+esc(t.name)+(driverFor(t) ? ' &middot; '+esc(driverFor(t)) : '')+'</span></div>';
     }
 
     // Each truck's regular driver — the same pairing app-leaderboard.js encodes as
@@ -1406,10 +1444,15 @@
       { match:'SILVERADO',    driver:'Max'    },
       { match:'Darrin Truck', driver:'Darrin' },
       { match:'2020',         driver:'Neil'   },
+      { match:'2019',         driver:'Max'    },
+      { match:'2016',         driver:'Jordan' },
       { match:'L7 2023',      driver:'Kevin'  }
     ];
-    function driverFor(truckName){
-      var name = String(truckName || ''), hit = null;
+    // Today's GPS evidence first (buildTruckDrivers), the regular pairing until there is any.
+    function driverFor(t){
+      var seen = (DATA.truckDriver || {})[t.id];
+      if(seen) return seen;
+      var name = String(t.name || ''), hit = null;
       TRUCK_DRIVERS.forEach(function(d){ if(!hit && name.indexOf(d.match) >= 0) hit = d.driver; });
       return hit;
     }
@@ -1449,20 +1492,18 @@
       // pins were Saturday's. An "ago" label has to keep counting.
       var age = t.lastUpdate
         ? Math.max(0, Math.round((Date.now() - Date.parse(t.lastUpdate)) / 60000)) : null;
-      var driver = driverFor(t.name);
+      var driver = driverFor(t);
       var crewId = driver ? crewIdByName(driver) : null;
       var rows = '';
-      if(driver && crewId){
-        var pr = crewProgress(crewId);
-        rows += '<div class="rw"><span>Driver</span><b>'+esc(driver)+'</b></div>'
-             +  '<div class="rw"><span>Jobs left</span><b>'+pr.left+'</b></div>';
-        // Bar only when there's work to measure — a 0-of-0 bar reads as "finished"
-        // when it actually means "nothing was assigned".
-        if(pr.total){
-          rows += '<div class="bar"><i style="width:'+Math.round(100*pr.done/pr.total)
-               +  '%;background:'+c+'"></i></div>'
-               +  '<div class="cap">'+pr.done+' of '+pr.total+' done</div>';
-        }
+      if(driver) rows += '<div class="rw"><span>Driver</span><b>'+esc(driver)+'</b></div>';
+      // Jobs only when there is work to measure — a 0-of-0 reads as "finished" when
+      // it means "nothing was assigned", and Darrin's truck never carries bin legs.
+      var pr = crewId ? crewProgress(crewId) : null;
+      if(pr && pr.total){
+        rows += '<div class="rw"><span>Jobs left</span><b>'+pr.left+'</b></div>'
+             +  '<div class="bar"><i style="width:'+Math.round(100*pr.done/pr.total)
+             +  '%;background:'+c+'"></i></div>'
+             +  '<div class="cap">'+pr.done+' of '+pr.total+' done</div>';
       }
       rows += '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
            +  '<div class="rw"><span>Last ping</span><b>'
@@ -1688,10 +1729,12 @@
       if(_card){ _card.setMap(null); _card = null; }
     }
 
-    function focusTruck(i, gen){
+    function focusTruck(i, gen, fromOverview){
       if(gen !== _cycleGen) return;      // a newer cycle has taken over
       var list = tourTrucks();           // parked trucks keep pins but aren't toured
       if(!list.length){ _focusId = null; frameAll(); return; }
+      // Back at the top of the list = a new lap, which opens on the overview.
+      if(!fromOverview && i > 0 && i % list.length === 0){ showOverview(i, gen); return; }
       var t = list[((i % list.length) + list.length) % list.length];
       // Only the two pins that actually change get a new icon. Re-iconing the whole
       // fleet every step threw away and rebuilt every marker's DOM for nothing.
@@ -1744,8 +1787,23 @@
       // snapped out to the wide overview and back on every restart — and a restart
       // happens twice on entering the screen, once now and once when refreshTrucks
       // lands a second later.
-      if(tourTrucks().length) focusTruck(0, _cycleGen);
+      if(tourTrucks().length) showOverview(0, _cycleGen);
       else frameAll();
+    }
+    // The all-trucks frame, then on to truck nextI. Clears the focus so no pin
+    // stays enlarged and no card floats over the overview.
+    function showOverview(nextI, gen){
+      if(gen !== _cycleGen) return;
+      stopReplay();
+      var prevId = _focusId;
+      if(prevId && _markers[prevId]){
+        (DATA.trucks || []).forEach(function(x){ if(x.id === prevId) _markers[prevId].setIcon(truckIcon(x, false)); });
+      }
+      _focusId = null;
+      el('loTown').classList.remove('on');
+      if(_card){ _card.setMap(null); _card = null; }
+      frameAll();
+      _cycleTimer = setTimeout(function(){ focusTruck(nextI, gen, true); }, OVERVIEW_MS);
     }
 
     function renderLiveOps(){
@@ -1872,7 +1930,7 @@
                80:'🌦️',81:'🌦️',82:'🌦️',85:'🌨️',86:'🌨️',95:'⛈️',96:'⛈️',99:'⛈️'};
     async function loadWeather(){
       try{
-        var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.3683&longitude=-79.6831'
+        var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.4040&longitude=-79.6911'
           +'&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto');
         var w = await r.json();
         var cur = w.current||{}, d = w.daily||{};
