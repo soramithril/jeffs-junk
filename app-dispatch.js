@@ -8,7 +8,6 @@ var _dispatchCityTimes = {};
 var _dispatchDate = null;
 var _dispatchJobsCache = [];
 var _dispatchGeofences = {};
-var _dispatchOsrmInflight = false;
 
 async function dispatchLoadCityTimes(){
   var r = await db.from('city_drive_times').select('*');
@@ -54,46 +53,113 @@ function dispatchCityMins(city){
 }
 function dispatchCityKnown(city){ return dispatchCityResolve(city) != null; }
 function dispatchJobMins(j){
-  if(j._driveMins != null) return j._driveMins;
   return dispatchCityMins(j.city);
 }
-// The dump is 26 Ferndale Dr in Barrie, about 7 minutes from the shop, and it
-// only enters the picture on PICKUPS. Once a bin is tipped there the truck can
-// take the empty straight to the next customer instead of returning to the yard
-// first — that saved hop is exactly what pairing a pickup with a delivery buys.
+// ── Travel time ──
+// Stop-to-stop minutes come from the free OSRM router as ONE table per day
+// (yard, dump and every stop with a coordinate). A stop without a coordinate
+// falls back to the town table, which only knows the run to the yard, so a hop
+// to or from it goes by way of the yard.
+//
+// Jake, 2026-09-05: the old model booked every stop as its own round trip from
+// the yard unless two stops sat within 15 km, which is why Max's Friday morning
+// read 3h19 for work his truck did in 2h14 — the crew chains stops through the
+// dump and never comes home between them. Now the day is walked the way the
+// truck drives it (dispatchSimulateLane).
+var DUMP_LATLNG = {lat: 44.3769, lng: -79.7216};   // 26 Ferndale Dr, Barrie — beside the yard
 var DISPATCH_HANDLE_MINS    = 5;   // hooking a full bin, or setting a fresh one down
 var DISPATCH_DUMP_MINS      = 20;  // Jake's average time spent inside the dump
 var DISPATCH_YARD_DUMP_MINS = 7;   // shop <-> dump hop
-var DISPATCH_STACK_HOP_MINS = 10;  // first stacked drop over to the second, they're close
-// Every estimate builds from c = one-way drive minutes to the stop's town. The
-// dump sits beside the yard, so the run to it from any town also costs about c.
-// Each kind is the story of a real trip:
-//   standalone-delivery  yard→site, drop, site→yard                    2c + 5
-//   standalone-pickup    yard→site, hook, site→dump, tip, dump→yard    2c + 32
-// Remote pair (pickup at A + delivery at B, ONE trip — the bin emptied at
-// the dump goes straight to B instead of a second trip out):
-//   swap-pickup          yard→A, hook, A→dump, tip                     2c + 25
-//   swap-delivery        dump→B, drop, B→yard                          2c + 5
-// Swap-out (pickup + delivery at the SAME address — arrive with the fresh
-// bin, swap it for the full one, ONE visit):
-//   swap-delivery-onsite yard→site, drop the fresh bin                 c + 5
-//   swap-pickup-onsite   hook, site→dump, tip, dump→yard               c + 32
-// Double stack (two far 14-yard drops, regular nested inside a low-wide,
-// ONE trip out — see dispatchFindStacks):
-//   stack-first          yard→A, drop                                  c + 5
-//   stack-second         A→B hop, drop, B→yard                         c + 15
-function dispatchEstimateMinutes(job, kind){
-  var c = dispatchJobMins(job);
-  var handle = DISPATCH_HANDLE_MINS, dump = DISPATCH_DUMP_MINS, home = DISPATCH_YARD_DUMP_MINS;
-  if(kind === 'standalone-delivery')  return 2*c + handle;
-  if(kind === 'standalone-pickup')    return 2*c + handle + dump + home;
-  if(kind === 'swap-pickup')          return 2*c + handle + dump;
-  if(kind === 'swap-delivery')        return 2*c + handle;
-  if(kind === 'swap-delivery-onsite') return c + handle;
-  if(kind === 'swap-pickup-onsite')   return c + handle + dump + home;
-  if(kind === 'stack-first')          return c + handle;
-  if(kind === 'stack-second')         return c + DISPATCH_STACK_HOP_MINS + handle;
-  return 0;
+var _dispatchMatrix = {key:'', idx:{}, dur:null};
+function _dispatchPtKey(p){ return p.lat.toFixed(5)+','+p.lng.toFixed(5); }
+function dispatchPoint(x){
+  if(x === 'yard') return YARD_LATLNG;
+  if(x === 'dump') return DUMP_LATLNG;
+  return dispatchJobCoord(x);
+}
+// One request for the whole day. Reloaded only when the set of points changes
+// (a geocode landing, a job added), never per render.
+async function dispatchLoadTravelMatrix(jobsList){
+  var pts = [YARD_LATLNG, DUMP_LATLNG], seen = {};
+  pts.forEach(function(p){ seen[_dispatchPtKey(p)] = 1; });
+  jobsList.forEach(function(j){
+    var p = dispatchJobCoord(j);
+    if(p && !seen[_dispatchPtKey(p)]){ seen[_dispatchPtKey(p)] = 1; pts.push(p); }
+  });
+  var key = pts.map(_dispatchPtKey).join(';');
+  if(key === _dispatchMatrix.key) return;
+  try {
+    var url = 'https://router.project-osrm.org/table/v1/driving/'
+      + pts.map(function(p){ return p.lng+','+p.lat; }).join(';') + '?annotations=duration';
+    var r = await fetch(url);
+    var json = await r.json();
+    if(json.code !== 'Ok' || !json.durations) throw new Error(json.code || 'no durations');
+    var idx = {};
+    pts.forEach(function(p, i){ idx[_dispatchPtKey(p)] = i; });
+    _dispatchMatrix = {key:key, idx:idx, dur:json.durations};
+  } catch(e){
+    console.warn('OSRM table failed — times fall back to the town table', e);
+    _dispatchMatrix = {key:'', idx:{}, dur:null};
+  }
+}
+function dispatchMatrixMins(a, b){
+  var m = _dispatchMatrix;
+  if(!m.dur) return null;
+  var i = m.idx[_dispatchPtKey(a)], k = m.idx[_dispatchPtKey(b)];
+  if(i == null || k == null) return null;
+  var sec = m.dur[i][k];
+  return (sec == null) ? null : Math.round(sec/60);
+}
+function dispatchTownMins(x){
+  if(x === 'yard') return 0;
+  if(x === 'dump') return DISPATCH_YARD_DUMP_MINS;
+  return dispatchJobMins(x);
+}
+// Minutes from a to b, each a job or 'yard' / 'dump'.
+function dispatchTravel(a, b){
+  if(a === b) return 0;
+  var pa = dispatchPoint(a), pb = dispatchPoint(b);
+  if(pa && pb){
+    if(_dispatchPtKey(pa) === _dispatchPtKey(pb)) return 0;
+    var m = dispatchMatrixMins(pa, pb);
+    if(m != null) return m;
+  }
+  return dispatchTownMins(a) + dispatchTownMins(b);
+}
+// What one stop costs on its own, from the yard: the figure an unassigned card
+// shows and the weight the planner sorts by. In a lane the real figure comes
+// from dispatchSimulateLane, where it depends on what the truck did before.
+function dispatchEstimateMinutes(job){
+  var out = dispatchTravel('yard', job) + DISPATCH_HANDLE_MINS;
+  if(job._isPickup) out += dispatchTravel(job, 'dump') + DISPATCH_DUMP_MINS;
+  return out;
+}
+// One leg from the truck's current state: everything before the stop (drives,
+// the dump, a bin swap at the yard) and the handling at it.
+//   full bin on board  -> the dump first; the tipped bin then goes straight to the
+//                         next drop if it is the right size, else swapped at the yard
+//   empty, after a drop -> a drop means a bin from the yard (unless the two are a
+//                         double stack, which rode out together); a pickup is a straight hop
+function dispatchLegMins(st, j){
+  var H = DISPATCH_HANDLE_MINS, D = DISPATCH_DUMP_MINS, Y = DISPATCH_YARD_DUMP_MINS;
+  var size = String(j.binSize || '');
+  if(j._isPickup){
+    if(st.full) return {toSite: dispatchTravel(st.at, 'dump') + D + dispatchTravel('dump', j), atSite: H};
+    return {toSite: dispatchTravel(st.at, j), atSite: H};
+  }
+  if(st.full){
+    var toDump = dispatchTravel(st.at, 'dump') + D;
+    if(st.full === size) return {toSite: toDump + dispatchTravel('dump', j), atSite: H};
+    return {toSite: toDump + Y + H + dispatchTravel('yard', j), atSite: H};
+  }
+  if(st.at === 'yard') return {toSite: dispatchTravel('yard', j), atSite: H};
+  if(st.prev && j._partnerId === st.prev.id && String(j._kind).indexOf('stack') === 0) return {toSite: dispatchTravel(st.at, j), atSite: H};
+  return {toSite: dispatchTravel(st.at, 'yard') + H + dispatchTravel('yard', j), atSite: H};
+}
+function dispatchAfterLeg(j){ return {at: j, full: j._isPickup ? String(j.binSize || '') : null, prev: j}; }
+function dispatchHomeMins(st){
+  if(st.full) return dispatchTravel(st.at, 'dump') + DISPATCH_DUMP_MINS + DISPATCH_YARD_DUMP_MINS;
+  return dispatchTravel(st.at, 'yard');
 }
 // Only Kevin's big truck can haul a loaded 4 or 7 yard bin away. Dropping one
 // off is fine for anyone — an empty bin going out is no trouble — so this is a
@@ -109,7 +175,6 @@ function dispatchBigTruckDriverId(){
   });
   return k ? k.id : null;
 }
-var DISPATCH_COMBO_MAX_KM = 15; // pickup→delivery legs farther apart than this aren't worth combining
 function dispatchHaversineKm(a, b){
   if(!a || !b) return Infinity;
   var R = 6371, dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180;
@@ -129,31 +194,20 @@ function dispatchJobCoord(j){
   if(addr && geoCache[addr]) return geoCache[addr];
   return null;
 }
-// Pair pickups with deliveries by REAL proximity: same property first (on-site swap),
-// then globally nearest under DISPATCH_COMBO_MAX_KM so the best swaps win the match.
+// A swap-out: pickup and drop at the SAME address the same day — one visit, the
+// fresh bin arriving on the truck that takes the full one away. Stops at
+// different addresses used to be paired here too, within 15 km; every stop is
+// now timed from the one before it, so that pairing bought nothing and is gone.
 function dispatchFindSwaps(jobsList){
-  var pickups = jobsList.filter(function(j){return j._isPickup;});
-  var deliveries = jobsList.filter(function(j){return j._isDelivery;});
-  var cand = [];
-  pickups.forEach(function(p){
-    var pAddr = dispatchJobAddrStr(p), pc = dispatchJobCoord(p), pTown = dispatchCityResolve(p.city);
-    deliveries.forEach(function(d){
-      if(pAddr && pAddr === dispatchJobAddrStr(d)){ cand.push({p:p.id, d:d.id, dist:0}); return; }
-      var dist = dispatchHaversineKm(pc, dispatchJobCoord(d));
-      if(dist <= DISPATCH_COMBO_MAX_KM){ cand.push({p:p.id, d:d.id, dist:dist}); return; }
-      // Distance comes back Infinity when either stop has no coordinate yet, and
-      // the geocode cache is per-machine — so without this the same day pairs up
-      // differently for different people. Same resolved town is the honest stand-in.
-      // A measured-but-far pair stays unpaired, which is why this only runs on Infinity.
-      if(dist === Infinity && pTown && pTown === dispatchCityResolve(d.city)) cand.push({p:p.id, d:d.id, dist:5});
-    });
-  });
-  cand.sort(function(a,b){return a.dist - b.dist;});
   var partner = {}, used = {};
-  cand.forEach(function(c){
-    if(used[c.p] || used[c.d]) return;
-    partner[c.p] = c.d; partner[c.d] = c.p;
-    used[c.p] = true; used[c.d] = true;
+  var deliveries = jobsList.filter(function(j){ return j._isDelivery; });
+  jobsList.filter(function(j){ return j._isPickup; }).forEach(function(p){
+    var pAddr = dispatchJobAddrStr(p);
+    if(!pAddr || used[p.id]) return;
+    var d = deliveries.find(function(x){ return !used[x.id] && dispatchJobAddrStr(x) === pAddr; });
+    if(!d) return;
+    partner[p.id] = d.id; partner[d.id] = p.id;
+    used[p.id] = true; used[d.id] = true;
   });
   return partner;
 }
@@ -207,84 +261,77 @@ function dispatchGroupCombos(list){
   });
   return out;
 }
-// Orders one lane's legs around the clock. A timed drop is scheduled AT its time
-// rather than shoved to the front of the day: flexible work that fits in the run-up
-// to it goes first, so a 2pm appointment no longer leaves the truck idle all morning.
-// Combos travel as one indivisible unit and stay strictly back-to-back. Priority
-// among the flexible work is unchanged — combos, then loose drops, then loose pickups.
-// Returns {jobs, warnings}. Nothing is dropped — every unit lands somewhere.
-function dispatchOrderLaneJobs(jobs, startMins){
+// Walks one driver's day the way the truck drives it, and orders it: a timed
+// drop is scheduled AT its time, with flexible work that fits in the run-up
+// going first; swap-outs and stacks travel as one unit. Arriving early for a
+// timed drop means waiting (counted); 5+ minutes late is a miss. endMins is
+// when the truck is back at the yard. Returns {ordered, steps, warnings,
+// endMins, waitMins, misses}; each step is {job, start, arrive, end, mins}.
+function dispatchSimulateLane(laneJobs, startMins){
+  var jobs = laneJobs || [];
+  var start = (typeof startMins === 'number') ? startMins : 480;
   var warnings = [];
-  var byId = {}; jobs.forEach(function(j){ byId[j.id]=j; });
+  var byId = {}; jobs.forEach(function(j){ byId[j.id] = j; });
   var claimed = {}, units = [];
   jobs.forEach(function(j){
     if(claimed[j.id]) return;
     var p = j._partnerId && byId[j._partnerId];
-    var members;
-    if(p && !claimed[p.id]){
-      var jFirst = j._isPickup || j._kind === 'stack-first';
-      members = jFirst ? [j, p] : [p, j];
-    } else members = [j];
+    // Drop first for a swap-out (the truck arrives with the fresh bin), nearer drop first for a stack.
+    var members = (p && !claimed[p.id]) ? ((j._isDelivery || j._kind === 'stack-first') ? [j, p] : [p, j]) : [j];
     members.forEach(function(m){ claimed[m.id] = true; });
-    // dispatchParseClock is null for 'anytime' (and any non-clock text) — those drops
-    // are flexible, so they fill gaps instead of anchoring the day to a time.
     var appts = members.filter(function(m){ return m._isDelivery; })
       .map(function(m){ return dispatchParseClock(m.binDropoffTime); })
       .filter(function(t){ return t != null; });
-    units.push({
-      members: members,
-      mins: members.reduce(function(s,m){ return s + (m._estMinutes||0); }, 0),
-      appt: appts.length ? Math.min.apply(null, appts) : null,
-      rank: members[0]._partnerId ? 0 : (members[0]._isDelivery ? 1 : 2)
-    });
+    units.push({members: members, appt: appts.length ? Math.min.apply(null, appts) : null});
   });
-  var timed = units.filter(function(u){ return u.appt != null; })
-                   .sort(function(a,b){ return a.appt - b.appt; });
+  var timed = units.filter(function(u){ return u.appt != null; }).sort(function(a,b){ return a.appt - b.appt; });
   for(var i=1;i<timed.length;i++){
     if(timed[i].appt === timed[i-1].appt){
-      var dup = timed[i].members.filter(function(m){
-        return m._isDelivery && dispatchParseClock(m.binDropoffTime) === timed[i].appt;
-      })[0];
+      var dup = timed[i].members.filter(function(m){ return m._isDelivery && dispatchParseClock(m.binDropoffTime) === timed[i].appt; })[0];
       if(dup) warnings.push('Two timed drops at '+ft(dup.binDropoffTime));
     }
   }
-  var flex = units.filter(function(u){ return u.appt == null; })
-                  .sort(function(a,b){ return a.rank - b.rank; });
-  var ordered = [], clock = (typeof startMins === 'number') ? startMins : 480;
-  function place(u){
-    u.members.forEach(function(m){ ordered.push(m); });
-    clock += u.mins;
+  var flex = units.filter(function(u){ return u.appt == null; });
+  var st = {at:'yard', full:null, prev:null}, clock = start, wait = 0, misses = 0, steps = [], ordered = [];
+  // What a unit would take from a state, without moving. Returns the end state too.
+  function tryUnit(u, from, at){
+    var s = from, t = at;
+    u.members.forEach(function(m){ var leg = dispatchLegMins(s, m); t += leg.toSite + leg.atSite; s = dispatchAfterLeg(m); });
+    return {clock: t, state: s};
   }
-  timed.forEach(function(t){
-    // Anything flexible that can finish before the appointment goes ahead of it.
-    // The clock only moves forward, so a unit that doesn't fit now never will.
-    for(var k = 0; k < flex.length; ){
-      if(clock + flex[k].mins <= t.appt) place(flex.splice(k, 1)[0]);
-      else k++;
+  function place(u){
+    u.members.forEach(function(m){
+      var leg = dispatchLegMins(st, m);
+      var arrive = clock + leg.toSite;
+      var appt = m._isDelivery ? dispatchParseClock(m.binDropoffTime) : null;
+      if(appt != null){
+        if(arrive > appt + 5){ misses++; warnings.push('May miss '+ft(m.binDropoffTime)+' drop'); }
+        if(arrive < appt){ wait += appt - arrive; arrive = appt; }
+      }
+      var end = arrive + leg.atSite;
+      steps.push({job: m, start: clock, arrive: arrive, end: end, mins: end - clock});
+      ordered.push(m);
+      clock = end; st = dispatchAfterLeg(m);
+    });
+  }
+  // Nearest next: from wherever the truck is, the flexible unit that adds the
+  // least time goes next — which is what chains a pickup into the drop beside
+  // it. A timed drop takes its turn as soon as nothing else can still fit in
+  // front of it and leave the truck at its door on time.
+  while(flex.length || timed.length){
+    var best = -1, bestAdd = Infinity, bestAfter = null;
+    for(var k = 0; k < flex.length; k++){
+      var a = tryUnit(flex[k], st, clock);
+      if(a.clock - clock < bestAdd){ best = k; bestAdd = a.clock - clock; bestAfter = a; }
     }
-    if(clock < t.appt) clock = t.appt;   // arrived early — wait for the appointment
-    place(t);
-  });
-  flex.forEach(place);
-  return {jobs: ordered, warnings: warnings};
-}
-// Walks one driver's day the same way the lane view does: stops in dispatch
-// order, clock starting at the lane's start time. Arriving early for a timed
-// drop means waiting (counted); arriving 5+ min late is a miss. endMins is
-// when the truck finishes the last stop — waiting included — so balancing on
-// it treats a 1pm appointment like the real constraint it is.
-function dispatchSimulateLane(laneJobs, startMins){
-  var ord = dispatchOrderLaneJobs(laneJobs || [], startMins);
-  var clock = startMins, wait = 0, misses = 0;
-  ord.jobs.forEach(function(j){
-    var appt = j._isDelivery ? dispatchParseClock(j.binDropoffTime) : null;
-    if(appt != null){
-      if(clock > appt + 5) misses++;
-      if(appt > clock){ wait += appt - clock; clock = appt; }
+    var t = timed.length ? timed[0] : null;
+    if(t && (best < 0 || bestAfter.clock + dispatchLegMins(bestAfter.state, t.members[0]).toSite > t.appt)){
+      place(timed.shift());
+    } else {
+      place(flex.splice(best, 1)[0]);
     }
-    clock += (j._estMinutes||0);
-  });
-  return {ordered: ord.jobs, warnings: ord.warnings, endMins: clock, waitMins: wait, misses: misses};
+  }
+  return {ordered: ordered, steps: steps, warnings: warnings, endMins: clock + dispatchHomeMins(st), waitMins: wait, misses: misses};
 }
 async function dispatchLoadJobs(dateISO){
   var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled')
@@ -294,51 +341,11 @@ async function dispatchLoadJobs(dateISO){
 }
 async function dispatchLoadGeofences(jobIds){
   if(!jobIds.length) return {};
-  var r = await db.from('geofences').select('job_id,lat,lng,drive_minutes_from_yard').in('job_id', jobIds);
+  var r = await db.from('geofences').select('job_id,lat,lng').in('job_id', jobIds);
   if(r.error) return {};
   var map = {};
   (r.data||[]).forEach(function(g){ map[g.job_id] = g; });
   return map;
-}
-async function dispatchEnsureDriveMins(jobId, geofence){
-  if(geofence.drive_minutes_from_yard != null) return geofence.drive_minutes_from_yard;
-  if(!geofence.lat || !geofence.lng) return null;
-  try {
-    var url = 'https://router.project-osrm.org/route/v1/driving/' +
-      YARD_LATLNG.lng + ',' + YARD_LATLNG.lat + ';' +
-      geofence.lng + ',' + geofence.lat + '?overview=false';
-    var resp = await fetch(url);
-    var json = await resp.json();
-    if(json.routes && json.routes[0]){
-      var mins = Math.round(json.routes[0].duration / 60);
-      await db.from('geofences').update({drive_minutes_from_yard: mins}).eq('job_id', jobId);
-      return mins;
-    }
-  } catch(e){ console.warn('OSRM failed for', jobId, e); }
-  return null;
-}
-async function dispatchFillUnknownDriveTimes(){
-  if(_dispatchOsrmInflight) return;
-  _dispatchOsrmInflight = true;
-  try {
-    var queue = [];
-    _dispatchJobsCache.forEach(function(j){
-      var g = _dispatchGeofences[j.id];
-      if(g && g.drive_minutes_from_yard == null && g.lat && g.lng){
-        queue.push({jobId: j.id, geofence: g});
-      }
-    });
-    var anyFilled = false;
-    for(var i=0; i<queue.length; i++){
-      var mins = await dispatchEnsureDriveMins(queue[i].jobId, queue[i].geofence);
-      if(mins != null){
-        queue[i].geofence.drive_minutes_from_yard = mins;
-        anyFilled = true;
-      }
-      if(i < queue.length - 1) await new Promise(function(r){ setTimeout(r, 1500); });
-    }
-    if(anyFilled) renderDispatch();
-  } finally { _dispatchOsrmInflight = false; }
 }
 var _dispatchGeoInflight = false;
 // Geocodes addresses that have no coordinate yet (so combo matching can use real
@@ -929,7 +936,7 @@ function dispatchToggleCardMenu(key){
 // Tappable stop card: PICKUP/DROP pill, 🔁 combo ribbon, ~Nm, customer, and an
 // Assign/Move ▾ menu whose options call the existing dispatchAssignJob. Drag-to-assign
 // is preserved as a bonus.
-function dispatchRenderCard(j, clockStartMins){
+function dispatchRenderCard(j, step){
   var isPickup = !!j._isPickup;
   var leg = isPickup ? 'pickup' : 'dropoff';
   var legLabel = isPickup ? 'PICKUP' : 'DROP';
@@ -961,9 +968,9 @@ function dispatchRenderCard(j, clockStartMins){
   // A 4 or 7 yard can only be hauled away on the big truck. Say so on any such
   // pickup that isn't on Kevin — unassigned, or deliberately moved to someone else.
   var bigWarn = dispatchNeedsBigTruck(j) && assigned !== dispatchBigTruckDriverId();
-  var clockTxt = (typeof clockStartMins === 'number')
+  var clockTxt = step
     ? '<div style="display:inline-block;font-size:12px;font-weight:800;color:#15803d;background:rgba(34,197,94,.13);border-radius:6px;padding:3px 8px;margin-bottom:8px">'
-        +dispatchFmtClock(clockStartMins)+' &ndash; '+dispatchFmtClock(clockStartMins + j._estMinutes)+'</div>'
+        +dispatchFmtClock(step.start)+' &ndash; '+dispatchFmtClock(step.end)+'</div>'
     : '';
   return '<div draggable="true" ondragstart="dispatchOnDragStart(event,\''+j.id+'\',\''+leg+'\')" ondragend="dispatchOnDragEnd(event)" style="position:relative;background:'+cardBg+';border:1px solid var(--border);border-left:5px solid '+stripe+';border-radius:12px;padding:13px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:grab">'
     +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:9px">'
@@ -971,7 +978,7 @@ function dispatchRenderCard(j, clockStartMins){
       +(sizeTxt?'<span title="Bin size" style="font-size:11px;font-weight:800;color:#fff;background:'+sizeCol+';padding:3px 9px;border-radius:5px">'+sizeTxt+'</span>':'')
       +(j._partnerId?(String(j._kind).indexOf('stack')===0
         ?'<span title="Two far 14-yard drops on one trip — regular bin rides inside the low-wide" style="font-size:10.5px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.12);padding:3px 8px;border-radius:5px">📦 Double stack</span>'
-        :'<span title="Pickup and delivery run together as one trip" style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:3px 8px;border-radius:5px;border-left:3px solid '+comboCol+'">🔗 Paired</span>'):'')
+        :'<span title="Swap-out — pickup and drop at the same address, one visit" style="font-size:10.5px;font-weight:700;color:#15803d;background:rgba(34,197,94,.12);padding:3px 8px;border-radius:5px;border-left:3px solid '+comboCol+'">🔗 Swap-out</span>'):'')
       +'<span style="margin-left:auto;font-size:13px;font-weight:800;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;white-space:nowrap">'
         +(j._cityUnknown?'<span title="Town not in the drive-time list — using a 20 min guess" style="color:#d97706">&#9888; </span>':'')+j._estMinutes+' min</span>'
     +'</div>'
@@ -1014,10 +1021,10 @@ async function renderDispatch(){
     j._isDelivery = (j.binDropoff === _dispatchDate && !j._isPickup);
     var g = _dispatchGeofences[j.id];
     if(g){
-      if(g.drive_minutes_from_yard != null) j._driveMins = g.drive_minutes_from_yard;
       if(g.lat != null && g.lng != null){ j._lat = g.lat; j._lng = g.lng; }
     }
   });
+  await dispatchLoadTravelMatrix(todayJobs);
   // Any driver who already has a stop assigned for this date is, by definition, working
   // today — auto-toggle them on (and persist) so the toggle row, lanes, and the assign
   // menu all show them without the user having to click them on manually.
@@ -1051,8 +1058,8 @@ async function renderDispatch(){
     }
     j._kind = kind;
     j._partnerId = partnerId;
-    j._cityUnknown = j._driveMins == null && !dispatchCityKnown(j.city);
-    j._estMinutes = dispatchEstimateMinutes(j, kind);
+    j._cityUnknown = !dispatchJobCoord(j) && !dispatchCityKnown(j.city);   // no coordinate AND no town row: the 20-min guess
+    j._estMinutes = dispatchEstimateMinutes(j);
   });
   // Give each combo pair a shared color so the two linked cards are obvious.
   // All hex, never var(--accent) — these get an alpha suffix appended downstream,
@@ -1089,13 +1096,12 @@ async function renderDispatch(){
     // Full-page canvas: all controls live inside the board (dcvMount builds them)
     host.innerHTML = '<div id="dcv-host"></div>';
     dcvMount();
-    dispatchFillUnknownDriveTimes();
     dispatchFillMissingCoords();
     return;
   }
   var html = '<div class="page-header">';
   html += '<div><div class="page-title page-title-sm">Dispatch &mdash; '+fd(_dispatchDate)+'</div>';
-  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' paired trip'+(swapPairs>1?'s':'')+' found':'')+(stackPairs?' &middot; '+stackPairs+' double stack'+(stackPairs>1?'s':'')+' suggested':'')+'</div></div>';
+  html += '<div class="page-sub" data-tour="dispatch-summary">'+todayJobs.length+' bin jobs &middot; est '+dispatchFmtTotal(totalMins)+(swapPairs?' &middot; '+swapPairs+' swap-out'+(swapPairs>1?'s':''):'')+(stackPairs?' &middot; '+stackPairs+' double stack'+(stackPairs>1?'s':'')+' suggested':'')+'</div></div>';
   html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
   // Connected date stepper
   html += '<div style="display:inline-flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
@@ -1131,8 +1137,9 @@ async function renderDispatch(){
   html += '<div data-tour="dispatch-combo-info" style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px">';
   html += '<div style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:Georgia,serif">i</div>';
   html += '<div style="font-size:13px;line-height:1.5;color:var(--text)">';
-  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:var(--accent);background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px">PAIRED</span>';
-  html += '<strong>= one trip handles both a pickup and a delivery</strong> &mdash; the bin emptied at the dump goes straight to the next customer instead of coming back to the shop first. The dump is only 7 minutes from the yard, so that saves a modest hop on a pair at two different addresses; the real win is a <strong>swap-out</strong>, where the pickup and the drop are the same address and one visit covers both. Keep both legs on the same driver. ';
+  html += '<strong>Times run stop to stop, the way the truck drives:</strong> a pickup goes to the dump and the emptied bin straight on to the next drop; the truck only comes back to the yard for a bin it does not have. Each stop shows the clock it gets in its driver\'s run, so the same stop costs less after a nearby one. Roads by the free OSRM router; a stop it cannot place uses the town table.';
+  html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:var(--accent);background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);padding:1px 6px;border-radius:4px;margin:0 6px;vertical-align:1px">SWAP-OUT</span>';
+  html += '<strong>= pickup and drop at the same address, one visit.</strong>';
   html += '<span style="display:inline-block;font-size:10px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.3);padding:1px 6px;border-radius:4px;margin:0 6px;vertical-align:1px">DOUBLE STACK</span>';
   html += '<strong>= two far 14-yard drops ride out together</strong> &mdash; the regular bin nests inside a low-wide, so one trip delivers both. Suggested when two 14s land near each other roughly 20+ min out.';
   html += '</div></div>';
@@ -1209,16 +1216,7 @@ async function renderDispatch(){
           var uKey = _dispatchCityNorm(uj.city) || '?';
           if(uj._cityUnknown && !_unkSeen[uKey]){ _unkSeen[uKey] = true; warns.push('&ldquo;'+escHtml(uj.city||'?')+'&rdquo; not in the town list &mdash; times use a 20m guess'); }
         });
-        var clock = startMins;
-        sim.ordered.forEach(function(j){
-          var ft2 = j._isDelivery ? dispatchParseClock(j.binDropoffTime) : null;
-          if(ft2 != null){
-            if(clock > ft2 + 5) warns.push('May miss '+ft(j.binDropoffTime)+' drop');
-            clock = Math.max(clock, ft2);
-          }
-          html += dispatchRenderCard(j, clock);
-          clock += j._estMinutes;
-        });
+        sim.steps.forEach(function(s){ html += dispatchRenderCard(s.job, s); });
         if(warns.length){
           html += '<div style="margin-top:6px;font-size:11px;color:#d97706;background:#f59e0b18;border:1px solid #f59e0b55;border-radius:6px;padding:4px 8px;line-height:1.4">&#9888; '+warns.join('; ')+'</div>';
         }
@@ -1231,7 +1229,6 @@ async function renderDispatch(){
     html += '<div style="text-align:center;padding:30px;color:var(--muted);font-size:14px">Pick at least one driver above to start dispatching.</div>';
   }
   host.innerHTML = html;
-  dispatchFillUnknownDriveTimes();
   dispatchFillMissingCoords();
 }
 
@@ -1320,7 +1317,7 @@ function dcvCrewNodes(){
 function dcvGroups(){
   return dcvCrewNodes().map(function(c){
     var jobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
-    return {crew: c, jobs: jobs.length ? dispatchOrderLaneJobs(jobs, dispatchParseClock(dispatchGetLaneStart(c.id)) || 480).jobs : []};
+    return {crew: c, jobs: jobs.length ? dispatchSimulateLane(jobs, dispatchParseClock(dispatchGetLaneStart(c.id)) || 480).ordered : []};
   });
 }
 // The same groups as they'd look under the plan — drawn as the faded column beside
@@ -1329,7 +1326,7 @@ function dcvProposedGroups(){
   if(!_dispatchPreview) return [];
   return dcvCrewNodes().map(function(c){
     var jobs = _dispatchJobsCache.filter(function(j){ return dispatchProposedCrewId(j) === c.id; });
-    return {crew: c, jobs: jobs.length ? dispatchOrderLaneJobs(jobs, dispatchParseClock(dispatchGetLaneStart(c.id)) || 480).jobs : []};
+    return {crew: c, jobs: jobs.length ? dispatchSimulateLane(jobs, dispatchParseClock(dispatchGetLaneStart(c.id)) || 480).ordered : []};
   });
 }
 // Where a ghost card sits: one panel to the right, on the same row line as the real stack.
@@ -1427,7 +1424,7 @@ function dcvJobCardHtml(j, T, p, selected, opts){
   h += '<span style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:'+svcCol+'">'+svc+'</span>';
   if(isCombo) h += String(j._kind).indexOf('stack')===0
     ? '<span title="Double stack — two far 14-yard drops on one trip (regular rides inside the low-wide)" style="font-size:9px">📦</span>'
-    : '<span title="Paired — pickup + delivery on one trip" style="font-size:9px">🔗</span>';
+    : '<span title="Swap-out — pickup and drop at the same address, one visit" style="font-size:9px">🔗</span>';
   if(markCol){
     // On the real card: where it goes. On the ghost: where it came from.
     var mvId = opts.mark === 'in' ? (j._isPickup ? (j.pickupCrewId||'') : (j.dropoffCrewId||'')) : dispatchProposedCrewId(j);
@@ -1487,7 +1484,7 @@ function dcvGroupPanelHtml(g, T, pos){
   if(!o) return '';
   var col = g.crew.color || crewAvatarColor(g.crew.id);
   var box = dcvGroupBox(o, g.jobs.length);
-  var mins = g.jobs.reduce(function(s,j){ return s+(j._estMinutes||0); }, 0);
+  var mins = g.jobs.length ? (function(){ var st = dispatchParseClock(dispatchGetLaneStart(g.crew.id)) || 480; return dispatchSimulateLane(g.jobs, st).endMins - st; })() : 0;
   var h = '<div data-panel="c:'+g.crew.id+'" data-group="'+g.crew.id+'" style="position:absolute;top:0;left:0;width:'+box.w+'px;height:'+box.h+'px;transform:translate('+box.x+'px,'+box.y+'px);border:1px solid '+dcvRgba(col,0.42)+';background:'+dcvRgba(col,0.07)+';border-radius:20px">';
   h += '<div style="display:flex;align-items:center;gap:7px;padding:9px 14px 0;pointer-events:none">';
   h += '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex:0 0 auto"></span>';
@@ -1581,7 +1578,7 @@ function dcvMount(){
   // top bar — the old page-header controls, themed and moved inside
   h += '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:'+T.surface+';border-bottom:1px solid '+T.border+'">';
   h += '<div style="line-height:1.15;margin-right:4px"><div style="font-size:15px;font-weight:800;color:'+T.ink+';letter-spacing:-.2px">Dispatch</div>';
-  h += '<div style="font-size:10.5px;color:'+T.sub+'">'+_dispatchJobsCache.length+' bin jobs · est '+dispatchFmtTotal(totalMins)+(comboPairs?' · '+comboPairs+' paired trip'+(comboPairs>1?'s':''):'')+'</div></div>';
+  h += '<div style="font-size:10.5px;color:'+T.sub+'">'+_dispatchJobsCache.length+' bin jobs · est '+dispatchFmtTotal(totalMins)+(comboPairs?' · '+comboPairs+' swap-out'+(comboPairs>1?'s':''):'')+'</div></div>';
   h += '<div style="display:inline-flex;align-items:center;border:1px solid '+T.border+';border-radius:10px;overflow:hidden">';
   h += '<button onclick="dispatchShiftDate(-1)" title="Previous day" style="background:transparent;border:0;padding:7px 12px;color:'+T.ink+';cursor:pointer;font-size:17px;line-height:1;border-right:1px solid '+T.border+';font-family:inherit">&lsaquo;</button>';
   h += '<input type="date" value="'+(_dispatchDate||todayStr())+'" onchange="_dispatchDate=this.value;renderDispatch()" style="background:transparent;border:0;color:'+T.ink+';color-scheme:dark;padding:7px 10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;min-width:130px;text-align:center">';
@@ -1651,7 +1648,7 @@ function dcvMount(){
   h += '<div style="display:flex;gap:7px;flex-wrap:wrap;max-width:460px">';
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#60a5fa"></span>Pickup');
   h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#eab308"></span>Drop');
-  h += chip('<span style="font-size:10px">🔗</span>Paired = pickup + delivery on one trip');
+  h += chip('<span style="font-size:10px">🔗</span>Swap-out = pickup + drop at one address');
   if(unassignedCount) h += chip('<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></span>'+unassignedCount+' unassigned');
   if(_dispatchPreview){
     h += chip('<span style="width:9px;height:9px;border-radius:2px;border:1.5px dashed #f59e0b"></span>moves away');
@@ -2040,7 +2037,7 @@ function dcvInspectorHtml(){
     var j = dcvJobById(id.slice(2));
     if(!j) return '';
     var isCombo = !!j._partnerId;
-    var svc = (j._isPickup ? 'Pickup' : 'Drop') + (isCombo ? ' · 🔗 paired' : '');
+    var svc = (j._isPickup ? 'Pickup' : 'Drop') + (isCombo ? (String(j._kind).indexOf('stack')===0 ? ' · 📦 stacked' : ' · 🔗 swap-out') : '');
     var svcCol = j._isPickup ? '#60a5fa' : '#eab308';
     var cid = dcvJobCrewId(j);
     var cr = cid && crewMembers.find(function(c){ return c.id === cid; });
@@ -2053,7 +2050,7 @@ function dcvInspectorHtml(){
     h += row('Bin size', escHtml(j.binSize||'—'));
     h += row('Window', (!j._isPickup && dispatchParseClock(j.binDropoffTime)!=null) ? dispatchFmtClock(dispatchParseClock(j.binDropoffTime)) : 'Flexible');
     h += row('Est. time', '~'+(j._estMinutes||0)+'m');
-    if(partner) h += row('Paired with', escHtml(partner.name||('#'+partner.id)));
+    if(partner) h += row('With', escHtml(partner.name||('#'+partner.id)));
     h += row('Driver', cr ? escHtml(cr.name) : '<span style="color:#d97706">Unassigned — drag its ○ onto a crew card</span>');
     h += '<div style="display:flex;gap:8px;margin-top:18px">';
     h += '<button onclick="dcvFocusSel()" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e9ecef;background:#f8f9fa;color:#343a40;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer">Focus</button>';
@@ -2067,7 +2064,7 @@ function dcvInspectorHtml(){
   var laneJobs = _dispatchJobsCache.filter(function(x){ return dcvJobCrewId(x) === c.id; });
   var startTime = dispatchGetLaneStart(c.id);
   var startMins = dispatchParseClock(startTime) || 480;
-  var ord = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : {ordered:[], warnings:[], endMins:startMins};
+  var ord = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : {ordered:[], steps:[], warnings:[], endMins:startMins};
   var total = ord.endMins - startMins; // day span incl. waiting for timed drops
   var routeUrl = laneJobs.length ? dispatchMapsRouteUrl(ord.ordered) : null;
   h += head(col, 'Crew member');
@@ -2080,20 +2077,13 @@ function dcvInspectorHtml(){
     h += '<div style="font-size:12.5px;color:#868e96;font-style:italic;padding:10px 0">No stops yet — drag a job\'s ○ onto this card.</div>';
   } else {
     var warns = ord.warnings.slice();
-    var clock = startMins;
-    ord.ordered.forEach(function(x){
-      var ft2 = x._isDelivery ? dispatchParseClock(x.binDropoffTime) : null;
-      if(ft2 != null){
-        if(clock > ft2 + 5) warns.push('May miss '+ft(x.binDropoffTime)+' drop');
-        clock = Math.max(clock, ft2);
-      }
-      var legBg = x._isPickup ? '#0d6efd' : '#eab308';
+    ord.steps.forEach(function(s){
+      var x = s.job, legBg = x._isPickup ? '#0d6efd' : '#eab308';
       h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f3f5">';
-      h += '<span style="font-family:ui-monospace,monospace;font-size:10.5px;color:#868e96;flex:0 0 100px">'+dispatchFmtClock(clock)+'–'+dispatchFmtClock(clock + (x._estMinutes||0))+'</span>';
+      h += '<span style="font-family:ui-monospace,monospace;font-size:10.5px;color:#868e96;flex:0 0 100px">'+dispatchFmtClock(s.start)+'–'+dispatchFmtClock(s.end)+'</span>';
       h += '<span style="font-size:12.5px;font-weight:600;color:#343a40;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(x.name||x.city||'—')+'</span>';
       h += '<span style="font-size:9px;font-weight:800;color:#fff;background:'+legBg+';padding:2px 6px;border-radius:4px;flex:0 0 auto">'+(x._isPickup?'PICKUP':'DROP')+'</span>';
       h += '</div>';
-      clock += (x._estMinutes||0);
     });
     if(warns.length) h += '<div style="margin-top:8px;font-size:11px;color:#d97706;background:#f59e0b18;border:1px solid #f59e0b55;border-radius:6px;padding:4px 8px;line-height:1.4">&#9888; '+warns.join('; ')+'</div>';
   }
