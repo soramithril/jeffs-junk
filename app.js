@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '664';
+var APP_VERSION = '665';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3087,16 +3087,15 @@ function markNoEmail(jobId){
   });
 }
 
-// ── NEEDS YOU BEFORE END OF DAY — bin-rental loose ends for today ──────────
-// Bin rentals only, two concerns: (a) confirmation email not yet sent;
-// (b) day-before pickup confirm call (pickup is tomorrow and not confirmed).
+// ── NEEDS TO BE EMAILED — confirmation emails not yet sent ─────────────────
+// Every service with a confirmation template, due within 7 days. It was "Needs
+// you before end of day" with day-before pickup calls in the same list until
+// 2026-09-04; the office only ever used it for the emails, so the calls came out.
 // Reads the in-memory `jobs` array (populated by refreshDashBinStats above).
 function renderNeedsYou(){
   var el=document.getElementById('dash-needs-you');
   if(!el) return;
   var today=todayStr();
-  var dt=new Date(today+'T12:00:00'); dt.setDate(dt.getDate()+1);
-  var tomorrow=ymdLocal(dt);
   var dt7=new Date(today+'T12:00:00'); dt7.setDate(dt7.getDate()+7);
   var sevenOut=ymdLocal(dt7);
   // Every service that has a confirmation template, not just bins (v562). A junk or
@@ -3124,13 +3123,12 @@ function renderNeedsYou(){
     // the nag has to leave here too — otherwise saying it in the morning brief just
     // moved the same booking one card over onto the dashboard.
     if(upcoming && !(j.emailSent||j.emailConfirmed||j.noEmail) && !_jjNoConfirmClient(j.clientId)) items.push({j:j,kind:'email'});
-    if(j.binPickup===tomorrow && !j.confirmed) items.push({j:j,kind:'call'});
   });
   var doneToday=active.filter(function(j){
     var dropD = j.service==='Bin Rental' ? (j.binDropoff||j.date)
       : (j.service==='Furniture Pickup'||j.service==='Furniture Delivery') ? (j.fbDate||j.date)
       : (j.junkDate||j.date);
-    return dropD && dropD<=sevenOut && (j.emailSent||j.emailConfirmed) && !(j.binPickup===tomorrow && !j.confirmed);
+    return dropD && dropD<=sevenOut && (j.emailSent||j.emailConfirmed);
   }).length;
   el.setAttribute('data-count', items.length);
   renderGreeting();
@@ -3141,23 +3139,19 @@ function renderNeedsYou(){
     el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid var(--accent-hero);background:linear-gradient(135deg,rgba(34,197,94,.14),var(--surface) 70%)">'
       +'<span style="width:6px;height:38px;border-radius:99px;background:var(--accent-hero);flex:none"></span>'
       +'<div><div style="font-size:16px;font-weight:800;color:var(--accent-hover)">All caught up</div>'
-      +'<div style="font-size:13px;color:var(--muted)">Every confirmation email is sent and every day-before pickup call is made.</div></div>'
+      +'<div style="font-size:13px;color:var(--muted)">Every confirmation email is sent.</div></div>'
     +'</div>';
     return;
   }
   var rowsHtml=items.map(function(it){
-    var j=it.j, isCall=it.kind==='call';
-    var ac=isCall?'var(--warn)':'#2563eb';
-    var bg=isCall?'#fffaf5':'#f9fbfd';
-    var iconBg=isCall?'#fff2e6':'#eaf2ff';
-    // Line icons from JWGIcons, not emoji — same set the sidebar and the call
-    // button below already use, so the row reads as one visual language.
-    var icon=isCall?lineIcon('call',17,'var(--warn)'):lineIcon('email',17,'#2563eb');
+    var j=it.j;
+    // Line icon from JWGIcons, not emoji — the same set the sidebar uses, so the row
+    // reads as one visual language.
+    var icon=lineIcon('email',17,'#2563eb');
     // The name used to sit at the END of this string inside a single-line
     // ellipsis, so on a phone the row read "Send confirmation email — " and the
     // customer was gone. Name first at both widths, and the phone gets its own
     // one-line wording that carries the service and the day as well.
-    var actShort=isCall?'Call to confirm':'Send email';
     var svcShort=(j.service==='Bin Rental'?'bin rental':(j.service||'job')).toLowerCase();
     // Bins say their size; everything else says its service, so a junk job in this
     // list doesn't sit there with a blank second line.
@@ -3166,26 +3160,22 @@ function renderNeedsYou(){
       : (j.service==='Furniture Pickup'||j.service==='Furniture Delivery') ? (j.fbDate||j.date)
       : (j.junkDate||j.date);
     var daysUntil=dropD2?Math.round((new Date(dropD2+'T12:00:00').getTime()-new Date(today+'T12:00:00').getTime())/86400000):null;
-    var meta=isCall?[szClean,'pickup tomorrow · confirm bin is ready'].filter(Boolean).join(' · '):szClean;
-    var whenTxt=isCall?'tomorrow':(daysUntil==null?'':daysUntil<=0?'today':daysUntil===1?'tomorrow':(daysUntil+' days'));
+    var whenTxt=daysUntil==null?'':daysUntil<=0?'today':daysUntil===1?'tomorrow':(daysUntil+' days');
     var nameHtml='<span class="ny-name">'+j.name+'</span>';
-    var titleHtml='<span class="ny-t-desk">'+nameHtml+' — '+(isCall?'confirm pickup':'send confirmation email')+'</span>'
-      +'<span class="ny-t-phone">'+actShort+' · '+nameHtml+' · '+svcShort+(whenTxt?' · '+whenTxt:'')+'</span>';
+    var titleHtml='<span class="ny-t-desk">'+nameHtml+' — send confirmation email</span>'
+      +'<span class="ny-t-phone">Send email · '+nameHtml+' · '+svcShort+(whenTxt?' · '+whenTxt:'')+'</span>';
     var cdChip='';
-    if(!isCall && dropD2 && daysUntil!=null){
+    if(dropD2 && daysUntil!=null){
       var cdc=daysUntil<=0?{bg:'#fdecee',fg:'var(--bad)'}:daysUntil===1?{bg:'#fff2e6',fg:'#c2410c'}:daysUntil<=3?{bg:'#fffbeb',fg:'var(--warn-ink)'}:{bg:'#f0fdf4',fg:'#16a34a'};
       var isBinJob=j.service==='Bin Rental';
       var cdTxt=daysUntil<=0?(isBinJob?'out today':'today'):daysUntil===1?(isBinJob?'out tomorrow':'tomorrow'):(new Date(dropD2+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+daysUntil+'d');
       cdChip='<span style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:12px;font-weight:800;color:'+cdc.fg+';background:'+cdc.bg+';border-radius:8px;padding:6px 11px;white-space:nowrap">'+lineIcon('schedule',12,cdc.fg)+cdTxt+'</span>';
     }
-    var action=isCall
-      ? (j.phone?'<a href="tel:'+j.phone+'" onclick="event.stopPropagation()" style="flex:none;text-decoration:none;color:#16a34a;border:1.5px solid #bbe6cc;background:var(--surface);font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;white-space:nowrap">'+lineIcon('call',13)+' '+j.phone+'</a>':'')
-        +'<button class="djj-btn green" onclick="confirmJob(\''+j.id+'\',event);event.stopPropagation()" style="font-size:13px;padding:9px 16px;border-radius:9px">Mark called</button>'
-      : '<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
-        +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
-    return '<div class="ny-row" data-nyk="'+j.id+':'+it.kind+'" style="display:flex;align-items:center;gap:14px;background:'+bg+';border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:12px;padding:13px 16px;margin-bottom:7px">'
-      +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+iconBg+'">'+icon+'</span>'
-      +'<div style="flex:1;min-width:0"><div class="ny-title" style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+titleHtml+'</div><div class="ny-meta" style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
+    var action='<button class="djj-btn green" onclick="event.stopPropagation();openEmailModal(\''+j.id+'\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send email</button>'
+      +'<button title="This one doesn\'t need a confirmation email — a swap-out, or a customer taking more than one bin today" onclick="event.stopPropagation();markNoEmail(\''+j.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">No email needed</button>';
+    return '<div class="ny-row" data-nyk="'+j.id+':email" style="display:flex;align-items:center;gap:14px;background:#f9fbfd;border:1px solid var(--border);border-left:3px solid #2563eb;border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+      +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#eaf2ff">'+icon+'</span>'
+      +'<div style="flex:1;min-width:0"><div class="ny-title" style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+titleHtml+'</div><div class="ny-meta" style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+szClean+'</div></div>'
       +cdChip
       +'<div class="ny-actions">'+action+'</div>'
     +'</div>';
@@ -3196,10 +3186,10 @@ function renderNeedsYou(){
       // colour as the good news, so nothing about it said "look at me". Amber
       // does that without red's implication that something is already broken.
       +'<span class="jj-sec-chip warm"></span>'
-      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Needs you before end of day</span>'
+      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Needs to be emailed</span>'
       +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'+items.length+' left &middot; '+doneToday+' done</span>'
     +'</div>'
-    +'<div style="font-size:12px;color:var(--muted);padding:0 4px 12px">Bin rentals only — confirmation emails to send, and day-before pickup calls so customers aren\'t charged an extra day.</div>'
+    +'<div style="font-size:12px;color:var(--muted);padding:0 4px 12px">Confirmation emails that have not gone out yet, due in the next 7 days.</div>'
     +rowsHtml
   +'</div>';
   // Surviving rows glide to their new spot, then buzz the genuinely new ones
@@ -4414,7 +4404,7 @@ function renderGreeting(){
     // Loose ends read amber to match the card they refer to; caught up reads
     // the hero green, because that is the one genuinely good outcome here.
     bits.push('<span style="color:'+(n>0?'var(--accent-warm)':'var(--accent-hover)')+';font-weight:800">'
-      +(n>0 ? n+' loose end'+(n===1?'':'s') : 'All caught up')+'</span>');
+      +(n>0 ? n+' email'+(n===1?'':'s')+' to send' : 'All caught up')+'</span>');
   }
   sumEl.innerHTML=bits.join('. ')+'.';
 }
@@ -5237,6 +5227,20 @@ function binAssignIsDrop(j, bin){
   if(binDroppedElsewhere(bin.bid, j.id)) return false;  // that bin is recorded as sitting at another job
   var drop = j.binDropoff || j.date;
   return !!drop && drop <= todayStr();
+}
+// A bin still marked dropped at an EARLIER job is on its way here: putting its number
+// on this job, once the drop day has come, means it was picked up there. So mark that
+// job picked up, and the assignment then counts as the drop. Automatic, no question —
+// Jake (2026-09-04): the booking form used to ask, the two pickers did nothing at all,
+// and 20-13 sat "not dropped" at Ellis for three days because Rachel used a picker.
+// A LATER job still holding the bin is its next life after a rental being backfilled;
+// that one is left alone, and so is a booking whose drop day has not come yet.
+function binHandoffFromEarlierJob(bid, drop, exceptId){
+  if(!bid || !drop || drop > todayStr()) return null;
+  var held = binDroppedElsewhere(bid, exceptId);
+  if(!held || (held.binDropoff || held.date || '') > drop) return null;
+  _pickupBinFromJob(held.id);
+  return held;
 }
 // Mark a job's bin picked up because the bin is being reassigned elsewhere.
 // The bin stays 'out' (it's moving to the new job, not returning to the yard).
@@ -9268,6 +9272,7 @@ async function linkBinFromJob(bid, jobIdArg){
     binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
   }
   // Picking the bin IS the drop once the drop-off day has come (see binAssignIsDrop)
+  if(!j.binInstatus && j.status!=='Cancelled') binHandoffFromEarlierJob(b.bid, j.binDropoff||j.date, j.id);
   var dropped=binAssignIsDrop(j,b);
   j.binBid=bid;
   j.binSize=b.size;
@@ -9296,6 +9301,7 @@ async function linkBinToJob(bid,jobId){
     binItems.forEach(function(bb){if(bb.bid===j.binBid)bb.status='in';});
   }
   // Picking the bin IS the drop once the drop-off day has come (see binAssignIsDrop)
+  if(!j.binInstatus && j.status!=='Cancelled') binHandoffFromEarlierJob(b.bid, j.binDropoff||j.date, j.id);
   var dropped=binAssignIsDrop(j,b);
   j.binBid=bid;
   j.binSize=b.size;
@@ -9434,6 +9440,7 @@ async function doAssignBin(jobId,bid){
   }
   // Picking the bin IS the drop once the drop-off day has come — no prompt, this
   // is done around eight times a day and has to stay one tap.
+  if(!j.binInstatus && j.status!=='Cancelled') binHandoffFromEarlierJob(b.bid, j.binDropoff||j.date, j.id);
   var dropped=binAssignIsDrop(j,b);
   j.binBid=bid;
   j.binSize=b.size;
@@ -11376,20 +11383,14 @@ function selectBinFromPicker(bid){
     var _pw=_binPickerWindow();
     var other=_pw.drop ? binClashForWindow(bid, _pw.drop, _pw.pick, editId||null)
                        : binDroppedElsewhere(bid, editId);
-    // The pickup day is free, so a bin coming off one job the same day it goes out to
-    // the next is no clash by the window. But it is still marked dropped at the old
-    // job, and the save then refuses to count this as the drop: 14LW-12 went from
-    // Waller to Eccleshall on 2026-09-01 and sat 'not dropped' with nobody asked.
-    // A bin still dropped at an EARLIER job is on its way here, so ask the same
-    // question. A LATER job is the bin's next life after a rental being backfilled,
-    // and that one is left alone.
-    if(!other && _pw.drop){
-      var held=binDroppedElsewhere(bid, editId);
-      if(held && (held.binDropoff||held.date||'') < _pw.drop) other=held;
-    }
     if(other){
       if(!confirm('Bin '+b.num+' is still marked dropped at job '+other.id+' ('+other.name+').\n\nMark it picked up there and use it here? (The bin is moving to this job.)')) return;
       _pickupBinFromJob(other.id);
+    } else if(_pw.drop){
+      // No clash by the window, but the bin may still be marked dropped at the job it
+      // is coming from. Same handoff the pickers do, one rule, no question; the save
+      // then counts the pick as the drop (binAssignIsDrop).
+      binHandoffFromEarlierJob(bid, _pw.drop, editId||null);
     }
   }
   document.getElementById('f-bsize').value = b.size;
