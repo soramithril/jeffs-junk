@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '670';
+var APP_VERSION = '671';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -286,7 +286,7 @@ else _decorateGhostButtons();
 //  SUPABASE CONNECTION
 // ═══════════════════════════════════════
 var SUPABASE_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w';
+var SUPABASE_KEY = 'sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk';
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Chart.js global defaults: rounded bars + gradient fills (Dribbble v18) ──
