@@ -67,7 +67,14 @@ function dispatchJobMins(j){
 // dump and never comes home between them. Now the day is walked the way the
 // truck drives it (dispatchSimulateLane).
 var DUMP_LATLNG = {lat: 44.3769, lng: -79.7216};   // 26 Ferndale Dr, Barrie — beside the yard
-var DISPATCH_HANDLE_MINS    = 5;   // hooking a full bin, or setting a fresh one down
+// Measured on the crew's Friday (2026-09-04, three trucks, 20 GPS zone visits):
+// setting a fresh bin down is quick, hooking a loaded one is not. Every drop on
+// site came in under 17 min and three were under 8 (Ilavsky 3.7, Jephson 1.5,
+// Rai 7.2); every one of the 13 pickups took at least 9. The exact figure —
+// pickup handling plus the dump, which the 15-minute GPS poll cannot distort —
+// ran 30 to 38 min against the model's old 25 on the three clean cycles.
+var DISPATCH_DROP_HANDLE_MINS   = 5;    // setting a fresh bin down
+var DISPATCH_PICKUP_HANDLE_MINS = 10;   // hooking a loaded one
 var DISPATCH_DUMP_MINS      = 20;  // Jake's average time spent inside the dump
 var DISPATCH_YARD_DUMP_MINS = 7;   // shop <-> dump hop
 var _dispatchMatrix = {key:'', idx:{}, dur:null};
@@ -130,7 +137,7 @@ function dispatchTravel(a, b){
 // shows and the weight the planner sorts by. In a lane the real figure comes
 // from dispatchSimulateLane, where it depends on what the truck did before.
 function dispatchEstimateMinutes(job){
-  var out = dispatchTravel('yard', job) + DISPATCH_HANDLE_MINS;
+  var out = dispatchTravel('yard', job) + dispatchHandleMins(job);
   if(job._isPickup) out += dispatchTravel(job, 'dump') + DISPATCH_DUMP_MINS;
   return out;
 }
@@ -140,8 +147,9 @@ function dispatchEstimateMinutes(job){
 //                         next drop if it is the right size, else swapped at the yard
 //   empty, after a drop -> a drop means a bin from the yard (unless the two are a
 //                         double stack, which rode out together); a pickup is a straight hop
+function dispatchHandleMins(j){ return j._isPickup ? DISPATCH_PICKUP_HANDLE_MINS : DISPATCH_DROP_HANDLE_MINS; }
 function dispatchLegMins(st, j){
-  var H = DISPATCH_HANDLE_MINS, D = DISPATCH_DUMP_MINS, Y = DISPATCH_YARD_DUMP_MINS;
+  var H = dispatchHandleMins(j), D = DISPATCH_DUMP_MINS, Y = DISPATCH_YARD_DUMP_MINS;
   var size = String(j.binSize || '');
   if(j._isPickup){
     if(st.full) return {toSite: dispatchTravel(st.at, 'dump') + D + dispatchTravel('dump', j), atSite: H};
@@ -150,11 +158,11 @@ function dispatchLegMins(st, j){
   if(st.full){
     var toDump = dispatchTravel(st.at, 'dump') + D;
     if(st.full === size) return {toSite: toDump + dispatchTravel('dump', j), atSite: H};
-    return {toSite: toDump + Y + H + dispatchTravel('yard', j), atSite: H};
+    return {toSite: toDump + Y + DISPATCH_DROP_HANDLE_MINS + dispatchTravel('yard', j), atSite: H};
   }
   if(st.at === 'yard') return {toSite: dispatchTravel('yard', j), atSite: H};
   if(st.prev && j._partnerId === st.prev.id && String(j._kind).indexOf('stack') === 0) return {toSite: dispatchTravel(st.at, j), atSite: H};
-  return {toSite: dispatchTravel(st.at, 'yard') + H + dispatchTravel('yard', j), atSite: H};
+  return {toSite: dispatchTravel(st.at, 'yard') + DISPATCH_DROP_HANDLE_MINS + dispatchTravel('yard', j), atSite: H};
 }
 function dispatchAfterLeg(j){ return {at: j, full: j._isPickup ? String(j.binSize || '') : null, prev: j}; }
 function dispatchHomeMins(st){
@@ -188,11 +196,32 @@ function dispatchJobAddrStr(j){
   return a + ', ' + (j.city||'').trim() + ', ON, Canada';
 }
 // Resolved coordinate for a job: geofence coord (best) else cached geocode of its address.
+// A geocoder that cannot find the address quietly hands back somewhere else
+// entirely — on Friday two of 24 stops came back in the wrong part of the
+// province (an "Alliston" job 153 km away, a "Barrie" job 265 km away), and one
+// bad coordinate adds hours of imaginary driving to whoever is holding it. So a
+// coordinate has to be possible for the town on the job: past twice the town's
+// own drive time it is thrown away and the stop falls back to the town table.
+// This cannot catch a wrong point that happens to sit at a believable distance.
+function dispatchCoordFitsTown(j, c){
+  var mins = dispatchCityResolve(j.city) ? dispatchCityMins(j.city) : null;
+  if(mins == null) return true;
+  var km = dispatchHaversineKm(YARD_LATLNG, c);
+  return km <= mins * 2 + 15;
+}
 function dispatchJobCoord(j){
-  if(j._lat != null && j._lng != null) return {lat:j._lat, lng:j._lng};
-  var addr = dispatchJobAddrStr(j);
-  if(addr && geoCache[addr]) return geoCache[addr];
-  return null;
+  var c = null;
+  if(j._lat != null && j._lng != null) c = {lat:j._lat, lng:j._lng};
+  else {
+    var addr = dispatchJobAddrStr(j);
+    if(addr && geoCache[addr]) c = geoCache[addr];
+  }
+  if(!c) return null;
+  if(!dispatchCoordFitsTown(j, c)){
+    if(!j._coordWarned){ j._coordWarned = true; console.warn('Dispatch: job '+j.id+' has a coordinate too far from '+j.city+' — using the town time instead'); }
+    return null;
+  }
+  return c;
 }
 // A swap-out: pickup and drop at the SAME address the same day — one visit, the
 // fresh bin arriving on the truck that takes the full one away. Stops at
@@ -217,12 +246,21 @@ function dispatchFindSwaps(jobsList){
 // (same resolved town, or within DISPATCH_STACK_MAX_KM when we have coordinates)
 // get matched as one trip. Runs after pair matching over the deliveries no pair
 // claimed; greedy nearest-first, same shape as dispatchFindSwaps.
+// Two 14-yard drops can share a trip because a regular bin nests inside a
+// low-wide. It only used to be considered 22+ minutes out, back when every stop
+// was priced as its own round trip and stacking paid only on a far run; that
+// minimum cost the crew a trip on Friday, when the two Georgian Green bins at
+// 140 and 144 Bell Farm Road — one address apart, no drive between them — sat
+// 3 minutes from the yard and so were never paired. Next door now counts however
+// close to home it is. The 22-minute rule still governs everything further
+// apart, because two bins only ride together when one nests in the other, and
+// which bins those are is not known when the day is planned.
 var DISPATCH_STACK_MIN_ONEWAY = 22;
+var DISPATCH_STACK_NEXT_DOOR_KM = 2;
 var DISPATCH_STACK_MAX_KM = 15;
 function dispatchFindStacks(jobsList, taken){
   var ds = jobsList.filter(function(j){
-    return j._isDelivery && !taken[j.id] && parseInt(j.binSize,10) === 14
-      && dispatchJobMins(j) >= DISPATCH_STACK_MIN_ONEWAY;
+    return j._isDelivery && !taken[j.id] && parseInt(j.binSize,10) === 14;
   });
   var cand = [];
   for(var i=0;i<ds.length;i++){
@@ -231,6 +269,9 @@ function dispatchFindStacks(jobsList, taken){
       var ra = dispatchCityResolve(a.city), rb = dispatchCityResolve(b.city);
       var sameTown = !!(ra && ra === rb);
       var dist = dispatchHaversineKm(dispatchJobCoord(a), dispatchJobCoord(b));
+      var nextDoor = dist <= DISPATCH_STACK_NEXT_DOOR_KM;
+      var farRun = dispatchJobMins(a) >= DISPATCH_STACK_MIN_ONEWAY && dispatchJobMins(b) >= DISPATCH_STACK_MIN_ONEWAY;
+      if(!nextDoor && !farRun) continue;
       if(sameTown || dist <= DISPATCH_STACK_MAX_KM)
         cand.push({a:a.id, b:b.id, dist: dist <= DISPATCH_STACK_MAX_KM ? dist : 5});
     }
@@ -261,12 +302,12 @@ function dispatchGroupCombos(list){
   });
   return out;
 }
-// Walks one driver's day the way the truck drives it, and orders it: a timed
-// drop is scheduled AT its time, with flexible work that fits in the run-up
-// going first; swap-outs and stacks travel as one unit. Arriving early for a
-// timed drop means waiting (counted); 5+ minutes late is a miss. endMins is
-// when the truck is back at the yard. Returns {ordered, steps, warnings,
-// endMins, waitMins, misses}; each step is {job, start, arrive, end, mins}.
+// Walks one driver's day the way the truck drives it, and orders it: a promised
+// time is the latest the bin may arrive, so work that still fits in front of it
+// goes first and reaching it early is fine; swap-outs and stacks travel as one
+// unit. 5+ minutes late is a miss. endMins is when the truck is back at the
+// yard. Returns {ordered, steps, warnings, endMins, earlyMins, misses}; each
+// step is {job, start, arrive, end, mins}.
 function dispatchSimulateLane(laneJobs, startMins){
   var jobs = laneJobs || [];
   var start = (typeof startMins === 'number') ? startMins : 480;
@@ -292,7 +333,7 @@ function dispatchSimulateLane(laneJobs, startMins){
     }
   }
   var flex = units.filter(function(u){ return u.appt == null; });
-  var st = {at:'yard', full:null, prev:null}, clock = start, wait = 0, misses = 0, steps = [], ordered = [];
+  var st = {at:'yard', full:null, prev:null}, clock = start, early = 0, misses = 0, steps = [], ordered = [];
   // What a unit would take from a state, without moving. Returns the end state too.
   function tryUnit(u, from, at){
     var s = from, t = at;
@@ -303,10 +344,15 @@ function dispatchSimulateLane(laneJobs, startMins){
     u.members.forEach(function(m){
       var leg = dispatchLegMins(st, m);
       var arrive = clock + leg.toSite;
+      // A promised time is the LATEST the bin may arrive, never a start time.
+      // The model used to hold the truck at the kerb until the clock came round;
+      // on Friday Kevin reached the 9am Kawartha Lakes drop at 8:13 and was gone
+      // by 8:30, and the old rule booked him idle there until 9:05. Early is
+      // counted and shown, not waited out; late is still a miss.
       var appt = m._isDelivery ? dispatchParseClock(m.binDropoffTime) : null;
       if(appt != null){
         if(arrive > appt + 5){ misses++; warnings.push('May miss '+ft(m.binDropoffTime)+' drop'); }
-        if(arrive < appt){ wait += appt - arrive; arrive = appt; }
+        else if(arrive < appt) early += appt - arrive;
       }
       var end = arrive + leg.atSite;
       steps.push({job: m, start: clock, arrive: arrive, end: end, mins: end - clock});
@@ -331,7 +377,7 @@ function dispatchSimulateLane(laneJobs, startMins){
       place(flex.splice(best, 1)[0]);
     }
   }
-  return {ordered: ordered, steps: steps, warnings: warnings, endMins: clock + dispatchHomeMins(st), waitMins: wait, misses: misses};
+  return {ordered: ordered, steps: steps, warnings: warnings, endMins: clock + dispatchHomeMins(st), earlyMins: early, misses: misses};
 }
 async function dispatchLoadJobs(dateISO){
   var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled')
@@ -1189,7 +1235,7 @@ async function renderDispatch(){
       var _pct = Math.min(Math.round(spanMins/480*100),100);
       var _barCol = _pct<60?'var(--accent)':(_pct<90?'#f59e0b':'var(--bad)');
       var _noteCol = _pct>=90?'var(--bad)':(_pct>=60?'#c2410c':'#15803d');
-      var _note = laneJobs.length ? (_pct+'% of an 8-hr day &middot; done ~'+dispatchFmtClock(sim.endMins)+(sim.waitMins?' &middot; '+sim.waitMins+'m waiting':'')) : 'Empty &mdash; add stops';
+      var _note = laneJobs.length ? (_pct+'% of an 8-hr day &middot; done ~'+dispatchFmtClock(sim.endMins)+(sim.earlyMins?' &middot; '+sim.earlyMins+'m early':'')) : 'Empty &mdash; add stops';
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
       // lane header: avatar + name/count + load bar
       html += '<div style="padding:12px 13px;border-bottom:1px solid var(--border)">';
