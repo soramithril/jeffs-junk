@@ -500,21 +500,40 @@ function dispatchShiftDate(days){
   renderDispatch();
 }
 // ─── Who the trucks say was there ───
-// The GPS knows which truck stood at which job; it does not know who was
-// driving. So the truck is named by the first stop it makes: whoever the board
-// had down for that job is taken to be in that truck for the rest of the day.
-// Jake (2026-09-05) says a first drop almost never changes hands, which is what
-// makes that safe — and where it is wrong, nothing breaks, because none of this
-// writes anything. MyGeotab stays visual-only, exactly as it has been since
-// 2026-07-02: the board only ever says "this looks off, do you want to fix it",
-// and a person decides.
-var _dispatchVisits = [];
+// The GPS knows which TRUCK stood at a job. It never knows who was driving:
+// there is no fob and no sign-in, so a truck belongs to nobody. The board used
+// to guess an owner from the truck's first stop of the day and then question
+// everything that disagreed, which had it backwards — on 2026-09-04 that would
+// have told the office to move a stop off Max because "Jordan's truck" was
+// there, when Rachel had picked Max herself and he had simply taken the other
+// truck that afternoon.
+//
+// A person's choice wins, always (Jake, 2026-09-06). So the only stop worth
+// raising is one NOBODY ever chose: a name that has sat on the job untouched
+// since it was booked, while the truck that turned up spent its day on another
+// driver's work. The board shows what that truck did and a person decides.
+var _dispatchVisits = [], _dispatchChosen = {};
 async function dispatchLoadVisits(dateISO){
   var r = await db.from('geofence_visits').select('device_id,job_id,entered_at')
     .gte('entered_at', dateISO+'T00:00:00').lt('entered_at', dateISO+'T23:59:59.999')
     .order('entered_at', {ascending:true});
-  if(r.error){ console.warn('Dispatch: could not read truck visits —', r.error.message); return []; }
+  if(r.error){ console.warn('Dispatch: could not read truck visits — '+r.error.message); return []; }
   return r.data || [];
+}
+// Legs a person actually picked a driver for, keyed "jobId:leg". Read from the
+// job history, which has recorded driver changes by name since 2026-09-04 — so
+// for anything older this cannot tell "chosen" from "never touched" and says
+// never touched. That only ever makes the board quieter, never wrong.
+async function dispatchLoadChosenDrivers(jobIds){
+  if(!jobIds.length) return {};
+  var r = await db.from('job_changes').select('job_id,field_name')
+    .in('job_id', jobIds).in('field_name', ['Drop-off Driver','Pickup Driver']);
+  if(r.error){ console.warn('Dispatch: could not read the job history — '+r.error.message); return {}; }
+  var out = {};
+  (r.data||[]).forEach(function(c){
+    out[c.job_id + ':' + (c.field_name === 'Pickup Driver' ? 'pickup' : 'dropoff')] = true;
+  });
+  return out;
 }
 // Which leg of a job a visit on this date belongs to, and who is down for it.
 function dispatchLegOfDate(j){
@@ -523,21 +542,36 @@ function dispatchLegOfDate(j){
   return j.binDropoff === _dispatchDate ? 'dropoff' : 'pickup';   // a live load is one visit; call it the drop
 }
 function dispatchLegCrewId(j, leg){ return ((leg === 'pickup' ? j.pickupCrewId : j.dropoffCrewId) || ''); }
-// Stops where the truck that turned up belongs to someone other than the driver
-// on the job. Returns [{job, leg, assignedId, sawId, deviceId, at}].
+// Stops nobody chose, where the truck spent its day on another driver's work.
+// Returns [{job, leg, assignedId, suggestId, others, at}].
 function dispatchGpsMismatches(){
   var byDevice = {};
   _dispatchVisits.forEach(function(v){ (byDevice[v.device_id] = byDevice[v.device_id] || []).push(v); });
   var out = [];
   Object.keys(byDevice).forEach(function(dev){
-    var visits = byDevice[dev], driverId = '';
-    for(var i = 0; i < visits.length; i++){
-      var j = _dispatchJobsCache.find(function(x){ return String(x.id) === String(visits[i].job_id); });
-      if(!j) continue;
-      var leg = dispatchLegOfDate(j), who = dispatchLegCrewId(j, leg);
-      if(!driverId){ driverId = who; continue; }   // the first stop names the truck
-      if(who !== driverId) out.push({job:j, leg:leg, assignedId:who, sawId:driverId, deviceId:dev, at:visits[i].entered_at});
-    }
+    var stops = [];
+    byDevice[dev].forEach(function(v){
+      var j = _dispatchJobsCache.find(function(x){ return String(x.id) === String(v.job_id); });
+      if(j) stops.push({job:j, leg:dispatchLegOfDate(j), at:v.entered_at});
+    });
+    // Whose day this truck has been having: the driver most of its stops belong
+    // to. On its first stop that is simply that stop's driver, and it only gets
+    // surer as the day fills in. This is NOT an owner for the truck — it is the
+    // yardstick for spotting the one stop that does not fit the rest.
+    var tally = {};
+    stops.forEach(function(o){
+      var who = dispatchLegCrewId(o.job, o.leg);
+      if(who) tally[who] = (tally[who] || 0) + 1;
+    });
+    var best = null;
+    Object.keys(tally).forEach(function(id){ if(best === null || tally[id] > tally[best]) best = id; });
+    if(!best) return;
+    stops.forEach(function(st){
+      if(_dispatchChosen[st.job.id + ':' + st.leg]) return;   // a person picked this — their word stands
+      var mine = dispatchLegCrewId(st.job, st.leg);
+      if(mine === best) return;                               // fits the rest of the truck's day
+      out.push({job:st.job, leg:st.leg, assignedId:mine, suggestId:best, others:tally[best], at:st.at});
+    });
   });
   return out;
 }
@@ -546,20 +580,20 @@ function dispatchMismatchBannerHtml(){
   var ms = dispatchGpsMismatches();
   if(!ms.length) return '';
   var rows = ms.map(function(m){
-    var saw = dispatchCrewById(m.sawId), had = dispatchCrewById(m.assignedId);
-    if(!saw) return '';
+    var sug = dispatchCrewById(m.suggestId), had = dispatchCrewById(m.assignedId);
+    if(!sug) return '';
     var when = new Date(m.at).toLocaleTimeString('en-CA', {hour:'numeric', minute:'2-digit'});
     return '<div style="display:flex;align-items:center;gap:9px;padding:6px 0 6px 16px;font-size:12.5px;border-bottom:1px dashed var(--border)">'
       + dispatchSizeTag(m.job)
       + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+dispatchStopLabel(m.job)+' &middot; '+when+'</span>'
-      + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">'+dispatchCrewDot(saw)+'<b>'+escHtml(saw.name)+'</b>&rsquo;s truck was there &middot; on '+(had ? escHtml(had.name) : 'nobody')+'</span>'
-      + '<button onclick="dispatchAssignJob(\''+m.job.id+'\',\''+m.sawId+'\',\''+m.leg+'\')" style="flex:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;cursor:pointer">Move to '+escHtml(saw.name)+'</button>'
+      + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">says '+(had ? escHtml(had.name) : 'nobody')+', but that truck did '+m.others+' of '+dispatchCrewDot(sug)+escHtml(sug.name)+'&rsquo;s stops</span>'
+      + '<button onclick="dispatchAssignJob(&#39;'+m.job.id+'&#39;,&#39;'+m.suggestId+'&#39;,&#39;'+m.leg+'&#39;)" style="flex:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;cursor:pointer">Change to '+escHtml(sug.name)+'</button>'
       + '</div>';
   }).join('');
   if(!rows) return '';
   return '<div style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-left:4px solid #2563eb;border-radius:14px;padding:13px 16px;margin-bottom:14px">'
-    + '<div style="font-size:14px;font-weight:800;letter-spacing:-.2px">The trucks went somewhere else</div>'
-    + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">Each truck is named by the first stop it made. Nothing here has been changed &mdash; these are just stops where a different truck turned up.</div>'
+    + '<div style="font-size:14px;font-weight:800;letter-spacing:-.2px">Nobody picked a driver for these</div>'
+    + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">The name on them has sat there since the job was booked, and the truck that turned up spent its day on someone else&rsquo;s work. Anything you or the office chose is left alone.</div>'
     + rows + '</div>';
 }
 // ─── One check before anything saves ───
@@ -1149,6 +1183,7 @@ async function renderDispatch(){
   _dispatchJobsCache = todayJobs;
   _dispatchGeofences = await dispatchLoadGeofences(todayJobs.map(function(j){return j.id;}));
   _dispatchVisits = await dispatchLoadVisits(_dispatchDate);
+  _dispatchChosen = await dispatchLoadChosenDrivers(todayJobs.map(function(j){return j.id;}));
   todayJobs.forEach(function(j){
     j._isPickup = (j.binPickup === _dispatchDate);
     j._isDelivery = (j.binDropoff === _dispatchDate && !j._isPickup);
