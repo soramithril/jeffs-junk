@@ -220,11 +220,15 @@ var _lbImprovChart=null;
 // ── Crew-to-vehicle auto-assignments ──
 // locked: true = cannot be removed (Max, Darrin)
 // locked: false = auto-assigned daily but user can remove (Neil, Kevin)
+// Darrin's truck is Darrin's and always will be. The other three pairings that
+// used to live here — Max on the Silverado, Neil on the 2020, Kevin on the L7 —
+// were written into the database every time this page loaded and then read back
+// as if someone had chosen them, which is how Friday 2026-09-04 recorded Max on
+// a truck he never touched. Max is only on the Silverado for winter snow
+// removal, and the Hinos change hands. Who is driving what is worked out from
+// the day's stops now: loadTodaysDrivers() in app.js.
 var AUTO_ASSIGNMENTS=[
-  {crew:'Max',    vehicleMatch:'SILVERADO',      locked:true},
-  {crew:'Darrin', vehicleMatch:'Darrin Truck',    locked:true},
-  {crew:'Neil',   vehicleMatch:'2020',            locked:false},
-  {crew:'Kevin',  vehicleMatch:'L7 2023',         locked:false}
+  {crew:'Darrin', vehicleMatch:'Darrin Truck',    locked:true}
 ];
 
 function isPermanentAssignment(crewName, vid){
@@ -264,54 +268,17 @@ function renderLbAssignments(){
     var crewHtml=assigned.length
       ? assigned.map(function(a){
           var perm=isPermanentAssignment(a.name, v.vid);
-          return '<span class="lb-assign-crew'+(perm?' lb-assign-perm':'')+'">'
-            +(perm?'🔒 ':'')+a.name
-            +(perm?'':'<span class="lb-assign-x" onclick="event.stopPropagation();lbUnassignCrew(\''+v.vid+'\',\''+a.crewMemberId+'\')">&times;</span>')
-            +'</span>';
+          return '<span class="lb-assign-crew'+(perm?' lb-assign-perm':'')+'">'+(perm?'🔒 ':'')+a.name+'</span>';
         }).join('')
       : '<span style="font-size:11px;color:var(--muted);font-style:italic">No crew</span>';
-
-    var menuId='lb-assign-menu-'+v.vid;
-    // Build crew options (exclude already-assigned)
-    var assignedIds={};assigned.forEach(function(a){assignedIds[a.crewMemberId]=true;});
-    var opts=crewMembers.filter(function(c){return !assignedIds[c.id];}).map(function(c){
-      var perm=isPermanentAssignment(c.name, v.vid);
-      return '<div class="lb-assign-opt" onclick="event.stopPropagation();lbAssignCrew(\''+v.vid+'\',\''+c.id+'\')">'+c.name+'</div>';
-    }).join('');
-
-    return '<div class="lb-assign-card" onclick="lbToggleAssignMenu(\''+menuId+'\')">'
+    return '<div class="lb-assign-card">'
       +'<div class="lb-assign-vname">'+(v.leaderboardOnly?'':'🚛 ')+v.name+'</div>'
       +'<div class="lb-assign-crew-row">'+crewHtml+'</div>'
-      +'<div id="'+menuId+'" class="lb-assign-menu" style="display:none;">'
-      +(opts||'<div style="padding:8px 12px;font-size:11px;color:var(--muted)">All crew assigned</div>')
-      +'</div>'
-    +'</div>';
+      +'</div>';
   }).join('');
-}
-
-function lbToggleAssignMenu(menuId){
-  var m=document.getElementById(menuId);if(!m)return;
-  var wasOpen=m.style.display!=='none';
-  // Close all menus first
-  document.querySelectorAll('.lb-assign-menu').forEach(function(el){el.style.display='none';});
-  if(!wasOpen) m.style.display='block';
-}
-
-function lbAssignCrew(vid, crewId){
-  document.querySelectorAll('.lb-assign-menu').forEach(function(el){el.style.display='none';});
-  toggleCrewAssignment(vid, crewId);
-  renderLbAssignments();
-  renderDashVehicleStatus();
-}
-
-function lbUnassignCrew(vid, crewId){
-  // Block unassigning permanent crew
-  var crew=crewMembers.find(function(c){return c.id===crewId;});
-  if(crew && isPermanentAssignment(crew.name, vid)) return;
-  toggleCrewAssignment(vid, crewId);
-  renderLbAssignments();
-  renderDashVehicleStatus();
-}
+}// Assigning a person to a truck from this page is gone (2026-09-06). It used to
+// write into vehicle_assignments, which nothing else could tell apart from a
+// real choice. The card below reports who is driving; app.js works that out.
 
 function initLeaderboardPage(){
   // Populate default date pickers

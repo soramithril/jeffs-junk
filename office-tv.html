@@ -1440,13 +1440,12 @@
     // — on 2026-07-07 the L7 held Kevin 08:07 and Josh 11:24 at once. Picking the
     // latest row therefore names the HELPER, and since bin legs carry only the
     // driver's crew id, their jobs-left reads 0 while the truck still has a full run.
+    // Darrin's truck is his and always will be. Every other pairing that used to
+    // sit here was a guess that outlived its truth — Neil is not always on the
+    // 2020, and on 2026-09-04 he never left the yard while Max ran his stops.
+    // A truck the day has not shown us yet simply has no name on it.
     var TRUCK_DRIVERS = [
-      { match:'SILVERADO',    driver:'Max'    },
-      { match:'Darrin Truck', driver:'Darrin' },
-      { match:'2020',         driver:'Neil'   },
-      { match:'2019',         driver:'Max'    },
-      { match:'2016',         driver:'Jordan' },
-      { match:'L7 2023',      driver:'Kevin'  }
+      { match:'Darrin Truck', driver:'Darrin' }
     ];
     // Today's GPS evidence first (buildTruckDrivers), the regular pairing until there is any.
     function driverFor(t){

@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '672';
+var APP_VERSION = '673';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -847,7 +847,60 @@ var binLastReturn = {}; // bid -> most recent past bin_pickup date (yard return)
 var clients = [];
 var crewMembers = [];
 var referralSources = [];
-var vehicleAssignments = {}; // { vid: [{id, crewMemberId, name}] } for today
+// Who is in which truck today. Nobody types this in any more and nothing is
+// stored: the app used to write four fixed pairings into vehicle_assignments
+// every time the leaderboard loaded and then read them back as fact, which is
+// how the board spent 2026-09-04 insisting Max was on the Silverado while he
+// drove the Hino 2019 all day, and Jordan appeared on nothing at all.
+//
+// Now there are two sources and no invention (Jake, 2026-09-06):
+//   Darrin's truck is Darrin's, permanently — the one pairing that is always true.
+//   Every other truck is whoever's stops it has actually been doing today, read
+//   off the GPS zone visits against the driver on each job.
+// A truck that has not been anywhere yet shows nobody, which is the honest answer.
+var vehicleAssignments = {}; // { vid: [{id, crewMemberId, name}] } for today — derived, never stored
+var PERMANENT_TRUCK = { 'Darrin Truck': 'Darrin' };
+async function loadTodaysDrivers(){
+  var out = {};
+  try {
+    var todayISO = todayStr();
+    var rVeh = await db.from('vehicles').select('vid,name,geotab_device_id');
+    var vehs = rVeh.data || [];
+    // Darrin first, so a stop can never talk his own truck out from under him.
+    vehs.forEach(function(v){
+      var who = PERMANENT_TRUCK[String(v.name || '').trim()];
+      if(!who) return;
+      var c = crewMembers.find(function(x){ return x.name === who; });
+      if(c) out[v.vid] = [{id:null, crewMemberId:c.id, name:c.name, startedAt:null, endedAt:null}];
+    });
+    var vidByDevice = {};
+    vehs.forEach(function(v){ if(v.geotab_device_id) vidByDevice[v.geotab_device_id] = v.vid; });
+    var rVisits = await db.from('geofence_visits').select('device_id,job_id')
+      .gte('entered_at', todayISO+'T00:00:00').lt('entered_at', todayISO+'T23:59:59.999');
+    var visits = rVisits.data || [];
+    if(!visits.length) return out;
+    var rJobs = await db.from('jobs').select('job_id,bin_dropoff,bin_pickup,dropoff_crew_id,pickup_crew_id')
+      .in('job_id', visits.map(function(v){ return v.job_id; }));
+    var jobById = {};
+    (rJobs.data || []).forEach(function(j){ jobById[j.job_id] = j; });
+    // Count whose stops each truck has been doing, and take the clear leader.
+    var tally = {};
+    visits.forEach(function(v){
+      var vid = vidByDevice[v.device_id], j = jobById[v.job_id];
+      if(!vid || !j || out[vid]) return;                       // unknown truck, unknown job, or Darrin's
+      var crewId = (j.bin_pickup === todayISO && j.pickup_crew_id) ? j.pickup_crew_id : j.dropoff_crew_id;
+      if(!crewId) return;
+      (tally[vid] = tally[vid] || {})[crewId] = (tally[vid][crewId] || 0) + 1;
+    });
+    Object.keys(tally).forEach(function(vid){
+      var best = null;
+      Object.keys(tally[vid]).forEach(function(id){ if(best === null || tally[vid][id] > tally[vid][best]) best = id; });
+      var c = best && crewMembers.find(function(x){ return x.id === best; });
+      if(c) out[vid] = [{id:null, crewMemberId:c.id, name:c.name, startedAt:null, endedAt:null}];
+    });
+  } catch(e){ console.warn('Could not work out who is in which truck:', e); }
+  return out;
+}
 var geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){}
 
@@ -1544,14 +1597,7 @@ async function loadAllFromSupabase() {
       buildTeamMaps();
       crewMembers = teamRoster.filter(function(r){ return r.active && r.on_junk; })
         .map(function(r){ return {id:r.id, name:r.name, color:r.color||null}; });
-      var todayISO = todayStr();
-      var rAssign = await db.from('vehicle_assignments').select('*').eq('assignment_date', todayISO);
-      vehicleAssignments = {};
-      (rAssign.data || []).forEach(function(r){
-        if(!vehicleAssignments[r.vid]) vehicleAssignments[r.vid] = [];
-        var crew = crewMembers.find(function(c){ return c.id === r.crew_member_id; });
-        vehicleAssignments[r.vid].push({id:r.id, crewMemberId:r.crew_member_id, name:crew?crew.name:'Unknown', startedAt:r.started_at, endedAt:r.ended_at});
-      });
+      vehicleAssignments = await loadTodaysDrivers();
     } catch(e){ console.warn('Crew/assignments load error:', e); }
 
     // Load crew availability blocks (employee time-off / bookings)
@@ -3331,23 +3377,15 @@ function renderDashVehicleStatus(){
     var dotColor=statusCol;
     var menuId='veh-menu-'+v.vid;
 
-    // Today's assignments only drive the ticks in the Assign Crew dropdown below.
-    // The crew themselves are not drawn in the truck chip — they have their own row.
-    var assigned=vehicleAssignments[v.vid]||[];
-
-    // Build crew assignment options for the dropdown
-    var crewOpts=crewMembers.map(function(c){
-      var isAssigned=assigned.some(function(a){return a.crewMemberId===c.id && !a.endedAt;});
-      return '<div style="padding:6px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();toggleCrewAssignment(\''+v.vid+'\',\''+c.id+'\')">'
-        +'<span style="width:16px;text-align:center">'+(isAssigned?'✓':'')+'</span>'
-        +'<span>'+c.name+'</span>'
-        +'</div>';
-    }).join('');
-    var crewSection=crewMembers.length
-      ?'<div style="border-top:1px solid var(--border);padding:4px 14px 2px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Assign Crew</div>'+crewOpts
-        +'<div style="padding:6px 14px;font-size:11px;cursor:pointer;border-top:1px solid var(--border);color:var(--accent);transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeVehMenus();openCrewManager()">+ Manage Crew</div>'
-      :'<div style="padding:8px 14px;font-size:11px;cursor:pointer;border-top:1px solid var(--border);color:var(--accent);transition:background .15s" onmouseover="this.style.background=\'rgba(59,130,246,.08)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();closeVehMenus();openCrewManager()">+ Add Crew Members</div>';
-
+    // Who is driving this truck today, worked out from the day's stops. It is
+    // shown, not set: picking a person for a truck by hand went on 2026-09-06.
+    var assigned = vehicleAssignments[v.vid] || [];
+    var driving = assigned.filter(function(a){ return !a.endedAt; }).map(function(a){ return a.name; });
+    var crewSection = '<div style="border-top:1px solid var(--border);padding:6px 14px;font-size:11px;color:var(--muted)">'
+      + (driving.length
+          ? '<b style="color:var(--text)">'+driving.join(', ')+'</b> today'
+          : 'Nobody on it yet today')
+      + '</div>';
     var menuHtml='<div id="'+menuId+'" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:600;min-width:200px;overflow:hidden;max-height:320px;overflow-y:auto">'
       +(todayBlock
         ?'<div style="padding:8px 14px;font-size:12px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'rgba(34,197,94,.07)\'" onmouseout="this.style.background=\'transparent\'" onclick="event.stopPropagation();markVehicleOperational(\''+v.vid+'\')">✅ Mark Operational</div>'
@@ -3502,32 +3540,11 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('.lb-assign-card'))document.querySelectorAll('.lb-assign-menu').forEach(function(el){el.style.display='none';});
 });
 
-// ── Crew Assignment (toggle a crew member on/off a vehicle for today with timestamps) ──
-function toggleCrewAssignment(vid, crewId){
-  var todayISO=todayStr();
-  if(!vehicleAssignments[vid]) vehicleAssignments[vid]=[];
-  var idx=vehicleAssignments[vid].findIndex(function(a){return a.crewMemberId===crewId && !a.endedAt;});
-  if(idx>=0){
-    // End this assignment (clock out)
-    var rec=vehicleAssignments[vid][idx];
-    var now=new Date().toISOString();
-    rec.endedAt=now;
-    db.from('vehicle_assignments').update({ended_at:now}).eq('id',rec.id).then(function(r){
-      if(r.error) console.warn('End assignment failed:',r.error.message);
-    });
-  } else {
-    // Start new assignment (clock in)
-    var crew=crewMembers.find(function(c){return c.id===crewId;});
-    var now=new Date().toISOString();
-    var newRec={id:null, crewMemberId:crewId, name:crew?crew.name:'Unknown', startedAt:now, endedAt:null};
-    vehicleAssignments[vid].push(newRec);
-    db.from('vehicle_assignments').insert({vid:vid, crew_member_id:crewId, assignment_date:todayISO, started_at:now}).select().then(function(r){
-      if(r.error) console.warn('Add assignment failed:',r.error.message);
-      if(r.data&&r.data[0]) newRec.id=r.data[0].id;
-    });
-  }
-  renderDashVehicleStatus();
-}
+// Putting a person on a truck by hand is gone (Jake, 2026-09-06: "we don't need
+// it really"). In the fourteen days before it went, not one row in
+// vehicle_assignments had been set by a person — every single one was the app's
+// own four fixed pairings, written and then believed. Who is driving what now
+// comes from loadTodaysDrivers() and nothing writes it down.
 
 // ── Crew Manager Modal ──
 function openCrewManager(){
