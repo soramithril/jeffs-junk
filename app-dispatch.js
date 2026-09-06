@@ -499,6 +499,69 @@ function dispatchShiftDate(days){
   _dispatchDate = d.toISOString().split('T')[0];
   renderDispatch();
 }
+// ─── Who the trucks say was there ───
+// The GPS knows which truck stood at which job; it does not know who was
+// driving. So the truck is named by the first stop it makes: whoever the board
+// had down for that job is taken to be in that truck for the rest of the day.
+// Jake (2026-09-05) says a first drop almost never changes hands, which is what
+// makes that safe — and where it is wrong, nothing breaks, because none of this
+// writes anything. MyGeotab stays visual-only, exactly as it has been since
+// 2026-07-02: the board only ever says "this looks off, do you want to fix it",
+// and a person decides.
+var _dispatchVisits = [];
+async function dispatchLoadVisits(dateISO){
+  var r = await db.from('geofence_visits').select('device_id,job_id,entered_at')
+    .gte('entered_at', dateISO+'T00:00:00').lt('entered_at', dateISO+'T23:59:59.999')
+    .order('entered_at', {ascending:true});
+  if(r.error){ console.warn('Dispatch: could not read truck visits —', r.error.message); return []; }
+  return r.data || [];
+}
+// Which leg of a job a visit on this date belongs to, and who is down for it.
+function dispatchLegOfDate(j){
+  if(j.binPickup === _dispatchDate && j.binDropoff !== _dispatchDate) return 'pickup';
+  if(j.binDropoff === _dispatchDate && j.binPickup !== _dispatchDate) return 'dropoff';
+  return j.binDropoff === _dispatchDate ? 'dropoff' : 'pickup';   // a live load is one visit; call it the drop
+}
+function dispatchLegCrewId(j, leg){ return ((leg === 'pickup' ? j.pickupCrewId : j.dropoffCrewId) || ''); }
+// Stops where the truck that turned up belongs to someone other than the driver
+// on the job. Returns [{job, leg, assignedId, sawId, deviceId, at}].
+function dispatchGpsMismatches(){
+  var byDevice = {};
+  _dispatchVisits.forEach(function(v){ (byDevice[v.device_id] = byDevice[v.device_id] || []).push(v); });
+  var out = [];
+  Object.keys(byDevice).forEach(function(dev){
+    var visits = byDevice[dev], driverId = '';
+    for(var i = 0; i < visits.length; i++){
+      var j = _dispatchJobsCache.find(function(x){ return String(x.id) === String(visits[i].job_id); });
+      if(!j) continue;
+      var leg = dispatchLegOfDate(j), who = dispatchLegCrewId(j, leg);
+      if(!driverId){ driverId = who; continue; }   // the first stop names the truck
+      if(who !== driverId) out.push({job:j, leg:leg, assignedId:who, sawId:driverId, deviceId:dev, at:visits[i].entered_at});
+    }
+  });
+  return out;
+}
+function dispatchMismatchBannerHtml(){
+  if(_dispatchPreview) return '';
+  var ms = dispatchGpsMismatches();
+  if(!ms.length) return '';
+  var rows = ms.map(function(m){
+    var saw = dispatchCrewById(m.sawId), had = dispatchCrewById(m.assignedId);
+    if(!saw) return '';
+    var when = new Date(m.at).toLocaleTimeString('en-CA', {hour:'numeric', minute:'2-digit'});
+    return '<div style="display:flex;align-items:center;gap:9px;padding:6px 0 6px 16px;font-size:12.5px;border-bottom:1px dashed var(--border)">'
+      + dispatchSizeTag(m.job)
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+dispatchStopLabel(m.job)+' &middot; '+when+'</span>'
+      + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">'+dispatchCrewDot(saw)+'<b>'+escHtml(saw.name)+'</b>&rsquo;s truck was there &middot; on '+(had ? escHtml(had.name) : 'nobody')+'</span>'
+      + '<button onclick="dispatchAssignJob(\''+m.job.id+'\',\''+m.sawId+'\',\''+m.leg+'\')" style="flex:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;cursor:pointer">Move to '+escHtml(saw.name)+'</button>'
+      + '</div>';
+  }).join('');
+  if(!rows) return '';
+  return '<div style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-left:4px solid #2563eb;border-radius:14px;padding:13px 16px;margin-bottom:14px">'
+    + '<div style="font-size:14px;font-weight:800;letter-spacing:-.2px">The trucks went somewhere else</div>'
+    + '<div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">Each truck is named by the first stop it made. Nothing here has been changed &mdash; these are just stops where a different truck turned up.</div>'
+    + rows + '</div>';
+}
 // ─── One check before anything saves ───
 // Every write on this board — a drag, the Assign menu, the canvas port, the plan
 // buttons, undo — goes through this dialog first. Jake (2026-09-04): the board must
@@ -1085,6 +1148,7 @@ async function renderDispatch(){
   var todayJobs = await dispatchLoadJobs(_dispatchDate);
   _dispatchJobsCache = todayJobs;
   _dispatchGeofences = await dispatchLoadGeofences(todayJobs.map(function(j){return j.id;}));
+  _dispatchVisits = await dispatchLoadVisits(_dispatchDate);
   todayJobs.forEach(function(j){
     j._isPickup = (j.binPickup === _dispatchDate);
     j._isDelivery = (j.binDropoff === _dispatchDate && !j._isPickup);
@@ -1194,6 +1258,7 @@ async function renderDispatch(){
   html += '</div>';
   html += '</div></div>';
   html += dispatchPreviewBannerHtml();
+  html += dispatchMismatchBannerHtml();
   // Numbered steps + P/D legend
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted)">';
   html += '<span style="background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px 10px"><strong style="color:var(--text)">1.</strong> Pick a date</span>';
@@ -1684,6 +1749,8 @@ function dcvMount(){
   h += '</div>';
   // preview banner — the mock-up's apply / discard controls
   if(_dispatchPreview) h += '<div style="flex:0 0 auto;padding:12px 16px 0;background:'+T.canvas+'">'+dispatchPreviewBannerHtml()+'</div>';
+  var _mm = dispatchMismatchBannerHtml();
+  if(_mm) h += '<div style="flex:0 0 auto;padding:12px 16px 0;background:'+T.canvas+'">'+_mm+'</div>';
   // stage
   h += '<div id="dcv-vp" style="position:relative;flex:1;min-height:0;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background-color:'+T.canvas+'">';
   h += '<div id="dcv-world" style="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform">';
