@@ -483,11 +483,6 @@
         </section>
 
         <!-- Screen 2 · Crew · This Week -->
-        <section class="panel" data-panel="schedule">
-          <div class="p-head"><span class="bar"></span><h2>Crew · This Week</h2>
-            <span class="tag" id="schedTag"></span><span class="spacer"></span><span class="status" id="schedMeta"></span></div>
-          <div class="p-body"><div id="schedWrap"></div></div>
-        </section>
 
         <!-- Screen 3 · Operations -->
         <section class="panel" data-panel="kpis">
@@ -534,7 +529,10 @@
     var PANEL_MS   = { liveops: 90000 };
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
-    var PANELS = ['bins','schedule','kpis','liveops'];
+    // The weekly crew schedule came off the wall on 2026-09-06 (Jake: "we don't
+    // need it anymore"). The data behind it still loads — workingTodayCount()
+    // reads the same rows for the Operations screen.
+    var PANELS = ['bins','kpis','liveops'];
     // 92 Davidson St — home base. Re-geocoded 2026-09-05: the old point (44.3683,
     // -79.6831) was Tower Crescent, 4 km south, so every truck parked at the depot
     // counted as OUT — "5 of 5 out" all night, and the overview framed the depot
@@ -1010,58 +1008,6 @@
     }
 
     // Screen 2 · Crew · This Week — one grid, name column + Mon–Sat, today gold
-    function renderSchedule(){
-      var monday = parseLocal(mondayStr());
-      el('schedTag').textContent = 'Week of '+monday.toLocaleDateString(undefined,{month:'short', day:'numeric'});
-      el('schedMeta').textContent = DATA.emps.length+' on the board';
-      var wrap = el('schedWrap');
-      var days = WEEKDAYS.slice(0,6);            // Mon–Sat
-      var todayWd = todayWeekday();
-      wrap.style.gridTemplateColumns = '288px repeat(6,1fr)';
-      wrap.style.gridTemplateRows = '66px repeat('+DATA.emps.length+',minmax(0,1fr))';
-
-      var cells = ['<div></div>'];               // empty top-left corner
-      days.forEach(function(dn){
-        cells.push(dn===todayWd
-          ? '<div class="day today"><span>'+dn.slice(0,3)+'</span><span class="tlab">TODAY</span></div>'
-          : '<div class="day">'+dn.slice(0,3)+'</div>');
-      });
-
-      DATA.emps.forEach(function(e){
-        var sd = DATA.sched[e.id]||{};
-        var jocc = DATA.junk[String(e.name||'').toLowerCase()]||{};
-        var col = DATA.jwgColor[e.id]||'#6b7280';
-        cells.push('<div class="rname"><span class="pdot" style="background:'+col+'"></span><span class="pn">'+esc(e.name)+'</span></div>');
-        days.forEach(function(dn){
-          var t = dn===todayWd ? ' today' : '';
-          var day = sd[dn];
-          if(!day || day.status==='off' || day.status==='dayoff'){
-            // untouched day + junk-side booking → read-only ghost (a set "Day off" stays a day off)
-            if((!day || day.status==='off') && jocc[dn]){
-              var parts = Object.keys(jocc[dn]).map(function(l){ var n=jocc[dn][l]; return l+(n>1?' ×'+n:''); });
-              cells.push('<div class="cell jx'+t+'">🚚 '+esc(parts.join(' · '))+'</div>');
-            } else {
-              cells.push('<div class="cell off'+t+'">OFF</div>');
-            }
-            return;
-          }
-          if(day.status==='sick'){ cells.push('<div class="cell sick'+t+'">Sick</div>'); return; }
-          // working — show the shift time range (real start/end) over the task label,
-          // matching the design's two-line cell.
-          var label='Work', tstr='';
-          var sh = (day.shifts||[])[0];
-          if(sh){
-            if(sh.start && sh.end) tstr = fmt12ap(sh.start)+'–'+fmt12ap(sh.end);
-            if(sh.tasks && sh.tasks.length){ var tk = DATA.tasks[sh.tasks[0]]; if(tk && tk.label) label=tk.label; }
-          }
-          var inner = tstr
-            ? '<span class="wt">'+esc(tstr)+'</span><span class="wl">'+esc(label)+'</span>'
-            : '<span class="wt">'+esc(label)+'</span>';
-          cells.push('<div class="cell work'+t+'">'+inner+'</div>');
-        });
-      });
-      wrap.innerHTML = cells.join('');
-    }
 
     // Screen 3 · Operations — "Beat Last July" scoreboard (2A lanes / 2B arena)
     function renderKpis(){
@@ -1364,7 +1310,13 @@
       _map = new google.maps.Map(host, {
         center:{ lat:YARD.lat, lng:YARD.lng }, zoom:10,
         disableDefaultUI:true, gestureHandling:'none', keyboardShortcuts:false,
-        clickableIcons:false, styles:MAP_STYLE
+        clickableIcons:false, styles:MAP_STYLE,
+        // A styled map is a raster map, and raster maps round the zoom down to a
+        // whole number — so an overview that really wanted 10.8 was drawn at 10,
+        // a good bit wider than the trucks needed. Fractional zoom lets the fit
+        // land where it actually belongs, which is the whole point of the
+        // all-trucks view: as close as it can get with everyone still on screen.
+        isFractionalZoomEnabled:true
       });
       // Live traffic. It is a layer over the map that is already loaded, so it
       // costs nothing on top of the map load — and it is the one thing here that
@@ -1840,7 +1792,6 @@
     function renderCurrent(){
       var name = PANELS[panelIdx];
       if(name==='bins') renderBins();
-      else if(name==='schedule') renderSchedule();
       else if(name==='kpis') renderKpis();
       else if(name==='liveops') renderLiveOps();
       // count the numbers up on the Bin Work + Operations screens

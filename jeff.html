@@ -188,18 +188,41 @@ a:hover{color:#15803d}
 
   function loadFleet(){
     Promise.all([
-      db.from('vehicles').select('vid,name,type,color,notes,sticker_month,sticker_year,oil_date,oil_km,oil_interval,vehicle_status,leaderboard_only').eq('leaderboard_only',false).order('created_at'),
+      db.from('vehicles').select('vid,name,type,color,notes,sticker_month,sticker_year,oil_date,oil_km,oil_interval,vehicle_status,leaderboard_only,geotab_device_id').eq('leaderboard_only',false).order('created_at'),
       db.from('vehicle_odometers').select('vid,odometer_km'),
       db.from('maintenance_schedules').select('vid,maintenance_type,next_due_km,status'),
-      db.from('vehicle_assignments').select('vid,crew_member_id,ended_at').eq('assignment_date', todayISO()),
+      // Who is in which truck is worked out from the day, not looked up: nobody is
+      // assigned to a vehicle any more (2026-09-06). A truck's driver is whoever's
+      // stops it has actually been doing today, and a truck that has not been
+      // anywhere shows nobody.
+      db.from('geofence_visits').select('device_id,job_id').gte('entered_at', todayISO()+'T00:00:00').lt('entered_at', todayISO()+'T23:59:59.999'),
       db.from('crew_members').select('id,name'),
       fetch(SB_URL+'/functions/v1/geotab-proxy',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'device-status'}) })
-        .then(function(r){ return r.ok?r.json():{devices:[]}; }).catch(function(){ return {devices:[]}; })
+        .then(function(r){ return r.ok?r.json():{devices:[]}; }).catch(function(){ return {devices:[]}; }),
+      db.from('jobs').select('job_id,bin_dropoff,bin_pickup,dropoff_crew_id,pickup_crew_id').eq('service','Bin Rental')
+        .or('bin_dropoff.eq.'+todayISO()+',bin_pickup.eq.'+todayISO())
     ]).then(function(res){
-      var veh=res[0].data||[], odo=res[1].data||[], maint=res[2].data||[], assign=res[3].data||[], crew=res[4].data||[], dev=(res[5]&&res[5].devices)||[];
+      var veh=res[0].data||[], odo=res[1].data||[], maint=res[2].data||[], visits=res[3].data||[], crew=res[4].data||[], dev=(res[5]&&res[5].devices)||[], binJobs=res[6].data||[];
       var odoBy={}; odo.forEach(function(o){ odoBy[o.vid]=o.odometer_km; });
       var crewBy={}; crew.forEach(function(c){ crewBy[c.id]=c.name; });
-      var driverBy={}; assign.forEach(function(a){ if(!a.ended_at) driverBy[a.vid]=crewBy[a.crew_member_id]||null; });
+      var driverBy={};
+      (function(){
+        var today=todayISO(), vidByDevice={}, jobById={}, tally={};
+        veh.forEach(function(v){ if(v.geotab_device_id) vidByDevice[v.geotab_device_id]=v.vid; });
+        binJobs.forEach(function(j){ jobById[j.job_id]=j; });
+        visits.forEach(function(vs){
+          var vid=vidByDevice[vs.device_id], j=jobById[vs.job_id];
+          if(!vid||!j) return;
+          var crewId=(j.bin_pickup===today && j.pickup_crew_id) ? j.pickup_crew_id : j.dropoff_crew_id;
+          if(!crewId) return;
+          (tally[vid]=tally[vid]||{})[crewId]=(tally[vid][crewId]||0)+1;
+        });
+        Object.keys(tally).forEach(function(vid){
+          var best=null;
+          Object.keys(tally[vid]).forEach(function(id){ if(best===null||tally[vid][id]>tally[vid][best]) best=id; });
+          if(best) driverBy[vid]=crewBy[best]||null;
+        });
+      })();
       var devBy={}; dev.forEach(function(d){ devBy[d.name]=d; });
       var maintBy={}; maint.forEach(function(m){ (maintBy[m.vid]=maintBy[m.vid]||[]).push(m); });
 
@@ -303,7 +326,7 @@ a:hover{color:#15803d}
     setBusy('Saving…','Attaching the photos to the job');
     var r = await db.from('jobs').update({photos:pend.urls}).eq('job_id', pend.jobId);
     if(r.error){
-      setBusy('Still couldn't save', 'The photos are safe — try again when you have signal.');
+      setBusy("Still couldn't save", 'The photos are safe — try again when you have signal.');
       return;
     }
     _pendingPhotoSave = null;
