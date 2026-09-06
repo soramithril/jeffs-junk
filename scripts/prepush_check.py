@@ -90,18 +90,31 @@ def check_js_parses(changed):
              'checking would risk pushing a syntax error that blanks the '
              'live site, so the push is blocked until the parser is back.')
     ctx = MiniRacer()
-    for path in changed:
-        if not path.endswith('.js') or os.path.basename(path) in SKIP_PARSE:
-            continue
-        src = file_at('HEAD', path)
-        if src is None:  # deleted in this push
-            continue
+
+    def parse(label, src):
         try:
             ctx.eval('new Function(' + json.dumps(src) + '); 0')
         except Exception as e:
             deny('%s does not parse: %s. This would blank the live site - '
                  'fix the syntax error and commit before pushing.'
-                 % (path, str(e)[:400]))
+                 % (label, str(e)[:400]))
+
+    for path in changed:
+        src = file_at('HEAD', path)
+        if src is None:  # deleted in this push
+            continue
+        if path.endswith('.js') and os.path.basename(path) not in SKIP_PARSE:
+            parse(path, src)
+        elif path.endswith('.html'):
+            # The script INSIDE a page counts too. jeff.html carried an
+            # unescaped apostrophe from 2026-08-22 to 2026-09-06 and served a
+            # blank page on every phone for two weeks, because this check only
+            # ever looked at separate .js files and walked straight past it.
+            for i, m in enumerate(re.finditer(
+                    r'<script(?![^>]*src=)[^>]*>(.*?)</script>', src, re.S)):
+                block = m.group(1)
+                if block.strip():
+                    parse('%s (script block %d)' % (path, i + 1), block)
 
 
 def html_entry_points():
