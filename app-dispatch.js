@@ -307,10 +307,12 @@ function dispatchGroupCombos(list){
 // goes first and reaching it early is fine; swap-outs and stacks travel as one
 // unit. 5+ minutes late is a miss. endMins is when the truck is back at the
 // yard. Returns {ordered, steps, warnings, endMins, earlyMins, misses}; each
-// step is {job, start, arrive, end, mins}.
+// step is {job, start, arrive, end, mins}. startMins is where the clock was
+// anchored and `anchored` says whether a promised time did the anchoring.
 function dispatchSimulateLane(laneJobs, startMins){
   var jobs = laneJobs || [];
-  var start = (typeof startMins === 'number') ? startMins : 480;
+  // Called with no start (the normal way), the run anchors itself: see dispatchLaneStart.
+  var start = (typeof startMins === 'number') ? startMins : dispatchLaneStart(jobs);
   var warnings = [];
   var byId = {}; jobs.forEach(function(j){ byId[j.id] = j; });
   var claimed = {}, units = [];
@@ -377,7 +379,8 @@ function dispatchSimulateLane(laneJobs, startMins){
       place(flex.splice(best, 1)[0]);
     }
   }
-  return {ordered: ordered, steps: steps, warnings: warnings, endMins: clock + dispatchHomeMins(st), earlyMins: early, misses: misses};
+  return {ordered: ordered, steps: steps, warnings: warnings, startMins: start, endMins: clock + dispatchHomeMins(st),
+          anchored: start !== DISPATCH_NOMINAL_START, earlyMins: early, misses: misses};
 }
 async function dispatchLoadJobs(dateISO){
   var r = await db.from('jobs').select('*').eq('service','Bin Rental').neq('status','Cancelled')
@@ -459,14 +462,36 @@ function dispatchToggleWorking(crewId){
   if(_dispatchPreview){ _dispatchPreview = null; toast('Preview cleared — the driver list changed.'); }
   renderDispatch();
 }
-function dispatchGetLaneStart(crewId){
-  if(!_dispatchDate) return '08:00';
-  return localStorage.getItem('dispatch_start_'+_dispatchDate+'_'+crewId) || '08:00';
-}
-function dispatchSetLaneStart(crewId, time){
-  if(!_dispatchDate) return;
-  localStorage.setItem('dispatch_start_'+_dispatchDate+'_'+crewId, time);
-  renderDispatch();
+// When a run begins is not something the board asks for any more. The crew do not
+// start at the same time every day (Jake, 2026-09-05), so a start typed in once
+// was wrong by the next morning — and it was wrong in a way that mattered: on
+// 2026-09-04 Kevin left at 6:40 for a 9am drop two hours out, and the board,
+// assuming 8:00, called that drop a miss all day.
+//
+// So the clock is anchored by the day's own promises instead. A run carrying a
+// timed drop starts as late as it can and still make every one of them, which is
+// the useful thing to know: leave by this time. A run with nothing promised is
+// laid out from 8am purely so its stops have a clock beside them, and only its
+// LENGTH is claimed — the board says so rather than inventing a finish time.
+var DISPATCH_NOMINAL_START = 480;   // 8am, the reference for a run with nothing promised
+function dispatchLaneStart(laneJobs){
+  var jobs = laneJobs || [];
+  var hasAppt = jobs.some(function(j){ return j._isDelivery && dispatchParseClock(j.binDropoffTime) != null; });
+  if(!hasAppt) return DISPATCH_NOMINAL_START;
+  // The order can itself depend on the clock, so solve, re-order, solve again.
+  var start = DISPATCH_NOMINAL_START;
+  for(var pass = 0; pass < 2; pass++){
+    var sim = dispatchSimulateLane(jobs, start), latest = null;
+    sim.steps.forEach(function(st){
+      var appt = st.job._isDelivery ? dispatchParseClock(st.job.binDropoffTime) : null;
+      if(appt == null) return;
+      var need = appt - (st.arrive - start);   // the start that lands this arrival exactly on the promise
+      if(latest === null || need < latest) latest = need;
+    });
+    if(latest === null) return DISPATCH_NOMINAL_START;
+    start = latest;
+  }
+  return start;
 }
 function dispatchShiftDate(days){
   var d = new Date((_dispatchDate || todayStr())+'T00:00:00');
@@ -525,10 +550,9 @@ function dispatchSizeTag(j){
 }
 // What a driver's day looks like with a given set of stops.
 function dispatchLoadOf(crewId, list){
-  var start = dispatchParseClock(dispatchGetLaneStart(crewId)) || 480;
-  if(!list.length) return {stops:0, mins:0, misses:0, endMins:start};
-  var sim = dispatchSimulateLane(list, start);
-  return {stops:list.length, mins:sim.endMins - start, misses:sim.misses, endMins:sim.endMins};
+  if(!list.length) return {stops:0, mins:0, misses:0, endMins:DISPATCH_NOMINAL_START};
+  var sim = dispatchSimulateLane(list);
+  return {stops:list.length, mins:sim.endMins - sim.startMins, misses:sim.misses, endMins:sim.endMins};
 }
 function dispatchLoadTxt(l){ return l.stops+' stop'+(l.stops===1?'':'s')+(l.stops ? ' &middot; '+dispatchFmtTotal(l.mins) : ''); }
 // Both drivers' days before and after one stop changes hands. toId '' = back to the pool.
@@ -671,9 +695,8 @@ function dispatchLaneStats(jobs){
   });
   var st = {};
   Object.keys(by).forEach(function(c){
-    var start = dispatchParseClock(dispatchGetLaneStart(c)) || 480;
-    var sim = dispatchSimulateLane(by[c], start);
-    st[c] = {stops: by[c].length, mins: sim.endMins - start, misses: sim.misses};
+    var sim = dispatchSimulateLane(by[c]);
+    st[c] = {stops: by[c].length, mins: sim.endMins - sim.startMins, misses: sim.misses};
   });
   return st;
 }
@@ -699,9 +722,8 @@ function dispatchPreviewStats(){
   });
   var after = {};
   Object.keys(by).forEach(function(c){
-    var start = dispatchParseClock(dispatchGetLaneStart(c)) || 480;
-    var sim = dispatchSimulateLane(by[c], start);
-    after[c] = {stops: by[c].length, mins: sim.endMins - start, misses: sim.misses};
+    var sim = dispatchSimulateLane(by[c]);
+    after[c] = {stops: by[c].length, mins: sim.endMins - sim.startMins, misses: sim.misses};
   });
   return {before: dispatchLaneStats(_dispatchJobsCache), after: after};
 }
@@ -743,11 +765,12 @@ function dispatchPlanBalance(mode){
     unitsToAssign = units.filter(function(u){ return u.jobs.every(function(j){ return !legAssigned(j); }); });
     if(!unitsToAssign.length) return {error:'All jobs are already assigned — nothing to fill.'};
   }
-  var starts = {}, base = {};
-  working.forEach(function(id){
-    starts[id] = dispatchParseClock(dispatchGetLaneStart(id)) || 480;
-    base[id] = dispatchSimulateLane(lanes[id], starts[id]);
-  });
+  // Runs no longer share a start, so they are compared on length, never on the
+  // clock: a driver anchored to an early promise would otherwise look free all
+  // afternoon simply for having left first.
+  var base = {};
+  working.forEach(function(id){ base[id] = dispatchSimulateLane(lanes[id]); });
+  function runLength(sim){ return sim.endMins - sim.startMins; }
   unitsToAssign.sort(function(a,b){
     if(a.appt != null || b.appt != null){
       if(a.appt == null) return 1;
@@ -760,7 +783,7 @@ function dispatchPlanBalance(mode){
   var bigId = dispatchBigTruckDriverId();
   var bigWorking = !!bigId && working.indexOf(bigId) >= 0;
   function give(u, id){
-    var sim = dispatchSimulateLane(lanes[id].concat(u.jobs), starts[id]);
+    var sim = dispatchSimulateLane(lanes[id].concat(u.jobs));
     lanes[id] = lanes[id].concat(u.jobs);
     base[id] = sim;
     u.jobs.forEach(function(j){
@@ -785,12 +808,12 @@ function dispatchPlanBalance(mode){
       u = {jobs: rest, appt: u.appt,
            total: rest.reduce(function(s,x){ return s+(x._estMinutes||0); }, 0)};
     }
-    var best = null, bestMiss = 0, bestEnd = 0;
+    var best = null, bestMiss = 0, bestLen = 0;
     working.forEach(function(id){
-      var sim = dispatchSimulateLane(lanes[id].concat(u.jobs), starts[id]);
+      var sim = dispatchSimulateLane(lanes[id].concat(u.jobs));
       var newMiss = sim.misses - base[id].misses;
-      if(best === null || newMiss < bestMiss || (newMiss === bestMiss && sim.endMins < bestEnd)){
-        best = id; bestMiss = newMiss; bestEnd = sim.endMins;
+      if(best === null || newMiss < bestMiss || (newMiss === bestMiss && runLength(sim) < bestLen)){
+        best = id; bestMiss = newMiss; bestLen = runLength(sim);
       }
     });
     give(u, best);
@@ -1226,16 +1249,17 @@ async function renderDispatch(){
       if(!crew) return;
       var laneJobs = byLane[id] || [];
       var color = crew.color || crewAvatarColor(crew.id);
-      var startTime = dispatchGetLaneStart(id);
-      var startMins = dispatchParseClock(startTime) || 480;
-      var sim = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : null;
+      var sim = laneJobs.length ? dispatchSimulateLane(laneJobs) : null;
       var routeUrl = sim ? dispatchMapsRouteUrl(sim.ordered) : null;
-      // The day's span includes waiting for timed drops — that's real clock time.
-      var spanMins = sim ? (sim.endMins - startMins) : 0;
+      var spanMins = sim ? (sim.endMins - sim.startMins) : 0;
       var _pct = Math.min(Math.round(spanMins/480*100),100);
       var _barCol = _pct<60?'var(--accent)':(_pct<90?'#f59e0b':'var(--bad)');
       var _noteCol = _pct>=90?'var(--bad)':(_pct>=60?'#c2410c':'#15803d');
-      var _note = laneJobs.length ? (_pct+'% of an 8-hr day &middot; done ~'+dispatchFmtClock(sim.endMins)+(sim.earlyMins?' &middot; '+sim.earlyMins+'m early':'')) : 'Empty &mdash; add stops';
+      // A finish time is only claimed when a promised drop anchors the clock;
+      // otherwise the honest figure is how long the run takes, whenever it starts.
+      var _note = !laneJobs.length ? 'Empty &mdash; add stops'
+        : sim.anchored ? (_pct+'% of an 8-hr day &middot; leave by '+dispatchFmtClock(sim.startMins)+' &middot; done ~'+dispatchFmtClock(sim.endMins))
+        : (_pct+'% of an 8-hr day &middot; '+dispatchFmtTotal(spanMins)+' from the moment they roll');
       html += '<div ondragover="dispatchOnDragOver(event)" ondrop="dispatchOnDrop(event, \''+id+'\')" style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;min-height:120px">';
       // lane header: avatar + name/count + load bar
       html += '<div style="padding:12px 13px;border-bottom:1px solid var(--border)">';
@@ -1247,7 +1271,7 @@ async function renderDispatch(){
       html += '</div>';
       html += '<div style="height:8px;border-radius:5px;background:var(--surface2);overflow:hidden;margin-bottom:5px"><div style="height:100%;width:'+_pct+'%;background:'+_barCol+';border-radius:5px"></div></div>';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-size:11px;font-weight:600;color:'+_noteCol+'">'+_note+'</span><span style="display:inline-flex;align-items:center;gap:8px">';
-      html += '<span style="font-size:10px;color:var(--muted);display:inline-flex;align-items:center;gap:5px">Start <input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+id+'\', this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit"></span>';
+      html += '<span title="'+(sim && sim.anchored ? 'The latest they can leave and still make every promised drop' : 'Nothing is promised on this run, so the clock beside each stop is measured from a nominal 8am start')+'" style="font-size:10px;color:var(--muted)">'+(sim && sim.anchored ? 'Leave by '+dispatchFmtClock(sim.startMins) : 'No promised times') + '</span>';
       if(routeUrl) html += '<a href="'+routeUrl+'" target="_blank" rel="noopener" title="Open this driver\'s stops in order in Google Maps" style="font-size:11px;font-weight:600;color:#0d6efd;background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.35);border-radius:6px;padding:3px 8px;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px">'+lineIcon('directions',13)+' Maps</a>';
       html += '</span></div>';
       html += '</div>';
@@ -1363,7 +1387,7 @@ function dcvCrewNodes(){
 function dcvGroups(){
   return dcvCrewNodes().map(function(c){
     var jobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
-    return {crew: c, jobs: jobs.length ? dispatchSimulateLane(jobs, dispatchParseClock(dispatchGetLaneStart(c.id)) || 480).ordered : []};
+    return {crew: c, jobs: jobs.length ? dispatchSimulateLane(jobs).ordered : []};
   });
 }
 // The same groups as they'd look under the plan — drawn as the faded column beside
@@ -1372,7 +1396,7 @@ function dcvProposedGroups(){
   if(!_dispatchPreview) return [];
   return dcvCrewNodes().map(function(c){
     var jobs = _dispatchJobsCache.filter(function(j){ return dispatchProposedCrewId(j) === c.id; });
-    return {crew: c, jobs: jobs.length ? dispatchSimulateLane(jobs, dispatchParseClock(dispatchGetLaneStart(c.id)) || 480).ordered : []};
+    return {crew: c, jobs: jobs.length ? dispatchSimulateLane(jobs).ordered : []};
   });
 }
 // Where a ghost card sits: one panel to the right, on the same row line as the real stack.
@@ -1494,9 +1518,8 @@ function dcvJobCardHtml(j, T, p, selected, opts){
 function dcvCrewCardHtml(c, T, p, selected){
   var col = c.color || crewAvatarColor(c.id);
   var laneJobs = _dispatchJobsCache.filter(function(j){ return dcvJobCrewId(j) === c.id; });
-  var startMins = dispatchParseClock(dispatchGetLaneStart(c.id)) || 480;
-  var _sim = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : null;
-  var total = _sim ? (_sim.endMins - startMins) : 0; // day span incl. waiting for timed drops
+  var _sim = laneJobs.length ? dispatchSimulateLane(laneJobs) : null;
+  var total = _sim ? (_sim.endMins - _sim.startMins) : 0;
   var pct = Math.min(Math.round(total/480*100), 100);
   var barCol = pct < 60 ? 'var(--accent)' : (pct < 90 ? '#f59e0b' : 'var(--bad)');
   var outline = selected ? 'outline:2px solid '+T.accent+';outline-offset:2px;' : '';
@@ -1507,7 +1530,7 @@ function dcvCrewCardHtml(c, T, p, selected){
   h += '<span style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex:0 0 auto;background:'+col+';box-shadow:0 2px 7px rgba(0,0,0,.22)">'+escHtml(dcvInitials(c.name))+'</span>';
   h += '<div style="min-width:0;flex:1">';
   h += '<div style="font-size:15.5px;font-weight:800;letter-spacing:-.2px;color:'+T.ink+';line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(c.name)+'</div>';
-  h += '<div style="font-size:11px;color:'+T.sub+';margin-top:2px">starts '+dispatchFmtClock(startMins)+'</div>';
+  h += '<div style="font-size:11px;color:'+T.sub+';margin-top:2px">'+(_sim && _sim.anchored ? 'leave by '+dispatchFmtClock(_sim.startMins) : dispatchFmtTotal(total)+' of work')+'</div>';
   h += '</div>';
   h += '<span style="width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:'+col+'"></span>';
   h += '</div>';
@@ -1530,7 +1553,7 @@ function dcvGroupPanelHtml(g, T, pos){
   if(!o) return '';
   var col = g.crew.color || crewAvatarColor(g.crew.id);
   var box = dcvGroupBox(o, g.jobs.length);
-  var mins = g.jobs.length ? (function(){ var st = dispatchParseClock(dispatchGetLaneStart(g.crew.id)) || 480; return dispatchSimulateLane(g.jobs, st).endMins - st; })() : 0;
+  var mins = g.jobs.length ? (function(){ var s2 = dispatchSimulateLane(g.jobs); return s2.endMins - s2.startMins; })() : 0;
   var h = '<div data-panel="c:'+g.crew.id+'" data-group="'+g.crew.id+'" style="position:absolute;top:0;left:0;width:'+box.w+'px;height:'+box.h+'px;transform:translate('+box.x+'px,'+box.y+'px);border:1px solid '+dcvRgba(col,0.42)+';background:'+dcvRgba(col,0.07)+';border-radius:20px">';
   h += '<div style="display:flex;align-items:center;gap:7px;padding:9px 14px 0;pointer-events:none">';
   h += '<span style="width:7px;height:7px;border-radius:50%;background:'+col+';flex:0 0 auto"></span>';
@@ -1548,11 +1571,10 @@ function dcvGhostPanelHtml(g, real, T, pos){
   if(!o) return '';
   var col = g.crew.color || crewAvatarColor(g.crew.id);
   var box = dcvGroupBox(o, g.jobs.length);
-  var _gStart = dispatchParseClock(dispatchGetLaneStart(g.crew.id)) || 480;
-  var _gSim = g.jobs.length ? dispatchSimulateLane(g.jobs, _gStart) : null;
-  var mins = _gSim ? (_gSim.endMins - _gStart) : 0;
-  var _rSim = real && real.jobs.length ? dispatchSimulateLane(real.jobs, _gStart) : null;
-  var realMins = _rSim ? (_rSim.endMins - _gStart) : 0;
+  var _gSim = g.jobs.length ? dispatchSimulateLane(g.jobs) : null;
+  var mins = _gSim ? (_gSim.endMins - _gSim.startMins) : 0;
+  var _rSim = real && real.jobs.length ? dispatchSimulateLane(real.jobs) : null;
+  var realMins = _rSim ? (_rSim.endMins - _rSim.startMins) : 0;
   var dStops = g.jobs.length - (real ? real.jobs.length : 0);
   var dMins = mins - realMins;
   var same = (dStops === 0 && dMins === 0);
@@ -2108,16 +2130,15 @@ function dcvInspectorHtml(){
   if(!c) return '';
   var col = c.color || crewAvatarColor(c.id);
   var laneJobs = _dispatchJobsCache.filter(function(x){ return dcvJobCrewId(x) === c.id; });
-  var startTime = dispatchGetLaneStart(c.id);
-  var startMins = dispatchParseClock(startTime) || 480;
-  var ord = laneJobs.length ? dispatchSimulateLane(laneJobs, startMins) : {ordered:[], steps:[], warnings:[], endMins:startMins};
-  var total = ord.endMins - startMins; // day span incl. waiting for timed drops
+  var ord = laneJobs.length ? dispatchSimulateLane(laneJobs)
+          : {ordered:[], steps:[], warnings:[], startMins:DISPATCH_NOMINAL_START, endMins:DISPATCH_NOMINAL_START, anchored:false};
+  var total = ord.endMins - ord.startMins;
   var routeUrl = laneJobs.length ? dispatchMapsRouteUrl(ord.ordered) : null;
   h += head(col, 'Crew member');
   h += '<div style="padding:16px;overflow-y:auto;flex:1">';
   h += '<div style="font-size:19px;font-weight:800;color:#1a1a2e;letter-spacing:-.3px;margin-bottom:3px">'+escHtml(c.name)+'</div>';
   h += '<div style="font-size:12.5px;color:#868e96;margin-bottom:16px">'+laneJobs.length+' stop'+(laneJobs.length===1?'':'s')+' · '+dispatchFmtTotal(total)+' est</div>';
-  h += row('Starts', '<input type="time" value="'+startTime+'" onchange="dispatchSetLaneStart(\''+c.id+'\', this.value)" style="background:#f8f9fa;border:1px solid #e9ecef;color:#343a40;padding:4px 8px;border-radius:6px;font-size:12px;font-family:inherit">');
+  h += row(ord.anchored ? 'Leave by' : 'Run length', ord.anchored ? dispatchFmtClock(ord.startMins)+' <span style="font-weight:600;color:#868e96">to make every promised drop</span>' : dispatchFmtTotal(total)+' <span style="font-weight:600;color:#868e96">from the moment they roll</span>');
   h += '<div style="font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#adb5bd;margin:14px 0 2px">Route — in order</div>';
   if(!ord.ordered.length){
     h += '<div style="font-size:12.5px;color:#868e96;font-style:italic;padding:10px 0">No stops yet — drag a job\'s ○ onto this card.</div>';
