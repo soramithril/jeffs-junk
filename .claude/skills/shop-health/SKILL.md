@@ -65,6 +65,34 @@ everything is fine say so in one line.
    pane), confirm `APP_VERSION` via sync DOM eval, console free of errors
    (the intro-bg.mp4 autoplay AbortError noise is benign).
 
+7. **Is Dispatch still telling the truth about the day?** Added 2026-09-05 after
+   the model was rebuilt as a chain and calibrated on the crew's real Friday
+   (see the dispatch-friday-calibration memory note). Replay the last week
+   against what the trucks actually did and report the average error per stop:
+
+   ```sql
+   select v.device_id, v.job_id, v.entered_at, v.exited_at,
+          j.name, j.city, j.address, j.bin_size, j.bin_bid,
+          case when j.bin_pickup = v.entered_at::date then 'pickup' else 'drop' end as leg
+   from geofence_visits v join jobs j on j.job_id = v.job_id
+   where v.entered_at >= current_date - 7
+   order by v.device_id, v.entered_at;
+   ```
+   Walk each truck's real order through `dispatchSimulateLane` in V8 (the
+   harness pattern in the calibration note: load the shipping `app-dispatch.js`,
+   stub the browser, inject an OSRM table for the day's points) and compare the
+   model's arrival at each stop with `entered_at`. **Baseline to beat: 16 minutes
+   average across 19 stops, measured 2026-09-04.** Drifting well past that means
+   the crew's habits have moved and the constants need another look; comfortably
+   under it means this check has done its job.
+
+   Two traps: `exited_at` is quantised to the 15-minute poll so on-site time is
+   an upper bound only, and a stop the GPS never logged makes the model look
+   early for the rest of the run - count stops, not just minutes.
+
+   **This check is temporary.** Once the number holds steady for a month or so,
+   drop it (Jake, 2026-09-05: "after a while we don't need to do it").
+
 ## Report
 
 Write `SHOP-HEALTH-YYYY-MM-DD.md` at the repo root. Do NOT commit it - the
