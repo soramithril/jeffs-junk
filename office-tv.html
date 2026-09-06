@@ -1606,7 +1606,14 @@
     // and spend half the screen on fields nobody is working in.
     function frameAll(){
       if(!_map) return;
-      var out = outTrucks();
+      // Frame the trucks that are actually WORKING, not merely away from the yard.
+      // A truck parked somewhere else overnight still reads as out — the Hino 2020
+      // sat 5.3 km from the shop, untouched since the evening before — and framing
+      // it pulled the map wide off the crew every single day. isParked already
+      // knows the difference (no trail in the last 90 minutes), so use it. If every
+      // truck is idle there is nothing to choose between them and they all frame.
+      var out = tourTrucks();
+      if(!out.length) out = outTrucks();
       if(!out.length){
         // Nobody out, so there are no pins and nothing to frame — sit on the yard
         // at the width the board always used for this. Deliberately unchanged:
