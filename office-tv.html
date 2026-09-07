@@ -482,7 +482,7 @@
      only the script can change that. So every overlay below inverts — dark plate,
      cream type — which is both the new design's language and, on a pale map, the
      stronger contrast. */
-  #tvmap{flex:1 1 auto; min-height:0; background:#25301f; font-family:'Hanken Grotesk',sans-serif;
+  #tvmap{flex:1 1 auto; min-height:0; background:#36432f; font-family:'Hanken Grotesk',sans-serif;
     transition:opacity .34s ease}
   /* A jump to a different zoom can't be tweened on this map, so it lands as a
      snap. .cut blacks the panel out instantly, the jump happens where nobody can
@@ -1439,17 +1439,23 @@
     // dark and the labels stay crisp. Google's attribution is left alone — hiding
     // it breaks the terms of use.
     var MAP_STYLE = [
-      { elementType:'geometry',            stylers:[{ color:'#25301f' }] },
-      { elementType:'labels.text.fill',    stylers:[{ color:'#efe6c4' }] },
-      { elementType:'labels.text.stroke',  stylers:[{ color:'#141c14' }] },
-      { featureType:'water',          elementType:'geometry', stylers:[{ color:'#1e4056' }] },
-      { featureType:'landscape.natural', elementType:'geometry', stylers:[{ color:'#2a3626' }] },
-      { featureType:'poi.park',       elementType:'geometry', stylers:[{ color:'#233120' }] },
-      { featureType:'road',           elementType:'geometry', stylers:[{ color:'#4b5440' }] },
-      { featureType:'road.arterial',  elementType:'geometry', stylers:[{ color:'#5d6849' }] },
-      { featureType:'road.highway',   elementType:'geometry', stylers:[{ color:'#a8b98a' }] },
-      { featureType:'road.highway',   elementType:'geometry.stroke', stylers:[{ color:'#77855c' }] },
-      { featureType:'administrative', elementType:'geometry.stroke', stylers:[{ color:'#3d4733' }] },
+      // First pass at these was too dark and too flat: ground #25301f against
+      // roads #4b5440 is barely a step, so at the tour's close zoom the panel
+      // went near-black and the truck's trail was the only thing on it. The
+      // ground is lifted to the terrain photograph's own mid-tone, the roads are
+      // pulled well clear of it, and the highways take the board's warm sand so
+      // they read as highways rather than as more of the same green.
+      { elementType:'geometry',            stylers:[{ color:'#36432f' }] },
+      { elementType:'labels.text.fill',    stylers:[{ color:'#f2ead2' }] },
+      { elementType:'labels.text.stroke',  stylers:[{ color:'#1c2419' }] },
+      { featureType:'water',          elementType:'geometry', stylers:[{ color:'#28506b' }] },
+      { featureType:'landscape.natural', elementType:'geometry', stylers:[{ color:'#3b4833' }] },
+      { featureType:'poi.park',       elementType:'geometry', stylers:[{ color:'#33422c' }] },
+      { featureType:'road',           elementType:'geometry', stylers:[{ color:'#6a7357' }] },
+      { featureType:'road.arterial',  elementType:'geometry', stylers:[{ color:'#7d8767' }] },
+      { featureType:'road.highway',   elementType:'geometry', stylers:[{ color:'#c8b98a' }] },
+      { featureType:'road.highway',   elementType:'geometry.stroke', stylers:[{ color:'#9c8f66' }] },
+      { featureType:'administrative', elementType:'geometry.stroke', stylers:[{ color:'#55604a' }] },
       // Shops and businesses are noise on a dispatch wall — roads and towns only.
       { featureType:'poi',     elementType:'labels', stylers:[{ visibility:'off' }] },
       { featureType:'transit', stylers:[{ visibility:'off' }] }
