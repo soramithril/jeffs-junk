@@ -154,7 +154,7 @@
      snug to its left (a random one of our board renders each page load). Both lifted
      above the panels (z-index) so they ride on top of everything. Gentle roll / bob.
      On a dark ground the drop-shadows go near-black; the old warm-grey shadow was
-     invisible against the terrain. */
+     invisible against the terrain. */
   #topbar{position:relative; z-index:2}
   #stage{z-index:1}
 
@@ -168,7 +168,7 @@
      wherever the imagery happens to land. */
   #topbar{display:flex; align-items:flex-start; gap:40px; flex:0 0 auto;
     text-shadow:0 2px 10px rgba(8,14,9,.55)}
-  #brand{display:flex; align-items:center; gap:22px; min-width:0; flex:0 0 auto}
+  #brand{display:flex; align-items:center; gap:22px; min-width:0; flex:0 0 auto}
   .brand-name{font:900 68px/.94 Inter; color:var(--cream); letter-spacing:-.035em}
   /* the screen title: gold, wide-tracked, behind a short gold rule */
   .brand-sub{margin-top:13px; display:flex; align-items:center; gap:18px;
@@ -245,24 +245,24 @@
   /* Every truck on screen at once, down the right, instead of one card riding
      the map. The tour still walks truck to truck - it now lights the matching
      card rather than opening a popup over the pin. */
-  #loRail{position:absolute; right:40px; top:206px; bottom:146px; width:520px; z-index:5;
-    display:grid; gap:14px; grid-auto-rows:minmax(0,1fr)}
-  #loRail .card{min-height:0; overflow:hidden; border-radius:18px; display:flex; flex-direction:column;
+  #loRail{position:absolute; right:40px; top:206px; bottom:146px; width:320px; z-index:5;
+    display:grid; gap:10px; grid-auto-rows:minmax(0,1fr)}
+  #loRail .card{min-height:0; overflow:hidden; border-radius:16px; display:flex; flex-direction:column;
     border:1px solid var(--card-line); background:rgba(15,22,16,.86);
     box-shadow:0 10px 26px rgba(0,0,0,.45); transition:box-shadow .3s ease}
-  #loRail .card .hd{flex:0 0 auto; height:46px; display:flex; align-items:center; gap:12px; padding:0 18px}
-  #loRail .card .hd .nm{font:900 26px/1 Inter; letter-spacing:-.03em; color:var(--ink); white-space:nowrap;
+  #loRail .card .hd{flex:0 0 auto; height:40px; display:flex; align-items:center; gap:10px; padding:0 14px}
+  #loRail .card .hd .nm{font:900 23px/1 Inter; letter-spacing:-.03em; color:var(--ink); white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis}
-  #loRail .card .hd .st{margin-left:auto; flex:0 0 auto; font:800 14px/1 Inter;
-    letter-spacing:.14em; text-transform:uppercase; color:var(--ink); opacity:.88}
-  #loRail .card .bd{flex:1 1 auto; min-height:0; padding:8px 18px; display:flex;
-    flex-direction:column; justify-content:center; gap:6px}
-  #loRail .card .rw{display:flex; align-items:baseline; gap:12px; min-width:0;
-    font:600 19px/1.15 Inter; color:var(--muted)}
+  #loRail .card .hd .st{margin-left:auto; flex:0 0 auto; font:800 13px/1 Inter;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--ink); opacity:.88}
+  #loRail .card .bd{flex:1 1 auto; min-height:0; padding:6px 14px; display:flex;
+    flex-direction:column; justify-content:center; gap:4px}
+  #loRail .card .rw{display:flex; align-items:baseline; gap:10px; min-width:0;
+    font:600 17px/1.15 Inter; color:var(--muted)}
   #loRail .card .rw span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  #loRail .card .rw b{margin-left:auto; flex:0 0 auto; font:900 21px/1 Inter; color:var(--cream)}
-  #loRail .card .rw.sm{font-size:16px}
-  #loRail .card .rw.sm b{font-size:17px}
+  #loRail .card .rw b{margin-left:auto; flex:0 0 auto; font:900 19px/1 Inter; color:var(--cream)}
+  #loRail .card .rw.sm{font-size:15px}
+  #loRail .card .rw.sm b{font-size:16px}
   /* the truck the map is currently sitting on */
   #loRail .card.on{box-shadow:0 0 0 3px var(--gold), 0 12px 30px rgba(0,0,0,.55)}
   /* the town chip would sit under the rail on the right, so it moves left */
@@ -1721,7 +1721,16 @@
     // wall reads as flicker. Bin trucks lead in name order and the shop truck
     // sits last, because the bins are the day's work and Darrin's truck carries
     // no bin legs.
-    var RAIL_STALE_MS = 2 * 60 * 60 * 1000;
+    // A truck sitting overnight is not today's news. Twelve hours is Jake's line:
+    // long enough that a truck parked up mid-afternoon still holds its card for the
+    // rest of the day, short enough that yesterday's last ping never shows up on
+    // this morning's rail - which is the case that started this (the Hino 2020 sat
+    // there all morning having last reported at 5pm the day before).
+    var RAIL_STALE_MS = 12 * 60 * 60 * 1000;
+    // Six is what fits at a readable size in the 728px the rail has. Past that the
+    // shop truck gives up its slot: the bins are the day's work, and Darrin's truck
+    // carries no bin legs, so it is the one the office misses least.
+    var RAIL_MAX = 6;
     function isShopTruck(t){
       return /darrin/i.test(String(t.name || '')) || driverFor(t) === 'Darrin';
     }
@@ -1735,7 +1744,7 @@
         var sa = isShopTruck(a) ? 1 : 0, sb = isShopTruck(b) ? 1 : 0;
         if(sa !== sb) return sa - sb;
         return String(a.name).localeCompare(String(b.name));
-      });
+      }).slice(0, RAIL_MAX);
     }
 
     function driverFor(t){
@@ -1798,8 +1807,14 @@
         rows += '<div class="rw"><span>' + pr.done + ' of ' + pr.total + ' done</span>'
              +  '<b>' + pr.left + ' left</b></div>';
       }
-      rows += '<div class="rw sm"><span>Last ping</span><b>'
-           +  (age === null ? '\u2014' : age === 0 ? 'just now' : age + ' min ago') + '</b></div>';
+      // Only when it is worth reading. A truck pinging normally says nothing by
+      // saying "1 min ago", and that row was the third line on every card - which
+      // is what stopped six of them fitting legibly. Stale is the case the office
+      // needs to see, so stale is the case that gets the space.
+      if(age === null || age >= 5){
+        rows += '<div class="rw sm"><span>Last ping</span><b>'
+             +  (age === null ? '\u2014' : age + ' min ago') + '</b></div>';
+      }
       return '<div class="card" data-tid="' + esc(t.id) + '">'
         + '<div class="hd" style="background:' + c + '">'
         + '<span class="nm">' + esc(driver || t.name) + '</span>'
@@ -1943,12 +1958,12 @@
       }
       // The map is the whole board now, so most of its edges are behind something:
       // the truck rail down the right, the header scrim and town chip above, and
-      // the footer bar below. Measured on the real board: rail x1360-1880, town
+      // the footer bar below. Measured on the real board: rail x1560-1880, town
       // chip y206-262, footer from y958. The padding has to clear ALL of them -
       // an earlier pass cleared only the rail, so trucks still hid behind the
       // chip top-left and the key bottom-left. The key has since moved onto the
       // footer, which is why nothing extra is reserved for it down there.
-      _map.fitBounds(b, { top:272, right:580, bottom:150, left:64 });
+      _map.fitBounds(b, { top:272, right:380, bottom:150, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
       // point, which would slam the map to rooftop level. THAT is the only case
       // worth clamping. Capping at TOUR_ZOOM was wrong and made this look like a
