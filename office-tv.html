@@ -1368,7 +1368,16 @@
     // short deliberately: with a full fleet out, each truck only holds the screen
     // for panelMs/n — 15s at six trucks — so a longer replay would still be
     // drawing when the cycle moves on.
-    var REPLAY_MS = 5500;
+    // The trail used to take the truck's own status colour, which is green when
+    // moving and amber when stopped - both of which are exactly what Google's
+    // traffic layer draws the roads in, so the route vanished into the traffic.
+    // Violet is in none of traffic's three colours, none of the terrain, and not
+    // the water either, so the run reads as ours at a glance.
+    var TRAIL_C = '#b98cff';
+    // Slower than it was (5.5s): the old run charged across the county too fast
+    // to follow on a wall. Clamped against the per-truck hold below so a big
+    // fleet cannot leave it cut off half-drawn.
+    var REPLAY_MS = 14000;
     var TRAILS_MAX_AGE_MS = 5 * 60 * 1000;   // how long a fetched trail is reused
 
     function kmBetween(aLat, aLng, bLat, bLng){
@@ -1931,18 +1940,17 @@
     // Draw the focused truck's recent path, growing it from oldest to newest so
     // the run replays rather than just appearing. Carries the cycle generation so
     // a frame that lands after the cycle moved on can't draw onto the next truck.
-    function replayTrail(t, gen){
+    function replayTrail(t, gen, ms){
       stopReplay();
       var pts = (DATA.trails || {})[t.id];
       if(!pts || pts.length < 2 || !_map) return;
-      var c = TRUCK_C[truckState(t)];
       var path = pts.map(function(p){ return { lat:p[0], lng:p[1] }; });
       // Google has no dash array on a polyline, so the dashes are repeated symbols
       // along an invisible line (strokeOpacity 0), and the flow that made the path
       // read as a run rather than a drawn line is an animated offset below.
       _trailLine = new google.maps.Polyline({
         path:[path[0]], strokeOpacity:0, clickable:false, zIndex:5, map:_map,
-        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:c, strokeOpacity:.85,
+        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:TRAIL_C, strokeOpacity:.9,
                         strokeWeight:6, scale:3 }, offset:'0', repeat:'17px' }]
       });
       _trailFlow = setInterval(function(){
@@ -1965,9 +1973,11 @@
       function frame(ts){
         if(gen !== _cycleGen){ return; }
         if(start === null) start = ts;
-        var p = Math.min(1, (ts - start) / REPLAY_MS);
-        // ease-out so it charges away and settles, rather than crawling linearly
-        var e = 1 - Math.pow(1 - p, 2);
+        var p = Math.min(1, (ts - start) / (ms || REPLAY_MS));
+        // Eased at BOTH ends now. The old ease-out started at full tilt, which is
+        // what made a short replay read as a lurch; easing in as well lets the
+        // truck pull away and arrive rather than snapping into motion.
+        var e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
         var drawn = path.slice(0, Math.max(2, Math.round(e * path.length)));
         _trailLine.setPath(drawn);
         seatTruck(t, drawn[drawn.length - 1].lat, drawn[drawn.length - 1].lng);
@@ -2033,10 +2043,13 @@
           _map.setCenter(to);
         });
       }
-      replayTrail(t, gen);
+      // Work out the dwell first: the replay is clamped to it, so a fleet big
+      // enough to shorten each turn shortens the run to match instead of having
+      // it cut off part-drawn.
+      var hold = Math.max(9000, Math.floor(panelMs('liveops') / list.length));
+      replayTrail(t, gen, Math.min(REPLAY_MS, hold - 2500));
       // Split the screen's dwell across however many trucks are out, with a floor
       // so a big fleet doesn't turn into a strobe.
-      var hold = Math.max(6000, Math.floor(panelMs('liveops') / list.length));
       _cycleTimer = setTimeout(function(){ focusTruck(i + 1, gen); }, hold);
     }
 
