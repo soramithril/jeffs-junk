@@ -28,3 +28,4 @@ __pycache__/
 .claude/*
 !.claude/settings.json
 !.claude/skills/
+strikes-local.html

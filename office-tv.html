@@ -62,11 +62,11 @@
        Worth knowing it is the SECOND red here. The "Assign!" button is #db5038 ->
        #c83727, so red already means "this needs a driver, act now" and now also
        means "finished" - opposite meanings on one colour. They are told apart by
-       form rather than hue (a raised button against a line drawn through a row)
-       and this one is deliberately brighter and cooler than the button's, but if
-       the two ever read as one thing on the wall, this is the note that explains
-       why and this is the value to change. */
-    --struck:#ff2b3d; --struck-glow:rgba(255,43,61,.5);
+       form rather than hue: a small raised button against a line drawn the whole
+       width of a row. This one also sits cooler and pinker than the button's
+       orange-red. If the two ever read as one thing on the wall, this is the note
+       that explains why and this is the value to change. */
+    --struck:#e0475c; --struck-glow:rgba(224,71,92,.34);
     --todo-bg:#8a7532; --todo-fg:#f6e2a2;
     --drop-bg:#465d72; --drop-fg:#cde0ef;
     --pick-bg:#75455e; --pick-fg:#f0cbe2;
@@ -365,11 +365,18 @@
      Presence, not colour, carries the meaning: a row either has a line through it
      or it does not, which reads the same to someone who cannot see red at all. */
   .bb-row.done{position:relative}
-  .bb-row.done > *{opacity:.40}
+  .bb-row.done > *{opacity:.36}
+  /* Tapered to nothing at both ends, and the glow is a suggestion rather than a
+     bloom. The first version of this was a hard neon bar with a double glow, and
+     on a board that is otherwise cream, gold and dark ground it read as hazard
+     tape - it was the only saturated thing on the screen. Same signal, same width,
+     same fixed thickness; it just stops shouting. */
   .bb-row.done::after{
-    content:''; position:absolute; left:0; right:0; top:50%; height:5px;
-    transform:translateY(-50%); border-radius:3px; background:var(--struck);
-    box-shadow:0 0 9px var(--struck-glow), 0 0 20px var(--struck-glow);
+    content:''; position:absolute; left:0; right:0; top:50%; height:4px;
+    transform:translateY(-50%); border-radius:2px;
+    background:linear-gradient(90deg, transparent, var(--struck) 8%,
+                                      var(--struck) 92%, transparent);
+    box-shadow:0 0 14px var(--struck-glow);
   }
   .bb-size{font-weight:900; font-family:Inter; font-size:calc(26px*var(--cs)); line-height:1;
     color:#efd38a; background:rgba(243,233,201,.05); border:2px solid rgba(225,187,78,.75);
