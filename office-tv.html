@@ -2048,6 +2048,10 @@
       // Every truck that is out, as a card on the right.
       var outNow = list.filter(function(t){ return truckState(t) !== 'yard'; });
       el('loRail').innerHTML = outNow.map(truckCard).join('');
+      // The periodic refresh calls renderCurrent, which lands here and rebuilds
+      // the rail from scratch - so the tour's highlight has to be put back or the
+      // lit card goes dark mid-tour and stays dark until the next truck.
+      highlightRail(_focusId);
 
       // Bins-out isn't repeated here — the Operations screen already carries it.
       // These two live nowhere else on the board, so they ride in the head rather
