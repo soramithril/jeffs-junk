@@ -477,7 +477,10 @@
      in particular and it cannot survive the tour's zoom range — so rather than
      try to line two grounds up, this screen only has one: the map fills the
      stage edge to edge and the chips float on it. */
-  .lo-card{position:relative; flex:1 1 auto; background:none; border:0;
+  /* Opaque, in the map's own ground colour. Dropping the card fill entirely let
+     the terrain photograph show through in the seconds before Google paints its
+     first tiles, which reads as a hole in the board rather than a map loading. */
+  .lo-card{position:relative; flex:1 1 auto; background:#36432f; border:0;
     border-radius:0; box-shadow:none;
     overflow:hidden; display:flex; flex-direction:column; min-height:0}
   /* The map's own colours are set by MAP_STYLE in the page script, NOT by a CSS
