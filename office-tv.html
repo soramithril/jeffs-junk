@@ -207,7 +207,11 @@
     letter-spacing:.18em; text-transform:uppercase}
 
   /* ── panels ── */
-  #stage{position:relative; flex:1 1 auto; min-height:0; overflow:hidden}
+  #stage{position:relative; flex:1 1 auto; min-height:0; overflow:hidden; margin:0 -50px}
+  /* the bins and operations screens keep the board's side margin; only the map
+     is allowed to run to the edge */
+  .panel[data-panel="bins"] .p-body,
+  .panel[data-panel="kpis"] .p-body{padding:0 50px}
   /* Rotation is a conveyor since v543-era slide upgrade: waiting panels sit off-right,
      the exiting one (.was, set by showPanel for ~.7s) rides off-left. Class-driven end
      states, so a hidden tab that skips the transition still lands correct. */
@@ -469,8 +473,12 @@
      Positions are READ-ONLY (geotab-proxy `device-status`, the same feed the
      dashboard's Live Jobs map uses). The TV never writes to jobs or MyGeotab. */
   #opsWrap{height:100%; display:flex; min-height:0}
-  .lo-card{position:relative; flex:1 1 auto; background:var(--card-fill); border:1px solid var(--card-line);
-    border-radius:24px; box-shadow:var(--card-lift);
+  /* No card. A photograph cannot track a live map — it is a picture of nowhere
+     in particular and it cannot survive the tour's zoom range — so rather than
+     try to line two grounds up, this screen only has one: the map fills the
+     stage edge to edge and the chips float on it. */
+  .lo-card{position:relative; flex:1 1 auto; background:none; border:0;
+    border-radius:0; box-shadow:none;
     overflow:hidden; display:flex; flex-direction:column; min-height:0}
   /* The map's own colours are set by MAP_STYLE in the page script, NOT by a CSS
      filter here. A filter could only tint the finished picture — it dimmed the
@@ -478,10 +486,12 @@
      before. Google restyles the map itself, so the roads stay pale and the labels
      stay crisp. Google's own attribution is left alone on purpose: hiding it
      breaks the terms of use.
-     Consequence for this restyle: the map surface is still a PALE map, because
-     only the script can change that. So every overlay below inverts — dark plate,
-     cream type — which is both the new design's language and, on a pale map, the
-     stronger contrast. */
+     MAP_STYLE now puts the map in the terrain palette, so the overlays below sit
+     on a DARK map: dark plate, cream type, same language as the rest of the board.
+     One thing that cannot be changed from anywhere: Google composites the live
+     traffic INTO the same tile image as the base map — every tile in the viewport
+     carries both — so the traffic lines cannot be dimmed or restyled separately.
+     Fading them fades the whole map. Traffic is on or off, nothing in between. */
   #tvmap{flex:1 1 auto; min-height:0; background:#36432f; font-family:'Hanken Grotesk',sans-serif;
     transition:opacity .34s ease}
   /* A jump to a different zoom can't be tweened on this map, so it lands as a
