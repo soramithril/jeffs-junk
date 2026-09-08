@@ -176,12 +176,14 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     <button data-v="trafficlabels">Traffic + names</button>
   </div>
 
-  <h2>Tint over the imagery</h2>
+  <h2>Treatment over the imagery</h2>
   <div class="row" id="cTint">
-    <button data-v="0" class="on">None</button>
-    <button data-v="0.22">Light</button>
-    <button data-v="0.38">Medium</button>
-    <button data-v="0.55">Heavy</button>
+    <button data-v="none" class="on">None</button>
+    <button data-v="olive">Olive</button>
+    <button data-v="warm">Warm</button>
+    <button data-v="moody">Moody</button>
+    <button data-v="faded">Faded</button>
+    <button data-v="ink">Deep</button>
   </div>
 
   <h2>Ground <span style="color:#6f7d63;font-weight:400">(drawn map only)</span></h2>
@@ -240,12 +242,23 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     'Flatter': { geom:'#3c4736', land:'#3f4a38', road:'#5c6650', art:'#6a7359', hwy:'#9aa383', hwyS:'#7c8569', water:'#2c4f66' },
     'Darker':  { geom:'#2b3626', land:'#303b2a', road:'#57604a', art:'#68715a', hwy:'#b3a67c', hwyS:'#8a7f5c', water:'#22465e' }
   };
+  // Each is a colour, a blend mode and a strength. Blending is the only way to
+  // give Google's satellite imagery a character - styles cannot touch it at all.
+  var TREATMENTS = {
+    none:  { c:'#000000', b:'normal',      o:0    },
+    olive: { c:'#3f4a24', b:'overlay',     o:0.62 },
+    warm:  { c:'#7a5c２a'.replace('２','2'), b:'soft-light', o:0.70 },
+    moody: { c:'#16210f', b:'multiply',    o:0.45 },
+    faded: { c:'#9aa789', b:'luminosity',  o:0.34 },
+    ink:   { c:'#0f1a12', b:'multiply',    o:0.68 }
+  };
+
   var PINS = {
     'Green (now)':'#22c55e', 'Gold':'#e8b34a', 'White':'#f5efde',
     'Magenta':'#e0459b', 'Cyan':'#31c5d6'
   };
 
-  var state = { traffic:true, ground:'Board', pin:'#22c55e', zoom:12, type:'roadmap', tint:0 };
+  var state = { traffic:true, ground:'Board', pin:'#22c55e', zoom:12, type:'roadmap', tint:'none' };
   var map = null, traffic = null, markers = [];
 
   // Everything Google draws, switched off. The TrafficLayer is not part of the
@@ -323,6 +336,13 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     y.setMap(map); markers.push(y);
   }
 
+  function paintTint(){
+    var t = TREATMENTS[state.tint] || TREATMENTS.none, el = document.getElementById('tint');
+    el.style.background = t.c;
+    el.style.mixBlendMode = t.b;
+    el.style.opacity = t.o;
+  }
+
   function apply(){
     // Styles only reach the DRAWN map - Google does not let them touch satellite
     // imagery. On satellite the tint is the only colour control there is.
@@ -335,7 +355,8 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     // our image should only show when Google is drawing nothing over it
     document.getElementById('map').style.backgroundImage =
       bare ? "url('assets/tv-terrain.jpg')" : 'none';
-    document.getElementById('tint').style.opacity = state.tint;
+    document.getElementById('tint').style.opacity = TREATMENTS[state.tint].o;
+    paintTint();
     traffic.setMap(state.traffic ? map : null);
     drawPins();
     document.getElementById('dump').value = JSON.stringify(styleFor(state.ground), null, 1);
@@ -396,8 +417,7 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     document.getElementById('cTint').addEventListener('click', function(e){
       var b = e.target.closest('button'); if(!b) return;
       [].forEach.call(this.querySelectorAll('button'), function(x){ x.classList.toggle('on', x === b); });
-      state.tint = +b.getAttribute('data-v');
-      document.getElementById('tint').style.opacity = state.tint;
+      state.tint = b.getAttribute('data-v'); paintTint();
     });
     document.getElementById('cZoom').addEventListener('click', function(e){
       var b = e.target.closest('button'); if(!b) return;
