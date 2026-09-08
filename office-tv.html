@@ -6,7 +6,7 @@
 <title>Jeff's Junk — Office Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script>
   // Google Maps key. PUBLIC BY DESIGN — a browser map key cannot be hidden the
   // way the Places key is (that one lives as a secret on the places-proxy edge
@@ -47,10 +47,10 @@
      16:9 wall with a single transform. The letterbox areas fall back to the same
      deep ground colour as the board, so nothing shows a seam.
 
-     Type: the mockup drew with heavy Inter. Inter is NOT loaded here — this page
-     loads Baloo 2 and Hanken Grotesk — so Baloo 2 (800) stands in wherever the
-     mockup used heavy Inter for display (wordmark, screen title, numbers, driver
-     names) and Hanken Grotesk carries labels and body copy. ── */
+     Type: Inter alone, as the approved mockup draws it. Display type — the
+     wordmark, the clock, driver names, big numerals, chips and badges — is
+     weight 900 and tracked tighter, so it carries the same presence at the same
+     pixel sizes; labels and body copy sit between 500 and 800. ── */
   :root{
     /* the mockup's palette, verbatim */
     --cream:#f5efde; --muted:#d7cfb2; --line:rgba(241,229,186,.16);
@@ -84,7 +84,7 @@
     margin:0; height:100%; width:100%; overflow:hidden;
     background:var(--ground);
     color:var(--cream);
-    font-family:'Hanken Grotesk', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing:antialiased; user-select:none; cursor:none;
   }
 
@@ -119,9 +119,9 @@
     border:9px solid rgba(226,195,100,.22); border-top-color:var(--gold); animation:pdSpin 1.1s linear infinite}
   #gate .gate-truck{position:relative; width:440px; animation:truckRoll 4.5s ease-in-out infinite;
     filter:drop-shadow(0 16px 22px rgba(0,0,0,.6))}
-  #gate .gate-h{position:relative; font:800 84px/1 'Baloo 2'; color:var(--cream); margin-top:14px;
-    letter-spacing:-.02em; text-shadow:0 3px 14px rgba(8,14,9,.6)}
-  #gate .gate-sub{position:relative; font:600 34px/1.3 'Hanken Grotesk'; color:var(--muted); max-width:22em;
+  #gate .gate-h{position:relative; font:900 84px/1 Inter; color:var(--cream); margin-top:14px;
+    letter-spacing:-.03em; text-shadow:0 3px 14px rgba(8,14,9,.6)}
+  #gate .gate-sub{position:relative; font:600 34px/1.3 Inter; color:var(--muted); max-width:22em;
     text-shadow:0 2px 10px rgba(8,14,9,.55)}
   #gate .gate-pulse{position:relative; display:flex; gap:16px; margin-top:10px}
   #gate .gate-pulse span{width:20px; height:20px; border-radius:50%; background:var(--gold);
@@ -131,7 +131,7 @@
   #gate .gate-foot{position:absolute; left:0; right:0; bottom:46px;
     display:flex; align-items:center; justify-content:center; gap:16px}
   #gate .gate-foot img{height:60px; opacity:.9}
-  #gate .gate-foot span{font:700 22px/1 'Hanken Grotesk'; letter-spacing:.24em; text-transform:uppercase;
+  #gate .gate-foot span{font:700 22px/1 Inter; letter-spacing:.24em; text-transform:uppercase;
     color:var(--gold-line)}
 
   /* ── the 1920×1080 board, centred + scaled to the viewport ── */
@@ -169,10 +169,10 @@
   #topbar{display:flex; align-items:flex-start; gap:40px; flex:0 0 auto;
     text-shadow:0 2px 10px rgba(8,14,9,.55)}
   #brand{display:flex; align-items:center; gap:22px; min-width:0; flex:0 0 auto}
-  .brand-name{font:800 68px/.94 'Baloo 2'; color:var(--cream); letter-spacing:-.02em}
+  .brand-name{font:900 68px/.94 Inter; color:var(--cream); letter-spacing:-.035em}
   /* the screen title: gold, wide-tracked, behind a short gold rule */
   .brand-sub{margin-top:13px; display:flex; align-items:center; gap:18px;
-    font:700 21px/1 'Hanken Grotesk'; letter-spacing:.33em; text-transform:uppercase;
+    font:700 21px/1 Inter; letter-spacing:.33em; text-transform:uppercase;
     color:var(--gold-line)}
   .brand-sub::before{content:''; flex:0 0 auto; width:93px; height:3px;
     background:var(--gold-rule); border-radius:2px}
@@ -183,7 +183,7 @@
     padding:14px 30px; border-radius:26px; border:1px solid var(--line);
     background:linear-gradient(180deg, rgba(60,64,49,.72), rgba(41,45,35,.88));
     box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
-    font:800 30px/1 'Baloo 2'; color:var(--cream);
+    font:900 30px/1 Inter; color:var(--cream);
     letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; text-shadow:none}
   #toppill:empty{display:none}
   #toppill span{font-size:52px; line-height:1; color:var(--gold)}
@@ -191,12 +191,12 @@
   #wx{display:none; align-items:center; gap:14px}
   #wx.on{display:flex}
   #wx .i{font-size:44px; line-height:1}
-  #wx .t{font:800 54px/1 'Baloo 2'; color:var(--cream); font-variant-numeric:tabular-nums}
-  #wx .hl{font:600 19px/1.2 'Hanken Grotesk'; color:var(--muted); white-space:nowrap}
+  #wx .t{font:900 54px/1 Inter; color:var(--cream); font-variant-numeric:tabular-nums}
+  #wx .hl{font:600 19px/1.2 Inter; color:var(--muted); white-space:nowrap}
   #clock{text-align:right}
-  #clock .t{font:800 62px/.95 'Baloo 2'; color:var(--cream); letter-spacing:-.03em;
+  #clock .t{font:900 62px/.95 Inter; color:var(--cream); letter-spacing:-.045em;
     font-variant-numeric:tabular-nums}
-  #clock .d{margin-top:8px; font:700 19px/1 'Hanken Grotesk'; color:var(--gold-line);
+  #clock .d{margin-top:8px; font:800 19px/1 Inter; color:var(--gold-line);
     letter-spacing:.18em; text-transform:uppercase}
 
   /* ── panels ── */
@@ -251,16 +251,16 @@
     border:1px solid var(--card-line); background:rgba(15,22,16,.86);
     box-shadow:0 10px 26px rgba(0,0,0,.45); transition:box-shadow .3s ease}
   #loRail .card .hd{flex:0 0 auto; height:46px; display:flex; align-items:center; gap:12px; padding:0 18px}
-  #loRail .card .hd .nm{font:800 26px/1 'Baloo 2'; color:var(--ink); white-space:nowrap;
+  #loRail .card .hd .nm{font:900 26px/1 Inter; letter-spacing:-.03em; color:var(--ink); white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis}
-  #loRail .card .hd .st{margin-left:auto; flex:0 0 auto; font:800 14px/1 'Hanken Grotesk';
+  #loRail .card .hd .st{margin-left:auto; flex:0 0 auto; font:800 14px/1 Inter;
     letter-spacing:.14em; text-transform:uppercase; color:var(--ink); opacity:.88}
   #loRail .card .bd{flex:1 1 auto; min-height:0; padding:8px 18px; display:flex;
     flex-direction:column; justify-content:center; gap:6px}
   #loRail .card .rw{display:flex; align-items:baseline; gap:12px; min-width:0;
-    font:600 19px/1.15 'Hanken Grotesk'; color:var(--muted)}
+    font:600 19px/1.15 Inter; color:var(--muted)}
   #loRail .card .rw span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  #loRail .card .rw b{margin-left:auto; flex:0 0 auto; font:800 21px/1 'Hanken Grotesk'; color:var(--cream)}
+  #loRail .card .rw b{margin-left:auto; flex:0 0 auto; font:900 21px/1 Inter; color:var(--cream)}
   #loRail .card .rw.sm{font-size:16px}
   #loRail .card .rw.sm b{font-size:17px}
   /* the truck the map is currently sitting on */
@@ -299,17 +299,17 @@
     background:var(--terrain) center/cover; pointer-events:none}
   .bb-strip::after{content:''; position:absolute; inset:0; pointer-events:none; opacity:.35;
     background-image:linear-gradient(180deg, rgba(255,255,255,.12), transparent 50%)}
-  .bb-name{position:relative; z-index:1; font:800 36px/1 'Baloo 2'; color:#fff;
-    letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  .bb-name{position:relative; z-index:1; font:900 36px/1 Inter; color:#fff;
+    letter-spacing:-.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     text-shadow:0 2px 6px rgba(0,0,0,.35)}
-  .bb-count{position:relative; z-index:1; flex:0 0 auto; font:800 22px/1 'Baloo 2';
+  .bb-count{position:relative; z-index:1; flex:0 0 auto; font:900 22px/1 Inter;
     background:var(--plate); border-radius:999px; padding:8px 17px; white-space:nowrap}
   /* --cs scales the leg rows (1 = full size); fitBins() dials it down per card so
      every drop-off/pick-up fits with no clipping. EVERY row dimension below stays
      proportional to --cs — the moment one stops scaling, fitBins() can no longer
      shrink a heavy day to fit and the card clips. */
   .bb-body{--cs:1; flex:1 1 auto; min-height:0; padding:6px 18px; display:flex; flex-direction:column; justify-content:space-around; overflow:hidden}
-  .bb-row{display:grid; grid-template-columns:calc(96px*var(--cs)) minmax(0,1fr) calc(98px*var(--cs)) calc(116px*var(--cs)); align-items:center; gap:calc(12px*var(--cs)); padding:calc(8px*var(--cs)) 0}
+  .bb-row{display:grid; grid-template-columns:calc(96px*var(--cs)) minmax(0,1fr) calc(90px*var(--cs)) calc(106px*var(--cs)); align-items:center; gap:calc(10px*var(--cs)); padding:calc(8px*var(--cs)) 0}
   .bb-row:not(.last){border-bottom:1px solid rgba(235,224,183,.12)}
   /* Done legs read as COMPLETED (Jake 2026-07-07). The old treatment was a soft
      green wash behind the leg; on the dark board the mockup does it with weight
@@ -318,26 +318,26 @@
   .bb-row.done{opacity:.56}
   .bb-row.done .bb-city{text-decoration:line-through; text-decoration-thickness:calc(2px*var(--cs));
     text-underline-offset:calc(1px*var(--cs))}
-  .bb-size{font-weight:800; font-family:'Baloo 2'; font-size:calc(26px*var(--cs)); line-height:1;
+  .bb-size{font-weight:900; font-family:Inter; font-size:calc(26px*var(--cs)); line-height:1;
     color:#efd38a; background:rgba(243,233,201,.05); border:2px solid rgba(225,187,78,.75);
-    border-radius:13px; padding:calc(8px*var(--cs)) 4px; text-align:center}
+    border-radius:13px; padding:calc(8px*var(--cs)) 4px; text-align:center; white-space:nowrap}
   /* on the alert card the badge brightens so it holds its own against the red fill */
   .bb-size.warn{color:#f6ecd0; background:rgba(255,255,255,.06); border-color:rgba(245,235,205,.85)}
   .bb-dest{min-width:0; display:flex; flex-direction:column; gap:calc(4px*var(--cs))}
-  .bb-city{font-weight:800; font-family:'Baloo 2'; font-size:calc(31px*var(--cs)); line-height:1;
+  .bb-city{font-weight:900; font-family:Inter; font-size:calc(30px*var(--cs)); line-height:1;
     color:#f5f1e0; text-transform:uppercase; letter-spacing:-.01em;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   /* customer · time. The thinnest text on the board, so it takes the mockup's
      brightest muted tone (#d1cab0 on the card fill clears 4.5:1 comfortably)
      rather than a true grey. */
-  .bb-who{font-weight:500; font-family:'Hanken Grotesk'; font-size:calc(18px*var(--cs)); line-height:1.15;
+  .bb-who{font-weight:500; font-family:Inter; font-size:calc(18px*var(--cs)); line-height:1.15;
     color:#d1cab0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .bb-kind{font-weight:800; font-family:'Hanken Grotesk'; font-size:calc(18px*var(--cs)); line-height:1;
+  .bb-kind{font-weight:900; font-family:Inter; font-size:calc(18px*var(--cs)); line-height:1;
     letter-spacing:.04em; text-transform:uppercase; border-radius:12px;
     padding:calc(8px*var(--cs)) 0; text-align:center}
   .bb-kind.k-drop{background:var(--drop-bg); color:var(--drop-fg)}
   .bb-kind.k-pick{background:var(--pick-bg); color:var(--pick-fg)}
-  .bb-state{font-weight:800; font-family:'Baloo 2'; font-size:calc(20px*var(--cs)); line-height:1;
+  .bb-state{font-weight:900; font-family:Inter; font-size:calc(20px*var(--cs)); line-height:1;
     border-radius:14px; padding:calc(9px*var(--cs)) 0; text-align:center}
   .bb-state.s-done{background:var(--done-bg); color:var(--done-fg)}
   .bb-state.s-todo{background:var(--todo-bg); color:var(--todo-fg)}
@@ -346,7 +346,7 @@
   .bb-state.s-assign{color:#fff; letter-spacing:.05em;
     background:linear-gradient(180deg, #db5038, #c83727); box-shadow:0 4px 0 rgba(0,0,0,.18)}
   .bins-empty{height:100%; display:flex; align-items:center; justify-content:center;
-    font:800 56px/1.15 'Baloo 2'; color:var(--muted); text-align:center; padding:0 8%;
+    font:900 56px/1.15 Inter; letter-spacing:-.02em; color:var(--muted); text-align:center; padding:0 8%;
     text-shadow:0 2px 10px rgba(8,14,9,.55)}
 
   /* ── Screen 2 · Crew · This Week ──
@@ -354,26 +354,26 @@
      the page, so the grid keeps a home in the new palette rather than a dead one
      in the old. */
   #schedWrap{height:100%; display:grid; gap:10px}
-  .day{display:flex; align-items:center; justify-content:center; font:800 27px/1 'Baloo 2';
+  .day{display:flex; align-items:center; justify-content:center; font:900 27px/1 Inter;
     color:var(--muted); background:rgba(243,233,201,.09); border:1px solid var(--line); border-radius:14px}
   .day.today{flex-direction:column; color:var(--ink); background:var(--gold); border-color:transparent}
-  .day.today .tlab{font:700 13px/1 'Hanken Grotesk'; letter-spacing:.16em; margin-top:4px}
+  .day.today .tlab{font:800 13px/1 Inter; letter-spacing:.16em; margin-top:4px}
   .rname{display:flex; align-items:center; gap:13px; padding:0 22px; background:var(--card-fill);
     border:1px solid var(--card-line); border-radius:14px; overflow:hidden}
   .rname .pdot{width:15px; height:15px; border-radius:50%; flex:0 0 auto}
-  .rname .pn{font:800 29px/1 'Baloo 2'; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .rname .pn{font:900 29px/1 Inter; letter-spacing:-.02em; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .cell{display:flex; align-items:center; justify-content:center; border-radius:14px; overflow:hidden; text-align:center}
   .cell.work{flex-direction:column; gap:2px; background:var(--card-fill); border:1px solid var(--card-line);
     box-shadow:var(--card-lift); padding:0 6px}
-  .cell.work .wt{font:800 24px/1.05 'Baloo 2'; color:var(--cream)}
-  .cell.work .wl{font:500 15px/1.15 'Hanken Grotesk'; color:var(--muted); max-width:100%;
+  .cell.work .wt{font:900 24px/1.05 Inter; color:var(--cream)}
+  .cell.work .wl{font:500 15px/1.15 Inter; color:var(--muted); max-width:100%;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .cell.work.today{border-color:var(--gold); box-shadow:inset 0 0 0 2px rgba(226,195,100,.55)}
   .cell.work.today .wl{color:var(--gold-line)}
-  .cell.off{background:rgba(243,233,201,.05); color:rgba(215,207,178,.55); font:800 22px/1 'Baloo 2'}
+  .cell.off{background:rgba(243,233,201,.05); color:rgba(215,207,178,.55); font:900 22px/1 Inter}
   .cell.off.today{box-shadow:inset 0 0 0 2px rgba(226,195,100,.4)}
-  .cell.sick{background:var(--todo-bg); color:var(--todo-fg); font:800 22px/1 'Baloo 2'}
-  .cell.jx{background:var(--drop-bg); color:var(--drop-fg); font:600 16px/1.15 'Hanken Grotesk'; padding:0 8px}
+  .cell.sick{background:var(--todo-bg); color:var(--todo-fg); font:900 22px/1 Inter}
+  .cell.jx{background:var(--drop-bg); color:var(--drop-fg); font:600 16px/1.15 Inter; padding:0 8px}
 
   /* ── entrance animations: each screen "comes alive" as it rotates in ──
      Items are rebuilt every rotation (renderCurrent) so this replays each time;
@@ -426,9 +426,9 @@
      the pill is styled for both homes and looks the same in either. */
   #kpiMeta .binsout, #toppill .binsout{display:inline-flex; align-items:baseline; gap:14px;
     vertical-align:middle}
-  #kpiMeta .binsout b, #toppill .binsout b{font:800 54px/1 'Baloo 2'; color:var(--gold);
+  #kpiMeta .binsout b, #toppill .binsout b{font:900 54px/1 Inter; color:var(--gold);
     font-variant-numeric:tabular-nums}
-  #kpiMeta .binsout span, #toppill .binsout span{font:600 20px/1.2 'Hanken Grotesk';
+  #kpiMeta .binsout span, #toppill .binsout span{font:600 20px/1.2 Inter;
     letter-spacing:.14em; text-transform:uppercase; color:#efe6c3}
 
   /* ── 2A standings lanes (default) ── */
@@ -439,19 +439,19 @@
   .opsl.beat{animation:celebrate 2.6s ease-in-out infinite}
   .opsl .accent{width:14px; flex:0 0 auto}
   .opsl .who{flex:0 0 430px; display:flex; flex-direction:column; justify-content:center; gap:10px; padding:20px 30px}
-  .opsl .who .nm{font:800 42px/1 'Baloo 2'; color:var(--cream); letter-spacing:-.02em; white-space:nowrap}
-  .opsl .who .beatchip{align-self:flex-start; font:800 18px/1 'Baloo 2'; color:var(--ink);
+  .opsl .who .nm{font:900 42px/1 Inter; color:var(--cream); letter-spacing:-.02em; white-space:nowrap}
+  .opsl .who .beatchip{align-self:flex-start; font:900 18px/1 Inter; color:var(--ink);
     background:var(--gold); border-radius:11px; padding:6px 13px}
   /* the ▲/▼ percentage takes its colour inline from the renderer; 22px/800 keeps
      it in "large text" territory, where those two hues clear 3:1 on the card */
-  .opsl .who .pc{font:800 22px/1.25 'Hanken Grotesk'; white-space:nowrap}
+  .opsl .who .pc{font:800 22px/1.25 Inter; white-space:nowrap}
   .opsl .who .pc.up{color:#8fd6a5}
   .opsl .who .pc.down{color:#f0a884}
   .opsl .who .pc em{color:var(--muted); font-weight:500; font-style:normal; font-size:18px}
   .opsl .mid{flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; gap:18px; padding:18px 30px 18px 6px}
   .opsl .mid .big{display:flex; align-items:baseline; gap:14px}
-  .opsl .mid .big .n{font:800 96px/.82 'Baloo 2'; font-variant-numeric:tabular-nums}
-  .opsl .mid .big .lab{font:700 22px/1.15 'Hanken Grotesk'; letter-spacing:.1em;
+  .opsl .mid .big .n{font:900 96px/.82 Inter; font-variant-numeric:tabular-nums}
+  .opsl .mid .big .lab{font:800 22px/1.15 Inter; letter-spacing:.1em;
     text-transform:uppercase; color:var(--muted)}
   .opsl .bar{position:relative; height:28px; background:rgba(243,233,201,.09); border-radius:999px; margin:2px 0}
   .opsl .bar .fill{position:absolute; left:0; top:0; bottom:0; border-radius:999px; z-index:2; transform-origin:left; animation:growX 1s ease .1s both}
@@ -459,10 +459,10 @@
      — a closed pill there would read as a second, separate measurement */
   .opsl .bar .ghost{position:absolute; top:0; bottom:0; border:2px dashed; border-left:none; border-radius:0 999px 999px 0; z-index:1}
   .opsl .bar .tick{position:absolute; top:-9px; bottom:-9px; width:4px; background:var(--cream); border-radius:2px; z-index:3}
-  .opsl .bar .tl{position:absolute; bottom:-27px; transform:translateX(-50%); font:700 16px/1 'Hanken Grotesk'; color:var(--muted); white-space:nowrap}
-  .opsl .bar .pl{position:absolute; top:-26px; transform:translateX(-50%); font:800 16px/1 'Hanken Grotesk'; white-space:nowrap}
+  .opsl .bar .tl{position:absolute; bottom:-27px; transform:translateX(-50%); font:700 16px/1 Inter; color:var(--muted); white-space:nowrap}
+  .opsl .bar .pl{position:absolute; top:-26px; transform:translateX(-50%); font:800 16px/1 Inter; white-space:nowrap}
   .opsl .verd{flex:0 0 300px; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:11px; padding:20px 30px 20px 0}
-  .opsl .verd .pill{font:800 28px/1 'Baloo 2'; border-radius:999px; padding:11px 22px; white-space:nowrap; letter-spacing:.03em}
+  .opsl .verd .pill{font:900 28px/1 Inter; border-radius:999px; padding:11px 22px; white-space:nowrap; letter-spacing:.03em}
   .opsl .verd .pill.ok{background:var(--done-bg); color:var(--done-fg)}
   .opsl .verd .pill.no{background:#7a3a2a; color:#f6d2c2}
   /* The verdict line takes its colour INLINE from the renderer — a mid green or a
@@ -474,7 +474,7 @@
      which needed a pale plate behind it to survive on a dark card. The renderer
      now sets .ok / .no instead and the colour is chosen here, against this
      palette — so the plate is gone and the text just reads. */
-  .opsl .verd .sub{font:700 21px/1.2 'Hanken Grotesk'; text-align:right; white-space:nowrap}
+  .opsl .verd .sub{font:700 21px/1.2 Inter; text-align:right; white-space:nowrap}
   .opsl .verd.ok .sub{color:#8fd6a5}
   .opsl .verd.no .sub{color:#f0b877}
 
@@ -488,11 +488,11 @@
   .opsa::before{content:""; position:absolute; inset:0; opacity:.16; mix-blend-mode:overlay;
     background:var(--terrain) center/cover}
   .opsa-head{position:relative; display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
-  .opsa-head .t{font:800 36px/1 'Baloo 2'; color:var(--cream); white-space:nowrap}
-  .opsa-head .lg{font:700 19px/1 'Hanken Grotesk'; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); white-space:nowrap}
+  .opsa-head .t{font:900 36px/1 Inter; letter-spacing:-.02em; color:var(--cream); white-space:nowrap}
+  .opsa-head .lg{font:800 19px/1 Inter; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); white-space:nowrap}
   .opsa-field{position:relative; flex:1 1 auto}
   .opsa-line{position:absolute; left:0; right:0; top:26%; border-top:3px dashed var(--gold); z-index:4}
-  .opsa-line .fin,.opsa-line .last{position:absolute; top:-16px; font:800 17px/1 'Hanken Grotesk'; letter-spacing:.12em;
+  .opsa-line .fin,.opsa-line .last{position:absolute; top:-16px; font:900 17px/1 Inter; letter-spacing:.12em;
     color:var(--ink); background:var(--gold); border-radius:9px; padding:5px 13px; white-space:nowrap}
   .opsa-line .fin{left:0}.opsa-line .last{right:0}
   .opsa-cols{position:absolute; left:0; right:0; top:0; bottom:118px; display:flex; justify-content:space-around; align-items:flex-end}
@@ -503,14 +503,14 @@
   .opsa-fill{position:absolute; left:0; right:0; bottom:0; border-radius:16px; transform-origin:bottom; animation:growY 1.1s ease .15s both}
   .opsa-fill.beat{animation:growY 1.1s ease .15s both,glowPulse 2.4s ease-in-out infinite}
   .opsa-ghost{position:absolute; left:0; right:0; border:2px dashed; border-bottom:none; border-radius:14px 14px 0 0}
-  .opsa-projlab{position:absolute; left:0; right:0; text-align:center; transform:translateY(-9px); font:800 17px/1 'Hanken Grotesk'}
-  .opsa-num{position:absolute; left:0; right:0; text-align:center; transform:translateY(-12px); font:800 62px/1 'Baloo 2'; font-variant-numeric:tabular-nums}
+  .opsa-projlab{position:absolute; left:0; right:0; text-align:center; transform:translateY(-9px); font:800 17px/1 Inter}
+  .opsa-num{position:absolute; left:0; right:0; text-align:center; transform:translateY(-12px); font:900 62px/1 Inter; font-variant-numeric:tabular-nums}
   .opsa-num.top{top:5%; transform:none}
-  .opsa-num .bt{font:800 22px/1 'Baloo 2'; color:var(--ink); letter-spacing:.04em; margin-bottom:4px}
+  .opsa-num .bt{font:900 22px/1 Inter; color:var(--ink); letter-spacing:.04em; margin-bottom:4px}
   .opsa-col-cap{flex:0 0 260px; text-align:center}
-  .opsa-col-cap .nm{font:800 30px/1 'Baloo 2'; color:var(--cream)}
-  .opsa-col-cap .vs{font:500 18px/1.3 'Hanken Grotesk'; color:var(--muted); margin-top:6px}
-  .opsa-col-cap .vd{font:800 19px/1.2 'Hanken Grotesk'; margin-top:6px}
+  .opsa-col-cap .nm{font:900 30px/1 Inter; letter-spacing:-.02em; color:var(--cream)}
+  .opsa-col-cap .vs{font:500 18px/1.3 Inter; color:var(--muted); margin-top:6px}
+  .opsa-col-cap .vd{font:800 19px/1.2 Inter; margin-top:6px}
 
   /* ── Screen 4 · Trucks on the Road — live Geotab map + today's pulse ──
      Positions are READ-ONLY (geotab-proxy `device-status`, the same feed the
@@ -538,7 +538,7 @@
      traffic INTO the same tile image as the base map — every tile in the viewport
      carries both — so the traffic lines cannot be dimmed or restyled separately.
      Fading them fades the whole map. Traffic is on or off, nothing in between. */
-  #tvmap{flex:1 1 auto; min-height:0; background:#36432f; font-family:'Hanken Grotesk',sans-serif;
+  #tvmap{flex:1 1 auto; min-height:0; background:#36432f; font-family:Inter,sans-serif;
     transition:opacity .34s ease}
   /* A jump to a different zoom can't be tweened on this map, so it lands as a
      snap. .cut blacks the panel out instantly, the jump happens where nobody can
@@ -567,7 +567,7 @@
   .lo-tk .ping{position:absolute; inset:-8px; border-radius:50%; border:3px solid currentColor;
     animation:tkping 1.7s ease-out infinite; pointer-events:none}
   .lo-tk .n{background:rgba(17,24,18,.92); border:1px solid var(--card-line); border-radius:9px;
-    padding:4px 11px; font:700 16px/1.15 'Hanken Grotesk';
+    padding:4px 11px; font:900 16px/1.15 Inter;
     color:var(--cream); white-space:nowrap; box-shadow:0 3px 12px rgba(0,0,0,.35)}
   /* the truck the map is currently focused on */
   .lo-tk.sel .b{width:57px; height:57px}
@@ -581,7 +581,7 @@
      builds uses that same property; the two must not drift apart. */
   .lo-job{display:flex; align-items:center; justify-content:center; min-width:36px; height:36px;
     padding:0 11px; border-radius:13px; background:var(--spruce); color:var(--cream);
-    font:800 20px/1 'Hanken Grotesk'; border:3px solid var(--plate);
+    font:900 20px/1 Inter; border:3px solid var(--plate);
     box-shadow:0 5px 14px rgba(0,0,0,.32)}
   .lo-job.done{background:rgba(30,44,32,.55)}
   /* Focused-truck card. An HTML overlay pinned above the truck, so it rides with
@@ -598,25 +598,25 @@
      failed on the old board too. Dark ink clears 7:1 on both, and is the only
      half of the pair this sheet can still choose. */
   .lo-pop .hd{display:flex; align-items:center; gap:10px; padding:10px 15px}
-  .lo-pop .hd .nm{font:800 23px/1 'Baloo 2'; color:var(--ink)}
-  .lo-pop .hd .st{margin-left:auto; font:800 12px/1 'Hanken Grotesk'; letter-spacing:.09em;
+  .lo-pop .hd .nm{font:900 23px/1 Inter; letter-spacing:-.02em; color:var(--ink)}
+  .lo-pop .hd .st{margin-left:auto; font:900 12px/1 Inter; letter-spacing:.09em;
     text-transform:uppercase; color:var(--ink); background:rgba(255,255,255,.42);
     border-radius:20px; padding:5px 11px}
   .lo-pop .rw{display:flex; justify-content:space-between; align-items:baseline; gap:16px;
-    padding:8px 15px 0; font:500 16px/1.2 'Hanken Grotesk'; color:var(--muted)}
+    padding:8px 15px 0; font:500 16px/1.2 Inter; color:var(--muted)}
   .lo-pop .rw:last-child{padding-bottom:12px}
-  .lo-pop .rw b{color:var(--cream); font-weight:800}
+  .lo-pop .rw b{color:var(--cream); font-weight:900}
   /* jobs-left progress */
   .lo-pop .bar{height:9px; border-radius:5px; background:rgba(243,233,201,.14); overflow:hidden; margin:7px 15px 0}
   .lo-pop .bar i{display:block; height:100%; border-radius:5px}
-  .lo-pop .cap{font:500 13px/1 'Hanken Grotesk'; color:var(--muted); text-align:right; margin:6px 15px 0}
+  .lo-pop .cap{font:500 13px/1 Inter; color:var(--muted); text-align:right; margin:6px 15px 0}
   /* Legend sits ON the map, bottom-left. It can't live in the panel head — that
      head is hidden now, and even before it was, the ambient truck/bin art
      (#tvtruck/#tvbin, z-index 5) was parked over that exact spot and buried it. */
   #loLegend{position:absolute; left:20px; bottom:20px; z-index:400; display:flex; gap:22px;
     background:rgba(17,24,18,.88); border:1px solid var(--line); border-radius:16px; padding:13px 20px;
     box-shadow:0 6px 18px rgba(0,0,0,.4)}
-  #loLegend b{display:flex; align-items:center; gap:10px; font:600 19px/1 'Hanken Grotesk';
+  #loLegend b{display:flex; align-items:center; gap:10px; font:600 19px/1 Inter;
     color:#efe6c3; white-space:nowrap}
   #loLegend i{width:15px; height:15px; border-radius:50%}
   /* The trail's dashes and their flow are drawn by the map now (repeated symbols
@@ -627,8 +627,8 @@
     background:rgba(17,24,18,.88); border:1px solid var(--line); border-radius:16px; padding:12px 20px;
     box-shadow:0 6px 18px rgba(0,0,0,.4)}
   #loTown.on{display:flex}
-  #loTown .k{font:700 14px/1 'Hanken Grotesk'; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-line)}
-  #loTown .v{font:800 30px/1 'Baloo 2'; color:var(--cream)}
+  #loTown .k{font:800 14px/1 Inter; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-line)}
+  #loTown .v{font:900 30px/1 Inter; letter-spacing:-.02em; color:var(--cream)}
 
   /* today's job counts. Written into the hidden panel head; styled here so the
      colour is right if the script ever mirrors it up beside the title. */
@@ -643,11 +643,11 @@
     border-top:1px solid rgba(237,225,185,.15);
     background:linear-gradient(180deg, rgba(18,25,19,.12), rgba(17,24,18,.48))}
   #botbar .fm{display:flex; align-items:baseline; gap:16px}
-  #botbar .fm b{font:800 62px/.9 'Baloo 2'; color:var(--cream); font-variant-numeric:tabular-nums}
-  #botbar .fm span{font:500 21px/1 'Hanken Grotesk'; letter-spacing:.22em; text-transform:uppercase; color:#efe6c3}
+  #botbar .fm b{font:900 62px/.9 Inter; color:var(--cream); font-variant-numeric:tabular-nums}
+  #botbar .fm span{font:500 21px/1 Inter; letter-spacing:.22em; text-transform:uppercase; color:#efe6c3}
   #botbar .fsep{width:1px; height:52px; background:rgba(238,226,184,.25)}
   #botbar .fspace{flex:1 1 auto}
-  #botbar .fwhere{font:500 21px/1 'Hanken Grotesk'; letter-spacing:.18em; text-transform:uppercase; color:#ece3bf}
+  #botbar .fwhere{font:500 21px/1 Inter; letter-spacing:.18em; text-transform:uppercase; color:#ece3bf}
 
   /* ── 9 AM briefing — voice-over only (Jake: the board keeps doing its normal
      thing). The ONLY visual is this small note, shown when the browser REFUSES
@@ -658,7 +658,7 @@
     border:1px solid var(--card-line); border-radius:16px;
     padding:14px 22px; box-shadow:0 10px 26px rgba(0,0,0,.5)}
   #brief.on{display:flex}
-  #brief .warn{font:600 17px/1.35 'Hanken Grotesk'; color:#f0b877}
+  #brief .warn{font:600 17px/1.35 Inter; color:#f0b877}
 
   /* ── net-status pip ── */
   #netdot{position:fixed; bottom:14px; right:14px; width:12px; height:12px; border-radius:50%;
