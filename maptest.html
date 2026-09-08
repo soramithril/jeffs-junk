@@ -306,12 +306,19 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
 
   window.__mapReady = function(){
     defineMarker();
+    // Options kept to exactly what the board uses. isFractionalZoomEnabled is
+    // deliberately absent here: a styled map has to be the RASTER renderer, and
+    // the vector one ignores the styles array entirely.
     map = new google.maps.Map(document.getElementById('map'), {
       center:{ lat:YARD.lat, lng:YARD.lng }, zoom:state.zoom,
-      disableDefaultUI:true, gestureHandling:'greedy', clickableIcons:false,
-      isFractionalZoomEnabled:true, styles: styleFor(state.ground)
+      disableDefaultUI:true, gestureHandling:'greedy', keyboardShortcuts:false,
+      clickableIcons:false, styles: styleFor(state.ground)
     });
     traffic = new google.maps.TrafficLayer();
+    // handles for poking from the console while tuning
+    window.__map = map; window.__styleFor = styleFor; window.__grounds = GROUNDS;
+    // the container is sized by CSS, but the map is built before layout settles
+    google.maps.event.trigger(map, 'resize');
 
     seg('cGround', Object.keys(GROUNDS).map(function(k){ return { v:k, label:k, dot:GROUNDS[k].geom }; }),
         function(v){ state.ground = v; apply(); }, 'Board');
