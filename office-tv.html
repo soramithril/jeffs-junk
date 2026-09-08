@@ -1993,10 +1993,10 @@
       _focusId = t.id;
       if(prevId && prevId !== t.id && _markers[prevId]){
         (DATA.trucks || []).forEach(function(x){
-          if(x.id === prevId) _markers[prevId].setIcon(truckIcon(x, false));
+          if(x.id === prevId) _markers[prevId].setContent(truckIcon(x, false));
         });
       }
-      if(_markers[t.id]) _markers[t.id].setIcon(truckIcon(t, true));
+      if(_markers[t.id]) _markers[t.id].setContent(truckIcon(t, true));
       var town = el('loTown');
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
@@ -2047,7 +2047,7 @@
       stopReplay();
       var prevId = _focusId;
       if(prevId && _markers[prevId]){
-        (DATA.trucks || []).forEach(function(x){ if(x.id === prevId) _markers[prevId].setIcon(truckIcon(x, false)); });
+        (DATA.trucks || []).forEach(function(x){ if(x.id === prevId) _markers[prevId].setContent(truckIcon(x, false)); });
       }
       _focusId = null;
       el('loTown').classList.remove('on');
