@@ -41,7 +41,8 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
 /* Google writes position:relative onto the container inline when it
    initialises, which beats inset:0 and collapses the div to no height.
    Size it outright so it fills the screen either way. */
-#map{position:fixed;inset:0;width:100vw;height:100vh;background:#36432f}
+#map{position:fixed;inset:0;width:100vw;height:100vh;
+  background:#36432f url('assets/tv-terrain.jpg') center/cover no-repeat}
 #tint{position:absolute;inset:0;z-index:3;pointer-events:none;
   background:#1e2a1a;opacity:0;transition:opacity .25s ease}
 @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
@@ -171,6 +172,8 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     <button data-v="roadmap" class="on">Drawn</button>
     <button data-v="satellite">Satellite</button>
     <button data-v="hybrid">Satellite + roads</button>
+    <button data-v="trafficonly">Traffic only</button>
+    <button data-v="trafficlabels">Traffic + names</button>
   </div>
 
   <h2>Tint over the imagery</h2>
@@ -245,6 +248,20 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
   var state = { traffic:true, ground:'Board', pin:'#22c55e', zoom:12, type:'roadmap', tint:0 };
   var map = null, traffic = null, markers = [];
 
+  // Everything Google draws, switched off. The TrafficLayer is not part of the
+  // style system, so it keeps drawing - which is the whole trick: if the tiles
+  // come back transparent where nothing was drawn, our own background shows and
+  // the only thing Google contributes is the traffic.
+  var OFF = [{ stylers:[{ visibility:'off' }] }];
+  var OFF_BUT_NAMES = [
+    { stylers:[{ visibility:'off' }] },
+    { elementType:'labels.text', stylers:[{ visibility:'on' }] },
+    { elementType:'labels.text.fill',   stylers:[{ color:'#f7f0da' }] },
+    { elementType:'labels.text.stroke', stylers:[{ color:'#14200f' }] },
+    { featureType:'poi',     elementType:'labels', stylers:[{ visibility:'off' }] },
+    { featureType:'transit', stylers:[{ visibility:'off' }] }
+  ];
+
   function styleFor(name){
     var g = GROUNDS[name];
     return [
@@ -309,8 +326,15 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
   function apply(){
     // Styles only reach the DRAWN map - Google does not let them touch satellite
     // imagery. On satellite the tint is the only colour control there is.
-    map.setMapTypeId(state.type);
-    map.setOptions({ styles: state.type === 'roadmap' ? styleFor(state.ground) : [] });
+    var t = state.type, bare = (t === 'trafficonly' || t === 'trafficlabels');
+    map.setMapTypeId(bare ? 'roadmap' : t);
+    map.setOptions({ styles:
+      t === 'roadmap'       ? styleFor(state.ground) :
+      t === 'trafficonly'   ? OFF :
+      t === 'trafficlabels' ? OFF_BUT_NAMES : [] });
+    // our image should only show when Google is drawing nothing over it
+    document.getElementById('map').style.backgroundImage =
+      bare ? "url('assets/tv-terrain.jpg')" : 'none';
     document.getElementById('tint').style.opacity = state.tint;
     traffic.setMap(state.traffic ? map : null);
     drawPins();
@@ -338,7 +362,10 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     map = new google.maps.Map(document.getElementById('map'), {
       center:{ lat:YARD.lat, lng:YARD.lng }, zoom:state.zoom,
       disableDefaultUI:true, gestureHandling:'greedy', keyboardShortcuts:false,
-      clickableIcons:false, styles: styleFor(state.ground)
+      clickableIcons:false, styles: styleFor(state.ground),
+      // construction-only, and the whole point of the traffic-only test: without
+      // it Google paints an opaque ground behind the tiles and nothing shows through
+      backgroundColor:'transparent'
     });
     traffic = new google.maps.TrafficLayer();
     // handles for poking from the console while tuning
