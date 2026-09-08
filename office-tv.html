@@ -1346,7 +1346,7 @@
     // _cycleGen invalidates in-flight cycles. Without it a second startCycle (panel
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
-    var _cycleTimer = null, _focusId = null, _card = null, _cycleGen = 0;
+    var _cycleTimer = null, _focusId = null, _cycleGen = 0;
     // Every lap of the tour opens on the whole crew at once, framed as tight as
     // they fit (frameAll), before stepping through them one by one. Jake
     // (2026-09-05): "the best zoom showing all the vehicles at the same time".
@@ -1848,10 +1848,12 @@
           requestAnimationFrame(function(){ host.classList.remove('cut'); });
         });
       }
-      // Padding keeps pins from hiding under the legend (bottom-left) and the town
-      // chip (top-right), and nothing more — it used to be generous enough to cost
-      // a quarter of the panel height.
-      _map.fitBounds(b, { top:64, right:64, bottom:78, left:64 });
+      // The map is the whole board now, so most of its edges are behind something:
+      // the truck rail down the right, the header scrim above, the footer bar and
+      // the legend below. The padding has to match what is actually covering the
+      // map or fitBounds will happily frame a truck underneath the rail - which is
+      // exactly what it did when this still described the old boxed-in map.
+      _map.fitBounds(b, { top:206, right:580, bottom:150, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
       // point, which would slam the map to rooftop level. THAT is the only case
       // worth clamping. Capping at TOUR_ZOOM was wrong and made this look like a
@@ -1874,7 +1876,6 @@
     function seatTruck(t, lat, lng){
       var ll = new google.maps.LatLng(lat == null ? t.lat : lat, lng == null ? t.lng : lng);
       if(_markers[t.id]) _markers[t.id].setPosition(ll);
-      if(_card && _focusId === t.id) _card.setPosition(ll);
     }
 
     function stopReplay(){
@@ -1941,7 +1942,7 @@
       _cycleGen++;                       // any chain still in flight now bails out
       clearTimeout(_cycleTimer); _cycleTimer = null; _focusId = null;
       el('loTown').classList.remove('on');
-      if(_card){ _card.setMap(null); _card = null; }
+      highlightRail(null);
     }
 
     function highlightRail(id){
@@ -2109,6 +2110,8 @@
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
       el('board').classList.toggle('map-full', name === 'liveops');
+      // ...and the map has to be told, or it keeps framing for the old box
+      if(name === 'liveops' && _map) google.maps.event.trigger(_map, 'resize');
       var panels = document.querySelectorAll('.panel');
       // Conveyor slide: the panel leaving rides out left (.was) while the next
       // slides in from the right. Stale .was stripped first — self-healing if a
