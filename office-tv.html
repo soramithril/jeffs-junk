@@ -1652,6 +1652,33 @@
       { match:'Darrin Truck', driver:'Darrin' }
     ];
     // Today's GPS evidence first (buildTruckDrivers), the regular pairing until there is any.
+    // Which trucks earn a card on the right. A truck that has not moved inside
+    // the trail window, or has not reported for hours, is parked somewhere and
+    // was taking a slot from a truck that is actually out - the Hino 2020 sat on
+    // the rail all morning having last reported at 5pm the day before.
+    //
+    // Order is deliberately STABLE rather than clever: sorting by moving-first
+    // would reshuffle the rail every time a truck stopped at a light, which on a
+    // wall reads as flicker. Bin trucks lead in name order and the shop truck
+    // sits last, because the bins are the day's work and Darrin's truck carries
+    // no bin legs.
+    var RAIL_STALE_MS = 2 * 60 * 60 * 1000;
+    function isShopTruck(t){
+      return /darrin/i.test(String(t.name || '')) || driverFor(t) === 'Darrin';
+    }
+    function railTrucks(list){
+      return (list || []).filter(function(t){
+        if(truckState(t) === 'yard') return false;
+        if(isParked(t)) return false;
+        var age = t.lastUpdate ? Date.now() - Date.parse(t.lastUpdate) : 0;
+        return age <= RAIL_STALE_MS;
+      }).sort(function(a, b){
+        var sa = isShopTruck(a) ? 1 : 0, sb = isShopTruck(b) ? 1 : 0;
+        if(sa !== sb) return sa - sb;
+        return String(a.name).localeCompare(String(b.name));
+      });
+    }
+
     function driverFor(t){
       var seen = (DATA.truckDriver || {})[t.id];
       if(seen) return seen;
@@ -2046,8 +2073,7 @@
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
 
       // Every truck that is out, as a card on the right.
-      var outNow = list.filter(function(t){ return truckState(t) !== 'yard'; });
-      el('loRail').innerHTML = outNow.map(truckCard).join('');
+      el('loRail').innerHTML = railTrucks(list).map(truckCard).join('');
       // The periodic refresh calls renderCurrent, which lands here and rebuilds
       // the rail from scratch - so the tour's highlight has to be put back or the
       // lit card goes dark mid-tour and stays dark until the next truck.
