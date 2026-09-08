@@ -1355,6 +1355,8 @@
     // so it cannot be mistaken for the gold yard dot.
     var TRUCK_C = { moving:'#22c55e', stopped:'#f97316' };
     var _map = null, _markers = {}, _jobMarkers = {};
+    // Nothing may uncover the map before Google's first 'idle' — see ensureTruckMap.
+    var _mapReady = false;
     // _cycleGen invalidates in-flight cycles. Without it a second startCycle (panel
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
@@ -1378,6 +1380,21 @@
     // to follow on a wall. Clamped against the per-truck hold below so a big
     // fleet cannot leave it cut off half-drawn.
     var REPLAY_MS = 14000;
+    // The camera move between trucks: pull back, travel, drop in. 1.6s is long
+    // enough to read as a move and short enough to leave the trail replay its room
+    // — focusTruck takes it off the replay's clamp, because the replay does not
+    // start until the camera lands.
+    var SWOOP_MS = 1600;
+    // How far the camera pulls back at the top of the arc, in zoom levels, and
+    // FIXED — this is the whole reason flyTo was torn out. flyTo chose its depth
+    // from the distance travelled, so a 30 km hop dropped several levels and
+    // climbed back, fetching and binning every level on the way: on the wall that
+    // read as the map re-rendering at each step. This map is fractional-zoom, which
+    // scales the tiles of the nearest WHOLE level rather than fetching one per
+    // fraction, so 13 -> 11.25 -> 13 only ever touches levels 12 and 11 however far
+    // apart the two trucks are.
+    var SWOOP_DROP = 1.75;
+    var _swoopRaf = null;                    // in-flight camera move; stopReplay clears it
     var TRAILS_MAX_AGE_MS = 5 * 60 * 1000;   // how long a fetched trail is reused
 
     function kmBetween(aLat, aLng, bLat, bLng){
@@ -1573,6 +1590,10 @@
       if(typeof google === 'undefined' || !google.maps) return null;
       var host = el('tvmap');
       if(!host) return null;
+      // Blanked before it exists and held there until Google says the opening view
+      // is drawn (below). The ground colour stops the white flash; this stops the
+      // empty dark box popping into a full map in a single frame.
+      host.classList.add('cut');
       // Fully inert — it's a wall, there's nobody to pan or zoom it.
       _map = new google.maps.Map(host, {
         center:{ lat:YARD.lat, lng:YARD.lng }, zoom:10,
@@ -1584,6 +1605,12 @@
         // MAP_STYLE is kept below but is INERT while this is 'hybrid' - Google
         // does not let styles touch imagery at all.
         mapTypeId:'hybrid', styles:MAP_STYLE,
+        // Google paints its own ground under the tiles while they load, and its
+        // default is near-white — so building the map flashed white across a dark
+        // board. This is the panel's own ground (#tvmap in the CSS), so there is
+        // nothing to see until the imagery lands. Construction-only: Google offers
+        // no setter for it afterwards.
+        backgroundColor:'#36432f',
         // A styled map is a raster map, and raster maps round the zoom down to a
         // whole number — so an overview that really wanted 10.8 was drawn at 10,
         // a good bit wider than the trucks needed. Fractional zoom lets the fit
@@ -1607,6 +1634,17 @@
       // Barrie sits right on top of the yard, and truck labels hang down into it.
       // How many trucks are parked here needs no chip either: "5 of 6 out" says it.
       htmlMarker(new google.maps.LatLng(YARD.lat, YARD.lng), '<div class="lo-yard"></div>', 'lo-mk-yard');
+      // First 'idle' is Google saying the opening view is actually drawn. Until then
+      // _mapReady keeps revealMap shut, so an early cutTo during boot cannot uncover
+      // a half-built map; after it, the panel fades up.
+      google.maps.event.addListenerOnce(_map, 'idle', function(){
+        _mapReady = true;
+        revealMap();
+      });
+      // The same guard frameAll keeps: if 'idle' never arrives the panel must not sit
+      // black on the wall all evening. Longer than frameAll's 900 ms because this one
+      // waits on the first tile fetch of the night, not a re-frame of tiles in hand.
+      setTimeout(function(){ _mapReady = true; revealMap(); }, 4000);
       return _map;
     }
 
@@ -1838,6 +1876,19 @@
     // Move the map somewhere it cannot glide to. Blank the panel first so the
     // jump happens unseen, then let it fade back up. Synchronous on purpose —
     // deferring the move with a timer would let the next tour step overtake it.
+    // Every uncovering of the map goes through here, so the hold from creation
+    // (ensureTruckMap) is honoured by all of them — before the first 'idle' this
+    // does nothing and the panel stays blanked.
+    // Two frames: one for the browser to paint the blanked panel, one to drop the
+    // class so the transition actually runs instead of being collapsed.
+    function revealMap(){
+      var host = el('tvmap');
+      if(!host || !_mapReady) return;
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){ host.classList.remove('cut'); });
+      });
+    }
+
     function cutTo(move){
       var host = el('tvmap');
       if(!host){ move(); return; }
@@ -1847,11 +1898,7 @@
       } finally {
         // finally, not catch: a real error still propagates to the console, but a
         // throw can never strand the panel black on the wall for the evening.
-        // Two frames: one for the browser to paint the blanked panel, one to drop
-        // the class so the transition actually runs instead of being collapsed.
-        requestAnimationFrame(function(){
-          requestAnimationFrame(function(){ host.classList.remove('cut'); });
-        });
+        revealMap();
       }
     }
 
@@ -1892,9 +1939,7 @@
       function reveal(){
         if(shown || !host) return;
         shown = true;
-        requestAnimationFrame(function(){
-          requestAnimationFrame(function(){ host.classList.remove('cut'); });
-        });
+        revealMap();
       }
       // The map is the whole board now, so most of its edges are behind something:
       // the truck rail down the right, the header scrim and town chip above, and
@@ -1929,6 +1974,11 @@
     }
 
     function stopReplay(){
+      // The camera move and the trail run are two halves of one tour step, so
+      // whatever ends the step ends both — a cancelled swoop left running would
+      // keep driving the map while the next truck's move tries to. stopCycle gets
+      // this for free: it calls stopReplay first.
+      if(_swoopRaf){ cancelAnimationFrame(_swoopRaf); _swoopRaf = null; }
       if(_replayRaf){ cancelAnimationFrame(_replayRaf); _replayRaf = null; }
       if(_trailFlow){ clearInterval(_trailFlow); _trailFlow = null; }
       if(_trailLine){ _trailLine.setMap(null); _trailLine = null; }
@@ -2004,6 +2054,52 @@
       });
     }
 
+    // The camera move between two trucks: pull back, travel, drop in. One rAF loop
+    // doing two map setters a frame — centre straight across in lat/lng, zoom arced
+    // out and back — so it reads as one continuous move rather than a zoom-out, a
+    // slide and a zoom-in. It carries the cycle generation for the same reason
+    // replayTrail's frame does: a move the tour has already replaced must stop
+    // driving the map, not fight the one that replaced it.
+    // `land` is the arrival, and only ever runs on a live generation.
+    function swoopTo(to, gen, land){
+      var from = _map.getCenter();
+      // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
+      // the tab is hidden — the same reason replayTrail draws the whole path and
+      // returns. A camera stranded halfway between two trucks is the worst thing to
+      // leave on a wall, so when nobody is watching, just be there.
+      if(document.hidden || !from){
+        _map.setZoom(TOUR_ZOOM);
+        _map.setCenter(to);
+        land();
+        return;
+      }
+      var lat0 = from.lat(), lng0 = from.lng(), z0 = _map.getZoom();
+      var dLat = to.lat() - lat0, dLng = to.lng() - lng0;
+      var start = null;
+      function frame(ts){
+        if(gen !== _cycleGen){ _swoopRaf = null; return; }
+        if(start === null) start = ts;
+        var p = Math.min(1, (ts - start) / SWOOP_MS);
+        // Eased at both ends, so the camera pulls away and settles instead of
+        // snapping into motion — the curve the trail replay already uses.
+        var e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        _map.setCenter(new google.maps.LatLng(lat0 + dLat * e, lng0 + dLng * e));
+        if(p < 1){
+          // sin^2: flat at both ends, deepest in the middle of the travel, so the
+          // pull-back never starts or stops abruptly and the drop-in lands with the
+          // arrival. The landing zoom is set exactly below, not left to the curve.
+          var arc = Math.sin(Math.PI * p);
+          _map.setZoom(z0 + (TOUR_ZOOM - z0) * e - SWOOP_DROP * arc * arc);
+          _swoopRaf = requestAnimationFrame(frame);
+        } else {
+          _map.setZoom(TOUR_ZOOM);
+          _swoopRaf = null;
+          land();
+        }
+      }
+      _swoopRaf = requestAnimationFrame(frame);
+    }
+
     function focusTruck(i, gen, fromOverview){
       if(gen !== _cycleGen) return;      // a newer cycle has taken over
       var list = tourTrucks();           // parked trucks keep pins but aren't toured
@@ -2025,29 +2121,34 @@
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
       highlightRail(t.id);
-      // Move at a fixed zoom, never through one. flyTo used to swoop — zoom out on
-      // a curve, slide, zoom back in — so every level between here and there was
-      // fetched and binned, which is what made the whole map rebuild at each truck.
-      //
-      // A near hop glides; a far one cuts. The split is whether the next truck is
-      // already on screen: panTo across the visible map reads as a glide, while
-      // dragging the world past at speed just smears, and a clean cut beats a
-      // smear on a wall.
+      // Work out the dwell first: the replay is clamped to it, so a fleet big
+      // enough to shorten each turn shortens the run to match instead of having
+      // it cut off part-drawn. SWOOP_MS comes off that clamp too, because the
+      // replay does not begin until the camera lands — a trail drawing under a
+      // moving camera is a mess. At the 9s floor that still leaves 4.9s of replay
+      // ending 2.5s before the truck changes.
+      var hold = Math.max(9000, Math.floor(panelMs('liveops') / list.length));
+      var replayMs = Math.min(REPLAY_MS, hold - 2500 - SWOOP_MS);
       var to = new google.maps.LatLng(t.lat, t.lng);
-      var b = _map.getBounds();
-      if(_map.getZoom() === TOUR_ZOOM && b && b.contains(to)){
-        _map.panTo(to);
+      // Truck to truck the camera swoops (swoopTo): pull back a FIXED SWOOP_DROP,
+      // travel, drop in. Fixed is the point — flyTo's distance-derived depth is what
+      // made the map rebuild at every step, and a fractional zoom only crosses the
+      // whole levels it actually reaches. The old near-hop-glides/far-one-cuts split
+      // is gone with it: the smear that made a long panTo unusable was the same
+      // problem as the jump, and pulling back covers both.
+      //
+      // Arriving from the all-trucks overview is still a cut. fitBounds picks that
+      // view's zoom, anywhere up to MAX_FRAME_ZOOM, so a swoop off it would cross
+      // exactly the levels the fixed depth exists to avoid.
+      if(_map.getZoom() === TOUR_ZOOM){
+        swoopTo(to, gen, function(){ replayTrail(t, gen, replayMs); });
       } else {
         cutTo(function(){
           _map.setZoom(TOUR_ZOOM);
           _map.setCenter(to);
         });
+        replayTrail(t, gen, replayMs);
       }
-      // Work out the dwell first: the replay is clamped to it, so a fleet big
-      // enough to shorten each turn shortens the run to match instead of having
-      // it cut off part-drawn.
-      var hold = Math.max(9000, Math.floor(panelMs('liveops') / list.length));
-      replayTrail(t, gen, Math.min(REPLAY_MS, hold - 2500));
       // Split the screen's dwell across however many trucks are out, with a floor
       // so a big fleet doesn't turn into a strobe.
       _cycleTimer = setTimeout(function(){ focusTruck(i + 1, gen); }, hold);
