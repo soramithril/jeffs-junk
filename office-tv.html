@@ -154,13 +154,7 @@
      snug to its left (a random one of our board renders each page load). Both lifted
      above the panels (z-index) so they ride on top of everything. Gentle roll / bob.
      On a dark ground the drop-shadows go near-black; the old warm-grey shadow was
-     invisible against the terrain. */
-  #tvtruck{position:absolute; top:150px; right:280px; width:160px; z-index:5; opacity:1;
-    pointer-events:none; animation:truckRoll 5s ease-in-out infinite;
-    filter:drop-shadow(0 10px 16px rgba(0,0,0,.55))}
-  #tvbin{position:absolute; top:150px; right:452px; width:160px; z-index:5; opacity:1;
-    pointer-events:none; animation:bob 3.2s ease-in-out infinite;
-    filter:drop-shadow(0 10px 16px rgba(0,0,0,.55))}
+     invisible against the terrain. */
   #topbar{position:relative; z-index:2}
   #stage{z-index:1}
 
@@ -174,8 +168,7 @@
      wherever the imagery happens to land. */
   #topbar{display:flex; align-items:flex-start; gap:40px; flex:0 0 auto;
     text-shadow:0 2px 10px rgba(8,14,9,.55)}
-  #brand{display:flex; align-items:center; gap:22px; min-width:0; flex:0 0 auto}
-  #brand img{height:94px; display:block; flex:0 0 auto; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+  #brand{display:flex; align-items:center; gap:22px; min-width:0; flex:0 0 auto}
   .brand-name{font:800 68px/.94 'Baloo 2'; color:var(--cream); letter-spacing:-.02em}
   /* the screen title: gold, wide-tracked, behind a short gold rule */
   .brand-sub{margin-top:13px; display:flex; align-items:center; gap:18px;
@@ -207,11 +200,11 @@
     letter-spacing:.18em; text-transform:uppercase}
 
   /* ── panels ── */
-  #stage{position:relative; flex:1 1 auto; min-height:0; overflow:hidden; margin:0 -50px}
+  #stage{position:relative; flex:1 1 auto; min-height:0; overflow:hidden; margin:0 -40px}
   /* the bins and operations screens keep the board's side margin; only the map
      is allowed to run to the edge */
   .panel[data-panel="bins"] .p-body,
-  .panel[data-panel="kpis"] .p-body{padding:0 50px}
+  .panel[data-panel="kpis"] .p-body{padding:0 40px}
   /* Rotation is a conveyor since v543-era slide upgrade: waiting panels sit off-right,
      the exiting one (.was, set by showPanel for ~.7s) rides off-left. Class-driven end
      states, so a hidden tab that skips the transition still lands correct. */
@@ -233,6 +226,56 @@
      #loTag, #loCount, #loMeta) and a missing node would throw. */
   .p-head{display:none}
   .p-body{flex:1 1 auto; min-height:0}
+
+  /* ── Trucks: the map is the whole board ──────────────────────────────────
+     The stage leaves the flow so it can cover all 1920x1080, and the header and
+     footer float on top of it. Both get their own scrim: live imagery is not a
+     background you can trust for contrast the way the terrain photograph was.
+     Only this screen - #board carries .map-full only while liveops is up, and
+     the other two keep the board's margins.
+     The footer deliberately stops short of the bottom edge. Google's logo and
+     the map attribution sit down there and covering them breaks the terms of
+     use, so the bar floats and leaves that strip showing. */
+  #board.map-full #stage{position:absolute; inset:0; margin:0; z-index:0}
+  #board.map-full #topbar{
+    position:absolute; left:0; right:0; top:0; z-index:6; margin:0;
+    padding:34px 40px 30px;
+    background:linear-gradient(180deg, rgba(11,17,12,.88), rgba(11,17,12,.5) 60%, transparent);
+  }
+  /* Every truck on screen at once, down the right, instead of one card riding
+     the map. The tour still walks truck to truck - it now lights the matching
+     card rather than opening a popup over the pin. */
+  #loRail{position:absolute; right:40px; top:206px; bottom:146px; width:520px; z-index:5;
+    display:grid; gap:14px; grid-auto-rows:minmax(0,1fr)}
+  #loRail .card{min-height:0; overflow:hidden; border-radius:18px; display:flex; flex-direction:column;
+    border:1px solid var(--card-line); background:rgba(15,22,16,.86);
+    box-shadow:0 10px 26px rgba(0,0,0,.45); transition:box-shadow .3s ease}
+  #loRail .card .hd{flex:0 0 auto; height:46px; display:flex; align-items:center; gap:12px; padding:0 18px}
+  #loRail .card .hd .nm{font:800 26px/1 'Baloo 2'; color:var(--ink); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis}
+  #loRail .card .hd .st{margin-left:auto; flex:0 0 auto; font:800 14px/1 'Hanken Grotesk';
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink); opacity:.88}
+  #loRail .card .bd{flex:1 1 auto; min-height:0; padding:8px 18px; display:flex;
+    flex-direction:column; justify-content:center; gap:6px}
+  #loRail .card .rw{display:flex; align-items:baseline; gap:12px; min-width:0;
+    font:600 19px/1.15 'Hanken Grotesk'; color:var(--muted)}
+  #loRail .card .rw span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #loRail .card .rw b{margin-left:auto; flex:0 0 auto; font:800 21px/1 'Hanken Grotesk'; color:var(--cream)}
+  #loRail .card .rw.sm{font-size:16px}
+  #loRail .card .rw.sm b{font-size:17px}
+  /* the truck the map is currently sitting on */
+  #loRail .card.on{box-shadow:0 0 0 3px var(--gold), 0 12px 30px rgba(0,0,0,.55)}
+  /* the town chip would sit under the rail on the right, so it moves left */
+  #board.map-full #loTown{right:auto; left:40px; top:206px}
+  /* and the key lifts clear of the floating footer bar */
+  #board.map-full #loLegend{left:40px; bottom:146px}
+
+  #board.map-full #botbar{
+    position:absolute; left:40px; right:40px; bottom:34px; z-index:6; margin:0;
+    height:88px; padding:0 28px; border-radius:20px;
+    border:1px solid var(--card-line); border-top:1px solid var(--card-line);
+    background:rgba(15,22,16,.84);
+  }
 
   /* ── Screen 1 · Bin Work Today ── */
   #binsWrap{height:100%; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:1fr; gap:24px}
@@ -640,7 +683,6 @@
       <!-- shared header -->
       <div id="topbar">
         <div id="brand">
-          <img src="assets/jeffs-junk-logo.png" alt="Jeff's Junk">
           <div><div class="brand-name">Jeff's Junk</div>
             <div class="brand-sub" id="brandSub">Office Board</div></div>
         </div>
@@ -651,8 +693,6 @@
         </div>
       </div>
 
-      <img id="tvtruck" src="assets/tv-truck.png" alt="" aria-hidden="true">
-      <img id="tvbin" alt="" aria-hidden="true">
 
       <div id="stage">
         <!-- Screen 1 · Bin Work Today -->
@@ -677,7 +717,8 @@
             <span class="tag" id="loTag"></span><span class="status" id="loCount"></span>
             <span class="spacer"></span><span class="status" id="loMeta"></span></div>
           <div class="p-body"><div id="opsWrap">
-            <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div><div id="loTown"></div></div>
+            <div class="lo-card"><div id="tvmap"></div><div id="loLegend"></div>
+              <div id="loTown"></div><div id="loRail"></div></div>
           </div></div>
         </section>
 
@@ -740,7 +781,6 @@
     // clustered tight enough that fitBounds would otherwise pick street level.
     var MAX_FRAME_ZOOM = 16;
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-    var TV_BINS = ['tv-bin-4.png','tv-bin-14.png','tv-bin-20.png'];   // bottom overlay picks one at random each load
 
     // Dedicated session store so this page can NEVER pick up a staff member's
     // dashboard session in the same browser — it only ever runs as the display user.
@@ -1516,7 +1556,13 @@
       _map = new google.maps.Map(host, {
         center:{ lat:YARD.lat, lng:YARD.lng }, zoom:10,
         disableDefaultUI:true, gestureHandling:'none', keyboardShortcuts:false,
-        clickableIcons:false, styles:MAP_STYLE,
+        clickableIcons:false,
+        // Satellite imagery with roads and place names over it. A drawn map never
+        // looked like the photograph the rest of the board is built on; this is
+        // the same kind of picture, and it is aligned to the metre for free.
+        // MAP_STYLE is kept below but is INERT while this is 'hybrid' - Google
+        // does not let styles touch imagery at all.
+        mapTypeId:'hybrid', styles:MAP_STYLE,
         // A styled map is a raster map, and raster maps round the zoom down to a
         // whole number — so an overview that really wanted 10.8 was drawn at 10,
         // a good bit wider than the trucks needed. Fractional zoom lets the fit
@@ -1641,33 +1687,38 @@
     // Card for the focused truck. A permanent tooltip so it tracks the pin rather
     // than needing a hover the wall can never give it. Driver and jobs-left only
     // appear when today's truck assignment tells us who is actually in it.
+    // One card per truck for the right-hand rail. Compact on purpose: every truck
+    // is on screen at once now, so each gets a fifth of the height rather than a
+    // popup's worth. Driver leads, because that is who the office asks about.
     function truckCard(t){
       var st = truckState(t), c = TRUCK_C[st];
       var label = st === 'moving' ? 'Moving' : 'Stopped';
       // Against Date.now(), NOT DATA.trucksAt: both of those are stamped at fetch
-      // time, so the age froze and read "just now" for the whole weekend while the
+      // time, so the age froze and read "just now" for a whole weekend while the
       // pins were Saturday's. An "ago" label has to keep counting.
       var age = t.lastUpdate
         ? Math.max(0, Math.round((Date.now() - Date.parse(t.lastUpdate)) / 60000)) : null;
       var driver = driverFor(t);
       var crewId = driver ? crewIdByName(driver) : null;
       var rows = '';
-      if(driver) rows += '<div class="rw"><span>Driver</span><b>'+esc(driver)+'</b></div>';
-      // Jobs only when there is work to measure — a 0-of-0 reads as "finished" when
-      // it means "nothing was assigned", and Darrin's truck never carries bin legs.
+      // The truck's own name only needs a line of its own when the driver is the title.
+      rows += driver
+        ? '<div class="rw"><span>' + esc(t.name) + '</span><b>' + Math.round(t.speed || 0) + ' km/h</b></div>'
+        : '<div class="rw"><span>Speed</span><b>' + Math.round(t.speed || 0) + ' km/h</b></div>';
+      // Jobs only when there is work to measure - a 0 of 0 reads as "finished" when
+      // it means "nothing was assigned", and Darrin's truck carries no bin legs.
       var pr = crewId ? crewProgress(crewId) : null;
       if(pr && pr.total){
-        rows += '<div class="rw"><span>Jobs left</span><b>'+pr.left+'</b></div>'
-             +  '<div class="bar"><i style="width:'+Math.round(100*pr.done/pr.total)
-             +  '%;background:'+c+'"></i></div>'
-             +  '<div class="cap">'+pr.done+' of '+pr.total+' done</div>';
+        rows += '<div class="rw"><span>' + pr.done + ' of ' + pr.total + ' done</span>'
+             +  '<b>' + pr.left + ' left</b></div>';
       }
-      rows += '<div class="rw"><span>Speed</span><b>'+Math.round(t.speed||0)+' km/h</b></div>'
-           +  '<div class="rw"><span>Last ping</span><b>'
-           +  (age === null ? '—' : age === 0 ? 'just now' : age + ' min ago') + '</b></div>';
-      return '<div class="card"><div class="hd" style="background:'+c+'">'
-        + '<span class="nm">'+esc(t.name)+'</span><span class="st">'+label+'</span></div>'
-        + rows + '</div>';
+      rows += '<div class="rw sm"><span>Last ping</span><b>'
+           +  (age === null ? '\u2014' : age === 0 ? 'just now' : age + ' min ago') + '</b></div>';
+      return '<div class="card" data-tid="' + esc(t.id) + '">'
+        + '<div class="hd" style="background:' + c + '">'
+        + '<span class="nm">' + esc(driver || t.name) + '</span>'
+        + '<span class="st">' + label + '</span></div>'
+        + '<div class="bd">' + rows + '</div></div>';
     }
 
     function drawTrucks(){
@@ -1893,6 +1944,14 @@
       if(_card){ _card.setMap(null); _card = null; }
     }
 
+    function highlightRail(id){
+      var rail = el('loRail');
+      if(!rail) return;
+      [].forEach.call(rail.children, function(c){
+        c.classList.toggle('on', !!id && c.getAttribute('data-tid') === id);
+      });
+    }
+
     function focusTruck(i, gen, fromOverview){
       if(gen !== _cycleGen) return;      // a newer cycle has taken over
       var list = tourTrucks();           // parked trucks keep pins but aren't toured
@@ -1913,8 +1972,7 @@
       var town = el('loTown');
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
-      if(_card) _card.setMap(null);
-      _card = htmlMarker(new google.maps.LatLng(t.lat, t.lng), truckCard(t), 'lo-pop', true);
+      highlightRail(t.id);
       // Move at a fixed zoom, never through one. flyTo used to swoop — zoom out on
       // a curve, slide, zoom back in — so every level between here and there was
       // fetched and binned, which is what made the whole map rebuild at each truck.
@@ -1965,7 +2023,7 @@
       }
       _focusId = null;
       el('loTown').classList.remove('on');
-      if(_card){ _card.setMap(null); _card = null; }
+      highlightRail(null);
       frameAll();
       _cycleTimer = setTimeout(function(){ focusTruck(nextI, gen, true); }, OVERVIEW_MS);
     }
@@ -1985,6 +2043,10 @@
       // No clock here — the header already has one. This slot only speaks up when
       // the GPS feed has given us nothing, which the header can't tell you.
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
+
+      // Every truck that is out, as a card on the right.
+      var outNow = list.filter(function(t){ return truckState(t) !== 'yard'; });
+      el('loRail').innerHTML = outNow.map(truckCard).join('');
 
       // Bins-out isn't repeated here — the Operations screen already carries it.
       // These two live nowhere else on the board, so they ride in the head rather
@@ -2045,6 +2107,8 @@
       renderCurrent();
       syncLockup();
       syncFooter();
+      // the trucks screen runs the map full bleed; the other two do not
+      el('board').classList.toggle('map-full', name === 'liveops');
       var panels = document.querySelectorAll('.panel');
       // Conveyor slide: the panel leaving rides out left (.was) while the next
       // slides in from the right. Stale .was stripped first — self-healing if a
@@ -2354,7 +2418,6 @@
       // A boot ping per page-load: its presence with a NEW build id is the only
       // remote proof the wall actually picks up deploys.
       tvLog('boot');
-      el('tvbin').src = 'assets/' + TV_BINS[Math.floor(Math.random()*TV_BINS.length)];   // random bin this load
       fitBoard(); window.addEventListener('resize', fitBoard);
       tickClock(); setInterval(tickClock, 1000);
       // One-shot (2026-07-20): clear today's played-marker so the wall can demo
