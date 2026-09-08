@@ -42,6 +42,8 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
    initialises, which beats inset:0 and collapses the div to no height.
    Size it outright so it fills the screen either way. */
 #map{position:fixed;inset:0;width:100vw;height:100vh;background:#36432f}
+#tint{position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:#1e2a1a;opacity:0;transition:opacity .25s ease}
 @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
   .lo-tk{position:relative; display:flex; flex-direction:column; align-items:center; gap:5px}
   .lo-tk .b{position:relative; display:grid; place-items:center; width:45px; height:45px; border-radius:50%;
@@ -148,6 +150,11 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
 </head>
 <body>
 <div id="map"></div>
+<!-- A wash over the imagery. This one CAN be done, unlike dimming the traffic:
+     it is our own element, not an attempt to separate one of Google's
+     baked-together layers. Moved into the map's own stacking context on init so
+     it lands above the tiles and below the truck markers. -->
+<div id="tint"></div>
 
 <div id="panel">
   <h1>Map tuning</h1>
@@ -159,7 +166,22 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     <button data-v="off">Off</button>
   </div>
 
-  <h2>Ground</h2>
+  <h2>Map type</h2>
+  <div class="row" id="cType">
+    <button data-v="roadmap" class="on">Drawn</button>
+    <button data-v="satellite">Satellite</button>
+    <button data-v="hybrid">Satellite + roads</button>
+  </div>
+
+  <h2>Tint over the imagery</h2>
+  <div class="row" id="cTint">
+    <button data-v="0" class="on">None</button>
+    <button data-v="0.22">Light</button>
+    <button data-v="0.38">Medium</button>
+    <button data-v="0.55">Heavy</button>
+  </div>
+
+  <h2>Ground <span style="color:#6f7d63;font-weight:400">(drawn map only)</span></h2>
   <div class="row" id="cGround"></div>
 
   <h2>Moving-truck pin</h2>
@@ -220,7 +242,7 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     'Magenta':'#e0459b', 'Cyan':'#31c5d6'
   };
 
-  var state = { traffic:true, ground:'Board', pin:'#22c55e', zoom:12 };
+  var state = { traffic:true, ground:'Board', pin:'#22c55e', zoom:12, type:'roadmap', tint:0 };
   var map = null, traffic = null, markers = [];
 
   function styleFor(name){
@@ -285,7 +307,11 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
   }
 
   function apply(){
-    map.setOptions({ styles: styleFor(state.ground) });
+    // Styles only reach the DRAWN map - Google does not let them touch satellite
+    // imagery. On satellite the tint is the only colour control there is.
+    map.setMapTypeId(state.type);
+    map.setOptions({ styles: state.type === 'roadmap' ? styleFor(state.ground) : [] });
+    document.getElementById('tint').style.opacity = state.tint;
     traffic.setMap(state.traffic ? map : null);
     drawPins();
     document.getElementById('dump').value = JSON.stringify(styleFor(state.ground), null, 1);
@@ -317,6 +343,10 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
     traffic = new google.maps.TrafficLayer();
     // handles for poking from the console while tuning
     window.__map = map; window.__styleFor = styleFor; window.__grounds = GROUNDS;
+    // Google's panes live inside .gm-style; dropping the tint in there at z-index 3
+    // puts it over the tiles and under floatPane, where our truck pins are.
+    var gm = map.getDiv().querySelector('.gm-style') || map.getDiv();
+    gm.appendChild(document.getElementById('tint'));
     // the container is sized by CSS, but the map is built before layout settles
     google.maps.event.trigger(map, 'resize');
 
@@ -330,6 +360,17 @@ html,body{margin:0;height:100%;background:#0d140f;font-family:'Hanken Grotesk',s
       [].forEach.call(this.querySelectorAll('button'), function(x){ x.classList.toggle('on', x === b); });
       state.traffic = b.getAttribute('data-v') === 'on';
       traffic.setMap(state.traffic ? map : null);
+    });
+    document.getElementById('cType').addEventListener('click', function(e){
+      var b = e.target.closest('button'); if(!b) return;
+      [].forEach.call(this.querySelectorAll('button'), function(x){ x.classList.toggle('on', x === b); });
+      state.type = b.getAttribute('data-v'); apply();
+    });
+    document.getElementById('cTint').addEventListener('click', function(e){
+      var b = e.target.closest('button'); if(!b) return;
+      [].forEach.call(this.querySelectorAll('button'), function(x){ x.classList.toggle('on', x === b); });
+      state.tint = +b.getAttribute('data-v');
+      document.getElementById('tint').style.opacity = state.tint;
     });
     document.getElementById('cZoom').addEventListener('click', function(e){
       var b = e.target.closest('button'); if(!b) return;
