@@ -267,8 +267,20 @@
   #loRail .card.on{box-shadow:0 0 0 3px var(--gold), 0 12px 30px rgba(0,0,0,.55)}
   /* the town chip would sit under the rail on the right, so it moves left */
   #board.map-full #loTown{right:auto; left:40px; top:206px}
-  /* and the key lifts clear of the floating footer bar */
-  #board.map-full #loLegend{left:40px; bottom:146px}
+  /* The key is static reference, so on this screen it rides ON the footer bar
+     instead of floating over the map, where it was hiding trucks in the
+     bottom-left corner of the fleet overview. No plate of its own - the footer
+     already provides one - and it has to out-rank #botbar's z-index or the bar
+     it sits on covers it. */
+  #board.map-full #loLegend{
+    left:50%; right:auto; bottom:56px; transform:translateX(-50%); z-index:7;
+    background:none; border:0; box-shadow:none; padding:0; gap:28px;
+  }
+  /* set like the footer's own labels so it reads as part of the bar rather than
+     something left sitting on top of it */
+  #board.map-full #loLegend b{
+    font:500 20px/1 Inter; letter-spacing:.16em; text-transform:uppercase; color:#efe6c3;
+  }
 
   #board.map-full #botbar{
     position:absolute; left:40px; right:40px; bottom:34px; z-index:6; margin:0;
@@ -1876,11 +1888,13 @@
         });
       }
       // The map is the whole board now, so most of its edges are behind something:
-      // the truck rail down the right, the header scrim above, the footer bar and
-      // the legend below. The padding has to match what is actually covering the
-      // map or fitBounds will happily frame a truck underneath the rail - which is
-      // exactly what it did when this still described the old boxed-in map.
-      _map.fitBounds(b, { top:206, right:580, bottom:150, left:64 });
+      // the truck rail down the right, the header scrim and town chip above, and
+      // the footer bar below. Measured on the real board: rail x1360-1880, town
+      // chip y206-262, footer from y958. The padding has to clear ALL of them -
+      // an earlier pass cleared only the rail, so trucks still hid behind the
+      // chip top-left and the key bottom-left. The key has since moved onto the
+      // footer, which is why nothing extra is reserved for it down there.
+      _map.fitBounds(b, { top:272, right:580, bottom:150, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
       // point, which would slam the map to rooftop level. THAT is the only case
       // worth clamping. Capping at TOUR_ZOOM was wrong and made this look like a
