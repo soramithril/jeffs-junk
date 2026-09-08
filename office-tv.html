@@ -56,6 +56,17 @@
     --cream:#f5efde; --muted:#d7cfb2; --line:rgba(241,229,186,.16);
     --gold:#e2c364; --gold-rule:#cdb45f; --gold-line:#e0cf91;
     --done-bg:#4e6655; --done-fg:#d8e3d3;
+    /* The struck-through red. Not a Field Map colour - deliberately: it is the one
+       thing on the bins screen allowed to shout, because it is the one thing the
+       office has to read from the far side of the room.
+       Worth knowing it is the SECOND red here. The "Assign!" button is #db5038 ->
+       #c83727, so red already means "this needs a driver, act now" and now also
+       means "finished" - opposite meanings on one colour. They are told apart by
+       form rather than hue (a raised button against a line drawn through a row)
+       and this one is deliberately brighter and cooler than the button's, but if
+       the two ever read as one thing on the wall, this is the note that explains
+       why and this is the value to change. */
+    --struck:#ff2b3d; --struck-glow:rgba(255,43,61,.5);
     --todo-bg:#8a7532; --todo-fg:#f6e2a2;
     --drop-bg:#465d72; --drop-fg:#cde0ef;
     --pick-bg:#75455e; --pick-fg:#f0cbe2;
@@ -333,9 +344,33 @@
      green wash behind the leg; on the dark board the mockup does it with weight
      instead — the whole row steps back and the town is struck through. Same
      "crossed off" read, and the ✓ Done pill still carries the fact. */
-  .bb-row.done{opacity:.56}
-  .bb-row.done .bb-city{text-decoration:line-through; text-decoration-thickness:calc(2px*var(--cs));
-    text-underline-offset:calc(1px*var(--cs))}
+  /* Done work goes dark and takes a neon line straight through it. Three things
+     were wrong with the strikethrough this replaces, and all three are the same
+     mistake - the mark shrank and faded exactly when it mattered most:
+
+       1. It was drawn only through .bb-city, so it struck the town name and left
+          the rest of the row looking live.
+       2. Its thickness was calc(2px * var(--cs)). fitBins() dials --cs down to fit
+          a busy card, so on the fullest day of the week the line thinned to under
+          a pixel - invisible at 4 metres, invisible at 1 metre.
+       3. opacity on the whole row faded the strike along with the text, so the one
+          element that needed to stay bright was dimmed with everything else.
+
+     So: the dimming moves onto the row's CONTENTS and the line is drawn over the
+     top at full strength, full row width, at a FIXED 5px that never scales. It is
+     absolutely positioned, which is what lets it ignore --cs without breaking
+     anything - it contributes no height, so fitBins()'s row measurements are
+     untouched and the scaling contract above still holds.
+
+     Presence, not colour, carries the meaning: a row either has a line through it
+     or it does not, which reads the same to someone who cannot see red at all. */
+  .bb-row.done{position:relative}
+  .bb-row.done > *{opacity:.40}
+  .bb-row.done::after{
+    content:''; position:absolute; left:0; right:0; top:50%; height:5px;
+    transform:translateY(-50%); border-radius:3px; background:var(--struck);
+    box-shadow:0 0 9px var(--struck-glow), 0 0 20px var(--struck-glow);
+  }
   .bb-size{font-weight:900; font-family:Inter; font-size:calc(26px*var(--cs)); line-height:1;
     color:#efd38a; background:rgba(243,233,201,.05); border:2px solid rgba(225,187,78,.75);
     border-radius:13px; padding:calc(8px*var(--cs)) 4px; text-align:center; white-space:nowrap}
