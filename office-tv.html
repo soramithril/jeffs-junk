@@ -1370,8 +1370,16 @@
     // Every lap of the tour opens on the whole crew at once, framed as tight as
     // they fit (frameAll), before stepping through them one by one. Jake
     // (2026-09-05): "the best zoom showing all the vehicles at the same time".
-    var OVERVIEW_MS = 8000;
-    var _trailLine = null, _replayRaf = null, _trailFlow = null, _replayOf = null;
+    // The overview is no longer a still frame - it replays every truck's whole day
+    // at once - so it needs time to run. It is also subtracted from the per-truck
+    // dwell below, which it never used to be: the lap used to come to OVERVIEW_MS
+    // more than the panel it has to fit in, so the last truck of every showing was
+    // cut off partway through its run.
+    var OVERVIEW_MS = 14000;
+    // The replay ends before the overview does, leaving the finished picture - every
+    // truck's day drawn on one map - standing still long enough to actually look at.
+    var OVERVIEW_HOLD_MS = 3000;
+    var _trailLines = [], _replayRaf = null, _trailFlow = null, _replayOf = [];
     // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
     // short deliberately: with a full fleet out, each truck only holds the screen
     // for panelMs/n — 15s at six trucks — so a longer replay would still be
@@ -1951,6 +1959,13 @@
       }
       var b = new google.maps.LatLngBounds();
       out.forEach(function(t){ b.extend(new google.maps.LatLng(t.lat, t.lng)); });
+      // Frame the DAY, not the moment. The overview replays every truck's trail, and
+      // a truck that ran to Midland and came back is parked beside the shop now - so
+      // framing current positions alone would draw half its day off the screen.
+      out.forEach(function(t){
+        var pts = (DATA.trails || {})[t.id];
+        if(pts) pts.forEach(function(pt){ b.extend(new google.maps.LatLng(pt[0], pt[1])); });
+      });
       // Blanked across BOTH moves, not just the first. fitBounds settles a frame
       // or two later, and the clamp below can then change the zoom again — reveal
       // after the first and you would watch it jump a second time.
@@ -2002,10 +2017,134 @@
       if(_swoopRaf){ cancelAnimationFrame(_swoopRaf); _swoopRaf = null; }
       if(_replayRaf){ cancelAnimationFrame(_replayRaf); _replayRaf = null; }
       if(_trailFlow){ clearInterval(_trailFlow); _trailFlow = null; }
-      if(_trailLine){ _trailLine.setMap(null); _trailLine = null; }
+      _trailLines.forEach(function(line){ line.setMap(null); });
+      _trailLines = [];
       // A replay cut short would leave the pin parked partway along the route,
-      // somewhere the truck isn't. Put it back on its real position first.
-      if(_replayOf){ seatTruck(_replayOf); _replayOf = null; }
+      // somewhere the truck isn't. Put every displaced pin back on its real
+      // position - the overview replay displaces the whole fleet, not just one.
+      _replayOf.forEach(function(t){ seatTruck(t); });
+      _replayOf = [];
+    }
+
+    // Google has no dash array on a polyline, so the dashes are repeated symbols
+    // along an invisible line (strokeOpacity 0), and the flow that makes a path read
+    // as a run rather than a drawn line is the animated offset in startTrailFlow.
+    // One truck's replay and the all-trucks overview both draw with this, so they
+    // look the same and tear down the same way.
+    function makeTrailLine(first){
+      var line = new google.maps.Polyline({
+        path:[first], strokeOpacity:0, clickable:false, zIndex:5, map:_map,
+        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:TRAIL_C, strokeOpacity:.9,
+                        strokeWeight:6, scale:3 }, offset:'0', repeat:'17px' }]
+      });
+      _trailLines.push(line);
+      return line;
+    }
+    // ONE interval drives every line on screen. Six trails each with their own timer
+    // would drift apart and the dashes would stop reading as one system.
+    function startTrailFlow(){
+      if(_trailFlow) return;
+      _trailFlow = setInterval(function(){
+        _trailLines.forEach(function(line){
+          var ic = line.get('icons');
+          ic[0].offset = (((parseFloat(ic[0].offset) || 0) + 1.5) % 100) + '%';
+          line.set('icons', ic);
+        });
+      }, 60);
+    }
+
+    // Cumulative distance along a path. A replay advances by DISTANCE, not by
+    // position in the array: pings are unevenly spaced - a truck at 100 km/h leaves
+    // a gap many times the one it leaves crawling through town - so stepping an
+    // index at a steady rate lurches. Null means the truck never actually moved.
+    function trailWalk(path){
+      var seg = [0];
+      for(var i = 1; i < path.length; i++){
+        seg[i] = seg[i - 1] + kmBetween(path[i - 1].lat, path[i - 1].lng,
+                                        path[i].lat, path[i].lng);
+      }
+      var total = seg[seg.length - 1];
+      return total ? { path:path, seg:seg, total:total, idx:0 } : null;
+    }
+    // Advance one walk to a fraction of its route: grow its line to every ping it has
+    // passed, and return the interpolated point BETWEEN the two bracketing pings, so
+    // the pin has a real position on every frame rather than only on the third of
+    // frames that happen to land on a ping. The line only ever grows, so push what is
+    // new instead of rebuilding the whole path every frame.
+    function trailStep(w, line, e){
+      var want = e * w.total;
+      while(w.idx < w.path.length - 1 && w.seg[w.idx + 1] <= want){
+        w.idx++;
+        line.push(new google.maps.LatLng(w.path[w.idx].lat, w.path[w.idx].lng));
+      }
+      var j = Math.min(w.idx + 1, w.path.length - 1);
+      var span = w.seg[j] - w.seg[w.idx];
+      var f = span > 0 ? Math.min(1, (want - w.seg[w.idx]) / span) : 0;
+      return { lat: w.path[w.idx].lat + (w.path[j].lat - w.path[w.idx].lat) * f,
+               lng: w.path[w.idx].lng + (w.path[j].lng - w.path[w.idx].lng) * f };
+    }
+    // Smoothstep, eased at both ends. The quadratic ease this replaced peaked at
+    // twice the average speed halfway through, so the middle of the run was the part
+    // that looked rushed; this tops out at one and a half times, which is a truck
+    // driving rather than a truck being flung across the county.
+    function trailEase(p){ return p * p * (3 - 2 * p); }
+
+    // The path a truck actually drove today, or null if it has not moved.
+    function trailPath(t){
+      var pts = (DATA.trails || {})[t.id];
+      if(!pts || pts.length < 2) return null;
+      return pts.map(function(p){ return { lat:p[0], lng:p[1] }; });
+    }
+
+    // Every touring truck's day, drawn at once on the wide frame, before the tour
+    // dives in on them one at a time. They all run start-to-now over the same window,
+    // so a truck with a longer day simply moves faster - what you read is the shape
+    // of the whole crew's day, which is the thing no single-truck view can show.
+    function replayAllTrails(gen, ms){
+      stopReplay();
+      if(!_map) return;
+      var runs = tourTrucks().map(function(t){
+        var path = trailPath(t);
+        if(!path) return null;
+        var w = trailWalk(path);
+        return w ? { t:t, w:w } : null;
+      }).filter(Boolean);
+      if(!runs.length) return;
+      runs.forEach(function(r){
+        var first = r.w.path[0];
+        r.line = makeTrailLine(new google.maps.LatLng(first.lat, first.lng)).getPath();
+      });
+      startTrailFlow();
+      // Hidden tab: rAF is throttled to a crawl or stops outright, which would strand
+      // every line part-drawn. Nobody is watching, so just draw the finished picture.
+      if(document.hidden){
+        runs.forEach(function(r){ trailStep(r.w, r.line, 1); });
+        return;
+      }
+      runs.forEach(function(r){
+        _replayOf.push(r.t);
+        seatTruck(r.t, r.w.path[0].lat, r.w.path[0].lng);
+      });
+      var start = null;
+      function frame(ts){
+        if(gen !== _cycleGen){ _replayRaf = null; return; }
+        if(start === null) start = ts;
+        var p = Math.min(1, (ts - start) / ms);
+        var e = trailEase(p);
+        runs.forEach(function(r){
+          var at = trailStep(r.w, r.line, e);
+          seatTruck(r.t, at.lat, at.lng);
+        });
+        if(p < 1) _replayRaf = requestAnimationFrame(frame);
+        else {
+          _replayRaf = null;
+          // The lines stay up - the finished picture IS the point of the overview -
+          // but the pins go back to where the trucks really are.
+          _replayOf.forEach(function(x){ seatTruck(x); });
+          _replayOf = [];
+        }
+      }
+      _replayRaf = requestAnimationFrame(frame);
     }
 
     // Draw the focused truck's recent path, growing it from oldest to newest so
@@ -2013,75 +2152,32 @@
     // a frame that lands after the cycle moved on can't draw onto the next truck.
     function replayTrail(t, gen, ms){
       stopReplay();
-      var pts = (DATA.trails || {})[t.id];
-      if(!pts || pts.length < 2 || !_map) return;
-      var path = pts.map(function(p){ return { lat:p[0], lng:p[1] }; });
-      // Google has no dash array on a polyline, so the dashes are repeated symbols
-      // along an invisible line (strokeOpacity 0), and the flow that made the path
-      // read as a run rather than a drawn line is an animated offset below.
-      _trailLine = new google.maps.Polyline({
-        path:[path[0]], strokeOpacity:0, clickable:false, zIndex:5, map:_map,
-        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:TRAIL_C, strokeOpacity:.9,
-                        strokeWeight:6, scale:3 }, offset:'0', repeat:'17px' }]
-      });
-      _trailFlow = setInterval(function(){
-        if(!_trailLine) return;
-        var ic = _trailLine.get('icons');
-        ic[0].offset = (((parseFloat(ic[0].offset) || 0) + 1.5) % 100) + '%';
-        _trailLine.set('icons', ic);
-      }, 60);
+      var path = trailPath(t);
+      if(!path || !_map) return;
+      var line = makeTrailLine(new google.maps.LatLng(path[0].lat, path[0].lng)).getPath();
+      startTrailFlow();
+      var w = trailWalk(path);
+      // A truck whose pings are all the same point has no route to run.
+      if(!w){ line.push(new google.maps.LatLng(path[0].lat, path[0].lng)); return; }
       // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
       // the tab is hidden, which would strand the line part-drawn — the same reason
       // countUp() bails when hidden. Nobody is watching then, so just draw the whole
       // path and skip the animation.
-      if(document.hidden){ _trailLine.setPath(path); return; }
+      if(document.hidden){ trailStep(w, line, 1); return; }
       // The pin runs the route with the line rather than waiting at the end of it,
       // so the last 90 minutes replay as a journey. _replayOf marks it as displaced
       // — everything that ends a replay puts it back on its real position.
-      _replayOf = t;
+      _replayOf.push(t);
       seatTruck(t, path[0].lat, path[0].lng);
-
-      // Distance along the route, not position in the array. Two reasons the pin
-      // used to judder: the pings are unevenly spaced - a truck at 100 km/h leaves
-      // a gap many times the one it leaves crawling through town - so advancing an
-      // index at a steady rate made it lurch; and a 20s run at 60fps is 1200 frames
-      // for ~360 points, so it only actually moved on a third of them. Walking a
-      // distance and interpolating BETWEEN the two bracketing pings gives the pin a
-      // real position on every frame, at a steady speed.
-      var seg = [0];
-      for(var si = 1; si < path.length; si++){
-        seg[si] = seg[si - 1] + kmBetween(path[si - 1].lat, path[si - 1].lng,
-                                          path[si].lat, path[si].lng);
-      }
-      var total = seg[seg.length - 1];
-      if(!total){ _trailLine.setPath(path); _replayOf = null; seatTruck(t); return; }
-
-      var idx = 0, line = _trailLine.getPath();
       var start = null;
       function frame(ts){
         if(gen !== _cycleGen){ _replayRaf = null; return; }
         if(start === null) start = ts;
         var p = Math.min(1, (ts - start) / (ms || REPLAY_MS));
-        // Smoothstep, eased at both ends. The quadratic ease this replaced peaked
-        // at twice the average speed halfway through, so the middle of the run was
-        // the part that looked rushed; this tops out at one and a half times, which
-        // is a truck driving rather than a truck being flung across the county.
-        var e = p * p * (3 - 2 * p);
-        var want = e * total;
-        // The line only ever grows, so push the pings we have passed rather than
-        // rebuilding the whole path every frame - that was ~360 points copied 60
-        // times a second, which is what the wall's player was choking on.
-        while(idx < path.length - 1 && seg[idx + 1] <= want){
-          idx++;
-          line.push(new google.maps.LatLng(path[idx].lat, path[idx].lng));
-        }
-        var j = Math.min(idx + 1, path.length - 1);
-        var span = seg[j] - seg[idx];
-        var f = span > 0 ? Math.min(1, (want - seg[idx]) / span) : 0;
-        seatTruck(t, path[idx].lat + (path[j].lat - path[idx].lat) * f,
-                     path[idx].lng + (path[j].lng - path[idx].lng) * f);
+        var at = trailStep(w, line, trailEase(p));
+        seatTruck(t, at.lat, at.lng);
         if(p < 1) _replayRaf = requestAnimationFrame(frame);
-        else { _replayRaf = null; _replayOf = null; seatTruck(t); }
+        else { _replayRaf = null; _replayOf = []; seatTruck(t); }
       }
       _replayRaf = requestAnimationFrame(frame);
     }
@@ -2176,7 +2272,11 @@
       // replay does not begin until the camera lands — a trail drawing under a
       // moving camera is a mess. At the 9s floor that still leaves 4.9s of replay
       // ending 2.5s before the truck changes.
-      var hold = Math.max(9000, Math.floor(panelMs('liveops') / list.length));
+      // OVERVIEW_MS comes off the top. The overview opens every lap, so dividing the
+      // WHOLE panel between the trucks made the lap come to more than the panel, and
+      // the last truck of every showing was cut off partway through its run.
+      var hold = Math.max(9000,
+                          Math.floor((panelMs('liveops') - OVERVIEW_MS) / list.length));
       var replayMs = Math.min(REPLAY_MS, hold - 2500 - SWOOP_MS);
       var to = new google.maps.LatLng(t.lat, t.lng);
       // Truck to truck the camera swoops (swoopTo): pull back a FIXED SWOOP_DROP,
@@ -2230,6 +2330,10 @@
       el('loTown').classList.remove('on');
       highlightRail(null);
       frameAll();
+      // The whole crew's day, drawn at once on the wide frame. It finishes early on
+      // purpose, so the completed picture stands still for OVERVIEW_HOLD_MS before
+      // the tour dives in on the first truck.
+      replayAllTrails(gen, OVERVIEW_MS - OVERVIEW_HOLD_MS);
       _cycleTimer = setTimeout(function(){ focusTruck(nextI, gen, true); }, OVERVIEW_MS);
     }
 
