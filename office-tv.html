@@ -769,7 +769,7 @@
     // The map screen earns extra time — it cycles through the trucks, and each one
     // only gets panelMs/n. At 90s a normal day (4–5 out) holds each truck ~20s,
     // long enough to read its card. Everything else stays at ROTATE_MS.
-    var PANEL_MS   = { liveops: 90000 };
+    var PANEL_MS   = { liveops: 110000 };
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     // The weekly crew schedule came off the wall on 2026-09-06 (Jake: "we don't
@@ -1379,7 +1379,7 @@
     // Slower than it was (5.5s): the old run charged across the county too fast
     // to follow on a wall. Clamped against the per-truck hold below so a big
     // fleet cannot leave it cut off half-drawn.
-    var REPLAY_MS = 14000;
+    var REPLAY_MS = 20000;
     // The camera move between trucks: pull back, travel, drop in. 1.6s is long
     // enough to read as a move and short enough to leave the trail replay its room
     // — focusTruck takes it off the replay's clamp, because the replay does not
@@ -2019,18 +2019,46 @@
       // — everything that ends a replay puts it back on its real position.
       _replayOf = t;
       seatTruck(t, path[0].lat, path[0].lng);
+
+      // Distance along the route, not position in the array. Two reasons the pin
+      // used to judder: the pings are unevenly spaced - a truck at 100 km/h leaves
+      // a gap many times the one it leaves crawling through town - so advancing an
+      // index at a steady rate made it lurch; and a 20s run at 60fps is 1200 frames
+      // for ~360 points, so it only actually moved on a third of them. Walking a
+      // distance and interpolating BETWEEN the two bracketing pings gives the pin a
+      // real position on every frame, at a steady speed.
+      var seg = [0];
+      for(var si = 1; si < path.length; si++){
+        seg[si] = seg[si - 1] + kmBetween(path[si - 1].lat, path[si - 1].lng,
+                                          path[si].lat, path[si].lng);
+      }
+      var total = seg[seg.length - 1];
+      if(!total){ _trailLine.setPath(path); _replayOf = null; seatTruck(t); return; }
+
+      var idx = 0, line = _trailLine.getPath();
       var start = null;
       function frame(ts){
-        if(gen !== _cycleGen){ return; }
+        if(gen !== _cycleGen){ _replayRaf = null; return; }
         if(start === null) start = ts;
         var p = Math.min(1, (ts - start) / (ms || REPLAY_MS));
-        // Eased at BOTH ends now. The old ease-out started at full tilt, which is
-        // what made a short replay read as a lurch; easing in as well lets the
-        // truck pull away and arrive rather than snapping into motion.
-        var e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-        var drawn = path.slice(0, Math.max(2, Math.round(e * path.length)));
-        _trailLine.setPath(drawn);
-        seatTruck(t, drawn[drawn.length - 1].lat, drawn[drawn.length - 1].lng);
+        // Smoothstep, eased at both ends. The quadratic ease this replaced peaked
+        // at twice the average speed halfway through, so the middle of the run was
+        // the part that looked rushed; this tops out at one and a half times, which
+        // is a truck driving rather than a truck being flung across the county.
+        var e = p * p * (3 - 2 * p);
+        var want = e * total;
+        // The line only ever grows, so push the pings we have passed rather than
+        // rebuilding the whole path every frame - that was ~360 points copied 60
+        // times a second, which is what the wall's player was choking on.
+        while(idx < path.length - 1 && seg[idx + 1] <= want){
+          idx++;
+          line.push(new google.maps.LatLng(path[idx].lat, path[idx].lng));
+        }
+        var j = Math.min(idx + 1, path.length - 1);
+        var span = seg[j] - seg[idx];
+        var f = span > 0 ? Math.min(1, (want - seg[idx]) / span) : 0;
+        seatTruck(t, path[idx].lat + (path[j].lat - path[idx].lat) * f,
+                     path[idx].lng + (path[j].lng - path[idx].lng) * f);
         if(p < 1) _replayRaf = requestAnimationFrame(frame);
         else { _replayRaf = null; _replayOf = null; seatTruck(t); }
       }
