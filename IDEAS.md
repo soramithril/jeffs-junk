@@ -44,8 +44,8 @@ Small and well defined. Most of these finish something that is already half buil
   <sub>from driver-telemetry-data-traps.md</sub>
 - **Changes to a job's email address never show up in the job's history** — When someone edits the email address on a booking, that edit is invisible in the job's change history, so a wrongly-sent confirmation can't be traced back to who changed what.  
   <sub>from email-wrong-recipient-guard.md</sub>
-- **An old, unused AI helper is still sitting there waiting on the word to delete it** — A retired AI helper from March is still switched on and reachable by anyone on the internet with no sign-in, even though nothing in the app uses it any more.  
-  <sub>from gemini-ai-integration.md</sub>
+- **Delete the retired AI helper and kill the Google key inside it** — The old helper has been stripped of its key and now refuses everyone, but the function itself still needs deleting in the Supabase dashboard, and the Google key it carried needs switching off in the Google console because it was callable by anyone from March to 8 September.  
+  <sub>from security-review-aug2026.md</sub>
 - **Rename the job form's Cancel button so it stops looking like it cancels the job** — The button that just closes the booking form still says Cancel, which reads like it cancels the customer's job.  
   <sub>from invisible-dateless-jobs.md</sub>
 - **The phone number painted on the login screen bin was never checked against anything real** — The phone number printed across the bottom of the sign-in screen came from an AI answer and nobody has confirmed it's actually the business's number.  
@@ -58,11 +58,7 @@ Small and well defined. Most of these finish something that is already half buil
   <sub>from dispatch-overhaul-v595.md</sub>
 - **Delete the temporary truck-trip lookup that was left switched off** — A one-off truck-trip lookup built for the August time review is still deployed on the database, switched off but never removed.  
   <sub>from jordan-time-review-aug2026.md</sub>
-- **An outsider could mark bins as dropped by guessing job numbers** — Someone outside the company could still flip bins to "dropped" by guessing job numbers, and the app doesn't even use that function any more.  
-  <sub>from security-review-aug2026.md</sub>
 - **Turn on the stolen-password check for staff sign-ins** — The check that stops staff choosing a password already known to be stolen is still switched off, and it's a one-click toggle.  
-  <sub>from security-review-aug2026.md</sub>
-- **One database view runs with full privileges and shouldn't** — One saved database view still runs with owner-level access instead of the viewer's, which the security checker rates as an error.  
   <sub>from security-review-aug2026.md</sub>
 - **Check the leaked Google address key was actually deleted** — The address-lookup key that got published in the code needs to be switched off in Google's console so nobody can spend money on our account.  
   <sub>from address-autocomplete-google-swap.md</sub>
@@ -94,8 +90,6 @@ Small and well defined. Most of these finish something that is already half buil
   <sub>from BUG_AUDIT_DATABASE.md</sub>
 - **Three live behind-the-scenes services have no copy kept anywhere** — Several small background services are running live with no saved copy of how they were built, so they cannot be rebuilt if lost.  
   <sub>from BUG_AUDIT_FINAL_REPORT.md</sub>
-- **People who are not signed in can still run the app's database commands** — Someone who is not signed in can still trigger a database command that changes job records.  
-  <sub>from BUG_AUDIT_FINDINGS.md</sub>
 - **A standing check that every job still points to a real customer** — Nothing regularly checks that every job is still attached to a real customer, so an orphaning slip would go unnoticed.  
   <sub>from BUG_AUDIT_TESTS.md</sub>
 - **The bin rename check wrongly warns that a number is taken** — When you rename a bin, the safety check can wrongly say the new number is already in use because it counts the bin you are renaming.  
