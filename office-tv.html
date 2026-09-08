@@ -246,7 +246,13 @@
      the map. The tour still walks truck to truck - it now lights the matching
      card rather than opening a popup over the pin. */
   #loRail{position:absolute; right:40px; top:206px; bottom:146px; width:320px; z-index:5;
-    display:grid; gap:10px; grid-auto-rows:minmax(0,1fr)}
+    display:grid; gap:10px; align-content:start;
+    /* A card is one sixth of the rail: the height six of them plus their five gaps
+       would take. Six is RAIL_MAX, so a full rail fills the column exactly, and a
+       two-truck day leaves the cards their proper size at the top with clear space
+       below instead of stretching each one to half the screen. Written as a sum
+       rather than a magic 113px so it follows the rail if the rail ever moves. */
+    grid-auto-rows:minmax(0, calc((100% - 50px) / 6))}
   #loRail .card{min-height:0; overflow:hidden; border-radius:16px; display:flex; flex-direction:column;
     border:1px solid var(--card-line); background:rgba(15,22,16,.86);
     box-shadow:0 10px 26px rgba(0,0,0,.45); transition:box-shadow .3s ease}
