@@ -25,8 +25,6 @@ Keep it to ideas. No keys, customer names or payroll detail — this repo is pub
   <sub>Jake, 2026-09-08</sub>
 - **Make Jeff's app fully work and put today's quotes front and centre** — Today's quotes should be the main thing on his screen, not buried. Plus notifications built for him - oil change due, yellow sticker, that kind of thing. And a pass over the whole page to make sure it all works and reads clearly.  
   <sub>Jake, 2026-09-08</sub>
-- **Trucks set their own In Shop / Good To Go status** — If a truck hasn't moved for a while and it isn't at our shop, it's away being fixed - mark it In Shop by itself. When it starts doing jobs again, put it back to Good To Go, so nothing depends on someone remembering.  
-  <sub>Jake, 2026-09-08</sub>
 
 ## Later
 
@@ -40,3 +38,5 @@ Keep it to ideas. No keys, customer names or payroll detail — this repo is pub
 
 <sub>Maintenance and bug findings do NOT belong here — they go in a dated health-check
 snapshot under `audit/`. The most recent is `audit/HEALTH-CHECK-2026-09-08.md`.</sub>
+- **Trucks setting their own In Shop / Good To Go status** — Jake, 2026-09-08: *"ill do 7 manually."* He keeps the truck status by hand rather than have the GPS set it. Don't re-propose automating it.  
+  <sub>Jake, 2026-09-08</sub>
