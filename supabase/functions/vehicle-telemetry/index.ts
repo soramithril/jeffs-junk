@@ -41,6 +41,30 @@ function matchVehicle(geotabName: string, vehicles: { vid: string; name: string 
   return bestMatch;
 }
 
+// Geotab serialises every TimeSpan as a STRING in .NET form - "hh:mm:ss", with an
+// optional "d." day part and optional fractional seconds - never as a number.
+//
+// The code this replaces read those fields behind `typeof x === 'number' ? x : 0`,
+// so the test never once matched and a zero was booked every single time. That is
+// why driver_scores.stop_minutes and idle_minutes are 0 in every row written since
+// this function shipped, while distance_km (a real JSON number) came through fine.
+// The old line also guessed the unit afterwards - `x > 1000 ? x/60000 : x/60` -
+// which would have been a coin flip even if the field had ever been a number.
+//
+// Throws rather than returning 0 on anything unexpected. A zero here is
+// indistinguishable from "this truck never stopped", and that silence is exactly
+// what hid the bug for six months. The caller catches per-truck, so a surprise
+// costs one truck's row for one day and says so in the log.
+function durationMinutes(value: unknown, field: string): number {
+  if (typeof value !== "string") {
+    throw new Error(`Geotab ${field}: expected a duration string, got ${typeof value} (${JSON.stringify(value)})`);
+  }
+  const m = /^(-)?(?:(\d+)\.)?(\d+):([0-5]\d):([0-5]\d(?:\.\d+)?)$/.exec(value.trim());
+  if (!m) throw new Error(`Geotab ${field}: not [d.]hh:mm:ss - "${value}"`);
+  const minutes = Number(m[2] || 0) * 1440 + Number(m[3]) * 60 + Number(m[4]) + Number(m[5]) / 60;
+  return m[1] ? -minutes : minutes;
+}
+
 // Categorize a Geotab exception event by rule ID
 function categorizeException(ruleId: string): string | null {
   const r = ruleId.toLowerCase();
@@ -178,10 +202,8 @@ async function pollDriverScores(): Promise<void> {
           const start = new Date(trip.start).getTime();
           const stop = new Date(trip.stop).getTime();
           totalDriveMinutes += Math.max(0, (stop - start) / 60000);
-          const stopDur = typeof trip.stopDuration === 'number' ? trip.stopDuration : 0;
-          const idleDur = typeof trip.idlingDuration === 'number' ? trip.idlingDuration : 0;
-          totalStopMinutes += stopDur > 1000 ? stopDur / 60000 : stopDur / 60;
-          totalIdleMinutes += idleDur > 1000 ? idleDur / 60000 : idleDur / 60;
+          totalStopMinutes += durationMinutes(trip.stopDuration, "stopDuration");
+          totalIdleMinutes += durationMinutes(trip.idlingDuration, "idlingDuration");
         }
       }
 
