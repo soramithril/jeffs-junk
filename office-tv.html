@@ -622,7 +622,9 @@
   .lo-tk{position:relative; display:flex; flex-direction:column; align-items:center; gap:5px}
   .lo-tk .b{position:relative; display:grid; place-items:center; width:45px; height:45px; border-radius:50%;
     box-shadow:0 9px 24px rgba(0,0,0,.35), 0 0 0 5px var(--plate), 0 0 0 9px rgba(26,36,21,.14)}
-  .lo-tk .b svg{width:24px; height:24px; stroke:#fff; fill:none; stroke-width:2;
+  /* --glyph comes from TRUCK_GLYPH, set inline beside the disc colour, so the two
+     are always picked together. A light disc needs a dark truck. */
+  .lo-tk .b svg{width:24px; height:24px; stroke:var(--glyph); fill:none; stroke-width:2;
     stroke-linecap:round; stroke-linejoin:round}
   .lo-tk .ping{position:absolute; inset:-8px; border-radius:50%; border:3px solid currentColor;
     animation:tkping 1.7s ease-out infinite; pointer-events:none}
@@ -1401,7 +1403,16 @@
     // (#2f8a4e / #c9861c) still belongs everywhere else on the board; it is only
     // the pins that need to shout. Stopped is orange rather than a brighter amber
     // so it cannot be mistaken for the gold yard dot.
-    var TRUCK_C = { moving:'#22c55e', stopped:'#f97316' };
+    // Neither of the colours these replace could survive the map they sit on:
+    // Google's traffic layer draws roads in green, amber and red, so a green moving
+    // truck and an orange stopped one were the same two colours as the traffic
+    // underneath them. White and violet are in none of it.
+    var TRUCK_C = { moving:'#f2ece0', stopped:'#b98cff' };
+    // The glyph inside the disc, chosen WITH the disc rather than fixed in the
+    // stylesheet. The old green and orange were dark enough to carry a white truck;
+    // these are not, and a white truck on a white disc is an empty circle - which is
+    // exactly what the first render of this change produced.
+    var TRUCK_GLYPH = { moving:'#1a2415', stopped:'#2a1b3d' };
     var _map = null, _markers = {}, _jobMarkers = {};
     // Nothing may uncover the map before Google's first 'idle' — see ensureTruckMap.
     var _mapReady = false;
@@ -1431,7 +1442,7 @@
     // traffic layer draws the roads in, so the route vanished into the traffic.
     // Violet is in none of traffic's three colours, none of the terrain, and not
     // the water either, so the run reads as ours at a glance.
-    var TRAIL_C = '#b98cff';
+    var TRAIL_C = '#22e4ff';
     // Slower than it was (5.5s): the old run charged across the county too fast
     // to follow on a wall. Clamped against the per-truck hold below so a big
     // fleet cannot leave it cut off half-drawn.
@@ -1745,7 +1756,8 @@
       // The disc sizes itself off .lo-tk / .lo-tk.sel in CSS, so there is no pixel
       // size to declare here the way a Leaflet icon needed one.
       return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'
-           + '<span class="b" style="background:'+gloss+'">'+TRUCK_SVG+ping+'</span>'
+           + '<span class="b" style="background:'+gloss+'; --glyph:'+TRUCK_GLYPH[st]+'">'
+           +   TRUCK_SVG+ping+'</span>'
            + '<span class="n">'+esc(t.name)+(driverFor(t) ? ' &middot; '+esc(driverFor(t)) : '')+'</span></div>';
     }
 
@@ -2076,8 +2088,13 @@
     function makeTrailLine(first){
       var line = new google.maps.Polyline({
         path:[first], strokeOpacity:0, clickable:false, zIndex:5, map:_map,
-        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:TRAIL_C, strokeOpacity:.9,
-                        strokeWeight:6, scale:3 }, offset:'0', repeat:'17px' }]
+        // Thicker marks with smaller gaps between them. The colour was never the
+        // whole problem: at 6px every 17px the trail was a 6px mark and an 11px gap,
+        // so two thirds of it was empty air and it lost to Google's fat solid traffic
+        // lines whatever colour it was. 9px marks (scale 4.5 over a 2-unit path) every
+        // 16px leaves a 7px gap, so it reads as a line rather than a dotted hint.
+        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:TRAIL_C, strokeOpacity:.95,
+                        strokeWeight:9, scale:4.5 }, offset:'0', repeat:'16px' }]
       });
       _trailLines.push(line);
       return line;
