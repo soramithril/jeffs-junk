@@ -287,7 +287,12 @@ a:hover{color:#15803d}
       if(j.bin_pickup===D){ stops.push(mkStop(j,'Pick','#be185d',j.bin_pickup_time)); m=true; }
       if(j.junk_date===D){ stops.push(mkStop(j,j.service||'Junk',svcColor(j.service),j.junk_time)); m=true; }
       if(j.fb_date===D){ stops.push(mkStop(j,j.service||'Furniture','#8b5cf6',j.fb_time)); m=true; }
-      if(!m && j.date===D){ stops.push(mkStop(j,j.service||'Job',svcColor(j.service),j.time)); }
+      // `date` is the day the job was BOOKED; junk_date / fb_date / bin_* are the days
+      // it actually happens. So this fallback is only for jobs that never got a real
+      // day of their own - otherwise a job booked Monday for Thursday showed up as a
+      // stop on Monday too. That hit 175 jobs: 124 junk removals, 47 quotes, 4 extras.
+      var hasOwnDay = j.junk_date || j.fb_date || j.bin_dropoff || j.bin_pickup;
+      if(!m && !hasOwnDay && j.date===D){ stops.push(mkStop(j,j.service||'Job',svcColor(j.service),j.time)); }
     });
     stops.sort(function(a,b){ return a.tk-b.tk; });
     return stops;
