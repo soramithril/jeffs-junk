@@ -31,7 +31,7 @@ and trim it down to what is left.
 - **Notifications aimed at one person, on a schedule** - Barbara gets a reminder on her phone to do the JWG schedule, on the same day and time each week. Same idea for anyone else with a recurring job.
   <sub>Jake, 2026-09-08</sub>
 - **Make Jeff's app fully work and put today's quotes front and centre** - Today's quotes should be the main thing on his screen, not buried. Plus notifications built for him - oil change due, yellow sticker, that kind of thing. And a pass over the whole page to make sure it all works and reads clearly.
-  <sub>Jake, 2026-09-08 - today's quotes landed in v676. Still owed: notifications that actually reach his phone, and the read-through. Note a finished fix for his stop list is sitting unmerged on branch `kelly-jeff-truckstatus` (commit 0d0f308).</sub>
+  <sub>Jake, 2026-09-08 - quotes now lead the screen and the wrong-day jobs are fixed, both in v677 (see Done). Still owed: notifications that actually reach his phone (needs a manifest and a service worker on his page - iOS will not deliver web push without them), and the read-through of The Day, Photos and Trucks.</sub>
 
 ## Later
 
@@ -44,6 +44,10 @@ and trim it down to what is left.
 
 *Built and live. Newest first.*
 
+- ~~**Jeff's login fits his phone**~~ - **v677, 2026-09-09.** The sign-in box used to be pushed down by a fixed 43% of the screen height, measured against the taller screen iOS reports rather than the one Safari actually shows - so the password field and the SIGN IN button fell past the bottom and Jeff had to scroll to sign in. The card now sits at the bottom of the real screen with the poster above it, so it fits on any phone. The nine posters are untouched.
+  <sub>Jake, 2026-09-09</sub>
+- ~~**Today's quotes lead Jeff's screen, and his day shows the right jobs**~~ - **v677, 2026-09-09.** Quotes were capped at two small rows under a big green panel, so the jobs count caught the eye instead. They now get a card of their own listing every quote for the day, and Stops / Drops / Picks share one strip - seven blocks down to four, with the truck alert and Trucks row back above the fold. Also fixed: 175 jobs (124 junk removals, 47 quotes, 4 extras) were showing on the day they were booked rather than the day they happen.
+  <sub>Jake, 2026-09-09 - part of the bigger "make Jeff's app fully work" idea, which stays on Now</sub>
 - ~~**Track the landscaping trailers for their yellow stickers**~~ - **v677, 2026-09-09.** A trailer now carries its plate and its yellow sticker and nothing else: no oil dial, no odometer, no oil service box, no driver line, no "mark oil serviced" button, and the oil fields disappear from the form when you pick Trailer. The wide tile that shows a truck's odometer shows the trailer's plate instead. Still to do by hand: actually add the trailers on the Vehicles page - there are none in there yet.
   <sub>Jake, 2026-09-09</sub>
 - ~~**Bin assigning is too small on Kelly's 32-inch monitor**~~ - **v676, 2026-09-09.** The assign-bins popup now follows the window: unchanged at 600px on a laptop, stretching to 1200px on her monitor, so a 14-yard job's 46 bins fit without scrolling. The wider sweep of her other screens was NOT done and is back on the Now list above.
