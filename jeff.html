@@ -39,6 +39,21 @@ a:hover{color:#15803d}
 .jscroll{scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior:contain}
 .pa{transition:transform .12s ease;-webkit-tap-highlight-color:transparent}
 .pa:active{transform:scale(.96)}
+/* Home screen: today's quotes are the reason Jeff opens this app, so they get a card
+   of their own and the three job numbers share one strip underneath. */
+.qhero{background:#fff;border:1px solid #e7eae8;border-radius:24px;box-shadow:0 10px 26px rgba(20,40,25,.07);overflow:hidden}
+.qhead{display:flex;align-items:baseline;justify-content:space-between;padding:15px 18px 10px;cursor:pointer}
+.qtitle{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;letter-spacing:.4px;color:#17223a}
+.qcount{font-size:12px;font-weight:800;color:#0d6efd}
+.qrow{display:flex;align-items:center;gap:13px;padding:12px 18px;border-top:1px solid #f0f2f0;cursor:pointer}
+.qtm{min-width:56px;font-family:'Bebas Neue',sans-serif;font-size:25px;line-height:1;color:#0d6efd;white-space:nowrap}
+.qwho{font-weight:800;font-size:15px;color:#17223a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qaddr{font-size:12px;color:#98a0aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jstrip{display:flex;background:#fff;border:1px solid #e7eae8;border-radius:20px;box-shadow:0 6px 16px rgba(20,40,25,.05);overflow:hidden;cursor:pointer}
+.jstrip>div{flex:1;padding:12px 8px;text-align:center}
+.jstrip>div+div{border-left:1px solid #f0f2f0}
+.jn{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:.9}
+.jk{font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#98a0aa;margin-top:3px}
 .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px}
 .phone{position:relative;width:426px;height:898px;border-radius:56px;background:linear-gradient(150deg,#15171b,#000);padding:12px;box-shadow:0 50px 100px rgba(0,0,0,.32),0 6px 20px rgba(0,0,0,.2)}
 .glass{position:relative;width:100%;height:100%;border-radius:46px;overflow:hidden;background:#eef1ee}
@@ -287,7 +302,12 @@ a:hover{color:#15803d}
       if(j.bin_pickup===D){ stops.push(mkStop(j,'Pick','#be185d',j.bin_pickup_time)); m=true; }
       if(j.junk_date===D){ stops.push(mkStop(j,j.service||'Junk',svcColor(j.service),j.junk_time)); m=true; }
       if(j.fb_date===D){ stops.push(mkStop(j,j.service||'Furniture','#8b5cf6',j.fb_time)); m=true; }
-      if(!m && j.date===D){ stops.push(mkStop(j,j.service||'Job',svcColor(j.service),j.time)); }
+      // `date` is the day the job was BOOKED; junk_date / fb_date / bin_* are the days
+      // it actually happens. So this fallback is only for jobs that never got a real
+      // day of their own - otherwise a job booked Monday for Thursday showed up as a
+      // stop on Monday too. That hit 175 jobs: 124 junk removals, 47 quotes, 4 extras.
+      var hasOwnDay = j.junk_date || j.fb_date || j.bin_dropoff || j.bin_pickup;
+      if(!m && !hasOwnDay && j.date===D){ stops.push(mkStop(j,j.service||'Job',svcColor(j.service),j.time)); }
     });
     stops.sort(function(a,b){ return a.tk-b.tk; });
     return stops;
@@ -461,63 +481,56 @@ a:hover{color:#15803d}
     var showDash = isJake || (state.me && state.me.name==='Jake');
     var dashPill = showDash ? ('<div class="pa" data-act="goDash" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#eef2ff;border:1px solid #d9e0f7;border-radius:14px;padding:11px;font-size:13px;font-weight:800;color:#4152b3;cursor:pointer">⇄ Switch to full dashboard</div>') : '';
 
-    // Today's quotes — time + location; tapping opens the Quotes & Photos page (no
-    // photos shown here). Capped so Home stays a fixed, non-scrolling screen.
+    // Today's quotes lead the screen: the whole card is theirs and every quote is
+    // listed, because hiding the third one behind a '+2 more' is what buried them.
     var quotes = loaded ? todaysQuotes() : [];
-    var qLabel = '<div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#aab1b9;text-transform:uppercase;padding-left:4px">Today\'s Quotes</div>';
-    var qBody;
-    if(quotes.length){
-      qBody = quotes.slice(0,2).map(function(q){
-        return '<div class="pa" data-act="goQuotes" style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e7eae8;border-radius:16px;padding:11px 14px;box-shadow:0 4px 12px rgba(20,40,25,.04);cursor:pointer">'+
-            '<div style="min-width:48px;text-align:center"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:#0d6efd;line-height:1;white-space:nowrap">'+esc(q.time||'—')+'</div></div>'+
-            '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px;color:#17223a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(q.who||'Quote')+'</div>'+(q.addr?'<div style="font-size:12px;color:#98a0aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(q.addr)+'</div>':'')+'</div>'+
-            '<div style="font-size:18px">📷</div>'+
+    var qRows;
+    if(!loaded){
+      qRows = '<div class="qrow"><div style="flex:1;font-size:14px;color:#98a0aa">Loading…</div></div>';
+    } else if(quotes.length){
+      qRows = quotes.map(function(q){
+        return '<div class="pa qrow" data-act="goQuotes">'+
+            '<div class="qtm">'+esc(q.time||'—')+'</div>'+
+            '<div style="flex:1;min-width:0"><div class="qwho">'+esc(q.who||'Quote')+'</div>'+(q.addr?'<div class="qaddr">'+esc(q.addr)+'</div>':'')+'</div>'+
+            '<div style="font-size:17px">📷</div>'+
           '</div>';
       }).join('');
-      if(quotes.length>2){ qBody += '<div class="pa" data-act="goQuotes" style="text-align:center;font-size:13px;font-weight:800;color:#0d6efd;padding:2px;cursor:pointer">+'+(quotes.length-2)+' more ›</div>'; }
     } else {
-      qBody = '<div class="pa" data-act="goQuotes" style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e7eae8;border-radius:16px;padding:12px 14px;box-shadow:0 4px 12px rgba(20,40,25,.04);cursor:pointer">'+
-          '<div style="width:40px;height:40px;border-radius:12px;background:#ecfdf3;display:flex;align-items:center;justify-content:center;font-size:20px">📷</div>'+
-          '<div style="flex:1"><div style="font-weight:800;font-size:15px;color:#17223a">Quotes &amp; Photos</div><div style="font-size:12px;color:#98a0aa">'+(loaded?'No quotes today · tap to add photos':'Loading…')+'</div></div>'+
+      qRows = '<div class="pa qrow" data-act="goQuotes">'+
+          '<div style="flex:1;font-size:14px;color:#98a0aa">No quotes today — tap to add photos</div>'+
           '<div style="color:#c2cbd2;font-size:20px">›</div>'+
         '</div>';
     }
-    var quotesSection = '<div style="display:flex;flex-direction:column;gap:8px">'+qLabel+qBody+'</div>';
+    var quotesCard =
+      '<div class="qhero">'+
+        '<div class="pa qhead" data-act="goQuotes">'+
+          '<div class="qtitle">Today&rsquo;s Quotes</div>'+
+          (quotes.length?'<div class="qcount">'+quotes.length+'</div>':'')+
+        '</div>'+
+        qRows+
+      '</div>';
+    // One strip instead of a giant green panel plus two tiles: the same three numbers,
+    // the same tap through to the day's list, a quarter of the height.
+    var jobsStrip =
+      '<div class="pa jstrip" data-act="goJobs">'+
+        '<div><div class="jn" style="color:#16a34a">'+jVal+'</div><div class="jk">Stops</div></div>'+
+        '<div><div class="jn" style="color:#0e7490">'+dVal+'</div><div class="jk">Drops</div></div>'+
+        '<div><div class="jn" style="color:#be185d">'+pVal+'</div><div class="jk">Picks</div></div>'+
+      '</div>';
 
     return '<div class="screenpad" style="flex:1 0 auto;background:linear-gradient(180deg,#f7f9f7,#edf1ee);padding:calc(env(safe-area-inset-top, 0px) + 22px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);display:flex;flex-direction:column;gap:12px">'+
       dashPill+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">'+
         '<div>'+
           '<div style="font-size:11px;font-weight:800;letter-spacing:1.6px;color:#16a34a;text-transform:uppercase">'+esc(eyebrow)+'</div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;line-height:.9;color:#17223a;letter-spacing:.5px;margin-top:3px">Hey '+esc(who)+' 👋</div>'+
+          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:27px;line-height:.95;color:#17223a;letter-spacing:.5px;margin-top:2px">Hey '+esc(who)+' 👋</div>'+
         '</div>'+
-        '<div style="width:50px;height:50px;border-radius:16px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 8px 18px rgba(22,163,74,.38)">🚛</div>'+
+        '<div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(160deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 6px 14px rgba(22,163,74,.34)">🚛</div>'+
       '</div>'+
 
-      quotesSection+
+      quotesCard+
 
-      '<div class="pa" data-act="goJobs" style="background:linear-gradient(150deg,#16a34a,#12813b);border-radius:26px;padding:16px 22px;color:#fff;box-shadow:0 18px 34px rgba(22,163,74,.34);position:relative;overflow:hidden;cursor:pointer">'+
-        '<div style="position:absolute;right:-16px;top:-26px;font-size:150px;opacity:.10;line-height:1">🧾</div>'+
-        '<div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;opacity:.85">Jobs today</div>'+
-        '<div style="display:flex;align-items:flex-end;gap:12px;margin-top:2px">'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:84px;line-height:.78;letter-spacing:1px">'+jVal+'</div>'+
-          '<div style="padding-bottom:12px;font-size:15px;font-weight:600;opacity:.95;line-height:1.2">stops to<br>knock out</div>'+
-        '</div>'+
-        '<div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700">See today\'s list ›</div>'+
-      '</div>'+
-
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
-        '<div class="pa" data-act="goJobs" style="background:#fff;border:1px solid #e7eae8;border-radius:20px;padding:14px 15px;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
-          '<div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">🗑️</span><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#0891b2;text-transform:uppercase">Drops</span></div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:48px;line-height:.85;color:#0e7490;margin-top:8px">'+dVal+'</div>'+
-          '<div style="font-size:12px;color:#98a0aa;margin-top:2px">bins going out</div>'+
-        '</div>'+
-        '<div class="pa" data-act="goJobs" style="background:#fff;border:1px solid #e7eae8;border-radius:20px;padding:14px 15px;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
-          '<div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">🔁</span><span style="font-size:12px;font-weight:800;letter-spacing:.6px;color:#be185d;text-transform:uppercase">Picks</span></div>'+
-          '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:48px;line-height:.85;color:#be185d;margin-top:8px">'+pVal+'</div>'+
-          '<div style="font-size:12px;color:#98a0aa;margin-top:2px">bins coming back</div>'+
-        '</div>'+
-      '</div>'+
+      jobsStrip+
 
       alert+
 
