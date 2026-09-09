@@ -615,13 +615,16 @@
   .lo-mk-job{z-index:2}
   .lo-mk-truck{z-index:3}
   .lo-pop{z-index:4}
-  /* Truck pin — a glossed disc, a pale ring, a name chip, and a ping ring while
-     it's moving. The ring stays PALE, not dark: it is what separates the disc
-     from the map underneath, and the map is pale. */
+  /* Truck pin — a glossed disc, a ring PAIR, a name chip, and a ping ring while
+     it's moving. Two rings, not one: cream first, because that is what lifts the
+     disc off a pale map, then a near-solid dark one outside it, because the discs
+     are green, amber and red and so are Google's traffic lines directly under
+     them. A road is a flat stroke; a ringed 45px disc is not, and that difference
+     is what the eye picks out at wall distance, not the hue. */
   @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
   .lo-tk{position:relative; display:flex; flex-direction:column; align-items:center; gap:5px}
   .lo-tk .b{position:relative; display:grid; place-items:center; width:45px; height:45px; border-radius:50%;
-    box-shadow:0 9px 24px rgba(0,0,0,.35), 0 0 0 5px var(--plate), 0 0 0 9px rgba(26,36,21,.14)}
+    box-shadow:0 9px 24px rgba(0,0,0,.38), 0 0 0 6px var(--plate), 0 0 0 10px rgba(20,29,17,.82)}
   /* --glyph comes from TRUCK_GLYPH, set inline beside the disc colour, so the two
      are always picked together. A light disc needs a dark truck. */
   .lo-tk .b svg{width:24px; height:24px; stroke:var(--glyph); fill:none; stroke-width:2;
@@ -656,9 +659,9 @@
     background:linear-gradient(180deg, rgba(25,33,25,.95), rgba(17,24,18,.97));
     border:1px solid var(--card-line); box-shadow:0 16px 38px rgba(0,0,0,.42)}
   /* The header's background is the truck's live status colour, written inline
-     (bright green / orange). White type on either of those is about 2.3:1 — it
-     failed on the old board too. Dark ink clears 7:1 on both, and is the only
-     half of the pair this sheet can still choose. */
+     (green / amber / red). White type on those is 2.3 / 2.1 / 3.4:1 — it
+     failed on the old board too. Dark ink reads 7.1 / 7.5 / 4.8:1, and is the
+     only half of the pair this sheet can still choose. */
   .lo-pop .hd{display:flex; align-items:center; gap:10px; padding:10px 15px}
   .lo-pop .hd .nm{font:900 23px/1 Inter; letter-spacing:-.02em; color:var(--ink)}
   .lo-pop .hd .st{margin-left:auto; font:900 12px/1 Inter; letter-spacing:.09em;
@@ -1398,21 +1401,35 @@
     // TV never writes to jobs or to MyGeotab.
     var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
     // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
+    // Traffic-light, because that is already how the office says it out loud:
+    // green is going, amber is sitting with the engine running, red has stopped.
     // Brighter than the board's other greens and ambers on purpose — these are
     // read from across the room, on a pale map, at 45px across. The muted pair
     // (#2f8a4e / #c9861c) still belongs everywhere else on the board; it is only
-    // the pins that need to shout. Stopped is orange rather than a brighter amber
-    // so it cannot be mistaken for the gold yard dot.
-    // Neither of the colours these replace could survive the map they sit on:
-    // Google's traffic layer draws roads in green, amber and red, so a green moving
-    // truck and an orange stopped one were the same two colours as the traffic
-    // underneath them. White and violet are in none of it.
-    var TRUCK_C = { moving:'#f2ece0', stopped:'#b98cff' };
+    // the pins that need to shout.
+    // These ARE Google's three traffic colours, and that clash is exactly what
+    // sent them white and violet earlier the same day: the roads underneath are
+    // painted from the same three. Jake took the traffic-light set back on
+    // 2026-09-09 with the traffic layer staying on, so the pin has to out-shout
+    // the road rather than dodge it — see the ring pair on .lo-tk .b, which is
+    // a shape traffic never draws.
+    // Idle amber and the yard dot's gold (#e2c364) are the same LIGHTNESS —
+    // 1.25:1, so nothing is gained by chasing luminance between them. What
+    // separates them is saturation (.96 against .56) and furniture: the yard is
+    // a bare 22px disc, an idling truck is 45px, glossed, double-ringed, with a
+    // truck in it and its name underneath. Different objects, not one hue twice.
+    // Red is #f5544a rather than a deeper one so the dark glyph inside it still
+    // clears 4.96:1; below about this lightness the truck starts to disappear
+    // into its own disc at wall distance.
+    var TRUCK_C = { moving:'#22c55e', idling:'#f59e0b', stopped:'#f5544a' };
     // The glyph inside the disc, chosen WITH the disc rather than fixed in the
-    // stylesheet. The old green and orange were dark enough to carry a white truck;
-    // these are not, and a white truck on a white disc is an empty circle - which is
-    // exactly what the first render of this change produced.
-    var TRUCK_GLYPH = { moving:'#1a2415', stopped:'#2a1b3d' };
+    // stylesheet — a white truck on a white disc is an empty circle, which is
+    // what the first render of the white-pin change produced. All three of these
+    // carry a dark truck, each tinted to its own hue.
+    var TRUCK_GLYPH = { moving:'#0d2a16', idling:'#3a2503', stopped:'#3d0d0a' };
+    // Colour and name come from one place, so a state can never be painted here
+    // and named differently on the card or in the legend.
+    var TRUCK_LABEL = { moving:'Moving', idling:'Idling', stopped:'Stopped' };
     var _map = null, _markers = {}, _jobMarkers = {};
     // Nothing may uncover the map before Google's first 'idle' — see ensureTruckMap.
     var _mapReady = false;
@@ -1503,12 +1520,19 @@
       }
       return best;
     }
-    // Three states we can actually derive from a position: parked at the yard,
-    // moving, or stopped out in the field. (No "on site" here — that needs the
-    // bin zones, which live on the dashboard's map, not the wall.)
+    // Four states we can actually derive from the feed: parked at the yard,
+    // moving, idling, or stopped out in the field. (No "on site" here — that
+    // needs the bin zones, which live on the dashboard's map, not the wall.)
+    //
+    // Idling is isDriving with the wheels not turning — Geotab holds isDriving
+    // from ignition-on to ignition-off, so a truck sitting with the engine
+    // running is still 'driving' at 0 km/h. It is a real state, not a rounding
+    // artefact: on 2026-09-08 the L7 logged 93 idle minutes, the 2016 81 and
+    // the 2019 52, against their drive time.
     function truckState(t){
       if(kmFromYard(t.lat, t.lng) <= YARD_KM) return 'yard';
-      return t.isDriving ? 'moving' : 'stopped';
+      if(!t.isDriving) return 'stopped';
+      return (t.speed || 0) > 0 ? 'moving' : 'idling';
     }
 
     async function loadTrucks(){
@@ -1855,7 +1879,7 @@
     // popup's worth. Driver leads, because that is who the office asks about.
     function truckCard(t){
       var st = truckState(t), c = TRUCK_C[st];
-      var label = st === 'moving' ? 'Moving' : 'Stopped';
+      var label = TRUCK_LABEL[st];
       // Against Date.now(), NOT DATA.trucksAt: both of those are stamped at fetch
       // time, so the age froze and read "just now" for a whole weekend while the
       // pins were Saturday's. An "ago" label has to keep counting.
@@ -2404,8 +2428,11 @@
       tag.textContent = list.length ? out + ' of ' + list.length + ' out' : '';
       tag.style.display = list.length ? '' : 'none';
 
-      el('loLegend').innerHTML = '<b><i style="background:'+TRUCK_C.moving+'"></i>Moving</b>'
-        + '<b><i style="background:'+TRUCK_C.stopped+'"></i>Stopped</b>'
+      // Built from TRUCK_C/TRUCK_LABEL rather than spelled out, so a state added
+      // to the pins can never go missing from the key underneath them.
+      el('loLegend').innerHTML = ['moving','idling','stopped'].map(function(s){
+        return '<b><i style="background:'+TRUCK_C[s]+'"></i>'+TRUCK_LABEL[s]+'</b>';
+      }).join('')
         + '<b><i style="background:var(--gold)"></i>Yard</b>'
         + '<b><i style="background:var(--spruce)"></i>Jobs left</b>';
       // No clock here — the header already has one. This slot only speaks up when
