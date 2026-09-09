@@ -13,6 +13,8 @@ Keep it to ideas. No keys, customer names or payroll detail — this repo is pub
 
 *Things you want next.*
 
+- **Track the landscaping trailers for their yellow stickers** — The trailers tow behind Darrin's truck but are their own thing, and they need a yellow sticker like the trucks do. They have no odometer, no oil change, no GPS and no driver, so they should sit on the Vehicles page for the sticker only, without pretending to be a truck.  
+  <sub>Jake, 2026-09-09</sub>
 - **Refresh the help and tutorial for everything that's changed** — The walkthrough is out of date - the Live Jobs help already describes a screen that doesn't exist. Go through every page and bring the help in line with what is actually there now.  
   <sub>Jake, 2026-09-08</sub>
 - **Bin assigning is too small on Kelly's 32-inch monitor** — The card popup for assigning bins is tiny on her big screen. Needs to scale up on large monitors without going huge on smaller ones - and check what else on her screens is too small while we're in there.  
