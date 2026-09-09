@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '675';
+var APP_VERSION = '676';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -16307,10 +16307,15 @@ function _fillDrdModal(drd){
 // separately via DRD_ORDER below — never re-sort this array in place.
 // hidden:true items were retired in the Redwood 2026 alignment (2026-07-09) but
 // keep their original fee/val so totals on old saved jobs stay correct.
+// The Furniture Bank "Product Pricing & Tax Receipt Value" sheet (scanned
+// 2026-08-07) brought six of those back — Bed Frame Double/Twin, Bed Frame Queen,
+// Television - Tube, Trunk, Wall Unit, Wardrobe — at the fee/val they already had.
+// That sheet carries no cubic feet, so those six sit at vol:0 and the truck-fill
+// visual does not count them until someone measures one.
 var DRD_ITEMS = [
   {name:'Air Conditioner',fee:10,val:100,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Armchair',fee:60,val:100,vol:26,grp:'Living Room',sub:'Armchairs'},{name:'Armoire',fee:90,val:200,vol:28,grp:'Bedroom',sub:'Armoires & Wardrobes'},
-  {name:'Artificial Plant / Christmas Tree',fee:15,val:25,vol:19,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Linens (per bag)',fee:15,val:25,vol:10,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Bar Fridge',fee:30,val:100,vol:6,grp:'Electronics',sub:'Electronics & Appliances'},
-  {name:'Bed Frame - Double/Twin',fee:30,val:75,hidden:true},{name:'Bed Frame - Queen',fee:30,val:100,hidden:true},{name:'Bench',fee:30,val:50,vol:16,grp:'Living Room',sub:'Benches'},
+  {name:'Artificial Plant / Christmas Tree',fee:15,val:50,vol:19,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Linens (per bag)',fee:15,val:25,vol:10,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Bar Fridge',fee:30,val:100,vol:6,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Bed Frame - Double/Twin',fee:30,val:75,vol:0,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Bed Frame - Queen',fee:30,val:100,vol:0,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Bench',fee:30,val:50,vol:16,grp:'Living Room',sub:'Benches'},
   {name:'Box - Assorted Home Goods',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Box - Cookware',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Box - Dishware',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},
   {name:'Boxspring - Double',fee:60,val:150,vol:22,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Boxspring - Queen',fee:60,val:150,vol:34,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Boxspring - Twin',fee:60,val:100,vol:21,grp:'Bedroom',sub:'Mattresses & Bed Frames'},
   {name:'Buffet and Hutch',fee:90,val:150,vol:51,grp:'Kitchen/Dining',sub:'Buffets & Hutches'},{name:'Large Cabinet',fee:60,val:150,vol:23,grp:'Living Room',sub:'Cabinets & Storage'},{name:'CD Stand',fee:15,val:25,vol:9,grp:'Living Room',sub:'TV Stands & Entertainment'},
@@ -16328,13 +16333,13 @@ var DRD_ITEMS = [
   {name:'Room Divider',fee:15,val:25,vol:4,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Rug',fee:30,val:75,vol:14,grp:'Accents',sub:'Area Rugs'},{name:'Sofa - Sectional',fee:150,val:350,vol:121,grp:'Living Room',sub:'Sofas'},
   {name:'Shelf - Large',fee:60,val:100,vol:15,grp:'Living Room',sub:'Shelves'},{name:'Shelf - Small',fee:30,val:75,vol:9,grp:'Living Room',sub:'Shelves'},{name:'Shoe Rack',fee:15,val:25,vol:3,grp:'Accents',sub:'Housewares & Home Decor'},
   {name:'Sideboard',fee:90,val:150,vol:21,grp:'Kitchen/Dining',sub:'Sideboards & Credenzas'},{name:'Small Appliance (per box)',fee:15,val:25,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Sofa',fee:100,val:250,vol:51,grp:'Living Room',sub:'Sofas'},
-  {name:'Sofa - Luxury',fee:100,val:500,hidden:true},{name:'Sofabed',fee:150,val:200,vol:51,grp:'Living Room',sub:'Sofas'},{name:'Space Heater',fee:15,val:25,vol:2,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Sofa - Luxury',fee:100,val:500,hidden:true},{name:'Sofabed',fee:150,val:300,vol:51,grp:'Living Room',sub:'Sofas'},{name:'Space Heater',fee:15,val:25,vol:2,grp:'Electronics',sub:'Electronics & Appliances'},
   {name:'Stereo',fee:15,val:25,vol:1,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Stool - Dining / Kitchen',fee:15,val:25,vol:4,grp:'Kitchen/Dining',sub:'Chairs & Stools'},{name:'Suitcase',fee:15,val:25,hidden:true},
   {name:'Table - Coffee',fee:30,val:100,vol:10,grp:'Living Room',sub:'Tables'},{name:'Table - Dining / Kitchen',fee:60,val:150,vol:45,grp:'Kitchen/Dining',sub:'Dining Tables'},{name:'Table - Night',fee:15,val:50,vol:6,grp:'Bedroom',sub:'Nightstands'},
-  {name:'Table - Side',fee:15,val:50,vol:6,grp:'Living Room',sub:'Tables'},{name:'Television - Tube',fee:30,val:50,hidden:true},{name:'Television Stand - Small',fee:30,val:75,vol:10,grp:'Living Room',sub:'TV Stands & Entertainment'},
-  {name:'Throw Rug',fee:15,val:25,vol:2,grp:'Accents',sub:'Area Rugs'},{name:'Trunk',fee:30,val:75,hidden:true},{name:'Television - Large Flat Screen',fee:30,val:150,vol:3,grp:'Electronics',sub:'Electronics & Appliances'},
+  {name:'Table - Side',fee:15,val:50,vol:6,grp:'Living Room',sub:'Tables'},{name:'Television - Tube',fee:30,val:50,vol:0,grp:'Electronics',sub:'Electronics & Appliances'},{name:'Television Stand - Small',fee:30,val:75,vol:10,grp:'Living Room',sub:'TV Stands & Entertainment'},
+  {name:'Throw Rug',fee:15,val:25,vol:2,grp:'Accents',sub:'Area Rugs'},{name:'Trunk',fee:30,val:75,vol:0,grp:'Living Room',sub:'Cabinets & Storage'},{name:'Television - Large Flat Screen',fee:30,val:150,vol:3,grp:'Electronics',sub:'Electronics & Appliances'},
   {name:'Television - Small Flat Screen',fee:15,val:100,vol:2,grp:'Electronics',sub:'Electronics & Appliances'},{name:'TV Tray',fee:15,val:25,vol:4,grp:'Accents',sub:'Housewares & Home Decor'},{name:'Vacuum Cleaner',fee:15,val:75,vol:5,grp:'Electronics',sub:'Electronics & Appliances'},
-  {name:'Vanity',fee:60,val:150,vol:16,grp:'Bedroom',sub:'Dressers & Vanities'},{name:'Wall Unit',fee:90,val:100,hidden:true},{name:'Wardrobe',fee:90,val:200,hidden:true},
+  {name:'Vanity',fee:60,val:150,vol:16,grp:'Bedroom',sub:'Dressers & Vanities'},{name:'Wall Unit',fee:90,val:100,vol:0,grp:'Living Room',sub:'TV Stands & Entertainment'},{name:'Wardrobe',fee:90,val:200,vol:0,grp:'Bedroom',sub:'Armoires & Wardrobes'},
   {name:'Waste Basket',fee:15,val:25,vol:5,grp:'Accents',sub:'Housewares & Home Decor'},
   // ── Appended 2026-07-09 (Redwood 2026 alignment — keep at end to preserve indices) ──
   {name:'Metal Bed Frame - Twin',fee:30,val:75,vol:5,grp:'Bedroom',sub:'Mattresses & Bed Frames'},{name:'Metal Bed Frame - Double',fee:30,val:75,vol:8,grp:'Bedroom',sub:'Mattresses & Bed Frames'},
@@ -18598,13 +18603,14 @@ async function printFbPickup(jobId) {
     // Toronto with the goods. Its own sheet, so nothing overlaps the template.
     if (j.notes) _addNotesPage(pdfDoc, font, fontBold, j, j.notes, 'JOB NOTES');
 
-    // Four labeled copies — Office / Driver / Storage Unit / FB Toronto (Kelly,
-    // 2026-08-14). All four are inside this one file: set the printer to 1 copy.
-    await _addOfficeDriverCopies(pdfDoc, font, { x: 394, y: 164, label: 'Copy:', labelX: 358 }, ['Office', 'Driver', 'Storage Unit', 'FB Toronto'], fontBold);
+    // Three labeled copies — Office / Driver / Storage Unit. FB Toronto dropped
+    // 2026-09-09 (Jake); the other three stay as Kelly set them 2026-08-14.
+    // All three are inside this one file: set the printer to 1 copy.
+    await _addOfficeDriverCopies(pdfDoc, font, { x: 394, y: 164, label: 'Copy:', labelX: 358 }, ['Office', 'Driver', 'Storage Unit'], fontBold);
     var filledBytes = await pdfDoc.save();
     var blob = new Blob([filledBytes], { type: 'application/pdf' });
     w.location = URL.createObjectURL(blob);
-    toast('All 4 copies are in this one file (Office / Driver / Storage / FB Toronto) - set your printer to 1 copy.');
+    toast('All 3 copies are in this one file (Office / Driver / Storage) - set your printer to 1 copy.');
   } catch (err) {
     console.error('PDF generation error:', err);
     w.close();
