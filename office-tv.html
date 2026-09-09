@@ -83,11 +83,11 @@
     --plate:#f5f0e4;
     /* dark ink, for type that sits ON gold or on a pale plate */
     --ink:#1a2415;
-    /* --spruce and --gold are the only two custom properties the PAGE SCRIPT
-       writes into markup (renderLiveOps builds the map legend swatches with
-       `background:var(--spruce)` and `background:var(--gold)`). --spruce must
-       therefore stay defined AND stay identical to .lo-job's fill, or the
-       "Jobs left" key stops matching the pins it explains. */
+    /* --spruce, --gold, --drop-bg and --pick-bg are the only custom properties the
+       PAGE SCRIPT writes into markup (renderLiveOps builds the map legend swatches
+       from all four). Each must therefore stay defined AND stay identical to the
+       fill of the pin it explains — --spruce to .lo-job, --drop-bg to .lo-bin.drop,
+       --pick-bg to .lo-bin.pick — or the key stops matching the pins it explains. */
     --spruce:#1e2c20;
   }
   *{box-sizing:border-box}
@@ -612,7 +612,11 @@
      covers what; these say it outright instead. A truck always beats a job pin. */
   #tvmap .lo-mk-yard, #tvmap .lo-mk-job, #tvmap .lo-mk-truck, #tvmap .lo-pop{pointer-events:none}
   .lo-mk-yard{z-index:1}
-  .lo-mk-job{z-index:2}
+  /* A town can carry work, bins going out and bins coming back, so this marker is a
+     ROW of chips rather than a single one. htmlMarker centres the div on the town,
+     and a flex row measures its own width, so the group stays centred whether the
+     town has one chip or three. */
+  .lo-mk-job{z-index:2; display:flex; align-items:center; gap:6px}
   .lo-mk-truck{z-index:3}
   .lo-pop{z-index:4}
   /* Truck pin — a glossed disc, a ring PAIR, a name chip, and a ping ring while
@@ -644,11 +648,21 @@
      "there is work here" as "a truck is here". The number is what is LEFT to do
      in that town. Its fill is var(--spruce) because the legend swatch the script
      builds uses that same property; the two must not drift apart. */
-  .lo-job{display:flex; align-items:center; justify-content:center; min-width:36px; height:36px;
-    padding:0 11px; border-radius:13px; background:var(--spruce); color:var(--cream);
+  .lo-job, .lo-bin{display:flex; align-items:center; justify-content:center; min-width:36px; height:36px;
+    padding:0 11px; border-radius:13px; color:var(--cream);
     font:900 20px/1 Inter; border:3px solid var(--plate);
     box-shadow:0 5px 14px rgba(0,0,0,.32)}
+  .lo-job{background:var(--spruce)}
   .lo-job.done{background:rgba(30,44,32,.55)}
+  /* Today's bin legs, in the same chip as the work pin so a town reads as one
+     group. Blue is a drop-off, pink is a pick-up (Jake, 2026-09-09) — deliberately
+     the SAME two colours the bins screen already puts on its Drop/Pick chips
+     (.bb-kind.k-drop / .k-pick), so the two screens on this wall speak one
+     language. Done fades rather than swapping fill: a second fill for each would
+     put four colours on one pin to say something the tick already says. */
+  .lo-bin.drop{background:var(--drop-bg)}
+  .lo-bin.pick{background:var(--pick-bg)}
+  .lo-bin.done{opacity:.5}
   /* Focused-truck card. An HTML overlay pinned above the truck, so it rides with
      the pin — there's no cursor on a wall, so nothing could ever hover it.
      It sits on the PALE map, so the card fill is pushed near-opaque: the board's
@@ -816,9 +830,12 @@
     var SUPABASE_KEY = 'sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk';
     var DISPLAY_EMAIL = 'officetv@jeffsjunk.ca';   // ONLY this account may view the board
     var ROTATE_MS  = 20000;   // default time each panel is shown
-    // The map screen earns extra time — it cycles through the trucks, and each one
-    // only gets panelMs/n. At 90s a normal day (4–5 out) holds each truck ~20s,
-    // long enough to read its card. Everything else stays at ROTATE_MS.
+    // The map screen earns extra time. It is the one people walk up to and stand in
+    // front of — "where is everyone" is the question the board gets asked — and the
+    // highlight walks the whole crew at HIGHLIGHT_MS each, so it wants room for a
+    // few laps. This is no longer divided between the trucks: the camera does not
+    // move, so nothing has to be fitted inside the showing. Everything else stays
+    // at ROTATE_MS.
     var PANEL_MS   = { liveops: 110000 };
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
@@ -973,22 +990,37 @@
       return j.date;
     }
     // today's board entries — bins split into their drop-off / pick-up legs on the LEG day
-    function buildTodayEntries(rows, today){
-      var out=[];
+    // `kind` is 'drop', 'pick' or null (everything that is not a bin leg). The map
+    // pins read it to colour a bin blue or pink; nothing else looks at it.
+    //
+    // A bin leg's done/not-done comes from the GEOFENCE, exactly as the bin board's
+    // does (Jake 2026-07-07) - a leg crosses off from truck-GPS zone visits only,
+    // never the job's own flag. It has to be the same rule: the bins screen and the
+    // map hang on the same wall, and two different answers for the same bin is worse
+    // than either. The job's `completed` covers the WHOLE rental anyway, so a bin
+    // dropped this morning would have read "still to do" until it was collected days
+    // later. Everything that is not a bin leg still counts as left until the job
+    // itself is marked completed.
+    function buildTodayEntries(rows, today, notifRows){
+      var out=[], geo={dropped:{}, pickedup:{}};
+      (notifRows||[]).forEach(function(n){ if(geo[n.status]) geo[n.status][n.job_id]=1; });
       rows.forEach(function(j){
         if(j.status==='Cancelled') return;
         // Not real Jeff's Junk jobs: quotes aren't jobs, landscaping is the JWG side.
         if(j.service==='Junk Quote' || j.service==='Extra Jobs') return;
-        function mk(label, time, crewIds){
+        function mk(label, time, crewIds, kind, done){
           out.push({ service:label, time:time||'', name:j.name, business_name:j.business_name,
                      address:j.address, city:j.city, crewIds:(crewIds||[]).filter(Boolean),
-                     completed: !!j.completed });
+                     kind:kind||null, completed: !!done });
         }
         if(j.service==='Bin Rental'){
-          if(j.bin_dropoff===today) mk('Bin Drop-off', j.bin_dropoff_time, [j.dropoff_crew_id]);
-          if(j.bin_pickup===today)  mk('Bin Pick-up',  j.bin_pickup_time,  [j.pickup_crew_id]);
+          var picked = !!geo.pickedup[j.job_id];
+          if(j.bin_dropoff===today) mk('Bin Drop-off', j.bin_dropoff_time, [j.dropoff_crew_id],
+                                       'drop', picked || geo.dropped[j.job_id]);
+          if(j.bin_pickup===today)  mk('Bin Pick-up',  j.bin_pickup_time,  [j.pickup_crew_id],
+                                       'pick', picked);
         } else if(effDay(j)===today){
-          mk(j.service, jobTime(j), [].concat(j.assigned_crew_ids||[]));
+          mk(j.service, jobTime(j), [].concat(j.assigned_crew_ids||[]), null, j.completed);
         }
       });
       return out.sort(function(a,b){ return timeMins(a.time)-timeMins(b.time); });
@@ -1159,7 +1191,7 @@
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error(res[i].error.message); }
 
       // jobs today — bins appear on their drop-off/pick-up day, junk on its real (junk_date) day
-      DATA.jobs = buildTodayEntries(res[0].data||[], today);
+      DATA.jobs = buildTodayEntries(res[0].data||[], today, res[11].data||[]);
 
       // crew id -> name, plus master-colour maps (by crew id AND by jwg_id) so
       // both boards can tint each person with their app-wide colour.
@@ -1561,7 +1593,9 @@
     // must never take the board down: keep the last-good pins on the wall (the
     // timestamp in the panel head shows how stale they are) and try again next
     // time the screen rotates in.
-    // Last 30 min of breadcrumbs per truck, replayed when the map focuses one.
+    // The last 90 minutes of breadcrumbs per truck (TRAIL_WINDOW_MIN in geotab-proxy).
+    // Nothing draws these any more — see isParked, which is the only thing left that
+    // reads them, and the note beside HIGHLIGHT_MS for why the paths came off the wall.
     // Same read-only proxy, separate action.
     async function loadTrails(){
       var r = await fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
@@ -1594,8 +1628,10 @@
     async function refreshTrucks(){
       try{
         await loadTrucks();
-        // Trails are a second Geotab read and only decoration — if they fail, the
-        // pins must still go up, so this is caught on its own.
+        // Trails are a second Geotab read — if they fail, the pins must still go up,
+        // so this is caught on its own. They are no longer decoration: isParked reads
+        // them to tell a working truck from one sitting at the shop, and losing them
+        // only costs the walk that distinction (it then highlights everyone out).
         //
         // Cached for TRAILS_MAX_AGE_MS rather than refetched every lap: the trail
         // is a 90-MINUTE history, so two fetches 105s apart are ~98% the same
@@ -1961,15 +1997,26 @@
       return TOWN_LL[String(city).toLowerCase().replace(/,.*$/, '').trim()] || null;
     }
 
+    // A town's chip for one kind of stop: how many are LEFT, or a tick once they
+    // are all done. Nothing is drawn for a kind the town has none of, so a town
+    // with only bins shows only bins.
+    function stopChip(cls, c){
+      if(!c.total) return '';
+      var left = c.total - c.done;
+      return '<div class="'+cls+(left ? '' : ' done')+'">'+(left || '✓')+'</div>';
+    }
+
     function drawJobPins(){
       if(!_map) return;
       var by = {}, missed = {};
       (DATA.jobs || []).forEach(function(j){
         var t = townOf(j.city);
         if(!t){ if(j.city) missed[j.city] = 1; return; }
-        var g = by[t[0]] || (by[t[0]] = { town:t, total:0, done:0 });
-        g.total++;
-        if(j.completed) g.done++;
+        var g = by[t[0]] || (by[t[0]] = { town:t, job:{total:0,done:0},
+                                          drop:{total:0,done:0}, pick:{total:0,done:0} });
+        var c = g[j.kind || 'job'];
+        c.total++;
+        if(j.completed) c.done++;
       });
       // A town we cannot place is silently missing from the wall, which looks like a
       // quiet day rather than a gap. Name them once so the list can be extended.
@@ -1977,8 +2024,14 @@
       if(miss.length) console.warn('job pins: no town match for', miss.join(', '));
 
       Object.keys(by).forEach(function(name){
-        var g = by[name], left = g.total - g.done;
-        var html = '<div class="lo-job'+(left ? '' : ' done')+'">'+(left || '✓')+'</div>';
+        var g = by[name];
+        // One marker per town carrying up to three chips side by side — work, bins
+        // going out, bins coming back. One marker rather than three because they all
+        // sit on the same town coordinate: three separate markers would land on the
+        // same pixel and cover each other.
+        var html = stopChip('lo-job', g.job)
+                 + stopChip('lo-bin drop', g.drop)
+                 + stopChip('lo-bin pick', g.pick);
         if(_jobMarkers[name]) _jobMarkers[name].setContent(html);
         else _jobMarkers[name] = htmlMarker(
           new google.maps.LatLng(g.town[1], g.town[2]), html, 'lo-mk-job');
@@ -2170,7 +2223,9 @@
         return '<b><i style="background:'+TRUCK_C[s]+'"></i>'+TRUCK_LABEL[s]+'</b>';
       }).join('')
         + '<b><i style="background:var(--gold)"></i>Yard</b>'
-        + '<b><i style="background:var(--spruce)"></i>Jobs left</b>';
+        + '<b><i style="background:var(--spruce)"></i>Jobs left</b>'
+        + '<b><i style="background:var(--drop-bg)"></i>Bin drop</b>'
+        + '<b><i style="background:var(--pick-bg)"></i>Bin pick-up</b>';
       // No clock here — the header already has one. This slot only speaks up when
       // the GPS feed has given us nothing, which the header can't tell you.
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
