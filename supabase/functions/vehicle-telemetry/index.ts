@@ -65,6 +65,16 @@ function durationMinutes(value: unknown, field: string): number {
   return m[1] ? -minutes : minutes;
 }
 
+// Geotab's stopDuration is the gap BETWEEN trips, so the last trip of the day
+// carries the whole overnight in the yard. Unfiltered it made a truck that drove
+// two hours read 19.4 hours "stopped", which is not a working-day figure at all.
+//
+// Jake's rule, in his words: over two hours means "they are done with truck that
+// day". So a gap that long is the end of the shift, not someone sitting in the
+// cab, and it does not count. Everything shorter is time the truck was out and
+// standing still, which is the thing worth measuring.
+const STOP_COUNTS_UNDER_MINUTES = 120;
+
 // Categorize a Geotab exception event by rule ID
 function categorizeException(ruleId: string): string | null {
   const r = ruleId.toLowerCase();
@@ -202,7 +212,8 @@ async function pollDriverScores(): Promise<void> {
           const start = new Date(trip.start).getTime();
           const stop = new Date(trip.stop).getTime();
           totalDriveMinutes += Math.max(0, (stop - start) / 60000);
-          totalStopMinutes += durationMinutes(trip.stopDuration, "stopDuration");
+          const stopped = durationMinutes(trip.stopDuration, "stopDuration");
+          if (stopped <= STOP_COUNTS_UNDER_MINUTES) totalStopMinutes += stopped;
           totalIdleMinutes += durationMinutes(trip.idlingDuration, "idlingDuration");
         }
       }
