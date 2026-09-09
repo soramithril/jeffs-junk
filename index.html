@@ -2524,7 +2524,9 @@
 
   <!-- ═══════════ ASSIGN BIN MODAL ═══════════ -->
 <div class="modal-overlay" id="assign-bin-modal">
-  <div class="modal" style="width:600px">
+  <!-- Width follows the window: 600px on a laptop (unchanged below 1364px), up to
+       1200px on a 32in monitor, so a 14-yard job's 46 bins fit without scrolling. -->
+  <div class="modal" style="width:clamp(600px,44vw,1200px)">
     <div class="modal-header">
       <div class="modal-title">📦 Assign Bin</div>
       <button class="modal-close" onclick="closeM('assign-bin-modal')">&#x2715;</button>

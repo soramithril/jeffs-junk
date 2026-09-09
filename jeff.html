@@ -423,9 +423,13 @@ a:hover{color:#15803d}
   // Today's quote jobs (Junk Quote booked for today), with time + location.
   function todaysQuotes(){
     var T=todayISO();
-    return (state.jobs||[]).filter(function(j){ return j.service==='Junk Quote' && (j.junk_date===T || j.date===T || j.fb_date===T); })
+    // Same rule the dashboard uses (jobSchedDate in app.js): the quote date wins,
+    // and the booking date is only a fallback. The old three-way OR put a quote on
+    // BOTH days whenever the two differed - 47 of the 641 quotes on file. fb_date is
+    // dropped entirely: no Junk Quote has ever carried one.
+    return (state.jobs||[]).filter(function(j){ return j.service==='Junk Quote' && (j.junk_date||j.date)===T; })
       .map(function(j){
-        var tm = j.junk_date===T ? j.junk_time : j.date===T ? j.time : j.fb_time;
+        var tm = j.junk_date ? j.junk_time : j.time;
         return { who:[j.name,j.city].filter(Boolean).join(' · '), addr:j.address||'', time:prettyTime(tm), tk:timeKey(tm) };
       })
       .sort(function(a,b){ return a.tk-b.tk; });
@@ -560,7 +564,7 @@ a:hover{color:#15803d}
       }).join('');
       stops = '<div style="font-size:11px;font-weight:800;letter-spacing:1px;color:#aab1b9;text-transform:uppercase;margin-top:2px;padding-left:4px">The stops</div>'+
         '<div style="display:flex;flex-direction:column;gap:10px">'+items+'</div>';
-    } else if(S.jobsErr){
+    } else if(state.jobsErr){
       // Never claim a free day when the truth is a failed load.
       stops = '<div class="pa" data-act="retryJobs" style="margin-top:8px;background:#fff;border:1px solid #f0b27a;border-radius:22px;padding:34px 20px;text-align:center;box-shadow:0 6px 16px rgba(20,40,25,.05);cursor:pointer">'+
         '<div style="font-size:40px">📡</div>'+
