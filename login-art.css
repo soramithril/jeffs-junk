@@ -653,13 +653,14 @@
   .jjl-fullthrottle .jjl-panel, .jjl-anime .jjl-panel, .jjl-overhead .jjl-panel,
   .jjl-blueprint .jjl-panel, .jjl-engineering .jjl-panel {
     width: 100%; min-height: 100svh; height: auto; margin: 0;
-    padding: 25px 22px 40px;
+    display: flex; flex-direction: column;
+    padding: 25px 22px calc(env(safe-area-inset-bottom, 0px) + 28px);
     border: 0; background: transparent; box-shadow: none; clip-path: none;
     -webkit-backdrop-filter: none; backdrop-filter: none;
   }
   .jjl-brand, .jjl-classic .jjl-brand, .jjl-pit .jjl-brand, .jjl-roadrunner .jjl-brand { position: relative; z-index: 32; width: 145px; margin: 0; }
   .jjl-card, .jjl-pit .jjl-card {
-    position: relative; z-index: 32; max-width: none; margin: 43vh 0 20px;
+    position: relative; z-index: 32; max-width: none; margin: auto 0 20px;
     padding: 23px 20px 21px;
     border: 1px solid rgba(255,255,255,.18); border-radius: 18px;
     background: rgba(7,13,9,.4); box-shadow: 0 25px 70px rgba(0,0,0,.34);
