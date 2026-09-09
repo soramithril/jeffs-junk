@@ -259,17 +259,11 @@
   #loRail{position:absolute; right:40px; top:206px; bottom:146px; width:320px; z-index:5;
     display:grid; gap:10px; align-content:start;
     /* A card is one sixth of the rail: the height six of them plus their five gaps
-       would take. A two-truck day leaves the cards that same proper size at the top
-       with clear space below, instead of stretching each one to half the screen.
-       Written as a sum rather than a magic 113px so it follows the rail if the rail
-       ever moves.
-       The second term only bites past six. RAIL_MAX is the whole fleet (8) now that
-       parked trucks get a card, and eight of these would run off the bottom - so the
-       row takes whichever is smaller: the settled six-up height, or an even share of
-       the rail between however many cards there are. --n is written by renderLiveOps
-       and is the only thing here that knows the count. */
-    grid-auto-rows:minmax(0, min(calc((100% - 50px) / 6),
-                                 calc((100% - (var(--n, 6) - 1) * 10px) / var(--n, 6))))}
+       would take. Six is RAIL_MAX, so a full rail fills the column exactly, and a
+       two-truck day leaves the cards their proper size at the top with clear space
+       below instead of stretching each one to half the screen. Written as a sum
+       rather than a magic 113px so it follows the rail if the rail ever moves. */
+    grid-auto-rows:minmax(0, calc((100% - 50px) / 6))}
   #loRail .card{min-height:0; overflow:hidden; border-radius:16px; display:flex; flex-direction:column;
     border:1px solid var(--card-line); background:rgba(15,22,16,.86);
     box-shadow:0 10px 26px rgba(0,0,0,.45); transition:box-shadow .3s ease}
@@ -1884,14 +1878,14 @@
     // this morning's rail - which is the case that started this (the Hino 2020 sat
     // there all morning having last reported at 5pm the day before).
     var RAIL_STALE_MS = 12 * 60 * 60 * 1000;
-    // The whole fleet, so nothing is ever silently dropped. Six used to be the cap
-    // because six was what fitted at a readable size in the rail's 728px - but now
-    // that stopped and parked trucks get a card too, six could quietly hide two of
-    // the eight vehicles, and a truck missing from the wall is worse than a shorter
-    // card. The rail sizes itself to however many there are (see #loRail): up to six
-    // they keep exactly the height they always had, and only a rare full-fleet day
-    // shrinks them to fit. The shop truck still sorts last.
-    var RAIL_MAX = 8;
+    // Six is what fits at a readable size in the 728px the rail has. The fleet is
+    // eight, and stopped trucks now earn a card too, so on a full day two have to go
+    // - Jake, 2026-09-09: "you can knock off a truck or two that hasnt moved in
+    // awhile". So the CUT is by movement (see railTrucks): parked trucks give up
+    // their slots first, then the shop truck, because the bins are the day's work and
+    // Darrin's truck carries no bin legs. A cut truck keeps its pin on the map; it is
+    // only the card it loses.
+    var RAIL_MAX = 6;
     function isShopTruck(t){
       return /darrin/i.test(String(t.name || '')) || driverFor(t) === 'Darrin';
     }
@@ -1907,11 +1901,23 @@
         // that has not reported inside RAIL_STALE_MS, which is yesterday's news.
         var age = t.lastUpdate ? Date.now() - Date.parse(t.lastUpdate) : 0;
         return age <= RAIL_STALE_MS;
-      }).sort(function(a, b){
-        var sa = isShopTruck(a) ? 1 : 0, sb = isShopTruck(b) ? 1 : 0;
-        if(sa !== sb) return sa - sb;
-        return String(a.name).localeCompare(String(b.name));
-      }).slice(0, RAIL_MAX);
+      }).sort(byInterest).slice(0, RAIL_MAX).sort(byName);
+    }
+    // WHO gets cut, and separately WHERE they sit, because those want opposite
+    // things. The cut wants the least interesting truck to go: one that has not moved
+    // in 90 minutes before one that has, then the shop truck before a bin truck.
+    // The order on screen wants to be STILL - sorting the rail by anything that
+    // changes through the day would make the cards swap places under the office's
+    // eyes. So interest picks the six, and then the six are laid out by name.
+    function byInterest(a, b){
+      var pa = isParked(a) ? 1 : 0, pb = isParked(b) ? 1 : 0;
+      if(pa !== pb) return pa - pb;
+      return byName(a, b);
+    }
+    function byName(a, b){
+      var sa = isShopTruck(a) ? 1 : 0, sb = isShopTruck(b) ? 1 : 0;
+      if(sa !== sb) return sa - sb;
+      return String(a.name).localeCompare(String(b.name));
     }
 
     function driverFor(t){
@@ -2263,12 +2269,7 @@
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
 
       // Every truck that is out, as a card on the right.
-      var rail = railTrucks(list);
-      el('loRail').innerHTML = rail.map(truckCard).join('');
-      // The rail's row height needs the count, and CSS cannot count its own children.
-      // Never 0: an empty rail has nothing to size, but a zero would divide by zero
-      // in the grid-auto-rows calc and take the whole rule down with it.
-      el('loRail').style.setProperty('--n', Math.max(1, rail.length));
+      el('loRail').innerHTML = railTrucks(list).map(truckCard).join('');
       // The periodic refresh calls renderCurrent, which lands here and rebuilds
       // the rail from scratch - so the highlight has to be put back or the lit card
       // goes dark mid-walk and stays dark until the next truck.
