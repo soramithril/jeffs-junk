@@ -32,6 +32,9 @@ Keep it to ideas. No keys, customer names or payroll detail — this repo is pub
 
 *Things worth doing sometime.*
 
+- **Stop the nightly GPS matcher guessing between vehicles** — It matches trucks to their trackers by NAME, falling back to fuzzy word-overlap and taking the best row it finds, so a badly-named vehicle could take another one's odometer reading with no error shown. Not urgent - checked 2026-09-09 and 'Landscape Trailer' scores zero against every truck - but worth restricting to vehicles that actually have a tracker, next time that background job is touched.  
+  <sub>Claude, 2026-09-09</sub>
+
 ## Decided against
 
 *Settled, so nobody pitches them again.*

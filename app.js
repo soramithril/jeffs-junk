@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '673';
+var APP_VERSION = '674';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -16620,6 +16620,10 @@ function snoozeVehicleAlert(key){
 }
 
 function _vehOilStatus(v){
+  // A trailer has no engine, so it has no oil change - say so instead of nagging
+  // someone to fill in a date that will never exist. The sticker is the only thing
+  // a trailer is tracked for.
+  if(v.type==='Trailer') return {state:'muted', label:'— No oil', sub:'trailer'};
   if(!v.oilDate) return {state:'muted', label:'— No oil date', sub:'set in Edit'};
   var oilD = new Date(v.oilDate+'T12:00:00');
   var days = Math.floor((Date.now()-oilD)/(1000*60*60*24));
