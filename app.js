@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '676';
+var APP_VERSION = '677';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -16545,6 +16545,7 @@ function openAddVehicle(){
   document.getElementById('vehicle-save-btn').textContent='Add Vehicle';
   document.getElementById('v-name').value='';
   document.getElementById('v-type').value='Bin Truck';
+  vehTypeChanged();
   document.getElementById('v-notes').value='';
   document.getElementById('v-sticker-month').value='';
   document.getElementById('v-sticker-year').value='';
@@ -16563,6 +16564,7 @@ function openEditVehicle(vid){
   document.getElementById('vehicle-save-btn').textContent='Save Changes';
   document.getElementById('v-name').value=v.name||'';
   document.getElementById('v-type').value=v.type||'Bin Truck';
+  vehTypeChanged();
   document.getElementById('v-notes').value=v.notes||'';
   document.getElementById('v-sticker-month').value=v.stickerMonth||'';
   document.getElementById('v-sticker-year').value=v.stickerYear||'';
@@ -16584,7 +16586,12 @@ function saveVehicle(){
   var newVid;
   try { newVid = editVehicleId || nextVid(); }
   catch(ex){ toast('⚠ '+ex.message,'error'); return; }
-  var v={vid:newVid,name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),oilDate:document.getElementById('v-oil-date').value||'',oilKm:document.getElementById('v-oil-km').value.trim()||'',oilInterval:document.getElementById('v-oil-interval').value.trim()||'',active:true};
+  var v={vid:newVid,name:name,type:document.getElementById('v-type').value,notes:document.getElementById('v-notes').value.trim(),color:document.getElementById('v-color').value,stickerMonth:document.getElementById('v-sticker-month').value,stickerYear:document.getElementById('v-sticker-year').value.trim(),oilDate:'',oilKm:'',oilInterval:'',active:true};
+  if(v.type!=='Trailer'){
+    v.oilDate=document.getElementById('v-oil-date').value||'';
+    v.oilKm=document.getElementById('v-oil-km').value.trim()||'';
+    v.oilInterval=document.getElementById('v-oil-interval').value.trim()||'';
+  }
   // Editing MERGES onto the existing truck. Replacing it wholesale dropped every field the modal
   // doesn't render — leaderboardOnly among them — and forced active back to true.
   if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?Object.assign({},x,v,{active:x.active!==false}):x;});}
@@ -16988,7 +16995,13 @@ function _vehPhotos(v){
 // % of the oil interval still left (0..100). Prefers the km-based maintenance
 // schedule + Geotab odometer; falls back to the 180-day date window; null when
 // oil isn't tracked for this truck at all.
+// A trailer has no engine, so the oil fields have no business being on its form.
+function vehTypeChanged(){
+  var g=document.getElementById('v-oil-group');
+  g.style.display = document.getElementById('v-type').value==='Trailer' ? 'none' : '';
+}
 function _vehOilPct(v){
+  if(v.type==='Trailer') return null;
   var odo=window._odometerCache&&window._odometerCache[v.vid];
   var odoKm=odo?odo.odometer_km:null;
   var sched=(_maintCache[v.vid]||[]).find(function(s){return /oil/i.test(s.maintenance_type||'');});
@@ -17107,6 +17120,8 @@ function _vehFeatCard(v,ov){
   } else {
     h+='<div class="ffv-stage" id="ffv-stage" style="display:flex;align-items:center;justify-content:center"><div style="font-size:72px;opacity:.18">🚚</div></div>';
   }
+  // A trailer is tracked for its plate and its yellow sticker, nothing else (v677)
+  var isTrailer = v.type==='Trailer';
   var oilPct=_vehOilPct(v);
   var oilColor=oilPct==null?'#9ca3af':oilPct>=50?'#22c55e':oilPct>=20?'#eab308':'var(--bad)';
   var stPct=(s.days!=null)?Math.max(0,Math.min(100,Math.round(100*s.days/365))):null;
@@ -17118,12 +17133,14 @@ function _vehFeatCard(v,ov){
   var pace=_vehKmPerDay(v.vid);
   if(pace) odoSub+=' · ≈'+pace+' km/day';
   h+='<div class="ffv-rings">'
-    +_vehRing(oilPct, oilPct==null?'—':oilPct+'%','🛢️ Oil life',oilColor)
+    +(isTrailer?'':_vehRing(oilPct, oilPct==null?'—':oilPct+'%','🛢️ Oil life',oilColor))
     +_vehRing(stPct, stVal,'📋 Sticker',stColor)
-    +'<div class="ffv-odo"><div class="ffv-mono-lbl">🛞 Odometer</div><div class="ffv-odo-num">'+odoNum+'</div><div class="ffv-tile-s">'+odoSub+'</div></div>'
+    +(isTrailer
+      ? '<div class="ffv-odo"><div class="ffv-mono-lbl">🏷️ Plate</div><div class="ffv-odo-num">'+escHtml((v.notes||'').trim()||'—')+'</div><div class="ffv-tile-s">trailer · sticker only</div></div>'
+      : '<div class="ffv-odo"><div class="ffv-mono-lbl">🛞 Odometer</div><div class="ffv-odo-num">'+odoNum+'</div><div class="ffv-tile-s">'+odoSub+'</div></div>')
   +'</div>';
   var paceNote=_vehPaceNote(v.vid);
-  if(paceNote) h+='<div class="ffv-tile-s" style="margin-top:8px">'+paceNote+'</div>';
+  if(paceNote&&!isTrailer) h+='<div class="ffv-tile-s" style="margin-top:8px">'+paceNote+'</div>';
   var mw=_vehMaintWorstStatus(v.vid);
   var probs=[];
   if(o.state==='bad')probs.push('Oil change overdue'); else if(o.state==='warn')probs.push('Oil change due soon');
@@ -17144,10 +17161,10 @@ function _vehFeatCard(v,ov){
   var oilDueTxt=_vehDueDateTxt(v.vid,oilKmLeft);
   var crew=(vehicleAssignments[v.vid]||[]).filter(function(a){return !a.endedAt;}).map(function(a){return a.name;});
   h+='<div class="ffv-tiles">'
-    +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(o.state)+'">🛢️ Oil service</div><div class="ffv-tile-v">Last '+oilLast+'</div><div class="ffv-tile-s">'+oilEvery+' · '+_vehOilText(o).toLowerCase()+(oilDueTxt?' · due '+oilDueTxt:'')+'</div></div>'
+    +(isTrailer?'':'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(o.state)+'">🛢️ Oil service</div><div class="ffv-tile-v">Last '+oilLast+'</div><div class="ffv-tile-s">'+oilEvery+' · '+_vehOilText(o).toLowerCase()+(oilDueTxt?' · due '+oilDueTxt:'')+'</div></div>')
     +'<div class="ffv-tile"><div class="ffv-mono-lbl" style="color:'+_vehStateColor(s.state)+'">📋 Safety sticker</div><div class="ffv-tile-v">'+escHtml(_vehStickerText(s))+'</div><div class="ffv-tile-s">'+(s.days==null?'set it in Edit':(s.days<0?Math.abs(s.days)+' days expired':s.days+' days left'))+'</div>'
       +(s.days!=null?'<button onclick="vehStickerRenewed(\''+v.vid+'\')" style="margin-top:8px;min-height:30px;padding:0 11px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Renewed — bump a year</button>':'')+'</div>'
-    +'<div class="ffv-tile"><div class="ffv-mono-lbl">👷 Crew today</div><div class="ffv-tile-v">'+(crew.length?escHtml(crew.join(', ')):'No one assigned')+'</div><div class="ffv-tile-s">from today\'s truck assignments</div></div>'
+    +(isTrailer?'':'<div class="ffv-tile"><div class="ffv-mono-lbl">👷 Crew today</div><div class="ffv-tile-v">'+(crew.length?escHtml(crew.join(', ')):'No one assigned')+'</div><div class="ffv-tile-s">from today\'s truck assignments</div></div>')
     +'<div class="ffv-tile"><div class="ffv-mono-lbl">🏷️ Plate / Notes</div><div class="ffv-tile-v">'+escHtml((v.notes||'').trim()||'—')+'</div><div class="ffv-tile-s">'+escHtml(v.type||'')+'</div></div>'
   +'</div>';
   // Ongoing problems — the truck still runs, but something needs fixing (v557)
@@ -17186,7 +17203,7 @@ function _vehFeatCard(v,ov){
   } else {
     h+='<div style="display:flex;gap:10px;margin-top:14px">'
       +'<button onclick="openVehShop(\''+v.vid+'\')" style="flex:1;background:#fff7ed;color:#c2410c;border:1px solid #f0b27a;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Send to shop</button>'
-      +'<button onclick="markOilServicedQuick(\''+v.vid+'\')" style="flex:1;background:#f0fdf4;color:#15803d;border:1px solid #cdebd8;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark oil serviced</button>'
+      +(isTrailer?'':'<button onclick="markOilServicedQuick(\''+v.vid+'\')" style="flex:1;background:#f0fdf4;color:#15803d;border:1px solid #cdebd8;border-radius:12px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark oil serviced</button>')
     +'</div>';
   }
   h+='</div>';
@@ -17197,7 +17214,7 @@ function makeVehicleListRow(v,ov){
   var pillStyle='font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;color:'+m.pc+';background:'+m.pb;
   var h='<div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)">'
     +'<span style="width:12px;height:12px;border-radius:50%;flex:none;background:'+m.dot+'"></span>'
-    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</div><div style="font-size:12px;color:var(--muted)">Oil '+_vehOilText(o)+' · Sticker '+_vehStickerText(s)+'</div></div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(v.name||'')+'</div><div style="font-size:12px;color:var(--muted)">'+(v.type==='Trailer'?'':'Oil '+_vehOilText(o)+' · ')+'Sticker '+_vehStickerText(s)+'</div></div>'
     +'<span style="'+pillStyle+'">'+m.pill+'</span>';
   if(ov==='shop') h+='<button onclick="vehBackInService(\''+v.vid+'\')" style="min-height:36px;padding:0 12px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Back in service</button>';
   else h+='<button onclick="openVehShop(\''+v.vid+'\')" style="min-height:36px;padding:0 12px;border:1px solid #f0b27a;background:#fff7ed;color:#c2410c;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔧 Shop</button>';
