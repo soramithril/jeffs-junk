@@ -58,8 +58,6 @@ Small and well defined. Most of these finish something that is already half buil
   <sub>from dispatch-overhaul-v595.md</sub>
 - **Delete the temporary truck-trip lookup that was left switched off** — A one-off truck-trip lookup built for the August time review is still deployed on the database, switched off but never removed.  
   <sub>from jordan-time-review-aug2026.md</sub>
-- **Turn on the stolen-password check for staff sign-ins** — The check that stops staff choosing a password already known to be stolen is still switched off, and it's a one-click toggle.  
-  <sub>from security-review-aug2026.md</sub>
 - **Check the leaked Google address key was actually deleted** — The address-lookup key that got published in the code needs to be switched off in Google's console so nobody can spend money on our account.  
   <sub>from address-autocomplete-google-swap.md</sub>
 - **Turn on the $1 spending alert for the Google address lookups** — A one-dollar spending alarm on the Google account so a runaway address-lookup bill is noticed the same day.  
@@ -402,3 +400,5 @@ Settled. Listed so nobody pitches them again — if you change your mind, move t
   <sub>from suggestion-batch-v551.md</sub>
 - **Crew blocks, landscaping schedules and workshop tasks stay deletable by everyone** — Leaving crew time-off, landscaping schedules and workshop tasks deletable by any signed-in staff member was Jake's deliberate choice - don't lock them down.  
   <sub>from WHO_CAN_CHANGE_WHAT.md</sub>
+- **The stolen-password check for staff sign-ins** — Jake decided on 8 September not to turn this on: it is an internal app used by a handful of staff, and he judged the risk not worth the setting. Don't re-propose it.  
+  <sub>from security-review-aug2026.md</sub>
