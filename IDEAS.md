@@ -18,8 +18,6 @@ Small and well defined. Most of these finish something that is already half buil
   <sub>from feature-backlog-jul2026.md</sub>
 - **Test the calendar invite from a quote on a phone** — The quote calendar-invite download is built and lists Jeff and Barbara as guests, but nobody has confirmed it opens correctly on a phone.  
   <sub>from feature-backlog-jul2026.md</sub>
-- **Shift the morning bin summary an hour when the clocks change** — The morning bin alert is set to a fixed clock time that will start firing an hour early once the clocks go back on 1 November.  
-  <sub>from feature-backlog-jul2026.md</sub>
 - **Switch off the page-visit counter when it has run long enough** — The temporary counter that logs which pages staff open is still running and still writing a row on every page view.  
   <sub>from page-usage-tracking.md</sub>
 - **Save the original scheduler's own files back to their project** — Six files in the standalone scheduler project have been changed but never saved back, so that project no longer matches what is actually running.  
@@ -105,24 +103,20 @@ Small and well defined. Most of these finish something that is already half buil
 - **Bin spreadsheet still lists the featherlights in the old spot** — Jake's bin inventory spreadsheet still puts the two featherlight bins at numbers 54-55 instead of 79-80, so it disagrees with the numbering plan the bins are actually being painted to.  
   <sub>from bin-renumbering-project.md</sub>
 
+- **Every scheduled task shifts by an hour when the clocks change** — The automatic overnight jobs run on a fixed clock, so every one of them happens an hour later once the clocks change in the fall.  
+  <sub>from BUG_AUDIT_DATABASE.md</sub>
 ## Someday
 
 Bigger, vaguer, or waiting on a decision from you.
 
 - **Put real customer names on the lawn-care locations** — The lawn-cut times page still lists jobs by street address only, with no customer names attached.  
   <sub>from cut-times-page.md</sub>
-- **Decide whether the Duckworth Street stop stays on the lawn list** — A Barrie address that looks like a supplier stop rather than a lawn is still counted in the cut-times report, with only a warning note beside it.  
-  <sub>from cut-times-page.md</sub>
-- **Decide whether to rename the Jeff White Group menu heading** — The side-menu heading above Summer and Winter still reads 'Jeff White Group' and nobody has said whether it should change.  
-  <sub>from feature-backlog-jul2026.md</sub>
 - **Greens written into the app's code were never folded into the green scheme** — Dozens of green colours are still typed directly into the code instead of coming from the app's shared colour settings, so a future colour change would miss them.  
   <sub>from green-hierarchy.md</sub>
 - **Save the times the dispatch board works out, so the staff schedule can use them** — The dispatch board never saves the arrival times it calculates, so the staff schedule has to guess them again every time it loads.  
   <sub>from scheduler-merge-decisions.md</sub>
 - **Match junk crew names to staff-schedule names once and for all** — The junk jobs are matched onto the staff schedule by comparing names in lowercase, so a nickname or spelling difference silently drops someone's jobs off their row.  
   <sub>from scheduler-merge-decisions.md</sub>
-- **Nobody has actually measured how long a truck sits at the dump** — The 20 minutes at the dump is still Jake's own estimate rather than a measured figure, though the combined pickup-plus-dump time was checked against a real day.  
-  <sub>from dispatch-estimate-audit.md</sub>
 - **Nothing raises an alarm when Jeff's phone page stops working** — If Jeff's phone page breaks again, nothing anywhere will notice or tell anyone.  
   <sub>from jeff-page-blank-two-weeks.md</sub>
 - **Sixteen prospects have no real town, so distance filters skip them** — Fourteen prospects have no proper town on them, so they disappear whenever the list is sorted or filtered by how far away they are.  
@@ -159,11 +153,7 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from unifi-protect-plan.md</sub>
 - **Email history stays filed under the old customer when a booking changes hands** — If a booking gets moved to a different customer, the emails already sent on it stay filed in the first customer's record, so neither profile tells the true story.  
   <sub>from email-wrong-recipient-guard.md</sub>
-- **Letting the AI write customer emails and win-back outreach** — The AI ranks which lapsed customers are worth a call, but it still doesn't write any of the messages — Jake parked that.  
-  <sub>from gemini-ai-integration.md</sub>
 - **A tool for seeing why a bin didn't get crossed off is built but never switched on** — There's no way to look up why a truck visit failed to tick a bin off, so those misses stay a mystery.  
-  <sub>from office-tv-board.md</sub>
-- **The office TV link needs one manual bump before updates start landing on the wall by themselves** — The wall board can now update itself when a new build ships, but whether the TV was ever pointed at a build that has that code is something only the Yodeck settings can tell us.  
   <sub>from office-tv-board.md</sub>
 - **A sound for when the day's last job is finished** — Finishing the last stop of the day — the biggest daily win — still happens in silence.  
   <sub>from sound-as-reward.md</sub>
@@ -177,17 +167,11 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from claude-tooling-aug2026.md</sub>
 - **Decide whether an 8 AM drop-off is a real promise or just means first thing** — The day planner still treats an 8 AM drop-off as a hard promise the truck can miss, and nobody has decided whether that is right.  
   <sub>from dispatch-overhaul-v595.md</sub>
-- **The real question about Jordan is how long his days are, and it is unanswered** — The open question is whether Jordan's shorter working days are a scheduling or payroll matter, and nothing in the app answers it.  
-  <sub>from jordan-time-review-aug2026.md</sub>
 - **A handful of long stops still need someone to ask about them** — Four unusually long stops from early August were flagged for someone to ask about, and there is no sign anyone did.  
   <sub>from jordan-time-review-aug2026.md</sub>
-- **The printed donation receipt form is gone and stays gone** — The printed donation receipt form is not gone — there is a working "Print DRD" button in the app, so this note contradicts what actually shipped and Jake needs to say which stands.  
-  <sub>from redwood-2026-furniture-alignment.md</sub>
 - **A spare unused master key is still sitting in the database account** — There may still be a second, unused master key on the database account that nobody needs, but it can't be checked from here.  
   <sub>from security-review-aug2026.md</sub>
 - **Customer names and addresses are put on screen without being cleaned first** — Customer names and addresses are still dropped straight into the page unfiltered in a lot of places, so odd characters in a name could break or hijack a screen.  
-  <sub>from security-review-aug2026.md</sub>
-- **An old Google key from March is still buried in the project history** — A Google map key from March is still sitting in the project's saved history where anyone with the repo can read it.  
   <sub>from security-review-aug2026.md</sub>
 - **Nobody has looked at the office TV map since the key was locked down** — The map is definitely loading somewhere every day, but nobody has confirmed the wall screen itself still shows it.  
   <sub>from tv-map-google-branch.md</sub>
@@ -197,8 +181,6 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from address-autocomplete-google-swap.md</sub>
 - **Back-shop PC is on a version of Windows that is no longer supported** — The shop computer runs Windows 10, which stopped getting security updates, and the free upgrade is still worth doing.  
   <sub>from backshop-inventory-kiosk.md</sub>
-- **Decide whether a 14-yard bin can ride along with a 20-yard** — Right now the day-planner only ever pairs two 14-yard bins on one trip; Jake needs to say whether a 14 can also ride out with a 20.  
-  <sub>from dispatch-friday-calibration.md</sub>
 - **A wrong address that lands somewhere believable still slips through** — The planner catches addresses that geocode absurdly far away, but a wrong pin that lands a plausible distance out still adds fake driving to the day.  
   <sub>from dispatch-friday-calibration.md</sub>
 - **Text sizes only half tidied up** — The app still uses two dozen different text sizes, which is why headings and labels don't line up from screen to screen.  
@@ -215,12 +197,8 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from overhaul-blueprint-aug2026.md</sub>
 - **The pricing page colours its distance zones like a warning light** — The pricing page shades far-away towns red and near ones green, which reads as 'something is wrong' rather than 'this is far'.  
   <sub>from overhaul-blueprint-aug2026.md</sub>
-- **Dashboard rework parked — one combined to-do list would be too long** — Merging the dashboard's separate cards into one big to-do list was parked because some days would show thirty items.  
-  <sub>from overhaul-blueprint-aug2026.md</sub>
 - **Ask Jeff before restyling his screen** — Jeff's own screen could be brought in line with the new look, but he should be asked first since it's the screen he uses all day.  
   <sub>from overhaul-blueprint-aug2026.md</sub>
-- **A full redesign of the Schedule page was offered and never taken up** — A deeper visual redesign of the Schedule page is available if Jake wants it, but he never said yes or no.  
-  <sub>from scheduler-cleanup-v559.md</sub>
 - **Schedules and staff ratings still hang off the old staff list** — Shift records and staff ratings are still tied to the old staff table rather than the master list, so the two can drift apart.  
   <sub>from team-roster-two-tables.md</sub>
 - **Work out what size storage unit is actually needed** — Nobody has worked out what size storage unit the business actually needs.  
@@ -231,14 +209,10 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from AUDIT_ENVIRONMENT_SAFETY.md</sub>
 - **Some pop-ups close when you click outside and the rest do not** — Clicking the dark area outside a pop-up closes some windows and does nothing on others, so the app behaves two different ways.  
   <sub>from BUG_AUDIT_SYSTEM_MAP.md</sub>
-- **Screens still showing a bin's old number — fix deliberately on hold** — Several screens still print a bin's internal id instead of the number painted on the bin, and that fix is parked until Jake finishes relabelling the fleet.  
-  <sub>from bin-renumbering-project.md</sub>
 - **More places offered for the 3D icons but never done** — The nice 3D icons made it onto the side menu but still have not been added to pop-up headers, the phone tab bar or the empty-screen messages.  
   <sub>from emboss-icon-system.md</sub>
 - **The customer list takes twelve trips to load and looks empty meanwhile** — Start-up still pulls the whole customer list a thousand at a time, one request after another, before the app is ready.  
   <sub>from BUG_AUDIT_FINAL_REPORT.md</sub>
-- **A look-only database login for future check-ups** — Whether there is a proper look-but-don't-touch database login for future check-ups still is not clear.  
-  <sub>from AUDIT_ENVIRONMENT_SAFETY.md</sub>
 - **The price sheet has no junk removal prices in it** — The price list has bin prices for every town but the junk removal boxes are empty everywhere.  
   <sub>from pricing-data-structure.md</sub>
 - **A practice copy of the system so changes can be tried safely** — There is still nowhere safe to try changes - everything happens on the real, live system.  
@@ -249,8 +223,6 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from suggestion-batch-v551.md</sub>
 - **Decide whether to delete six leftover truck photos** — Six big raw truck photos are still sitting in the project folder unused, waiting on a yes/no to delete them.  
   <sub>from vehicles-fleet-focus-redesign.md</sub>
-- **The saved record of how the database is built no longer matches the real one** — The written record of how the database is built is only a partial change log, so the database could not be rebuilt from it.  
-  <sub>from BUG_AUDIT_FINDINGS.md</sub>
 - **An unsaved email template draft can still be sent to a customer** — Half-typed wording in the email template editor is used for real customer emails straight away, before Save is pressed.  
   <sub>from BUG_AUDIT_FINDINGS.md</sub>
 - **A job has two competing ways of saying it is finished** — A job's 'finished' state is tracked in two separate places, which is confusing even though the screens currently agree.  
@@ -259,20 +231,14 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from BUG_AUDIT_WORKFLOWS.md</sub>
 - **Several everyday things still have no icon of their own** — A few common things on screen (boxes/deliveries, addresses and buildings, map pins) still show plain phone symbols instead of the app's own artwork.  
   <sub>from emboss-icon-system.md</sub>
-- **New bin numbers are guessed in the browser and can overwrite another bin** — A new bin's number is still worked out in the browser as one-past-the-highest, though it can no longer wipe an existing bin if two people add at once.  
-  <sub>from BUG_AUDIT_FINDINGS.md</sub>
+- **Nothing stops two bins being painted the same number** — Checked 2026-09-08: the old guess-from-the-browser problem was fixed in July, and adding a bin can no longer overwrite one. What is left is smaller — the database has no rule making the painted bin number unique, so two bins could end up wearing the same number. A confusing label, not lost data; one query says whether it has happened.  
+  <sub>from bin-fleet-permissions.md, verified against app.js:2083</sub>
 - **Nothing stops two live rentals from holding the same bin** — The database still allows the same bin to be recorded as sitting at two customers at once - only the screens try to stop it.  
   <sub>from BUG_AUDIT_DATABASE.md</sub>
 - **The pricing, tonnage and quote maths were never checked** — The part of the check-up covering price, weight and quote calculations was never finished, and there is still no record of anyone doing it.  
   <sub>from BUG_AUDIT_COVERAGE.md</sub>
-- **There are almost no automatic safety checks on the app** — The app still has essentially no automatic tests that prove its behaviour is right.  
-  <sub>from BUG_AUDIT_FINAL_REPORT.md</sub>
 - **Small leftover spots still showing plain symbols** — A few small buttons and status tags around the app still show plain keyboard symbols instead of the newer 3D icons.  
   <sub>from emboss-icon-system.md</sub>
-- **Trucks show no fuel level anywhere** — Nothing in the app shows how much fuel is in a truck, and getting it would mean a new pull from the tracking system.  
-  <sub>from jeff-mobile-app-and-switch.md</sub>
-- **The 9 AM spoken briefing on the office TV has never played** — The spoken morning summary for the office TV is built every day but has never actually been heard on the wall.  
-  <sub>from office-tv-briefing-audio.md</sub>
 - **Editing a customer overwrites the contact name and phone on all their past jobs** — Saving a change to a customer rewrites the contact name and phone on every job they have ever had, including jobs booked under a different on-site contact.  
   <sub>from BUG_AUDIT_FINDINGS.md</sub>
 - **The start-up bin check only ever marks bins out, never back in** — The tidy-up that runs when the dashboard opens can only mark a bin as out at a customer's, never bring one back into the yard.  
@@ -289,8 +255,6 @@ Bigger, vaguer, or waiting on a decision from you.
   <sub>from BUG_AUDIT_JOB_IDS.md</sub>
 - **Large parts of the app were never read during the check-up** — Big chunks of the app were never looked at in the big check-up, and the app has grown a lot since then.  
   <sub>from BUG_AUDIT_COVERAGE.md</sub>
-- **Every scheduled task shifts by an hour when the clocks change** — The automatic overnight jobs run on a fixed clock, so every one of them happens an hour later once the clocks change in the fall.  
-  <sub>from BUG_AUDIT_DATABASE.md</sub>
 - **Nobody knows whether customer notes and photos were already wiped** — The bug that could blank customers' private notes and photos is fixed, but nobody has yet gone back through the records to see whether it already did any damage.  
   <sub>from BUG_AUDIT_FINAL_REPORT.md</sub>
 - **Decide whether office staff should edit staff records, driver scores and truck data** — Staff records are now manager-only, but any signed-in person can still change driver scores and truck details - that part was never decided.  
@@ -402,3 +366,19 @@ Settled. Listed so nobody pitches them again — if you change your mind, move t
   <sub>from WHO_CAN_CHANGE_WHAT.md</sub>
 - **The stolen-password check for staff sign-ins** — Jake decided on 8 September not to turn this on: it is an internal app used by a handful of staff, and he judged the risk not worth the setting. Don't re-propose it.  
   <sub>from security-review-aug2026.md</sub>
+- **Decide whether a 14-yard bin can ride along with a 20-yard** — Decided against: you set it aside on 5 September - stacking stays 14+14 only.  
+  <sub>from the 2026-09-08 re-check</sub>
+- **Dashboard rework parked — one combined to-do list would be too long** — Decided against: you parked it after the mockups - "sometimes there's thirty things in one day".  
+  <sub>from the 2026-09-08 re-check</sub>
+- **Screens still showing a bin's old number — fix deliberately on hold** — Decided against: on hold until you finish relabelling the fleet; the note says not to propose it before then.  
+  <sub>from the 2026-09-08 re-check</sub>
+- **Nobody has actually measured how long a truck sits at the dump** — Decided against: you kept the 20 minutes after the real GPS Friday was studied.  
+  <sub>from the 2026-09-08 re-check</sub>
+- **There are almost no automatic safety checks on the app** — Decided against: already in Decided against - put off until there is a practice database.  
+  <sub>from the 2026-09-08 re-check</sub>
+- **Decide whether the Duckworth Street stop stays on the lawn list** — Decided against: you already ruled: it stays, and only comes out if it clutters.  
+  <sub>from the 2026-09-08 re-check</sub>
+- **Letting the AI write customer emails and win-back outreach** — Decided against: your words: "we wouldnt do the emails as of now".  
+  <sub>from the 2026-09-08 re-check</sub>
+- **Decide whether to rename the Jeff White Group menu heading** — Decided against: you answered on 2026-07-10: keep the nav wording.  
+  <sub>from the 2026-09-08 re-check</sub>
