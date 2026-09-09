@@ -1529,10 +1529,15 @@
     // running is still 'driving' at 0 km/h. It is a real state, not a rounding
     // artefact: on 2026-09-08 the L7 logged 93 idle minutes, the 2016 81 and
     // the 2019 52, against their drive time.
+    //
+    // Rounded, because the card beside the pin prints Math.round(speed) km/h.
+    // On a raw > 0 a truck drifting at 0.4 would show a green pin above the
+    // words "0 km/h"; sharing the rounding means the colour and the number
+    // cannot contradict each other on the wall.
     function truckState(t){
       if(kmFromYard(t.lat, t.lng) <= YARD_KM) return 'yard';
       if(!t.isDriving) return 'stopped';
-      return (t.speed || 0) > 0 ? 'moving' : 'idling';
+      return Math.round(t.speed || 0) > 0 ? 'moving' : 'idling';
     }
 
     async function loadTrucks(){
