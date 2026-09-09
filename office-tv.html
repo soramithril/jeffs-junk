@@ -1402,7 +1402,7 @@
     var TRUCK_SVG = '<svg viewBox="0 0 24 24"><path d="M14 16.5V6.5a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/><path d="M14 8.5h4l3 3.2v4.8a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="17.3" r="2"/><circle cx="17.4" cy="17.3" r="2"/><path d="M9 17.3h6.4"/></svg>';
     // Only trucks that are OUT get drawn, so there's no 'yard' pin colour.
     // Traffic-light, because that is already how the office says it out loud:
-    // green is going, amber is sitting with the engine running, red has stopped.
+    // green is going, amber is between stops, red has settled somewhere.
     // Brighter than the board's other greens and ambers on purpose — these are
     // read from across the room, on a pale map, at 45px across. The muted pair
     // (#2f8a4e / #c9861c) still belongs everywhere else on the board; it is only
@@ -1520,24 +1520,43 @@
       }
       return best;
     }
-    // Four states we can actually derive from the feed: parked at the yard,
-    // moving, idling, or stopped out in the field. (No "on site" here — that
-    // needs the bin zones, which live on the dashboard's map, not the wall.)
+    // Four states we can derive: parked at the yard, moving, idling, or stopped
+    // out in the field. (No "on site" here — that needs the bin zones, which
+    // live on the dashboard's map, not the wall.)
     //
-    // Idling is isDriving with the wheels not turning — Geotab holds isDriving
-    // from ignition-on to ignition-off, so a truck sitting with the engine
-    // running is still 'driving' at 0 km/h. It is a real state, not a rounding
-    // artefact: on 2026-09-08 the L7 logged 93 idle minutes, the 2016 81 and
-    // the 2019 52, against their drive time.
+    // Moving is SPEED, not isDriving. Geotab's isDriving tracks motion rather
+    // than ignition and it flickers at crawl speed: measured 2026-09-09, the L7
+    // reported 2 km/h with isDriving false while it was plainly still rolling,
+    // and again at 3 km/h thirteen seconds later with it true.
     //
-    // Rounded, because the card beside the pin prints Math.round(speed) km/h.
-    // On a raw > 0 a truck drifting at 0.4 would show a green pin above the
-    // words "0 km/h"; sharing the rounding means the colour and the number
-    // cannot contradict each other on the wall.
+    // Idling is therefore NOT "engine on, sitting still" — that state is not in
+    // this feed at all. isDriving+0 km/h came up zero times in 146 samples taken
+    // across a working morning, including a 40-second mid-run pause the L7 spent
+    // reported as not driving. Geotab's real idle figure (idlingDuration) is an
+    // aggregate on the finished Trip record, not a live reading.
+    //
+    // What the wall CAN say is how long since we last saw the truck move, which
+    // is the more useful thing anyway: amber is a truck between stops, red is
+    // one that has settled somewhere. The window is eight minutes against a
+    // 150s lap (bins 20s + kpis 20s + liveops 110s, refreshed as the map
+    // rotates in), so a truck that stops is seen amber at least three times
+    // before it turns red — and still turns red well inside a job.
+    //
+    // Unknown reads STOPPED: on the first lap after a load nothing has been seen
+    // moving yet, and a truck that has genuinely been parked all morning must
+    // not come up amber just because the page restarted. It corrects itself the
+    // moment the truck moves.
+    //
+    // Rounded, because the card beside the pin prints Math.round(speed) km/h. On
+    // a raw > 0 a truck drifting at 0.4 would show a green pin above the words
+    // "0 km/h"; one rounding means the colour and the number cannot disagree.
+    var IDLE_WINDOW_MS = 8 * 60000;
+    var _lastMoved = {};   // truck id -> when the board last saw its wheels turning
     function truckState(t){
       if(kmFromYard(t.lat, t.lng) <= YARD_KM) return 'yard';
-      if(!t.isDriving) return 'stopped';
-      return Math.round(t.speed || 0) > 0 ? 'moving' : 'idling';
+      if(Math.round(t.speed || 0) > 0) return 'moving';
+      var seen = _lastMoved[t.id];
+      return seen && Date.now() - seen <= IDLE_WINDOW_MS ? 'idling' : 'stopped';
     }
 
     async function loadTrucks(){
@@ -1556,6 +1575,13 @@
             && !(t.lat === 0 && t.lng === 0);
       });
       DATA.trucksAt = Date.now();
+      // Stamped here rather than inside truckState, because this is the only
+      // moment we actually LOOK at a truck. Every render between two fetches
+      // must measure against the same sighting or a pin would age on screen
+      // while the data behind it stood still.
+      DATA.trucks.forEach(function(t){
+        if(Math.round(t.speed || 0) > 0) _lastMoved[t.id] = DATA.trucksAt;
+      });
     }
     // Geotab is a separate service from Supabase and it's quota'd, so a blip here
     // must never take the board down: keep the last-good pins on the wall (the
