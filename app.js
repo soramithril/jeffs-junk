@@ -16539,6 +16539,11 @@ function nextVid(){
   throw new Error('Could not find an unused truck number after 50 tries');
 }
 
+// A trailer has no engine, so the oil fields have no business being on its form.
+function vehTypeChanged(){
+  var g=document.getElementById('v-oil-group');
+  g.style.display = document.getElementById('v-type').value==='Trailer' ? 'none' : '';
+}
 function openAddVehicle(){
   editVehicleId=null;
   document.getElementById('vehicle-modal-ttl').textContent='Add Vehicle';
@@ -16995,11 +17000,6 @@ function _vehPhotos(v){
 // % of the oil interval still left (0..100). Prefers the km-based maintenance
 // schedule + Geotab odometer; falls back to the 180-day date window; null when
 // oil isn't tracked for this truck at all.
-// A trailer has no engine, so the oil fields have no business being on its form.
-function vehTypeChanged(){
-  var g=document.getElementById('v-oil-group');
-  g.style.display = document.getElementById('v-type').value==='Trailer' ? 'none' : '';
-}
 function _vehOilPct(v){
   if(v.type==='Trailer') return null;
   var odo=window._odometerCache&&window._odometerCache[v.vid];
