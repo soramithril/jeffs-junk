@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '674';
+var APP_VERSION = '675';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -11495,9 +11495,18 @@ function binDurationDays(txt){
   return Math.round(n);
 }
 
+// A short rental never comes back on a weekend (Jake, 2026-09-09). We cannot promise a
+// time on the pickup day and Sunday is not a working day, so a 3 day rental dropped
+// Thursday would have landed Saturday and now rides through to Monday - the same answer
+// a Friday drop already got off the Sunday rule alone. Applies to 2-4 day rentals: a
+// 1 day rental's pickup IS the drop day, so there is nothing to roll, and rolling it
+// would hand a Saturday customer two free days. Longer rentals keep the plain Sunday
+// rule - a 7 day rental is the same day the next week, so Sunday is one of its seven
+// days rather than a day off the end, which is why it never needed touching.
 function _binPickupAfter(dropStr, days){
   var d=new Date(dropStr+'T12:00:00');
   d.setDate(d.getDate()+days-1);
+  if(days>=2 && days<=4 && d.getDay()===6) d.setDate(d.getDate()+2);
   return _avoidSundayPickup(d.toISOString().split('T')[0]);
 }
 
@@ -13451,11 +13460,14 @@ function openExtendPopup(jobId, e){
   if(btn){btn.style.position='relative';btn.appendChild(pop);}
   setTimeout(function(){document.addEventListener('click',function closeExtend(){pop.classList.remove('open');setTimeout(function(){if(pop.parentNode)pop.parentNode.removeChild(pop);},200);document.removeEventListener('click',closeExtend);});},10);
 }
+// The +1/+2/+3 Days buttons did plain arithmetic and could land the pickup on a Sunday,
+// which no other route to a pickup date can do (Jake, 2026-09-09). Typing an explicit
+// date in extendBinToDate is left alone - that is a person naming the day they want.
 async function extendBin(jobId, days){
   var j=jobs.find(function(x){return x.id===jobId;});if(!j)return;
   var cur=j.binPickup?new Date(j.binPickup+'T12:00:00'):new Date();
   cur.setDate(cur.getDate()+days);
-  await _applyBinExtension(j,cur.toISOString().split('T')[0]);
+  await _applyBinExtension(j,_avoidSundayPickup(cur.toISOString().split('T')[0]));
 }
 async function extendBinToDate(jobId){
   var inp=document.getElementById('extend-date-'+jobId);if(!inp||!inp.value)return;
