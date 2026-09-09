@@ -165,7 +165,7 @@
      snug to its left (a random one of our board renders each page load). Both lifted
      above the panels (z-index) so they ride on top of everything. Gentle roll / bob.
      On a dark ground the drop-shadows go near-black; the old warm-grey shadow was
-     invisible against the terrain. */
+     invisible against the terrain. */
   #topbar{position:relative; z-index:2}
   #stage{z-index:1}
 
@@ -684,10 +684,7 @@
   #loLegend b{display:flex; align-items:center; gap:10px; font:600 19px/1 Inter;
     color:#efe6c3; white-space:nowrap}
   #loLegend i{width:15px; height:15px; border-radius:50%}
-  /* The trail's dashes and their flow are drawn by the map now (repeated symbols
-     on the polyline, offset animated in replayTrail) — there is no SVG path here
-     for CSS to dash any more. */
-  /* where the focused truck is, top-right of the map */
+  /* where the highlighted truck is, top-right of the map */
   #loTown{position:absolute; right:20px; top:20px; z-index:400; display:none; align-items:center; gap:12px;
     background:rgba(17,24,18,.88); border:1px solid var(--line); border-radius:16px; padding:12px 20px;
     box-shadow:0 6px 18px rgba(0,0,0,.4)}
@@ -835,15 +832,10 @@
     // alongside whoever was really working, which is why it always sat zoomed out.
     var YARD = { lat:44.4040, lng:-79.6911 };
     var YARD_KM = 0.6;                          // inside this ring a truck reads "at the yard"
-    // ONE zoom for the whole tour, never changed while it runs. Fitting each
-    // truck's trail used to pick its own zoom per truck, and every change made
-    // Leaflet build a fresh tile level — the whole map visibly re-rendering at each
-    // step. Locked here the tiles stay put and only the new edges load. A 90-min
-    // trail can span half the county, so a long one now runs off-screen; the truck
-    // itself staying readable is worth more on a wall.
-    var TOUR_ZOOM  = 13;
-    // How close the all-trucks overview may go. Only bites when the crew is
+    // How close the all-trucks frame may go. Only bites when the crew is
     // clustered tight enough that fitBounds would otherwise pick street level.
+    // There is no per-truck zoom any more: the map picks this one frame and keeps
+    // it, so nothing ever asks Google for a fresh tile level mid-showing.
     var MAX_FRAME_ZOOM = 16;
     var WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
@@ -1437,49 +1429,31 @@
     // re-entry, or the async refreshTrucks restart) leaves the previous chain's
     // pending timeout unclearable, and two chains race, each spawning cards.
     var _cycleTimer = null, _focusId = null, _cycleGen = 0;
-    // Every lap of the tour opens on the whole crew at once, framed as tight as
-    // they fit (frameAll), before stepping through them one by one. Jake
-    // (2026-09-05): "the best zoom showing all the vehicles at the same time".
-    // The overview is no longer a still frame - it replays every truck's whole day
-    // at once - so it needs time to run. It is also subtracted from the per-truck
-    // dwell below, which it never used to be: the lap used to come to OVERVIEW_MS
-    // more than the panel it has to fit in, so the last truck of every showing was
-    // cut off partway through its run.
-    var OVERVIEW_MS = 14000;
-    // The replay ends before the overview does, leaving the finished picture - every
-    // truck's day drawn on one map - standing still long enough to actually look at.
-    var OVERVIEW_HOLD_MS = 3000;
-    var _trailLines = [], _replayRaf = null, _trailFlow = null, _replayOf = [];
-    // The trail window (90 min, set in geotab-proxy) compressed into this. Kept
-    // short deliberately: with a full fleet out, each truck only holds the screen
-    // for panelMs/n — 15s at six trucks — so a longer replay would still be
-    // drawing when the cycle moves on.
-    // The trail used to take the truck's own status colour, which is green when
-    // moving and amber when stopped - both of which are exactly what Google's
-    // traffic layer draws the roads in, so the route vanished into the traffic.
-    // Violet is in none of traffic's three colours, none of the terrain, and not
-    // the water either, so the run reads as ours at a glance.
-    var TRAIL_C = '#22e4ff';
-    // Slower than it was (5.5s): the old run charged across the county too fast
-    // to follow on a wall. Clamped against the per-truck hold below so a big
-    // fleet cannot leave it cut off half-drawn.
-    var REPLAY_MS = 20000;
-    // The camera move between trucks: pull back, travel, drop in. 1.6s is long
-    // enough to read as a move and short enough to leave the trail replay its room
-    // — focusTruck takes it off the replay's clamp, because the replay does not
-    // start until the camera lands.
-    var SWOOP_MS = 1600;
-    // How far the camera pulls back at the top of the arc, in zoom levels, and
-    // FIXED — this is the whole reason flyTo was torn out. flyTo chose its depth
-    // from the distance travelled, so a 30 km hop dropped several levels and
-    // climbed back, fetching and binning every level on the way: on the wall that
-    // read as the map re-rendering at each step. This map is fractional-zoom, which
-    // scales the tiles of the nearest WHOLE level rather than fetching one per
-    // fraction, so 13 -> 11.25 -> 13 only ever touches levels 12 and 11 however far
-    // apart the two trucks are.
-    var SWOOP_DROP = 1.75;
-    var _swoopRaf = null;                    // in-flight camera move; stopReplay clears it
+    // The camera does not move any more (Jake, 2026-09-09). The office came to the
+    // board to see where the crew is RIGHT NOW and could not read it: the map was
+    // flying truck to truck, and the 90-minute path each one drew was taken for
+    // where they are rather than where they have been. So the map now sits on ONE
+    // frame with the whole crew on it — the answer to "where is everyone" is on
+    // screen the whole time, at a glance, with nothing moving to follow.
+    //
+    // Two things fall out of that, both good. The frame is TIGHTER, because it no
+    // longer has to cover everywhere they have driven, only where they are. And the
+    // map never lands on ground it has not already loaded, so the reload Jake asked
+    // about — every switch fetching a fresh set of satellite tiles — simply cannot
+    // happen: there is nothing left to fetch after the first frame.
+    //
+    // The crew is still walked one at a time, but only the HIGHLIGHT moves: the pin
+    // grows, its rail card lights, and the town chip names where it is. No camera.
+    // Short, because a highlight is read instantly — the old dwell was long only so
+    // the path had time to draw itself, and there is no path now.
+    var HIGHLIGHT_MS = 6000;
     var TRAILS_MAX_AGE_MS = 5 * 60 * 1000;   // how long a fetched trail is reused
+    // Trails are still FETCHED, and deliberately so: nothing draws them any more, but
+    // isParked() reads them to tell a truck that is working from one sitting at the
+    // shop, and only the working ones are worth highlighting. Current status alone
+    // cannot do that — a truck at a red light reads 'stopped' too. The payload could
+    // be cut down to "did it move" one day; it is a 36 KB call every 5 minutes in
+    // open hours, so it has not been worth the change.
 
     function kmBetween(aLat, aLng, bLat, bLng){
       var R = 6371, toR = Math.PI/180;
@@ -1785,14 +1759,18 @@
     }
 
     // A truck that hasn't moved all trail-window (90 min, under 50 m of travel =
-    // no trail) is parked — shop, yard, wherever — and the focus tour skips it
-    // (Jake 2026-07-20). It keeps its pin; it just doesn't get toured.
+    // no trail) is parked — shop, yard, wherever — and the highlight walk skips it
+    // (Jake 2026-07-20). It keeps its pin; it just doesn't get lit up.
+    //
+    // This is the ONLY thing trail data is still read for. Nothing draws it since
+    // 2026-09-09, but current status alone cannot tell a working truck from a
+    // parked one — a truck at a red light reads 'stopped' too.
     //
     // Two guards keep this honest:
-    // - moving RIGHT NOW always tours, even with no trail yet — covers a truck
+    // - moving RIGHT NOW is always walked, even with no trail yet — covers a truck
     //   that woke up inside the 5-min trail cache window.
     // - stale/absent trail data disarms the skip entirely — on a Geotab blip the
-    //   whole fleet would otherwise look asleep and the tour would stop.
+    //   whole fleet would otherwise look asleep and the walk would stop.
     function isParked(t){
       if(!DATA.trailsAt || Date.now() - DATA.trailsAt > 15 * 60000) return false;
       if(truckState(t) === 'moving') return false;
@@ -2068,13 +2046,12 @@
       }
       var b = new google.maps.LatLngBounds();
       out.forEach(function(t){ b.extend(new google.maps.LatLng(t.lat, t.lng)); });
-      // Frame the DAY, not the moment. The overview replays every truck's trail, and
-      // a truck that ran to Midland and came back is parked beside the shop now - so
-      // framing current positions alone would draw half its day off the screen.
-      out.forEach(function(t){
-        var pts = (DATA.trails || {})[t.id];
-        if(pts) pts.forEach(function(pt){ b.extend(new google.maps.LatLng(pt[0], pt[1])); });
-      });
+      // Frame the MOMENT, not the day. This used to stretch the bounds over every
+      // truck's whole 90-minute path as well, because the overview replayed those
+      // paths and half a run would otherwise have been drawn off-screen. The paths
+      // are gone (Jake, 2026-09-09) and so is the reason: framing where the trucks
+      // ARE is both the question the office is asking and a far tighter frame — a
+      // truck that ran to Midland and came back no longer drags Midland into shot.
       // Blanked across BOTH moves, not just the first. fitBounds settles a frame
       // or two later, and the clamp below can then change the zoom again — reveal
       // after the first and you would watch it jump a second time.
@@ -2096,10 +2073,10 @@
       _map.fitBounds(b, { top:272, right:380, bottom:150, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
       // point, which would slam the map to rooftop level. THAT is the only case
-      // worth clamping. Capping at TOUR_ZOOM was wrong and made this look like a
-      // fixed zoom: zoom 13 covers about 24 km, a crew working one town is inside
-      // five, so the clamp fired every time and left the pins bunched in the
-      // middle of an empty map. 16 is roughly a 3 km view — close enough to read
+      // worth clamping. Capping at the old fixed tour zoom of 13 was wrong and made
+      // this look like a fixed zoom: 13 covers about 24 km, a crew working one town
+      // is inside five, so the clamp fired every time and left the pins bunched in
+      // the middle of an empty map. 16 is roughly a 3 km view — close enough to read
       // the streets, wide enough that a tight cluster still has context.
       google.maps.event.addListenerOnce(_map, 'idle', function(){
         if(_map.getZoom() > MAX_FRAME_ZOOM) _map.setZoom(MAX_FRAME_ZOOM);
@@ -2110,197 +2087,15 @@
       setTimeout(reveal, 900);
     }
 
-    // ── trail replay ──────────────────────────────────────────────────────────
-    // Move a truck's pin — and its card, when it is the focused one — to a spot.
-    // Called with no lat/lng it puts the pin back where the truck actually is.
-    function seatTruck(t, lat, lng){
-      var ll = new google.maps.LatLng(lat == null ? t.lat : lat, lng == null ? t.lng : lng);
-      if(_markers[t.id]) _markers[t.id].setPosition(ll);
-    }
-
-    function stopReplay(){
-      // The camera move and the trail run are two halves of one tour step, so
-      // whatever ends the step ends both — a cancelled swoop left running would
-      // keep driving the map while the next truck's move tries to. stopCycle gets
-      // this for free: it calls stopReplay first.
-      if(_swoopRaf){ cancelAnimationFrame(_swoopRaf); _swoopRaf = null; }
-      if(_replayRaf){ cancelAnimationFrame(_replayRaf); _replayRaf = null; }
-      if(_trailFlow){ clearInterval(_trailFlow); _trailFlow = null; }
-      _trailLines.forEach(function(line){ line.setMap(null); });
-      _trailLines = [];
-      // A replay cut short would leave the pin parked partway along the route,
-      // somewhere the truck isn't. Put every displaced pin back on its real
-      // position - the overview replay displaces the whole fleet, not just one.
-      _replayOf.forEach(function(t){ seatTruck(t); });
-      _replayOf = [];
-    }
-
-    // Google has no dash array on a polyline, so the dashes are repeated symbols
-    // along an invisible line (strokeOpacity 0), and the flow that makes a path read
-    // as a run rather than a drawn line is the animated offset in startTrailFlow.
-    // One truck's replay and the all-trucks overview both draw with this, so they
-    // look the same and tear down the same way.
-    function makeTrailLine(first){
-      var line = new google.maps.Polyline({
-        path:[first], strokeOpacity:0, clickable:false, zIndex:5, map:_map,
-        // Thicker marks with smaller gaps between them. The colour was never the
-        // whole problem: at 6px every 17px the trail was a 6px mark and an 11px gap,
-        // so two thirds of it was empty air and it lost to Google's fat solid traffic
-        // lines whatever colour it was. 9px marks (scale 4.5 over a 2-unit path) every
-        // 16px leaves a 7px gap, so it reads as a line rather than a dotted hint.
-        icons:[{ icon:{ path:'M 0,-1 0,1', strokeColor:TRAIL_C, strokeOpacity:.95,
-                        strokeWeight:9, scale:4.5 }, offset:'0', repeat:'16px' }]
-      });
-      _trailLines.push(line);
-      return line;
-    }
-    // ONE interval drives every line on screen. Six trails each with their own timer
-    // would drift apart and the dashes would stop reading as one system.
-    function startTrailFlow(){
-      if(_trailFlow) return;
-      _trailFlow = setInterval(function(){
-        _trailLines.forEach(function(line){
-          var ic = line.get('icons');
-          ic[0].offset = (((parseFloat(ic[0].offset) || 0) + 1.5) % 100) + '%';
-          line.set('icons', ic);
-        });
-      }, 60);
-    }
-
-    // Cumulative distance along a path. A replay advances by DISTANCE, not by
-    // position in the array: pings are unevenly spaced - a truck at 100 km/h leaves
-    // a gap many times the one it leaves crawling through town - so stepping an
-    // index at a steady rate lurches. Null means the truck never actually moved.
-    function trailWalk(path){
-      var seg = [0];
-      for(var i = 1; i < path.length; i++){
-        seg[i] = seg[i - 1] + kmBetween(path[i - 1].lat, path[i - 1].lng,
-                                        path[i].lat, path[i].lng);
-      }
-      var total = seg[seg.length - 1];
-      return total ? { path:path, seg:seg, total:total, idx:0 } : null;
-    }
-    // Advance one walk to a fraction of its route: grow its line to every ping it has
-    // passed, and return the interpolated point BETWEEN the two bracketing pings, so
-    // the pin has a real position on every frame rather than only on the third of
-    // frames that happen to land on a ping. The line only ever grows, so push what is
-    // new instead of rebuilding the whole path every frame.
-    function trailStep(w, line, e){
-      var want = e * w.total;
-      while(w.idx < w.path.length - 1 && w.seg[w.idx + 1] <= want){
-        w.idx++;
-        line.push(new google.maps.LatLng(w.path[w.idx].lat, w.path[w.idx].lng));
-      }
-      var j = Math.min(w.idx + 1, w.path.length - 1);
-      var span = w.seg[j] - w.seg[w.idx];
-      var f = span > 0 ? Math.min(1, (want - w.seg[w.idx]) / span) : 0;
-      return { lat: w.path[w.idx].lat + (w.path[j].lat - w.path[w.idx].lat) * f,
-               lng: w.path[w.idx].lng + (w.path[j].lng - w.path[w.idx].lng) * f };
-    }
-    // Smoothstep, eased at both ends. The quadratic ease this replaced peaked at
-    // twice the average speed halfway through, so the middle of the run was the part
-    // that looked rushed; this tops out at one and a half times, which is a truck
-    // driving rather than a truck being flung across the county.
-    function trailEase(p){ return p * p * (3 - 2 * p); }
-
-    // The path a truck actually drove today, or null if it has not moved.
-    function trailPath(t){
-      var pts = (DATA.trails || {})[t.id];
-      if(!pts || pts.length < 2) return null;
-      return pts.map(function(p){ return { lat:p[0], lng:p[1] }; });
-    }
-
-    // Every touring truck's day, drawn at once on the wide frame, before the tour
-    // dives in on them one at a time. They all run start-to-now over the same window,
-    // so a truck with a longer day simply moves faster - what you read is the shape
-    // of the whole crew's day, which is the thing no single-truck view can show.
-    function replayAllTrails(gen, ms){
-      stopReplay();
-      if(!_map) return;
-      var runs = tourTrucks().map(function(t){
-        var path = trailPath(t);
-        if(!path) return null;
-        var w = trailWalk(path);
-        return w ? { t:t, w:w } : null;
-      }).filter(Boolean);
-      if(!runs.length) return;
-      runs.forEach(function(r){
-        var first = r.w.path[0];
-        r.line = makeTrailLine(new google.maps.LatLng(first.lat, first.lng)).getPath();
-      });
-      startTrailFlow();
-      // Hidden tab: rAF is throttled to a crawl or stops outright, which would strand
-      // every line part-drawn. Nobody is watching, so just draw the finished picture.
-      if(document.hidden){
-        runs.forEach(function(r){ trailStep(r.w, r.line, 1); });
-        return;
-      }
-      runs.forEach(function(r){
-        _replayOf.push(r.t);
-        seatTruck(r.t, r.w.path[0].lat, r.w.path[0].lng);
-      });
-      var start = null;
-      function frame(ts){
-        if(gen !== _cycleGen){ _replayRaf = null; return; }
-        if(start === null) start = ts;
-        var p = Math.min(1, (ts - start) / ms);
-        var e = trailEase(p);
-        runs.forEach(function(r){
-          var at = trailStep(r.w, r.line, e);
-          seatTruck(r.t, at.lat, at.lng);
-        });
-        if(p < 1) _replayRaf = requestAnimationFrame(frame);
-        else {
-          _replayRaf = null;
-          // The lines stay up - the finished picture IS the point of the overview -
-          // but the pins go back to where the trucks really are.
-          _replayOf.forEach(function(x){ seatTruck(x); });
-          _replayOf = [];
-        }
-      }
-      _replayRaf = requestAnimationFrame(frame);
-    }
-
-    // Draw the focused truck's recent path, growing it from oldest to newest so
-    // the run replays rather than just appearing. Carries the cycle generation so
-    // a frame that lands after the cycle moved on can't draw onto the next truck.
-    function replayTrail(t, gen, ms){
-      stopReplay();
-      var path = trailPath(t);
-      if(!path || !_map) return;
-      var line = makeTrailLine(new google.maps.LatLng(path[0].lat, path[0].lng)).getPath();
-      startTrailFlow();
-      var w = trailWalk(path);
-      // A truck whose pings are all the same point has no route to run.
-      if(!w){ line.push(new google.maps.LatLng(path[0].lat, path[0].lng)); return; }
-      // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
-      // the tab is hidden, which would strand the line part-drawn — the same reason
-      // countUp() bails when hidden. Nobody is watching then, so just draw the whole
-      // path and skip the animation.
-      if(document.hidden){ trailStep(w, line, 1); return; }
-      // The pin runs the route with the line rather than waiting at the end of it,
-      // so the last 90 minutes replay as a journey. _replayOf marks it as displaced
-      // — everything that ends a replay puts it back on its real position.
-      _replayOf.push(t);
-      seatTruck(t, path[0].lat, path[0].lng);
-      var start = null;
-      function frame(ts){
-        if(gen !== _cycleGen){ _replayRaf = null; return; }
-        if(start === null) start = ts;
-        var p = Math.min(1, (ts - start) / (ms || REPLAY_MS));
-        var at = trailStep(w, line, trailEase(p));
-        seatTruck(t, at.lat, at.lng);
-        if(p < 1) _replayRaf = requestAnimationFrame(frame);
-        else { _replayRaf = null; _replayOf = []; seatTruck(t); }
-      }
-      _replayRaf = requestAnimationFrame(frame);
-    }
-
-    // ── focus cycle: step through the trucks while the screen is up ───────────
+    // ── focus cycle: light up each truck in turn, camera stays put ────────
+    // What used to be a tour of the fleet is now a walk of the HIGHLIGHT. The map
+    // holds one frame with everyone on it (frameAll) and does not move again while
+    // the screen is up; all that changes is which pin is enlarged, which rail card
+    // is lit, and which town the chip names. See the note by HIGHLIGHT_MS for why.
     function stopCycle(){
-      stopReplay();
       _cycleGen++;                       // any chain still in flight now bails out
-      clearTimeout(_cycleTimer); _cycleTimer = null; _focusId = null;
+      clearTimeout(_cycleTimer); _cycleTimer = null;
+      unfocus();
       el('loTown').classList.remove('on');
       highlightRail(null);
     }
@@ -2313,142 +2108,52 @@
       });
     }
 
-    // The camera move between two trucks: pull back, travel, drop in. One rAF loop
-    // doing two map setters a frame — centre straight across in lat/lng, zoom arced
-    // out and back — so it reads as one continuous move rather than a zoom-out, a
-    // slide and a zoom-in. It carries the cycle generation for the same reason
-    // replayTrail's frame does: a move the tour has already replaced must stop
-    // driving the map, not fight the one that replaced it.
-    // `land` is the arrival, and only ever runs on a live generation.
-    function swoopTo(to, gen, land){
-      var from = _map.getCenter();
-      // requestAnimationFrame is throttled to a crawl (and can stop entirely) while
-      // the tab is hidden — the same reason replayTrail draws the whole path and
-      // returns. A camera stranded halfway between two trucks is the worst thing to
-      // leave on a wall, so when nobody is watching, just be there.
-      if(document.hidden || !from){
-        _map.setZoom(TOUR_ZOOM);
-        _map.setCenter(to);
-        land();
-        return;
-      }
-      var lat0 = from.lat(), lng0 = from.lng(), z0 = _map.getZoom();
-      var dLat = to.lat() - lat0, dLng = to.lng() - lng0;
-      var start = null;
-      function frame(ts){
-        if(gen !== _cycleGen){ _swoopRaf = null; return; }
-        if(start === null) start = ts;
-        var p = Math.min(1, (ts - start) / SWOOP_MS);
-        // Eased at both ends, so the camera pulls away and settles instead of
-        // snapping into motion — the curve the trail replay already uses.
-        var e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-        _map.setCenter(new google.maps.LatLng(lat0 + dLat * e, lng0 + dLng * e));
-        if(p < 1){
-          // sin^2: flat at both ends, deepest in the middle of the travel, so the
-          // pull-back never starts or stops abruptly and the drop-in lands with the
-          // arrival. The landing zoom is set exactly below, not left to the curve.
-          var arc = Math.sin(Math.PI * p);
-          _map.setZoom(z0 + (TOUR_ZOOM - z0) * e - SWOOP_DROP * arc * arc);
-          _swoopRaf = requestAnimationFrame(frame);
-        } else {
-          _map.setZoom(TOUR_ZOOM);
-          _swoopRaf = null;
-          land();
-        }
-      }
-      _swoopRaf = requestAnimationFrame(frame);
+    // Shrink the currently-highlighted pin back to normal and forget it. Only that
+    // one marker is rebuilt: re-iconing the whole fleet threw away and rebuilt every
+    // marker's DOM for nothing, which is why this has always been done a pin at a
+    // time. Safe to call when nothing is highlighted.
+    function unfocus(){
+      var prevId = _focusId;
+      _focusId = null;
+      if(!prevId || !_markers[prevId]) return;
+      (DATA.trucks || []).forEach(function(x){
+        if(x.id === prevId) _markers[prevId].setContent(truckIcon(x, false));
+      });
     }
 
-    function focusTruck(i, gen, fromOverview){
-      if(gen !== _cycleGen) return;      // a newer cycle has taken over
-      var list = tourTrucks();           // parked trucks keep pins but aren't toured
-      if(!list.length){ _focusId = null; frameAll(); return; }
-      // Back at the top of the list = a new lap, which opens on the overview.
-      if(!fromOverview && i > 0 && i % list.length === 0){ showOverview(i, gen); return; }
-      var t = list[((i % list.length) + list.length) % list.length];
-      // Only the two pins that actually change get a new icon. Re-iconing the whole
-      // fleet every step threw away and rebuilt every marker's DOM for nothing.
-      var prevId = _focusId;
-      _focusId = t.id;
-      if(prevId && prevId !== t.id && _markers[prevId]){
-        (DATA.trucks || []).forEach(function(x){
-          if(x.id === prevId) _markers[prevId].setContent(truckIcon(x, false));
-        });
+    // Highlight truck i, then hand on to i+1. There is deliberately no map call of
+    // any kind in here — that is the whole change. `gen` is the same generation
+    // guard the cycle has always carried: a chain the panel has already replaced
+    // must not keep lighting pins under the one that replaced it.
+    function highlightStep(i, gen){
+      if(gen !== _cycleGen) return;
+      var list = tourTrucks();           // parked trucks keep their pin, just aren't walked
+      if(!list.length){
+        unfocus();
+        el('loTown').classList.remove('on');
+        highlightRail(null);
+        return;
       }
+      var t = list[i % list.length];
+      unfocus();
+      _focusId = t.id;
       if(_markers[t.id]) _markers[t.id].setContent(truckIcon(t, true));
       var town = el('loTown');
       town.innerHTML = '<span class="k">In</span><span class="v">'+esc(nearestTown(t.lat, t.lng))+'</span>';
       town.classList.add('on');
       highlightRail(t.id);
-      // Work out the dwell first: the replay is clamped to it, so a fleet big
-      // enough to shorten each turn shortens the run to match instead of having
-      // it cut off part-drawn. SWOOP_MS comes off that clamp too, because the
-      // replay does not begin until the camera lands — a trail drawing under a
-      // moving camera is a mess. At the 9s floor that still leaves 4.9s of replay
-      // ending 2.5s before the truck changes.
-      // OVERVIEW_MS comes off the top. The overview opens every lap, so dividing the
-      // WHOLE panel between the trucks made the lap come to more than the panel, and
-      // the last truck of every showing was cut off partway through its run.
-      var hold = Math.max(9000,
-                          Math.floor((panelMs('liveops') - OVERVIEW_MS) / list.length));
-      var replayMs = Math.min(REPLAY_MS, hold - 2500 - SWOOP_MS);
-      var to = new google.maps.LatLng(t.lat, t.lng);
-      // Truck to truck the camera swoops (swoopTo): pull back a FIXED SWOOP_DROP,
-      // travel, drop in. Fixed is the point — flyTo's distance-derived depth is what
-      // made the map rebuild at every step, and a fractional zoom only crosses the
-      // whole levels it actually reaches. The old near-hop-glides/far-one-cuts split
-      // is gone with it: the smear that made a long panTo unusable was the same
-      // problem as the jump, and pulling back covers both.
-      //
-      // Arriving from the all-trucks overview is still a cut. fitBounds picks that
-      // view's zoom, anywhere up to MAX_FRAME_ZOOM, so a swoop off it would cross
-      // exactly the levels the fixed depth exists to avoid.
-      if(_map.getZoom() === TOUR_ZOOM){
-        swoopTo(to, gen, function(){ replayTrail(t, gen, replayMs); });
-      } else {
-        cutTo(function(){
-          _map.setZoom(TOUR_ZOOM);
-          _map.setCenter(to);
-        });
-        replayTrail(t, gen, replayMs);
-      }
-      // Split the screen's dwell across however many trucks are out, with a floor
-      // so a big fleet doesn't turn into a strobe.
-      _cycleTimer = setTimeout(function(){ focusTruck(i + 1, gen); }, hold);
+      _cycleTimer = setTimeout(function(){ highlightStep(i + 1, gen); }, HIGHLIGHT_MS);
     }
 
     function startCycle(){
       stopCycle();
       if(!_map) return;
-      // All-parked (or none out) is a valid state: pins stay up, the overview
-      // frames them, and nobody gets toured. The next data refresh restarts the
-      // tour the moment anything wakes up.
-      //
-      // frameAll() ONLY in that case. Running it first every time meant the map
-      // snapped out to the wide overview and back on every restart — and a restart
-      // happens twice on entering the screen, once now and once when refreshTrucks
-      // lands a second later.
-      if(tourTrucks().length) showOverview(0, _cycleGen);
-      else frameAll();
-    }
-    // The all-trucks frame, then on to truck nextI. Clears the focus so no pin
-    // stays enlarged and no card floats over the overview.
-    function showOverview(nextI, gen){
-      if(gen !== _cycleGen) return;
-      stopReplay();
-      var prevId = _focusId;
-      if(prevId && _markers[prevId]){
-        (DATA.trucks || []).forEach(function(x){ if(x.id === prevId) _markers[prevId].setContent(truckIcon(x, false)); });
-      }
-      _focusId = null;
-      el('loTown').classList.remove('on');
-      highlightRail(null);
+      // The frame is set here and then left alone for the rest of the showing.
+      // All-parked (or nobody out) is a valid state: the pins stay up and the frame
+      // still holds them, nobody is highlighted, and the next data refresh starts
+      // the walk again the moment somebody moves.
       frameAll();
-      // The whole crew's day, drawn at once on the wide frame. It finishes early on
-      // purpose, so the completed picture stands still for OVERVIEW_HOLD_MS before
-      // the tour dives in on the first truck.
-      replayAllTrails(gen, OVERVIEW_MS - OVERVIEW_HOLD_MS);
-      _cycleTimer = setTimeout(function(){ focusTruck(nextI, gen, true); }, OVERVIEW_MS);
+      if(tourTrucks().length) highlightStep(0, _cycleGen);
     }
 
     function renderLiveOps(){
