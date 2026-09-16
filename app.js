@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '678';
+var APP_VERSION = '679';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2819,6 +2819,7 @@ function render(name, bg){
   else if(name==='team') renderTeamPage();
   else if(name==='maintenance'){ switchFleetTab('maintenance'); }
   else if(name==='documents') renderDocuments();
+  else if(name==='writtenquotes') renderWrittenQuotes(bg);
   else if(name==='emailtemplates') renderEmailTemplates();
   else if(name==='jwgscheduler') renderJwgScheduler();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
@@ -6467,7 +6468,7 @@ function globalSearchAskAi(){
 // question from what it costs — the price list stays open to everyone who quotes work.
 // Josh and Sam are 'lead': the analytics tier, so before this they could open it.
 var OWNER_PAGES=['staffcheckin','pricingconsole'];
-var RESTRICTED_PAGES=['analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates','prospects'];
+var RESTRICTED_PAGES=['writtenquotes','analytics','utilization','leaderboard','advisor','bookings','pricingconsole','ourprices','ourpriceseditor','team','emailtemplates','prospects'];
 
 // The command bar answers page names as well as records. This is the promise that makes
 // the nav reorganization safe: no page is ever lost, because typing its name -- including
@@ -6490,6 +6491,7 @@ var PALETTE_PAGES=[
   {p:'maintenance',   n:'Maintenance',       h:'Vehicles > Maintenance', a:'repairs service shop'},
   {p:'damage',        n:'Damage Reports',    h:'What got broken', a:'drd'},
   {p:'documents',     n:'Documents',         h:'Business PDFs', a:'files paperwork'},
+  {p:'writtenquotes', n:'Written Quotes',    h:'Typed quotes for clients, as a PDF', a:'quote quotes estimate pdf'},
   {p:'suggestions',   n:'Suggestions',       h:'The note board', a:'notes ideas'},
   {p:'bookings',      n:'Bookings',          h:'What came in from the website', a:'website online'},
   {p:'emailtemplates',n:'Email Templates',   h:'What we send', a:'email'},
@@ -14012,7 +14014,7 @@ function paintSvcTabIcons(){
 var NAV_ICO={
   "newJob()":'newJob', "go('dashboard')":'dashboard', "go('jobs')":'allJobs',
   "goJwg('schedule')":'schedule', "go('clients')":'clients', "go('landscaping')":'landscaping',
-  "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('usage')":'analytics',
+  "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('writtenquotes')":'edit', "go('usage')":'analytics',
   "go('livejobs')":'liveJobs', "go('dispatch')":'dispatch', "go('vehicles')":'vehicles',
   "go('crew')":'clients', "go('damage')":'damage', "go('bininventory')":'junk',
   "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
@@ -14028,7 +14030,7 @@ var NAV_COLOR={
   "newJob()":'green', "go('dashboard')":'blue', "go('jobs')":'amber',
   "goJwg('schedule')":'violet', "go('clients')":'teal', "go('landscaping')":'olive',
   "goJwg('summer')":'yellow',
-  "go('documents')":'slate', "go('usage')":'violet', "go('livejobs')":'cyan',
+  "go('documents')":'slate', "go('writtenquotes')":'green', "go('usage')":'violet', "go('livejobs')":'cyan',
   "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
   "go('damage')":'red', "go('bininventory')":'bin',
   "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('bookings')":'pink',
@@ -14801,7 +14803,7 @@ function trackPageView(page){
   });
 }
 var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landscaping:'Extra Jobs',
-  jwgscheduler:'JWG Scheduler',documents:'Documents',suggestions:'Suggestions',livejobs:'Live Jobs',
+  jwgscheduler:'JWG Scheduler',documents:'Documents',writtenquotes:'Written Quotes',suggestions:'Suggestions',livejobs:'Live Jobs',
   dispatch:'Dispatch',crew:'Crew Schedule',damage:'Damage Reports',
   vehicles:'Vehicles',maintenance:'Vehicles · Maintenance tab',
   bininventory:'Bin Fleet',binmap:'Bin Fleet · Map tab',
