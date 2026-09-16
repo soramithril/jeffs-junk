@@ -2,7 +2,8 @@
 // Barb's quotes for clients: typed up here, saved, and downloaded as a PDF to attach to
 // an email. Replaces typing over last customer's Word file.
 // Standalone module. Depends on app.js globals: db, toast, currentUser, canDelete,
-// todayStr, _wrapForWidth, and PDFLib (index.html loads pdf-lib).
+// todayStr, _wrapForWidth, and PDFLib (index.html loads pdf-lib). PDF.js is loaded on
+// demand the first time the editor opens, for the preview only.
 // Called by render('writtenquotes'). A bug here only affects this page.
 //
 // Owners + leads only, enforced twice: go() blocks the page (RESTRICTED_PAGES) and the
@@ -24,7 +25,7 @@ var _wqEdit = null;           // the quote open in the editor; null = showing th
 var _wqDirty = false;
 var _wqPreviewTimer = null;
 var _wqPreviewSeq = 0;
-var _wqPreviewUrl = null;
+var _wqPdfjsReady = null;      // promise of the PDF.js global, once it has been asked for
 var _wqAssetBytes = null;
 
 function _wqEsc(s){
@@ -203,7 +204,6 @@ function wqBack(){
   if (_wqDirty && !confirm('Leave without saving? Your changes to this quote will be lost.')) return;
   _wqEdit = null;
   _wqDirty = false;
-  if (_wqPreviewUrl) { URL.revokeObjectURL(_wqPreviewUrl); _wqPreviewUrl = null; }
   renderWrittenQuotes();
 }
 
@@ -268,7 +268,9 @@ function _wqEditorHtml(q){
       + '<div class="wq-preview">'
         + '<div class="wq-preview-head"><h3>What the customer gets</h3><span>Updates when you stop typing</span></div>'
         + '<div class="wq-note" id="wq-preview-note" hidden></div>'
-        + '<iframe class="wq-frame" id="wq-frame" title="Quote PDF preview"></iframe>'
+        + '<div class="wq-sheet" id="wq-sheet" role="img" aria-label="Preview of the quote PDF">'
+          + '<div class="wq-sheet-wait">Building the preview…</div>'
+        + '</div>'
       + '</div>'
     + '</div>';
 }
@@ -333,24 +335,71 @@ function wqRemoveLine(i){
   _wqChanged();
 }
 
+// The preview used to be the PDF in an <iframe>. Every update reloaded the browser's PDF
+// viewer, which blanks to grey and redraws — a flash on every pause in typing (Barb found
+// it hard on the eyes). Now PDF.js draws each page onto a canvas that isn't on screen yet,
+// and the finished pages replace the old ones in one step, so the old preview stays up
+// until the new one is completely ready. Nothing blanks in between.
+var WQ_PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
+
+function _wqPdfjs(){
+  if (!_wqPdfjsReady) {
+    _wqPdfjsReady = new Promise(function(resolve, reject){
+      var tag = document.createElement('script');
+      tag.src = WQ_PDFJS + 'build/pdf.min.js';
+      tag.onload = function(){
+        pdfjsLib.GlobalWorkerOptions.workerSrc = WQ_PDFJS + 'build/pdf.worker.min.js';
+        resolve(pdfjsLib);
+      };
+      tag.onerror = function(){
+        _wqPdfjsReady = null;   // let the next pause in typing try again
+        reject(new Error('The preview couldn\'t load (no connection to cdn.jsdelivr.net). Download PDF still works.'));
+      };
+      document.head.appendChild(tag);
+    });
+  }
+  return _wqPdfjsReady;
+}
+
 async function _wqRenderPreview(){
   var seq = ++_wqPreviewSeq;
-  var frame = document.getElementById('wq-frame');
+  var sheet = document.getElementById('wq-sheet');
   var note = document.getElementById('wq-preview-note');
-  if (!frame || !_wqEdit) return;
-  var bytes;
-  try { bytes = await buildWrittenQuotePdf(_wqEdit, await _wqAssets()); }
-  catch (err) {
+  if (!sheet || !_wqEdit) return;
+  var pages = [];
+  try {
+    var bytes = await buildWrittenQuotePdf(_wqEdit, await _wqAssets());
+    var pdfjs = await _wqPdfjs();
+    if (seq !== _wqPreviewSeq) return;   // a newer preview is already on its way
+    var doc = await pdfjs.getDocument({
+      data: bytes, isEvalSupported: false,
+      standardFontDataUrl: WQ_PDFJS + 'standard_fonts/'
+    }).promise;
+    var cssWidth = sheet.clientWidth - 24;               // the sheet's own padding
+    var ratio = window.devicePixelRatio || 1;
+    for (var n = 1; n <= doc.numPages; n++) {
+      var page = await doc.getPage(n);
+      var viewport = page.getViewport({ scale: cssWidth * ratio / page.getViewport({ scale: 1 }).width });
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      // 'print' draws straight through. The default 'display' mode waits on screen-refresh
+      // callbacks, which stop entirely while the tab is in the background — so flicking to
+      // an email to copy a customer's details froze the preview (measured: never finished
+      // hidden, vs 49 ms in print mode). This PDF has no forms or annotations, so it looks
+      // the same either way, and print is what the customer actually gets.
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport, intent: 'print' }).promise;
+      pages.push(canvas);
+      if (seq !== _wqPreviewSeq) { doc.destroy(); return; }
+    }
+    doc.destroy();
+  } catch (err) {
     console.error('written quote preview', err);
     if (seq === _wqPreviewSeq && note) { note.textContent = err.message; note.hidden = false; }
     return;
   }
-  if (seq !== _wqPreviewSeq) return;   // a newer preview is already on its way
   if (note) note.hidden = true;
-  var old = _wqPreviewUrl;
-  _wqPreviewUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-  frame.src = _wqPreviewUrl + '#toolbar=0&navpanes=0&view=FitH';
-  if (old) URL.revokeObjectURL(old);
+  sheet.replaceChildren.apply(sheet, pages);   // one swap: old pages out, finished pages in
 }
 
 // ── save / send / download / delete ───────────────────────────────────────────
@@ -446,7 +495,11 @@ async function _wqAssets(){
     if (!r.ok) throw new Error('Could not load ' + url + ' for the PDF (' + r.status + ').');
     return new Uint8Array(await r.arrayBuffer());
   }
-  _wqAssetBytes = { logo: await get('assets/jeffs-junk-logo.png'), wordmark: await get('assets/quote-wordmark.png') };
+  _wqAssetBytes = {
+    logo: await get('assets/jeffs-junk-logo.png'),
+    jwg: await get('assets/jwg-logo.png'),
+    wordmark: await get('assets/quote-wordmark.png')
+  };
   return _wqAssetBytes;
 }
 
@@ -472,7 +525,7 @@ function _wqClean(s){ return String(s == null ? '' : s).replace(/\r/g, '').repla
 
 async function buildWrittenQuotePdf(q, assets){
   var P = PDFLib;
-  var W = 612, H = 792, M = 54, CW = W - 2 * M, BOTTOM = H - 76;
+  var W = 612, H = 792, M = 54, CW = W - 2 * M, BOTTOM = H - 80;
   function rgb(hex){ return P.rgb(parseInt(hex.slice(0,2),16)/255, parseInt(hex.slice(2,4),16)/255, parseInt(hex.slice(4,6),16)/255); }
   var C = { green: rgb('53B847'), dark: rgb('3A8F34'), ink: rgb('2B2B2B'), muted: rgb('7A7A7A'),
             rule: rgb('D9D9D9'), tint: rgb('F4F7F3'), white: rgb('FFFFFF') };
@@ -482,6 +535,7 @@ async function buildWrittenQuotePdf(q, assets){
   var bold = await pdf.embedFont(P.StandardFonts.HelveticaBold);
   _wqAssertPrintable(q, reg);
   var logo = await pdf.embedPng(assets.logo);
+  var jwg = await pdf.embedPng(assets.jwg);
   var mark = await pdf.embedPng(assets.wordmark);
   pdf.setTitle('Quote' + (q.quote_no ? ' #' + q.quote_no : '') + (q.customer_name ? ' - ' + q.customer_name : ''));
   pdf.setAuthor('Jeff\'s Junk');
@@ -536,8 +590,16 @@ async function buildWrittenQuotePdf(q, assets){
 
   // ── page 1 masthead ──
   page = pdf.addPage([W, H]);
-  var logoW = 168, logoH = logoW * logo.height / logo.width;
-  page.drawImage(logo, { x: M, y: H - 34 - logoH, width: logoW, height: logoH });
+  // Both companies, the same size and side by side on one centre line (Jake, 2026-09-16).
+  var mid = 68, gap = 20;
+  var logoW = 150, logoH = logoW * logo.height / logo.width;   // the truck fills its image edge to edge
+  page.drawImage(logo, { x: M, y: H - mid - logoH / 2, width: logoW, height: logoH });
+  // jwg-logo.png is the badge on a white square: the circle fills only the middle 78%
+  // (measured: 43px of white on each side of 400). Draw it so the circle is exactly the
+  // truck's height, and pull it left by that white border so the gap is the real one.
+  var JWG_BORDER = 43 / 400;
+  var jwgH = logoH / (1 - 2 * JWG_BORDER), jwgW = jwgH * jwg.width / jwg.height;
+  page.drawImage(jwg, { x: M + logoW + gap - jwgW * JWG_BORDER, y: H - mid - jwgH / 2, width: jwgW, height: jwgH });
   var markW = 146, markH = markW * mark.height / mark.width;
   page.drawImage(mark, { x: W - M - markW, y: H - 42 - markH, width: markW, height: markH });
   [['QUOTE #', q.quote_no ? String(q.quote_no) : '—'], ['DATE', _wqLongDate(q.quote_date)]].forEach(function(m, i){
@@ -607,7 +669,7 @@ async function buildWrittenQuotePdf(q, assets){
 
   box(M, y, CW, 42, C.tint);
   box(M, y, 3, 42, C.green);
-  text('Price includes labour, trucking and dump fees.', M + 14, y + 17, 9, reg, C.ink);
+  text('Price includes all labour, materials and equipment needed to complete the job.', M + 14, y + 17, 9, reg, C.ink);
   text('W.S.I.B. covered and insured.', M + 14, y + 31, 9, reg, C.ink);
   y += 42;
 
@@ -615,18 +677,23 @@ async function buildWrittenQuotePdf(q, assets){
   var tyw = trackedWidth(ty, 8.4, bold, 1.8);
   tracked(ty, (W - tyw) / 2, y + 30, 8.4, bold, C.green, 1.8);
 
-  // ── footer on every page ──
+  // ── footer on every page: both company names, then how to reach us ──
   var pages = pdf.getPages();
-  var foot = [["Jeff's Junk", bold, C.green], ['   •   ', reg, C.green],
-              ['92 Davidson St. Unit 2, Barrie, ON  L4M 3R8', reg, C.muted], ['   •   ', reg, C.green],
-              ['705.333.7767', reg, C.muted], ['   •   ', reg, C.green], ['hello@jeffsjunk.ca', reg, C.muted]];
-  var fw = foot.reduce(function(s, part){ return s + width(part[0], 7.8, part[1]); }, 0);
+  var dot = ['  •  ', reg, C.green];
+  var footLines = [
+    { top: H - 42, size: 8.4, parts: [['Jeff White Group', bold, C.green], dot, ["Jeff's Junk", bold, C.green]] },
+    { top: H - 30, size: 7.6, parts: [['92 Davidson St. Unit 2, Barrie, ON  L4M 3R8', reg, C.muted], dot,
+                                      ['705 734 1282', reg, C.muted], dot, ['barbara@jeffwhitegroup.com', reg, C.muted]] }
+  ];
   pages.forEach(function(p, i){
     page = p;
-    box(M, H - 50, CW, 0.6, C.rule);
-    var fx = (W - fw) / 2;
-    foot.forEach(function(part){ text(part[0], fx, H - 36, 7.8, part[1], part[2]); fx += width(part[0], 7.8, part[1]); });
-    if (pages.length > 1) right('Page ' + (i + 1) + ' of ' + pages.length, W - M, H - 24, 7.2, reg, C.muted);
+    box(M, H - 56, CW, 0.6, C.rule);
+    footLines.forEach(function(line){
+      var lw = line.parts.reduce(function(sum, part){ return sum + width(part[0], line.size, part[1]); }, 0);
+      var fx = (W - lw) / 2;
+      line.parts.forEach(function(part){ text(part[0], fx, line.top, line.size, part[1], part[2]); fx += width(part[0], line.size, part[1]); });
+    });
+    if (pages.length > 1) right('Page ' + (i + 1) + ' of ' + pages.length, W - M, H - 18, 7.2, reg, C.muted);
   });
 
   return pdf.save();
@@ -668,6 +735,8 @@ function _wqInjectStyle(){
     + '.wq-preview-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}'
     + '.wq-preview-head span{font-size:12px;color:var(--muted)}'
     + '.wq-note{background:var(--bad-soft);color:var(--bad-ink);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;margin-bottom:10px}'
-    + '.wq-frame{display:block;width:100%;height:calc(100vh - 170px);min-height:560px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff}';
+    + '.wq-sheet{background:var(--n3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 150px);overflow-y:auto;min-height:320px}'
+    + '.wq-sheet canvas{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 3px rgba(26,33,30,.18)}'
+    + '.wq-sheet-wait{margin:auto;color:var(--muted);font-size:13px}';
   document.head.appendChild(s);
 }
