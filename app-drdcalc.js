@@ -29,6 +29,7 @@ var DRDC_BB = {
 'boxspring-queen':[0.0417,0.3021,0.9271,0.3958],
 'boxspring-twin':[0.0729,0.3021,0.8646,0.3958],
 'buffet-and-hutch':[0.1979,0.0625,0.6146,0.8438],
+'cabinet':[0.2917,0.1562,0.4896,0.5938],
 'cd-stand':[0.3438,0.0521,0.3229,0.8958],
 'chair-dining-kitchen-occasional':[0.2292,0.0833,0.5625,0.8021],
 'chest':[0.0625,0.2292,0.875,0.5208],
@@ -42,7 +43,7 @@ var DRDC_BB = {
 'desk':[0.0729,0.2292,0.8646,0.5312],
 'dresser':[0.0938,0.1979,0.8229,0.5938],
 'dvd-vcr-player':[0.0625,0.3125,0.875,0.3438],
-'entertainment-unit-large':[0.0833,0.1458,0.8333,0.6979],
+'entertainment-unit':[0.0833,0.1458,0.8333,0.6979],
 'fan':[0.3333,0.0417,0.3438,0.9167],
 'filing-cabinet-small':[0.3021,0.2292,0.4688,0.5417],
 'folding-chair':[0.25,0.25,0.5417,0.5312],
@@ -57,7 +58,6 @@ var DRDC_BB = {
 'juicer':[0.3333,0.1146,0.4896,0.5833],
 'kitchen-cart-tea-cart-bar-cart':[0.2083,0.2083,0.5938,0.5833],
 'lamp':[0.3438,0.125,0.3125,0.6667],
-'large-cabinet':[0.2917,0.1562,0.4896,0.5938],
 'laundry-hamper':[0.3229,0.2188,0.3542,0.5312],
 'linens-per-bag':[0.3333,0.1458,0.3438,0.5833],
 'loveseat':[0.1562,0.3229,0.6979,0.4479],
@@ -103,9 +103,9 @@ function renderDrdCalc(){
         var thumb=art
           ?'<img src="assets/furniture/thumbs/'+art+'.png" alt="" draggable="false" style="width:40px;height:40px;flex:none;object-fit:contain">'
           :'<span style="width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted)">'+JWGIcons.svg('furniture',{size:20})+'</span>';
-        html+='<div class="drdc-item" data-name="'+item.name.toLowerCase()+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
+        html+='<div class="drdc-item" data-name="'+_esc(item.name.toLowerCase())+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
           +thumb
-          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+item.name+'">'+item.name+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+item.name+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:6px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdcStep('+i+',-1)" aria-label="Remove one"'+(c?'':' disabled')+'>&minus;</button>'
