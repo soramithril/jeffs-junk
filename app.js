@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '679';
+var APP_VERSION = '680';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10068,6 +10068,9 @@ function openM(id){document.getElementById(id).classList.add('open');document.bo
       if(!els.length){ pushed=false; return; }   // not ours — leave the navigation alone
       pushed=false;                              // Back just consumed our entry
       var top=els[els.length-1];
+      // A stray Back used to throw away a half-typed booking without asking, the one way
+      // out the ✕/Cancel/Escape question didn't cover. Staying re-arms Back for next time.
+      if(top.id==='job-modal' && !closeJobModalGuard()){ schedule(); return; }
       top.classList.remove('open');
       if(!document.querySelector('.modal-overlay.open')) document.body.classList.remove('modal-open');
       else schedule();                           // more still open — arm Back for the next one
