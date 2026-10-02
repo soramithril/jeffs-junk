@@ -459,7 +459,13 @@ function buildTMHtml(){
   let h=`<div class="modal-title">Customize Tasks</div>
   <div class="modal-sub">Rename, recolor, or create tasks specific to your team.</div>
   <div id="tmList">`;
+  // Off and Sick are day STATUSES, not job types — they are set on the day itself
+  // (step 1 of the shift box) and are filtered out of every task picker there is.
+  // Listing them here sent people hunting for a Sick they could never select
+  // (v682). Skipped in place, never spliced: tmLC/tmCC/tmDel address tasks by
+  // index, so reindexing this list would edit the wrong job type.
   tasks.forEach((t,i)=>{
+    if(t.id==="off"||t.id==="sick")return;
     h+=`<div class="titem">
       <div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div>
       <input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>
@@ -477,7 +483,7 @@ function buildTMHtml(){
   <div style="display:flex;justify-content:flex-end;margin-top:20px"><button class="modal-done" onclick="JWG.closeModal()">Done</button></div>`;
   return h;
 }
-function reTMList(){const el=document.getElementById("tmList");if(!el)return;let h="";tasks.forEach((t,i)=>{h+=`<div class="titem"><div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div><input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>` + (!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.28);flex-shrink:0;font-style:italic">default</span>`) + `</div>`;});el.innerHTML=h;}
+function reTMList(){const el=document.getElementById("tmList");if(!el)return;let h="";tasks.forEach((t,i)=>{if(t.id==="off"||t.id==="sick")return;h+=`<div class="titem"><div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div><input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>` + (!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.28);flex-shrink:0;font-style:italic">default</span>`) + `</div>`;});el.innerHTML=h;}
 function tmLC(i,v){tasks[i].label=v;saveTasks();}
 function tmCC(i,hex){
   const[r,g,b]=hex2rgb(hex);
@@ -572,17 +578,26 @@ function renderShiftModal(empId,day,emp,dayData){
   }
 
   const segBase="flex:1;border:none;border-radius:9px;padding:11px 0;font-size:13px;font-weight:700;cursor:pointer;";
-  // Header: avatar + name + the actual date, with the status switch alongside
+  // Header: avatar + name + the actual date. The status switch USED to sit up here
+  // beside them, and that was the whole reason nobody could find "Off sick" (Jake,
+  // 2026-10-02: someone went looking for it and gave up). A header reads as a title
+  // bar, so a control parked in one reads as a label. It is now step 1 of the body,
+  // full width, directly above the shift builder — one control, asked in the order
+  // you would ask the question: is she working, then what and when.
   const _ws=getWS(S.weekOffset),_dt=new Date(_ws);_dt.setDate(_dt.getDate()+DAYS.indexOf(day));
   const _dayDate=_dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
   const[_abg,_afg]=ac(emp?.name||"");
+  const _first=esc((emp?.name||"").split(" ")[0])||"this person";
   let h=`<div class="sm-head">
     <div class="sm-id">
       <div class="sm-avatar" style="background:${_abg};color:${_afg}">${empInitials(emp?.name||"")}</div>
       <div><div class="sm-name">${esc(emp?.name||"")}</div><div class="sm-daylbl">${day} · ${_dayDate}</div></div>
     </div>
+  </div>
+  <div class="sm-step">
+    <div class="sect-label"><span class="step-n">1</span> Is ${_first} working?</div>
     <div class="sm-status">
-      <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--accent);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
+      <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--dark);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
       <button onclick="JWG.markDayOff('${empId}','${day}')" style="${segBase}${status==="dayoff"?"background:rgba(0,0,0,0.55);color:#fff":"background:transparent;color:var(--fg-muted)"}">Day off</button>
       <button onclick="JWG.markDaySick('${empId}','${day}')" style="${segBase}${status==="sick"?"background:#ea580c;color:#fff":"background:transparent;color:var(--fg-muted)"}">Off sick</button>
       <button onclick="JWG.markDayNonWorking('${empId}','${day}')" style="${segBase}${status==="nonworking"?"background:#475569;color:#fff":"background:transparent;color:var(--fg-muted)"}">Non working</button>
@@ -591,7 +606,8 @@ function renderShiftModal(empId,day,emp,dayData){
   if(!working){
     h+=`<div class="sm-offnote" style="display:flex;align-items:center;gap:7px">${status==="sick"?schTile("sick",18)+"<span>Marked off sick for this day.</span>":status==="nonworking"?schTile("off",18)+"<span>Marked as a non working day.</span>":schTile("off",18)+"<span>Marked as a day off.</span>"}</div>`;
   } else {
-    h+=`<div class="sm-cols">
+    h+=`<div class="sm-step sm-step2"><div class="sect-label"><span class="step-n">2</span> What and when</div></div>
+    <div class="sm-cols">
     <div class="sm-col sm-left">
       <div class="sect-label">On the schedule</div>
       ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing scheduled yet — build a shift on the right.</div>`}
@@ -1122,8 +1138,14 @@ function buildSched(){
   } else {
     // Weeks start empty now (no silent pre-fill since v559) — say so and point
     // at the two ways to fill one, instead of showing a bare grid.
+    // The how-to line used to appear ONLY on a wholly empty week, so in practice
+    // nobody ever saw it: any real week has a shift in it. It now stands all the
+    // time, and names what a cell can do besides a shift — the empty-week version
+    // keeps its extra nudge toward Saved schedules (v682).
     if(S.employees.every(e=>!empHasWeekData(S.schedule[e.id]))){
       h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>💾 Saved schedules</b> and fill people's usual weeks in one tap.</div>`;
+    } else {
+      h+=`<div class="wk-hint">👆 Tap anyone's day to <b>build a shift</b> — or mark them <b>Day off</b>, <b>Off sick</b> or <b>Non working</b>.</div>`;
     }
     h+=`<div class="grid-wrap" id="gw">${buildGrid()}</div>`;
     h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
@@ -1417,8 +1439,13 @@ function renderUsualWeeks(fresh){
   visEmps().forEach(e=>{
     const[abg,afg]=ac(e.name);
     const tpl=e.usual_week;
+    // "Has a template" and "has anything IN it" are different questions, and the
+    // list used to ask only the first — so an empty template still offered Apply.
+    const tplHasData=!!tpl&&DAYS.some(d=>dayHasData(tpl[d]));
     let summary;
-    if(tpl){
+    if(tpl&&!tplHasData){
+      summary=`<div style="font-size:11.5px;color:var(--warn-ink,#9a3412);background:#fff7ed;border:1px solid rgba(249,115,22,0.28);border-radius:7px;padding:6px 9px;margin-top:6px;display:inline-block;font-weight:650">⚠ This saved schedule is empty — it holds no shifts, so there is nothing to apply. Build their week on the grid, then save it again.</div>`;
+    } else if(tpl){
       const chips=DAYS.filter(d=>{const day=tpl[d];if(!day||day.status==="off")return false;if(day.status==="work"&&(!day.shifts||!day.shifts.length))return false;return true;}).map(d=>{
         const day=tpl[d];
         let lbl,style;
@@ -1442,7 +1469,7 @@ function renderUsualWeeks(fresh){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="avatar" style="background:${abg};color:${afg};width:32px;height:32px;font-size:11px;flex-shrink:0">${empInitials(e.name)}</div>
         <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px">${esc(e.name)}</div>
-        ${tpl?`<button class="ctrl-btn ctrl-btn-accent" onclick="JWG.applyUsualWeek('${e.id}')" title="Fill ${esc(e.name)}'s row for ${wlbl(S.weekOffset)} from their saved schedule">▸ Apply to this week</button>`:""}
+        ${tplHasData?`<button class="ctrl-btn ctrl-btn-accent" onclick="JWG.applyUsualWeek('${e.id}')" title="Fill ${esc(e.name)}'s row for ${wlbl(S.weekOffset)} from their saved schedule">▸ Apply to this week</button>`:""}
         <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Save the week you're viewing as ${esc(e.name)}'s saved schedule">💾 Save this week</button>
         ${tpl?`<button class="ctrl-btn ctrl-btn-danger" onclick="JWG.clearUsualWeek('${e.id}')">✕ Clear</button>`:""}
       </div>
@@ -1458,6 +1485,14 @@ function renderUsualWeeks(fresh){
 async function applyUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);
   if(!emp||!emp.usual_week)return;
+  // A template can exist and still hold nothing — see saveUsualWeek. Applying one
+  // of those replaced a real week with seven blank days, which is how a saved
+  // schedule became a way to lose shifts. The button is hidden for these now; this
+  // is the belt to that braces, because the cost of getting it wrong is deleted work.
+  if(!DAYS.some(d=>dayHasData(emp.usual_week[d]))){
+    toast(`${emp.name}'s saved schedule is empty — nothing to apply. Build their week, then save it again.`,"error");
+    return;
+  }
   const w=wlbl(S.weekOffset);
   if(empHasWeekData(S.schedule[empId])&&!(await jwgConfirm({title:"Apply saved schedule",target:emp.name,message:`${w} already has shifts for ${emp.name}. Replace them with the saved schedule?`,confirmLabel:"Replace"})))return;
   S.schedule[empId]=migrateSched(JSON.parse(JSON.stringify(emp.usual_week)));
@@ -1467,7 +1502,18 @@ async function applyUsualWeek(empId){
 }
 async function saveUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
-  const tpl=JSON.parse(JSON.stringify(S.schedule[empId]||defSched()));
+  const sc=S.schedule[empId]||defSched();
+  // This saves the week you happen to be LOOKING at. Open it on a week someone has
+  // not been filled in on and the old code stored seven blank days — then said
+  // "Saved — apply it to any week with one tap". Four people ended up with empty
+  // templates that offered an Apply which did nothing visible, and applying one
+  // OVER a real week cleared the row (Jake, 2026-10-02: "it didnt work for me").
+  // Fail loudly instead of saving nothing and claiming success.
+  if(!empHasWeekData(sc)){
+    toast(`Nothing to save — ${emp.name} has no shifts in ${wlbl(S.weekOffset)}. Build their week on the grid first.`,"error");
+    return;
+  }
+  const tpl=JSON.parse(JSON.stringify(sc));
   DAYS.forEach(d=>{if(tpl[d])delete tpl[d].note;});  // notes are week-specific
   try{
     await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:tpl});

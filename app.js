@@ -6506,7 +6506,7 @@ var PALETTE_PAGES=[
   {p:'team',          n:'Team',              h:'Admin > People', a:'staff employees crew'},
   {p:'staffcheckin',  n:'Staff Check-In',    h:'Who is in today', a:'punch in out hours'},
   {p:'usage',         n:'Usage',             h:'Who opens what', a:'views'},
-  {p:'jwg',           n:'Schedule',          h:'Whole team · summer & winter', a:'jwg staff roster landscaping'}
+  {p:'jwg',           n:'Schedule',          h:'Whole team · summer & winter', a:'jwg staff roster landscaping sick off time off day off shifts'}
 ];
 // Every palette row is built here, so they cannot drift into five different shapes.
 // Phosphor-ish line icons at 17px, matching the rest of the app's icon weight.
@@ -20051,7 +20051,11 @@ function renderRouteConsole(){ rcTab(_rc.tab); }
 // with a role + optional note. Multiple bookings per day are allowed.
 //   crewBlocks = { crewId: { 'YYYY-MM-DD': [ {id,role,notes,allDay,slotStart,slotEnd} ] } }
 // ═══════════════════════════════════════════════════════════════════
-var CREW_ROLES = ['Bin trucks','Junk removal','Junk quote','Furniture pickup','Other'];
+// Two kinds of thing in one list, on purpose: the first four are what the booking
+// was FOR, the next three are why someone is away. The reason half was missing, so
+// anyone coming here to book a sick day found no sick option at all and went
+// hunting (v682). The JWG scheduler already has Sick and Vacation as real types.
+var CREW_ROLES = ['Bin trucks','Junk removal','Junk quote','Furniture pickup','Sick','Vacation','Appointment','Other'];
 var _crewWeekOffset = 0;
 
 // Bookings for a crew member on a date (never null).
