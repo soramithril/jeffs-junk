@@ -667,7 +667,7 @@ function renderShiftModal(empId,day,emp,dayData){
       const _us=(_usual.shifts||[])[0]||{};
       const _ut=tm[getShiftTasks(_us)[0]];
       usualHtml=`<div class="sm-usual">
-        <div class="sm-usual-txt">${schTile(_ut?_ut.id:"off",18)}<span><b>${esc(_ut?_ut.label:"Usual shift")}</b>${_us.start&&_us.end?" · "+fmtRange(_us.start,_us.end):""}<br><span class="sm-usual-sub">${esc((emp?.name||"").split(" ")[0]||"They")}'s usual week — not saved for this day yet</span></span></div>
+        <div class="sm-usual-txt">${schTile(_ut?_ut.id:"off",18)}<span><b>${esc(_ut?_ut.label:"Usual shift")}</b>${_us.start&&_us.end?" · "+fmtRange(_us.start,_us.end):""}<br><span class="sm-usual-sub">${esc((emp?.name||"").split(" ")[0]||"They")}'s normal week — not saved for this day yet</span></span></div>
         <button class="sm-usual-btn" onclick="JWG.useUsualDay('${empId}','${day}')">Use this</button>
       </div>`;
     }
@@ -1124,7 +1124,7 @@ async function applyMultiClear(){
   // Clearing a repeating person's day does not leave it blank — their usual week
   // shows again as a dashed plan. Without saying so, the clear looks like it failed.
   const repNames=_mc.empIds.map(id=>S.employees.find(e=>e.id===id)).filter(e=>e&&e.repeats_weekly&&usualDayAny(e)).map(e=>e.name);
-  const repNote=repNames.length?` ${repNames.join(", ")} ${repNames.length===1?"repeats":"repeat"} weekly, so ${repNames.length===1?"their":"those"} day${repNames.length===1?"":"s"} will show the usual week again as a dashed plan — not a booking.`:"";
+  const repNote=repNames.length?` ${repNames.join(", ")} ${repNames.length===1?"works":"work"} the same week every week, so ${repNames.length===1?"their":"those"} day${repNames.length===1?"":"s"} will show that normal week again as a dashed plan — not a booking.`:"";
   if(!(await jwgConfirm({
     title:"Clear shifts",
     target:whoStr,
@@ -1228,7 +1228,7 @@ function buildSched(){
   h+=`</div>
     <div class="ctrl-actions">
       <span class="ctrl-label">Week tools</span>
-      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()" title="For people whose week never changes — store it once and it shows on blank days as a dashed plan">🔁 Usual weeks</button>
+      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()" title="For anyone who works the same week every week — set it once and it fills in on its own">🔁 Same every week</button>
       <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
       <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()" title="Remove shifts from several people and days at once">🗑 Clear shifts</button>
       <button class="ctrl-btn" onclick="JWG.openTaskMgr()" title="Edit the list of job types and their colours">🏷️ Job types</button>
@@ -1251,9 +1251,9 @@ function buildSched(){
     // The how-to line used to appear ONLY on a wholly empty week, so in practice
     // nobody ever saw it: any real week has a shift in it. It now stands all the
     // time, and names what a cell can do besides a shift — the empty-week version
-    // keeps its extra nudge toward Usual weeks (v682).
+    // keeps its extra nudge toward Same every week (v682).
     if(S.employees.every(e=>!empHasWeekData(S.schedule[e.id]))){
-      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>🔁 Usual weeks</b> for anyone whose week never changes.</div>`;
+      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>🔁 Same every week</b> for anyone who works the same week every week.</div>`;
     } else {
       h+=`<div class="wk-hint">👆 Tap anyone's day to <b>build a shift</b> — or mark them <b>Day off</b>, <b>Off sick</b> or <b>Non working</b>.</div>`;
     }
@@ -1352,7 +1352,7 @@ function buildGrid(){
     const r=16,circ=2*Math.PI*r,dash=(pct*circ).toFixed(2),gap=(circ-pct*circ).toFixed(2);
     const ringColor=pct>0.7?"#1a7a3c":pct>0.35?"#f59e0b":"transparent";
     const hrsCls=pct>0.6?"hrs-high":pct>0.3?"hrs-mid":"hrs-low";
-    const tipText=hrs>0?`${hrs}h scheduled this week${emp.repeats_weekly?" (their usual week fills the blanks)":""}`:"No hours this week";
+    const tipText=hrs>0?`${hrs}h scheduled this week${emp.repeats_weekly?" (their normal week fills the empty days)":""}`:"No hours this week";
     h+=`<tr class="emp-row" draggable="${S.sortAlpha?"false":"true"}" data-empid="${emp.id}" data-empidx="${empIdx}">
       <td class="name-col">
         <div class="emp-cell-inner">
@@ -1385,7 +1385,7 @@ function buildGrid(){
           const firstT=tm[taskIds[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e",label:taskIds[0]||"?"};
           const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
           const timeStr=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
-          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}${isGhost?" shift-ghost":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"${isGhost?` title="${esc(emp.name)}'s usual week — nothing is saved for this day yet. Tap to confirm or change it."`:""}
+          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}${isGhost?" shift-ghost":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"${isGhost?` title="${esc(emp.name)}'s normal week — nothing is saved for this day yet. Tap to use it or change it."`:""}
             onclick="event.stopPropagation();JWG.openShiftModal('${emp.id}','${d}')">
             ${schTile(firstT.id,20)}
             <span class="shift-txt"><span class="shift-label">${esc(allLabels)}</span>${timeStr?`<span class="shift-times">${timeStr}</span>`:""}</span>
@@ -1587,7 +1587,7 @@ function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
 // person's "usual week" (and auto-write rows on boot) — schedules appeared that
 // nobody had put there, which confused the office. Copy-last-week was removed
 // the same day (Jake: dangerous). A saved week is now either applied EXPLICITLY
-// from the Usual weeks modal, or — if that person is set to repeat — drawn as a
+// from the Same every week modal, or — if that person is set to repeat — drawn as a
 // dashed GHOST by effDay() and still never written here. loadWeekSched stays
 // honest: what it puts in S.schedule is only ever what the database holds.
 function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
@@ -1632,20 +1632,20 @@ function renderUsualWeeks(fresh){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="avatar" style="background:${abg};color:${afg};width:32px;height:32px;font-size:11px;flex-shrink:0">${empInitials(e.name)}</div>
         <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px">${esc(e.name)}</div>
-        ${tplHasData?`<div class="uw-rep" title="On: ${esc(e.name)}'s usual week shows on any blank day as a dashed shift. Nothing is saved until someone taps it or edits the day.">
-          <button class="${e.repeats_weekly?"":"on"}" onclick="JWG.setRepeats('${e.id}',false)">Off</button>
-          <button class="${e.repeats_weekly?"on":""}" onclick="JWG.setRepeats('${e.id}',true)">🔁 Repeats weekly</button>
+        ${tplHasData?`<div class="uw-rep" title="On: ${esc(e.name)}'s normal week shows on every empty day as a faded dashed shift. Nothing is saved until someone taps it or changes the day.">
+          <button class="${e.repeats_weekly?"":"on"}" onclick="JWG.setRepeats('${e.id}',false)">Different each week</button>
+          <button class="${e.repeats_weekly?"on":""}" onclick="JWG.setRepeats('${e.id}',true)">🔁 Same every week</button>
         </div>`:""}
-        ${tplHasData?`<button class="ctrl-btn" onclick="JWG.applyUsualWeek('${e.id}')" title="Write ${esc(e.name)}'s usual week into ${wlbl(S.weekOffset)} now, as real shifts">▸ Apply to this week</button>`:""}
-        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Store the week you're viewing as ${esc(e.name)}'s usual week">💾 Save as usual week</button>
+        ${tplHasData?`<button class="ctrl-btn" onclick="JWG.applyUsualWeek('${e.id}')" title="Turn ${esc(e.name)}'s normal week into real shifts for ${wlbl(S.weekOffset)}, right now">▸ Fill in this week</button>`:""}
+        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Store the week you are looking at as ${esc(e.name)}'s normal week">💾 Save this week</button>
         ${tpl?`<button class="ctrl-btn ctrl-btn-danger" onclick="JWG.clearUsualWeek('${e.id}')">✕ Clear</button>`:""}
       </div>
       ${summary}
     </div>`;
   });
   const _repN=visEmps().filter(e=>e.repeats_weekly).length;
-  const h=`<div class="modal-title">🔁 Usual weeks</div>
-  <div class="modal-sub">For anyone whose week is the same every week. <b>Save as usual week</b> stores the week you're viewing (${wlbl(S.weekOffset)}), and it must have shifts in it. Then switch <b>Repeats weekly</b> on and their usual week shows on every blank day as a <b>dashed shift</b> — a plan, not a booking. <b>Nothing is written</b> until someone taps one or edits the day, so a shift, day off or sick day already set is never touched. <b>Apply to this week</b> is the one-off: it writes the usual week into ${wlbl(S.weekOffset)} as real shifts right now.${_repN?` <b>${_repN}</b> ${_repN===1?"person repeats":"people repeat"} today.`:""}</div>
+  const h=`<div class="modal-title">🔁 Same every week</div>
+  <div class="modal-sub">Some people work the exact same week, every week. Set theirs up once here and you stop re-entering it.<br><br><b>1.</b> Build their week on the schedule, then press <b>Save this week</b> — that stores it as their normal week.<br><b>2.</b> Switch them to <b>Same every week</b>. From then on their normal week shows up on every empty day as a <b>faded, dashed shift</b>.<br><br>A dashed shift is a <b>plan, not a booking</b> — nothing is saved until someone taps it or changes the day. So if you mark them off sick, that sticks. <b>Fill in this week</b> is the one-off button: it turns their normal week into real shifts for ${wlbl(S.weekOffset)} right now.${_repN?`<br><br><b>${_repN}</b> ${_repN===1?"person is":"people are"} set to the same week every week.`:""}</div>
   <div>${rows}</div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
   if(fresh)openModal(h,null,true);else updateModal(h,null,true);
@@ -1695,7 +1695,7 @@ async function setRepeats(empId,on){
   // Only a week with something in it can repeat — otherwise the flag would be a
   // promise to show nothing, which is how the blank-template mess read.
   if(on&&!DAYS.some(d=>dayHasData((emp.usual_week||{})[d]))){
-    toast(`${emp.name} has no usual week saved yet — save one first.`,"error");
+    toast(`${emp.name} has no normal week saved yet — build their week, then press Save this week.`,"error");
     return;
   }
   const prev=!!emp.repeats_weekly;
@@ -1705,7 +1705,7 @@ async function setRepeats(empId,on){
     await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{repeats_weekly:!!on});
     // Turning it OFF leaves every week already written exactly as it is — only
     // the ghosts stop appearing.
-    toast(on?`${emp.name}'s week now repeats — blank days show it as a dashed shift`:`${emp.name} no longer repeats (weeks already scheduled are untouched)`);
+    toast(on?`${emp.name} is now set to the same week every week — empty days show it as a dashed shift`:`${emp.name} is back to a different week each time (weeks already filled in are untouched)`);
     refreshGrid();
   }catch(e){
     emp.repeats_weekly=prev;renderUsualWeeks(false);
