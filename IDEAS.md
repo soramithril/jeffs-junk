@@ -30,15 +30,15 @@ and trim it down to what is left.
   <sub>Jake, 2026-09-08 - quotes now lead the screen and the wrong-day jobs are fixed, both in v677 (see Done). Still owed: notifications that actually reach his phone (needs a manifest and a service worker on his page - iOS will not deliver web push without them), and the read-through of The Day, Photos and Trucks.</sub>
 - **Revamp the Furniture Bank quote page layout, and the booking that follows it** - The truck animation and the way items get added stay exactly as they are; Jake loves those. The layout around them is the problem - it is not the best and there is a better one out there. Look over the whole page again, and the booking step the same way. Mockup first, not code.
   <sub>Jake, 2026-10-05</sub>
+- **Check the rest of Kelly's screens on the 32-inch** - The bin picker is fixed (below), but that was only half of what you asked. Every other popup is still a fixed width, and the stylesheet has one big-screen rule in it, from August, for the booking form. Nothing else has been looked at on a big monitor.
+  <sub>Jake, 2026-09-08 - second half of the bin-picker idea. Back to Now 2026-10-05 on Jake's word, the same day it went to Later. Measured that day: every popup shares one 820px rule; only the booking form and the bin-assign popup know about big screens. When this comes up, do the look-over in a browser set to 2560 wide and pick which popups deserve widening - not one rule for all.</sub>
+- **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
+  <sub>Jake, 2026-10-05 - on Now from 2026-10-05</sub>
 
 ## Later
 
 *Things worth doing sometime.*
 
-- **Check the rest of Kelly's screens on the 32-inch** - The bin picker is fixed (below), but that was only half of what you asked. Every other popup is still a fixed width, and the stylesheet has one big-screen rule in it, from August, for the booking form. Nothing else has been looked at on a big monitor.
-  <sub>Jake, 2026-09-08 - second half of the bin-picker idea. Moved to Later 2026-10-05: Kelly has not complained, so back burner. Measured that day: every popup shares one 820px rule; only the booking form and the bin-assign popup know about big screens. When this comes up, do the look-over in a browser set to 2560 wide and pick which popups deserve widening - not one rule for all.</sub>
-- **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
-  <sub>Jake, 2026-10-05</sub>
 
 ## Done
 
