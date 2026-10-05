@@ -212,11 +212,31 @@ function usualDay(emp,day){
   const d=emp.usual_week[day];
   return dayHasData(d)?d:null;
 }
+// How long ago a usual week was stored, in whole months. Null when unknown.
+// The repeat deliberately never expires — see usual_week_saved_at in the database
+// — but a pattern saved two seasons ago is probably wrong now, so the bar says so.
+function usualAgeMonths(emp){
+  if(!emp||!emp.usual_week_saved_at)return null;
+  const t=Date.parse(emp.usual_week_saved_at);
+  if(isNaN(t))return null;
+  return Math.floor((Date.now()-t)/(30.44*86400000));
+}
+const USUAL_STALE_MONTHS=3;
+function _monthLabel(emp){
+  const t=Date.parse(emp.usual_week_saved_at||"");
+  if(isNaN(t))return "a while ago";
+  const d=new Date(t),now=new Date();
+  return d.toLocaleDateString("en-US",{month:"long"})+(d.getFullYear()!==now.getFullYear()?" "+d.getFullYear():"");
+}
 // Does this person's usual week hold anything at all?
 function usualDayAny(emp){return DAYS.some(d=>usualDay(emp,d));}
 // People set to repeat who still have blank days in the week on screen. Only
 // blank days count: a shift, a day off or a sick day already set is not "missing".
 function pendingUsual(){
+  // Never offer to fill a week that has already happened. Backfilling old weeks
+  // would rewrite history and throw off hours and Insights — and the repeat is
+  // a plan for work still to come, not a record of work already done.
+  if(S.weekOffset<0)return[];
   return visEmps().map(e=>{
     if(!e.repeats_weekly)return null;
     const sc=S.schedule[e.id]||{};
@@ -227,9 +247,18 @@ function pendingUsual(){
 // The one button. Writes real shifts into empty days only, for everyone set to
 // repeat — so the hours badge, Insights, Past schedules and the office TV all
 // see the same week the grid shows.
-function fillWeekFromUsual(){
+async function fillWeekFromUsual(){
   const pend=pendingUsual();
   if(!pend.length)return;
+  const names=pend.map(x=>x.emp.name);
+  const whoStr=names.length<=4?names.join(", "):names.slice(0,3).join(", ")+` and ${names.length-3} more`;
+  const dayN=pend.reduce((n,x)=>n+x.days.length,0);
+  if(!(await jwgConfirm({
+    title:"Fill in this week",
+    target:whoStr,
+    message:`${dayN} day${dayN===1?"":"s"} will be filled in from their usual week, for ${wlbl(S.weekOffset).toLowerCase()}. Days that already have something on them are left alone.`,
+    confirmLabel:`Fill ${dayN} day${dayN===1?"":"s"}`
+  })))return;
   let filled=0;
   pend.forEach(({emp,days})=>{
     if(!S.schedule[emp.id])S.schedule[emp.id]=defSched();
@@ -559,7 +588,50 @@ function tmCC(i,hex){
   const sw=document.querySelectorAll(".tswatch");if(sw[i])sw[i].style.background=hex;
   saveTasks();
 }
-function tmDel(i){if(tasks[i].builtIn){toast("Can't delete default tasks","error");return;}const id=tasks[i].id;tasks.splice(i,1);Object.values(S.schedule).forEach(emp=>DAYS.forEach(d=>{if(emp[d]?.shifts){emp[d].shifts=emp[d].shifts.map(sh=>{const t=getShiftTasks(sh).filter(t=>t!==id);return{...sh,tasks:t};}).filter(sh=>sh.tasks.length>0);}if(emp[d]?.shifts?.length===0&&emp[d]?.status==="work")emp[d].status="off";}));saveTasks();reTMList();toast("Task deleted");}
+// Removing a job type does not just remove the type: it strips that job off
+// every shift in the week on screen, deletes any shift left with nothing, and
+// flips any day left empty back to "off". That used to happen on one click with
+// no warning — pressing Remove beside "Cutting Crew" quietly emptied three
+// people's whole week, and the next bulk save wrote it. Now it counts the damage
+// first and says it out loud (Jake, 2026-10-05: big changes should double check).
+async function tmDel(i){
+  if(tasks[i].builtIn){toast("Can't delete default tasks","error");return;}
+  const id=tasks[i].id,label=tasks[i].label;
+  // What this would take off the week currently loaded.
+  let hitShifts=0;const hitPeople=new Set();
+  Object.keys(S.schedule).forEach(empId=>DAYS.forEach(d=>{
+    const dd=S.schedule[empId][d];
+    (dd&&dd.shifts||[]).forEach(sh=>{
+      if(getShiftTasks(sh).includes(id)){hitShifts++;hitPeople.add(empId);}
+    });
+  }));
+  const who=[...hitPeople].map(x=>(S.employees.find(e=>e.id===x)||{}).name).filter(Boolean);
+  const whoStr=who.length<=3?who.join(", "):who.slice(0,3).join(", ")+` and ${who.length-3} more`;
+  const impact=hitShifts
+    ? `It is also taken off ${hitShifts} shift${hitShifts===1?"":"s"} in ${wlbl(S.weekOffset).toLowerCase()} — ${whoStr}. Any day left with nothing on it goes back to off.`
+    : `Nothing in ${wlbl(S.weekOffset).toLowerCase()} is using it.`;
+  if(!(await jwgConfirm({
+    title:"Remove job type",
+    target:label,
+    message:impact,
+    consequence:hitShifts?"This can't be undone.":"",
+    confirmLabel:"Remove"
+  })))return;
+  tasks.splice(i,1);
+  const touched=[...hitPeople];
+  Object.values(S.schedule).forEach(emp=>DAYS.forEach(d=>{
+    if(emp[d]?.shifts){
+      emp[d].shifts=emp[d].shifts.map(sh=>{const t=getShiftTasks(sh).filter(t=>t!==id);return{...sh,tasks:t};}).filter(sh=>sh.tasks.length>0);
+    }
+    if(emp[d]?.shifts?.length===0&&emp[d]?.status==="work")emp[d].status="off";
+  }));
+  saveTasks();
+  // The schedule really changed, so save it now rather than leaving a wiped week
+  // in memory for some later edit to write.
+  if(touched.length){touched.forEach(id2=>autoSave(id2));refreshGrid();}
+  reTMList();
+  toast(hitShifts?`"${label}" removed, and taken off ${hitShifts} shift${hitShifts===1?"":"s"}`:`"${label}" removed`);
+}
 function tmAdd(){const n=document.getElementById("nname"),c=document.getElementById("ncol");const nm=(n?.value||"").trim();if(!nm){toast("Enter a task name","error");return;}const hex=c?.value||"#1a7a3c";const[r,g,b]=hex2rgb(hex);tasks.push({id:"c"+Date.now(),label:nm,bg:`rgba(${r},${g},${b},0.12)`,text:darken(hex),dot:hex});saveTasks();if(n)n.value="";reTMList();toast(`"${nm}" added`);}
 
 // ── RENDER ──
@@ -977,7 +1049,7 @@ function maToggleEveryone(){
   renderMultiAssign();
 }
 
-function applyMultiAssign(){
+async function applyMultiAssign(){
   const s=document.getElementById("ma_start")?.value||_ma.start;
   const e=document.getElementById("ma_end")?.value||_ma.end;
   if(!_ma.tasks.length){toast("Select at least one task first","error");return;}
@@ -987,6 +1059,17 @@ function applyMultiAssign(){
     const[sh,sm]=s.split(":").map(Number),[eh,em]=e.split(":").map(Number);
     if((eh+em/60)<=(sh+sm/60)){toast("End time must be after start","error");return;}
   }
+  // A bulk write across people and days deserves a beat, the same as Clear does.
+  const _tmA=TM();
+  const _taskStr=_ma.tasks.map(id=>_tmA[id]?.label||id).join(" + ");
+  const _names=_ma.empIds.map(id=>(S.employees.find(x=>x.id===id)||{}).name).filter(Boolean);
+  const _whoStr=_names.length<=4?_names.join(", "):_names.slice(0,3).join(", ")+` and ${_names.length-3} more`;
+  if(_ma.empIds.length*_ma.days.length>1&&!(await jwgConfirm({
+    title:"Assign shifts",
+    target:_whoStr,
+    message:`"${_taskStr}" ${s&&e?fmtRange(s,e)+" ":""}goes on ${_ma.days.length} day${_ma.days.length===1?"":"s"} for ${_ma.empIds.length} ${_ma.empIds.length===1?"person":"people"}. Days that already have an overlapping shift are skipped.`,
+    confirmLabel:`Assign ${_ma.empIds.length*_ma.days.length} day${_ma.empIds.length*_ma.days.length===1?"":"s"}`
+  })))return;
   let skipped=0;
   const newShift={tasks:[..._ma.tasks],start:s,end:e};
   _ma.empIds.forEach(empId=>{
@@ -1265,9 +1348,13 @@ function buildSched(){
     if(_pend.length){
       const _names=_pend.map(x=>esc(x.emp.name)).join(", ");
       const _days=_pend.reduce((n,x)=>n+x.days.length,0);
+      // Seasonal drift is the real risk, so call out anyone whose pattern is old
+      // rather than quietly writing a summer week into a winter one.
+      const _stale=_pend.filter(x=>{const m=usualAgeMonths(x.emp);return m!==null&&m>=USUAL_STALE_MONTHS;});
+      const _staleNote=_stale.length?`<span class="wkf-stale">⚠ ${_stale.map(x=>`${esc(x.emp.name)}'s week was saved ${_monthLabel(x.emp)}`).join(" · ")} — check it still fits the season before filling.</span>`:"";
       h+=`<div class="wk-fill">
-        <span class="wkf-txt">🔁 <b>${_pend.length} ${_pend.length===1?"person works":"people work"} the same week every week</b>, and ${wlbl(S.weekOffset).toLowerCase()} is still empty for ${_pend.length===1?"them":"them"}.
-          <span class="wkf-who">${_names} · ${_days} day${_days===1?"":"s"} to fill</span></span>
+        <span class="wkf-txt">🔁 <b>${_pend.length} ${_pend.length===1?"person works":"people work"} the same week every week</b>, and ${wlbl(S.weekOffset).toLowerCase()} is still empty for them.
+          <span class="wkf-who">${_names} · ${_days} day${_days===1?"":"s"} to fill</span>${_staleNote}</span>
         <button class="wkf-btn" onclick="JWG.fillWeekFromUsual()">Fill in this week</button>
       </div>`;
     }
@@ -1694,8 +1781,9 @@ async function saveUsualWeek(empId){
   const tpl=JSON.parse(JSON.stringify(sc));
   DAYS.forEach(d=>{if(tpl[d])delete tpl[d].note;});  // notes are week-specific
   try{
-    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:tpl});
-    emp.usual_week=tpl;
+    const _now=new Date().toISOString();
+    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:tpl,usual_week_saved_at:_now});
+    emp.usual_week=tpl;emp.usual_week_saved_at=_now;
     toast(`Saved ${emp.name}'s schedule — apply it to any week with one tap`);
     renderUsualWeeks(false);
   }catch(e){toast("Couldn't save the schedule: "+e.message,"error");}
