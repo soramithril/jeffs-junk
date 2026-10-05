@@ -37,6 +37,8 @@ and trim it down to what is left.
 
 *Things worth doing sometime.*
 
+- **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
+  <sub>Jake, 2026-10-05</sub>
 - **Stop the nightly GPS matcher guessing between vehicles** - It matches trucks to their trackers by NAME, falling back to fuzzy word-overlap and taking the best row it finds, so a badly-named vehicle could take another one's odometer reading with no error shown. Not urgent - checked 2026-09-09 and 'Landscape Trailer' scores zero against every truck - but worth restricting to vehicles that actually have a tracker, next time that background job is touched.
   <sub>Claude, 2026-09-09</sub>
 
