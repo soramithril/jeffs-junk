@@ -93,6 +93,33 @@ everything is fine say so in one line.
    **This check is temporary.** Once the number holds steady for a month or so,
    drop it (Jake, 2026-09-05: "after a while we don't need to do it").
 
+8. **Is the backup actually running?** (Jake, 2026-09-29: "always make sure its
+   working".) The weekly backup is its OWN private repo - `soramithril/supabase-backups`,
+   the "Weekly Supabase Backup" Action (`.github/workflows/nightly-backup.yml`, workflow
+   id 257636944, Sunday 9 PM ET) runs `backup.py` and commits
+   `data/jeffs-junk/<table>.csv`. It failed silently for ELEVEN WEEKS (2026-07-13 to
+   2026-09-21; last good copy before the fix was 2026-07-06) and nobody noticed, so never
+   skip this and never assume from a green tick. No `gh` CLI on this machine - get a token
+   with `printf "protocol=https\nhost=github.com\n\n" | git credential fill` and send it
+   as an `Authorization: token ...` header. Four numbers, and ANY one of them bad means
+   the backup is down and it goes in the loud first line:
+   - **Age of the newest backup** - newest commit touching the data folder:
+     `/repos/soramithril/supabase-backups/commits?path=data/jeffs-junk&per_page=1`.
+     Older than 8 days = red. This is the number that actually matters, because a run can
+     finish green and commit nothing at all.
+   - **Did the last SCHEDULED run pass** -
+     `.../actions/workflows/nightly-backup.yml/runs?per_page=10`, then find the newest run
+     whose `event` is `schedule`. A manual `workflow_dispatch` success can mask weeks of
+     failing scheduled runs: that was exactly the state on 2026-09-28, when the hand-run
+     passed eight hours after the scheduled run had already failed.
+   - **Table count** - files under `data/jeffs-junk`. 60 as of 2026-09-28 (the table list
+     is read from the REST root, so new tables are picked up on their own). Fewer than
+     that means tables are being silently skipped.
+   - **Workflow still switched on** - `state` on `.../actions/workflows/257636944` must be
+     `active`. GitHub disables scheduled workflows after 60 days of repo inactivity, and a
+     backup that commits nothing generates no activity, so a long outage can quietly kill
+     the schedule on top of everything else.
+
 ## Report
 
 Write `SHOP-HEALTH-YYYY-MM-DD.md` at the repo root. Do NOT commit it - the
