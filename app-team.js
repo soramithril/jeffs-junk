@@ -12,6 +12,7 @@
   var _openColour = null; // id of the person whose colour palette is open
   var _gifts = [];        // employee_incentives rows (admins only — RLS hides them otherwise)
   var _giftOpen = null;   // id of the person whose gift-card modal is open
+  var _groups = [];       // ordered crew group names (jwg_app_settings key=crew_groups)
 
   // Card types are Tim Hortons plus whatever's been logged before — picking
   // "New card type…" in the modal lets admins add more as needed.
@@ -54,6 +55,16 @@
     var r = await db.from('crew_members').select('*').order('name');
     if(r.error) throw r.error;
     _team = r.data || [];
+    // The crew group order. A failure here must not block the roster — the
+    // dropdowns just fall back to whatever groups people are already in.
+    try {
+      var g = await db.from('jwg_app_settings').select('value').eq('key','crew_groups').maybeSingle();
+      _groups = (g && !g.error && Array.isArray(g.data && g.data.value)) ? g.data.value : [];
+    } catch(e){ _groups = []; }
+    if(!_groups.length){
+      _groups = _team.map(function(p){return p.crew_group;})
+                     .filter(function(v,i,a){return v && a.indexOf(v)===i;}).sort();
+    }
     _gifts = [];
     if(canGift()){
       // Incentives are a side panel — a load failure here shouldn't block the roster
@@ -103,6 +114,7 @@
         + '<button onclick="TeamMgr.rename(\''+p.id+'\')" title="Rename" style="background:none;border:none;color:#c3c9cf;cursor:pointer;font-size:13px">✎</button>'
         + (_openColour===p.id ? colourPopover(p) : '')
       + '</div></td>'
+      + '<td style="padding:9px 10px">'+crewCell(p)+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'on_junk',p.on_junk,'Junk / Bins','#16a34a')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'on_jwg',p.on_jwg,'Jeff White Group','#0d6efd')+'</td>'
       + '<td style="padding:9px 8px;text-align:center">'+pill(p.id,'summer',p.summer,'Summer','#f59e0b')+'</td>'
@@ -113,6 +125,65 @@
         + (rm ? '<button onclick="TeamMgr.remove(\''+p.id+'\')" title="Remove — history is kept, but their schedule from today on is cleared" style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:16px">×</button>' : '')
       + '</td>';
     return '<tr style="border-bottom:1px solid var(--border)'+(p.active?'':';background:rgba(0,0,0,.02)')+'">'+cells+'</tr>';
+  }
+
+  // ── CREW GROUPS ──────────────────────────────────────────────────────────
+  // Which crew someone is on, and whether they are badged as its manager. This
+  // drives the grouped bands on the JWG schedule grid. The group NAMES live in a
+  // setting rather than in code, because this repo is public (a hardcoded list of
+  // who manages whom would publish the org chart) and because Jake wants to
+  // rename them later without a deploy.
+  function crewCell(p){
+    var cur = p.crew_group || '';
+    var opts = '<option value=""'+(cur?'':' selected')+'>— none —</option>'
+      + _groups.map(function(g){
+          return '<option value="'+esc(g)+'"'+(g===cur?' selected':'')+'>'+esc(g)+'</option>';
+        }).join('')
+      // A group set in the database that is missing from the ordered list still
+      // shows, so a stale name can never silently look like "— none —".
+      + (cur && _groups.indexOf(cur)===-1 ? '<option value="'+esc(cur)+'" selected>'+esc(cur)+' (not in order)</option>' : '');
+    return '<div style="display:flex;align-items:center;gap:7px">'
+      + '<select onchange="TeamMgr.setGroup(\''+p.id+'\',this.value)" title="Which crew '+esc(p.name)+' works with — groups the schedule grid" '
+      +   'style="font-size:12px;font-weight:600;padding:5px 7px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);max-width:150px">'
+      +   opts
+      + '</select>'
+      + '<button onclick="TeamMgr.toggleManager(\''+p.id+'\')" title="'+(p.is_manager?'Remove the MGR badge':'Badge as this crew’s manager')+'" '
+      +   'style="font-size:9px;font-weight:800;letter-spacing:.5px;cursor:pointer;border-radius:5px;padding:3px 6px;'
+      +   (p.is_manager
+            ? 'color:#6d28d9;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3)'
+            : 'color:#c3c9cf;background:none;border:1px solid var(--border)')
+      +   '">MGR</button>'
+      + '</div>';
+  }
+
+  async function setGroup(id, val){
+    var p = _team.find(function(x){return x.id===id;}); if(!p) return;
+    var prev = p.crew_group;
+    p.crew_group = val || null;                      // optimistic, like the pills
+    renderTeamPage();
+    try {
+      var r = await db.from('crew_members').update({crew_group: val || null}).eq('id', id);
+      if(r.error) throw r.error;
+      toast(val ? p.name+' → '+val : p.name+' removed from their crew');
+    } catch(e){
+      p.crew_group = prev; renderTeamPage();
+      toast('Could not save the crew: '+(e.message||e), 'error');
+    }
+  }
+
+  async function toggleManager(id){
+    var p = _team.find(function(x){return x.id===id;}); if(!p) return;
+    var next = !p.is_manager;
+    p.is_manager = next;
+    renderTeamPage();
+    try {
+      var r = await db.from('crew_members').update({is_manager: next}).eq('id', id);
+      if(r.error) throw r.error;
+      toast(next ? p.name+' is badged as a manager' : 'MGR badge removed from '+p.name);
+    } catch(e){
+      p.is_manager = !next; renderTeamPage();
+      toast('Could not save that: '+(e.message||e), 'error');
+    }
   }
 
   // Palette popover: swatches, with colours already used by another active
@@ -168,7 +239,7 @@
     h += '<div style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)">'
       +  '<table style="width:100%;border-collapse:collapse">'
       +  '<thead><tr style="background:var(--surface2)">'
-      +  th('Person','left') + th('Junk / Bins') + th('JWG') + th('Summer') + th('Winter') + th('Active') + (canGift() ? th('Gift Cards') : '') + th('','right')
+      +  th('Person','left') + th('Crew','left') + th('Junk / Bins') + th('JWG') + th('Summer') + th('Winter') + th('Active') + (canGift() ? th('Gift Cards') : '') + th('','right')
       +  '</tr></thead><tbody>'
       +  people.map(row).join('')
       +  '</tbody></table></div>';
@@ -422,5 +493,6 @@
   window.renderTeamPage = renderTeamPage;
   window.TeamMgr = { toggle:toggle, rename:rename, color:color, add:add, remove:remove,
     openColour:openColour, closeColour:closeColour, pick:pick,
-    openGift:openGift, closeGift:closeGift, giveGift:giveGift, removeGift:removeGift };
+    openGift:openGift, closeGift:closeGift, giveGift:giveGift, removeGift:removeGift,
+    setGroup:setGroup, toggleManager:toggleManager };
 })();

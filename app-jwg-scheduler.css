@@ -237,6 +237,68 @@
 #view-jwgscheduler .th-day {font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-muted);}
 #view-jwgscheduler .th-date {font-size:10px;font-weight:600;color:var(--fg-subtle);}
 #view-jwgscheduler td.name-col {padding:10px 14px;border-bottom:1px solid var(--border);}
+/* Crew band — the thin label between groups of rows. Sticky to the left so the
+   group name stays readable while the week scrolls sideways. */
+#view-jwgscheduler tr.crew-band td {
+  background:#f3f6f3;border-top:1px solid rgba(0,0,0,0.09);border-bottom:1px solid var(--border);
+  padding:6px 16px;position:sticky;left:0;
+}
+#view-jwgscheduler tr.crew-band .cb-name {
+  font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#4a5a4f;
+}
+#view-jwgscheduler tr.crew-band .cb-count {
+  font-size:10px;font-weight:800;color:var(--fg-muted);background:rgba(0,0,0,0.055);
+  border-radius:999px;padding:1px 7px;margin-left:8px;
+}
+#view-jwgscheduler tr.crew-band .cb-today {
+  font-size:10px;font-weight:700;color:var(--accent-dim);margin-left:8px;
+}
+#view-jwgscheduler tr.emp-row.is-dragging td.name-col {opacity:.45;}
+/* "Fill in this week" — shown only while someone on a repeating week still has
+   empty days. Same shape as the how-to line beside it, so it reads as part of
+   the page rather than a new piece of furniture. */
+#view-jwgscheduler .wk-fill {
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin:12px 22px;padding:13px 16px;
+  background:var(--accent-light);border:1px solid var(--border-acc);border-radius:10px;
+}
+#view-jwgscheduler .wk-fill .wkf-txt {flex:1;min-width:230px;font-size:13px;color:var(--accent-dim);line-height:1.45;}
+#view-jwgscheduler .wk-fill .wkf-who {display:block;font-size:11.5px;color:var(--fg-muted);font-weight:600;margin-top:2px;}
+#view-jwgscheduler .wk-fill .wkf-stale {
+  display:block;font-size:11.5px;font-weight:600;color:var(--warn-ink,#9a3412);
+  background:#fff7ed;border:1px solid rgba(249,115,22,0.25);border-radius:7px;
+  padding:6px 9px;margin-top:7px;
+}
+#view-jwgscheduler .wk-fill .wkf-btn {
+  background:var(--dark);color:#fff;border:none;border-radius:8px;
+  padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;
+}
+#view-jwgscheduler .wk-fill .wkf-btn:hover {background:var(--dark-b);}
+@media (max-width:900px){#view-jwgscheduler .wk-fill{margin:10px 12px;}}
+/* The Off / Repeats weekly switch in the Usual weeks modal. */
+#view-jwgscheduler .uw-rep {display:inline-flex;background:var(--bg-deep);border-radius:999px;padding:3px;gap:3px;flex-shrink:0;}
+#view-jwgscheduler .uw-rep button {
+  border:none;background:transparent;color:var(--fg-muted);font:inherit;font-size:11px;font-weight:700;
+  border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap;
+}
+#view-jwgscheduler .uw-rep button.on {background:var(--dark);color:#fff;}
+/* "Their usual week — use this" card, shown in the shift box on a ghost day. */
+#view-jwgscheduler .sm-usual {
+  display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;
+  background:var(--accent-light);border:1.5px dashed var(--border-acc);border-radius:12px;
+  padding:13px 14px;margin-bottom:14px;
+}
+#view-jwgscheduler .sm-usual-txt {display:flex;align-items:center;gap:9px;font-size:13px;color:var(--fg);min-width:0;}
+#view-jwgscheduler .sm-usual-sub {font-size:11.5px;color:var(--fg-muted);font-weight:500;}
+#view-jwgscheduler .sm-usual-btn {
+  background:var(--dark);color:#fff;border:none;border-radius:8px;padding:8px 15px;
+  font-size:12.5px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit;
+}
+#view-jwgscheduler .emp-mgr {
+  font-size:9px;font-weight:800;letter-spacing:.5px;color:#6d28d9;
+  background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.22);
+  border-radius:5px;padding:1px 5px;vertical-align:middle;
+}
 #view-jwgscheduler td.day-cell {
   min-height:72px;height:auto;border-bottom:1px solid var(--border);border-left:1px solid var(--border);
   position:relative;padding:5px 4px;vertical-align:top;cursor:pointer;
@@ -1667,7 +1729,13 @@ body.jwg-modal-open {overflow:hidden;}
 #view-jwgscheduler .ctrl-group {display:flex;align-items:center;gap:6px;flex:none;background:var(--bg-deep);border:1px solid var(--border);border-radius:10px;padding:5px 10px;}
 #view-jwgscheduler .ctrl-actions .ctrl-label {margin-right:2px;}
 #view-jwgscheduler .wk-hint {display:flex;align-items:center;gap:8px;margin:12px 22px 0;padding:11px 15px;background:var(--accent-light);border:1px solid var(--border-acc);border-radius:10px;font-size:12.5px;color:var(--accent-dim);line-height:1.45;flex-wrap:wrap;}
-#view-jwgscheduler td.day-cell.empty-cell:hover::after {content:'+ add';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--accent-dim);opacity:.7;pointer-events:none;}
+/* A blank square gave no sign at all that it could be clicked — the + only showed
+   under the mouse, so on a phone it never showed, and it said "add", which reads as
+   "add a shift". That is the other half of the vanished-Off-sick problem (v682).
+   The + now rests in every blank square so the grid reads as editable at a glance,
+   and the hover text names both jobs the click does. */
+#view-jwgscheduler td.day-cell.empty-cell::after {content:'+';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:var(--accent-glow);pointer-events:none;}
+#view-jwgscheduler td.day-cell.empty-cell:hover::after {content:'+ shift or off';font-size:10.5px;font-weight:800;letter-spacing:.04em;color:var(--accent-dim);}
 #view-jwgscheduler .step-n {display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--dark);color:var(--accent);font-size:10px;font-weight:800;margin-right:5px;vertical-align:-3px;}
 @media (max-width:900px){
   #view-jwgscheduler .ctrl-group {background:transparent;border:none;padding:0;gap:5px;}

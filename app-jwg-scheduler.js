@@ -31,6 +31,8 @@ async function loadSettings(){
         }
       } else if(row.key==="wh"){
         WH=row.value;localStorage.setItem("ss_wh",JSON.stringify(WH));
+      } else if(row.key==="crew_groups"){
+        localStorage.setItem("ss_crew_groups",JSON.stringify(row.value));
       } else if(row.key==="emp_order"){
         localStorage.setItem("ss_emp_order",JSON.stringify(row.value));
       }
@@ -169,10 +171,103 @@ async function loadEmps(){return sbF("GET","jwg_employees?select=*&order=name");
 // removed there (active=false) — or taken off the JWG side — stays in
 // jwg_employees so their history keeps rendering, but must stop being offered
 // anywhere new (v559, Jake: Beth was still assignable after removal).
-async function loadCrewFlags(){try{return await sbF("GET","crew_members?select=jwg_id,active,on_jwg");}catch(e){return[];}}
+async function loadCrewFlags(){try{return await sbF("GET","crew_members?select=jwg_id,active,on_jwg,crew_group,is_manager");}catch(e){return[];}}
 function applyCrewFlags(crew){
   const m={};(crew||[]).forEach(c=>{if(c.jwg_id)m[c.jwg_id]=c;});
-  S.employees.forEach(e=>{const c=m[e.id];e.hidden=!!(c&&(c.active===false||c.on_jwg===false));});
+  S.employees.forEach(e=>{
+    const c=m[e.id];
+    e.hidden=!!(c&&(c.active===false||c.on_jwg===false));
+    // Which crew someone is on rides along with the hidden flag — same master
+    // table (crew_members), same cross-read, so the grid groups and the Team page
+    // can never disagree about who is where.
+    e.group=(c&&c.crew_group)||"";
+    e.manager=!!(c&&c.is_manager);
+  });
+}
+// The group ORDER is a setting, not a hardcoded list (Jake, 2026-10-02: official
+// group names are coming later, so renaming must not need a deploy). Anyone whose
+// group is missing from it — or who has none — falls to the end under "Everyone
+// else", which is also what a brand-new hire looks like until someone files them.
+const UNGROUPED="Everyone else";
+function crewGroupOrder(){
+  try{const v=JSON.parse(localStorage.getItem("ss_crew_groups")||"null");if(Array.isArray(v))return v;}catch(e){}
+  return [];
+}
+
+// ── REPEATING WEEKS ───────────────────────────────────────────────────────
+// Someone whose week never changes (the cutting crew) can be set to repeat.
+// Their week is then filled in by ONE BUTTON on the grid, writing real shifts.
+//
+// It was briefly built as a read-only "ghost" overlay instead — dashed shifts
+// drawn on blank days, never written. That was wrong for two measured reasons:
+// Past schedules and Insights read saved rows, and so does office-tv.html
+// (workingTodayCount), so the wall would have under-reported the crew by four
+// people every day while the office screen showed them booked. A shift that is
+// on screen has to be a shift in the database.
+//
+// It is still not the v559 auto-seed: nothing happens until someone presses the
+// button, and it only ever fills a day that is empty.
+function usualDay(emp,day){
+  if(!emp||!emp.repeats_weekly||!emp.usual_week)return null;
+  const d=emp.usual_week[day];
+  return dayHasData(d)?d:null;
+}
+// How long ago a usual week was stored, in whole months. Null when unknown.
+// The repeat deliberately never expires — see usual_week_saved_at in the database
+// — but a pattern saved two seasons ago is probably wrong now, so the bar says so.
+function usualAgeMonths(emp){
+  if(!emp||!emp.usual_week_saved_at)return null;
+  const t=Date.parse(emp.usual_week_saved_at);
+  if(isNaN(t))return null;
+  return Math.floor((Date.now()-t)/(30.44*86400000));
+}
+const USUAL_STALE_MONTHS=3;
+function _monthLabel(emp){
+  const t=Date.parse(emp.usual_week_saved_at||"");
+  if(isNaN(t))return "a while ago";
+  const d=new Date(t),now=new Date();
+  return d.toLocaleDateString("en-US",{month:"long"})+(d.getFullYear()!==now.getFullYear()?" "+d.getFullYear():"");
+}
+// Does this person's usual week hold anything at all?
+function usualDayAny(emp){return DAYS.some(d=>usualDay(emp,d));}
+// People set to repeat who still have blank days in the week on screen. Only
+// blank days count: a shift, a day off or a sick day already set is not "missing".
+function pendingUsual(){
+  // Never offer to fill a week that has already happened. Backfilling old weeks
+  // would rewrite history and throw off hours and Insights — and the repeat is
+  // a plan for work still to come, not a record of work already done.
+  if(S.weekOffset<0)return[];
+  return visEmps().map(e=>{
+    if(!e.repeats_weekly)return null;
+    const sc=S.schedule[e.id]||{};
+    const days=DAYS.filter(d=>usualDay(e,d)&&!dayHasData(sc[d]));
+    return days.length?{emp:e,days:days}:null;
+  }).filter(Boolean);
+}
+// The one button. Writes real shifts into empty days only, for everyone set to
+// repeat — so the hours badge, Insights, Past schedules and the office TV all
+// see the same week the grid shows.
+async function fillWeekFromUsual(){
+  const pend=pendingUsual();
+  if(!pend.length)return;
+  const names=pend.map(x=>x.emp.name);
+  const whoStr=names.length<=4?names.join(", "):names.slice(0,3).join(", ")+` and ${names.length-3} more`;
+  const dayN=pend.reduce((n,x)=>n+x.days.length,0);
+  if(!(await jwgConfirm({
+    title:"Fill in this week",
+    target:whoStr,
+    message:`${dayN} day${dayN===1?"":"s"} will be filled in from their usual week, for ${wlbl(S.weekOffset).toLowerCase()}. Days that already have something on them are left alone.`,
+    confirmLabel:`Fill ${dayN} day${dayN===1?"":"s"}`
+  })))return;
+  let filled=0;
+  pend.forEach(({emp,days})=>{
+    if(!S.schedule[emp.id])S.schedule[emp.id]=defSched();
+    days.forEach(d=>{S.schedule[emp.id][d]=JSON.parse(JSON.stringify(usualDay(emp,d)));filled++;});
+    updBadge(emp.id);
+  });
+  autoSave(null);
+  refreshGrid();
+  toast(`Filled ${filled} day${filled===1?"":"s"} for ${pend.length} ${pend.length===1?"person":"people"} — ${wlbl(S.weekOffset)} is set`);
 }
 function visEmps(){return S.employees.filter(e=>!e.hidden);}
 // Does this week's schedule hold anything worth showing for a hidden person?
@@ -459,7 +554,13 @@ function buildTMHtml(){
   let h=`<div class="modal-title">Customize Tasks</div>
   <div class="modal-sub">Rename, recolor, or create tasks specific to your team.</div>
   <div id="tmList">`;
+  // Off and Sick are day STATUSES, not job types — they are set on the day itself
+  // (step 1 of the shift box) and are filtered out of every task picker there is.
+  // Listing them here sent people hunting for a Sick they could never select
+  // (v682). Skipped in place, never spliced: tmLC/tmCC/tmDel address tasks by
+  // index, so reindexing this list would edit the wrong job type.
   tasks.forEach((t,i)=>{
+    if(t.id==="off"||t.id==="sick")return;
     h+=`<div class="titem">
       <div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div>
       <input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>
@@ -477,7 +578,7 @@ function buildTMHtml(){
   <div style="display:flex;justify-content:flex-end;margin-top:20px"><button class="modal-done" onclick="JWG.closeModal()">Done</button></div>`;
   return h;
 }
-function reTMList(){const el=document.getElementById("tmList");if(!el)return;let h="";tasks.forEach((t,i)=>{h+=`<div class="titem"><div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div><input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>` + (!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.28);flex-shrink:0;font-style:italic">default</span>`) + `</div>`;});el.innerHTML=h;}
+function reTMList(){const el=document.getElementById("tmList");if(!el)return;let h="";tasks.forEach((t,i)=>{if(t.id==="off"||t.id==="sick")return;h+=`<div class="titem"><div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div><input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>` + (!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.28);flex-shrink:0;font-style:italic">default</span>`) + `</div>`;});el.innerHTML=h;}
 function tmLC(i,v){tasks[i].label=v;saveTasks();}
 function tmCC(i,hex){
   const[r,g,b]=hex2rgb(hex);
@@ -487,7 +588,50 @@ function tmCC(i,hex){
   const sw=document.querySelectorAll(".tswatch");if(sw[i])sw[i].style.background=hex;
   saveTasks();
 }
-function tmDel(i){if(tasks[i].builtIn){toast("Can't delete default tasks","error");return;}const id=tasks[i].id;tasks.splice(i,1);Object.values(S.schedule).forEach(emp=>DAYS.forEach(d=>{if(emp[d]?.shifts){emp[d].shifts=emp[d].shifts.map(sh=>{const t=getShiftTasks(sh).filter(t=>t!==id);return{...sh,tasks:t};}).filter(sh=>sh.tasks.length>0);}if(emp[d]?.shifts?.length===0&&emp[d]?.status==="work")emp[d].status="off";}));saveTasks();reTMList();toast("Task deleted");}
+// Removing a job type does not just remove the type: it strips that job off
+// every shift in the week on screen, deletes any shift left with nothing, and
+// flips any day left empty back to "off". That used to happen on one click with
+// no warning — pressing Remove beside "Cutting Crew" quietly emptied three
+// people's whole week, and the next bulk save wrote it. Now it counts the damage
+// first and says it out loud (Jake, 2026-10-05: big changes should double check).
+async function tmDel(i){
+  if(tasks[i].builtIn){toast("Can't delete default tasks","error");return;}
+  const id=tasks[i].id,label=tasks[i].label;
+  // What this would take off the week currently loaded.
+  let hitShifts=0;const hitPeople=new Set();
+  Object.keys(S.schedule).forEach(empId=>DAYS.forEach(d=>{
+    const dd=S.schedule[empId][d];
+    (dd&&dd.shifts||[]).forEach(sh=>{
+      if(getShiftTasks(sh).includes(id)){hitShifts++;hitPeople.add(empId);}
+    });
+  }));
+  const who=[...hitPeople].map(x=>(S.employees.find(e=>e.id===x)||{}).name).filter(Boolean);
+  const whoStr=who.length<=3?who.join(", "):who.slice(0,3).join(", ")+` and ${who.length-3} more`;
+  const impact=hitShifts
+    ? `It is also taken off ${hitShifts} shift${hitShifts===1?"":"s"} in ${wlbl(S.weekOffset).toLowerCase()} — ${whoStr}. Any day left with nothing on it goes back to off.`
+    : `Nothing in ${wlbl(S.weekOffset).toLowerCase()} is using it.`;
+  if(!(await jwgConfirm({
+    title:"Remove job type",
+    target:label,
+    message:impact,
+    consequence:hitShifts?"This can't be undone.":"",
+    confirmLabel:"Remove"
+  })))return;
+  tasks.splice(i,1);
+  const touched=[...hitPeople];
+  Object.values(S.schedule).forEach(emp=>DAYS.forEach(d=>{
+    if(emp[d]?.shifts){
+      emp[d].shifts=emp[d].shifts.map(sh=>{const t=getShiftTasks(sh).filter(t=>t!==id);return{...sh,tasks:t};}).filter(sh=>sh.tasks.length>0);
+    }
+    if(emp[d]?.shifts?.length===0&&emp[d]?.status==="work")emp[d].status="off";
+  }));
+  saveTasks();
+  // The schedule really changed, so save it now rather than leaving a wiped week
+  // in memory for some later edit to write.
+  if(touched.length){touched.forEach(id2=>autoSave(id2));refreshGrid();}
+  reTMList();
+  toast(hitShifts?`"${label}" removed, and taken off ${hitShifts} shift${hitShifts===1?"":"s"}`:`"${label}" removed`);
+}
 function tmAdd(){const n=document.getElementById("nname"),c=document.getElementById("ncol");const nm=(n?.value||"").trim();if(!nm){toast("Enter a task name","error");return;}const hex=c?.value||"#1a7a3c";const[r,g,b]=hex2rgb(hex);tasks.push({id:"c"+Date.now(),label:nm,bg:`rgba(${r},${g},${b},0.12)`,text:darken(hex),dot:hex});saveTasks();if(n)n.value="";reTMList();toast(`"${nm}" added`);}
 
 // ── RENDER ──
@@ -571,42 +715,38 @@ function renderShiftModal(empId,day,emp,dayData){
     });
   }
 
-  const segBase="flex:1;border:none;border-radius:9px;padding:11px 0;font-size:13px;font-weight:700;cursor:pointer;";
-  // Header: avatar + name + the actual date, with the status switch alongside
+  // ONE question, one list of answers. The status switch and the job tiles used
+  // to be two separate controls — people answered one and missed the other
+  // (Jake, 2026-10-05: "user was confused becuase they lived in 2 diffferent
+  // places"). They are now a single grid: the jobs, a rule, then the three ways
+  // of not working. That is also how the data already thinks — Off and Sick sit
+  // in the same tasks list as Cutting Crew and Bins, and were only filtered out
+  // at display time.
   const _ws=getWS(S.weekOffset),_dt=new Date(_ws);_dt.setDate(_dt.getDate()+DAYS.indexOf(day));
   const _dayDate=_dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
   const[_abg,_afg]=ac(emp?.name||"");
+  const _first=esc((emp?.name||"").split(" ")[0])||"They";
   let h=`<div class="sm-head">
     <div class="sm-id">
       <div class="sm-avatar" style="background:${_abg};color:${_afg}">${empInitials(emp?.name||"")}</div>
       <div><div class="sm-name">${esc(emp?.name||"")}</div><div class="sm-daylbl">${day} · ${_dayDate}</div></div>
     </div>
-    <div class="sm-status">
-      <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--accent);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
-      <button onclick="JWG.markDayOff('${empId}','${day}')" style="${segBase}${status==="dayoff"?"background:rgba(0,0,0,0.55);color:#fff":"background:transparent;color:var(--fg-muted)"}">Day off</button>
-      <button onclick="JWG.markDaySick('${empId}','${day}')" style="${segBase}${status==="sick"?"background:#ea580c;color:#fff":"background:transparent;color:var(--fg-muted)"}">Off sick</button>
-      <button onclick="JWG.markDayNonWorking('${empId}','${day}')" style="${segBase}${status==="nonworking"?"background:#475569;color:#fff":"background:transparent;color:var(--fg-muted)"}">Non working</button>
-    </div>
-  </div>`;
+  </div>
+  <div class="sm-q">What's ${_first} doing ${day}?</div>`;
+
   if(!working){
-    h+=`<div class="sm-offnote" style="display:flex;align-items:center;gap:7px">${status==="sick"?schTile("sick",18)+"<span>Marked off sick for this day.</span>":status==="nonworking"?schTile("off",18)+"<span>Marked as a non working day.</span>":schTile("off",18)+"<span>Marked as a day off.</span>"}</div>`;
+    // Not working: one line and an Undo. Nothing else to fill in, and the footer
+    // loses "Add shift" because there is nothing to add.
+    const _lbl=status==="sick"?"off sick":status==="nonworking"?"on a non working day":"on a day off";
+    const _tile=status==="sick"?schTile("sick",22):schTile("off",22);
+    h+=`<div class="sm-offnote sm-off-${status}">
+      ${_tile}
+      <span>${esc(emp?.name||"They")} is <b>${_lbl}</b> on ${day}. Nothing else to fill in.</span>
+      <button class="sm-undo" onclick="JWG.setDayWorking('${empId}','${day}')">Undo</button>
+    </div>`;
   } else {
-    h+=`<div class="sm-cols">
-    <div class="sm-col sm-left">
-      <div class="sect-label">On the schedule</div>
-      ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing scheduled yet — build a shift on the right.</div>`}
-      <div class="day-note-wrap">
-        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
-      </div>
-    </div>
-    <div class="sm-col sm-right">
-      <div class="sect-label">Add a shift</div>
-      <div class="shift-form">
-        <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
-        <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
-      </div>
-      <div class="sect-label">Role / Task</div>
+    h+=`<div class="sm-pickwrap">
+      <div class="sect-label">On a job</div>
       <div class="task-grid">`;
     tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
       h+=`<button class="task-opt" id="topt_${t.id}"
@@ -617,6 +757,28 @@ function renderShiftModal(empId,day,emp,dayData){
       </button>`;
     });
     h+=`</div>
+      <div class="sm-or"><i></i><span>or not working</span><i></i></div>
+      <div class="sm-offgrid">
+        <button class="sm-off-opt" onclick="JWG.markDayOff('${empId}','${day}')">${schTile("off",20)}Day off</button>
+        <button class="sm-off-opt is-sick" onclick="JWG.markDaySick('${empId}','${day}')">${schTile("sick",20)}Off sick</button>
+        <button class="sm-off-opt" onclick="JWG.markDayNonWorking('${empId}','${day}')">${schTile("off",20)}Non working</button>
+      </div>
+    </div>
+    <div class="sm-cols">
+    <div class="sm-col sm-left">
+      <div class="sect-label">On the schedule</div>
+      ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing yet — pick a job above, set the hours, then Add shift.</div>`}
+      <div class="day-note-wrap">
+        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
+      </div>
+    </div>
+    <div class="sm-col sm-right">
+      <div class="sect-label">When</div>
+      <div class="shift-form">
+        <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
+        <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
+      </div>
     </div>
   </div>`;
   }
@@ -887,7 +1049,7 @@ function maToggleEveryone(){
   renderMultiAssign();
 }
 
-function applyMultiAssign(){
+async function applyMultiAssign(){
   const s=document.getElementById("ma_start")?.value||_ma.start;
   const e=document.getElementById("ma_end")?.value||_ma.end;
   if(!_ma.tasks.length){toast("Select at least one task first","error");return;}
@@ -897,6 +1059,17 @@ function applyMultiAssign(){
     const[sh,sm]=s.split(":").map(Number),[eh,em]=e.split(":").map(Number);
     if((eh+em/60)<=(sh+sm/60)){toast("End time must be after start","error");return;}
   }
+  // A bulk write across people and days deserves a beat, the same as Clear does.
+  const _tmA=TM();
+  const _taskStr=_ma.tasks.map(id=>_tmA[id]?.label||id).join(" + ");
+  const _names=_ma.empIds.map(id=>(S.employees.find(x=>x.id===id)||{}).name).filter(Boolean);
+  const _whoStr=_names.length<=4?_names.join(", "):_names.slice(0,3).join(", ")+` and ${_names.length-3} more`;
+  if(_ma.empIds.length*_ma.days.length>1&&!(await jwgConfirm({
+    title:"Assign shifts",
+    target:_whoStr,
+    message:`"${_taskStr}" ${s&&e?fmtRange(s,e)+" ":""}goes on ${_ma.days.length} day${_ma.days.length===1?"":"s"} for ${_ma.empIds.length} ${_ma.empIds.length===1?"person":"people"}. Days that already have an overlapping shift are skipped.`,
+    confirmLabel:`Assign ${_ma.empIds.length*_ma.days.length} day${_ma.empIds.length*_ma.days.length===1?"":"s"}`
+  })))return;
   let skipped=0;
   const newShift={tasks:[..._ma.tasks],start:s,end:e};
   _ma.empIds.forEach(empId=>{
@@ -1002,10 +1175,43 @@ function mcToggleEmp(id){const i=_mc.empIds.indexOf(id);if(i>=0)_mc.empIds.splic
 function mcToggleEveryone(){const emps=visEmps();const allOn=emps.every(e=>_mc.empIds.includes(e.id));_mc.empIds=allOn?[]:emps.map(e=>e.id);renderMultiClear();}
 
 async function applyMultiClear(){
-  if(!_mc.days.length||!_mc.empIds.length)return;
+  // Was a silent return — the user pressed Clear and nothing at all happened.
+  // Assign already says why it won't go; this now matches it.
+  if(!_mc.empIds.length){toast("Select at least one employee","error");return;}
+  if(!_mc.days.length){toast("Select at least one day","error");return;}
   const taskLabel=_mc.task==="__all__"?"all tasks":(TM()[_mc.task]?.label||_mc.task);
   const empN=_mc.empIds.length,dayN=_mc.days.length;
-  if(!(await jwgConfirm({title:"Clear shifts",message:`Clear ${taskLabel} for ${empN} ${empN!==1?"people":"person"} across ${dayN} ${dayN!==1?"days":"day"}.`,consequence:"This can't be undone.",confirmLabel:"Clear"})))return;
+
+  // Count what would ACTUALLY go before asking. "16 people across 5 days" tells
+  // you the size of the selection, not the size of the damage — those are very
+  // different numbers when most of the selection is already empty.
+  let willClear=0;
+  _mc.empIds.forEach(empId=>{
+    const sc=S.schedule[empId];if(!sc)return;
+    _mc.days.forEach(day=>{
+      const dd=sc[day];if(!dd)return;
+      if(_mc.task==="__all__"){if(dayHasData(dd))willClear++;}
+      else willClear+=(dd.shifts||[]).filter(sh=>getShiftTasks(sh).includes(_mc.task)).length;
+    });
+  });
+  if(!willClear){
+    toast(`Nothing to clear — no ${taskLabel} on those days for those people.`,"error");
+    return;
+  }
+  // Name them. A bulk delete should say who it is about.
+  const names=_mc.empIds.map(id=>(S.employees.find(e=>e.id===id)||{}).name).filter(Boolean);
+  const whoStr=names.length<=4?names.join(", "):names.slice(0,3).join(", ")+` and ${names.length-3} more`;
+  // Clearing a repeating person's day does not leave it blank — their usual week
+  // shows again as a dashed plan. Without saying so, the clear looks like it failed.
+  const repNames=_mc.empIds.map(id=>S.employees.find(e=>e.id===id)).filter(e=>e&&e.repeats_weekly&&usualDayAny(e)).map(e=>e.name);
+  const repNote=repNames.length?` ${repNames.join(", ")} ${repNames.length===1?"works":"work"} the same week every week, so once cleared ${repNames.length===1?"their":"those"} day${repNames.length===1?"":"s"} can be put back with the Fill in this week button.`:"";
+  if(!(await jwgConfirm({
+    title:"Clear shifts",
+    target:whoStr,
+    message:`${willClear} ${_mc.task==="__all__"?(willClear===1?"day":"days"):(willClear===1?"shift":"shifts")} will be removed — ${taskLabel}, across ${dayN} ${dayN!==1?"days":"day"} for ${empN} ${empN!==1?"people":"person"}.${repNote}`,
+    consequence:"This can't be undone.",
+    confirmLabel:`Clear ${willClear}`
+  })))return;
   let cleared=0;
   _mc.empIds.forEach(empId=>{
     if(!S.schedule[empId])return;
@@ -1072,7 +1278,12 @@ function render(){
   else if(S.tab==="tasks"){app.innerHTML=buildTasksPage();initTasksPage();}
   else if(S.tab==="summer"){app.innerHTML=buildSummerPage();initSummerPage();}
   else if(S.tab==="winter"){app.innerHTML=buildWinterPage();initWinterPage();}
-  else if(S.tab==="inventory"){app.innerHTML=buildInventoryPage();initInventoryPage();}
+  else if(S.tab==="inventory"){
+    // Inventory lives in app-jwg-inventory.js. Fail loudly if it is missing
+    // rather than showing a silently blank tab.
+    if(!window.JWGInv)throw new Error("app-jwg-inventory.js is not loaded");
+    app.innerHTML=window.JWGInv.buildInventoryPage();window.JWGInv.initInventoryPage();
+  }
   else if(S.tab==="clothing"){app.innerHTML=buildClothingPage();initClothingPage();}
   else{S.tab="schedule";app.innerHTML=buildSched();}  // people are managed on the main Team page
   updateFAB();
@@ -1102,8 +1313,8 @@ function buildSched(){
   h+=`</div>
     <div class="ctrl-actions">
       <span class="ctrl-label">Week tools</span>
-      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openUsualWeeks()" title="Save someone's typical week once, then fill any week from it with one tap">💾 Saved schedules</button>
-      <button class="ctrl-btn" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
+      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()" title="For anyone who works the same week every week — set it once and it fills in on its own">🔁 Same every week</button>
+      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
       <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()" title="Remove shifts from several people and days at once">🗑 Clear shifts</button>
       <button class="ctrl-btn" onclick="JWG.openTaskMgr()" title="Edit the list of job types and their colours">🏷️ Job types</button>
       <button class="ctrl-btn" onclick="JWG.openWHSettings()" title="Change the workday start and end hours this page shows">⏰ Hours ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
@@ -1122,8 +1333,30 @@ function buildSched(){
   } else {
     // Weeks start empty now (no silent pre-fill since v559) — say so and point
     // at the two ways to fill one, instead of showing a bare grid.
+    // The how-to line used to appear ONLY on a wholly empty week, so in practice
+    // nobody ever saw it: any real week has a shift in it. It now stands all the
+    // time, and names what a cell can do besides a shift — the empty-week version
+    // keeps its extra nudge toward Same every week (v682).
     if(S.employees.every(e=>!empHasWeekData(S.schedule[e.id]))){
-      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>💾 Saved schedules</b> and fill people's usual weeks in one tap.</div>`;
+      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>🔁 Same every week</b> for anyone who works the same week every week.</div>`;
+    } else {
+      h+=`<div class="wk-hint">👆 Tap anyone's day to <b>build a shift</b> — or mark them <b>Day off</b>, <b>Off sick</b> or <b>Non working</b>.</div>`;
+    }
+    // Anyone on "same every week" whose week is still empty. The bar only shows
+    // while there is something to do, and says exactly who and how many days.
+    const _pend=pendingUsual();
+    if(_pend.length){
+      const _names=_pend.map(x=>esc(x.emp.name)).join(", ");
+      const _days=_pend.reduce((n,x)=>n+x.days.length,0);
+      // Seasonal drift is the real risk, so call out anyone whose pattern is old
+      // rather than quietly writing a summer week into a winter one.
+      const _stale=_pend.filter(x=>{const m=usualAgeMonths(x.emp);return m!==null&&m>=USUAL_STALE_MONTHS;});
+      const _staleNote=_stale.length?`<span class="wkf-stale">⚠ ${_stale.map(x=>`${esc(x.emp.name)}'s week was saved ${_monthLabel(x.emp)}`).join(" · ")} — check it still fits the season before filling.</span>`:"";
+      h+=`<div class="wk-fill">
+        <span class="wkf-txt">🔁 <b>${_pend.length} ${_pend.length===1?"person works":"people work"} the same week every week</b>, and ${wlbl(S.weekOffset).toLowerCase()} is still empty for them.
+          <span class="wkf-who">${_names} · ${_days} day${_days===1?"":"s"} to fill</span>${_staleNote}</span>
+        <button class="wkf-btn" onclick="JWG.fillWeekFromUsual()">Fill in this week</button>
+      </div>`;
     }
     h+=`<div class="grid-wrap" id="gw">${buildGrid()}</div>`;
     h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
@@ -1175,7 +1408,42 @@ function buildGrid(){
   // (badged, so nothing vanishes silently) — otherwise they're gone from the grid.
   const gridEmps=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
   const sortedEmps=S.sortAlpha?[...gridEmps].sort((a,b)=>a.name.localeCompare(b.name)):gridEmps;
-  sortedEmps.forEach((emp,empIdx)=>{
+  // Rows cluster by crew so the people who work together read as a block (Jake,
+  // 2026-10-02: bins was two people four rows apart). A-Z sort is the explicit
+  // "show me one flat alphabetical list" escape hatch, so it skips the banding.
+  // Within a band people keep the hand-dragged emp_order, so reordering still works.
+  const bands=[];
+  if(S.sortAlpha){
+    bands.push({name:"",emps:sortedEmps});
+  } else {
+    const order=crewGroupOrder();
+    const seen=new Set();
+    order.forEach(g=>{
+      // Manager to the top of their own crew; everyone else keeps the dragged
+      // emp_order. A stable partition, not a sort, so dragging still decides
+      // the rest of the band.
+      const inG=sortedEmps.filter(e=>e.group===g);
+      const mgrs=inG.filter(e=>e.manager),rest=inG.filter(e=>!e.manager);
+      const ordered=mgrs.concat(rest);
+      ordered.forEach(e=>seen.add(e.id));
+      if(ordered.length)bands.push({name:g,emps:ordered});
+    });
+    const rest=sortedEmps.filter(e=>!seen.has(e.id));
+    if(rest.length)bands.push({name:order.length?UNGROUPED:"",emps:rest});
+  }
+  const _nCols=S.activeDays.length+1;
+  let empIdx=-1;
+  bands.forEach(band=>{
+    if(band.name){
+      const onNow=band.emps.filter(e=>{const dd=(S.schedule[e.id]||{})[todayName];return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
+      h+=`<tr class="crew-band"><td colspan="${_nCols}">
+        <span class="cb-name">${esc(band.name)}</span>
+        <span class="cb-count">${band.emps.length}</span>
+        ${isCurrentWeek?`<span class="cb-today">${onNow} on today</span>`:""}
+      </td></tr>`;
+    }
+    band.emps.forEach(emp=>{
+    empIdx++;
     const sc=S.schedule[emp.id]||defSched();
     const hrs=countH(sc);
     const[abg,afg]=ac(emp.name);
@@ -1184,13 +1452,13 @@ function buildGrid(){
     const r=16,circ=2*Math.PI*r,dash=(pct*circ).toFixed(2),gap=(circ-pct*circ).toFixed(2);
     const ringColor=pct>0.7?"#1a7a3c":pct>0.35?"#f59e0b":"transparent";
     const hrsCls=pct>0.6?"hrs-high":pct>0.3?"hrs-mid":"hrs-low";
-    const tipText=hrs>0?`${hrs}h scheduled this week`:"No hours this week";
+    const tipText=hrs>0?`${hrs}h scheduled this week${emp.repeats_weekly?" (their normal week fills the empty days)":""}`:"No hours this week";
     h+=`<tr class="emp-row" draggable="${S.sortAlpha?"false":"true"}" data-empid="${emp.id}" data-empidx="${empIdx}">
       <td class="name-col">
         <div class="emp-cell-inner">
           ${S.sortAlpha?"":`<span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>`}
           <div class="avatar" data-tip="${tipText}" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
-          <div><div class="emp-name">${esc(emp.name)}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--warn-ink);background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
+          <div><div class="emp-name">${esc(emp.name)}${emp.manager?` <span class="emp-mgr" title="Manager of this crew — a label, not a permission">MGR</span>`:""}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--warn-ink);background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
         </div>
       </td>`;
     S.activeDays.forEach(d=>{
@@ -1235,6 +1503,7 @@ function buildGrid(){
       h+=`<td class="day-cell${isTodayCell?" is-today":""}${cellContent?"":" empty-cell"}" style="${cellStyle}${sickStyle}${dayOffStyle}${nonworkStyle}" onclick="JWG.openShiftModal('${emp.id}','${d}')">${cellContent}${noteIndicator}</td>`;
     });
     h+=`</tr>`;
+    });
   });
   let footCells="";
   S.activeDays.forEach(d=>{
@@ -1254,7 +1523,17 @@ function mSetView(v){S.mView=v;render();}
 function mOpenDay(d){S.mView="day";S.mDay=d;render();}
 function mSetPerson(id){S.mView="person";S.mPerson=id;render();}
 function mTodayName(){return["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];}
-function mSortedEmps(){const base=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));return S.sortAlpha?[...base].sort((a,b)=>a.name.localeCompare(b.name)):base;}
+// The phone board keeps its Working / Off headings — crew bands on top of those
+// would be grouping inside grouping on a 375px screen. Instead the people are
+// ORDERED by crew, so a crew still reads as a run of cards, managers first.
+function mSortedEmps(){
+  const base=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
+  if(S.sortAlpha)return[...base].sort((a,b)=>a.name.localeCompare(b.name));
+  const order=crewGroupOrder();
+  if(!order.length)return base;
+  const rank=e=>{const i=order.indexOf(e.group||"");return i===-1?order.length:i;};
+  return[...base].sort((a,b)=>rank(a)-rank(b)||(b.manager?1:0)-(a.manager?1:0)||base.indexOf(a)-base.indexOf(b));
+}
 function mChip(tm,sh){
   const ids=getShiftTasks(sh);
   const t=tm[ids[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e"};
@@ -1402,9 +1681,12 @@ function toggleDay(d){
 function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
 // A week with no saved row starts EMPTY. It used to silently pre-fill from the
 // person's "usual week" (and auto-write rows on boot) — schedules appeared that
-// nobody had put there, which confused the office. Saved schedules are now
-// applied EXPLICITLY from the Saved schedules modal (v559). Copy-last-week was
-// removed the same day (Jake: dangerous).
+// nobody had put there, which confused the office. Copy-last-week was removed
+// the same day (Jake: dangerous). A saved week is now either applied EXPLICITLY
+// from the Same every week modal, or — if that person is set to repeat — drawn as a
+// written by the "Fill in this week" button, which is still someone pressing
+// something. loadWeekSched stays honest: what it puts in S.schedule is only
+// ever what the database holds.
 function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
 
 // ── SAVED SCHEDULES ──
@@ -1417,8 +1699,13 @@ function renderUsualWeeks(fresh){
   visEmps().forEach(e=>{
     const[abg,afg]=ac(e.name);
     const tpl=e.usual_week;
+    // "Has a template" and "has anything IN it" are different questions, and the
+    // list used to ask only the first — so an empty template still offered Apply.
+    const tplHasData=!!tpl&&DAYS.some(d=>dayHasData(tpl[d]));
     let summary;
-    if(tpl){
+    if(tpl&&!tplHasData){
+      summary=`<div style="font-size:11.5px;color:var(--warn-ink,#9a3412);background:#fff7ed;border:1px solid rgba(249,115,22,0.28);border-radius:7px;padding:6px 9px;margin-top:6px;display:inline-block;font-weight:650">⚠ This saved schedule is empty — it holds no shifts, so there is nothing to apply. Build their week on the grid, then save it again.</div>`;
+    } else if(tpl){
       const chips=DAYS.filter(d=>{const day=tpl[d];if(!day||day.status==="off")return false;if(day.status==="work"&&(!day.shifts||!day.shifts.length))return false;return true;}).map(d=>{
         const day=tpl[d];
         let lbl,style;
@@ -1442,15 +1729,20 @@ function renderUsualWeeks(fresh){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="avatar" style="background:${abg};color:${afg};width:32px;height:32px;font-size:11px;flex-shrink:0">${empInitials(e.name)}</div>
         <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px">${esc(e.name)}</div>
-        ${tpl?`<button class="ctrl-btn ctrl-btn-accent" onclick="JWG.applyUsualWeek('${e.id}')" title="Fill ${esc(e.name)}'s row for ${wlbl(S.weekOffset)} from their saved schedule">▸ Apply to this week</button>`:""}
-        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Save the week you're viewing as ${esc(e.name)}'s saved schedule">💾 Save this week</button>
+        ${tplHasData?`<div class="uw-rep" title="On: ${esc(e.name)} appears in the Fill in this week button whenever their week is still empty.">
+          <button class="${e.repeats_weekly?"":"on"}" onclick="JWG.setRepeats('${e.id}',false)">Different each week</button>
+          <button class="${e.repeats_weekly?"on":""}" onclick="JWG.setRepeats('${e.id}',true)">🔁 Same every week</button>
+        </div>`:""}
+        ${tplHasData?`<button class="ctrl-btn" onclick="JWG.applyUsualWeek('${e.id}')" title="Fill in ${esc(e.name)}'s week now, without waiting for the button on the schedule">▸ Fill in their week</button>`:""}
+        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Store the week you are looking at as ${esc(e.name)}'s normal week">💾 Save this week</button>
         ${tpl?`<button class="ctrl-btn ctrl-btn-danger" onclick="JWG.clearUsualWeek('${e.id}')">✕ Clear</button>`:""}
       </div>
       ${summary}
     </div>`;
   });
-  const h=`<div class="modal-title">💾 Saved schedules</div>
-  <div class="modal-sub">Save someone's typical week once, then fill any week with one tap. Nothing happens automatically: "Save this week" stores the week you're viewing (${wlbl(S.weekOffset)}) as their template, and "Apply to this week" fills their row for the week you're viewing from it. Applying never changes the saved template.</div>
+  const _repN=visEmps().filter(e=>e.repeats_weekly).length;
+  const h=`<div class="modal-title">🔁 Same every week</div>
+  <div class="modal-sub">Some people work the exact same week, every week. Set theirs up once here and you stop re-entering it.<br><br><b>1.</b> Build their week on the schedule, then press <b>Save this week</b> — that stores it as their normal week.<br><b>2.</b> Switch them to <b>Same every week</b>.<br><br>From then on, any week that is still empty for them shows a <b>Fill in this week</b> button at the top of the schedule. One press and their week is in — <b>real shifts, the same as any other</b>. It only ever fills <b>empty</b> days, so a shift, a day off or a sick day you have already set is never touched.${_repN?`<br><br><b>${_repN}</b> ${_repN===1?"person is":"people are"} set to the same week every week.`:""}</div>
   <div>${rows}</div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
   if(fresh)openModal(h,null,true);else updateModal(h,null,true);
@@ -1458,6 +1750,14 @@ function renderUsualWeeks(fresh){
 async function applyUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);
   if(!emp||!emp.usual_week)return;
+  // A template can exist and still hold nothing — see saveUsualWeek. Applying one
+  // of those replaced a real week with seven blank days, which is how a saved
+  // schedule became a way to lose shifts. The button is hidden for these now; this
+  // is the belt to that braces, because the cost of getting it wrong is deleted work.
+  if(!DAYS.some(d=>dayHasData(emp.usual_week[d]))){
+    toast(`${emp.name}'s saved schedule is empty — nothing to apply. Build their week, then save it again.`,"error");
+    return;
+  }
   const w=wlbl(S.weekOffset);
   if(empHasWeekData(S.schedule[empId])&&!(await jwgConfirm({title:"Apply saved schedule",target:emp.name,message:`${w} already has shifts for ${emp.name}. Replace them with the saved schedule?`,confirmLabel:"Replace"})))return;
   S.schedule[empId]=migrateSched(JSON.parse(JSON.stringify(emp.usual_week)));
@@ -1467,14 +1767,48 @@ async function applyUsualWeek(empId){
 }
 async function saveUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
-  const tpl=JSON.parse(JSON.stringify(S.schedule[empId]||defSched()));
+  const sc=S.schedule[empId]||defSched();
+  // This saves the week you happen to be LOOKING at. Open it on a week someone has
+  // not been filled in on and the old code stored seven blank days — then said
+  // "Saved — apply it to any week with one tap". Four people ended up with empty
+  // templates that offered an Apply which did nothing visible, and applying one
+  // OVER a real week cleared the row (Jake, 2026-10-02: "it didnt work for me").
+  // Fail loudly instead of saving nothing and claiming success.
+  if(!empHasWeekData(sc)){
+    toast(`Nothing to save — ${emp.name} has no shifts in ${wlbl(S.weekOffset)}. Build their week on the grid first.`,"error");
+    return;
+  }
+  const tpl=JSON.parse(JSON.stringify(sc));
   DAYS.forEach(d=>{if(tpl[d])delete tpl[d].note;});  // notes are week-specific
   try{
-    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:tpl});
-    emp.usual_week=tpl;
+    const _now=new Date().toISOString();
+    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{usual_week:tpl,usual_week_saved_at:_now});
+    emp.usual_week=tpl;emp.usual_week_saved_at=_now;
     toast(`Saved ${emp.name}'s schedule — apply it to any week with one tap`);
     renderUsualWeeks(false);
   }catch(e){toast("Couldn't save the schedule: "+e.message,"error");}
+}
+async function setRepeats(empId,on){
+  const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
+  // Only a week with something in it can repeat — otherwise the flag would be a
+  // promise to show nothing, which is how the blank-template mess read.
+  if(on&&!DAYS.some(d=>dayHasData((emp.usual_week||{})[d]))){
+    toast(`${emp.name} has no normal week saved yet — build their week, then press Save this week.`,"error");
+    return;
+  }
+  const prev=!!emp.repeats_weekly;
+  emp.repeats_weekly=!!on;
+  renderUsualWeeks(false);
+  try{
+    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{repeats_weekly:!!on});
+    // Turning it OFF leaves every week already written exactly as it is — only
+    // the ghosts stop appearing.
+    toast(on?`${emp.name} is now set to the same week every week — an empty week offers a Fill in this week button`:`${emp.name} is back to a different week each time (weeks already filled in are untouched)`);
+    refreshGrid();
+  }catch(e){
+    emp.repeats_weekly=prev;renderUsualWeeks(false);
+    toast("Couldn't change that: "+e.message,"error");
+  }
 }
 async function clearUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
@@ -2948,697 +3282,11 @@ async function deleteWinterServiceType(typeId){
 }
 
 // ─── INVENTORY ───────────────────────────────────────────────────────────────
-/* ===== inventory.js ===== */
-// ── INVENTORY.JS ──────────────────────────────────────────
-// Part of JWG Staff Scheduler
-
-let INV={items:[],categories:[],filter:"all",statusFilter:"all",search:"",
-  // kiosk-only state (inventory.html futuristic view)
-  kioskFilter:"all",kioskRestocked:0,kioskBumpId:null,kioskCelebrateId:null,kioskToast:""};
-
-async function loadInventoryData(){
-  try{
-    const[items,cats]=await Promise.all([
-      sbF("GET","jwg_inventory_items?order=item_name"),
-      sbF("GET","jwg_inventory_categories?is_active=eq.true&order=sort_order")
-    ]);
-    INV.items=items||[];
-    INV.categories=cats||[];
-  }catch(e){console.error("Load inventory failed:",e);toast("Failed to load inventory","error");}
-}
-
-function buildInventoryPage(){
-  return`<div class="card"><div style="padding:20px;text-align:center;color:var(--fg-muted)">Loading…</div></div>`;
-}
-
-async function initInventoryPage(){
-  await loadInventoryData();
-  renderInventoryPage();
-}
-
-const INV_STATUS_LABEL={in_stock:"In stock",low:"Low",out_of_stock:"Out",ordered:"Ordered"};
-function invStatusFor(item){
-  if(item.status==="ordered"&&item.current_stock<=item.min_threshold)return "ordered";
-  if(item.current_stock===0)return "out_of_stock";
-  if(item.current_stock<=item.min_threshold)return "low";
-  return "in_stock";
-}
-function renderInventoryPage(){
-  if(_invKioskMode){renderInventoryKioskPage();return;}
-  const root=document.querySelector(".card");
-  if(!root)return;
-  let h=`<div class="si-header">
-    <div><div class="si-title">Back Shop Inventory</div></div>
-    <div class="si-actions">
-      <button class="si-action-btn" onclick="JWG.openAddInventoryItem()">Add item</button>
-      <button class="si-action-btn secondary" onclick="JWG.openManageCategories()">⚙ Manage Categories</button>
-      <button class="si-action-btn secondary" onclick="JWG.printInventoryShoppingList()">🖨 Print list</button>
-    </div>
-  </div>
-  <div class="si-filter-bar">
-    <input type="text" class="si-filter-input" placeholder="Search item or part #…" id="inv-search" oninput="JWG.INV.search=this.value;JWG.filterInventory()">
-    <select class="si-filter-select" onchange="JWG.INV.filter=this.value;JWG.filterInventory()">
-      <option value="all">All Categories</option>
-      ${INV.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}
-    </select>
-    <select class="si-filter-select" onchange="JWG.INV.statusFilter=this.value;JWG.filterInventory()">
-      <option value="all">All Status</option>
-      <option value="in_stock">In stock</option>
-      <option value="low">Low</option>
-      <option value="out_of_stock">Out</option>
-      <option value="ordered">Ordered</option>
-      <option value="needs_reorder">Low or out</option>
-    </select>
-  </div>
-  <div style="padding:0 0 14px 0;overflow-x:auto;">`;
-
-  let filtered=INV.items.filter(item=>{
-    if(INV.search){const q=INV.search.toLowerCase();if(!item.item_name.toLowerCase().includes(q)&&!(item.product_number||"").toLowerCase().includes(q))return false;}
-    if(INV.filter!=="all"&&item.category_id!==INV.filter)return false;
-    if(INV.statusFilter!=="all"){
-      if(INV.statusFilter==="needs_reorder"){if(item.current_stock>item.min_threshold)return false;}
-      else if(INV.statusFilter!==item.status)return false;
-    }
-    return true;
-  });
-
-  const _rank=i=>i.current_stock===0?0:i.current_stock<=i.min_threshold?1:2;
-  filtered.sort((a,b)=>_rank(a)-_rank(b)||a.item_name.localeCompare(b.item_name));
-
-  if(!filtered.length){
-    h+=`<div style="padding:24px;"><div class="si-empty"><div class="si-empty-icon">📦</div><div class="si-empty-text">No items found</div><div class="si-empty-sub">Track tools, parts, and supplies</div></div></div>`;
-  }else{
-    h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${INV.items.length} item${INV.items.length!==1?"s":""}</div>`;
-    h+=`<div class="inv-grid">`;
-    filtered.forEach(item=>{
-      const cat=INV.categories.find(c=>c.id===item.category_id);
-      const st=invStatusFor(item);
-      const statusClass=`status-badge ${st}`;
-      const priceStr=item.price?`$${Number(item.price).toFixed(2)}`:"";
-      h+=`<div class="inv-card-v2">
-        <div class="inv-card-img">${item.image_url?`<img src="${esc(item.image_url)}" alt="${esc(item.item_name)}">`:`<span class="inv-card-img-ph">📦</span>`}</div>
-        <div class="inv-card-body">
-          <div class="inv-card-top">
-            <div class="inv-card-name">${esc(item.item_name)}</div>
-            ${item.product_number?`<div class="inv-card-prodnum">#${esc(item.product_number)}</div>`:""}
-            <span class="service-badge svc-color-${INV.categories.findIndex(c=>c.id===item.category_id)%8}">${cat?esc(cat.name):"?"}</span>
-          </div>
-          <div class="inv-card-meta">
-            <div class="inv-card-stock">
-              <span class="inv-card-stock-num" onclick="JWG.setInventoryCount('${item.id}')" title="Set exact count" style="cursor:pointer">${item.current_stock}</span>
-              <span class="inv-card-stock-unit">${esc(item.unit)}</span>
-              <span style="color:var(--fg-muted);font-size:11px;">min ${item.min_threshold}</span>
-            </div>
-            <span class="${statusClass}">${INV_STATUS_LABEL[st]||st}</span>
-          </div>
-          ${priceStr||item.purchase_link?`<div class="inv-card-price-row">
-            ${priceStr?`<span class="inv-card-price">${priceStr}</span>`:""}
-            ${item.purchase_link?`<a href="${esc(item.purchase_link)}" target="_blank" rel="noopener" class="inv-card-buy-link">Buy Here →</a>`:""}
-          </div>`:""}
-          ${item.notes?`<div class="inv-card-notes">${esc(item.notes)}</div>`:""}
-          <div class="inv-card-actions">
-            <div class="inv-card-adjust">
-              <button class="stock-btn" onclick="JWG.adjustInventory('${item.id}',-1)">−</button>
-              <button class="stock-btn" onclick="JWG.adjustInventory('${item.id}',1)">+</button>
-              <button class="stock-btn" onclick="JWG.setInventoryCount('${item.id}')">Set count</button>
-              ${item.status==="ordered"?`<button class="stock-btn" onclick="JWG.restockItem('${item.id}')">Restocked</button>`:`<button class="stock-btn" onclick="JWG.markOrdered('${item.id}')">Mark Ordered</button>`}
-            </div>
-            <div class="inv-card-edit">
-              <button class="loc-action-btn" onclick="JWG.editInventoryItem('${item.id}')">Edit</button>
-              <button class="loc-action-btn delete" onclick="JWG.deleteInventoryItem('${item.id}')">Delete</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    });
-    h+=`</div>`;
-  }
-
-  h+=`</div></div>`;
-  root.innerHTML=h;
-}
-
-function filterInventory(){renderInventoryPage();}
-
-// ── Futuristic kiosk view (inventory.html only) ─────────────────────────────
-// Jake's Claude Design "Back Shop Inventory - Futuristic" (2026-07-21).
-// bootInventoryKiosk flips _invKioskMode, so every re-render path (adjust,
-// realtime, filter) lands here instead of the dashboard UI above. The kg-
-// classes are styled in inventory.html; the dashboard never loads them.
-let _invKioskMode=false,_invKioskEntrance=true,_kgCelTimer=null,_kgToastTimer=null,_kgTickerKey=null;
-let _kgBannerUntil=0,_kgBannerTimer=null;  // banner shows for 5 min after login / after fresh news
-
-// restocked within the last 24h -> still worth flagging to Darrin
-function _kgRecentRestock(i){return !!i.restocked_at&&(Date.now()-new Date(i.restocked_at).getTime()<86400000);}
-
-// low -> back over minimum: restock counter, card burst, green toast
-function _kgCelebrate(item){
-  INV.kioskRestocked++;
-  INV.kioskCelebrateId=item.id;
-  INV.kioskToast=item.item_name;
-  clearTimeout(_kgCelTimer);_kgCelTimer=setTimeout(()=>{INV.kioskCelebrateId=null;renderInventoryPage();},950);
-  clearTimeout(_kgToastTimer);_kgToastTimer=setTimeout(()=>{INV.kioskToast="";renderInventoryPage();},2400);
-}
-
-// eased 0→to count-up for the KPI numbers on first paint
-function _kgCountUp(el,to){
-  const t0=performance.now(),dur=700;
-  const step=t=>{const p=Math.min(1,(t-t0)/dur);el.textContent=Math.round((1-Math.pow(1-p,3))*to);if(p<1)requestAnimationFrame(step);};
-  requestAnimationFrame(step);
-}
-
-function renderInventoryKioskPage(){
-  const root=document.querySelector(".card");
-  if(!root)return;
-  if(!document.getElementById("kg-shell")){
-    _invKioskEntrance=true;
-    _kgTickerKey=null;
-    root.innerHTML=`<div id="kg-shell">
-      <div class="kg-tickerbar">
-        <div class="kg-ticker"><div class="kg-ticker-track" id="kg-ticker-track"></div></div>
-        <img src="assets/tv-truck.png" alt="" class="kg-drive-truck">
-      </div>
-      <div class="kg-kpis">
-        <div class="kg-kpi"><span class="kg-kpi-top" style="background:#22c55e"></span><span class="kg-sheen"></span>${JWGIcons.embossTile("documents",{color:"green"})}<div><div class="kg-kpi-label">Items tracked</div><div class="kg-kpi-num" id="kg-k-total">0</div></div></div>
-        <div class="kg-kpi"><span class="kg-kpi-top" style="background:#ef4444"></span>${JWGIcons.embossTile("bell",{color:"red"})}<div><div class="kg-kpi-label">Low or out</div><div class="kg-kpi-num low" id="kg-k-low">0</div></div></div>
-        <div class="kg-kpi"><span class="kg-kpi-top" style="background:#16a34a"></span>${JWGIcons.embossTile("confirmed",{color:"green"})}<div><div class="kg-kpi-label">Restocked today</div><div class="kg-kpi-num" id="kg-k-restock">0</div></div></div>
-      </div>
-      <div class="kg-controls">
-        <input type="text" id="kg-search" placeholder="Search parts…" oninput="JWG.INV.search=this.value;JWG.filterInventory()">
-        <button type="button" class="kg-chip" id="kg-chip-all" onclick="JWG.INV.kioskFilter='all';JWG.filterInventory()">All items</button>
-        <button type="button" class="kg-chip" id="kg-chip-low" onclick="JWG.INV.kioskFilter='low';JWG.filterInventory()">Low or out <span id="kg-chip-low-n">· 0</span></button>
-        <button type="button" class="kg-chip add" onclick="JWG.kioskOpenAdd()">+ Add item</button>
-      </div>
-      <div class="kg-grid" id="kg-grid"></div>
-      <div class="kg-empty" id="kg-empty" hidden>
-        <div class="kg-empty-big">Nothing matches</div>
-        <div class="kg-empty-sub">Try clearing the search or the “Low or out” filter.</div>
-      </div>
-    </div>
-    <div class="kg-toast-wrap"><div class="kg-toast" id="kg-toast">${JWGIcons.svg("confirmed",{size:20,color:"#fff"})}<span>Restocked · <span id="kg-toast-name"></span></span></div></div>
-    <div class="kg-modal" id="kg-add-modal" onclick="if(event.target===this)JWG.kioskCloseAdd()">
-      <form class="kg-modal-card" onsubmit="JWG.kioskSaveAdd();return false;">
-        <div class="kg-modal-title">Add an item</div>
-        <label class="kg-modal-lb">Item name</label>
-        <input type="text" id="kg-add-name" class="kg-modal-in" placeholder="e.g. Shop rags" autocomplete="off">
-        <div class="kg-modal-row">
-          <div style="flex:1"><label class="kg-modal-lb">Part #</label><input type="text" id="kg-add-prod" class="kg-modal-in" placeholder="optional" autocomplete="off"></div>
-          <div style="flex:1"><label class="kg-modal-lb">Unit</label><input type="text" id="kg-add-unit" class="kg-modal-in" value="each" autocomplete="off"></div>
-        </div>
-        <label class="kg-modal-lb">Category</label>
-        <select id="kg-add-cat" class="kg-modal-in" onchange="document.getElementById('kg-add-newcat-wrap').hidden=this.value!=='__new'"></select>
-        <div id="kg-add-newcat-wrap" hidden><input type="text" id="kg-add-newcat" class="kg-modal-in" placeholder="New category name" autocomplete="off" style="margin-top:8px"></div>
-        <div class="kg-modal-row">
-          <div style="flex:1"><label class="kg-modal-lb">On the shelf</label><input type="number" min="0" id="kg-add-stock" class="kg-modal-in" value="0"></div>
-          <div style="flex:1"><label class="kg-modal-lb">Backstock</label><input type="number" min="0" id="kg-add-back" class="kg-modal-in" value="0"></div>
-          <div style="flex:1"><label class="kg-modal-lb">Reorder at</label><input type="number" min="0" id="kg-add-min" class="kg-modal-in" value="1"></div>
-        </div>
-        <div class="kg-modal-btns">
-          <button type="button" class="kg-modal-cancel" onclick="JWG.kioskCloseAdd()">Cancel</button>
-          <button type="submit" class="kg-modal-save" id="kg-add-save">Add item</button>
-        </div>
-      </form>
-    </div>`;
-  }
-
-  const lowCount=INV.items.filter(i=>i.current_stock<=i.min_threshold).length;
-  if(_invKioskEntrance){
-    _kgCountUp(document.getElementById("kg-k-total"),INV.items.length);
-    _kgCountUp(document.getElementById("kg-k-low"),lowCount);
-    _kgCountUp(document.getElementById("kg-k-restock"),INV.kioskRestocked);
-  }else{
-    document.getElementById("kg-k-total").textContent=INV.items.length;
-    document.getElementById("kg-k-low").textContent=lowCount;
-    document.getElementById("kg-k-restock").textContent=INV.kioskRestocked;
-  }
-  document.getElementById("kg-chip-low-n").textContent="· "+lowCount;
-
-  // Banner: ordered/restocked news only (lows are already flagged on the cards).
-  // Visible for 5 min after login — or after fresh news arrives — then hides.
-  const events=[
-    ...INV.items.filter(i=>i.status==="ordered").map(i=>({id:i.id,s:"ORDERED",cls:"ord",n:i.item_name})),
-    ...INV.items.filter(i=>i.status!=="ordered"&&_kgRecentRestock(i)).map(i=>({id:i.id,s:"RESTOCKED",cls:"res",n:i.item_name}))
-  ];
-  const track=document.getElementById("kg-ticker-track");
-  const tickerKey=events.map(a=>a.s+a.id).join("|");
-  if(tickerKey!==_kgTickerKey){
-    _kgTickerKey=tickerKey;
-    if(events.length)_kgBannerUntil=Math.max(_kgBannerUntil,Date.now()+300000);  // fresh news restarts the 5 min
-    const dot=`<span class="kg-tk-dot">•</span>`;
-    const base=events.map(a=>`<span class="kg-tk ${a.cls}"><b>${a.s}</b>${esc(a.n)}</span>`).join(dot)+dot;
-    let half=""; for(let k=0;k<6;k++)half+=base;
-    track.innerHTML=half+half;  // two identical halves -> seamless -50% loop
-    track.style.animationDuration=Math.max(90,events.length*40)+"s";
-  }
-  const showBanner=events.length>0&&Date.now()<_kgBannerUntil;
-  document.querySelector(".kg-tickerbar").style.display=showBanner?"":"none";
-  clearTimeout(_kgBannerTimer);
-  if(showBanner)_kgBannerTimer=setTimeout(()=>renderInventoryPage(),_kgBannerUntil-Date.now()+250);
-  document.getElementById("kg-chip-all").classList.toggle("on",INV.kioskFilter!=="low");
-  document.getElementById("kg-chip-low").classList.toggle("on",INV.kioskFilter==="low");
-
-  const q=(INV.search||"").trim().toLowerCase();
-  const list=INV.items.filter(i=>
-    (INV.kioskFilter!=="low"||i.current_stock<=i.min_threshold)&&
-    (!q||i.item_name.toLowerCase().includes(q)||(i.product_number||"").toLowerCase().includes(q)));
-  const _rank=i=>i.current_stock===0?0:i.current_stock<=i.min_threshold?1:2;
-  list.sort((a,b)=>_rank(a)-_rank(b)||a.item_name.localeCompare(b.item_name));
-
-  // Don't rebuild the grid under a count box someone is typing in — the KPIs
-  // and banner still update; the grid catches up on the next render after blur.
-  const _ae=document.activeElement;
-  const _typing=_ae&&_ae.classList&&(_ae.classList.contains("kg-num-input")||_ae.classList.contains("kg-back-input"));
-  if(!_typing){
-  document.getElementById("kg-grid").innerHTML=list.map((item,ix)=>{
-    const low=item.current_stock<=item.min_threshold;
-    const target=Math.max(item.min_threshold*2,item.min_threshold+6);
-    const pct=Math.max(6,Math.min(100,Math.round(item.current_stock/Math.max(1,target)*100)));
-    const barColor=low?"#ef4444":item.current_stock<=Math.ceil(item.min_threshold*1.4)?"#eab308":"#22c55e";
-    return `<div class="kg-card${_invKioskEntrance?" enter":""}"${_invKioskEntrance?' style="animation-delay:'+Math.min(ix,12)*65+'ms"':""}>
-      <div class="kg-inner">
-        <div class="kg-img">
-          ${item.image_url?`<img src="${esc(item.image_url)}" alt="${esc(item.item_name)}">`:`<span class="kg-imgph">${esc(item.item_name)}</span>`}
-          ${low?`<span class="kg-lowbadge">LOW</span>`:""}
-          ${item.status==="ordered"||_kgRecentRestock(item)?`<div class="kg-flags">${item.status==="ordered"?`<span class="kg-flag ord">ORDERED</span>`:""}${item.status!=="ordered"&&_kgRecentRestock(item)?`<span class="kg-flag res">RESTOCKED ✓</span>`:""}</div>`:""}
-          ${INV.kioskCelebrateId===item.id?`<div class="kg-cel"><span class="kg-cel-ring"></span><span class="kg-cel-pill">${JWGIcons.svg("confirmed",{size:16,color:"#fff"})}Restocked!</span></div>`:""}
-        </div>
-        <div class="kg-body">
-          <div class="kg-nrow"><span class="kg-name">${esc(item.item_name)}</span>${item.product_number?`<span class="kg-prod">#${esc(item.product_number)}</span>`:""}</div>
-          <div class="kg-meta">Reorder at ${item.min_threshold} · per ${esc(item.unit||"each")}</div>
-          <div class="kg-bar"><span class="kg-bar-fill" style="width:${pct}%;background:${barColor};box-shadow:0 0 8px ${barColor}66"></span></div>
-          <div class="kg-foot">
-            <div class="kg-count"><input class="kg-num-input${low?" islow":""}${INV.kioskBumpId===item.id?" kg-bump":""}" type="number" min="0" inputmode="numeric" value="${item.current_stock}" title="Click and type the count" onfocus="this.select()" onkeydown="if(event.key==='Enter')this.blur()" onchange="JWG.kioskSetCount('${item.id}',this.value)"><span class="kg-unit">${esc(item.unit||"")}</span></div>
-            <div class="kg-btns">
-              <button type="button" class="kg-dec" onclick="JWG.kioskAdjust('${item.id}',-1)">−</button>
-              <button type="button" class="kg-inc" onclick="JWG.kioskAdjust('${item.id}',1)">+</button>
-            </div>
-          </div>
-          <div class="kg-back">
-            <span class="kg-back-label">Backstock</span>
-            <input class="kg-back-input" type="number" min="0" inputmode="numeric" value="${item.backstock||0}" title="Click and type the count" onfocus="this.select()" onkeydown="if(event.key==='Enter')this.blur()" onchange="JWG.kioskSetBack('${item.id}',this.value)">
-            <div class="kg-back-btns">
-              <button type="button" onclick="JWG.kioskAdjustBack('${item.id}',-1)">−</button>
-              <button type="button" onclick="JWG.kioskAdjustBack('${item.id}',1)">+</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join("");
-  document.getElementById("kg-empty").hidden=list.length>0;
-  }
-
-  if(INV.kioskToast)document.getElementById("kg-toast-name").textContent=INV.kioskToast;
-  document.getElementById("kg-toast").classList.toggle("show",!!INV.kioskToast);
-
-  _invKioskEntrance=false;
-  INV.kioskBumpId=null;
-}
-
-// Kiosk "Add item" modal. Deliberately has NO image/link/price fields — the
-// kiosk must never offer a way off the page (Jake); admins add those on the
-// dashboard later. The category picker can create a new category inline.
-function kioskOpenAddItem(){
-  const sel=document.getElementById("kg-add-cat");
-  sel.innerHTML=INV.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")+`<option value="__new">+ New category…</option>`;
-  document.getElementById("kg-add-newcat-wrap").hidden=INV.categories.length>0;
-  document.getElementById("kg-add-newcat").value="";
-  document.getElementById("kg-add-name").value="";
-  document.getElementById("kg-add-prod").value="";
-  document.getElementById("kg-add-unit").value="each";
-  document.getElementById("kg-add-stock").value="0";
-  document.getElementById("kg-add-back").value="0";
-  document.getElementById("kg-add-min").value="1";
-  document.getElementById("kg-add-modal").classList.add("open");
-  setTimeout(()=>document.getElementById("kg-add-name").focus(),80);
-}
-function kioskCloseAddItem(){document.getElementById("kg-add-modal").classList.remove("open");}
-async function kioskSaveAddItem(){
-  const name=document.getElementById("kg-add-name").value.trim();
-  if(!name){toast("Enter the item name","error");return;}
-  let catId=document.getElementById("kg-add-cat").value||null;
-  const newCat=document.getElementById("kg-add-newcat").value.trim();
-  const unit=document.getElementById("kg-add-unit").value.trim()||"each";
-  const stock=Math.max(0,parseInt(document.getElementById("kg-add-stock").value,10)||0);
-  const back=Math.max(0,parseInt(document.getElementById("kg-add-back").value,10)||0);
-  const min=Math.max(0,parseInt(document.getElementById("kg-add-min").value,10)||0);
-  const prod=document.getElementById("kg-add-prod").value.trim();
-  const btn=document.getElementById("kg-add-save");
-  btn.disabled=true;
-  try{
-    if(catId==="__new"){
-      if(!newCat){toast("Name the new category","error");btn.disabled=false;return;}
-      const maxSort=INV.categories.reduce((m,c)=>Math.max(m,c.sort_order||0),0);
-      const rows=await sbF("POST","jwg_inventory_categories",{name:newCat,sort_order:maxSort+1,is_active:true});
-      catId=rows&&rows[0]?rows[0].id:null;
-    }
-    await sbF("POST","jwg_inventory_items",{
-      item_name:name,product_number:prod,category_id:catId,
-      current_stock:stock,min_threshold:min,backstock:back,unit,
-      status:stock===0?"out_of_stock":stock<=min?"low":"in_stock",notes:""
-    });
-    await loadInventoryData();
-    kioskCloseAddItem();
-    renderInventoryPage();
-    toast("Added "+esc(name));
-  }catch(e){toast("Couldn't save — try again","error");console.error(e);}
-  btn.disabled=false;
-}
-
-// Backstock (stock kept in the other room) — plain count, no status/low logic:
-// low is judged on the shelf (current_stock) only.
-async function kioskAdjustBackstock(itemId,delta){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const newVal=Math.max(0,(item.backstock||0)+delta);
-  if(newVal===(item.backstock||0))return;
-  try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{backstock:newVal});
-    item.backstock=newVal;
-    renderInventoryPage();
-  }catch(e){toast("Failed to update backstock","error");console.error(e);}
-}
-
-// Kiosk +/- wrapper: same PATCH as the dashboard via adjustInventory, plus the
-// number-bump, and — when a + takes an item from low back over its minimum —
-// the restock counter, card celebration, and green toast.
-async function kioskAdjustInventory(itemId,delta){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const before=item.current_stock,wasLow=before<=item.min_threshold;
-  INV.kioskBumpId=itemId;
-  await adjustInventory(itemId,delta);
-  if(item.current_stock===before){INV.kioskBumpId=null;return;}
-  if(delta>0&&wasLow&&item.current_stock>item.min_threshold){
-    _kgCelebrate(item);
-    renderInventoryPage();
-  }
-}
-
-// Typed count boxes (the dashed inputs on each card) — commit on Enter/blur.
-async function kioskSetCount(itemId,val){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const n=Math.max(0,parseInt(val,10)||0);
-  if(n===item.current_stock){renderInventoryPage();return;}
-  const wasLow=item.current_stock<=item.min_threshold;
-  const st=n===0?"out_of_stock":n<=item.min_threshold?"low":"in_stock";
-  try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:n,status:st});
-    item.current_stock=n;item.status=st;
-    INV.kioskBumpId=itemId;
-    if(wasLow&&n>item.min_threshold)_kgCelebrate(item);
-    renderInventoryPage();
-  }catch(e){toast("Failed to update stock","error");console.error(e);renderInventoryPage();}
-}
-async function kioskSetBackstock(itemId,val){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const n=Math.max(0,parseInt(val,10)||0);
-  if(n===(item.backstock||0)){renderInventoryPage();return;}
-  try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{backstock:n});
-    item.backstock=n;
-    renderInventoryPage();
-  }catch(e){toast("Failed to update backstock","error");console.error(e);renderInventoryPage();}
-}
-
-// The natural way to count stock is click-click-click, but each click used to wait
-// for its own round trip AND work out "current + 1" from the number as of that
-// click — so two or three clicks inside one trip all computed the same answer and
-// counting ten landed on four. Now the number moves immediately and a burst of
-// clicks collapses into one save of the final total.
-const _invSaveTimers={};
-function adjustInventory(itemId,delta){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const before=item.current_stock;
-  const newCount=Math.max(0,item.current_stock+delta);
-  item.current_stock=newCount;
-  item.status=newCount===0?"out_of_stock":newCount<=item.min_threshold?"low":"in_stock";
-  renderInventoryPage();                      // on screen at once, no waiting
-
-  clearTimeout(_invSaveTimers[itemId]);
-  _invSaveTimers[itemId]=setTimeout(async function(){
-    delete _invSaveTimers[itemId];
-    const total=item.current_stock, status=item.status;
-    try{
-      await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{current_stock:total,status:status});
-    }catch(e){
-      // Put the number back rather than leave a count on screen the database
-      // never received — the office orders off these.
-      item.current_stock=before;
-      item.status=before===0?"out_of_stock":before<=item.min_threshold?"low":"in_stock";
-      renderInventoryPage();
-      toast("Couldn't save that count — check the Wi-Fi and try again","error");
-      console.error(e);
-    }
-  },450);
-}
-
-async function markOrdered(itemId){
-  try{
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{status:"ordered"});
-    const item=INV.items.find(i=>i.id===itemId);
-    if(item)item.status="ordered";
-    renderInventoryPage();
-  }catch(e){toast("Failed to mark as ordered","error");console.error(e);}
-}
-
-async function setInventoryCount(itemId,extra){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const ans=prompt(`Set the on-hand count for "${item.item_name}"${item.unit?" ("+item.unit+")":""}:`,item.current_stock);
-  if(ans===null)return;
-  const n=Math.max(0,parseInt(ans,10)||0);
-  const st=n===0?"out_of_stock":n<=item.min_threshold?"low":"in_stock";
-  try{
-    const patch={current_stock:n,status:st,...(extra||{})};
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,patch);
-    Object.assign(item,patch);
-    renderInventoryPage();
-    toast("Stock updated");
-  }catch(e){toast("Failed to update stock","error");console.error(e);}
-}
-// Admin "Restocked" button: same set-count flow, plus the restocked_at stamp the
-// kiosk uses to show Darrin a RESTOCKED flag (and banner) until his next day.
-async function restockItem(itemId){return setInventoryCount(itemId,{restocked_at:new Date().toISOString()});}
-function printInventoryShoppingList(){
-  const low=INV.items.filter(i=>i.current_stock<=i.min_threshold).sort((a,b)=>(a.current_stock===0?0:1)-(b.current_stock===0?0:1)||a.item_name.localeCompare(b.item_name));
-  const rows=low.map(i=>`<tr><td>${esc(i.item_name)}</td><td>${esc(i.product_number||"")}</td><td style="text-align:center">${i.current_stock}</td><td style="text-align:center">${i.min_threshold}</td><td>${esc(i.unit||"")}</td></tr>`).join("");
-  const w=window.open("","_blank");
-  if(!w){toast("Allow pop-ups to print the list","error");return;}
-  w.document.write(`<!doctype html><html><head><title>Back Shop Shopping List</title><style>body{font-family:system-ui,Arial,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}.sub{color:#666;font-size:13px;margin-bottom:18px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ddd;padding:8px 10px;font-size:13px;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#666}.empty{color:#666;font-size:14px;padding:20px 0}</style></head><body><h1>Back Shop — Shopping List</h1><div class="sub">Items at or below their minimum.</div>${low.length?`<table><thead><tr><th>Item</th><th>Part #</th><th>On hand</th><th>Min</th><th>Unit</th></tr></thead><tbody>${rows}</tbody></table>`:`<div class="empty">Nothing is low right now.</div>`}</body></html>`);
-  w.document.close();w.focus();
-  setTimeout(function(){try{w.print();}catch(e){}},250);
-}
-
-function openAddInventoryItem(){
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Add Inventory Item</h3>
-    <div class="si-form-group">
-      <label class="si-form-label">Item Name</label>
-      <input type="text" class="si-form-input" id="inv-name" placeholder="e.g., Mothers Protectant">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Product # <span style="font-weight:400;color:var(--fg-muted)">(manufacturer part number)</span></label>
-      <input type="text" class="si-form-input" id="inv-prodnum" placeholder="e.g., 05302">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Category</label>
-      <select class="si-form-select" id="inv-cat">
-        <option value="">Select category</option>
-        ${INV.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}
-      </select>
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Current Stock</label>
-      <input type="number" class="si-form-input" id="inv-stock" placeholder="0" value="0">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Min Threshold</label>
-      <input type="number" class="si-form-input" id="inv-min" placeholder="5" value="5">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Unit</label>
-      <input type="text" class="si-form-input" id="inv-unit" placeholder="e.g., gallon, box" value="unit">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Price <span style="font-weight:400;color:var(--fg-muted)">(optional)</span></label>
-      <input type="number" class="si-form-input" id="inv-price" placeholder="0.00" step="0.01" min="0">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Purchase Link <span style="font-weight:400;color:var(--fg-muted)">(where to buy)</span></label>
-      <input type="text" class="si-form-input" id="inv-link" placeholder="https://…">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Image URL (optional)</label>
-      <input type="text" class="si-form-input" id="inv-img" placeholder="https://…">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Notes</label>
-      <textarea class="si-form-textarea" id="inv-notes" placeholder="Optional notes…"></textarea>
-    </div>
-    <div class="si-modal-actions">
-      <button class="modal-done" onclick="JWG.saveInventoryItem()">Save Item</button>
-      <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-    </div>
-  </div>`;
-  openModal(html,"480px");
-}
-
-async function saveInventoryItem(){
-  const name=(document.getElementById("inv-name")?.value||"").trim();
-  const prodNum=(document.getElementById("inv-prodnum")?.value||"").trim();
-  const catId=document.getElementById("inv-cat")?.value||null;
-  const stock=parseInt(document.getElementById("inv-stock")?.value||0);
-  const min=parseInt(document.getElementById("inv-min")?.value||5);
-  const unit=(document.getElementById("inv-unit")?.value||"unit").trim();
-  const price=parseFloat(document.getElementById("inv-price")?.value)||null;
-  const link=(document.getElementById("inv-link")?.value||"").trim();
-  const img=(document.getElementById("inv-img")?.value||"").trim();
-  const notes=(document.getElementById("inv-notes")?.value||"").trim();
-  if(!name||!catId){toast("Please fill in required fields","error");return;}
-  try{
-    const status=stock===0?"out_of_stock":stock<=min?"low":"in_stock";
-    await sbF("POST","jwg_inventory_items",{item_name:name,product_number:prodNum,category_id:catId,current_stock:stock,min_threshold:min,unit,image_url:img||null,status,notes,price,purchase_link:link});
-    toast("Item added");
-    closeModal();
-    await loadInventoryData();
-    renderInventoryPage();
-  }catch(e){toast("Failed to save item","error");console.error(e);}
-}
-
-function editInventoryItem(itemId){
-  const item=INV.items.find(i=>i.id===itemId);
-  if(!item)return;
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Edit Inventory Item</h3>
-    <div class="si-form-group">
-      <label class="si-form-label">Item Name</label>
-      <input type="text" class="si-form-input" id="inv-name" value="${esc(item.item_name)}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Product # <span style="font-weight:400;color:var(--fg-muted)">(manufacturer part number)</span></label>
-      <input type="text" class="si-form-input" id="inv-prodnum" value="${esc(item.product_number||"")}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Category</label>
-      <select class="si-form-select" id="inv-cat">
-        <option value="">Select category</option>
-        ${INV.categories.map(c=>`<option value="${c.id}" ${c.id===item.category_id?"selected":""}>${esc(c.name)}</option>`).join("")}
-      </select>
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Current Stock</label>
-      <input type="number" class="si-form-input" id="inv-stock" value="${item.current_stock}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Min Threshold</label>
-      <input type="number" class="si-form-input" id="inv-min" value="${item.min_threshold}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Unit</label>
-      <input type="text" class="si-form-input" id="inv-unit" value="${esc(item.unit)}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Price</label>
-      <input type="number" class="si-form-input" id="inv-price" value="${item.price||""}" step="0.01" min="0">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Purchase Link <span style="font-weight:400;color:var(--fg-muted)">(where to buy)</span></label>
-      <input type="text" class="si-form-input" id="inv-link" value="${esc(item.purchase_link||"")}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Image URL</label>
-      <input type="text" class="si-form-input" id="inv-img" value="${item.image_url?esc(item.image_url):""}">
-    </div>
-    <div class="si-form-group">
-      <label class="si-form-label">Notes</label>
-      <textarea class="si-form-textarea" id="inv-notes">${esc(item.notes||"")}</textarea>
-    </div>
-    <div class="si-modal-actions">
-      <button class="modal-done" onclick="JWG.updateInventoryItem('${itemId}')">Update</button>
-      <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-    </div>
-  </div>`;
-  openModal(html,"480px");
-}
-
-async function updateInventoryItem(itemId){
-  const name=(document.getElementById("inv-name")?.value||"").trim();
-  const prodNum=(document.getElementById("inv-prodnum")?.value||"").trim();
-  const catId=document.getElementById("inv-cat")?.value||null;
-  const stock=parseInt(document.getElementById("inv-stock")?.value||0);
-  const min=parseInt(document.getElementById("inv-min")?.value||5);
-  const unit=(document.getElementById("inv-unit")?.value||"unit").trim();
-  const price=parseFloat(document.getElementById("inv-price")?.value)||null;
-  const link=(document.getElementById("inv-link")?.value||"").trim();
-  const img=(document.getElementById("inv-img")?.value||"").trim();
-  const notes=(document.getElementById("inv-notes")?.value||"").trim();
-  if(!name||!catId){toast("Please fill in required fields","error");return;}
-  try{
-    const status=stock===0?"out_of_stock":stock<=min?"low":"in_stock";
-    await sbF("PATCH",`jwg_inventory_items?id=eq.${itemId}`,{item_name:name,product_number:prodNum,category_id:catId,current_stock:stock,min_threshold:min,unit,image_url:img||null,notes,status,price,purchase_link:link});
-    toast("Item updated");
-    closeModal();
-    await loadInventoryData();
-    renderInventoryPage();
-  }catch(e){toast("Failed to update item","error");console.error(e);}
-}
-
-async function deleteInventoryItem(itemId){
-  const it=INV.items.find(i=>i.id===itemId);
-  if(!(await jwgConfirm({title:"Delete item",target:it?it.item_name:"",consequence:"This permanently removes the item.",confirmLabel:"Delete"})))return;
-  try{
-    await sbF("DELETE",`jwg_inventory_items?id=eq.${itemId}`);
-    toast("Item deleted");
-    await loadInventoryData();
-    renderInventoryPage();
-  }catch(e){toast("Failed to delete item","error");console.error(e);}
-}
-
-function openManageCategories(){
-  const html=`<div style="flex-direction:column;">
-    <h3 style="margin-bottom:14px;">Inventory Categories</h3>
-    <div id="cat-list" style="margin-bottom:14px;">
-      ${INV.categories.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:var(--bg-deep);border-radius:6px;margin-bottom:6px;">
-        <span>${esc(c.name)}</span>
-        <button class="loc-action-btn delete" onclick="JWG.deleteCategory('${c.id}')">Remove</button>
-      </div>`).join("")}
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:14px;">
-      <input type="text" class="si-form-input" id="new-cat" placeholder="New category…" style="margin-bottom:8px;">
-      <button class="si-action-btn" onclick="JWG.addCategory()" style="width:100%;">Add Category</button>
-    </div>
-    <button class="modal-cancel" onclick="JWG.closeModal()" style="margin-top:14px;width:100%;">Done</button>
-  </div>`;
-  openModal(html,"480px");
-}
-
-async function addCategory(){
-  const input=document.getElementById("new-cat");
-  const name=(input?.value||"").trim();
-  if(!name){toast("Enter a category name","error");return;}
-  try{
-    const maxSort=Math.max(...INV.categories.map(c=>c.sort_order||0),0);
-    await sbF("POST","jwg_inventory_categories",{name,sort_order:maxSort+1,is_active:true});
-    toast("Category added");
-    await loadInventoryData();
-    openManageCategories();
-  }catch(e){toast("Failed to add category","error");console.error(e);}
-}
-
-async function deleteCategory(catId){
-  const c=INV.categories.find(x=>x.id===catId);
-  if(!(await jwgConfirm({title:"Remove category",target:c?c.name:"",confirmLabel:"Remove"})))return;
-  try{
-    await sbF("PATCH",`jwg_inventory_categories?id=eq.${catId}`,{is_active:false});
-    toast("Category removed");
-    await loadInventoryData();
-    openManageCategories();
-  }catch(e){toast("Failed to remove category","error");console.error(e);}
-}
+/* ===== inventory.js -> app-jwg-inventory.js (v682) =====
+   Moved out so Darrin's kiosk can load the inventory WITHOUT the scheduler
+   (Jake, 2026-10-05). index.html loads both files; the Inventory tab below
+   delegates to window.JWGInv. The workshop-task helpers stayed here, because
+   the Tasks tab uses them and the kiosk does not.  ===== */
 
 const PRIO_ORDER={high:0,medium:1,low:2};
 const PRIO_LABEL={high:"High",medium:"Medium",low:"Low"};
@@ -4033,6 +3681,9 @@ function initRealtime(){
       if(!emp)return;
       const wasHidden=!!emp.hidden;
       emp.hidden=payload.eventType!=="DELETE"&&(row.active===false||row.on_jwg===false);
+      // Regrouping someone on the Team page moves their row here immediately,
+      // without a reload — same live path the hidden flag already rides.
+      if(payload.eventType!=="DELETE"){emp.group=row.crew_group||"";emp.manager=!!row.is_manager;}
       // Someone just removed on the Team page has had their shifts deleted from
       // today on, so drop them here too — otherwise this tab keeps showing weeks
       // that no longer exist and a bulk save would write them all back. Only for
@@ -4051,6 +3702,9 @@ function initRealtime(){
       }else if(row.key==="wh"){
         WH=row.value;localStorage.setItem("ss_wh",JSON.stringify(WH));
         if(!isModalOpen()&&S.tab==="schedule")refreshGrid();
+      }else if(row.key==="crew_groups"){
+        localStorage.setItem("ss_crew_groups",JSON.stringify(row.value));
+        if(!isModalOpen())render();
       }else if(row.key==="emp_order"){
         localStorage.setItem("ss_emp_order",JSON.stringify(row.value));
         applyStoredOrder();
@@ -4102,34 +3756,8 @@ function initRealtime(){
     })
 
     // ── Inventory Items ──
-    .on("postgres_changes",{event:"*",schema:"public",table:"jwg_inventory_items"},payload=>{
-      const row=payload.eventType==="DELETE"?payload.old:payload.new;
-      if(!row)return;
-      if(S.tab==="inventory"&&!isModalOpen()){
-        if(payload.eventType==="DELETE")INV.items=INV.items.filter(i=>i.id!==row.id);
-        else{
-          const idx=INV.items.findIndex(i=>i.id===row.id);
-          if(idx>=0)INV.items[idx]={...INV.items[idx],...row};
-          else INV.items.push(row);
-        }
-        renderInventoryPage();
-      }
-    })
-
-    // ── Inventory Categories ──
-    .on("postgres_changes",{event:"*",schema:"public",table:"jwg_inventory_categories"},payload=>{
-      const row=payload.eventType==="DELETE"?payload.old:payload.new;
-      if(!row)return;
-      if(S.tab==="inventory"&&!isModalOpen()){
-        if(payload.eventType==="DELETE")INV.categories=INV.categories.filter(c=>c.id!==row.id);
-        else{
-          const idx=INV.categories.findIndex(c=>c.id===row.id);
-          if(idx>=0)INV.categories[idx]={...INV.categories[idx],...row};
-          else INV.categories.push(row);
-        }
-        renderInventoryPage();
-      }
-    })
+    // (inventory live-sync moved to app-jwg-inventory.js, which keeps its own
+    //  channel so the kiosk can subscribe without this file)
 
     .subscribe(status=>{
       if(status==="SUBSCRIBED")console.log("Realtime: connected");
@@ -4174,23 +3802,12 @@ function renderJwgScheduler(){
 // Lightweight entry for the standalone inventory kiosk (Darrin): loads ONLY the
 // inventory module, not the whole scheduler. Mounts into the page's existing
 // #view-jwgscheduler > #app > .card scaffold.
-async function bootInventoryKiosk(){
-  _invKioskMode=true;  // route all inventory renders to the futuristic kiosk view
-  _kgBannerUntil=Date.now()+300000;  // news banner runs for 5 min after login
-  try{
-    await loadInventoryData();
-    S.tab="inventory";
-    renderInventoryPage();
-    if(!_realtimeChannel)initRealtime();  // live-sync: kiosk auto-updates when stock changes elsewhere
-  }catch(e){toast("Couldn't load inventory: "+(e.message||e),"error");console.error(e);}
-}
 
 
 
 /* ===== JWG exports ===== */
 window.renderJwgScheduler=renderJwgScheduler;
-window.renderJwgInventoryKiosk=bootInventoryKiosk;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
 })();
