@@ -222,12 +222,6 @@ function usualAgeMonths(emp){
   return Math.floor((Date.now()-t)/(30.44*86400000));
 }
 const USUAL_STALE_MONTHS=3;
-function _monthLabel(emp){
-  const t=Date.parse(emp.usual_week_saved_at||"");
-  if(isNaN(t))return "a while ago";
-  const d=new Date(t),now=new Date();
-  return d.toLocaleDateString("en-US",{month:"long"})+(d.getFullYear()!==now.getFullYear()?" "+d.getFullYear():"");
-}
 // Does this person's usual week hold anything at all?
 function usualDayAny(emp){return DAYS.some(d=>usualDay(emp,d));}
 // People set to repeat who still have blank days in the week on screen. Only
@@ -1351,7 +1345,7 @@ function buildSched(){
       // Seasonal drift is the real risk, so call out anyone whose pattern is old
       // rather than quietly writing a summer week into a winter one.
       const _stale=_pend.filter(x=>{const m=usualAgeMonths(x.emp);return m!==null&&m>=USUAL_STALE_MONTHS;});
-      const _staleNote=_stale.length?`<span class="wkf-stale">⚠ ${_stale.map(x=>`${esc(x.emp.name)}'s week was saved ${_monthLabel(x.emp)}`).join(" · ")} — check it still fits the season before filling.</span>`:"";
+      const _staleNote=_stale.length?`<span class="wkf-stale">⚠ ${_stale.map(x=>esc(x.emp.name)+"'s").join(" and ")} usual week ${_stale.length===1?"was":"were"} set up a while ago — check ${_stale.length===1?"it":"they"} still fit${_stale.length===1?"s":""} the season before filling.</span>`:"";
       h+=`<div class="wk-fill">
         <span class="wkf-txt">🔁 <b>${_pend.length} ${_pend.length===1?"person works":"people work"} the same week every week</b>, and ${wlbl(S.weekOffset).toLowerCase()} is still empty for them.
           <span class="wkf-who">${_names} · ${_days} day${_days===1?"":"s"} to fill</span>${_staleNote}</span>
