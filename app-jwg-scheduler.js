@@ -193,6 +193,39 @@ function crewGroupOrder(){
   try{const v=JSON.parse(localStorage.getItem("ss_crew_groups")||"null");if(Array.isArray(v))return v;}catch(e){}
   return [];
 }
+
+// ── REPEATING WEEKS (display only) ────────────────────────────────────────
+// Someone whose week never changes (the cutting crew) can be set to repeat, and
+// their usual week then SHOWS on any blank day as a dashed ghost shift.
+//
+// Nothing is written. This is the hard line that separates it from the v559
+// auto-seed, which pre-filled for anyone with a template and wrote rows at boot
+// — "schedules appeared that nobody had put there". A ghost is visibly a plan,
+// not a booking, and the moment anyone edits that day their edit is the truth.
+// Same read-only overlay idea app-jwg-feed.js already uses for junk bookings.
+function usualDay(emp,day){
+  if(!emp||!emp.repeats_weekly||!emp.usual_week)return null;
+  const d=emp.usual_week[day];
+  return dayHasData(d)?d:null;
+}
+// Does this person's usual week hold anything at all?
+function usualDayAny(emp){return DAYS.some(d=>usualDay(emp,d));}
+// The ONE place the grid asks "what is on this day". Real data wins; a ghost
+// fills a blank. Everything that renders or counts goes through here, so the
+// hours badge and the daily totals can never disagree with the cells above them.
+function effDay(emp,day){
+  const real=(S.schedule[emp.id]||{})[day];
+  if(dayHasData(real))return{d:real,ghost:false};
+  const u=usualDay(emp,day);
+  if(u)return{d:JSON.parse(JSON.stringify(u)),ghost:true};
+  return{d:real||{status:"off",shifts:[]},ghost:false};
+}
+// Hours including ghosts, so the badge matches the chips on screen.
+function effHours(emp){
+  let tot=0;
+  DAYS.forEach(d=>{const e=effDay(emp,d);if(e.d&&e.d.status==="work")tot+=dayHours(e.d);});
+  return Math.round(tot*10)/10;
+}
 function visEmps(){return S.employees.filter(e=>!e.hidden);}
 // Does this week's schedule hold anything worth showing for a hidden person?
 function dayHasData(dd){return !!(dd&&((dd.status&&dd.status!=="off")||(dd.shifts&&dd.shifts.length)||dd.note));}
@@ -625,11 +658,24 @@ function renderShiftModal(empId,day,emp,dayData){
   if(!working){
     h+=`<div class="sm-offnote" style="display:flex;align-items:center;gap:7px">${status==="sick"?schTile("sick",18)+"<span>Marked off sick for this day.</span>":status==="nonworking"?schTile("off",18)+"<span>Marked as a non working day.</span>":schTile("off",18)+"<span>Marked as a day off.</span>"}</div>`;
   } else {
+    // A ghost day in the grid shows the usual week, so opening it must not come
+    // up blank — that is the "it showed Cutting Crew and now it's gone" trap.
+    // Offer it as one tap instead, which is also what turns a plan into a booking.
+    const _usual=!shifts.length?usualDay(emp,day):null;
+    let usualHtml="";
+    if(_usual){
+      const _us=(_usual.shifts||[])[0]||{};
+      const _ut=tm[getShiftTasks(_us)[0]];
+      usualHtml=`<div class="sm-usual">
+        <div class="sm-usual-txt">${schTile(_ut?_ut.id:"off",18)}<span><b>${esc(_ut?_ut.label:"Usual shift")}</b>${_us.start&&_us.end?" · "+fmtRange(_us.start,_us.end):""}<br><span class="sm-usual-sub">${esc((emp?.name||"").split(" ")[0]||"They")}'s usual week — not saved for this day yet</span></span></div>
+        <button class="sm-usual-btn" onclick="JWG.useUsualDay('${empId}','${day}')">Use this</button>
+      </div>`;
+    }
     h+=`<div class="sm-step sm-step2"><div class="sect-label"><span class="step-n">2</span> What and when</div></div>
     <div class="sm-cols">
     <div class="sm-col sm-left">
       <div class="sect-label">On the schedule</div>
-      ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing scheduled yet — build a shift on the right.</div>`}
+      ${shifts.length?shiftListHtml:(usualHtml||`<div class="sm-emptyday">Nothing scheduled yet — build a shift on the right.</div>`)}
       <div class="day-note-wrap">
         <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
         <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
@@ -746,6 +792,18 @@ function markDayOff(empId,day){
   closeModal();refreshGrid();updBadge(empId);autoSave(empId);
 }
 
+// Turn one ghost day into a real booking. The ONLY way a repeating week ever
+// gets written — always a person pressing a button, never the repeat itself.
+function useUsualDay(empId,day){
+  const emp=S.employees.find(e=>e.id===empId);
+  const u=usualDay(emp,day);
+  if(!u)return;
+  if(!S.schedule[empId])S.schedule[empId]=defSched();
+  S.schedule[empId][day]=JSON.parse(JSON.stringify(u));
+  autoSave(empId);
+  openShiftModal(empId,day);
+  refreshGrid();
+}
 function markDaySick(empId,day){
   if(!S.schedule[empId])S.schedule[empId]=defSched();
   S.schedule[empId][day]={status:"sick",shifts:[]};
@@ -1037,10 +1095,43 @@ function mcToggleEmp(id){const i=_mc.empIds.indexOf(id);if(i>=0)_mc.empIds.splic
 function mcToggleEveryone(){const emps=visEmps();const allOn=emps.every(e=>_mc.empIds.includes(e.id));_mc.empIds=allOn?[]:emps.map(e=>e.id);renderMultiClear();}
 
 async function applyMultiClear(){
-  if(!_mc.days.length||!_mc.empIds.length)return;
+  // Was a silent return — the user pressed Clear and nothing at all happened.
+  // Assign already says why it won't go; this now matches it.
+  if(!_mc.empIds.length){toast("Select at least one employee","error");return;}
+  if(!_mc.days.length){toast("Select at least one day","error");return;}
   const taskLabel=_mc.task==="__all__"?"all tasks":(TM()[_mc.task]?.label||_mc.task);
   const empN=_mc.empIds.length,dayN=_mc.days.length;
-  if(!(await jwgConfirm({title:"Clear shifts",message:`Clear ${taskLabel} for ${empN} ${empN!==1?"people":"person"} across ${dayN} ${dayN!==1?"days":"day"}.`,consequence:"This can't be undone.",confirmLabel:"Clear"})))return;
+
+  // Count what would ACTUALLY go before asking. "16 people across 5 days" tells
+  // you the size of the selection, not the size of the damage — those are very
+  // different numbers when most of the selection is already empty.
+  let willClear=0;
+  _mc.empIds.forEach(empId=>{
+    const sc=S.schedule[empId];if(!sc)return;
+    _mc.days.forEach(day=>{
+      const dd=sc[day];if(!dd)return;
+      if(_mc.task==="__all__"){if(dayHasData(dd))willClear++;}
+      else willClear+=(dd.shifts||[]).filter(sh=>getShiftTasks(sh).includes(_mc.task)).length;
+    });
+  });
+  if(!willClear){
+    toast(`Nothing to clear — no ${taskLabel} on those days for those people.`,"error");
+    return;
+  }
+  // Name them. A bulk delete should say who it is about.
+  const names=_mc.empIds.map(id=>(S.employees.find(e=>e.id===id)||{}).name).filter(Boolean);
+  const whoStr=names.length<=4?names.join(", "):names.slice(0,3).join(", ")+` and ${names.length-3} more`;
+  // Clearing a repeating person's day does not leave it blank — their usual week
+  // shows again as a dashed plan. Without saying so, the clear looks like it failed.
+  const repNames=_mc.empIds.map(id=>S.employees.find(e=>e.id===id)).filter(e=>e&&e.repeats_weekly&&usualDayAny(e)).map(e=>e.name);
+  const repNote=repNames.length?` ${repNames.join(", ")} ${repNames.length===1?"repeats":"repeat"} weekly, so ${repNames.length===1?"their":"those"} day${repNames.length===1?"":"s"} will show the usual week again as a dashed plan — not a booking.`:"";
+  if(!(await jwgConfirm({
+    title:"Clear shifts",
+    target:whoStr,
+    message:`${willClear} ${_mc.task==="__all__"?(willClear===1?"day":"days"):(willClear===1?"shift":"shifts")} will be removed — ${taskLabel}, across ${dayN} ${dayN!==1?"days":"day"} for ${empN} ${empN!==1?"people":"person"}.${repNote}`,
+    consequence:"This can't be undone.",
+    confirmLabel:`Clear ${willClear}`
+  })))return;
   let cleared=0;
   _mc.empIds.forEach(empId=>{
     if(!S.schedule[empId])return;
@@ -1137,8 +1228,8 @@ function buildSched(){
   h+=`</div>
     <div class="ctrl-actions">
       <span class="ctrl-label">Week tools</span>
-      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openUsualWeeks()" title="Save someone's typical week once, then fill any week from it with one tap">💾 Saved schedules</button>
-      <button class="ctrl-btn" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
+      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()" title="For people whose week never changes — store it once and it shows on blank days as a dashed plan">🔁 Usual weeks</button>
+      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
       <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()" title="Remove shifts from several people and days at once">🗑 Clear shifts</button>
       <button class="ctrl-btn" onclick="JWG.openTaskMgr()" title="Edit the list of job types and their colours">🏷️ Job types</button>
       <button class="ctrl-btn" onclick="JWG.openWHSettings()" title="Change the workday start and end hours this page shows">⏰ Hours ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
@@ -1160,9 +1251,9 @@ function buildSched(){
     // The how-to line used to appear ONLY on a wholly empty week, so in practice
     // nobody ever saw it: any real week has a shift in it. It now stands all the
     // time, and names what a cell can do besides a shift — the empty-week version
-    // keeps its extra nudge toward Saved schedules (v682).
+    // keeps its extra nudge toward Usual weeks (v682).
     if(S.employees.every(e=>!empHasWeekData(S.schedule[e.id]))){
-      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>💾 Saved schedules</b> and fill people's usual weeks in one tap.</div>`;
+      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>🔁 Usual weeks</b> for anyone whose week never changes.</div>`;
     } else {
       h+=`<div class="wk-hint">👆 Tap anyone's day to <b>build a shift</b> — or mark them <b>Day off</b>, <b>Off sick</b> or <b>Non working</b>.</div>`;
     }
@@ -1227,9 +1318,14 @@ function buildGrid(){
     const order=crewGroupOrder();
     const seen=new Set();
     order.forEach(g=>{
+      // Manager to the top of their own crew; everyone else keeps the dragged
+      // emp_order. A stable partition, not a sort, so dragging still decides
+      // the rest of the band.
       const inG=sortedEmps.filter(e=>e.group===g);
-      inG.forEach(e=>seen.add(e.id));
-      if(inG.length)bands.push({name:g,emps:inG});
+      const mgrs=inG.filter(e=>e.manager),rest=inG.filter(e=>!e.manager);
+      const ordered=mgrs.concat(rest);
+      ordered.forEach(e=>seen.add(e.id));
+      if(ordered.length)bands.push({name:g,emps:ordered});
     });
     const rest=sortedEmps.filter(e=>!seen.has(e.id));
     if(rest.length)bands.push({name:order.length?UNGROUPED:"",emps:rest});
@@ -1238,7 +1334,7 @@ function buildGrid(){
   let empIdx=-1;
   bands.forEach(band=>{
     if(band.name){
-      const onNow=band.emps.filter(e=>{const dd=(S.schedule[e.id]||{})[todayName];return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
+      const onNow=band.emps.filter(e=>{const dd=effDay(e,todayName).d;return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
       h+=`<tr class="crew-band"><td colspan="${_nCols}">
         <span class="cb-name">${esc(band.name)}</span>
         <span class="cb-count">${band.emps.length}</span>
@@ -1248,14 +1344,15 @@ function buildGrid(){
     band.emps.forEach(emp=>{
     empIdx++;
     const sc=S.schedule[emp.id]||defSched();
-    const hrs=countH(sc);
+    // Hours count the ghosts too, so the badge agrees with the chips on screen.
+    const hrs=emp.repeats_weekly?effHours(emp):countH(sc);
     const[abg,afg]=ac(emp.name);
     // Workload ring: filled relative to a ~40h target
     const pct=Math.min(hrs/40,1);
     const r=16,circ=2*Math.PI*r,dash=(pct*circ).toFixed(2),gap=(circ-pct*circ).toFixed(2);
     const ringColor=pct>0.7?"#1a7a3c":pct>0.35?"#f59e0b":"transparent";
     const hrsCls=pct>0.6?"hrs-high":pct>0.3?"hrs-mid":"hrs-low";
-    const tipText=hrs>0?`${hrs}h scheduled this week`:"No hours this week";
+    const tipText=hrs>0?`${hrs}h scheduled this week${emp.repeats_weekly?" (their usual week fills the blanks)":""}`:"No hours this week";
     h+=`<tr class="emp-row" draggable="${S.sortAlpha?"false":"true"}" data-empid="${emp.id}" data-empidx="${empIdx}">
       <td class="name-col">
         <div class="emp-cell-inner">
@@ -1265,7 +1362,9 @@ function buildGrid(){
         </div>
       </td>`;
     S.activeDays.forEach(d=>{
-      const dayData=sc[d]||{status:"off",shifts:[]};
+      const _eff=effDay(emp,d);
+      const dayData=_eff.d;
+      const isGhost=_eff.ghost;
       const status=dayData.status||"off";
       const shifts=dayData.shifts||[];
       const isWknd=WEEKEND.includes(d);
@@ -1286,7 +1385,7 @@ function buildGrid(){
           const firstT=tm[taskIds[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e",label:taskIds[0]||"?"};
           const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
           const timeStr=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
-          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"
+          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}${isGhost?" shift-ghost":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"${isGhost?` title="${esc(emp.name)}'s usual week — nothing is saved for this day yet. Tap to confirm or change it."`:""}
             onclick="event.stopPropagation();JWG.openShiftModal('${emp.id}','${d}')">
             ${schTile(firstT.id,20)}
             <span class="shift-txt"><span class="shift-label">${esc(allLabels)}</span>${timeStr?`<span class="shift-times">${timeStr}</span>`:""}</span>
@@ -1311,7 +1410,9 @@ function buildGrid(){
   let footCells="";
   S.activeDays.forEach(d=>{
     let cnt=0,hsum=0;
-    sortedEmps.forEach(emp=>{const dd=(S.schedule[emp.id]||{})[d];if(dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length){cnt++;hsum+=dayHours(dd);}});
+    // Through effDay so the total matches the chips above it — a column showing
+    // three ghost shifts must not read "0 on".
+    sortedEmps.forEach(emp=>{const dd=effDay(emp,d).d;if(dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length){cnt++;hsum+=dayHours(dd);}});
     footCells+=`<td style="text-align:center;font-size:11px;font-weight:700;color:var(--fg-muted);padding:10px 4px"><span style="color:var(--accent)">${cnt} on</span> · ${Math.round(hsum*10)/10}h</td>`;
   });
   h+=`</tbody><tfoot><tr class="sched-foot"><td class="name-col" style="font-weight:700;color:var(--fg-muted);font-size:12px;padding:10px 12px">Daily total</td>${footCells}</tr></tfoot></table>`;
@@ -1326,7 +1427,17 @@ function mSetView(v){S.mView=v;render();}
 function mOpenDay(d){S.mView="day";S.mDay=d;render();}
 function mSetPerson(id){S.mView="person";S.mPerson=id;render();}
 function mTodayName(){return["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];}
-function mSortedEmps(){const base=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));return S.sortAlpha?[...base].sort((a,b)=>a.name.localeCompare(b.name)):base;}
+// The phone board keeps its Working / Off headings — crew bands on top of those
+// would be grouping inside grouping on a 375px screen. Instead the people are
+// ORDERED by crew, so a crew still reads as a run of cards, managers first.
+function mSortedEmps(){
+  const base=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
+  if(S.sortAlpha)return[...base].sort((a,b)=>a.name.localeCompare(b.name));
+  const order=crewGroupOrder();
+  if(!order.length)return base;
+  const rank=e=>{const i=order.indexOf(e.group||"");return i===-1?order.length:i;};
+  return[...base].sort((a,b)=>rank(a)-rank(b)||(b.manager?1:0)-(a.manager?1:0)||base.indexOf(a)-base.indexOf(b));
+}
 function mChip(tm,sh){
   const ids=getShiftTasks(sh);
   const t=tm[ids[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e"};
@@ -1474,9 +1585,11 @@ function toggleDay(d){
 function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
 // A week with no saved row starts EMPTY. It used to silently pre-fill from the
 // person's "usual week" (and auto-write rows on boot) — schedules appeared that
-// nobody had put there, which confused the office. Saved schedules are now
-// applied EXPLICITLY from the Saved schedules modal (v559). Copy-last-week was
-// removed the same day (Jake: dangerous).
+// nobody had put there, which confused the office. Copy-last-week was removed
+// the same day (Jake: dangerous). A saved week is now either applied EXPLICITLY
+// from the Usual weeks modal, or — if that person is set to repeat — drawn as a
+// dashed GHOST by effDay() and still never written here. loadWeekSched stays
+// honest: what it puts in S.schedule is only ever what the database holds.
 function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
 
 // ── SAVED SCHEDULES ──
@@ -1519,15 +1632,20 @@ function renderUsualWeeks(fresh){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="avatar" style="background:${abg};color:${afg};width:32px;height:32px;font-size:11px;flex-shrink:0">${empInitials(e.name)}</div>
         <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px">${esc(e.name)}</div>
-        ${tplHasData?`<button class="ctrl-btn ctrl-btn-accent" onclick="JWG.applyUsualWeek('${e.id}')" title="Fill ${esc(e.name)}'s row for ${wlbl(S.weekOffset)} from their saved schedule">▸ Apply to this week</button>`:""}
-        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Save the week you're viewing as ${esc(e.name)}'s saved schedule">💾 Save this week</button>
+        ${tplHasData?`<div class="uw-rep" title="On: ${esc(e.name)}'s usual week shows on any blank day as a dashed shift. Nothing is saved until someone taps it or edits the day.">
+          <button class="${e.repeats_weekly?"":"on"}" onclick="JWG.setRepeats('${e.id}',false)">Off</button>
+          <button class="${e.repeats_weekly?"on":""}" onclick="JWG.setRepeats('${e.id}',true)">🔁 Repeats weekly</button>
+        </div>`:""}
+        ${tplHasData?`<button class="ctrl-btn" onclick="JWG.applyUsualWeek('${e.id}')" title="Write ${esc(e.name)}'s usual week into ${wlbl(S.weekOffset)} now, as real shifts">▸ Apply to this week</button>`:""}
+        <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Store the week you're viewing as ${esc(e.name)}'s usual week">💾 Save as usual week</button>
         ${tpl?`<button class="ctrl-btn ctrl-btn-danger" onclick="JWG.clearUsualWeek('${e.id}')">✕ Clear</button>`:""}
       </div>
       ${summary}
     </div>`;
   });
-  const h=`<div class="modal-title">💾 Saved schedules</div>
-  <div class="modal-sub">Save someone's typical week once, then fill any week with one tap. Nothing happens automatically: "Save this week" stores the week you're viewing (${wlbl(S.weekOffset)}) as their template, and "Apply to this week" fills their row for the week you're viewing from it. Applying never changes the saved template.</div>
+  const _repN=visEmps().filter(e=>e.repeats_weekly).length;
+  const h=`<div class="modal-title">🔁 Usual weeks</div>
+  <div class="modal-sub">For anyone whose week is the same every week. <b>Save as usual week</b> stores the week you're viewing (${wlbl(S.weekOffset)}), and it must have shifts in it. Then switch <b>Repeats weekly</b> on and their usual week shows on every blank day as a <b>dashed shift</b> — a plan, not a booking. <b>Nothing is written</b> until someone taps one or edits the day, so a shift, day off or sick day already set is never touched. <b>Apply to this week</b> is the one-off: it writes the usual week into ${wlbl(S.weekOffset)} as real shifts right now.${_repN?` <b>${_repN}</b> ${_repN===1?"person repeats":"people repeat"} today.`:""}</div>
   <div>${rows}</div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
   if(fresh)openModal(h,null,true);else updateModal(h,null,true);
@@ -1571,6 +1689,28 @@ async function saveUsualWeek(empId){
     toast(`Saved ${emp.name}'s schedule — apply it to any week with one tap`);
     renderUsualWeeks(false);
   }catch(e){toast("Couldn't save the schedule: "+e.message,"error");}
+}
+async function setRepeats(empId,on){
+  const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
+  // Only a week with something in it can repeat — otherwise the flag would be a
+  // promise to show nothing, which is how the blank-template mess read.
+  if(on&&!DAYS.some(d=>dayHasData((emp.usual_week||{})[d]))){
+    toast(`${emp.name} has no usual week saved yet — save one first.`,"error");
+    return;
+  }
+  const prev=!!emp.repeats_weekly;
+  emp.repeats_weekly=!!on;
+  renderUsualWeeks(false);
+  try{
+    await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{repeats_weekly:!!on});
+    // Turning it OFF leaves every week already written exactly as it is — only
+    // the ghosts stop appearing.
+    toast(on?`${emp.name}'s week now repeats — blank days show it as a dashed shift`:`${emp.name} no longer repeats (weeks already scheduled are untouched)`);
+    refreshGrid();
+  }catch(e){
+    emp.repeats_weekly=prev;renderUsualWeeks(false);
+    toast("Couldn't change that: "+e.message,"error");
+  }
 }
 async function clearUsualWeek(empId){
   const emp=S.employees.find(e=>e.id===empId);if(!emp)return;
@@ -4294,5 +4434,5 @@ window.renderJwgScheduler=renderJwgScheduler;
 window.renderJwgInventoryKiosk=bootInventoryKiosk;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
+window.JWG={addCategory:addCategory,addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustInventory:adjustInventory,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteCategory:deleteCategory,deleteInventoryItem:deleteInventoryItem,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editInventoryItem:editInventoryItem,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,filterInventory:filterInventory,goToday:goToday,kioskAdjust:kioskAdjustInventory,kioskAdjustBack:kioskAdjustBackstock,kioskSetCount:kioskSetCount,kioskSetBack:kioskSetBackstock,kioskOpenAdd:kioskOpenAddItem,kioskCloseAdd:kioskCloseAddItem,kioskSaveAdd:kioskSaveAddItem,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,setRepeats:setRepeats,useUsualDay:useUsualDay,markOrdered:markOrdered,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddInventoryItem:openAddInventoryItem,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageCategories:openManageCategories,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,restockItem:restockItem,setInventoryCount:setInventoryCount,printInventoryShoppingList:printInventoryShoppingList,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveInventoryItem:saveInventoryItem,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateInventoryItem:updateInventoryItem,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,INV:INV,CL:CL,WT:WT,render:render};
 })();

@@ -254,6 +254,36 @@
   font-size:10px;font-weight:700;color:var(--accent-dim);margin-left:8px;
 }
 #view-jwgscheduler tr.emp-row.is-dragging td.name-col {opacity:.45;}
+/* A repeating week drawn on a blank day. Dashed and faded so it never passes for
+   a booked shift — that distinction IS the feature (see effDay in the js).
+   !important is load-bearing here, not laziness: app-jwg-theme.css:129 sets
+   `border:none!important` on every .shift-bar to get the flat chip look, which
+   also kills the inline border the JS writes. A plain rule would lose to it. */
+#view-jwgscheduler .shift-bar.shift-ghost {
+  opacity:0.62;
+  border:1.5px dashed currentColor !important;
+  box-shadow:none !important;
+}
+#view-jwgscheduler td.day-cell:hover .shift-bar.shift-ghost {opacity:0.92;}
+/* The Off / Repeats weekly switch in the Usual weeks modal. */
+#view-jwgscheduler .uw-rep {display:inline-flex;background:var(--bg-deep);border-radius:999px;padding:3px;gap:3px;flex-shrink:0;}
+#view-jwgscheduler .uw-rep button {
+  border:none;background:transparent;color:var(--fg-muted);font:inherit;font-size:11px;font-weight:700;
+  border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap;
+}
+#view-jwgscheduler .uw-rep button.on {background:var(--dark);color:#fff;}
+/* "Their usual week — use this" card, shown in the shift box on a ghost day. */
+#view-jwgscheduler .sm-usual {
+  display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;
+  background:var(--accent-light);border:1.5px dashed var(--border-acc);border-radius:12px;
+  padding:13px 14px;margin-bottom:14px;
+}
+#view-jwgscheduler .sm-usual-txt {display:flex;align-items:center;gap:9px;font-size:13px;color:var(--fg);min-width:0;}
+#view-jwgscheduler .sm-usual-sub {font-size:11.5px;color:var(--fg-muted);font-weight:500;}
+#view-jwgscheduler .sm-usual-btn {
+  background:var(--dark);color:#fff;border:none;border-radius:8px;padding:8px 15px;
+  font-size:12.5px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit;
+}
 #view-jwgscheduler .emp-mgr {
   font-size:9px;font-weight:800;letter-spacing:.5px;color:#6d28d9;
   background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.22);
