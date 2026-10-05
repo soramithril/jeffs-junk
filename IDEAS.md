@@ -24,14 +24,14 @@ and trim it down to what is left.
   <sub>Jake, 2026-09-08</sub>
 - **Check the rest of Kelly's screens on the 32-inch** - The bin picker is fixed (below), but that was only half of what you asked. Every other popup is still a fixed width, and the stylesheet has one big-screen rule in it, from August, for the booking form. Nothing else has been looked at on a big monitor.
   <sub>Jake, 2026-09-08 - second half of the bin-picker idea</sub>
-- **Stop sales taking cash - route prospects through the office** - Josh shouldn't be collecting money on jobs; we've had problems with this before. Make a prospect have to be set up with someone in the office before it can become a paid job.
-  <sub>Jake, 2026-09-08</sub>
 - **Crew in/out and gate times logged from UniFi** - Not an app feature: UniFi Protect already does the face recognition in the back shop and reads plates at the gate. It sends us a small line per sighting - who, which camera, when - plus a link that opens that moment in Protect. No video or snapshots stored here. Payroll stops scrubbing footage by hand. Measured 2026-09-08: about 50 sightings a day is 5-7 MB a year against a 500 MB allowance, so cost is not a reason not to. Scoped 2026-08-29, not built.
   <sub>Jake, 2026-09-08 - see unifi-protect-plan note</sub>
 - **Notifications aimed at one person, on a schedule** - Barbara gets a reminder on her phone to do the JWG schedule, on the same day and time each week. Same idea for anyone else with a recurring job.
   <sub>Jake, 2026-09-08</sub>
 - **Make Jeff's app fully work and put today's quotes front and centre** - Today's quotes should be the main thing on his screen, not buried. Plus notifications built for him - oil change due, yellow sticker, that kind of thing. And a pass over the whole page to make sure it all works and reads clearly.
   <sub>Jake, 2026-09-08 - quotes now lead the screen and the wrong-day jobs are fixed, both in v677 (see Done). Still owed: notifications that actually reach his phone (needs a manifest and a service worker on his page - iOS will not deliver web push without them), and the read-through of The Day, Photos and Trucks.</sub>
+- **Revamp the Furniture Bank quote page layout, and the booking that follows it** - The truck animation and the way items get added stay exactly as they are; Jake loves those. The layout around them is the problem - it is not the best and there is a better one out there. Look over the whole page again, and the booking step the same way. Mockup first, not code.
+  <sub>Jake, 2026-10-05</sub>
 
 ## Later
 
@@ -59,6 +59,8 @@ and trim it down to what is left.
 
 *Settled, so nobody pitches them again.*
 
+- **Stop sales taking cash - route prospects through the office** - Jake, 2026-10-05: *"I can do that. That's not needed on here."* He handles it with the sales team directly, not in the app. Was on Now from 2026-09-08.
+  <sub>Jake, 2026-10-05</sub>
 - **Trucks setting their own In Shop / Good To Go status** - Jake, 2026-09-08: *"ill do 7 manually."* He keeps the truck status by hand rather than have the GPS set it. Don't re-propose automating it.
   <sub>Jake, 2026-09-08</sub>
 
