@@ -22,8 +22,6 @@ and trim it down to what is left.
 
 - **Refresh the help and tutorial for everything that's changed** - The walkthrough is out of date, the Live Jobs help already describes a screen that doesn't exist. Go through every page and bring the help in line with what is actually there now.
   <sub>Jake, 2026-09-08</sub>
-- **Check the rest of Kelly's screens on the 32-inch** - The bin picker is fixed (below), but that was only half of what you asked. Every other popup is still a fixed width, and the stylesheet has one big-screen rule in it, from August, for the booking form. Nothing else has been looked at on a big monitor.
-  <sub>Jake, 2026-09-08 - second half of the bin-picker idea</sub>
 - **Crew in/out and gate times logged from UniFi** - Not an app feature: UniFi Protect already does the face recognition in the back shop and reads plates at the gate. It sends us a small line per sighting - who, which camera, when - plus a link that opens that moment in Protect. No video or snapshots stored here. Payroll stops scrubbing footage by hand. Measured 2026-09-08: about 50 sightings a day is 5-7 MB a year against a 500 MB allowance, so cost is not a reason not to. Scoped 2026-08-29, not built.
   <sub>Jake, 2026-09-08 - see unifi-protect-plan note</sub>
 - **Notifications aimed at one person, on a schedule** - Barbara gets a reminder on her phone to do the JWG schedule, on the same day and time each week. Same idea for anyone else with a recurring job.
@@ -37,6 +35,8 @@ and trim it down to what is left.
 
 *Things worth doing sometime.*
 
+- **Check the rest of Kelly's screens on the 32-inch** - The bin picker is fixed (below), but that was only half of what you asked. Every other popup is still a fixed width, and the stylesheet has one big-screen rule in it, from August, for the booking form. Nothing else has been looked at on a big monitor.
+  <sub>Jake, 2026-09-08 - second half of the bin-picker idea. Moved to Later 2026-10-05: Kelly has not complained, so back burner. Measured that day: every popup shares one 820px rule; only the booking form and the bin-assign popup know about big screens. When this comes up, do the look-over in a browser set to 2560 wide and pick which popups deserve widening - not one rule for all.</sub>
 - **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
   <sub>Jake, 2026-10-05</sub>
 
