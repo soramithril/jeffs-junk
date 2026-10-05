@@ -237,6 +237,28 @@
 #view-jwgscheduler .th-day {font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-muted);}
 #view-jwgscheduler .th-date {font-size:10px;font-weight:600;color:var(--fg-subtle);}
 #view-jwgscheduler td.name-col {padding:10px 14px;border-bottom:1px solid var(--border);}
+/* Crew band — the thin label between groups of rows. Sticky to the left so the
+   group name stays readable while the week scrolls sideways. */
+#view-jwgscheduler tr.crew-band td {
+  background:#f3f6f3;border-top:1px solid rgba(0,0,0,0.09);border-bottom:1px solid var(--border);
+  padding:6px 16px;position:sticky;left:0;
+}
+#view-jwgscheduler tr.crew-band .cb-name {
+  font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#4a5a4f;
+}
+#view-jwgscheduler tr.crew-band .cb-count {
+  font-size:10px;font-weight:800;color:var(--fg-muted);background:rgba(0,0,0,0.055);
+  border-radius:999px;padding:1px 7px;margin-left:8px;
+}
+#view-jwgscheduler tr.crew-band .cb-today {
+  font-size:10px;font-weight:700;color:var(--accent-dim);margin-left:8px;
+}
+#view-jwgscheduler tr.emp-row.is-dragging td.name-col {opacity:.45;}
+#view-jwgscheduler .emp-mgr {
+  font-size:9px;font-weight:800;letter-spacing:.5px;color:#6d28d9;
+  background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.22);
+  border-radius:5px;padding:1px 5px;vertical-align:middle;
+}
 #view-jwgscheduler td.day-cell {
   min-height:72px;height:auto;border-bottom:1px solid var(--border);border-left:1px solid var(--border);
   position:relative;padding:5px 4px;vertical-align:top;cursor:pointer;

@@ -31,6 +31,8 @@ async function loadSettings(){
         }
       } else if(row.key==="wh"){
         WH=row.value;localStorage.setItem("ss_wh",JSON.stringify(WH));
+      } else if(row.key==="crew_groups"){
+        localStorage.setItem("ss_crew_groups",JSON.stringify(row.value));
       } else if(row.key==="emp_order"){
         localStorage.setItem("ss_emp_order",JSON.stringify(row.value));
       }
@@ -169,10 +171,27 @@ async function loadEmps(){return sbF("GET","jwg_employees?select=*&order=name");
 // removed there (active=false) — or taken off the JWG side — stays in
 // jwg_employees so their history keeps rendering, but must stop being offered
 // anywhere new (v559, Jake: Beth was still assignable after removal).
-async function loadCrewFlags(){try{return await sbF("GET","crew_members?select=jwg_id,active,on_jwg");}catch(e){return[];}}
+async function loadCrewFlags(){try{return await sbF("GET","crew_members?select=jwg_id,active,on_jwg,crew_group,is_manager");}catch(e){return[];}}
 function applyCrewFlags(crew){
   const m={};(crew||[]).forEach(c=>{if(c.jwg_id)m[c.jwg_id]=c;});
-  S.employees.forEach(e=>{const c=m[e.id];e.hidden=!!(c&&(c.active===false||c.on_jwg===false));});
+  S.employees.forEach(e=>{
+    const c=m[e.id];
+    e.hidden=!!(c&&(c.active===false||c.on_jwg===false));
+    // Which crew someone is on rides along with the hidden flag — same master
+    // table (crew_members), same cross-read, so the grid groups and the Team page
+    // can never disagree about who is where.
+    e.group=(c&&c.crew_group)||"";
+    e.manager=!!(c&&c.is_manager);
+  });
+}
+// The group ORDER is a setting, not a hardcoded list (Jake, 2026-10-02: official
+// group names are coming later, so renaming must not need a deploy). Anyone whose
+// group is missing from it — or who has none — falls to the end under "Everyone
+// else", which is also what a brand-new hire looks like until someone files them.
+const UNGROUPED="Everyone else";
+function crewGroupOrder(){
+  try{const v=JSON.parse(localStorage.getItem("ss_crew_groups")||"null");if(Array.isArray(v))return v;}catch(e){}
+  return [];
 }
 function visEmps(){return S.employees.filter(e=>!e.hidden);}
 // Does this week's schedule hold anything worth showing for a hidden person?
@@ -1197,7 +1216,37 @@ function buildGrid(){
   // (badged, so nothing vanishes silently) — otherwise they're gone from the grid.
   const gridEmps=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
   const sortedEmps=S.sortAlpha?[...gridEmps].sort((a,b)=>a.name.localeCompare(b.name)):gridEmps;
-  sortedEmps.forEach((emp,empIdx)=>{
+  // Rows cluster by crew so the people who work together read as a block (Jake,
+  // 2026-10-02: bins was two people four rows apart). A-Z sort is the explicit
+  // "show me one flat alphabetical list" escape hatch, so it skips the banding.
+  // Within a band people keep the hand-dragged emp_order, so reordering still works.
+  const bands=[];
+  if(S.sortAlpha){
+    bands.push({name:"",emps:sortedEmps});
+  } else {
+    const order=crewGroupOrder();
+    const seen=new Set();
+    order.forEach(g=>{
+      const inG=sortedEmps.filter(e=>e.group===g);
+      inG.forEach(e=>seen.add(e.id));
+      if(inG.length)bands.push({name:g,emps:inG});
+    });
+    const rest=sortedEmps.filter(e=>!seen.has(e.id));
+    if(rest.length)bands.push({name:order.length?UNGROUPED:"",emps:rest});
+  }
+  const _nCols=S.activeDays.length+1;
+  let empIdx=-1;
+  bands.forEach(band=>{
+    if(band.name){
+      const onNow=band.emps.filter(e=>{const dd=(S.schedule[e.id]||{})[todayName];return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
+      h+=`<tr class="crew-band"><td colspan="${_nCols}">
+        <span class="cb-name">${esc(band.name)}</span>
+        <span class="cb-count">${band.emps.length}</span>
+        ${isCurrentWeek?`<span class="cb-today">${onNow} on today</span>`:""}
+      </td></tr>`;
+    }
+    band.emps.forEach(emp=>{
+    empIdx++;
     const sc=S.schedule[emp.id]||defSched();
     const hrs=countH(sc);
     const[abg,afg]=ac(emp.name);
@@ -1212,7 +1261,7 @@ function buildGrid(){
         <div class="emp-cell-inner">
           ${S.sortAlpha?"":`<span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>`}
           <div class="avatar" data-tip="${tipText}" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
-          <div><div class="emp-name">${esc(emp.name)}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--warn-ink);background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
+          <div><div class="emp-name">${esc(emp.name)}${emp.manager?` <span class="emp-mgr" title="Manager of this crew — a label, not a permission">MGR</span>`:""}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--warn-ink);background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
         </div>
       </td>`;
     S.activeDays.forEach(d=>{
@@ -1257,6 +1306,7 @@ function buildGrid(){
       h+=`<td class="day-cell${isTodayCell?" is-today":""}${cellContent?"":" empty-cell"}" style="${cellStyle}${sickStyle}${dayOffStyle}${nonworkStyle}" onclick="JWG.openShiftModal('${emp.id}','${d}')">${cellContent}${noteIndicator}</td>`;
     });
     h+=`</tr>`;
+    });
   });
   let footCells="";
   S.activeDays.forEach(d=>{
@@ -4079,6 +4129,9 @@ function initRealtime(){
       if(!emp)return;
       const wasHidden=!!emp.hidden;
       emp.hidden=payload.eventType!=="DELETE"&&(row.active===false||row.on_jwg===false);
+      // Regrouping someone on the Team page moves their row here immediately,
+      // without a reload — same live path the hidden flag already rides.
+      if(payload.eventType!=="DELETE"){emp.group=row.crew_group||"";emp.manager=!!row.is_manager;}
       // Someone just removed on the Team page has had their shifts deleted from
       // today on, so drop them here too — otherwise this tab keeps showing weeks
       // that no longer exist and a bulk save would write them all back. Only for
@@ -4097,6 +4150,9 @@ function initRealtime(){
       }else if(row.key==="wh"){
         WH=row.value;localStorage.setItem("ss_wh",JSON.stringify(WH));
         if(!isModalOpen()&&S.tab==="schedule")refreshGrid();
+      }else if(row.key==="crew_groups"){
+        localStorage.setItem("ss_crew_groups",JSON.stringify(row.value));
+        if(!isModalOpen())render();
       }else if(row.key==="emp_order"){
         localStorage.setItem("ss_emp_order",JSON.stringify(row.value));
         applyStoredOrder();
