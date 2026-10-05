@@ -39,8 +39,6 @@ and trim it down to what is left.
 
 - **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
   <sub>Jake, 2026-10-05</sub>
-- **Stop the nightly GPS matcher guessing between vehicles** - It matches trucks to their trackers by NAME, falling back to fuzzy word-overlap and taking the best row it finds, so a badly-named vehicle could take another one's odometer reading with no error shown. Not urgent - checked 2026-09-09 and 'Landscape Trailer' scores zero against every truck - but worth restricting to vehicles that actually have a tracker, next time that background job is touched.
-  <sub>Claude, 2026-09-09</sub>
 
 ## Done
 
@@ -59,6 +57,8 @@ and trim it down to what is left.
 
 *Settled, so nobody pitches them again.*
 
+- **Stop the nightly GPS matcher guessing between vehicles** - Jake, 2026-10-05: *"we don't really add new trucks, like, ever. Maybe once every three or five years."* The matcher only goes wrong when a truck is renamed or added, and that happens so rarely it is not worth guarding against. Every truck matched correctly when checked 2026-09-09. If a truck IS ever swapped, check the odometer readings by hand that week.
+  <sub>Jake, 2026-10-05</sub>
 - **Stop sales taking cash - route prospects through the office** - Jake, 2026-10-05: *"I can do that. That's not needed on here."* He handles it with the sales team directly, not in the app. Was on Now from 2026-09-08.
   <sub>Jake, 2026-10-05</sub>
 - **Trucks setting their own In Shop / Good To Go status** - Jake, 2026-09-08: *"ill do 7 manually."* He keeps the truck status by hand rather than have the GPS set it. Don't re-propose automating it.
