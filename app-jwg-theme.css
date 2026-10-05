@@ -220,18 +220,38 @@
    "On the schedule" + notes, right "Add a shift".
    Columns scroll internally only if they overflow; the footer stays pinned. */
 #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head){padding:26px max(20px,calc((100% - 1060px)/2)) 0 !important}
-#view-jwgscheduler .sm-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border)}
-/* Step blocks. flex:0 0 auto so they keep their height and .sm-cols absorbs the
-   rest — the modal still fits the screen without the page scrolling. */
-#view-jwgscheduler .sm-step{flex:0 0 auto;margin-bottom:16px}
-#view-jwgscheduler .sm-step .sect-label{margin:0 0 9px;display:flex;align-items:center;gap:0}
-#view-jwgscheduler .sm-step2{margin-bottom:10px;padding-top:14px;border-top:1px solid var(--border)}
+#view-jwgscheduler .sm-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+/* The one question, and the single grid that answers it. flex:0 0 auto keeps
+   their height so .sm-cols absorbs the rest and the modal still fits the screen. */
+#view-jwgscheduler .sm-q{flex:0 0 auto;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--fg);margin-bottom:14px}
+#view-jwgscheduler .sm-pickwrap{flex:0 0 auto;margin-bottom:16px}
+#view-jwgscheduler .sm-or{display:flex;align-items:center;gap:11px;margin:16px 0 11px}
+#view-jwgscheduler .sm-or span{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--fg-subtle);flex-shrink:0}
+#view-jwgscheduler .sm-or i{flex:1;height:1px;background:var(--border)}
+#view-jwgscheduler .sm-offgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+#view-jwgscheduler .sm-off-opt{
+  display:flex;align-items:center;gap:8px;justify-content:center;
+  background:var(--bg-elevated);border:1.5px solid var(--border);border-radius:9px;
+  padding:11px 10px;font-size:12.5px;font-weight:700;color:var(--fg-muted);cursor:pointer;
+  transition:border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);
+}
+#view-jwgscheduler .sm-off-opt:hover{border-color:var(--border-h);color:var(--fg)}
+#view-jwgscheduler .sm-off-opt.is-sick{color:#c2410c;border-color:rgba(249,115,22,.32);background:#fff7ed}
+#view-jwgscheduler .sm-off-opt.is-sick:hover{border-color:#ea580c}
+@media (max-width:620px){#view-jwgscheduler .sm-offgrid{grid-template-columns:1fr}}
+/* Picked "not working": one sentence and a way back. */
+#view-jwgscheduler .sm-undo{
+  margin-left:auto;border:none;border-radius:7px;padding:8px 14px;
+  font-size:12.5px;font-weight:700;cursor:pointer;background:rgba(0,0,0,.07);color:inherit;flex-shrink:0;
+}
+#view-jwgscheduler .sm-undo:hover{background:rgba(0,0,0,.12)}
+#view-jwgscheduler .sm-off-sick{background:#fff7ed;color:#9a3412;border:1.5px solid rgba(249,115,22,.28)}
+#view-jwgscheduler .sm-off-dayoff,#view-jwgscheduler .sm-off-nonworking{background:var(--bg-deep);color:var(--fg-muted);border:1.5px solid var(--border)}
 #view-jwgscheduler .sm-id{display:flex;align-items:center;gap:14px;min-width:0}
 #view-jwgscheduler .sm-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex:none}
 #view-jwgscheduler .sm-name{font-size:25px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--fg)}
 #view-jwgscheduler .sm-daylbl{font-size:13.5px;color:var(--fg-muted);font-weight:600;margin-top:3px}
-#view-jwgscheduler .sm-status{display:flex;gap:6px;background:var(--bg-deep);border-radius:12px;padding:5px;flex:0 0 auto;width:100%}
-#view-jwgscheduler .sm-offnote{flex:1 1 auto;display:flex;align-items:center;justify-content:center;color:var(--fg-muted);font-size:15px;font-weight:600}
+#view-jwgscheduler .sm-offnote{flex:0 0 auto;display:flex;align-items:center;gap:12px;border-radius:12px;padding:20px 18px;font-size:15px;font-weight:600}
 #view-jwgscheduler .sm-cols{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1.15fr;gap:0 28px}
 #view-jwgscheduler .sm-col{min-height:0;overflow-y:auto;padding:2px 2px 12px}
 #view-jwgscheduler .sm-left{border-right:1px solid var(--border);padding-right:26px}

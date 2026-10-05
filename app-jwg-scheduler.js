@@ -194,15 +194,19 @@ function crewGroupOrder(){
   return [];
 }
 
-// ── REPEATING WEEKS (display only) ────────────────────────────────────────
-// Someone whose week never changes (the cutting crew) can be set to repeat, and
-// their usual week then SHOWS on any blank day as a dashed ghost shift.
+// ── REPEATING WEEKS ───────────────────────────────────────────────────────
+// Someone whose week never changes (the cutting crew) can be set to repeat.
+// Their week is then filled in by ONE BUTTON on the grid, writing real shifts.
 //
-// Nothing is written. This is the hard line that separates it from the v559
-// auto-seed, which pre-filled for anyone with a template and wrote rows at boot
-// — "schedules appeared that nobody had put there". A ghost is visibly a plan,
-// not a booking, and the moment anyone edits that day their edit is the truth.
-// Same read-only overlay idea app-jwg-feed.js already uses for junk bookings.
+// It was briefly built as a read-only "ghost" overlay instead — dashed shifts
+// drawn on blank days, never written. That was wrong for two measured reasons:
+// Past schedules and Insights read saved rows, and so does office-tv.html
+// (workingTodayCount), so the wall would have under-reported the crew by four
+// people every day while the office screen showed them booked. A shift that is
+// on screen has to be a shift in the database.
+//
+// It is still not the v559 auto-seed: nothing happens until someone presses the
+// button, and it only ever fills a day that is empty.
 function usualDay(emp,day){
   if(!emp||!emp.repeats_weekly||!emp.usual_week)return null;
   const d=emp.usual_week[day];
@@ -210,21 +214,31 @@ function usualDay(emp,day){
 }
 // Does this person's usual week hold anything at all?
 function usualDayAny(emp){return DAYS.some(d=>usualDay(emp,d));}
-// The ONE place the grid asks "what is on this day". Real data wins; a ghost
-// fills a blank. Everything that renders or counts goes through here, so the
-// hours badge and the daily totals can never disagree with the cells above them.
-function effDay(emp,day){
-  const real=(S.schedule[emp.id]||{})[day];
-  if(dayHasData(real))return{d:real,ghost:false};
-  const u=usualDay(emp,day);
-  if(u)return{d:JSON.parse(JSON.stringify(u)),ghost:true};
-  return{d:real||{status:"off",shifts:[]},ghost:false};
+// People set to repeat who still have blank days in the week on screen. Only
+// blank days count: a shift, a day off or a sick day already set is not "missing".
+function pendingUsual(){
+  return visEmps().map(e=>{
+    if(!e.repeats_weekly)return null;
+    const sc=S.schedule[e.id]||{};
+    const days=DAYS.filter(d=>usualDay(e,d)&&!dayHasData(sc[d]));
+    return days.length?{emp:e,days:days}:null;
+  }).filter(Boolean);
 }
-// Hours including ghosts, so the badge matches the chips on screen.
-function effHours(emp){
-  let tot=0;
-  DAYS.forEach(d=>{const e=effDay(emp,d);if(e.d&&e.d.status==="work")tot+=dayHours(e.d);});
-  return Math.round(tot*10)/10;
+// The one button. Writes real shifts into empty days only, for everyone set to
+// repeat — so the hours badge, Insights, Past schedules and the office TV all
+// see the same week the grid shows.
+function fillWeekFromUsual(){
+  const pend=pendingUsual();
+  if(!pend.length)return;
+  let filled=0;
+  pend.forEach(({emp,days})=>{
+    if(!S.schedule[emp.id])S.schedule[emp.id]=defSched();
+    days.forEach(d=>{S.schedule[emp.id][d]=JSON.parse(JSON.stringify(usualDay(emp,d)));filled++;});
+    updBadge(emp.id);
+  });
+  autoSave(null);
+  refreshGrid();
+  toast(`Filled ${filled} day${filled===1?"":"s"} for ${pend.length} ${pend.length===1?"person":"people"} — ${wlbl(S.weekOffset)} is set`);
 }
 function visEmps(){return S.employees.filter(e=>!e.hidden);}
 // Does this week's schedule hold anything worth showing for a hidden person?
@@ -629,65 +643,38 @@ function renderShiftModal(empId,day,emp,dayData){
     });
   }
 
-  const segBase="flex:1;border:none;border-radius:9px;padding:11px 0;font-size:13px;font-weight:700;cursor:pointer;";
-  // Header: avatar + name + the actual date. The status switch USED to sit up here
-  // beside them, and that was the whole reason nobody could find "Off sick" (Jake,
-  // 2026-10-02: someone went looking for it and gave up). A header reads as a title
-  // bar, so a control parked in one reads as a label. It is now step 1 of the body,
-  // full width, directly above the shift builder — one control, asked in the order
-  // you would ask the question: is she working, then what and when.
+  // ONE question, one list of answers. The status switch and the job tiles used
+  // to be two separate controls — people answered one and missed the other
+  // (Jake, 2026-10-05: "user was confused becuase they lived in 2 diffferent
+  // places"). They are now a single grid: the jobs, a rule, then the three ways
+  // of not working. That is also how the data already thinks — Off and Sick sit
+  // in the same tasks list as Cutting Crew and Bins, and were only filtered out
+  // at display time.
   const _ws=getWS(S.weekOffset),_dt=new Date(_ws);_dt.setDate(_dt.getDate()+DAYS.indexOf(day));
   const _dayDate=_dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
   const[_abg,_afg]=ac(emp?.name||"");
-  const _first=esc((emp?.name||"").split(" ")[0])||"this person";
+  const _first=esc((emp?.name||"").split(" ")[0])||"They";
   let h=`<div class="sm-head">
     <div class="sm-id">
       <div class="sm-avatar" style="background:${_abg};color:${_afg}">${empInitials(emp?.name||"")}</div>
       <div><div class="sm-name">${esc(emp?.name||"")}</div><div class="sm-daylbl">${day} · ${_dayDate}</div></div>
     </div>
   </div>
-  <div class="sm-step">
-    <div class="sect-label"><span class="step-n">1</span> Is ${_first} working?</div>
-    <div class="sm-status">
-      <button onclick="JWG.setDayWorking('${empId}','${day}')" style="${segBase}${working?"background:var(--dark);color:#fff":"background:transparent;color:var(--fg-muted)"}">Working</button>
-      <button onclick="JWG.markDayOff('${empId}','${day}')" style="${segBase}${status==="dayoff"?"background:rgba(0,0,0,0.55);color:#fff":"background:transparent;color:var(--fg-muted)"}">Day off</button>
-      <button onclick="JWG.markDaySick('${empId}','${day}')" style="${segBase}${status==="sick"?"background:#ea580c;color:#fff":"background:transparent;color:var(--fg-muted)"}">Off sick</button>
-      <button onclick="JWG.markDayNonWorking('${empId}','${day}')" style="${segBase}${status==="nonworking"?"background:#475569;color:#fff":"background:transparent;color:var(--fg-muted)"}">Non working</button>
-    </div>
-  </div>`;
+  <div class="sm-q">What's ${_first} doing ${day}?</div>`;
+
   if(!working){
-    h+=`<div class="sm-offnote" style="display:flex;align-items:center;gap:7px">${status==="sick"?schTile("sick",18)+"<span>Marked off sick for this day.</span>":status==="nonworking"?schTile("off",18)+"<span>Marked as a non working day.</span>":schTile("off",18)+"<span>Marked as a day off.</span>"}</div>`;
+    // Not working: one line and an Undo. Nothing else to fill in, and the footer
+    // loses "Add shift" because there is nothing to add.
+    const _lbl=status==="sick"?"off sick":status==="nonworking"?"on a non working day":"on a day off";
+    const _tile=status==="sick"?schTile("sick",22):schTile("off",22);
+    h+=`<div class="sm-offnote sm-off-${status}">
+      ${_tile}
+      <span>${esc(emp?.name||"They")} is <b>${_lbl}</b> on ${day}. Nothing else to fill in.</span>
+      <button class="sm-undo" onclick="JWG.setDayWorking('${empId}','${day}')">Undo</button>
+    </div>`;
   } else {
-    // A ghost day in the grid shows the usual week, so opening it must not come
-    // up blank — that is the "it showed Cutting Crew and now it's gone" trap.
-    // Offer it as one tap instead, which is also what turns a plan into a booking.
-    const _usual=!shifts.length?usualDay(emp,day):null;
-    let usualHtml="";
-    if(_usual){
-      const _us=(_usual.shifts||[])[0]||{};
-      const _ut=tm[getShiftTasks(_us)[0]];
-      usualHtml=`<div class="sm-usual">
-        <div class="sm-usual-txt">${schTile(_ut?_ut.id:"off",18)}<span><b>${esc(_ut?_ut.label:"Usual shift")}</b>${_us.start&&_us.end?" · "+fmtRange(_us.start,_us.end):""}<br><span class="sm-usual-sub">${esc((emp?.name||"").split(" ")[0]||"They")}'s normal week — not saved for this day yet</span></span></div>
-        <button class="sm-usual-btn" onclick="JWG.useUsualDay('${empId}','${day}')">Use this</button>
-      </div>`;
-    }
-    h+=`<div class="sm-step sm-step2"><div class="sect-label"><span class="step-n">2</span> What and when</div></div>
-    <div class="sm-cols">
-    <div class="sm-col sm-left">
-      <div class="sect-label">On the schedule</div>
-      ${shifts.length?shiftListHtml:(usualHtml||`<div class="sm-emptyday">Nothing scheduled yet — build a shift on the right.</div>`)}
-      <div class="day-note-wrap">
-        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
-      </div>
-    </div>
-    <div class="sm-col sm-right">
-      <div class="sect-label">Add a shift</div>
-      <div class="shift-form">
-        <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
-        <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
-      </div>
-      <div class="sect-label">Role / Task</div>
+    h+=`<div class="sm-pickwrap">
+      <div class="sect-label">On a job</div>
       <div class="task-grid">`;
     tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
       h+=`<button class="task-opt" id="topt_${t.id}"
@@ -698,6 +685,28 @@ function renderShiftModal(empId,day,emp,dayData){
       </button>`;
     });
     h+=`</div>
+      <div class="sm-or"><i></i><span>or not working</span><i></i></div>
+      <div class="sm-offgrid">
+        <button class="sm-off-opt" onclick="JWG.markDayOff('${empId}','${day}')">${schTile("off",20)}Day off</button>
+        <button class="sm-off-opt is-sick" onclick="JWG.markDaySick('${empId}','${day}')">${schTile("sick",20)}Off sick</button>
+        <button class="sm-off-opt" onclick="JWG.markDayNonWorking('${empId}','${day}')">${schTile("off",20)}Non working</button>
+      </div>
+    </div>
+    <div class="sm-cols">
+    <div class="sm-col sm-left">
+      <div class="sect-label">On the schedule</div>
+      ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing yet — pick a job above, set the hours, then Add shift.</div>`}
+      <div class="day-note-wrap">
+        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
+      </div>
+    </div>
+    <div class="sm-col sm-right">
+      <div class="sect-label">When</div>
+      <div class="shift-form">
+        <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
+        <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
+      </div>
     </div>
   </div>`;
   }
@@ -792,18 +801,6 @@ function markDayOff(empId,day){
   closeModal();refreshGrid();updBadge(empId);autoSave(empId);
 }
 
-// Turn one ghost day into a real booking. The ONLY way a repeating week ever
-// gets written — always a person pressing a button, never the repeat itself.
-function useUsualDay(empId,day){
-  const emp=S.employees.find(e=>e.id===empId);
-  const u=usualDay(emp,day);
-  if(!u)return;
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  S.schedule[empId][day]=JSON.parse(JSON.stringify(u));
-  autoSave(empId);
-  openShiftModal(empId,day);
-  refreshGrid();
-}
 function markDaySick(empId,day){
   if(!S.schedule[empId])S.schedule[empId]=defSched();
   S.schedule[empId][day]={status:"sick",shifts:[]};
@@ -1124,7 +1121,7 @@ async function applyMultiClear(){
   // Clearing a repeating person's day does not leave it blank — their usual week
   // shows again as a dashed plan. Without saying so, the clear looks like it failed.
   const repNames=_mc.empIds.map(id=>S.employees.find(e=>e.id===id)).filter(e=>e&&e.repeats_weekly&&usualDayAny(e)).map(e=>e.name);
-  const repNote=repNames.length?` ${repNames.join(", ")} ${repNames.length===1?"works":"work"} the same week every week, so ${repNames.length===1?"their":"those"} day${repNames.length===1?"":"s"} will show that normal week again as a dashed plan — not a booking.`:"";
+  const repNote=repNames.length?` ${repNames.join(", ")} ${repNames.length===1?"works":"work"} the same week every week, so once cleared ${repNames.length===1?"their":"those"} day${repNames.length===1?"":"s"} can be put back with the Fill in this week button.`:"";
   if(!(await jwgConfirm({
     title:"Clear shifts",
     target:whoStr,
@@ -1262,6 +1259,18 @@ function buildSched(){
     } else {
       h+=`<div class="wk-hint">👆 Tap anyone's day to <b>build a shift</b> — or mark them <b>Day off</b>, <b>Off sick</b> or <b>Non working</b>.</div>`;
     }
+    // Anyone on "same every week" whose week is still empty. The bar only shows
+    // while there is something to do, and says exactly who and how many days.
+    const _pend=pendingUsual();
+    if(_pend.length){
+      const _names=_pend.map(x=>esc(x.emp.name)).join(", ");
+      const _days=_pend.reduce((n,x)=>n+x.days.length,0);
+      h+=`<div class="wk-fill">
+        <span class="wkf-txt">🔁 <b>${_pend.length} ${_pend.length===1?"person works":"people work"} the same week every week</b>, and ${wlbl(S.weekOffset).toLowerCase()} is still empty for ${_pend.length===1?"them":"them"}.
+          <span class="wkf-who">${_names} · ${_days} day${_days===1?"":"s"} to fill</span></span>
+        <button class="wkf-btn" onclick="JWG.fillWeekFromUsual()">Fill in this week</button>
+      </div>`;
+    }
     h+=`<div class="grid-wrap" id="gw">${buildGrid()}</div>`;
     h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
     h+=`<div class="save-bar" id="save-bar"><span id="save-status"></span><span style="font-size:10px;color:var(--fg-subtle)">Auto-saves as you edit</span></div>`;
@@ -1339,7 +1348,7 @@ function buildGrid(){
   let empIdx=-1;
   bands.forEach(band=>{
     if(band.name){
-      const onNow=band.emps.filter(e=>{const dd=effDay(e,todayName).d;return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
+      const onNow=band.emps.filter(e=>{const dd=(S.schedule[e.id]||{})[todayName];return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
       h+=`<tr class="crew-band"><td colspan="${_nCols}">
         <span class="cb-name">${esc(band.name)}</span>
         <span class="cb-count">${band.emps.length}</span>
@@ -1349,8 +1358,7 @@ function buildGrid(){
     band.emps.forEach(emp=>{
     empIdx++;
     const sc=S.schedule[emp.id]||defSched();
-    // Hours count the ghosts too, so the badge agrees with the chips on screen.
-    const hrs=emp.repeats_weekly?effHours(emp):countH(sc);
+    const hrs=countH(sc);
     const[abg,afg]=ac(emp.name);
     // Workload ring: filled relative to a ~40h target
     const pct=Math.min(hrs/40,1);
@@ -1367,9 +1375,7 @@ function buildGrid(){
         </div>
       </td>`;
     S.activeDays.forEach(d=>{
-      const _eff=effDay(emp,d);
-      const dayData=_eff.d;
-      const isGhost=_eff.ghost;
+      const dayData=sc[d]||{status:"off",shifts:[]};
       const status=dayData.status||"off";
       const shifts=dayData.shifts||[];
       const isWknd=WEEKEND.includes(d);
@@ -1390,7 +1396,7 @@ function buildGrid(){
           const firstT=tm[taskIds[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e",label:taskIds[0]||"?"};
           const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
           const timeStr=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
-          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}${isGhost?" shift-ghost":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"${isGhost?` title="${esc(emp.name)}'s normal week — nothing is saved for this day yet. Tap to use it or change it."`:""}
+          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"
             onclick="event.stopPropagation();JWG.openShiftModal('${emp.id}','${d}')">
             ${schTile(firstT.id,20)}
             <span class="shift-txt"><span class="shift-label">${esc(allLabels)}</span>${timeStr?`<span class="shift-times">${timeStr}</span>`:""}</span>
@@ -1415,9 +1421,7 @@ function buildGrid(){
   let footCells="";
   S.activeDays.forEach(d=>{
     let cnt=0,hsum=0;
-    // Through effDay so the total matches the chips above it — a column showing
-    // three ghost shifts must not read "0 on".
-    sortedEmps.forEach(emp=>{const dd=effDay(emp,d).d;if(dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length){cnt++;hsum+=dayHours(dd);}});
+    sortedEmps.forEach(emp=>{const dd=(S.schedule[emp.id]||{})[d];if(dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length){cnt++;hsum+=dayHours(dd);}});
     footCells+=`<td style="text-align:center;font-size:11px;font-weight:700;color:var(--fg-muted);padding:10px 4px"><span style="color:var(--accent)">${cnt} on</span> · ${Math.round(hsum*10)/10}h</td>`;
   });
   h+=`</tbody><tfoot><tr class="sched-foot"><td class="name-col" style="font-weight:700;color:var(--fg-muted);font-size:12px;padding:10px 12px">Daily total</td>${footCells}</tr></tfoot></table>`;
@@ -1593,8 +1597,9 @@ function toggleAlphaSort(){S.sortAlpha=!S.sortAlpha;render();}
 // nobody had put there, which confused the office. Copy-last-week was removed
 // the same day (Jake: dangerous). A saved week is now either applied EXPLICITLY
 // from the Same every week modal, or — if that person is set to repeat — drawn as a
-// dashed GHOST by effDay() and still never written here. loadWeekSched stays
-// honest: what it puts in S.schedule is only ever what the database holds.
+// written by the "Fill in this week" button, which is still someone pressing
+// something. loadWeekSched stays honest: what it puts in S.schedule is only
+// ever what the database holds.
 function loadWeekSched(){const w=wkey(S.weekOffset);S.employees.forEach(e=>{const f=S.allSchedules.find(s=>s.employee_id===e.id&&s.week_start===w);S.schedule[e.id]=f?migrateSched(JSON.parse(JSON.stringify(f.schedule_data))):defSched();});}
 
 // ── SAVED SCHEDULES ──
@@ -1637,11 +1642,11 @@ function renderUsualWeeks(fresh){
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="avatar" style="background:${abg};color:${afg};width:32px;height:32px;font-size:11px;flex-shrink:0">${empInitials(e.name)}</div>
         <div style="flex:1;min-width:0;font-weight:700;font-size:13.5px">${esc(e.name)}</div>
-        ${tplHasData?`<div class="uw-rep" title="On: ${esc(e.name)}'s normal week shows on every empty day as a faded dashed shift. Nothing is saved until someone taps it or changes the day.">
+        ${tplHasData?`<div class="uw-rep" title="On: ${esc(e.name)} appears in the Fill in this week button whenever their week is still empty.">
           <button class="${e.repeats_weekly?"":"on"}" onclick="JWG.setRepeats('${e.id}',false)">Different each week</button>
           <button class="${e.repeats_weekly?"on":""}" onclick="JWG.setRepeats('${e.id}',true)">🔁 Same every week</button>
         </div>`:""}
-        ${tplHasData?`<button class="ctrl-btn" onclick="JWG.applyUsualWeek('${e.id}')" title="Turn ${esc(e.name)}'s normal week into real shifts for ${wlbl(S.weekOffset)}, right now">▸ Fill in this week</button>`:""}
+        ${tplHasData?`<button class="ctrl-btn" onclick="JWG.applyUsualWeek('${e.id}')" title="Fill in ${esc(e.name)}'s week now, without waiting for the button on the schedule">▸ Fill in their week</button>`:""}
         <button class="ctrl-btn" onclick="JWG.saveUsualWeek('${e.id}')" title="Store the week you are looking at as ${esc(e.name)}'s normal week">💾 Save this week</button>
         ${tpl?`<button class="ctrl-btn ctrl-btn-danger" onclick="JWG.clearUsualWeek('${e.id}')">✕ Clear</button>`:""}
       </div>
@@ -1650,7 +1655,7 @@ function renderUsualWeeks(fresh){
   });
   const _repN=visEmps().filter(e=>e.repeats_weekly).length;
   const h=`<div class="modal-title">🔁 Same every week</div>
-  <div class="modal-sub">Some people work the exact same week, every week. Set theirs up once here and you stop re-entering it.<br><br><b>1.</b> Build their week on the schedule, then press <b>Save this week</b> — that stores it as their normal week.<br><b>2.</b> Switch them to <b>Same every week</b>. From then on their normal week shows up on every empty day as a <b>faded, dashed shift</b>.<br><br>A dashed shift is a <b>plan, not a booking</b> — nothing is saved until someone taps it or changes the day. So if you mark them off sick, that sticks. <b>Fill in this week</b> is the one-off button: it turns their normal week into real shifts for ${wlbl(S.weekOffset)} right now.${_repN?`<br><br><b>${_repN}</b> ${_repN===1?"person is":"people are"} set to the same week every week.`:""}</div>
+  <div class="modal-sub">Some people work the exact same week, every week. Set theirs up once here and you stop re-entering it.<br><br><b>1.</b> Build their week on the schedule, then press <b>Save this week</b> — that stores it as their normal week.<br><b>2.</b> Switch them to <b>Same every week</b>.<br><br>From then on, any week that is still empty for them shows a <b>Fill in this week</b> button at the top of the schedule. One press and their week is in — <b>real shifts, the same as any other</b>. It only ever fills <b>empty</b> days, so a shift, a day off or a sick day you have already set is never touched.${_repN?`<br><br><b>${_repN}</b> ${_repN===1?"person is":"people are"} set to the same week every week.`:""}</div>
   <div>${rows}</div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
   if(fresh)openModal(h,null,true);else updateModal(h,null,true);
@@ -1710,7 +1715,7 @@ async function setRepeats(empId,on){
     await sbF("PATCH",`jwg_employees?id=eq.${empId}`,{repeats_weekly:!!on});
     // Turning it OFF leaves every week already written exactly as it is — only
     // the ghosts stop appearing.
-    toast(on?`${emp.name} is now set to the same week every week — empty days show it as a dashed shift`:`${emp.name} is back to a different week each time (weeks already filled in are untouched)`);
+    toast(on?`${emp.name} is now set to the same week every week — an empty week offers a Fill in this week button`:`${emp.name} is back to a different week each time (weeks already filled in are untouched)`);
     refreshGrid();
   }catch(e){
     emp.repeats_weekly=prev;renderUsualWeeks(false);
@@ -3716,5 +3721,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,setRepeats:setRepeats,useUsualDay:useUsualDay,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
+window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
 })();
