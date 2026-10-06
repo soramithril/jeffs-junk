@@ -2979,12 +2979,13 @@
   </div>
 </div>
 <div class="modal-overlay fullpage" id="damage-modal">
-  <div class="modal" style="display:flex;flex-direction:column;width:100%;max-width:760px;margin:0 auto">
+  <div class="modal" style="display:flex;flex-direction:column;width:100%;margin:0 auto">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
       <div class="modal-title" id="dmg-title" style="font-size:19px">Report Damage</div>
       <button class="btn btn-ghost btn-sm" onclick="closeM('damage-modal')">✕</button>
     </div>
-    <div style="padding:18px 22px;overflow-y:auto">
+    <div class="dmg-body" style="padding:18px 22px;overflow-y:auto">
+      <div class="dmg-main">
       <label class="dmg-lbl" style="margin-top:0">Job</label>
       <div style="position:relative">
         <input type="text" id="dmg-job" placeholder="Type a job # or customer to link…" oninput="damageJobSearch(this.value)" autocomplete="off" class="dmg-in">
@@ -3007,13 +3008,18 @@
         <div><label class="dmg-lbl">Repair cost</label><input type="number" id="dmg-cost" min="0" step="0.01" placeholder="0.00" class="dmg-in"></div>
         <div><label class="dmg-lbl">Status</label><select id="dmg-status" class="dmg-in"><option value="open">Open</option><option value="resolved">Resolved</option></select></div>
       </div>
+      </div>
+      <div class="dmg-bins">
       <label class="dmg-lbl">Bin involved (optional)</label>
       <div id="dmg-bin-selected" style="display:none;font-size:13px;margin-bottom:8px;color:var(--accent)"></div>
       <div id="dmg-bin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-bottom:14px"></div>
+      </div>
+      <div class="dmg-extra">
       <div><label class="dmg-lbl">Vehicle involved (optional)</label><select id="dmg-vehicle" class="dmg-in"></select></div>
       <label class="dmg-lbl">Photos</label>
       <div id="dmg-photos-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer">📷 Add photos<input type="file" accept="image/*" multiple onchange="damageAddPhotos(this)" style="display:none"></label>
+      </div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;padding:14px 22px;border-top:1px solid var(--border)">
       <button class="btn btn-ghost" id="dmg-del-btn" onclick="delDamageReport()" style="color:var(--bad);border-color:rgba(220,38,38,.4);display:none">🗑 Delete</button>

@@ -2263,6 +2263,18 @@ input[type=date],input[type=time]{position:relative;}
 .dmg-in{width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border-strong);border-radius:9px;padding:9px 11px;font-family:inherit;font-size:14px;color:var(--text)}
 .dmg-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:560px){.dmg-grid2{grid-template-columns:1fr}}
+/* Report Damage: one 760px column, split into questions left / bin fleet right on big screens.
+   #dmg-desc uses height because its inline min-height:80px would beat a stylesheet min-height. */
+#damage-modal .modal{max-width:760px}
+@media (min-width:1800px){
+  #damage-modal .modal{max-width:1840px}
+  #damage-modal .dmg-body{display:grid;grid-template-columns:580px minmax(0,1fr);grid-template-rows:auto 1fr;grid-template-areas:"main bins" "extra bins";column-gap:32px}
+  #damage-modal .dmg-main{grid-area:main}
+  #damage-modal .dmg-bins{grid-area:bins}
+  #damage-modal .dmg-extra{grid-area:extra}
+  #damage-modal .dmg-bins>.dmg-lbl{margin-top:0}
+  #damage-modal #dmg-desc{height:120px}
+}
 .h-row:hover .h-row-actions,.h-row.expanded .h-row-actions{opacity:1}
 .h-act-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);font-family:inherit}
 .h-act-btn:hover{background:var(--surface2);color:var(--text)}
