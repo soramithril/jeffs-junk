@@ -2805,13 +2805,14 @@
 
 <!-- ═══════════ EMAIL MODAL ═══════════ -->
 <div class="modal-overlay fullpage" id="email-modal">
-  <div class="modal" style="width:100%;max-width:760px;margin:0 auto">
+  <div class="modal">
     <div class="modal-header">
       <div class="modal-title">📧 Send Confirmation Email</div>
       <button class="modal-close" onclick="closeM('email-modal')">&#x2715;</button>
     </div>
+    <div class="email-cols">
     <div style="margin-bottom:12px">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <div class="email-preset-row">
         <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Load Preset:</span>
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('bin_dropoff')">🚛 Bin Drop-off</button>
         <button class="btn btn-ghost btn-sm" onclick="loadEmailPreset('bin_pickup')">🚚 Bin Pick-up</button>
@@ -2826,6 +2827,7 @@
            hunting for a control that doesn't exist. Point at the real one. -->
       <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Wording not right? Use ⚙️ Edit Templates below.</div>
     </div>
+    <div class="email-main">
     <div id="email-no-address-note" style="display:none;padding:10px 12px;border-radius:8px;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.35);color:#c2410c;font-size:13px;font-weight:600;margin-bottom:12px"></div>
     <div class="form-group" style="margin-bottom:12px">
       <label>To (Email)</label>
@@ -2836,7 +2838,7 @@
       <label>Subject</label>
       <input id="email-subject" type="text" placeholder="Subject line...">
     </div>
-    <div class="form-group" style="margin-bottom:16px">
+    <div class="form-group email-msg" style="margin-bottom:16px">
       <label>Message</label>
       <textarea id="email-body" rows="10" placeholder="Email message..."></textarea>
     </div>
@@ -2846,6 +2848,7 @@
       <button class="btn btn-ghost" onclick="closeM('email-modal');go('emailtemplates')">⚙️ Edit Templates</button>
       <button class="btn btn-primary" id="email-send-btn" onclick="sendEmail()">📧 Open in Email Client</button>
     </div>
+    </div></div>
   </div>
 </div>
 
