@@ -12728,7 +12728,7 @@ async function openDetail(id, returnCid){
   var detAddrCell=detAddr
     ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
     : '—';
-  document.getElementById('det-body').innerHTML=
+  document.getElementById('det-body').innerHTML='<div class="det-main">'+
     (j.service==='Extra Jobs'&&(j.jobName||j.crewSize||j.tasks||j.poNumber)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
       +(j.jobName?'<div style="font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:1px;color:#65a30d;line-height:1.1">🌿 '+escHtml(j.jobName)+'</div>':'')
       +(j.poNumber?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:2px">🧾 PO #'+escHtml(j.poNumber)+'</div>':'')
@@ -12760,7 +12760,7 @@ async function openDetail(id, returnCid){
     +'📜 Edit History <span id="history-toggle-'+j.id+'" style="font-size:11px;color:var(--muted);margin-left:6px">▶ Show</span></div>'
     +'<div id="job-history-'+j.id+'" style="display:none;max-height:300px;overflow-y:auto"></div></div>'
 
-    +'<div class="det-actions">'
+    +'</div><div class="det-actions">'
 
     // ── Group 1: Actions ──
     +'<div class="det-action-group"><div class="det-group-label">Actions</div><div class="det-btn-grid">'

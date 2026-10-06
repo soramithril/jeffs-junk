@@ -1640,6 +1640,21 @@ input[type=date],input[type=time]{position:relative;}
 .det-group-label::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,var(--accent) 0%,var(--border) 40%,transparent 100%);}
 .det-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .det-btn-grid .btn.det-full{grid-column:1/-1;}
+/* Job details: the sections sit in .det-main, so Edit History is now its last child and
+   .detail-section:last-child would drop its divider. Put it back (laptops stay as today). */
+.det-main>.detail-section:last-child{border-bottom:1px solid var(--border);}
+/* Big screens only (laptops are 1366 and 1536 wide): details on the left, every button
+   in a column on the right starting at the top. Kelly's 2560 screen gets 4 details across. */
+@media(min-width:1900px){
+  #det-body{display:grid;grid-template-columns:minmax(0,1fr) 720px;column-gap:38px;}
+  #det-body>.det-main{padding-right:38px;border-right:2px solid var(--border);}
+  #det-body .det-main>.detail-section:last-child{border-bottom:none;}
+  #det-body .det-main .detail-item span{overflow-wrap:anywhere;}
+  #det-body>.det-actions{align-self:start;position:sticky;top:0;margin-top:0;padding-top:0;border-top:none;}
+}
+@media(min-width:2400px){
+  #det-body .det-main .detail-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+}
 .det-danger-box{border:1px solid rgba(220,38,38,.15);border-radius:var(--radius);padding:14px;background:rgba(220,38,38,.02);}
 .det-danger-box .det-group-label{color:var(--bad);}
 .det-danger-box .det-group-label::after{height:2px;background:linear-gradient(90deg,var(--bad) 0%,rgba(220,38,38,.15) 40%,transparent 100%);}
