@@ -29,11 +29,13 @@
 #view-jwgscheduler .nav-group{display:flex;align-items:center;gap:6px;background:none!important;border:none!important;padding:0!important}
 #view-jwgscheduler .nav-group-label{display:none!important}
 /* in-page tab groups — the header shows only the ACTIVE group's tabs (render() stamps
-   data-tabgroup on the view). Moving between groups happens via the sidebar links. */
+   data-tabgroup on the view). Moving between groups happens via the sidebar links.
+   Inventory and Clothing are separate pages, each in a group of its own (Jake, 2026-10-06). */
 #view-jwgscheduler .jwg-tabgroup{display:flex!important}
 #view-jwgscheduler[data-tabgroup=sched] .jwg-tabgroup:not([data-group=sched]),
 #view-jwgscheduler[data-tabgroup=svc] .jwg-tabgroup:not([data-group=svc]),
-#view-jwgscheduler[data-tabgroup=ops] .jwg-tabgroup:not([data-group=ops]){display:none!important}
+#view-jwgscheduler[data-tabgroup=inv] .jwg-tabgroup:not([data-group=inv]),
+#view-jwgscheduler[data-tabgroup=cloth] .jwg-tabgroup:not([data-group=cloth]){display:none!important}
 #view-jwgscheduler .tab-btn{
   background:transparent!important;border:none!important;color:var(--jjtx2)!important;
   font-weight:600!important;font-size:13px!important;padding:8px 15px!important;
