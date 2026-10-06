@@ -3623,6 +3623,10 @@ body.signed-in .help-fab{display:flex;}
 }
 .jf-search-first > label{color:var(--accent-hover)!important;font-weight:800}
 .jf-search-first .ask{color:var(--accent-hover);opacity:.85}
+/* The "Start here" customer search list. 220px shows 5 matches on laptops; on a tall
+   big screen it shows all 12 the search returns, so Kelly does not scroll inside it. */
+#f-client-results{max-height:220px}
+@media (min-width:1900px) and (min-height:1000px){#f-client-results{max-height:520px}}
 
 /* item 32 — tabular figures everywhere a number is read in a column, so
    digits stop changing width and rows stop shimmying when values update.
