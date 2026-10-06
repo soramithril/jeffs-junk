@@ -243,11 +243,14 @@
   };
 
   /* ── list re-render: surviving rows glide to their new spot (v546) ─────── */
+  // Sideways too: on a big screen the email list is two columns, and the row at the top of
+  // the right column drops to the bottom of the left when one above it is ticked off.
   J.snapRows = function (container) {
     if (!container) return null;
     var m = {};
     Array.prototype.forEach.call(container.querySelectorAll('[data-nyk]'), function (r) {
-      m[r.getAttribute('data-nyk')] = r.getBoundingClientRect().top;
+      var b = r.getBoundingClientRect();
+      m[r.getAttribute('data-nyk')] = { top: b.top, left: b.left };
     });
     return m;
   };
@@ -256,9 +259,9 @@
     Array.prototype.forEach.call(container.querySelectorAll('[data-nyk]'), function (r) {
       var old = snap[r.getAttribute('data-nyk')];
       if (old === undefined) return;                 // brand-new row — that's buzzNew's moment
-      var dy = old - r.getBoundingClientRect().top;
-      if (!dy) return;
-      animate(r, { y: [dy, 0] }, { type: 'spring', stiffness: 350, damping: 30 })
+      var b = r.getBoundingClientRect(), dx = old.left - b.left, dy = old.top - b.top;
+      if (!dx && !dy) return;
+      animate(r, { x: [dx, 0], y: [dy, 0] }, { type: 'spring', stiffness: 350, damping: 30 })
         .finished.then(clearTransform(r));
     });
   };

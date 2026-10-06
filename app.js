@@ -199,12 +199,18 @@ function djjSetActive(id){
 function djjScrollSpy(){
   var bar = document.querySelector('.djj-jumpbar');
   if(!bar) return;
-  var threshold = bar.getBoundingClientRect().bottom + 12; // just under the sticky bar
+  // A jump lands a section 64px down (scroll-margin-top in style.css) and the bar ends at 50px,
+  // so the line has to sit past 64 — at +12 every jump lit the button before the one clicked.
+  var threshold = bar.getBoundingClientRect().bottom + 16;
   var current = DJJ_SECTIONS[0];
   DJJ_SECTIONS.forEach(function(id){
     var el = document.getElementById(id);
     if(el && el.getBoundingClientRect().top <= threshold) current = id;
   });
+  // Scrolled to the very end: the last section can be too short to ever reach the line
+  // (on Kelly's big screen the two-column lists make the page end before it does).
+  var se = document.scrollingElement;
+  if(se.scrollTop > 0 && se.scrollTop + se.clientHeight >= se.scrollHeight - 1) current = DJJ_SECTIONS[DJJ_SECTIONS.length - 1];
   djjSetActive(current);
 }
 
@@ -5044,7 +5050,10 @@ async function renderDashBinsOut(){
       return '<div class="djj-section-h" style="color:#0891b2;cursor:pointer;display:flex;align-items:center;gap:7px;user-select:none" onclick="toggleBinsOutGroup(\''+sz+'\')">'
           +'<span id="binsout-c-'+slug+'" style="font-family:Inter,sans-serif;font-size:11px;color:#9aa39b;width:9px">'+(open?'▾':'▸')+'</span>'
           +label+' <span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:#9aa39b">· '+items.length+'</span></div>'
-        +'<div id="binsout-g-'+slug+'"'+(open?'':' style="display:none"')+'>'+items.map(binRow).join('')+'</div>';
+        // The rows sit in their own box inside the group: on a big screen that box is the two
+        // columns (style.css), so the open/close glide clips columns that are already laid out.
+        // Columns on the glided box itself re-deal the rows between columns every frame.
+        +'<div id="binsout-g-'+slug+'"'+(open?'':' style="display:none"')+'><div class="binsout-g-rows">'+items.map(binRow).join('')+'</div></div>';
     }).join('');
   }
   el.innerHTML=html;

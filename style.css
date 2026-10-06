@@ -2609,6 +2609,33 @@ input[type=date],input[type=time]{position:relative;}
 }
 /* land jump-to targets clear of the sticky bar (~48px + breathing room) */
 #card-today-jobs,#dash-needs-you,#card-will-call{scroll-margin-top:64px;}
+/* Waiting-on-call list. This was an inline style in index.html; it lives here so the
+   big-screen rule below can change it (an inline display beats any media query). */
+#dash-will-call-list{display:flex;flex-direction:column;gap:6px;padding:8px}
+/* Kelly's office screen (2560 wide): the four long lists under Today's Jobs put their rows
+   in two newspaper columns, down the left and then down the right, so each list is about
+   half as tall. Down-then-across on purpose: ticking a row off moves just one row to the
+   other column (the top of the right column drops to the bottom of the left) and the rest
+   slide up as today. Rows laid left-to-right would send every later row across instead.
+   Each list's headings stay full width above its columns. Below 2200px nothing changes. */
+@media (min-width:2200px){
+  #dash-needs-you>.chart-card,
+  #dash-will-call-list,
+  #dash-bins-out-list,
+  #dash-bins-out-list .binsout-g-rows,
+  #dash-today-bookings{column-count:2;column-gap:0}
+  #dash-will-call-list{display:block}
+  /* the email rows have no side margins; the other rows carry 10px each side */
+  #dash-needs-you>.chart-card{column-gap:20px}
+  #dash-needs-you>.chart-card>:not(.ny-row),
+  #dash-will-call-list>:not(.djj-row),
+  #dash-bins-out-list>:not(.djj-row),
+  #dash-today-bookings>:not(.djj-row){column-span:all}
+  #dash-needs-you .ny-row,
+  #dash-will-call-list .djj-row,
+  #dash-bins-out-list .djj-row,
+  #dash-today-bookings .djj-row{break-inside:avoid}
+}
 
 /* ── Morning Brief hero + vibe engine (v449 design refresh) ─────────────────
    The hero is a layered card: base tint → vibe wash → floating blobs →
