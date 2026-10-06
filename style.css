@@ -808,10 +808,10 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
 /* Alert popups look like alerts, on every screen size: the whole box is tinted.
    Warning = yellow (check this before you go on). Danger = red (this cancels, deletes
    or blocks something). Light enough that text and buttons stay easy to read. */
-.modal-warn{background:#fef08a;border:2px solid var(--warn);border-top-width:5px;}
+.modal-warn{background:#fef08a;border:1px solid var(--warn);border-top-width:4px;}
 .modal-warn .modal-header{border-bottom-color:rgba(217,119,6,.35);}
 .modal-warn .modal-title{color:var(--warn-ink);}
-.modal-danger{background:#fecaca;border:2px solid var(--bad);border-top-width:5px;}
+.modal-danger{background:#fecaca;border:1px solid var(--bad);border-top-width:4px;}
 .modal-danger .modal-header{border-bottom-color:rgba(220,38,38,.3);}
 .modal-danger .modal-title{color:var(--bad-ink);}
 .modal-danger .btn-danger{background:var(--bad);border-color:var(--bad);color:#fff;}
