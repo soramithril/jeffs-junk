@@ -7772,7 +7772,7 @@ async function openClientDetail(cid){
   }).join('')||'—';
   var emailsHtml=emails.map(function(e){return'<div><a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a></div>';}).join('')||'—';
   document.getElementById('cdet-body').innerHTML =
-    (cl.blacklisted?'<div style="background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--bad);font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
+    '<div class="cdet-side">'+(cl.blacklisted?'<div style="background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--bad);font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
     +(cl.contractor?'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.3);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#2563eb;font-weight:700;display:flex;align-items:center;gap:7px">🏗️ Contractor account</div>':'')
     +onRentHtml
     // Playbook block lives in app-playbook.js; guarded so stale cached HTML that
@@ -7788,6 +7788,7 @@ async function openClientDetail(cid){
     +'<div class="detail-item"><label>Referral</label><span>'+(cl.referral||'—')+'</span></div>'
     +(lastMktg?'<div class="detail-item"><label>Marketing Email</label><span>✉ Sent '+fd(lastMktg)+'</span></div>':'')
     +'</div></div>'
+    +'</div><div class="cdet-main">'
     +'<div class="detail-section"><div class="detail-section-title">📊 Job History</div>'
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
     +'<span class="badge badge-progress">'+clientJobs.length+' Jobs</span>'
@@ -7806,6 +7807,7 @@ async function openClientDetail(cid){
     +'<button class="btn btn-primary" onclick="closeM(\'client-detail-modal\');newJobForClient(\''+cl.cid+'\')">+ New Job</button>'
     +'<button class="btn btn-ghost" onclick="closeM(\'client-detail-modal\');editClient(\''+cl.cid+'\')">'+lineIcon('edit',14)+' Edit</button>'
     +'<button class="btn btn-danger" onclick="delClient(\''+cl.cid+'\')">'+lineIcon('del',14)+' Delete</button>'
+    +'</div>'
     +'</div>';
   document.getElementById('client-detail-modal').classList.add('open');
 }
