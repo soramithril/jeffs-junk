@@ -63,7 +63,9 @@
       return d !== 0 ? d : String(b.created_at).localeCompare(String(a.created_at));
     });
     var openCount = _notes.filter(function(n){ return n.status!=='done'; }).length;
-    var h = '<div style="max-width:1100px;margin:0 auto;padding:30px 26px 60px">'
+    // 1440 cap = 5 notes a row on big screens. It is 2px short of 6 (.sugg-grid minmax(215px) + 20px gap,
+    // 26px side padding), so changing either of those can quietly flip it to 6 single-colour columns.
+    var h = '<div style="max-width:clamp(1100px,62vw,1440px);margin:0 auto;padding:30px 26px 60px">'
       + '<div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:6px">'
       +   '<div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:40px;letter-spacing:1.2px;line-height:1;color:#1a1a2e">SUGGESTIONS</div>'
       +   '<div style="font-size:13px;color:#868e96;margin-top:6px">Ideas, requests, things that need fixing — stick a note on the board.</div></div>'
