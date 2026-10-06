@@ -11225,6 +11225,16 @@ function _resetJobModalScroll(){
   if(o) o.scrollTop=0;
 }
 
+// Booking form: a field that gets focus scrolls fully clear of the stuck Save bar. The
+// browser on its own only guarantees the cursor's line, which left the lower half of a
+// textarea (Internal Notes, at 1536) under the bar. scrollIntoView honours the form's
+// scroll-padding-bottom (style.css), which is the bar's height. It waits one tick because
+// the browser's own focus scroll runs after focusin and would otherwise undo it.
+document.getElementById('job-modal').addEventListener('focusin',function(e){
+  var t=e.target;
+  if(t.matches('input,select,textarea')) setTimeout(function(){ t.scrollIntoView({block:'nearest'}); },0);
+});
+
 function newJob(){
   editId=null;
   _selectedClientObj=null;
@@ -12664,7 +12674,12 @@ async function openDetail(id, returnCid){
   var _backCid=returnCid||j.clientId||'';
   var _bc=_backCid?clients.find(function(c){return c.cid===_backCid;}):null;
   var _jobBit='<span class="det-crumb-job">Job '+escHtml(j.id)+' · '+escHtml(j.service||'Job')+'</span>';
-  if(_backCid){
+  if(returnCid){
+    // Opened from the client's own page: a big, plain way back to that client's other jobs.
+    // The small pill below was missed, and the ✕ drops you on the Clients list (Jake, 2026-10-06).
+    _crumbEl.innerHTML='<button type="button" class="det-back-big" onclick="closeM(\'detail-modal\');openClientDetail(\''+_backCid+'\')">'
+      +'← Back to '+escHtml(_bc?_bc.name:'client')+'</button>'+_jobBit;
+  } else if(_backCid){
     _crumbEl.innerHTML='<span class="det-back" onclick="closeM(\'detail-modal\');openClientDetail(\''+_backCid+'\')">'
       +'‹ '+escHtml(_bc?_bc.name:'Client')+'</span>'+_jobBit;
   } else {
