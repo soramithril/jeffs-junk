@@ -813,6 +813,17 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
   #email-body{flex:1 0 auto;resize:none;}
   .email-main .form-actions{margin-top:8px;} /* flex does not merge margins: 16 + 8 = today's 24px gap */
 }
+/* Link a Bin popup. The first two rules are the old inline styles, same values. */
+#link-bin-from-job-modal > .modal{width:600px;}
+#link-bin-from-job-grid{max-height:60vh;}
+/* Big screens only (laptops are 1366 and 1536 wide): at least as wide as the Assign Bin
+   picker, which is min(44vw,1200px) here (1280px vs 1126px at 2560), and the bin list
+   uses the screen height so every free bin shows without scrolling inside it. 200px is
+   the popup's padding, title and note (175px measured at 2560) plus room to spare. */
+@media (min-width:1700px){
+  #link-bin-from-job-modal > .modal{width:min(50vw,1300px);}
+  #link-bin-from-job-grid{max-height:calc(92vh - 200px);}
+}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border);}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1.5px;color:var(--text);}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:40px;height:40px;border-radius:var(--radius-sm);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all var(--transition);}
