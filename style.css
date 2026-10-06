@@ -824,6 +824,11 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
   #link-bin-from-job-modal > .modal{width:min(50vw,1300px);}
   #link-bin-from-job-grid{max-height:calc(92vh - 200px);}
 }
+/* Change Pickup Date popup. The first rule is the old inline style, same value. */
+#binpickup-modal > .modal{width:420px;}
+/* Big screens only (laptops are 1366 and 1536 wide): wider, so the time buttons sit
+   7 to a row instead of 3 and "Pickup Time - optional" fits on one line. */
+@media (min-width:1700px){#binpickup-modal > .modal{width:840px;}}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border);}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1.5px;color:var(--text);}
 .modal-close{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:40px;height:40px;border-radius:var(--radius-sm);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all var(--transition);}
