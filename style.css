@@ -946,6 +946,36 @@ body:has(.modal-overlay.open) #bin-ticker{display:none!important;}
   #job-modal .jf-sec-wrap,
   #job-modal .jf-sec-service{grid-column:auto;grid-row:auto}
 }
+/* Kelly's 2560px monitor (Jake, 2026-10-06): a bin rental booking was 1,602px tall in a
+   ~1,300px window, so Save and the bottom of the form were always a scroll away. From
+   2400px, Bin Rental only — laptops and every other service stay exactly as they are:
+   - Scheduling gets a wider lane and its bin block flows into two columns: bin size and
+     the dates on the left, Live Load / Duration / Placement on the right. 1150px is two
+     columns that each hold the afternoon row of eleven 46px time buttons (11x46 + 10x4
+     gaps = 546px), plus the 16px column gap, 2x16px padding and 2px of border = 1142px.
+     That leaves each column 4px to spare: if any of those grow, widen the lane, or the
+     12:00-5:00 buttons break onto a third row.
+   - Wrap-Up puts its fields beside the quote cards (.jf-wrap-fields | .jf-wrap-quote).
+     The narrower Notes box is taller, so it holds about what it did.
+   - The Assign Specific Bin grid runs full width under the three columns, like the
+     Furniture strip (app.js moves it into #bin-picker-strip at this width). Edit Job
+     always opens that grid on a bin rental, so it gets more bins a row, not fewer.
+   #bin-picker-strip is empty below 2400px and stays out of the layout. */
+#bin-picker-strip{display:none}
+#bin-picker-collapse>.bin-strip-label{display:none}
+@media(min-width:2400px){
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) .jf-cols{grid-template-columns:minmax(0,1fr) 1150px minmax(0,1.3fr)}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) #bin-extra{columns:2;column-gap:16px}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) #bin-extra>*{break-inside:avoid}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) #bin-extra>label:has(#f-liveload){break-before:column}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) .jf-sec-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) .jf-sec-wrap>.job-form-section-label{grid-column:1/-1}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) #f-notes{min-height:150px}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) #f-internal-notes{min-height:84px}
+  #job-modal:has(.svc-pick-active[data-svc="Bin Rental"]) #bin-picker-strip{display:contents}
+  #bin-picker-strip>#bin-picker-collapse{grid-column:1/-1;border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface2)}
+  #bin-picker-strip>#bin-picker-collapse>.bin-strip-label{display:flex}
+}
 /* Phone(s) beside Email(s). Two-up on a full-width form; the column layout stacks it
    (see the min-width:1100px block above). Base layout is here rather than inline
    because an inline grid-template-columns outranks every stylesheet rule. */

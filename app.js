@@ -11332,6 +11332,20 @@ function newJob(){
 // ─── BIN PICKER ───────────────────────────────────────────────────────────
 var binPickerSzFilter = 'all';
 
+// Kelly's big screen (2400px and wider, Jake 2026-10-06): the Assign Specific Bin grid
+// runs as a full-width strip under the three booking columns (#bin-picker-strip), the way
+// the Furniture items strip does, instead of 5 bins a row inside Scheduling. Edit Job
+// always opens it on a bin rental, so this is what keeps that form short. CSS cannot lift
+// an element out of its section, so the grid itself moves; below 2400px it goes back home.
+var _binStripMq = window.matchMedia('(min-width:2400px)');
+var _binPickerHome = document.getElementById('bin-picker-collapse').parentNode;
+function placeBinPickerGrid(){
+  var target = _binStripMq.matches ? document.getElementById('bin-picker-strip') : _binPickerHome;
+  target.appendChild(document.getElementById('bin-picker-collapse'));
+}
+_binStripMq.addEventListener('change', placeBinPickerGrid);
+placeBinPickerGrid();
+
 // The dates the bin picker is judging against — the rental window on the form.
 function _binPickerWindow(){
   return {drop:(document.getElementById('f-bdrop')||{value:''}).value,

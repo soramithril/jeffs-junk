@@ -2053,6 +2053,9 @@
             <label style="cursor:pointer;margin:0;color:var(--accent)">Assign Specific Bin</label>
           </div>
           <div id="bin-picker-collapse" style="display:none">
+            <!-- Only shows when the grid runs as the big-screen strip (#bin-picker-strip),
+                 far from the toggle above, so the strip says what it is. -->
+            <div class="job-form-subsection-label bin-strip-label">🚛 Assign Specific Bin</div>
             <div id="bin-picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;padding:4px 0"></div>
           </div>
         </div>
@@ -2220,6 +2223,10 @@
       <!-- ── ③ WRAP-UP ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">3</span> Wrap-Up</div>
 
+      <!-- Two plain wrappers so Kelly's big screen can put the fields beside the quote
+           cards on a bin rental (style.css, min-width:2400px). Everywhere else they are
+           ordinary blocks and change nothing. -->
+      <div class="jf-wrap-fields">
       <!-- One PO field for every service that can carry one — bin rentals, junk
            removals and extra jobs. It lives here rather than inside a service block
            because more than one service needs it, and toggleBin() shows it. -->
@@ -2260,7 +2267,9 @@
       </div>
       <div class="form-group full" id="notes-group"><label id="notes-group-label">Notes</label><textarea id="f-notes" placeholder="" rows="3"></textarea></div>
       <div class="form-group full" id="internal-notes-group" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px;margin-top:-4px"><label style="color:#eab308;font-weight:600">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— staff only, never prints</span></label><textarea id="f-internal-notes" placeholder="Private staff notes about this job (does not appear on any printed form)" rows="2" style="background:rgba(0,0,0,.15)"></textarea></div>
+      </div><!-- /.jf-wrap-fields -->
 
+      <div class="jf-wrap-quote">
       <!-- What to say when they ask "how much?". Reads the price sheet live off the town,
            size and duration already typed above. Bin Rental only, read-only — no dollar
            figure here is saved with the job. Filled by renderBinPriceScript(). -->
@@ -2271,7 +2280,13 @@
            still has to show when the town has no sheet price and the card above is
            showing a hint instead of a total. Filled by renderBinDepositNote(). -->
       <div id="bin-deposit-note" style="display:none"></div>
+      </div><!-- /.jf-wrap-quote -->
       </section>
+      <!-- Kelly's big screen only (2400px and wider): app.js moves the Assign Specific Bin
+           grid (#bin-picker-collapse) in here so it runs full width under the three
+           columns, like the Furniture strip below, instead of 5 bins a row in Scheduling.
+           Narrower screens never use it and it stays out of the layout. -->
+      <div id="bin-picker-strip"></div>
       <!-- The Furniture Pickup panel is a FULL-WIDTH strip under all three columns, not a
            field inside section 2 — 133 item tiles and the truck need the whole page. Its
            position here is load-bearing twice over: it must be the LAST child of .jf-cols so
