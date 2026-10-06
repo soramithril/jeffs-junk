@@ -9214,7 +9214,7 @@ function _confirmReassignBinFromJob(bid, toJobId){
     modal.onclick = function(e){ if(e.target === modal) closeM('reassign-bin-modal'); };
     document.body.appendChild(modal);
   }
-  modal.innerHTML = '<div class="modal" style="max-width:520px;width:96vw">'
+  modal.innerHTML = '<div class="modal modal-sm modal-warn" style="--modal-w:min(96vw,520px)">'
     + '<div class="modal-header">'
       + '<div class="modal-title">🔄 Transfer Bin #'+bin.num+' ('+bin.size+')?</div>'
       + '<button class="modal-close" onclick="closeM(\'reassign-bin-modal\')">&times;</button>'
@@ -11149,7 +11149,7 @@ function _openUnassignedBinList(){
       + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openLinkBinFromJob(\''+j.id+'\')">Assign</button>'
       + '</div>';
   }).join('');
-  modal.innerHTML = '<div class="modal" style="max-width:560px;width:96vw">'
+  modal.innerHTML = '<div class="modal modal-md" style="--modal-w:min(96vw,560px)">'
     + '<div class="modal-header">'
       + '<div class="modal-title">⚠ Unassigned bins (' + list.length + ')</div>'
       + '<button class="modal-close" onclick="closeM(\'bin-alert-list-modal\')">&times;</button>'
@@ -11178,16 +11178,16 @@ function _showValidationErrorModal(errs, focusFieldId, opts){
     document.body.appendChild(modal);
   }
   var rows = errs.map(function(e){return '<li style="margin:6px 0">'+e+'</li>';}).join('');
-  modal.innerHTML = '<div class="modal" style="max-width:440px;width:92vw;border-top:4px solid var(--bad)">'
-    + '<div class="modal-header" style="border-bottom:1px solid rgba(220,38,38,.2)">'
-      + '<div class="modal-title" style="color:var(--bad)"><span style="font-size:20px;margin-right:8px">⚠</span>'+title+'</div>'
+  modal.innerHTML = '<div class="modal modal-sm modal-danger" style="--modal-w:min(92vw,440px)">'
+    + '<div class="modal-header">'
+      + '<div class="modal-title"><span style="font-size:20px;margin-right:8px">⚠</span>'+title+'</div>'
     + '</div>'
     + '<div style="padding:18px 20px">'
       + '<div style="font-size:14px;color:var(--text);margin-bottom:8px">Please fix the following before saving:</div>'
-      + '<ul style="margin:8px 0 0 20px;padding:0;font-size:14px;color:var(--bad);font-weight:600">'+rows+'</ul>'
+      + '<ul style="margin:8px 0 0 20px;padding:0;font-size:14px;color:var(--bad-ink);font-weight:600">'+rows+'</ul>'
     + '</div>'
     + '<div class="form-actions" style="padding:14px 20px;border-top:1px solid var(--border)">'
-      + '<button class="btn btn-primary" id="validation-error-ok" style="background:var(--bad);border-color:var(--bad)">OK, fix it</button>'
+      + '<button class="btn btn-danger" id="validation-error-ok">OK, fix it</button>'
     + '</div>'
   + '</div>';
   modal.classList.add('open');
@@ -12482,8 +12482,7 @@ async function cancelJob(id){
     title:'Cancel this job?',
     line:_relNote+'The job stays in the records and can be reopened later.',
     yes:'Yes, cancel job '+j.id,
-    no:'Keep it booked',
-    undoable:true
+    no:'Keep it booked'
   });
   if(!_goCancel) return;
   // 'in-yard': it never went out (or is already back). Clear the false claim so the
@@ -12540,7 +12539,7 @@ async function postponeJob(id){
     line:'It comes off the schedule and its dates are cleared — find it under All Jobs → Postponed. Reopening it asks for a new date.',
     yes:'Yes, postpone job '+j.id,
     no:'Leave it on the schedule',
-    undoable:true
+    warn:true
   });
   if(!_goPostpone) return;
   // Old dates stay visible in the job's Edit History (log_job_changes trigger).
@@ -13311,7 +13310,7 @@ function swapOutBin(id){
     chooserHtml='<input type="hidden" name="swap-bin-pick" value="'+defaultId+'">';
   }
 
-  modal.innerHTML='<div class="modal" style="max-width:480px;width:96vw">'
+  modal.innerHTML='<div class="modal modal-md" style="--modal-w:min(96vw,480px)">'
     +'<div class="modal-header">'
       +'<div class="modal-title">🔄 Swap Out Bin</div>'
       +'<button class="modal-close" onclick="closeM(\'swap-out-modal\')">&times;</button>'
@@ -14639,7 +14638,7 @@ async function openPushSettings(){
   var ov = document.createElement('div');
   ov.className = 'modal-overlay open'; ov.id = 'push-settings-overlay';
   ov.onclick = function(e){ if (e.target === ov) ov.remove(); };
-  ov.innerHTML = '<div class="modal" style="max-width:440px;width:92vw">'
+  ov.innerHTML = '<div class="modal modal-sm" style="--modal-w:min(92vw,440px)">'
     + '<h3 style="margin:0 0 4px">🔔 Notifications</h3>'
     + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">New junk quotes go to Jeff; the morning bin summary goes to Jeff, Barbara and Jake. Enabling on a device that isn\'t on those lists does nothing bad — it just stays quiet.</div>'
     + body
@@ -17735,7 +17734,7 @@ function showBinAvailWarning(size, dateStr){
     var line=document.getElementById('bin-avail-warning-line1');
     var dateLabel=dateStr;
     try{ dateLabel=fd(dateStr); }catch(e){}
-    if(line) line.innerHTML='There are no <strong style="color:#ff8a92">'+size+'</strong> bins available for <strong style="color:#ff8a92">'+dateLabel+'</strong>.';
+    if(line) line.innerHTML='There are no <strong>'+size+'</strong> bins available for <strong>'+dateLabel+'</strong>.';
     m.classList.add("open");
   });
 }
@@ -17787,12 +17786,11 @@ function askBigAction(opts){
       document.body.appendChild(m);
     }
     var esc = (typeof escHtml==='function') ? escHtml : function(s){ return String(s); };
-    // Red for the ones that destroy something, amber for the ones you can undo.
-    var ink = opts.undoable ? 'var(--warn)' : 'var(--bad)';
-    var rim = opts.undoable ? 'rgba(217,119,6,.25)' : 'rgba(220,38,38,.25)';
-    m.innerHTML = '<div class="modal" style="max-width:470px;width:92vw;border-top:4px solid '+ink+'">'
-      + '<div class="modal-header" style="border-bottom:1px solid '+rim+'">'
-        + '<div class="modal-title" style="color:'+ink+'"><span style="font-size:20px;margin-right:8px">⚠</span>'+esc(opts.title)+'</div>'
+    // Red box for the Danger Zone (cancel, delete) and merges; yellow for opts.warn (postpone).
+    var tone = opts.warn ? 'modal-warn' : 'modal-danger';
+    m.innerHTML = '<div class="modal modal-sm '+tone+'" style="--modal-w:min(92vw,470px)">'
+      + '<div class="modal-header">'
+        + '<div class="modal-title"><span style="font-size:20px;margin-right:8px">⚠</span>'+esc(opts.title)+'</div>'
       + '</div>'
       + '<div style="padding:18px 20px">'
         + '<div style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.55">'+esc(opts.line)+'</div>'
@@ -17829,9 +17827,9 @@ function askCancelBinWhere(j){
     }
     var esc = (typeof escHtml==='function') ? escHtml : function(s){ return String(s); };
     var binTxt = j.binBid ? ('Bin '+esc(j.binBid)) : 'The bin';
-    m.innerHTML = '<div class="modal" style="max-width:470px;width:92vw;border-top:4px solid var(--warn)">'
-      + '<div class="modal-header" style="border-bottom:1px solid rgba(217,119,6,.25)">'
-        + '<div class="modal-title" style="color:#c2410c"><span style="font-size:20px;margin-right:8px">⚠</span>Where is the bin?</div>'
+    m.innerHTML = '<div class="modal modal-sm modal-warn" style="--modal-w:min(92vw,470px)">'
+      + '<div class="modal-header">'
+        + '<div class="modal-title"><span style="font-size:20px;margin-right:8px">⚠</span>Where is the bin?</div>'
       + '</div>'
       + '<div style="padding:18px 20px">'
         + '<div style="font-size:14px;color:var(--text);margin-bottom:14px">'
@@ -17863,9 +17861,9 @@ function askNameMismatch(clientName, typedName){
       document.body.appendChild(m);
     }
     var esc = (typeof escHtml==='function') ? escHtml : function(s){ return String(s); };
-    m.innerHTML = '<div class="modal" style="max-width:480px;width:92vw;border-top:4px solid var(--warn)">'
-      + '<div class="modal-header" style="border-bottom:1px solid rgba(217,119,6,.25)">'
-        + '<div class="modal-title" style="color:#c2410c"><span style="font-size:20px;margin-right:8px">⚠</span>Two different names</div>'
+    m.innerHTML = '<div class="modal modal-sm modal-warn" style="--modal-w:min(92vw,480px)">'
+      + '<div class="modal-header">'
+        + '<div class="modal-title"><span style="font-size:20px;margin-right:8px">⚠</span>Two different names</div>'
       + '</div>'
       + '<div style="padding:18px 20px">'
         + '<div style="font-size:14px;color:var(--text);margin-bottom:14px">This booking is attached to one customer file, but a different name is typed on it.</div>'
@@ -18409,7 +18407,7 @@ function openQuoteInvite(jobId){
   var checks=QUOTE_INVITE_ATTENDEES.map(function(a,i){
     return '<label style="display:flex;align-items:center;gap:9px;font-size:14px;padding:9px 4px;cursor:pointer"><input type="checkbox" id="qi-att-'+i+'" checked style="width:16px;height:16px;accent-color:var(--accent)"> '+a.name+' <span style="color:var(--muted);font-size:12px">'+a.email+'</span></label>';
   }).join('');
-  ov.innerHTML='<div class="modal" style="max-width:430px;width:92vw">'
+  ov.innerHTML='<div class="modal modal-sm" style="--modal-w:min(92vw,430px)">'
     +'<h3 style="margin:0 0 4px">📅 Calendar invite</h3>'
     +'<div style="font-size:13px;color:var(--muted);margin-bottom:12px">Pick who gets invited, then open the downloaded file to add the quote to Apple Calendar.</div>'
     +checks

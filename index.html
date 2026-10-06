@@ -1758,7 +1758,7 @@
 
 <!-- VEHICLE ADD/EDIT MODAL -->
 <div class="modal-overlay" id="vehicle-modal">
-  <div class="modal" style="width:480px">
+  <div class="modal modal-md" style="--modal-w:480px">
     <div class="modal-header"><span class="modal-title" id="vehicle-modal-ttl">Add Vehicle</span><button class="modal-close" onclick="closeM('vehicle-modal')">✕</button></div>
     <div class="form-group"><label>Vehicle Name / ID</label><input type="text" id="v-name" placeholder="e.g. Junk Truck 1, Furniture Truck" class="form-input" oninput="clearErr('v-name')"><div class="field-error-msg" id="err-v-name">Vehicle name is required.</div></div>
     <div class="form-group"><label>Type</label>
@@ -1866,7 +1866,7 @@
 
 <!-- ═══════════ REOPEN POSTPONED JOB ═══════════ -->
 <div class="modal-overlay" id="reopen-modal">
-  <div class="modal" style="width:430px">
+  <div class="modal modal-sm" style="--modal-w:430px">
     <div class="modal-header">
       <div class="modal-title">▶ Reopen Job</div>
       <button class="modal-close" onclick="closeM('reopen-modal')">&#x2715;</button>
@@ -2368,7 +2368,7 @@
 
 <!-- ═══════════ ADD/EDIT BIN MODAL ═══════════ -->
 <div class="modal-overlay" id="bin-modal">
-  <div class="modal" style="width:480px">
+  <div class="modal modal-md" style="--modal-w:480px">
     <div class="modal-header">
       <div class="modal-title" id="bin-modal-ttl">Add Bin</div>
       <button class="modal-close" onclick="closeM('bin-modal')">&#x2715;</button>
@@ -2414,7 +2414,7 @@
 
 <!-- ═══════════ RELOCATE BIN MODAL ═══════════ -->
 <div class="modal-overlay" id="relocate-modal">
-  <div class="modal" style="width:460px">
+  <div class="modal modal-md" style="--modal-w:460px">
     <div class="modal-header">
       <div class="modal-title">🚚 Relocate Bin</div>
       <button class="modal-close" onclick="closeM('relocate-modal')">&#x2715;</button>
@@ -2544,7 +2544,7 @@
 
 <!-- ═══════════ ASSIGN CREW MODAL ═══════════ -->
 <div class="modal-overlay" id="assign-crew-modal">
-  <div class="modal" style="width:560px">
+  <div class="modal modal-md" style="--modal-w:560px">
     <div class="modal-header">
       <div class="modal-title">👤 Assign Employee</div>
       <button class="modal-close" onclick="closeM('assign-crew-modal')">&#x2715;</button>
@@ -2580,7 +2580,7 @@
 
 <!-- ═══════════ BIN CSV IMPORT MODAL ═══════════ -->
 <div class="modal-overlay" id="bin-import-modal">
-  <div class="modal" style="width:560px">
+  <div class="modal modal-md" style="--modal-w:560px">
     <div class="modal-header">
       <div class="modal-title">📥 Import Bins from CSV</div>
       <button class="modal-close" onclick="closeM('bin-import-modal')">&#x2715;</button>
@@ -2610,7 +2610,7 @@
 
 <!-- ═══════════ BIN HISTORY IMPORT MODAL ═══════════ -->
 <div class="modal-overlay" id="bin-history-import-modal">
-  <div class="modal" style="width:600px">
+  <div class="modal modal-md" style="--modal-w:600px">
     <div class="modal-header">
       <div class="modal-title">📜 Import Bin History</div>
       <button class="modal-close" onclick="closeM('bin-history-import-modal')">&#x2715;</button>
@@ -2750,9 +2750,9 @@
 
 <!-- ═══════════ CLIENT INTERNAL NOTES POPUP ═══════════ -->
 <div class="modal-overlay" id="client-notes-modal">
-  <div class="modal" style="width:440px">
+  <div class="modal modal-sm modal-warn" style="--modal-w:440px">
     <div class="modal-header">
-      <div class="modal-title" style="color:#eab308">🔒 Internal Notes</div>
+      <div class="modal-title">🔒 Internal Notes</div>
       <button class="modal-close" onclick="closeM('client-notes-modal')">&#x2715;</button>
     </div>
     <div style="padding:4px 2px 8px">
@@ -2769,7 +2769,7 @@
 <!-- ═══════════ CLIENT DETAIL MODAL ═══════════ -->
 <!-- ═══════════ EMAIL LIST (marketing win-back pull) ═══════════ -->
 <div class="modal-overlay" id="email-list-modal">
-  <div class="modal" style="width:520px">
+  <div class="modal modal-md" style="--modal-w:520px">
     <div class="modal-header">
       <div>
         <div class="det-crumb">Clients</div>
@@ -2924,17 +2924,17 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6/dist/d3-delaunay.min.js"></script>
 <div class="modal-overlay" id="bin-avail-warning-modal">
-  <div style="background:rgba(220,38,38,0.08);border:1.5px solid rgba(220,38,38,0.45);border-radius:14px;padding:28px 26px;max-width:480px;width:90%;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(220,38,38,0.18),inset 0 1px 0 rgba(255,255,255,0.04)">
+  <div class="modal-warn" style="border-radius:14px;padding:28px 26px;max-width:480px;width:90%;box-shadow:var(--shadow-lg)">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
-      <div style="width:44px;height:44px;border-radius:50%;background:rgba(220,38,38,0.18);border:1px solid rgba(220,38,38,0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b75" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--warn-soft);border:1px solid rgba(217,119,6,.4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#ff6b75;line-height:1">No Bins Available</div>
+      <div class="modal-title" style="line-height:1">No Bins Available</div>
     </div>
-    <div style="font-size:14px;line-height:1.55;color:#e8e8ea;margin-bottom:10px" id="bin-avail-warning-line1">There are no bins available for this date.</div>
-    <div style="font-size:13px;line-height:1.5;color:#9ca0a8;margin-bottom:22px">Please double-check inventory before continuing — proceeding may result in an overbooking.</div>
+    <div style="font-size:14px;line-height:1.55;color:var(--text);margin-bottom:10px" id="bin-avail-warning-line1">There are no bins available for this date.</div>
+    <div style="font-size:13px;line-height:1.5;color:var(--muted);margin-bottom:22px">Please double-check inventory before continuing — proceeding may result in an overbooking.</div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button type="button" onclick="resolveBinAvailWarning(false)" style="padding:9px 18px;background:transparent;color:#cfd2d8;border:1px solid rgba(255,255,255,0.15);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>
+      <button type="button" class="btn btn-ghost" onclick="resolveBinAvailWarning(false)">Cancel</button>
       <button type="button" onclick="resolveBinAvailWarning(true)" style="padding:9px 18px;background:rgba(220,38,38,0.85);color:#fff;border:1px solid rgba(220,38,38,1);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Proceed Anyway</button>
     </div>
   </div>
@@ -2964,7 +2964,7 @@
   </div>
 </div>
 <div class="modal-overlay" id="maint-popup-modal">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:0;max-width:460px;width:94%;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
+  <div class="modal-warn" style="border-radius:16px;padding:0;max-width:460px;width:94%;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)">
       <div class="modal-title" style="font-size:19px">🔧 Tell Jeff</div>
       <button class="btn btn-ghost btn-sm" onclick="closeM('maint-popup-modal')">✕</button>
