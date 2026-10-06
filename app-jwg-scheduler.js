@@ -1255,7 +1255,7 @@ function render(){
   const app=document.getElementById("app");
   const labelMap={schedule:"Schedule",insights:"Insights",history:"History",analytics:"Analytics","tasks":"Tasks",summer:"Summer",winter:"Winter",inventory:"Inventory",clothing:"Clothing"};
   // tell the host which tab-group is active so the header shows the right sub-tabs
-  const _tg={summer:"svc",winter:"svc",inventory:"ops",clothing:"ops"}[S.tab]||"sched";
+  const _tg={summer:"svc",winter:"svc",inventory:"inv",clothing:"cloth"}[S.tab]||"sched";
   const _v=document.getElementById("view-jwgscheduler");if(_v)_v.setAttribute("data-tabgroup",_tg);
   // Sync desktop nav
   document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.toggle("active",b.textContent.trim()===labelMap[S.tab]);});
@@ -3295,7 +3295,12 @@ const CLOTHING_TYPES=["T-Shirt","Long Sleeve","Crewneck Sweater","Hoodie","Coat"
 const CLOTHING_SIZES=["XS","S","M","L","XL","2XL","3XL","One Size"];
 const CLOTHING_COMPANIES=["Jeffs Junk","Jeff White Group"];
 const BADGE_CLASS={"T-Shirt":"cl-badge-tshirt","Long Sleeve":"cl-badge-longsleeve","Crewneck Sweater":"cl-badge-crewneck","Hoodie":"cl-badge-hoodie","Coat":"cl-badge-coat","Toque":"cl-badge-toque","Cap":"cl-badge-cap","Windbreaker":"cl-badge-windbreaker"};
-let CL={items:[],filter:"all",period:"all",company:"all",search:""};
+let CL={items:[],filter:"all",period:"all",company:"all",search:"",former:false};
+
+// People no longer here (removed on the Team page) keep every clothing record, but out of
+// sight unless asked for (Jake, 2026-10-06: "keep all the info ... hidden"). A record whose
+// person is gone from the roster altogether counts as former too.
+function clIsFormer(eid){const e=S.employees.find(x=>x.id===eid);return !e||e.hidden;}
 
 async function loadClothingItems(){
   const rows=await sbF("GET","jwg_employee_clothing?select=*,jwg_employees(name)&order=date_given.desc")||[];
@@ -3322,6 +3327,7 @@ async function initClothingPage(){
 }
 
 function clSetFilter(f){CL.filter=f;renderClothingBoard();}
+function clToggleFormer(){CL.former=!CL.former;renderClothingBoard();}
 function clSetPeriod(p){CL.period=p;renderClothingBoard();}
 function clSetCompany(c){CL.company=c;renderClothingBoard();}
 function clSetSearch(v){CL.search=v;renderClothingBoard();const el=document.getElementById("cl-search");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
@@ -3346,6 +3352,10 @@ function renderClothingBoard(){
   if(!root)return;
 
   let items=[...CL.items];
+
+  // Former staff stay out of everything below (list and totals) until "Show former staff"
+  const formerIds=new Set(CL.items.map(i=>i.employee_id).filter(clIsFormer));
+  if(!CL.former)items=items.filter(i=>!formerIds.has(i.employee_id));
 
   // Filter by company
   if(CL.company!=="all")items=items.filter(i=>(i.company||"Jeffs Junk")===CL.company);
@@ -3382,7 +3392,7 @@ function renderClothingBoard(){
   const grouped={};
   items.forEach(i=>{
     const eid=i.employee_id;
-    if(!grouped[eid])grouped[eid]={name:i.employees?.name||"Unknown",items:[]};
+    if(!grouped[eid])grouped[eid]={name:i.employees?.name||"Unknown",former:formerIds.has(eid),items:[]};
     grouped[eid].items.push(i);
   });
   const empList=Object.entries(grouped).sort((a,b)=>a[1].name.localeCompare(b[1].name));
@@ -3390,7 +3400,7 @@ function renderClothingBoard(){
   // Build employee cards
   let cards="";
   empList.forEach(([eid,emp],idx)=>{
-    const grpClass=idx%2===0?"cl-group-a":"cl-group-b";
+    const grpClass=(idx%2===0?"cl-group-a":"cl-group-b")+(emp.former?" cl-former":"");
     const empTotal=emp.items.reduce((s,i)=>s+(+i.price||0),0);
     const empPurchase=emp.items.reduce((s,i)=>s+(+i.purchase_price||0),0);
     const empJJ=emp.items.filter(i=>(i.company||"Jeffs Junk")==="Jeffs Junk");
@@ -3421,7 +3431,7 @@ function renderClothingBoard(){
     if(empJWG.length)coParts.push(`<span class="cl-co-badge jwg" style="font-size:10px;padding:1px 5px;vertical-align:middle">JWG</span> $${empJWGCost.toFixed(2)}`);
     cards+=`<tr class="cl-emp-header ${grpClass}">
       <td colspan="8">
-        <span class="cl-emp-name">${esc(emp.name)}</span>
+        <span class="cl-emp-name">${esc(emp.name)}</span>${emp.former?`<span class="cl-former-tag">Former staff</span>`:""}
         <span class="cl-emp-count">${emp.items.length} item${emp.items.length!==1?"s":""} · Staff: $${empTotal.toFixed(2)} · Our cost: $${empPurchase.toFixed(2)}${coParts.length?" · "+coParts.join(" · "):""}</span>
       </td>
     </tr>${itemRows}`;
@@ -3447,6 +3457,7 @@ function renderClothingBoard(){
       <select class="si-filter-select" onchange="JWG.clSetPeriod(this.value)">${periods.map(p=>`<option value="${p.v}"${CL.period===p.v?" selected":""}>${p.l}</option>`).join("")}</select>
       <select class="si-filter-select" onchange="JWG.clSetFilter(this.value)">${types.map(t=>`<option value="${esc(t)}"${CL.filter===t?" selected":""}>${t==="all"?"All items":t}</option>`).join("")}</select>
       <select class="si-filter-select" onchange="JWG.clSetCompany(this.value)"><option value="all"${CL.company==="all"?" selected":""}>Both companies</option>${CLOTHING_COMPANIES.map(c=>`<option value="${esc(c)}"${CL.company===c?" selected":""}>${c}</option>`).join("")}</select>
+      ${formerIds.size?`<button class="cl-act-btn" onclick="JWG.clToggleFormer()">${CL.former?"Hide":"Show"} former staff (${formerIds.size})</button>`:""}
     </div>
     ${empList.length?`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 8px">Showing ${items.length} of ${CL.items.length} item${CL.items.length!==1?"s":""}</div><div class="cl-table-wrap"><table class="cl-table">
       <thead><tr>
@@ -3468,7 +3479,11 @@ function clOpenEdit(id){clOpenForm(id);}
 
 function clOpenForm(id){
   const item=id?CL.items.find(x=>x.id===id):null;
-  const empOpts=S.employees.map(e=>`<option value="${e.id}"${item&&item.employee_id===e.id?" selected":""}>${esc(e.name)}</option>`).join("");
+  // New items only go to people still here. Editing a former person's old record keeps them
+  // in the list, marked, so the record does not silently move to someone else.
+  const pick=visEmps().slice();
+  if(item&&!pick.some(e=>e.id===item.employee_id)){const f=S.employees.find(e=>e.id===item.employee_id);if(f)pick.push(f);}
+  const empOpts=pick.map(e=>`<option value="${e.id}"${item&&item.employee_id===e.id?" selected":""}>${esc(e.name)}${e.hidden?" (former)":""}</option>`).join("");
   const typeOpts=CLOTHING_TYPES.map(t=>`<option value="${t}"${item&&item.item_type===t?" selected":""}>${t}</option>`).join("");
   const sizeOpts=CLOTHING_SIZES.map(s=>`<option value="${s}"${item&&item.size===s?" selected":""}>${s}</option>`).join("");
   const companyOpts=CLOTHING_COMPANIES.map(c=>`<option value="${c}"${item&&item.company===c?" selected":""}>${c}</option>`).join("");
@@ -3803,5 +3818,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
+window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
 })();
