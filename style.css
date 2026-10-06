@@ -2832,6 +2832,15 @@ body.pal-open{overflow:hidden;}
   .drdc-side__truck{max-width:520px;margin:0 auto;}
   .drdc-searchbar{position:static;}
 }
+/* Wide office monitors (2200px+): item tiles become one slim row each
+   (picture | name + price | - n +), four across, so the list is ~40% shorter.
+   drdcFilter writes display '' / 'none' inline on each tile; '' falls through to
+   this rule and 'none' (search) still wins over it. Below 2200px nothing changes:
+   --drdc-tile is unset, so the grid keeps its 215px minimum. */
+@media (min-width:2200px){
+  #drdc-grid{--drdc-tile:330px;}
+  #drdc-grid .drdc-item{display:flex;}
+}
 
 /* Truck row inside the Furniture Pickup job form. Reuses .drdc-side__truck and
    .drdc-truck-stage so the crop geometry is defined in exactly one place. */
