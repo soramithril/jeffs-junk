@@ -990,8 +990,7 @@ function renderMultiAssign(){
   <div class="sect-label"><span class="step-n">4</span> People <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?`(${selCount} selected)`:""}</span></div>
   ${maEmps.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet — add them on the Team page.</div>'}
 
-  <div class="modal-divider"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center">
+  <div class="ma-actions">
     <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     <button class="modal-done" onclick="JWG.applyMultiAssign()" ${readyToAssign?"":'disabled style="opacity:.45;cursor:not-allowed"'}>
       Assign${(selCount>0&&_ma.days.length>0)?" to "+selCount+" \xD7 "+_ma.days.length+" day"+(_ma.days.length!==1?"s":""):""}
@@ -1152,8 +1151,7 @@ function renderMultiClear(){
   <div class="modal-divider"></div>
   <div class="sect-label"><span class="step-n">3</span> People <span style="font-weight:500;opacity:.6;text-transform:none;letter-spacing:0">${selCount>0?"("+selCount+" selected)":""}</span></div>
   ${mcEmps.length?empHtml:'<div style="font-size:12px;color:var(--fg-muted);padding:8px 0">No employees yet.</div>'}
-  <div class="modal-divider"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center">
+  <div class="ma-actions">
     <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
     <button class="modal-done modal-done-danger" style="opacity:${ready?1:0.45};pointer-events:${ready?"auto":"none"}" onclick="JWG.applyMultiClear()">
       Clear${ready?" "+selCount+" × "+_mc.days.length+" day"+(_mc.days.length!==1?"s":""):""}
@@ -1738,7 +1736,7 @@ function renderUsualWeeks(fresh){
   const h=`<div class="modal-title">🔁 Same every week</div>
   <div class="modal-sub">Some people work the exact same week, every week. Set theirs up once here and you stop re-entering it.<br><br><b>1.</b> Build their week on the schedule, then press <b>Save this week</b> — that stores it as their normal week.<br><b>2.</b> Switch them to <b>Same every week</b>.<br><br>From then on, any week that is still empty for them shows a <b>Fill in this week</b> button at the top of the schedule. One press and their week is in — <b>real shifts, the same as any other</b>. It only ever fills <b>empty</b> days, so a shift, a day off or a sick day you have already set is never touched.${_repN?`<br><br><b>${_repN}</b> ${_repN===1?"person is":"people are"} set to the same week every week.`:""}</div>
   <div class="uw-list">${rows}</div>
-  <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
+  <div class="ma-actions"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
   if(fresh)openModal(h,null,true);else updateModal(h,null,true);
 }
 async function applyUsualWeek(empId){

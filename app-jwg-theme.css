@@ -321,12 +321,70 @@
    of a 2560px screen, which pushed the button you need at the end off the bottom.
    Assign + Clear: a wider column, people as name cards that read left to right.
    Same every week: a much wider column, the people list in two columns that each read
-   top to bottom (rows across the two do not line up - a saved week makes a taller row). */
+   top to bottom (rows across the two do not line up - a saved week makes a taller row).
+   The column widths themselves (1240px / 1760px) are the glass card's, further down. */
 @media (min-width:1700px){
-  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-emp-list){padding:34px max(20px,calc((100% - 1240px)/2)) 28px !important}
   #view-jwgscheduler .ma-emp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));column-gap:8px}
-  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.uw-list){padding:34px max(20px,calc((100% - 1760px)/2)) 28px !important}
   #view-jwgscheduler .uw-list{columns:2;column-gap:40px}
   #view-jwgscheduler .uw-list>div{break-inside:avoid}
   #view-jwgscheduler .modal:has(.uw-list) .modal-sub{max-width:900px}
+}
+
+/* ═══ Glass card (2026-10-07) ═══════════════════════════════════════════
+   Assign shifts, Clear shifts and Same every week float as a frosted card over the
+   blurred schedule instead of replacing the whole page (Jake: "Glass card"). Keyed on
+   what only these three screens contain - the day buttons (.ma-day-list) and the people
+   list (.uw-list) - so every other editor keeps its full page.
+   Two blurs, both still: the page behind (overlay) and the card. The card's entrance
+   moves but never fades, so the blur does not flicker in.
+   Laptops: the card is 820px wide (the same 720px column as before) and scrolls inside
+   itself; the action row is stuck to its bottom edge. 2560px: 1340px / 1860px wide and the
+   whole screen fits, no inner scroll. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm):has(.ma-day-list,.uw-list){
+  align-items:center;justify-content:center;padding:clamp(16px,3vh,40px);
+  background:rgba(20,30,25,.10);
+  backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);
+}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,.uw-list){
+  --glass-px:clamp(20px,4vw,50px);
+  width:min(820px,100%) !important;height:auto;max-height:100% !important;
+  padding:34px var(--glass-px) 0 !important;
+  border-radius:22px !important;border:1px solid rgba(255,255,255,.75);
+  background:rgba(255,255,255,.62);
+  box-shadow:0 30px 80px rgba(16,24,20,.22),0 2px 6px rgba(16,24,20,.08),inset 0 1px 0 rgba(255,255,255,.9);
+  backdrop-filter:blur(30px) saturate(1.7);-webkit-backdrop-filter:blur(30px) saturate(1.7);
+  animation:jwg-glass-in .28s var(--ease-out);
+  scrollbar-width:thin;scrollbar-color:rgba(20,30,25,.30) transparent;  /* the grey Windows bar broke the rounded corners */
+}
+@keyframes jwg-glass-in{from{transform:translateY(14px) scale(.985)}to{transform:none}}
+/* A card that is shorter than its content scrolls; nothing inside it may squash to fit. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,.uw-list)>*{flex-shrink:0}
+/* The close button sits at the right end of the title row and scrolls away with it - the
+   action row below is always in view and does the same job. It takes no room of its own:
+   the title and the line under it use the full width. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,.uw-list)>.mfp-close{
+  position:relative;top:0;right:auto;align-self:flex-end;z-index:6;margin:0 0 -40px;
+}
+/* The action row: Cancel + Assign / Clear, or Done. Stuck to the card's bottom edge, and
+   frosted enough (not see-through) that nothing reads through it while the list scrolls. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,.uw-list) .ma-actions{
+  position:sticky;bottom:0;z-index:5;
+  display:flex;align-items:center;
+  margin:14px calc(var(--glass-px)*-1) 0;padding:16px var(--glass-px) 20px;
+  background:rgba(255,255,255,.92);border-top:1px solid rgba(20,30,25,.10);
+}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .ma-actions>:last-child{margin-left:auto}
+@media (min-width:1700px){
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list){width:min(1340px,100%) !important}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.uw-list){width:min(1860px,100%) !important}
+}
+/* People who turn transparency off get a plain white card on a dimmed page, no blur at all. */
+@media (prefers-reduced-transparency:reduce){
+  #view-jwgscheduler .moverlay:not(#jwg-confirm):has(.ma-day-list,.uw-list){
+    background:rgba(20,30,25,.45);backdrop-filter:none;-webkit-backdrop-filter:none;
+  }
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,.uw-list){
+    background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none;
+  }
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.ma-day-list,.uw-list) .ma-actions{background:#fff}
 }
