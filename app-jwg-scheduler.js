@@ -1155,7 +1155,7 @@ function renderMultiClear(){
   <div class="modal-divider"></div>
   <div style="display:flex;justify-content:space-between;align-items:center">
     <button class="modal-cancel" onclick="JWG.closeModal()">Cancel</button>
-    <button style="background:#dc2626;color:white;border:none;border-radius:var(--radius-sm);padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;opacity:${ready?1:0.45};pointer-events:${ready?"auto":"none"}" onclick="JWG.applyMultiClear()">
+    <button class="modal-done modal-done-danger" style="opacity:${ready?1:0.45};pointer-events:${ready?"auto":"none"}" onclick="JWG.applyMultiClear()">
       Clear${ready?" "+selCount+" × "+_mc.days.length+" day"+(_mc.days.length!==1?"s":""):""}
     </button>
   </div>`;
@@ -1737,7 +1737,7 @@ function renderUsualWeeks(fresh){
   const _repN=visEmps().filter(e=>e.repeats_weekly).length;
   const h=`<div class="modal-title">🔁 Same every week</div>
   <div class="modal-sub">Some people work the exact same week, every week. Set theirs up once here and you stop re-entering it.<br><br><b>1.</b> Build their week on the schedule, then press <b>Save this week</b> — that stores it as their normal week.<br><b>2.</b> Switch them to <b>Same every week</b>.<br><br>From then on, any week that is still empty for them shows a <b>Fill in this week</b> button at the top of the schedule. One press and their week is in — <b>real shifts, the same as any other</b>. It only ever fills <b>empty</b> days, so a shift, a day off or a sick day you have already set is never touched.${_repN?`<br><br><b>${_repN}</b> ${_repN===1?"person is":"people are"} set to the same week every week.`:""}</div>
-  <div>${rows}</div>
+  <div class="uw-list">${rows}</div>
   <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="ctrl-btn" onclick="JWG.closeModal()">Done</button></div>`;
   if(fresh)openModal(h,null,true);else updateModal(h,null,true);
 }
