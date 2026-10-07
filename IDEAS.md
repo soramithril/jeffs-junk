@@ -30,8 +30,8 @@ and trim it down to what is left.
   <sub>Jake, 2026-09-08 - quotes now lead the screen and the wrong-day jobs are fixed, both in v677 (see Done). Still owed: notifications that actually reach his phone (needs a manifest and a service worker on his page - iOS will not deliver web push without them), and the read-through of The Day, Photos and Trucks.</sub>
 - **Revamp the Furniture Bank quote page layout, and the booking that follows it** - The truck animation and the way items get added stay exactly as they are; Jake loves those. The layout around them is the problem - it is not the best and there is a better one out there. Look over the whole page again, and the booking step the same way. Mockup first, not code.
   <sub>Jake, 2026-10-05</sub>
-- **Finish Kelly's screens on the 32-inch** - Most of it went out in v684 (see Done). What is left needs a pick: the dashboard lists two-across (rows jump between columns when an email is ticked off) and the booking form layout (Edit Job on a bin rental gets taller), each with three options; plus yes/no on five more mockups - Schedule popups, Add/Edit Client form, dashboard search results, sign-in pictures, item suggestions. All on the "What's left to decide" mockup page.
-  <sub>Jake, 2026-09-08 - second half of the bin-picker idea. Swept and mocked up 2026-10-05/06; the accepted changes shipped in v684.</sub>
+- **Finish Kelly's screens on the 32-inch** - The dashboard and the booking form went out in v685 (see Done). Being built now, not live yet: the Schedule's full-page screens (wider, and restyled to match the rest of the app), the Add/Edit Client form in two columns, the dashboard search list, the item suggestions list, and the sign-in screen down to the one anime picture. Jake also asked whether the Schedule screens should get a frosted-glass background - mockup only, his call.
+  <sub>Jake, 2026-09-08 - second half of the bin-picker idea. Swept and mocked up 2026-10-05/06; first batch shipped in v684, second in v685.</sub>
 - **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
   <sub>Jake, 2026-10-05 - on Now from 2026-10-05</sub>
 
@@ -43,6 +43,9 @@ and trim it down to what is left.
 ## Done
 
 *Built and live. Newest first.*
+
+- ~~**Kelly's dashboard and booking form on the 32-inch**~~ - **v685, 2026-10-06.** On her 2560-wide screen the long dashboard lists read in two newspaper columns (down the left, then the right), so the page is about a third shorter and ticking off an email moves only one row across. A bin rental booking fits on one screen with Save showing, and on Edit Job the bin list runs full width under the form, 24 bins a row instead of 8. Laptops unchanged, except the dashboard jump bar now lights the button you clicked.
+  <sub>Jake, 2026-10-06</sub>
 
 - ~~**Kelly's popups and pages on the 32-inch**~~ - **v684, 2026-10-06.** On her 2560-wide screen: the confirmation email shows whole (templates down the left), Job details puts its buttons in a column on the right, the client profile has contact left and job history right, and the booking form's customer search, the Furniture calculator, Link a Bin, Change Pickup Date, Merge Clients, Help, Report Damage, the bin history panel and the Suggestions board all use the width. Small and medium popups grow on big screens, and warning popups are yellow and danger popups red on every screen. Laptops are unchanged apart from those alert colours. Same update: Inventory and Clothing are separate pages, former staff are hidden on Clothing (records kept), Summer & Winter is back in the menu, a big "Back to client" button in Job details, and the booking form's Save / Update Job bar stays on screen.
   <sub>Jake, 2026-09-08 and 2026-10-05/06</sub>
