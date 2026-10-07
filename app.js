@@ -11109,7 +11109,7 @@ function _renderUnassignedBinBanner(){
       + (j.binDropoff ? ' &middot; dropped ' + fd(j.binDropoff) : '')
       + (j.binSize ? ' &middot; ' + j.binSize : '')
       + '</span>'
-      + '<button class="bin-alert-action" onclick="_dismissBinBanner();openLinkBinFromJob(\''+j.id+'\')">Assign</button>'
+      + '<button class="bin-alert-action" onclick="_dismissBinBanner();openAssignBinPicker(\''+j.id+'\')">Assign</button>'
       + '<button class="bin-alert-close" onclick="_dismissBinBanner()" aria-label="Dismiss">&times;</button>';
   } else {
     html = '<span class="bin-alert-icon">⚠</span>'
@@ -11161,7 +11161,7 @@ function _openUnassignedBinList(){
       + '<div class="bin-alert-row-id">'+displayName+(j.binSize?' &middot; '+j.binSize:'')+'</div>'
       + '<div class="bin-alert-row-meta">'+(addr || '—')+(j.binDropoff?' &middot; dropped '+fd(j.binDropoff):'')+'</div>'
       + '</div>'
-      + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openLinkBinFromJob(\''+j.id+'\')">Assign</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openAssignBinPicker(\''+j.id+'\')">Assign</button>'
       + '</div>';
   }).join('');
   modal.innerHTML = '<div class="modal modal-md" style="--modal-w:min(96vw,560px)">'
