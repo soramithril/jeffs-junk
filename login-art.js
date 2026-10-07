@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════
-   LOGIN ART — which of the nine sheets you get, and what it says
+   LOGIN ART — which sheet you get, and what it says
    ═══════════════════════════════════════════════════════════════════
-   Nine approved login designs (Barb's set, via ChatGPT). They run in a
-   fixed round-robin so you never see the same one twice in a row.
+   The sign-in posters. With more than one they run in a fixed round-robin,
+   so you never see the same one twice in a row. Jake kept only the anime
+   sheet on 2026-10-06 and is making new ones.
 
    The counter moves forward exactly once, on a Supabase-verified
    sign-in — app.js calls advance() at that point. Deliberately NOT on
@@ -13,58 +14,13 @@
    Loaded from index.html directly after the login markup, so the sheet
    is chosen before first paint and nothing flashes.
 
-   Styling for all nine lives in login-art.css; artwork in assets/login/. */
+   Styling lives in login-art.css; artwork in assets/login/. */
 (function () {
   'use strict';
 
   var STORE = 'jjLoginArt';
 
   var SHEETS = [
-    {
-      key: 'classic',
-      headline: ['BUILT', 'TO MOVE'],      // painted into this sheet's artwork; hidden by CSS
-      eyebrow: 'EVERY JOB. ON TIME.',
-      tagline: 'OPERATIONS',
-      title: 'Welcome back',
-      intro: 'Sign in and keep the day moving.',
-      button: 'SIGN IN'
-    },
-    {
-      key: 'poster',
-      headline: ['WE HAUL', 'IT ALL'],
-      eyebrow: 'FAST LANE TO A CLEAN SPACE',
-      tagline: 'READY · SET · HAUL',
-      title: 'Start your engines',
-      intro: 'Your next pickup starts here.',
-      button: 'START YOUR RUN'
-    },
-    {
-      key: 'pit',
-      headline: ['GREEN', 'MEANS GO'],
-      eyebrow: 'SYSTEM ONLINE',
-      tagline: 'LIGHTS OUT · BINS OUT',
-      title: 'Clear for dispatch',
-      intro: 'Routes, jobs and crews—ready when you are.',
-      button: 'ENTER DISPATCH'
-    },
-    {
-      key: 'roadrunner',
-      headline: ['LET LOOSE', 'THE ROADRUNNER'],
-      eyebrow: 'DRIVER 01 · ROADRUNNER',
-      tagline: 'BEEP BEEP · LET’S HAUL',
-      title: 'Let loose the Roadrunner',
-      intro: 'Fast lane to the next pickup.',
-      button: 'RELEASE THE ROADRUNNER'
-    },
-    {
-      key: 'fullthrottle',
-      headline: ['HE’S', 'HAULING'],
-      eyebrow: 'BUILT TO HAUL · BORN TO MOVE',
-      tagline: 'LOAD IT · ROLL IT · GONE',
-      title: 'Drop the green flag',
-      intro: 'Another load is ready to move.',
-      button: 'LIGHTS OUT · BINS OUT'
-    },
     {
       key: 'anime',
       headline: ['BEYOND', 'THE NEXT LOAD'],
@@ -73,33 +29,6 @@
       title: 'Begin the next journey',
       intro: 'Your next pickup is waiting beyond the horizon.',
       button: 'CONTINUE THE JOURNEY'
-    },
-    {
-      key: 'overhead',
-      headline: ['PIT CREW', 'READY'],
-      eyebrow: 'CREW ON DECK',
-      tagline: 'LOAD · CHECK · ROLL',
-      title: 'Call in the crew',
-      intro: 'The lane is clear and the next load is ready.',
-      button: 'ENTER THE PIT'
-    },
-    {
-      key: 'blueprint',
-      headline: ['BUILT BY', 'THE BLUEPRINT'],
-      eyebrow: 'ENGINEERED FOR EVERY LOAD',
-      tagline: 'PLAN IT · LOAD IT · HAUL IT',
-      title: 'Plans are ready',
-      intro: 'Every detail is lined up for the next job.',
-      button: 'OPEN THE PLANS'
-    },
-    {
-      key: 'engineering',
-      headline: ['BUILT TO', 'OUTWORK'],
-      eyebrow: 'SYSTEMS CHECK · ALL GREEN',
-      tagline: 'POWER · PRECISION · PURPOSE',
-      title: 'All systems green',
-      intro: 'The truck is ready. Your next job is queued.',
-      button: 'ENTER OPERATIONS'
     }
   ];
 
@@ -155,13 +84,12 @@
     pass.focus();
   });
 
-  // ── THE NINE ──
-  // Nine posters is only a nice thing if anyone finds out there are nine. The dots
-  // say how many there are and which one you are on, and any of them can be picked
-  // outright. The sheet is built once, at page load — see the top of this file — so
-  // choosing one reloads rather than trying to rebuild it underneath you.
+  // ── THE DOTS ──
+  // One dot per sheet: how many there are, which one you are on, and any of them can be
+  // picked outright. With a single sheet there is nothing to pick, so no dots. The sheet
+  // is built once, at page load, so choosing one reloads rather than rebuilding it.
   var dots = document.getElementById('jjl-dots');
-  if (dots) {
+  if (dots && SHEETS.length > 1) {
     var here = storedIndex();
     SHEETS.forEach(function (sh, n) {
       var b = document.createElement('button');
