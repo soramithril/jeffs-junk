@@ -1748,3 +1748,28 @@ body.jwg-modal-open {overflow:hidden;}
   #view-jwgscheduler .ctrl-group {background:transparent;border:none;padding:0;gap:5px;}
   #view-jwgscheduler .wk-hint {margin:10px 12px 0;}
 }
+
+/* ── "From Jeff's Junk" strip at the top of the day editor (built by app-jwg-feed.js) ──
+   Under "What's <name> doing <day>?", before the job tiles. One card per booking: icon, what + where,
+   time, and a "Use this" button. Two cards per row on a laptop so the strip stays about 100px tall and
+   the Close / Add shift buttons stay on screen at 1366x768. Existing blue only. */
+#view-jwgscheduler #jwg-feed-strip{flex:0 0 auto;background:#eff6ff;border:1.5px solid rgba(96,165,250,.45);border-radius:12px;padding:9px 12px 12px;margin:0 0 14px}
+#view-jwgscheduler .jwg-strip-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 14px;margin-bottom:8px}
+#view-jwgscheduler .jwg-strip-title{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1d4ed8;white-space:nowrap}
+#view-jwgscheduler .jwg-strip-note{font-size:12.5px;line-height:1.35;color:#1e40af;opacity:.88}
+#view-jwgscheduler .jwg-strip-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:8px}
+#view-jwgscheduler .jwg-strip-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0;padding:8px 10px;cursor:pointer;background:#fff;border:1.5px solid rgba(96,165,250,.5);border-radius:10px;transition:border-color .15s,box-shadow .15s}
+#view-jwgscheduler .jwg-strip-row:hover{border-color:#2563eb}
+#view-jwgscheduler .jwg-strip-row.is-on{border-color:#2563eb;box-shadow:0 0 0 1.5px #2563eb}
+#view-jwgscheduler .jwg-strip-ico{flex:none;display:flex}
+#view-jwgscheduler .jwg-strip-main{flex:1 1 160px;min-width:0;display:flex;flex-direction:column;gap:1px}
+#view-jwgscheduler .jwg-strip-what{display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap}
+#view-jwgscheduler .jwg-strip-what b{flex:none;font-size:14px;font-weight:700;color:var(--fg)}
+#view-jwgscheduler .jwg-strip-what em{font-style:normal;font-size:12px;font-weight:500;color:var(--fg-muted);overflow:hidden;text-overflow:ellipsis}
+#view-jwgscheduler .jwg-strip-where{font-size:12px;color:var(--fg-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view-jwgscheduler .jwg-strip-time{flex:none;margin-left:auto;font-size:13px;font-weight:700;color:#1d4ed8;white-space:nowrap}
+#view-jwgscheduler .jwg-strip-time.none{font-size:12px;font-weight:500;color:var(--fg-muted)}
+/* the scheduler zeroes plain buttons, so the .btn-ghost .btn-sm look is spelled out here */
+#view-jwgscheduler .jwg-strip-use{flex:none;display:inline-flex;align-items:center;white-space:nowrap;padding:6px 13px;border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:#1d4ed8;border:1px solid rgba(96,165,250,.7)}
+#view-jwgscheduler .jwg-strip-use:hover{background:#eff6ff;border-color:#2563eb;color:#1d4ed8}
+#view-jwgscheduler .jwg-strip-row.is-on .jwg-strip-use{background:#2563eb;border-color:#2563eb;color:#fff}

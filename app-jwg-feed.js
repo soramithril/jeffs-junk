@@ -94,6 +94,12 @@
     var keys=FAMILY[taskKey]||[];
     return labels.some(function(l){return keys.some(function(k){return l.indexOf(k)>=0;});});
   }
+  // Where a job is: "12 Elm St, Barrie" (the city is added only when the address does not already say it).
+  function placeOf(j){
+    var a=String(j.address||"").trim(),c=String(j.city||"").trim();
+    if(a&&c&&a.toLowerCase().indexOf(c.toLowerCase())<0)return a+", "+c;
+    return a||c;
+  }
   function parseHHMM(t){if(!t)return null;var p=String(t).split(":");if(p.length<2)return null;var h=+p[0],m=+p[1];if(isNaN(h)||isNaN(m))return null;return h*60+m;}
   // Match the scheduler's own fmtHour: uppercase AM/PM, minutes only when off the hour ("7AM", "11:30AM").
   function fmtMins(mins){mins=Math.round(mins);var h=Math.floor(mins/60)%24,m=((mins%60)+60)%60,ap=h<12?"AM":"PM",hh=(h===0)?12:(h>12?h-12:h);return m===0?(hh+ap):(hh+":"+pad(m)+ap);}
@@ -131,7 +137,7 @@
     var occ={};      // key -> day -> entries[]
     var bins={};     // key -> day -> {drop:n, pick:n}
     function ensure(key,day){(occ[key]||(occ[key]={}));return occ[key][day]||(occ[key][day]=[]);}
-    function addNonBin(crewId,dateStr,label,time,durMin,taskKey){
+    function addNonBin(crewId,dateStr,label,time,durMin,taskKey,place){
       var nm=_crewName[crewId];
       if(!nm||!inRange(dateStr,s,e))return;
       var day=dayNameOf(dateStr);if(!day)return;
@@ -141,15 +147,16 @@
         if(durMin>0)e0=ceil30(sm+durMin);
         timeStr=(e0!=null)?fmtMins(s0)+"–"+fmtMins(e0):fmtMins(s0);
       }
-      ensure(nm.toLowerCase(),day).push({label:label,time:timeStr,count:1,detail:"",taskKey:taskKey,startMin:s0,endMin:e0});
+      ensure(nm.toLowerCase(),day).push({label:label,time:timeStr,count:1,detail:"",taskKey:taskKey,startMin:s0,endMin:e0,places:place?[place]:[]});
     }
-    function addBin(crewId,dateStr,leg,legTime,city){
+    function addBin(crewId,dateStr,leg,legTime,city,place){
       var nm=_crewName[crewId];
       if(!nm||!inRange(dateStr,s,e))return;
       var day=dayNameOf(dateStr);if(!day)return;
       var key=nm.toLowerCase();
       bins[key]||(bins[key]={});
-      var a=bins[key][day]||(bins[key][day]={drop:0,pick:0,est:0,anchor:null});
+      var a=bins[key][day]||(bins[key][day]={drop:0,pick:0,est:0,anchor:null,places:[]});
+      if(place&&a.places.indexOf(place)<0)a.places.push(place);
       if(leg==="drop")a.drop++;else a.pick++;
       a.est+=estMinutesFor(leg,city);
       var tm=parseHHMM(legTime);                                  // real time set on the dashboard, if any
@@ -159,10 +166,10 @@
       if(j.status&&/cancel/i.test(j.status))return;              // skip cancelled jobs
       if(j.service==="Bin Rental"){
         // Bins have two legs on their own dates/people; the job's own date is the order date.
-        addBin(j.dropoff_crew_id,j.bin_dropoff,"drop",j.bin_dropoff_time,j.city);
-        addBin(j.pickup_crew_id,j.bin_pickup,"pick",j.bin_pickup_time,j.city);
+        addBin(j.dropoff_crew_id,j.bin_dropoff,"drop",j.bin_dropoff_time,j.city,placeOf(j));
+        addBin(j.pickup_crew_id,j.bin_pickup,"pick",j.bin_pickup_time,j.city,placeOf(j));
       }else{
-        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,effDate(j),svcLabel(j.service),effTime(j),j.est_duration_min,taskKeyFor(j.service));});
+        (j.assigned_crew_ids||[]).forEach(function(cid){addNonBin(cid,effDate(j),svcLabel(j.service),effTime(j),j.est_duration_min,taskKeyFor(j.service),placeOf(j));});
       }
     });
     // Fold each person/day's bins into a single chip: count + estimated window.
@@ -176,7 +183,7 @@
         var s0=floor30(rs),e0=(a.est>0)?ceil30(rs+a.est):null,time=""; // snap to 30-min blocks
         if(e0!=null)time=fmtMins(s0)+"–"+fmtMins(e0);
         else if(a.anchor!=null)time=fmtMins(s0);
-        ensure(key,day).push({label:"Bins",time:time,count:n,detail:parts.join(" · "),taskKey:"bins",startMin:s0,endMin:e0});
+        ensure(key,day).push({label:"Bins",time:time,count:n,detail:parts.join(" · "),taskKey:"bins",startMin:s0,endMin:e0,places:a.places});
       });
     });
     return occ;
@@ -187,7 +194,7 @@
     if(_loading[weekKey])return;
     _loading[weekKey]=true;
     var s=localDateStr(ws),e=localDateStr(addDays(ws,6));
-    var cols="service,date,time,junk_date,junk_time,fb_date,fb_time,est_duration_min,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,status,city";
+    var cols="service,date,time,junk_date,junk_time,fb_date,fb_time,est_duration_min,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,status,city,address";
     ensureCrew().then(ensureCityTimes).then(function(){
       return db.from("jobs").select(cols)
         .or("and(date.gte."+s+",date.lte."+e+"),and(junk_date.gte."+s+",junk_date.lte."+e+"),and(fb_date.gte."+s+",fb_date.lte."+e+"),and(bin_dropoff.gte."+s+",bin_dropoff.lte."+e+"),and(bin_pickup.gte."+s+",bin_pickup.lte."+e+")");
@@ -347,7 +354,7 @@
 
   // ── SHIFT-MODAL PRE-FILL ──
   // Wrap the scheduler's exposed openShiftModal: after the modal renders, if the junk feed
-  // has uncovered entries for that person+day, show a "From Jeff's Junk" strip and (when
+  // has uncovered entries for that person+day, show a "From Jeff's Junk" strip under the title and (when
   // there's exactly one) pre-select the matching task + fill the time dropdowns — so it
   // reads as already inputted. Committing still goes through the scheduler's own
   // "Add shift" → its data only; the junk side is never written.
@@ -372,6 +379,7 @@
     var dd=(S.schedule[empId]||{})[day]||{};
     if(dd.status==="dayoff"||dd.status==="sick")return;
     var modal=document.querySelector("#moverlay .modal");if(!modal)return;
+    if(!modal.querySelector("#sm_start"))return;     // a non-working day has no shift form to fill in
     // task id → label map straight from the modal's own picker (works with custom task lists)
     var tmap={};
     [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){tmap[(b.id||"").replace(/^topt_/,"")]=(b.textContent||"").trim().toLowerCase();});
@@ -381,29 +389,62 @@
     });
     var visible=entries.filter(function(en){return !coveredBy(labels,en.taskKey);});
     if(!visible.length)return;
+    // earliest first, so the strip reads like the day; ones with no time go last
+    visible=visible.map(function(en,i){return{en:en,i:i};}).sort(function(a,b){
+      var x=a.en.startMin==null?1e9:a.en.startMin,y=b.en.startMin==null?1e9:b.en.startMin;
+      return x-y||a.i-b.i;
+    }).map(function(o){return o.en;});
     _pendingModal={entries:visible};
-    injectStrip(modal,visible);
+    injectStrip(modal,visible,emp);
     if(visible.length===1)applyGhost(0);
   }
-  function injectStrip(modal,entries){
+  // The modal's own picker tile for a junk service (direct id, else label keyword). It is used to
+  // pick the task and to borrow the tile's icon, so a booking looks like the tile it fills in.
+  function taskBtnFor(modal,taskKey){
+    var btn=modal.querySelector("#topt_"+taskKey);
+    if(btn)return btn;
+    var keys=FAMILY[taskKey]||[];
+    [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){
+      if(!btn&&keys.some(function(k){return (b.textContent||"").toLowerCase().indexOf(k)>=0;}))btn=b;
+    });
+    return btn;
+  }
+  function placeText(en){
+    var p=en.places||[];
+    return p.length?p[0]+(p.length>1?" +"+(p.length-1)+" more":""):"";
+  }
+  // The "From Jeff's Junk" strip: first thing under "What's <name> doing <day>?", one card per booking
+  // (icon, what + where, time, "Use this"). Styles: app-jwg-scheduler.css, "From Jeff's Junk strip".
+  function injectStrip(modal,entries,emp){
     var old=modal.querySelector("#jwg-feed-strip");if(old)old.remove();
+    var q=modal.querySelector(".sm-q");
+    if(!q)throw new Error("day editor has no .sm-q title to place the Jeff's Junk strip under");
+    var many=entries.length>1;
+    var first=esc((emp.name||"").split(" ")[0])||"They";
     var strip=document.createElement("div");
     strip.id="jwg-feed-strip";
-    strip.setAttribute("style","background:#eff6ff;border:1.5px solid rgba(96,165,250,.45);border-radius:10px;padding:10px 12px;margin:0 0 14px");
-    var h='<div style="font-size:11px;font-weight:800;color:#1d4ed8;letter-spacing:.4px;margin-bottom:7px">🚚 FROM JEFF\'S JUNK</div>';
+    var h='<div class="jwg-strip-head"><span class="jwg-strip-title">🚚 From Jeff\'s Junk · '+entries.length+(many?" bookings":" booking")+'</span>'
+      +'<span class="jwg-strip-note">'+first+' is booked on '+(many?"these":"this")+'. “Use this” fills in the shift below; nothing is saved until you press Add shift.</span></div>'
+      +'<div class="jwg-strip-list">';
     entries.forEach(function(en,i){
-      h+='<button class="jwg-strip-row" onclick="JWGFeed._apply('+i+')" style="display:flex;width:100%;align-items:center;gap:8px;background:#fff;border:1.5px solid rgba(96,165,250,.5);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-family:inherit;text-align:left">'
-        +'<span style="font-weight:700;font-size:13px;color:#1d4ed8">'+esc(en.label)+(en.count>1?" ×"+en.count:"")+"</span>"
-        +(en.time?'<span style="font-size:12px;font-weight:600;color:#1d4ed8;opacity:.75;margin-left:auto">'+esc(en.time)+"</span>":"")
-        +"</button>";
+      var where=placeText(en);
+      h+='<div class="jwg-strip-row" onclick="JWGFeed._apply('+i+')">'
+        +'<span class="jwg-strip-ico"></span>'
+        +'<span class="jwg-strip-main">'
+          +'<span class="jwg-strip-what"><b>'+esc(en.label)+(en.count>1?" ×"+en.count:"")+'</b>'+(en.detail?"<em>"+esc(en.detail)+"</em>":"")+'</span>'
+          +(where?'<span class="jwg-strip-where" title="'+esc(en.places.join(" · "))+'">📍 '+esc(where)+'</span>':"")
+        +'</span>'
+        +'<span class="jwg-strip-time'+(en.time?"":" none")+'">'+(en.time?esc(en.time):"No time set")+'</span>'
+        +'<button type="button" class="btn btn-ghost btn-sm jwg-strip-use">Use this</button>'
+        +'</div>';
     });
-    h+='<div style="font-size:11px;color:#1d4ed8;opacity:.7;line-height:1.4">Tap one to fill it in below, then hit “Add shift” to keep it. Nothing changes on the junk side.</div>';
+    h+='</div>';
     strip.innerHTML=h;
-    // sit right above the "Add a shift" section
-    var anchor=null;
-    [].forEach.call(modal.querySelectorAll(".sect-label"),function(el){if(!anchor&&/add a shift/i.test(el.textContent||""))anchor=el;});
-    if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(strip,anchor);   // label sits inside a column now
-    else modal.appendChild(strip);
+    [].forEach.call(strip.querySelectorAll(".jwg-strip-ico"),function(slot,i){
+      var btn=taskBtnFor(modal,entries[i].taskKey),icon=btn&&btn.firstElementChild;
+      if(icon)slot.appendChild(icon.cloneNode(true));else slot.remove();
+    });
+    q.insertAdjacentElement("afterend",strip);
   }
   function applyGhost(i){
     var pm=_pendingModal;if(!pm)return;
@@ -418,14 +459,8 @@
     }
     setSel("sm_start",en.startMin);
     setSel("sm_end",en.endMin);
-    // highlight the matching task in the picker (direct id, else label keyword)
-    var btn=modal.querySelector("#topt_"+en.taskKey);
-    if(!btn){
-      var keys=FAMILY[en.taskKey]||[];
-      [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){
-        if(!btn&&keys.some(function(k){return (b.textContent||"").toLowerCase().indexOf(k)>=0;}))btn=b;
-      });
-    }
+    // highlight the matching task in the picker
+    var btn=taskBtnFor(modal,en.taskKey);
     var newId=btn?btn.id.replace(/^topt_/,""):null;
     if(_appliedTaskId&&_appliedTaskId!==newId){
       var prev=modal.querySelector("#topt_"+_appliedTaskId);
@@ -434,7 +469,8 @@
     if(newId&&!btn.classList.contains("sel"))JWG.pickTask(newId);
     _appliedTaskId=newId;
     [].forEach.call(modal.querySelectorAll(".jwg-strip-row"),function(r,idx){
-      r.style.outline=(idx===i)?"2px solid #2563eb":"none";
+      r.classList.toggle("is-on",idx===i);
+      r.querySelector(".jwg-strip-use").textContent=(idx===i)?"✓ Using this":"Use this";
     });
   }
 
