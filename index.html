@@ -2658,6 +2658,9 @@
       <button class="modal-close" onclick="closeM('client-modal')">&#x2715;</button>
     </div>
     <form onsubmit="saveClient(event)" novalidate>
+      <!-- Two plain boxes: side by side on wide screens (style.css #client-modal .cf-cols), stacked as before elsewhere -->
+      <div class="cf-cols">
+      <div class="cf-col">
 
       <!-- ── ① CONTACT ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">1</span> Contact</div>
@@ -2698,6 +2701,8 @@
       </div>
 
       <div class="job-form-divider"></div>
+      </div>
+      <div class="cf-col">
 
       <!-- ── ③ DETAILS ── -->
       <div class="job-form-section-label"><span class="job-form-section-num">3</span> Details</div>
@@ -2756,6 +2761,8 @@
           <input type="checkbox" id="c-blacklisted" style="width:15px;height:15px;accent-color:var(--bad)">
           🚫 Blacklisted — do not contact for promotions
         </label>
+      </div>
+      </div>
       </div>
 
       <div class="form-actions">
