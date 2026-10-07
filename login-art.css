@@ -2,7 +2,8 @@
    LOGIN ART — the sign-in posters
    ═══════════════════════════════════════════════════════════════════
    Started as Barb's nine ChatGPT sheets; on 2026-10-06 Jake kept only
-   the anime one ("beyond the next load") and is making new ones. Each
+   the anime one ("beyond the next load") and on 2026-10-07 added Lanterns &
+   Leaves (his own design package). Each
    sheet is a #login-screen.jjl-<key> section below.
 
    Everything is prefixed .jjl- and scoped under #login-screen: the source
@@ -232,6 +233,40 @@
 .jjl-anime .jjl-portal { color: #baffd5; }
 .jjl-anime .jjl-card h2 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.6rem, 3.3vw, 3.8rem); font-style: normal; font-weight: 500; line-height: 1.05; letter-spacing: .01em; }
 .jjl-anime .jjl-signin { background: linear-gradient(90deg, #0e7e45, #43c978); }
+
+/* ═══ lanterns & leaves (added 2026-10-07) ═══
+   The designer's rule: the picture never moves - no camera drift, parallax, grain or
+   panel entrance - because motion in the scene made someone queasy. Only the drifting
+   leaves, the lantern glow and the gold reflections move, drawn on a canvas by
+   login-art.js (.jjl-glow) laid exactly over the picture. No headline over the art:
+   the sign-in is a floating glass card on the right, clear of the truck. */
+#login-screen.jjl-lanterns { background: #172a22; }
+.jjl-lanterns .jjl-parallax { transform: none; transition: none; }
+.jjl-lanterns .jjl-art { background-image: url("assets/login/jeffs-junk-lanterns.webp"); animation: none; }
+.jjl-lanterns .jjl-grain, .jjl-lanterns .jjl-copy, .jjl-lanterns .jjl-sweep { display: none; }
+.jjl-lanterns .jjl-grade { background: linear-gradient(90deg, rgba(5,18,14,.08) 25%, transparent 57%, rgba(6,23,16,.23) 100%), linear-gradient(0deg, rgba(3,16,12,.55), transparent 24%, transparent 85%, rgba(3,16,12,.3)); }
+.jjl-glow { position: absolute; z-index: 1; pointer-events: none; }
+.jjl-lanterns .jjl-dot { animation: none; }
+.jjl-lanterns .jjl-portal { color: #cfe8c5; }
+.jjl-lanterns .jjl-card h2 { font-family: Georgia, "Times New Roman", serif; font-style: normal; font-weight: 500; font-size: clamp(2.4rem, 2.9vw, 3.4rem); line-height: 1.05; letter-spacing: .005em; }
+.jjl-lanterns .jjl-intro { color: rgba(236,238,224,.8); }
+.jjl-lanterns .jjl-signin { background: linear-gradient(90deg, #4f8a3f, #6aa553); }
+@media (min-width: 761px) {
+  #login-screen.jjl-lanterns { align-items: center; }
+  .jjl-lanterns .jjl-panel {
+    min-height: 0; margin-right: clamp(24px, 4.2vw, 96px);
+    padding: clamp(28px, 2.6vw, 44px) clamp(28px, 2.6vw, 44px) 22px;
+    border: 1px solid rgba(255,255,255,.16); border-radius: 22px;
+    background: linear-gradient(145deg, rgba(48,74,52,.74), rgba(20,44,33,.86));
+    box-shadow: 0 30px 80px rgba(4,18,12,.45);
+    animation: none;
+  }
+  .jjl-lanterns .jjl-card { padding: 22px 0 16px; }
+}
+@media (max-width: 760px) {
+  .jjl-lanterns .jjl-art { background-position: 30% center; }
+  .jjl-lanterns .jjl-card { border-color: rgba(255,255,255,.18); background: rgba(20,44,33,.62); }
+}
 
 /* ── responsive ──────────────────────────────────────────────────── */
 /* Short desktop screens — a 1366x768 laptop is about 660px of viewport, and the
