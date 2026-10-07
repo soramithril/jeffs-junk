@@ -2206,6 +2206,12 @@ function _itemInpAC(inp){
     return '<div class="item-ac-opt'+(i===0?' item-ac-active':'')+'" onmousedown="_itemAcPick(this)" style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);font-family:\'DM Sans\',sans-serif;border-bottom:1px solid var(--border)" onmouseover="this.parentNode.querySelectorAll(\'.item-ac-opt\').forEach(function(o){o.classList.remove(\'item-ac-active\')});this.classList.add(\'item-ac-active\')">'+m.name+'</div>';
   }).join('');
   dd.style.display='block';
+  // Big screens: the list grows to show all 8 suggestions, never past the bottom of the
+  // screen and never shorter than the 180px every other screen keeps.
+  if(innerWidth>=1900){
+    var room=innerHeight-inp.getBoundingClientRect().bottom-16;
+    dd.style.maxHeight=Math.max(180,Math.min(300,room))+'px';
+  }
   // Close dropdown on blur
   inp.onblur=function(){setTimeout(function(){dd.style.display='none';},150);};
 }
