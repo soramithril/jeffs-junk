@@ -60,7 +60,6 @@ var PAGE_TOURS = [
   ]},
   { view:'crew', label:'Crew Schedule', icon:'👷', section:'Operations', summary:'A weekly grid of who is on which job.', steps:[
     { sel:'#crew-page-sub', title:'Page summary', body:'The subtitle under the title shows how many employees you have and that you are viewing a weekly schedule.' },
-    { sel:'#view-crew button[onclick="openCrewManager()"]', title:'Manage Crew Members', body:'Opens the crew manager so you can add new staff or edit existing people. Anyone you add shows up as a row in the schedule below.' },
     { sel:'[data-tour="crew-howto"]', title:'How it works', body:'Each row is an employee and each column a day; coloured chips are jobs pulled from the jobs board, and you click + off to book time off.' },
     { sel:'[data-tour="crew-grid"]', title:'Schedule grid', body:'One row per crew member, one column per day. Each cell shows that person job chips for the day, so you can see who is busy and who is free. Click a chip to open that job.' },
     { sel:'#crew-page-list td div[onclick^="openCrewBookoff"]', title:'+ off (book time off)', body:'Click + off in any day cell to book that person time off — a whole day or a window — tagged with a reason like vacation or an appointment.' }
