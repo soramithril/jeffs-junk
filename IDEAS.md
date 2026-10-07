@@ -42,6 +42,9 @@ and trim it down to what is left.
 
 *Built and live. Newest first.*
 
+- ~~**Schedule glass card, one bin picker, calculator on laptops, help tour, day editor**~~ - **v687, 2026-10-07.** Assign shifts / Clear shifts / Same every week float as a frosted glass card with the final button always in view. The needs-a-bin banner and the unassigned list open the size-filtered bin picker like everywhere else. The Furniture calculator shows slim rows in two columns on laptops too (about 35% shorter). The Crew Schedule help tour drops a step for a button that no longer exists. The Schedule's day editor reads top to bottom with the From Jeff's Junk bookings first (Use this), hours and Add shift under the job tiles, and Day off / Off sick / Non working on their own band; it fits a 1366 laptop.
+  <sub>Jake, 2026-10-07</sub>
+
 - ~~**The rest of Kelly's screens, and a new sign-in**~~ - **v686, 2026-10-07.** The Schedule's Assign shifts, Clear shifts and Same every week pages use her wide screen (the last button is on screen) and match the rest of the app's lettering and buttons on every computer. The Add/Edit Client form goes two columns on wide screens with the staff note growing to fit; the dashboard search and the item suggestions lists use the height. The sign-in keeps only the anime poster plus Jake's new Lanterns & Leaves design (still picture, drifting leaves and glowing lanterns). Frosted glass for the Schedule pages was mocked up and decided against.
   <sub>Jake, 2026-10-06/07</sub>
 
