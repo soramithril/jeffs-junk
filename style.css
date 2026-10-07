@@ -2960,15 +2960,14 @@ body.pal-open{overflow:hidden;}
   .drdc-side__truck{max-width:520px;margin:0 auto;}
   .drdc-searchbar{position:static;}
 }
-/* Wide office monitors (2200px+): item tiles become one slim row each
-   (picture | name + price | - n +), four across, so the list is ~40% shorter.
-   drdcFilter writes display '' / 'none' inline on each tile; '' falls through to
-   this rule and 'none' (search) still wins over it. Below 2200px nothing changes:
-   --drdc-tile is unset, so the grid keeps its 215px minimum. */
-@media (min-width:2200px){
-  #drdc-grid{--drdc-tile:330px;}
-  #drdc-grid .drdc-item{display:flex;}
-}
+/* Furniture calculator: every item is one slim row (picture | name + price | - n +) on every
+   screen. The template builds rows, but drdcFilter writes display '' / 'none' inline on each
+   tile and '' wiped the row layout, so items fell back to tall cards and the list ran ~35%
+   longer. '' now falls through to this rule; 'none' (search) still wins. The 330px minimum
+   tile gives two roomy columns on a laptop (names and prices fit) and four on a big monitor;
+   min() keeps it inside a phone. Big-screen-only in v686; everywhere since Jake, 2026-10-07. */
+#drdc-grid{--drdc-tile:min(330px,100%);}
+#drdc-grid .drdc-item{display:flex;}
 
 /* Truck row inside the Furniture Pickup job form. Reuses .drdc-side__truck and
    .drdc-truck-stage so the crop geometry is defined in exactly one place. */
