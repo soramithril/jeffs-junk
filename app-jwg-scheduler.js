@@ -669,41 +669,41 @@ function renderShiftModal(empId,day,emp,dayData){
 
   const working=status!=="dayoff"&&status!=="sick"&&status!=="nonworking";
 
-  // Build existing shifts list — with edit support
+  // Build existing shifts list — with edit support. One card per shift: job tile, name, hours, edit,
+  // remove. The task's own colours ride in as --sbg / --sdot / --stx (styles: app-jwg-theme.css).
   let shiftListHtml="";
   if(shifts.length>0){
     shifts.forEach((sh,i)=>{
       const taskIds=getShiftTasks(sh);
       const firstT=tm[taskIds[0]];
       const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
+      const cardVars=`--sbg:${firstT?.bg||"#f5f5f5"};--sdot:${firstT?.dot||"#ccc"};--stx:${firstT?.text||"#333"}`;
       if(_editShiftIdx===i){
         // Editing this entry inline
-        shiftListHtml+=`<div style="background:${firstT?.bg||"#f5f5f5"};border:2px solid ${firstT?.dot||"#ccc"};border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        shiftListHtml+=`<div class="sm-shift is-editing" style="${cardVars}">
+          <div class="sm-shift-top">
             ${schChip(firstT,22)}
-            <span style="font-weight:700;font-size:12px;color:${firstT?.text||"#333"}">${esc(allLabels)}</span>
-            <span style="font-size:10px;color:${firstT?.text||"#333"};opacity:.6;margin-left:auto">editing</span>
+            <span class="sm-shift-name">${esc(allLabels)}</span>
+            <span class="sm-shift-tag">editing</span>
           </div>
-          <div class="shift-form" style="margin-bottom:8px;">
-            <div><div class="sf-label">Start</div><select class="sf-select" id="edit_s${i}">${buildTimeOpts(sh.start||defStart)}</select></div>
-            <div><div class="sf-label">End</div><select class="sf-select" id="edit_e${i}">${buildTimeOpts(sh.end||defEnd)}</select></div>
-          </div>
-          <div style="display:flex;gap:6px;justify-content:flex-end;">
-            <button onclick="JWG.cancelEditShift()" style="background:transparent;border:1px solid rgba(0,0,0,0.15);border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;color:var(--fg-muted)">Cancel</button>
-            <button onclick="JWG.saveEditShift('${empId}','${day}',${i})" style="background:var(--accent);color:white;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">Save</button>
+          <div class="sm-edit-row">
+            <div class="shift-form">
+              <div><div class="sf-label">Start</div><select class="sf-select" id="edit_s${i}">${buildTimeOpts(sh.start||defStart)}</select></div>
+              <div><div class="sf-label">End</div><select class="sf-select" id="edit_e${i}">${buildTimeOpts(sh.end||defEnd)}</select></div>
+            </div>
+            <div class="sm-edit-actions">
+              <button type="button" class="sm-ebtn" onclick="JWG.cancelEditShift()">Cancel</button>
+              <button type="button" class="sm-ebtn is-primary" onclick="JWG.saveEditShift('${empId}','${day}',${i})">Save</button>
+            </div>
           </div>
         </div>`;
       } else {
-        shiftListHtml+=`<div style="background:${firstT?.bg||"#f5f5f5"};border:1.5px solid ${firstT?.dot||"#ccc"}40;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:6px;">
-          <div style="display:flex;align-items:center;gap:7px;min-width:0;">
-            ${schChip(firstT,22)}
-            <span style="font-weight:700;font-size:12px;color:${firstT?.text||"#333"}">${esc(allLabels)}</span>
-            <span style="font-size:11px;color:${firstT?.text||"#333"};opacity:.7;white-space:nowrap">${fmtRange(sh.start,sh.end)}</span>
-          </div>
-          <div style="display:flex;gap:4px;flex-shrink:0;">
-            <button onclick="JWG.startEditShift('${empId}','${day}',${i})" style="background:rgba(26,122,60,0.1);color:var(--accent);border:1px solid rgba(26,122,60,0.2);border-radius:5px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer">✎</button>
-            <button onclick="JWG.removeShiftEntry('${empId}','${day}',${i})" style="background:rgba(239,68,68,0.1);color:#dc2626;border:1px solid rgba(239,68,68,0.2);border-radius:5px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer">✕</button>
-          </div>
+        shiftListHtml+=`<div class="sm-shift" style="${cardVars}">
+          ${schChip(firstT,26)}
+          <span class="sm-shift-name">${esc(allLabels)}</span>
+          <span class="sm-shift-time">${fmtRange(sh.start,sh.end)}</span>
+          <button type="button" class="sm-ibtn" title="Change the hours" aria-label="Edit shift" onclick="JWG.startEditShift('${empId}','${day}',${i})">✎</button>
+          <button type="button" class="sm-ibtn is-del" title="Remove this shift" aria-label="Remove shift" onclick="JWG.removeShiftEntry('${empId}','${day}',${i})">✕</button>
         </div>`;
       }
     });
@@ -739,8 +739,22 @@ function renderShiftModal(empId,day,emp,dayData){
       <button class="sm-undo" onclick="JWG.setDayWorking('${empId}','${day}')">Undo</button>
     </div>`;
   } else {
-    h+=`<div class="sm-pickwrap">
-      <div class="sect-label">On a job</div>
+    // Top to bottom, the order people work in: what is already on the day, then pick a job, set
+    // the hours and Add shift (hours and the button sit right under the tiles), then the not-working
+    // choices on their own band at the bottom - they replace the day's shifts, so they stay apart.
+    h+=`<div class="sm-body">
+    <div class="sm-top">
+      <div class="sm-sched">
+        <div class="sect-label">On the schedule</div>
+        ${shifts.length?`<div class="sm-shifts">${shiftListHtml}</div>`:`<div class="sm-emptyday">Nothing yet — pick a job below, set the hours, then Add shift.</div>`}
+      </div>
+      <div class="day-note-wrap">
+        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
+      </div>
+    </div>
+    <div class="sm-pickwrap">
+      <div class="sect-label">On a job <span class="sm-hint">Pick one or more, set the hours, then Add shift.</span></div>
       <div class="task-grid">`;
     tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
       h+=`<button class="task-opt" id="topt_${t.id}"
@@ -751,34 +765,26 @@ function renderShiftModal(empId,day,emp,dayData){
       </button>`;
     });
     h+=`</div>
-      <div class="sm-or"><i></i><span>or not working</span><i></i></div>
+      <div class="sm-when">
+        <div class="shift-form">
+          <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
+          <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
+        </div>
+        <button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">Add shift</button>
+      </div>
+    </div>
+    <div class="sm-off">
+      <div class="sm-off-lbl"><b>Not working instead</b><span>Replaces this day's shifts</span></div>
       <div class="sm-offgrid">
         <button class="sm-off-opt" onclick="JWG.markDayOff('${empId}','${day}')">${schTile("off",20)}Day off</button>
         <button class="sm-off-opt is-sick" onclick="JWG.markDaySick('${empId}','${day}')">${schTile("sick",20)}Off sick</button>
         <button class="sm-off-opt" onclick="JWG.markDayNonWorking('${empId}','${day}')">${schTile("off",20)}Non working</button>
       </div>
     </div>
-    <div class="sm-cols">
-    <div class="sm-col sm-left">
-      <div class="sect-label">On the schedule</div>
-      ${shifts.length?shiftListHtml:`<div class="sm-emptyday">Nothing yet — pick a job above, set the hours, then Add shift.</div>`}
-      <div class="day-note-wrap">
-        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
-      </div>
-    </div>
-    <div class="sm-col sm-right">
-      <div class="sect-label">When</div>
-      <div class="shift-form">
-        <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
-        <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
-      </div>
-    </div>
-  </div>`;
+    </div>`;
   }
   h+=`<div class="modal-footer-main">
     <button class="modal-cancel" onclick="JWG.closeSaveShift('${empId}','${day}')">Close</button>
-    ${working?`<button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">Add shift</button>`:""}
   </div>`;
   openModal(h,null,true);
 }

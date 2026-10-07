@@ -258,33 +258,77 @@
 }
 #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal-add-btn{flex:1}
 
-/* ═══ Shift editor page (2026-07-02) — fits the screen, no page scroll ═══
-   Header: avatar + name + date. NOTHING interactive — the status switch used to
-   live here and that is exactly why "Off sick" went unfound (v682): a control in
-   a title bar reads as a label. It is now step 1 of the body.
-   Body: step 1 (the status switch, full width) -> step 2 -> two columns, left
-   "On the schedule" + notes, right "Add a shift".
-   Columns scroll internally only if they overflow; the footer stays pinned. */
-#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head){padding:26px max(20px,calc((100% - 1060px)/2)) 0 !important}
-#view-jwgscheduler .sm-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:14px;border-bottom:1px solid var(--border)}
-/* The one question, and the single grid that answers it. flex:0 0 auto keeps
-   their height so .sm-cols absorbs the rest and the modal still fits the screen. */
-#view-jwgscheduler .sm-q{flex:0 0 auto;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--fg);margin-bottom:14px}
-#view-jwgscheduler .sm-pickwrap{flex:0 0 auto;margin-bottom:16px}
-#view-jwgscheduler .sm-or{display:flex;align-items:center;gap:11px;margin:16px 0 11px}
-#view-jwgscheduler .sm-or span{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--fg-subtle);flex-shrink:0}
-#view-jwgscheduler .sm-or i{flex:1;height:1px;background:var(--border)}
-#view-jwgscheduler .sm-offgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+/* ═══ Day editor page (redesigned 2026-10-07) ═══════════════════════════
+   One page, read top to bottom in the order people work: who + which day, the Jeff's Junk strip
+   (app-jwg-feed.js puts it right under .sm-q), what is already on the day with Notes beside it, then
+   ONE panel for adding: pick a job, set the hours, Add shift. "Not working instead" is its own band
+   below - it replaces the day's shifts, so it stays apart from the panel - and Close sits in the
+   footer. Header and footer stay put; only .sm-body scrolls, and only if a long day outgrows the
+   screen. Under 760px the page scrolls as a whole and the order becomes schedule, job, not
+   working, notes. The styling of Notes' label + the .btn look of the buttons are the theme's. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head){padding:22px max(20px,calc((100% - 1060px)/2)) 0 !important}
+#view-jwgscheduler .sm-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--border)}
+#view-jwgscheduler .sm-id{display:flex;align-items:center;gap:12px;min-width:0}
+#view-jwgscheduler .sm-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none}
+#view-jwgscheduler .sm-name{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--fg)}
+#view-jwgscheduler .sm-daylbl{font-size:13px;color:var(--fg-muted);font-weight:600;margin-top:2px}
+#view-jwgscheduler .sm-q{flex:0 0 auto;font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--fg);margin-bottom:8px}
+#view-jwgscheduler .sm-body{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin:0 -3px;padding:3px 3px 8px}
+#view-jwgscheduler .sm-top{flex:0 0 auto;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:0 24px;align-items:start}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .sect-label{margin:0 0 6px;font-size:20px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .day-note-wrap .sect-label{font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:400;letter-spacing:2px;text-transform:none;color:var(--text)}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .day-note{min-height:0;height:56px;padding:8px 12px;font-size:15px !important;resize:vertical}
+#view-jwgscheduler .sm-hint{font-weight:400;color:var(--muted);letter-spacing:0;text-transform:none}
+/* What is already on the day: one card per shift, two across on a laptop. */
+#view-jwgscheduler .sm-shifts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+#view-jwgscheduler .sm-shift{display:flex;align-items:center;gap:10px;min-width:0;padding:8px 8px 8px 10px;border-radius:10px;background:var(--sbg);border:1.5px solid color-mix(in srgb,var(--sdot) 40%,transparent)}
+#view-jwgscheduler .sm-shift-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:700;color:var(--stx)}
+#view-jwgscheduler .sm-shift-time{flex:none;font-size:13px;font-weight:600;color:var(--stx);opacity:.8;font-variant-numeric:tabular-nums;white-space:nowrap}
+#view-jwgscheduler .sm-ibtn{flex:none;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:#fff;border:1px solid var(--n6);color:var(--text);font-size:14px;line-height:1;cursor:pointer}
+#view-jwgscheduler .sm-shift-time+.sm-ibtn{margin-left:auto}
+#view-jwgscheduler .sm-ibtn:hover{background:var(--n3);border-color:var(--n7)}
+#view-jwgscheduler .sm-ibtn.is-del{background:#fff;border-color:rgba(220,38,38,.35);color:var(--bad-ink)}
+#view-jwgscheduler .sm-ibtn.is-del:hover{background:var(--bad-soft);border-color:var(--bad)}
+#view-jwgscheduler .sm-shift.is-editing{grid-column:1/-1;flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px;border:2px solid var(--sdot)}
+#view-jwgscheduler .sm-shift-top{display:flex;align-items:center;gap:8px}
+#view-jwgscheduler .sm-shift-tag{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--stx);opacity:.65}
+#view-jwgscheduler .sm-edit-row{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+#view-jwgscheduler .sm-edit-actions{display:flex;gap:8px;margin-left:auto}
+#view-jwgscheduler .sm-ebtn{min-height:38px;padding:0 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;background:#fff;color:var(--text);border:1px solid var(--n6)}
+#view-jwgscheduler .sm-ebtn:hover{background:var(--n3);border-color:var(--n7)}
+#view-jwgscheduler .sm-ebtn.is-primary{background:var(--accent-hero);border-color:transparent;color:#052e16;box-shadow:inset 0 1px 0 rgba(255,255,255,.38),0 1px 2px rgba(20,83,45,.22)}
+#view-jwgscheduler .sm-ebtn.is-primary:hover{background:#1fb757}
+#view-jwgscheduler .sm-emptyday{background:var(--bg-deep);border:1.5px dashed var(--border);border-radius:10px;padding:14px 16px;color:var(--fg-muted);font-size:13.5px}
+/* The add panel: job tiles, then hours + Add shift directly under them. */
+#view-jwgscheduler .sm-pickwrap{flex:0 0 auto;background:var(--n2);border:1px solid var(--n5);border-radius:14px;padding:10px 14px 12px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;margin-bottom:0}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-opt{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:38px;padding:5px 8px;font-size:13px;line-height:1.1;border:2px solid transparent;border-radius:10px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-opt:hover{filter:brightness(.96)}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-opt.sel{box-shadow:0 2px 6px rgba(20,33,30,.20)}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-opt.sel::after{content:"✓";flex:none;font-size:14px;font-weight:800}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .sf-select{width:150px;padding:7px 34px 7px 12px;font-size:16px !important}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .sf-label{font-size:12px;margin-bottom:4px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .shift-form{display:flex;gap:12px}
+#view-jwgscheduler .sm-when{display:flex;align-items:flex-end;gap:16px;margin-top:10px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-when .modal-add-btn{flex:none;min-height:38px;padding:0 28px;font-size:15px}
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) :is(button,select,textarea):focus-visible{outline:2px solid var(--green-s2);outline-offset:2px}
+/* Not working: its own band, a step apart from the add panel. */
+#view-jwgscheduler .sm-off{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:8px 12px 8px 16px;background:var(--bg-deep);border:1px solid var(--border);border-radius:12px}
+#view-jwgscheduler .sm-off-lbl{display:flex;flex-direction:column;gap:1px;min-width:0}
+#view-jwgscheduler .sm-off-lbl b{font-size:13px;font-weight:700;color:var(--fg)}
+#view-jwgscheduler .sm-off-lbl span{font-size:12px;color:var(--fg-muted)}
+#view-jwgscheduler .sm-offgrid{margin-left:auto;display:flex;gap:9px}
 #view-jwgscheduler .sm-off-opt{
-  display:flex;align-items:center;gap:8px;justify-content:center;
-  background:var(--bg-elevated);border:1.5px solid var(--border);border-radius:9px;
-  padding:11px 10px;font-size:12.5px;font-weight:700;color:var(--fg-muted);cursor:pointer;
-  transition:border-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);
+  display:flex;align-items:center;gap:8px;justify-content:center;min-height:38px;
+  background:#fff;border:1px solid var(--border);border-radius:8px;
+  padding:0 18px;font-size:14px;font-weight:600;color:var(--fg);cursor:pointer;
+  transition:border-color var(--dur-fast) var(--ease-out),background var(--dur-fast) var(--ease-out);
 }
-#view-jwgscheduler .sm-off-opt:hover{border-color:var(--border-h);color:var(--fg)}
+#view-jwgscheduler .sm-off-opt:hover{border-color:var(--border-h);background:var(--n3)}
 #view-jwgscheduler .sm-off-opt.is-sick{color:#c2410c;border-color:rgba(249,115,22,.32);background:#fff7ed}
 #view-jwgscheduler .sm-off-opt.is-sick:hover{border-color:#ea580c}
-@media (max-width:620px){#view-jwgscheduler .sm-offgrid{grid-template-columns:1fr}}
+/* Footer: just Close - Add shift now lives in the panel with the fields it uses. */
+#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .modal-footer-main{justify-content:flex-end;padding:8px 0 max(12px,env(safe-area-inset-bottom))}
 /* Picked "not working": one sentence and a way back. */
 #view-jwgscheduler .sm-undo{
   margin-left:auto;border:none;border-radius:7px;padding:8px 14px;
@@ -293,27 +337,59 @@
 #view-jwgscheduler .sm-undo:hover{background:rgba(0,0,0,.12)}
 #view-jwgscheduler .sm-off-sick{background:#fff7ed;color:#9a3412;border:1.5px solid rgba(249,115,22,.28)}
 #view-jwgscheduler .sm-off-dayoff,#view-jwgscheduler .sm-off-nonworking{background:var(--bg-deep);color:var(--fg-muted);border:1.5px solid var(--border)}
-#view-jwgscheduler .sm-id{display:flex;align-items:center;gap:14px;min-width:0}
-#view-jwgscheduler .sm-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex:none}
-#view-jwgscheduler .sm-name{font-size:25px;font-weight:800;letter-spacing:-.02em;line-height:1.05;color:var(--fg)}
-#view-jwgscheduler .sm-daylbl{font-size:13.5px;color:var(--fg-muted);font-weight:600;margin-top:3px}
-#view-jwgscheduler .sm-offnote{flex:0 0 auto;display:flex;align-items:center;gap:12px;border-radius:12px;padding:20px 18px;font-size:15px;font-weight:600}
-#view-jwgscheduler .sm-cols{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1.15fr;gap:0 28px}
-#view-jwgscheduler .sm-col{min-height:0;overflow-y:auto;padding:2px 2px 12px}
-#view-jwgscheduler .sm-left{border-right:1px solid var(--border);padding-right:26px}
-#view-jwgscheduler .sm-emptyday{background:var(--bg-deep);border:1.5px dashed var(--border);border-radius:12px;padding:22px 16px;text-align:center;color:var(--fg-muted);font-size:13.5px;margin-bottom:14px}
-/* A 768px-tall laptop has no height to spare here: the section labels sit tight to what
-   they label, and Notes is a field label like Start/End (the booking form's label). */
-#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .sect-label{margin:0 0 8px}
-#view-jwgscheduler .moverlay:not(#jwg-confirm) .day-note-wrap .sect-label{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
-#view-jwgscheduler .sm-cols .shift-form{margin-bottom:16px}
-#view-jwgscheduler .sm-cols .day-note-wrap{margin-top:14px}
-#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .task-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+#view-jwgscheduler .sm-offnote{flex:0 0 auto;display:flex;align-items:center;gap:12px;border-radius:12px;padding:18px 18px;font-size:15px;font-weight:600}
+@media (min-width:1700px){
+  /* 2560px: the same page, one step bigger and in a wider column, so it does not look lost on the screen. */
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head){padding:34px max(20px,calc((100% - 1320px)/2)) 0 !important}
+  #view-jwgscheduler .sm-head{padding-bottom:16px;margin-bottom:16px}
+  #view-jwgscheduler .sm-id{gap:16px}
+  #view-jwgscheduler .sm-avatar{width:56px;height:56px;font-size:18px}
+  #view-jwgscheduler .sm-name{font-size:28px}
+  #view-jwgscheduler .sm-daylbl{font-size:15px}
+  #view-jwgscheduler .sm-q{font-size:18px;margin-bottom:14px}
+  #view-jwgscheduler .sm-body{gap:20px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .sect-label,#view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .day-note-wrap .sect-label{font-size:24px;margin-bottom:8px}
+  #view-jwgscheduler .sm-top{gap:0 32px}
+  #view-jwgscheduler .sm-shifts{grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+  #view-jwgscheduler .sm-shift{padding:11px 11px 11px 14px;gap:12px}
+  #view-jwgscheduler .sm-shift-name{font-size:16px}
+  #view-jwgscheduler .sm-shift-time{font-size:15px}
+  #view-jwgscheduler .sm-ibtn{width:36px;height:36px;font-size:16px}
+  #view-jwgscheduler .sm-emptyday{padding:20px 18px;font-size:15px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .day-note{height:84px;font-size:16px !important}
+  #view-jwgscheduler .sm-pickwrap{padding:16px 20px 20px;border-radius:16px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-opt{min-height:52px;padding:8px 12px;font-size:15px;gap:9px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .sf-select{width:190px;padding:10px 36px 10px 14px;font-size:17px !important}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .sf-label{font-size:13px}
+  #view-jwgscheduler .sm-when{margin-top:16px;gap:20px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-when .modal-add-btn{min-height:46px;padding:0 38px;font-size:16px}
+  #view-jwgscheduler .sm-off{padding:14px 16px 14px 22px;border-radius:14px}
+  #view-jwgscheduler .sm-off-lbl b{font-size:15px}
+  #view-jwgscheduler .sm-off-lbl span{font-size:13px}
+  #view-jwgscheduler .sm-off-opt{min-height:46px;padding:0 24px;font-size:15px}
+  #view-jwgscheduler .sm-offnote{padding:24px 22px;font-size:17px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head) .modal-footer-main{padding:14px 0 24px}
+}
 @media (max-width:760px){
-  #view-jwgscheduler .sm-cols{grid-template-columns:1fr;overflow-y:auto;display:flex;flex-direction:column}
-  #view-jwgscheduler .sm-col{overflow:visible;min-height:auto}
-  #view-jwgscheduler .sm-left{border-right:none;padding-right:2px;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:16px}
-  #view-jwgscheduler .sm-name{font-size:21px}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .modal:has(.sm-head){padding-top:18px !important}
+  #view-jwgscheduler .sm-name{font-size:20px}
+  #view-jwgscheduler .sm-body{flex:0 0 auto;overflow:visible;padding-bottom:6px}
+  #view-jwgscheduler .sm-top{display:contents}
+  #view-jwgscheduler .sm-sched{order:1}
+  #view-jwgscheduler .sm-pickwrap{order:2}
+  #view-jwgscheduler .sm-off{order:3;flex-direction:column;align-items:stretch;gap:10px}
+  #view-jwgscheduler .day-note-wrap{order:4}
+  #view-jwgscheduler .sm-shifts{grid-template-columns:1fr}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .task-grid{grid-template-columns:1fr 1fr}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-pickwrap .sect-label{flex-wrap:wrap;gap:0 10px}
+  #view-jwgscheduler .sm-hint{flex:1 1 100%}
+  #view-jwgscheduler .sm-when{flex-wrap:wrap}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .shift-form{flex:1 1 100%}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .shift-form>div{flex:1 1 0;min-width:0}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-body .sf-select{width:100%}
+  #view-jwgscheduler .moverlay:not(#jwg-confirm) .sm-when .modal-add-btn{flex:1 1 100%}
+  #view-jwgscheduler .sm-offgrid{margin-left:0;flex-direction:column}
 }
 
 /* ═══ Big screens (1700px and up; laptops are 1366 and 1536 wide) ═══
