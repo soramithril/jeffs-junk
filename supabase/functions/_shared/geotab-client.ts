@@ -44,7 +44,20 @@ interface AuthResult {
 let _credentials: GeotabCredentials | null = null;
 let _serverUrl: string = GEOTAB_AUTH_URL;
 
+/**
+ * Sign in to Geotab — once per warm instance, not once per request. Geotab admits
+ * only about 10 Authenticate calls a minute, and geotab-proxy (polled by the Live
+ * Jobs map and the office TV, ~1,200 requests a day) signed in on every request, so
+ * together with geofence-sync it kept the account over quota ("API calls quota
+ * exceeded. Maximum admitted 10 per 1m", 2026-10-08). A kept session is reused;
+ * call() signs in again only when Geotab says the session has expired.
+ */
 export async function authenticate(): Promise<void> {
+  if (_credentials) return;
+  await signIn();
+}
+
+async function signIn(): Promise<void> {
   const database = Deno.env.get("GEOTAB_DATABASE");
   const userName = Deno.env.get("GEOTAB_USERNAME");
   const password = Deno.env.get("GEOTAB_PASSWORD");
@@ -97,8 +110,20 @@ async function rpc(url: string, method: string, params: Record<string, unknown>)
   return json.result;
 }
 
+/** Geotab's answer when a kept session has expired or been invalidated. */
+function isExpiredSession(err: unknown): boolean {
+  return /InvalidUserException|DbUnavailableException/.test((err as Error).message || "");
+}
+
 export async function call(method: string, params: Record<string, unknown>): Promise<unknown> {
-  return rpc(_serverUrl, method, { ...params, credentials: getCredentials() });
+  try {
+    return await rpc(_serverUrl, method, { ...params, credentials: getCredentials() });
+  } catch (err) {
+    if (!isExpiredSession(err)) throw err;
+    _credentials = null;
+    await signIn();
+    return rpc(_serverUrl, method, { ...params, credentials: getCredentials() });
+  }
 }
 
 // --- Group management ---

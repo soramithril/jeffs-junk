@@ -66,9 +66,9 @@ interface GeofenceRow {
 
 // --- Helpers ---
 
-/** Geotab sign-in and the Bin Rentals group id — fetched on first use, once per
- *  request (reset at the top of each request so a warm instance never reuses an
- *  expired Geotab session). Costs two API calls, so it waits until needed. */
+/** Geotab sign-in and the Bin Rentals group id — fetched on first use and kept for
+ *  the life of the instance (the group never changes; an expired Geotab session is
+ *  renewed inside call()). Costs two API calls, so it waits until needed. */
 let _groupId: string | null = null;
 async function geotabGroup(): Promise<string> {
   if (!_groupId) {
@@ -358,7 +358,6 @@ Deno.serve(async (req) => {
       throw new Error("Missing 'action' in request body");
     }
 
-    _groupId = null;  // fresh Geotab session per request, taken only if needed
 
     let message: string;
 
