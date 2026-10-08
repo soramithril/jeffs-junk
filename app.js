@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '688';
+var APP_VERSION = '689';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -10902,7 +10902,7 @@ function _jjBriefCard(it){
       + '<div style="font-size:15px;color:var(--text);line-height:1.45;margin-bottom:4px">'
         + escHtml(j.name||'') + (uwhere ? ' — ' + escHtml(uwhere) : '') + '</div>'
       + '<div style="font-size:13px;color:#c2410c;font-weight:700;margin-bottom:14px">'
-        + 'Job ' + escHtml(j.job_id) + ' was down for drop-off '
+        + 'Down for drop-off '
         + (j.bin_dropoff ? fd(j.bin_dropoff) : 'earlier')
         + ', but nobody has marked it dropped — so the bin still shows as in the yard.</div>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
@@ -10911,7 +10911,7 @@ function _jjBriefCard(it){
       + '</div></div>';
   }
   if(it.kind === 'bin'){
-    var sub = [j.id, j.binSize, (j.address||'').split(',')[0], j.city].filter(Boolean).join(' · ');
+    var sub = [j.binSize, (j.address||'').split(',')[0], j.city].filter(Boolean).join(' · ');
     return '<div style="border:1px solid var(--border-strong);background:var(--surface);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)">'
       + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--warn);margin-bottom:8px">Needs a bin number</div>'
       + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.id)+'</div>'
@@ -10934,7 +10934,7 @@ function _jjBriefCard(it){
     + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d6efd;margin-bottom:8px">No confirmation sent</div>'
     + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.job_id)+'</div>'
     + '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">Booked yesterday'+(t?' at '+t:'')+' and never got a confirmation email.</div>'
-    + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+escHtml([j.job_id, j.service].filter(Boolean).join(' · '))+'</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+escHtml(j.service||'')+'</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
       + '<button class="btn btn-primary" onclick="jjBriefSendEmail(\''+j.job_id+'\')">Send the confirmation</button>'
       + (cl ? '<button class="btn btn-ghost" onclick="jjBriefNoConfirm(\''+cl.cid+'\')">'+escHtml(first)+' never needs one</button>' : '')
