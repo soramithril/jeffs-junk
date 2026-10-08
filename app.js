@@ -5276,11 +5276,14 @@ function binBackInYard(bid, exceptId){
 // The calendar decides one thing only: whether that day has come. A bin put on a job
 // for next Tuesday waits for Tuesday, and someone marks it dropped then.
 // This replaces the old page-load auto-drop — see the note in loadAllFromSupabase().
-function binAssignIsDrop(j, bin){
+// handingOffFrom: the job this bin is moving from in the same save (Edit Job marks it
+// picked up only after the save), so it does not count as "sitting at another job".
+function binAssignIsDrop(j, bin, handingOffFrom){
   if(!j || !bin || j.service!=='Bin Rental') return false;
   if(j.binInstatus) return false;                       // a person already said dropped or picked up
   if(j.status==='Cancelled') return false;              // a cancelled job never gets a bin stamped on it again
-  if(binDroppedElsewhere(bin.bid, j.id)) return false;  // that bin is recorded as sitting at another job
+  var elsewhere = binDroppedElsewhere(bin.bid, j.id);
+  if(elsewhere && elsewhere!==handingOffFrom) return false;  // that bin is recorded as sitting at another job
   var drop = j.binDropoff || j.date;
   return !!drop && drop <= todayStr();
 }
@@ -5291,11 +5294,15 @@ function binAssignIsDrop(j, bin){
 // and 20-13 sat "not dropped" at Ellis for three days because Rachel used a picker.
 // A LATER job still holding the bin is its next life after a rental being backfilled;
 // that one is left alone, and so is a booking whose drop day has not come yet.
-function binHandoffFromEarlierJob(bid, drop, exceptId){
+function binHeldByEarlierJob(bid, drop, exceptId){
   if(!bid || !drop || drop > todayStr()) return null;
   var held = binDroppedElsewhere(bid, exceptId);
   if(!held || (held.binDropoff || held.date || '') > drop) return null;
-  _pickupBinFromJob(held.id);
+  return held;
+}
+function binHandoffFromEarlierJob(bid, drop, exceptId){
+  var held = binHeldByEarlierJob(bid, drop, exceptId);
+  if(held) _pickupBinFromJob(held.id);
   return held;
 }
 // Mark a job's bin picked up because the bin is being reassigned elsewhere.
@@ -11351,6 +11358,7 @@ function newJob(){
   document.getElementById('f-bsize').value='';
   var tsEl=document.getElementById('f-trucksize');if(tsEl)tsEl.value='';
   binPickerSzFilter='all';
+  _binPickPickupFrom=null;
   var bps=document.getElementById('bin-picker-selected');if(bps){bps.style.display='none';bps.innerHTML='';delete bps.dataset.bid;}
   var bpc=document.getElementById('bin-picker-collapse');if(bpc)bpc.style.display='none';
   var bpa=document.getElementById('bin-picker-arrow');if(bpa)bpa.style.transform='rotate(0deg)';
@@ -11459,6 +11467,8 @@ function renderBinPicker(selectedBid){
   }).join('');
 }
 
+// The job the picker was told this bin is moving from: {bid, jobId}, or null. Read by saveJob.
+var _binPickPickupFrom = null;
 function selectBinFromPicker(bid){
   var b = binItems.find(function(x){return x.bid===bid;});
   if(!b) return;
@@ -11470,14 +11480,13 @@ function selectBinFromPicker(bid){
     var _pw=_binPickerWindow();
     var other=_pw.drop ? binClashForWindow(bid, _pw.drop, _pw.pick, editId||null)
                        : binDroppedElsewhere(bid, editId);
+    // Only remembered here — saveJob marks that job picked up once this one has saved.
+    // It used to happen on the click, so picking a bin and then cancelling the form
+    // left the other customer's job marked picked up for nothing. The no-question
+    // handoff from an earlier job is worked out by saveJob the same way.
     if(other){
       if(!confirm('Bin '+b.num+' is still marked dropped at job '+other.id+' ('+other.name+').\n\nMark it picked up there and use it here? (The bin is moving to this job.)')) return;
-      _pickupBinFromJob(other.id);
-    } else if(_pw.drop){
-      // No clash by the window, but the bin may still be marked dropped at the job it
-      // is coming from. Same handoff the pickers do, one rule, no question; the save
-      // then counts the pick as the drop (binAssignIsDrop).
-      binHandoffFromEarlierJob(bid, _pw.drop, editId||null);
+      _binPickPickupFrom = {bid:bid, jobId:other.id};
     }
   }
   document.getElementById('f-bsize').value = b.size;
@@ -11663,6 +11672,7 @@ function applyBinPresetDuration(){
 }
 
 function initBinPicker(existingBid, existingSize){
+  _binPickPickupFrom = null;
   // Set size filter if we have a size
   if(existingSize){
     binPickerSzFilter = existingSize;
@@ -12277,15 +12287,26 @@ async function saveJob(e){
     // (see binAssignIsDrop). Only when the bin is NEW to this job: someone who set the
     // status back to "not dropped yet" by hand must not have it flipped back on the
     // next save — that loop is exactly what the old page-load auto-drop did.
+    // The bin's earlier job when this pick moves it here: the one confirmed in the picker,
+    // or one still marked dropped from before this drop-off. Decided now; marked picked up
+    // only once this job has saved (after the DB write below).
+    var handoffJob = null;
     if(pickedBin){
       var _prevBid = editId ? ((jobs.find(function(x){return x.id===editId;})||{}).binBid||'') : '';
-      if(_prevBid !== pickedBid && binAssignIsDrop(job, pickedBin)) job.binInstatus = 'dropped';
+      if(_prevBid !== pickedBid){
+        if(_binPickPickupFrom && _binPickPickupFrom.bid===pickedBid){
+          handoffJob = jobs.find(function(x){return x.id===_binPickPickupFrom.jobId;}) || null;
+        } else if(!job.binInstatus && job.status!=='Cancelled'){
+          handoffJob = binHeldByEarlierJob(pickedBid, job.binDropoff||job.date, editId||null);
+        }
+        if(binAssignIsDrop(job, pickedBin, handoffJob)) job.binInstatus = 'dropped';
+      }
     }
     // Guard against double-dropping: if this bin is still dropped on another live
     // job, warn before marking it out here.
     if(job.binInstatus === 'dropped' && pickedBid){
       var _otherDrop = binDroppedElsewhere(pickedBid, editId);
-      if(_otherDrop){
+      if(_otherDrop && _otherDrop!==handoffJob){
         var _bnS=(binItems.find(function(b){return b.bid===pickedBid;})||{num:pickedBid}).num;
         if(!confirm('⚠ Bin '+_bnS+' is still marked dropped at job '+_otherDrop.id+' ('+_otherDrop.name+').\n\nPick it up there first to avoid double-booking. Save and drop here anyway?')){ _setSaveJobLock(false); return; }
       }
@@ -12467,6 +12488,7 @@ async function saveJob(e){
       _setSaveJobLock(false); return;
     }
     // DB write confirmed \u2014 only now touch what the user sees.
+    if(handoffJob) _pickupBinFromJob(handoffJob.id);
     binWrites.forEach(function(w){ if(w[1].status==='in') binBackInYard(w[0], job.id); else patchBin(w[0], w[1]); });
     if(wasEdit){
       var idx = jobs.findIndex(function(j){return j.id===editId;});
