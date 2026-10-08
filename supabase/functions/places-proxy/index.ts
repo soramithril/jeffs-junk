@@ -26,6 +26,12 @@ const LAT = 44.3894;
 const LON = -79.6903;
 const RADIUS_M = 50000;   // the API's maximum
 
+// The project's elevated key, held as the SB_SECRET_KEY secret. It replaced the
+// auto-injected SUPABASE_SERVICE_ROLE_KEY on 2026-09-06: that one is signed by the
+// same JWT secret as the key sitting in this repo's public git history, so it dies
+// when the legacy keys are switched off.
+const SECRET_KEY = Deno.env.get('SB_SECRET_KEY') || '';
+
 // Every call that reaches Google gets counted, so the dashboard's Usage page can show
 // the month against Google's 10,000 free calls without anyone opening the Cloud console.
 // This function is the only thing that talks to Google, so counting here counts
@@ -34,10 +40,9 @@ const RADIUS_M = 50000;   // the API's maximum
 // A counter that fails must not cost anyone their address suggestions, so a failure is
 // logged for the function log and the lookup carries on.
 async function countCall(api: string) {
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const resp = await fetch(Deno.env.get('SUPABASE_URL') + '/rest/v1/rpc/bump_google_api', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: key, Authorization: 'Bearer ' + key },
+    headers: { 'Content-Type': 'application/json', apikey: SECRET_KEY, Authorization: 'Bearer ' + SECRET_KEY },
     body: JSON.stringify({ p_api: api }),
   });
   if (!resp.ok) console.error('bump_google_api failed', resp.status, await resp.text());
@@ -50,12 +55,12 @@ serve(async (req: Request) => {
     new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
   try {
-    // Employees only. The platform's verify_jwt gate also passes the anon key, which
-    // every visitor to the site has, so confirm a real signed-in user — same check
-    // ai-advisor makes. Without this, anyone could drain the daily cap.
+    // Employees only. The platform's verify_jwt gate also passes the publishable key,
+    // which every visitor to the site has, so confirm a real signed-in user — same
+    // check ai-advisor makes. Without this, anyone could drain the daily cap.
     const auth = req.headers.get('authorization') || '';
     const userResp = await fetch(Deno.env.get('SUPABASE_URL') + '/auth/v1/user', {
-      headers: { Authorization: auth, apikey: Deno.env.get('SUPABASE_ANON_KEY') || '' },
+      headers: { Authorization: auth, apikey: SECRET_KEY },
     });
     if (!userResp.ok) return json({ error: 'not_signed_in' }, 401);
 

@@ -9,6 +9,19 @@
  *
  *   { action: "morning-sync" }
  *     -> Called by 6am cron. Creates today's zones, deletes stale ones.
+ *
+ * 2026-09-06: reads the project's elevated key from the SB_SECRET_KEY secret
+ * instead of the auto-injected SUPABASE_SERVICE_ROLE_KEY. That injected variable
+ * carries the LEGACY key, which shares a JWT secret with the one in this repo's
+ * public git history, so it stops working once the legacy keys are switched off.
+ *
+ * 2026-10-08: Geotab allows 10 API calls a minute. Every job update fires
+ * job-change, and each one signed in, looked up the group, then deleted and
+ * recreated the job's zone — so a run of Confirm clicks or bin assignments blew
+ * the quota, leaving jobs with their zone deleted and never recreated (and the
+ * live truck map, on the same Geotab account, failing with it). Geotab is now
+ * only touched when there is zone work to do, and an unchanged address leaves
+ * the zone alone.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -26,7 +39,7 @@ import { pickDuplicates, pickExpired } from "../_shared/sweep-logic.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  Deno.env.get("SB_SECRET_KEY")!,
 );
 
 // --- Types ---
@@ -53,6 +66,18 @@ interface GeofenceRow {
 
 // --- Helpers ---
 
+/** Geotab sign-in and the Bin Rentals group id — fetched on first use, once per
+ *  request (reset at the top of each request so a warm instance never reuses an
+ *  expired Geotab session). Costs two API calls, so it waits until needed. */
+let _groupId: string | null = null;
+async function geotabGroup(): Promise<string> {
+  if (!_groupId) {
+    await authenticate();
+    _groupId = await getOrCreateBinRentalsGroup();
+  }
+  return _groupId;
+}
+
 /** Get today's date in Eastern Time (Ontario) as YYYY-MM-DD. */
 function todayISO(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -78,8 +103,13 @@ function isTerminalStatus(status: string): boolean {
  * Create a geofence for a single job. Geocodes the address, creates
  * the Geotab zone, and records the mapping in Supabase.
  */
-async function createGeofenceForJob(job: Job, groupId: string): Promise<void> {
-  const fullAddress = job.city ? `${job.address}, ${job.city}, ON` : `${job.address}, ON`;
+function zoneAddress(job: Job): string {
+  return job.city ? `${job.address}, ${job.city}, ON` : `${job.address}, ON`;
+}
+
+async function createGeofenceForJob(job: Job): Promise<void> {
+  const groupId = await geotabGroup();
+  const fullAddress = zoneAddress(job);
 
   const { lat, lng } = await geocodeAddress(fullAddress);
 
@@ -116,13 +146,14 @@ async function deleteGeofenceForJob(jobId: string): Promise<void> {
     .from("geofences")
     .select("zone_id, zone_name")
     .eq("job_id", jobId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     console.log(`No geofence found for job ${jobId}, skipping delete`);
     return;
   }
 
+  await geotabGroup();
   await deleteZone(data.zone_id);
 
   const { error: delError } = await supabase.from("geofences").delete().eq("job_id", jobId);
@@ -136,11 +167,7 @@ async function deleteGeofenceForJob(jobId: string): Promise<void> {
 /**
  * Handle a job table change event (INSERT, UPDATE, DELETE).
  */
-async function handleJobChange(
-  event: string,
-  job: Job,
-  groupId: string,
-): Promise<string> {
+async function handleJobChange(event: string, job: Job): Promise<string> {
   if (event === "DELETE") {
     await deleteGeofenceForJob(job.job_id);
     return `Deleted geofence for job ${job.job_id}`;
@@ -155,18 +182,24 @@ async function handleJobChange(
   // If the job is active today and has an address, ensure it has a geofence
   if (isActiveToday(job) && job.address) {
     // Check if geofence already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: existingErr } = await supabase
       .from("geofences")
-      .select("zone_id")
+      .select("zone_id, address")
       .eq("job_id", job.job_id)
-      .single();
+      .maybeSingle();
+    if (existingErr) throw new Error(`geofences lookup failed: ${existingErr.message}`);
 
     if (existing) {
-      // Address may have changed — delete old and recreate
+      // Every update to a job fires this — a Confirm click, a driver change, a bin number —
+      // and the zone used to be deleted and recreated in Geotab on each one. Only the
+      // address decides where the zone goes, so an unchanged address leaves it alone.
+      if (existing.address === zoneAddress(job)) {
+        return `Geofence for job ${job.job_id} unchanged`;
+      }
       await deleteGeofenceForJob(job.job_id);
     }
 
-    await createGeofenceForJob(job, groupId);
+    await createGeofenceForJob(job);
     return `Created/updated geofence for job ${job.job_id}`;
   }
 
@@ -177,7 +210,8 @@ async function handleJobChange(
  * Morning sync: create geofences for all of today's active jobs,
  * and clean up any stale zones from previous days.
  */
-async function handleMorningSync(groupId: string): Promise<string> {
+async function handleMorningSync(): Promise<string> {
+  const groupId = await geotabGroup();
   const today = todayISO();
   const results: string[] = [];
 
@@ -204,7 +238,7 @@ async function handleMorningSync(groupId: string): Promise<string> {
 
     if (!existingByJobId.has(job.job_id)) {
       try {
-        await createGeofenceForJob(job as Job, groupId);
+        await createGeofenceForJob(job as Job);
         results.push(`Created: ${ZONE_PREFIX}${job.job_id}`);
       } catch (err) {
         results.push(`FAILED create ${ZONE_PREFIX}${job.job_id}: ${(err as Error).message}`);
@@ -251,7 +285,8 @@ async function handleMorningSync(groupId: string): Promise<string> {
  * Nightly cleanup (10pm EDT): delete all geofences for the day.
  * Morning sync will recreate tomorrow's as needed.
  */
-async function handleNightlyCleanup(groupId: string): Promise<string> {
+async function handleNightlyCleanup(): Promise<string> {
+  const groupId = await geotabGroup();
   const { data: allFences } = await supabase.from("geofences").select("job_id, zone_id");
   const fences = allFences || [];
 
@@ -282,7 +317,8 @@ async function handleNightlyCleanup(groupId: string): Promise<string> {
  * even if our DB state has drifted from Geotab's. Then prunes any geofences
  * table rows whose zone_id we just removed.
  */
-async function handleExpirySweep(groupId: string): Promise<string> {
+async function handleExpirySweep(): Promise<string> {
+  const groupId = await geotabGroup();
   const zones = await getAutoZones(groupId);
   const now = new Date();
 
@@ -322,9 +358,7 @@ Deno.serve(async (req) => {
       throw new Error("Missing 'action' in request body");
     }
 
-    // Authenticate with Geotab (once per invocation)
-    await authenticate();
-    const groupId = await getOrCreateBinRentalsGroup();
+    _groupId = null;  // fresh Geotab session per request, taken only if needed
 
     let message: string;
 
@@ -332,22 +366,22 @@ Deno.serve(async (req) => {
       case "job-change": {
         const { event, job } = body;
         if (!event || !job) throw new Error("job-change requires 'event' and 'job' fields");
-        message = await handleJobChange(event, job as Job, groupId);
+        message = await handleJobChange(event, job as Job);
         break;
       }
 
       case "morning-sync": {
-        message = await handleMorningSync(groupId);
+        message = await handleMorningSync();
         break;
       }
 
       case "nightly-cleanup": {
-        message = await handleNightlyCleanup(groupId);
+        message = await handleNightlyCleanup();
         break;
       }
 
       case "expiry-sweep": {
-        message = await handleExpirySweep(groupId);
+        message = await handleExpirySweep();
         break;
       }
 

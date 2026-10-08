@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: geofence-events (v18)
+ * Supabase Edge Function: geofence-events (v19)
  *
  * Crosses bin jobs off the Live Jobs board by watching truck GPS trails.
  *
@@ -38,6 +38,12 @@
  * a light inside the circle can now clear 60 s. Acceptable only because this
  * function is visual-only — a false cross-off is cosmetic and never touches job
  * data. Tighten DWELL_MS first if false cross-offs show up.
+ *
+ * v19 (2026-09-06): reads the project's elevated key from the SB_SECRET_KEY
+ * secret instead of the auto-injected SUPABASE_SERVICE_ROLE_KEY. That injected
+ * variable carries the LEGACY key, which is signed by the same JWT secret as the
+ * one sitting in this repo's public git history — so it stops working the moment
+ * the legacy keys are switched off, which is the whole point of switching them off.
  *
  * POST {"dryRun": true} computes and reports what it WOULD do — no writes.
  */
@@ -100,7 +106,7 @@ async function authenticate(): Promise<void> {
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  Deno.env.get("SB_SECRET_KEY")!,
 );
 
 interface LogRecord {

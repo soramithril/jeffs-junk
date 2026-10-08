@@ -26,6 +26,10 @@
  * date-only and UTC, so a Jul 24 cutoff really stops at 8pm Eastern on Jul 23,
  * and weekend stops are now dropped (see WEEKEND), which the original 333-cut
  * figure still included.
+ *
+ * 2026-09-06: reads the project's elevated key from the SB_SECRET_KEY secret
+ * instead of the auto-injected SUPABASE_SERVICE_ROLE_KEY, which carries the
+ * LEGACY key and stops working once the legacy keys are switched off.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -95,7 +99,7 @@ const HOME_BASE = [
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  Deno.env.get("SB_SECRET_KEY")!,
 );
 
 interface Stop { lat: number; lon: number; arrive: Date; depart: Date }
