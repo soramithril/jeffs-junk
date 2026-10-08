@@ -22,13 +22,13 @@ import sys
 import urllib.request
 
 SUPABASE_URL = "https://okoqzbdyfjfgcdgmcamq.supabase.co"
-# Same publishable anon key the office TV ships with — it grants nothing on its
-# own; the display account's login is what authorises the reads.
-ANON_KEY = (
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rb3F6"
-    "YmR5ZmpmZ2NkZ21jYW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYyNzEsImV4cCI6MjA4"
-    "ODIyMjI3MX0.SQQD5HN2h179Lsqb-gxqnuTZcIXUyxrtmBP6VLOO57w"
-)
+# Same publishable key the office TV ships with — it grants nothing on its own;
+# the display account's login is what authorises the reads. This was the legacy
+# JWT anon key until the project disabled legacy keys, after which every run
+# from 2026-09-07 died at sign-in with a 401 and the TV went a month silent.
+# A publishable key is not a JWT, so it only ever goes in the apikey header;
+# Authorization carries the signed-in user's token and nothing else.
+ANON_KEY = "sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk"
 
 VOICE = "bm_daniel"     # British male — Jake picked it by ear over george/fable/lewis
 LANG = "b"              # British English
@@ -39,15 +39,11 @@ LANG = "b"              # British English
 TRUCK_DRIVERS = [("L7 2023", "Kevin"), ("2020", "Neil")]
 
 
-def post(path, payload, token=None):
+def post(path, payload):
     req = urllib.request.Request(
         SUPABASE_URL + path,
         data=json.dumps(payload).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "apikey": ANON_KEY,
-            "Authorization": "Bearer " + (token or ANON_KEY),
-        },
+        headers={"Content-Type": "application/json", "apikey": ANON_KEY},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as r:
