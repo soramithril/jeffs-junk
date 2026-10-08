@@ -1993,7 +1993,10 @@ async function aiJobSearch(){
 
 // ── Load jobs when switching to jobs view ──────────────────
 var _origRender = render;
-render = function(name) {
+// `bg` must reach the real render: refresh() passes it so a realtime update repaints the
+// dashboard in place. Dropping it here made every live update replay the full first-load
+// (skeletons, entrance animations, jump to top) — the flash renderDash's bg flag exists to stop.
+render = function(name, bg) {
   if (name === 'jobs') {
     loadJobsPage(jobsPage);
     return;
@@ -2007,7 +2010,7 @@ render = function(name) {
     loadBinJobsThenRender();
     return;
   }
-  _origRender(name);
+  _origRender(name, bg);
 };
 
 // Load active + upcoming bin rental jobs from Supabase, then render Bin Fleet
@@ -12164,6 +12167,19 @@ async function saveJob(e){
     photos:    _formPhotos.slice(),
   };
 
+  // An edit carries over every field the form has no box for. Their own buttons set them
+  // (Confirm, email sent, deposit paid, completed, no-email...), and the edit save writes the
+  // whole row, so leaving them out wrote false/blank over all of them on every Update Job:
+  // 238 jobs lost "email sent" that way in 60 days, and Kelly's 2:06 Confirm on 40273 was
+  // undone by her 2:24 edit (2026-10-08).
+  var prevJob = null;
+  if(editId){
+    prevJob = jobs.find(function(x){return x.id===editId;});
+    if(!prevJob) throw new Error('saveJob: job '+editId+' being edited is not loaded');
+    ['confirmed','emailSent','emailConfirmed','noEmail','reviewAsk','reviewAskedAt','deposit','depositPaid',
+     'etransferRefundSent','swapCount','completed','completedAt'].forEach(function(k){ job[k]=prevJob[k]; });
+  }
+
   // Auto-populate scheduling dates from main date if not set
   if((svc==='Furniture Delivery'||svc==='Furniture Pickup') && !job.fbDate && job.date){
     job.fbDate = job.date;
@@ -12216,6 +12232,9 @@ async function saveJob(e){
       // the last word, rather than only in the tick handler.
       job.binDuration = '';
     }
+    // Same rule as the Change Pickup popup (saveBinPickupDate): a new pickup date needs a new
+    // confirmation call, so the carried-over Confirmed does not survive it.
+    if(prevJob && job.confirmed && job.binPickup !== prevJob.binPickup) job.confirmed = false;
     // Preserve per-leg crew assignments (set via Dispatch / per-leg picker) so
     // saving the job from the form doesn't blank them out.
     if(editId){
