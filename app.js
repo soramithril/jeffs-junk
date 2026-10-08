@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '687';
+var APP_VERSION = '688';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -1531,6 +1531,12 @@ var jobsPage = 0;
 var jobsPageSize = 50;
 var jobsTotal = 0;
 var jobsLoading = false;
+// The rows the All Jobs table shows: one page of its server query. Kept apart from `jobs`,
+// the cache every other screen looks a job up in by number. loadJobsPage used to REPLACE
+// `jobs` with this page, so after any Save Job today's jobs fell out of it while their
+// dashboard rows stayed on screen — and Assign, Pick up, Confirm and Dropped on those rows
+// silently did nothing until the dashboard happened to refresh (Kelly, 2026-10-08).
+var jobsPageRows = [];
 
 // ── Load ALL data from Supabase on startup ─────────────────
 async function loadAllFromSupabase() {
@@ -1796,17 +1802,23 @@ async function loadJobsPage(page) {
   var r = await query;
 
   if (!r.error) {
-    jobs = (r.data || []).map(dbToJob);
+    jobsPageRows = (r.data || []).map(dbToJob);
     jobsTotal = (r.count != null) ? r.count : jobsTotal; // 0 is a valid count (e.g. empty Completed view)
 
     // Show a missing phone from the client the job is ALREADY linked to. Display only — the
     // customer link is set by a person, never guessed. This used to match clients by name with
     // .ilike(...).limit(1) and write the winner's cid onto the job, which silently re-assigned
     // jobs to the wrong customer wherever two customers share a name (326 such names today).
-    jobs.forEach(function(j){
+    jobsPageRows.forEach(function(j){
       if (j.phone || !j.clientId) return;
       var cl = clients.find(function(c){ return c.cid === j.clientId; });
       if (cl && cl.phone) j.phone = cl.phone;
+    });
+    // Into the cache by job number, never in place of it. The same object goes in both lists,
+    // so the table's quick actions (which update `jobs`) update the row on screen too.
+    jobsPageRows.forEach(function(j){
+      var i = jobs.findIndex(function(x){ return x.id === j.id; });
+      if (i >= 0) jobs[i] = j; else jobs.push(j);
     });
   }
   await loadRecurRuns();
@@ -6137,7 +6149,7 @@ function renderJobs(){
     if(binDropF==='pickedup')return j.binInstatus==='pickedup';
     return true;
   }
-  var all=sortJobList([].concat(jobs));
+  var all=sortJobList([].concat(jobsPageRows));
 
   // Show/hide cancelled section
   var cancelledSection = document.getElementById('jobs-cancelled-section');
