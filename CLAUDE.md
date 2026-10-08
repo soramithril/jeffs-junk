@@ -135,6 +135,16 @@ Also: don't put `style="display:none"` inline on the modal element in HTML. It o
   visual-only 2026-07-02 per Jake (before that, zone-enter auto-set `bin_instatus`).
   Don't give it write access to `jobs` without asking.
 
+## Edge functions and scheduled jobs
+
+`supabase/functions/` must match what is deployed. On 2026-09-06 four functions were moved to
+the `SB_SECRET_KEY` secret (legacy JWT keys are now disabled) but the change was never
+committed, so redeploying from the repo would have broken them; synced 2026-10-08. Before
+deploying a function, compare it with the deployed source (`get_edge_function`) and keep the
+repo copy current after any deploy. The office TV briefing (GitHub `daily-briefing` workflow)
+is started by the pg_cron job `daily-briefing-trigger`, which needs the vault secret
+`github_briefing_token` — see `supabase/migrations/20261008_daily_briefing_from_pg_cron.sql`.
+
 ## Database
 
 Supabase. The main tables are `jobs`, `bin_items`, `clients`, `vehicles`, `job_changes`.

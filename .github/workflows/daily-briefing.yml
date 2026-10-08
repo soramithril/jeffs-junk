@@ -10,16 +10,18 @@ name: daily-briefing
 # trigger a Pages rebuild (currently ~an hour) and grow the repo forever.
 
 on:
-  schedule:
-    # 12:45 UTC = 8:45 AM EDT — deliberately BEFORE the board's 9 AM slot. The
-    # render takes a few minutes (more on a cold model cache, and GitHub can
-    # queue cron jobs), and the board plays the file on its first minute-tick
-    # after 9 that finds a today-dated briefing. Publishing early means Daniel
-    # speaks at 9:00 sharp; publishing at 9:00 meant he was still clearing his
-    # throat when the board first looked. Ontario is UTC-4 in summer, UTC-5 in
-    # winter, so this drifts to 7:45 AM in November — earlier is harmless, the
-    # board still waits for 9.
-    - cron: '45 12 * * 1-6'
+  # Started by Supabase, not by a GitHub schedule. pg_cron job daily-briefing-trigger
+  # sends repository_dispatch "briefing" at 12:45 UTC Mon-Sat (8:45 AM EDT —
+  # deliberately BEFORE the board's 9 AM slot; the render takes a few minutes and
+  # the board plays the file on its first minute-tick after 9 that finds a
+  # today-dated briefing). GitHub's own scheduler queued this job by hours — it
+  # started at 18:59 UTC on 2026-10-08 — so the briefing landed mid-afternoon.
+  # See supabase/migrations/20261008_daily_briefing_from_pg_cron.sql; it needs the
+  # github_briefing_token vault secret. Ontario is UTC-4 in summer, UTC-5 in
+  # winter, so this drifts to 7:45 AM in November — earlier is harmless, the
+  # board still waits for 9.
+  repository_dispatch:
+    types: [briefing]
   workflow_dispatch:        # so it can be tested without waiting for 9 AM
     inputs:
       sample_text:
@@ -55,11 +57,11 @@ jobs:
     permissions:
       contents: write       # to publish the Release asset
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # cache: pip REQUIRES a requirements file to key on — without one,
       # setup-python fails the whole job (that was runs #1 and #2).
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -72,7 +74,7 @@ jobs:
       # The model is ~330 MB from HuggingFace. Cached so we download it once,
       # not every morning.
       - name: Cache HuggingFace model
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/huggingface
           key: kokoro-82m-v1
@@ -84,7 +86,7 @@ jobs:
         env:
           OFFICETV_EMAIL: ${{ secrets.OFFICETV_EMAIL }}
           OFFICETV_PASSWORD: ${{ secrets.OFFICETV_PASSWORD }}
-          # Only set on a manual run — the 9 AM schedule always speaks real numbers.
+          # Only set on a manual run — the 8:45 dispatch carries no inputs, so it always speaks real numbers.
           BRIEFING_TEXT: ${{ github.event.inputs.sample_text }}
           BRIEFING_VOICE: ${{ github.event.inputs.voice }}
         run: python scripts/build_briefing.py
@@ -97,7 +99,7 @@ jobs:
       # as a downloadable artifact on the run instead.
       - name: Upload sample (not published to the board)
         if: github.event.inputs.sample_text != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: briefing-sample
           path: |
