@@ -5260,6 +5260,14 @@ function binDroppedElsewhere(bid, exceptId){
     return j.binBid===bid && j.id!==exceptId && j.binInstatus==='dropped' && j.status!=='Cancelled';
   });
 }
+// A job is done with its bin (picked up, set back to not dropped, or given a different
+// bin): mark the bin back in the yard — unless another live job already has it dropped,
+// which is where it actually is. Pick up from a row that had not refreshed yet used to
+// put a bin "in the yard" while it sat at the next customer's, free to book twice.
+function binBackInYard(bid, exceptId){
+  if(!bid || binDroppedElsewhere(bid, exceptId)) return;
+  patchBin(bid,{status:'in'});
+}
 // Putting a bin number on a rental IS the drop. Over 501 assignments, 85% happened ON
 // the drop-off day and 15% after it — not one was made ahead of time. Nobody is
 // planning which bin to send; they are recording which bin went. So the moment the
@@ -10927,8 +10935,9 @@ function _jjBriefCard(it){
   var who = String((cl && cl.name) ? cl.name : (j.name||''));
   // Most names are stored shouting (BARBARA WHITE), and "BARBARA never needs one"
   // reads like an accusation. First word only, cased like a person would write it —
-  // after an apostrophe or hyphen too, so O'BRIEN comes back as O'Brien.
-  var first = (who.split(' ')[0] || '').toLowerCase().replace(/(^|['\-])([a-z])/g, function(m, sep, ch){ return sep + ch.toUpperCase(); });
+  // after an apostrophe, hyphen or full stop too, so O'BRIEN comes back as O'Brien and
+  // P.J. stays P.J. (it read "P.j. never needs one").
+  var first = (who.split(' ')[0] || '').toLowerCase().replace(/(^|['\-.])([a-z])/g, function(m, sep, ch){ return sep + ch.toUpperCase(); });
   if(!first) first = 'This customer';
   return '<div style="border:1px solid var(--border-strong);background:var(--surface);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)">'
     + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d6efd;margin-bottom:8px">No confirmation sent</div>'
@@ -12190,6 +12199,11 @@ async function saveJob(e){
   // Undated landscaping "possible job" — store no scheduled date at all
   if(landscapeNoDate){ job.date=''; job.junkDate=''; job.junkTime=''; }
 
+  // Bin in/out changes this save implies. Queued, and written only once the job itself
+  // has saved: they used to go straight out, so a save that stopped part-way (connection,
+  // expired login, a refused client number, Cancel on the double-drop warning) left bins
+  // marked in or out while the job still said the opposite.
+  var binWrites = [];
   // Release prior bin first — runs even when service was changed AWAY from Bin Rental
   // (otherwise the old bin would stay marked 'out' forever as a phantom)
   if(editId){
@@ -12197,7 +12211,7 @@ async function saveJob(e){
     if(oldJob && oldJob.binBid){
       var newBid = (svc==='Bin Rental') ? getPickedBinBid() : '';
       if(oldJob.binBid !== newBid){
-        patchBin(oldJob.binBid,{status:'in'});
+        binWrites.push([oldJob.binBid,{status:'in'}]);
       }
     }
   }
@@ -12256,7 +12270,7 @@ async function saveJob(e){
          && _oldJobForDrop.binDropoff !== job.binDropoff
          && job.binDropoff && job.binDropoff > _today){
         job.binInstatus = '';
-        if(pickedBin){ patchBin(pickedBin.bid,{status:'in'}); }
+        if(pickedBin){ binWrites.push([pickedBin.bid,{status:'in'}]); }
       }
     }
     // Putting a bin number on the form is the drop too, same rule as the bin picker
@@ -12278,11 +12292,11 @@ async function saveJob(e){
     }
     // Mark the newly picked bin as out only when the job is actually dropped
     if(pickedBin && job.binInstatus === 'dropped'){
-      patchBin(pickedBin.bid,{status:'out'});
+      binWrites.push([pickedBin.bid,{status:'out'}]);
     }
     // If status is picked up, mark bin back in
     if(job.binInstatus === 'pickedup' && pickedBin){
-      patchBin(pickedBin.bid,{status:'in'});
+      binWrites.push([pickedBin.bid,{status:'in'}]);
     }
   }
 
@@ -12453,6 +12467,7 @@ async function saveJob(e){
       _setSaveJobLock(false); return;
     }
     // DB write confirmed \u2014 only now touch what the user sees.
+    binWrites.forEach(function(w){ if(w[1].status==='in') binBackInYard(w[0], job.id); else patchBin(w[0], w[1]); });
     if(wasEdit){
       var idx = jobs.findIndex(function(j){return j.id===editId;});
       if(idx >= 0) jobs[idx] = job; else jobs.push(job);
@@ -13765,7 +13780,7 @@ function markNotDropped(id){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.binInstatus='';
-  if(j.binBid){patchBin(j.binBid,{status:'in'});}
+  binBackInYard(j.binBid, id);
   patchJob(id,{binInstatus:''});
   toast('Bin marked as not dropped yet.');openDetail(id);refresh();
 }
@@ -13773,7 +13788,7 @@ function markBinPickedUp2(id){
   if(!mGuard())return;
   var j=jobs.find(function(jj){return jj.id===id;});if(!j)return;
   j.binInstatus='pickedup';
-  if(j.binBid){patchBin(j.binBid,{status:'in'});}
+  binBackInYard(j.binBid, id);
   writeBinHistory(j);
   patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
 }
@@ -13976,7 +13991,7 @@ function markPickedUp(id,e){
   var j=jobs.find(function(jj){return jj.id===id;});
   if(!j)return;
   j.binInstatus='pickedup';
-  if(j.binBid){patchBin(j.binBid,{status:'in'});}
+  binBackInYard(j.binBid, id);
   writeBinHistory(j);
   // Picked up = job done, so it's no longer "will call" either
   var patch={binInstatus:'pickedup'};
@@ -13984,13 +13999,6 @@ function markPickedUp(id,e){
   patchJob(id,patch);
   toast('Bin marked picked up!');
   refresh();
-}
-function dashMarkPickedUp(jobId,bid){
-  var j=jobs.find(function(jj){return jj.id===jobId;});
-  var patch={binInstatus:'pickedup'};
-  if(j){j.binInstatus='pickedup';if(j.binWillCall){j.binWillCall=false;patch.binWillCall=false;}writeBinHistory(j);}
-  binItems.forEach(function(b){if(b.bid===bid)b.status='in';});
-  patchJob(jobId,patch);patchBin(j.binBid,{status:'in'});toast('Bin marked picked up and returned to yard!');refresh();renderDashBinsOut();refreshDashBinStats();
 }
 function toggleWillCall(id,e){
   if(e)e.stopPropagation();
