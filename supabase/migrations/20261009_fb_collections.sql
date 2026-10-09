@@ -8,6 +8,8 @@
 create table public.fb_collections (
   id bigint generated always as identity primary key,
   collect_date date not null,
+  -- Unused: the note box was dropped before launch (Jake, 2026-10-09). Dropping the
+  -- column timed out through the Supabase tool; it fills itself with '' on every insert.
   note text not null default '',
   created_by text not null default '',
   created_at timestamptz not null default now()

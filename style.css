@@ -3778,9 +3778,7 @@ input[type=number],time,.timestamp{font-variant-numeric:tabular-nums;}
 .fbc-chip:hover{border-color:var(--border-strong);color:var(--text)}
 .fbc-line{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:14px;padding:10px 14px;border-radius:10px;background:rgba(13,110,253,.08);border:1px solid rgba(13,110,253,.35);color:var(--text);cursor:pointer}
 .fbc-icon{font-size:18px;line-height:1}
-.fbc-note{font-size:12px;color:var(--muted)}
 .fbc-help{font-size:13px;color:var(--muted);margin:0 0 12px}
-.fbc-row{display:grid;grid-template-columns:150px minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:8px}
-.fbc-add{grid-template-columns:150px minmax(0,1fr) auto;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.fbc-row{display:grid;grid-template-columns:170px auto auto 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.fbc-add{grid-template-columns:170px auto 1fr;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
 .fbc-remove{color:var(--bad)}
-@media(max-width:600px){.fbc-row,.fbc-add{grid-template-columns:1fr 1fr}}

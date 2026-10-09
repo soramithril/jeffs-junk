@@ -8,14 +8,14 @@
 // dashboard is showing: a line when a collection falls on that date, otherwise a chip
 // with the next booked collection. Either one opens the list to add, move or remove dates.
 
-var _fbcDates = [];   // collections from the earlier of today / the shown date onward, soonest first
+var _fbcDates = [];   // collection dates from the earlier of today / the shown date onward, soonest first
 
 function _fbcDay(dateS){
   return new Date(dateS + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 }
 
 async function _fbcLoad(fromS){
-  var r = await db.from('fb_collections').select('id,collect_date,note').gte('collect_date', fromS).order('collect_date');
+  var r = await db.from('fb_collections').select('id,collect_date').gte('collect_date', fromS).order('collect_date');
   if(r.error) throw new Error('Could not load Furniture Bank collections: ' + r.error.message);
   _fbcDates = r.data;
 }
@@ -31,7 +31,6 @@ async function renderFbCollect(dateS){
       + '<span class="fbc-icon">🚚</span>'
       + '<span><strong>Furniture Bank Toronto</strong> collecting from the storage unit'
       + (dateS === today ? ' today' : ' on ' + _fbcDay(dateS)) + '</span>'
-      + (on.note ? '<span class="fbc-note">' + escHtml(on.note) + '</span>' : '')
       + '</div>';
     return;
   }
@@ -60,7 +59,6 @@ async function openFbCollections(){
   var rows = _fbcDates.map(function(d){
     return '<div class="fbc-row">'
       + '<input type="date" id="fbc-d-' + d.id + '" value="' + d.collect_date + '">'
-      + '<input type="text" id="fbc-n-' + d.id + '" value="' + escHtml(d.note) + '" placeholder="Note (tentative, confirmed, time…)">'
       + '<button class="btn btn-ghost btn-sm" onclick="fbcSave(' + d.id + ')">Save</button>'
       + '<button class="btn btn-ghost btn-sm fbc-remove" onclick="fbcRemove(' + d.id + ')">Remove</button>'
       + '</div>';
@@ -74,7 +72,6 @@ async function openFbCollections(){
     + (rows || '<p class="fbc-help">No upcoming collections booked.</p>')
     + '<div class="fbc-row fbc-add">'
       + '<input type="date" id="fbc-new-d">'
-      + '<input type="text" id="fbc-new-n" placeholder="Note (tentative, confirmed, time…)">'
       + '<button class="btn btn-primary btn-sm" onclick="fbcAdd()">Add date</button>'
     + '</div>'
     + '</div>';
@@ -91,17 +88,15 @@ function _fbcDone(r, what){
 async function fbcAdd(){
   var d = document.getElementById('fbc-new-d').value;
   if(!d){ toast('⚠ Pick a date first.', 'error'); return; }
-  var note = document.getElementById('fbc-new-n').value.trim();
   var by = currentUser.displayName || currentUser.email.split('@')[0];
-  var r = await db.from('fb_collections').insert({ collect_date:d, note:note, created_by:by });
+  var r = await db.from('fb_collections').insert({ collect_date:d, created_by:by });
   if(_fbcDone(r, 'Adding the date')) toast('FB Toronto collection added for ' + _fbcDay(d) + '.');
 }
 
 async function fbcSave(id){
   var d = document.getElementById('fbc-d-' + id).value;
   if(!d){ toast('⚠ A collection needs a date.', 'error'); return; }
-  var note = document.getElementById('fbc-n-' + id).value.trim();
-  var r = await db.from('fb_collections').update({ collect_date:d, note:note }).eq('id', id);
+  var r = await db.from('fb_collections').update({ collect_date:d }).eq('id', id);
   if(_fbcDone(r, 'Saving')) toast('Saved — ' + _fbcDay(d) + '.');
 }
 
