@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '689';
+var APP_VERSION = '690';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4039,6 +4039,7 @@ async function refreshDashJobs(){
 
   document.getElementById('dash-today-jobs').innerHTML = html
     || '<div style="color:var(--muted);font-size:13px;padding:12px;text-align:center">No jobs on this date</div>';
+  renderFbCollect(dateS);   // Furniture Bank Toronto collection line / next-date chip (app-fbcollect.js)
 }
 var dragJobId=null; // week-strip chip being dragged
 async function renderWeekCal(){
@@ -4718,6 +4719,7 @@ async function renderDash(bg){
   });
   document.getElementById('dash-today-jobs').innerHTML = todayHtml
     ||emptyStateHTML('📅','No Jobs Today','Nothing scheduled. Hit "+ New Job" to add one.');
+  renderFbCollect(todayS);   // Furniture Bank Toronto collection line / next-date chip (app-fbcollect.js)
 
   renderWillCallCard();
 
