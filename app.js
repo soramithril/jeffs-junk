@@ -6931,9 +6931,21 @@ function fillClientFromSelect(cid){
   var emails=cl.emails&&cl.emails.length?cl.emails:(cl.email?[cl.email]:[]);
   document.getElementById('f-emails-wrap').innerHTML=emails.length?emails.map(function(e){return _jobEmailRow(e);}).join(''):_jobEmailRow('');
   document.getElementById('f-business-name').value=cl.businessName||'';
-  if(cl.referral) document.getElementById('f-referral').value = cl.referral;
+  _fillClientReferral(cid, cl);
 
   _fillClientAddresses(cid, cl);
+}
+
+// Someone with an earlier booking is a repeat customer, whatever brought them the first
+// time. Copying the client record's source in here used to file every return booking as
+// "Google" (or, for the older records with no source, leave it blank to pick by hand), so
+// the repeat numbers on Analytics undercounted. The first source stays on the client record.
+async function _fillClientReferral(cid, cl){
+  var sel=document.getElementById('f-referral');
+  var r=await db.from('jobs').select('job_id',{count:'exact',head:true}).eq('client_cid',cid).neq('status','Cancelled');
+  if(r.error) throw new Error('Repeat-customer check failed: '+r.error.message);
+  if(r.count>0) sel.value='Repeat Customer';
+  else if(cl.referral) sel.value=cl.referral;
 }
 
 // Addresses offered for the picked client, most recent job first.
