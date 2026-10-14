@@ -2432,7 +2432,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-07-21a';
+    var TV_BUILD = '2026-10-14a';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
@@ -2470,7 +2470,7 @@
         // before the fetch (as first shipped) burned the day at 9:00 while the
         // Action was still rendering, so the wall would never have spoken at all.
         try{ localStorage.setItem(briefDoneKey(), '1'); }
-        catch(e){ return; }   // no storage = no dedupe; stay silent over replaying
+        catch(e){ tvLog('brief-no-storage', String(e)); return; }   // no storage = no dedupe; stay silent over replaying
 
         // Voice-over only (Jake): the board keeps rotating, nothing on screen.
         // The one exception is a refusal — if autoplay is blocked, a silent
@@ -2527,7 +2527,7 @@
           if(k && k.indexOf('jj-tv-brief-') === 0 && k !== briefDoneKey()) stale.push(k);
         }
         stale.forEach(function(s){ localStorage.removeItem(s); });
-      }catch(e){ return; }   // no storage means we can't dedupe, so don't play
+      }catch(e){ tvLog('brief-no-storage', String(e)); return; }   // no storage means we can't dedupe, so don't play
       playBriefing();
     }
 
@@ -2645,8 +2645,10 @@
       el('gate').style.display='none';
       el('viewport').style.display='flex';
       // A boot ping per page-load: its presence with a NEW build id is the only
-      // remote proof the wall actually picks up deploys.
-      tvLog('boot');
+      // remote proof the wall actually picks up deploys. The detail is the
+      // player's own clock and time zone: the 9 AM and quiet-hours checks read
+      // it, so a wrong one silences the briefing without any other trace.
+      tvLog('boot', new Date().toString());
       fitBoard(); window.addEventListener('resize', fitBoard);
       tickClock(); setInterval(tickClock, 1000);
       // One-shot (2026-07-20): clear today's played-marker so the wall can demo
