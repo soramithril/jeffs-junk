@@ -268,6 +268,39 @@
   .jjl-lanterns .jjl-card { border-color: rgba(255,255,255,.18); background: rgba(20,44,33,.62); }
 }
 
+/* ═══ project hail mary (added 2026-10-14) ═══
+   The truck flies across the top-left, the face fills the middle-right and the astronaut
+   the bottom-right, so the only clear ground is the asteroid field bottom-left: the
+   sign-in is a floating card there. The art carries its own title, so no headline. The
+   picture stays still under the pointer drift; thrusters, stars, sun and dust are drawn
+   on the canvas by login-art.js (.jjl-glow), which sits in the same drifting layer. */
+#login-screen.jjl-hailmary { background: #1a0606; }
+.jjl-hailmary .jjl-art { background-image: url("assets/login/jeffs-junk-hail-mary.webp"); animation: none; }
+.jjl-hailmary .jjl-grain, .jjl-hailmary .jjl-copy, .jjl-hailmary .jjl-sweep { display: none; }
+.jjl-hailmary .jjl-grade { background: radial-gradient(ellipse 48% 62% at 0% 100%, rgba(12,3,6,.55), transparent 70%), linear-gradient(0deg, rgba(10,3,5,.35), transparent 30%); }
+.jjl-hailmary .jjl-portal { color: #9fd0ff; }
+.jjl-hailmary .jjl-portal .jjl-dot { background: #7fc0ff; box-shadow: 0 0 12px #7fc0ff; }
+.jjl-hailmary .jjl-card h2 { font-family: 'Inter', "Helvetica Neue", Arial, sans-serif; font-style: normal; font-weight: 800; font-size: clamp(2.1rem, 2.5vw, 2.9rem); line-height: 1.05; letter-spacing: .06em; text-transform: uppercase; }
+.jjl-hailmary .jjl-intro { color: rgba(240,226,220,.82); }
+.jjl-hailmary .jjl-signin { background: linear-gradient(90deg, #0e7e45, #43c978); letter-spacing: .3em; }
+.jjl-hailmary .jjl-footer { color: #b28a86; }
+@media (min-width: 761px) {
+  #login-screen.jjl-hailmary { justify-content: flex-start; align-items: flex-end; }
+  .jjl-hailmary .jjl-panel {
+    min-height: 0; margin: 0 0 clamp(18px, 3vh, 40px) clamp(18px, 2.4vw, 52px);
+    padding: clamp(24px, 2.3vw, 38px) clamp(26px, 2.4vw, 40px) 20px;
+    border: 1px solid rgba(255,214,200,.16); border-radius: 22px;
+    background: linear-gradient(150deg, rgba(40,12,16,.62), rgba(12,6,14,.82));
+    box-shadow: 0 30px 80px rgba(8,2,4,.5), 0 0 0 1px rgba(127,192,255,.06) inset;
+    animation: none;
+  }
+  .jjl-hailmary .jjl-card { padding: 18px 0 14px; }
+}
+@media (max-width: 760px) {
+  .jjl-hailmary .jjl-art { background-position: 24% center; }
+  .jjl-hailmary .jjl-card { border-color: rgba(255,214,200,.18); background: rgba(24,8,12,.6); }
+}
+
 /* ── responsive ──────────────────────────────────────────────────── */
 /* Short desktop screens — a 1366x768 laptop is about 660px of viewport, and the
    panel wants ~710px. Left alone the footer and part of the button get cropped. */
