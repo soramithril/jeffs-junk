@@ -286,15 +286,38 @@
 .jjl-hailmary .jjl-footer { color: #b28a86; }
 @media (min-width: 761px) {
   #login-screen.jjl-hailmary { justify-content: flex-start; align-items: flex-end; }
+  /* A short, wide console rather than the tall card: on a 1536x742 laptop the tall one
+     (578px) sat on top of the truck. Name, password and LAUNCH share one row, so the
+     whole thing is about 300px and stays under the truck and bin. No logo on this one. */
   .jjl-hailmary .jjl-panel {
-    min-height: 0; margin: 0 0 clamp(18px, 3vh, 40px) clamp(18px, 2.4vw, 52px);
-    padding: clamp(24px, 2.3vw, 38px) clamp(26px, 2.4vw, 40px) 20px;
+    width: min(680px, calc(100vw - 80px)); min-height: 0;
+    margin: 0 0 clamp(16px, 2.6vh, 36px) clamp(18px, 2.4vw, 52px);
+    padding: 20px 26px 14px;
     border: 1px solid rgba(255,214,200,.16); border-radius: 22px;
     background: linear-gradient(150deg, rgba(40,12,16,.62), rgba(12,6,14,.82));
     box-shadow: 0 30px 80px rgba(8,2,4,.5), 0 0 0 1px rgba(127,192,255,.06) inset;
     animation: none;
   }
-  .jjl-hailmary .jjl-card { padding: 18px 0 14px; }
+  .jjl-hailmary .jjl-brand { display: none; }
+  .jjl-hailmary .jjl-card {
+    max-width: none; padding: 0 0 10px;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 168px; column-gap: 12px; align-items: end;
+  }
+  .jjl-hailmary .jjl-card > .jjl-portal,
+  .jjl-hailmary .jjl-card > h2,
+  .jjl-hailmary .jjl-card > .jjl-intro,
+  .jjl-hailmary #login-error,
+  .jjl-hailmary .jjl-help { grid-column: 1 / -1; }
+  .jjl-hailmary .jjl-card h2 { margin: 8px 0 2px; }
+  .jjl-hailmary .jjl-intro { margin: 4px 0 6px; }
+  .jjl-hailmary .jjl-card label[for="login-username"] { grid-column: 1; grid-row: 4; margin: 8px 0 6px; }
+  .jjl-hailmary .jjl-card label[for="login-password"] { grid-column: 2; grid-row: 4; margin: 8px 0 6px; }
+  .jjl-hailmary .jjl-field:nth-of-type(1) { grid-column: 1; grid-row: 5; }
+  .jjl-hailmary .jjl-field:nth-of-type(2) { grid-column: 2; grid-row: 5; }
+  .jjl-hailmary .jjl-signin { grid-column: 3; grid-row: 5; margin-top: 0; height: 56px; }
+  .jjl-hailmary #login-error { min-height: 0; margin-top: 8px; }
+  .jjl-hailmary .jjl-help { margin-top: 2px; }
+  .jjl-hailmary .jjl-field, .jjl-hailmary .jjl-signin { height: 50px; }
 }
 @media (max-width: 760px) {
   .jjl-hailmary .jjl-art { background-position: 24% center; }
