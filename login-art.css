@@ -2,9 +2,9 @@
    LOGIN ART — the sign-in posters
    ═══════════════════════════════════════════════════════════════════
    Started as Barb's nine ChatGPT sheets; on 2026-10-06 Jake kept only
-   the anime one ("beyond the next load") and on 2026-10-07 added Lanterns &
-   Leaves (his own design package). Each
-   sheet is a #login-screen.jjl-<key> section below.
+   the anime one ("beyond the next load"), on 2026-10-07 added Lanterns &
+   Leaves and on 2026-10-14 the seasonal set. The anime sheet has its own
+   section below; every other sheet uses the shared "drawn sheets" rules.
 
    Everything is prefixed .jjl- and scoped under #login-screen: the source
    styled bare .scene / .login-card and reset body, * and a — dropped in,
@@ -234,94 +234,82 @@
 .jjl-anime .jjl-card h2 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(2.6rem, 3.3vw, 3.8rem); font-style: normal; font-weight: 500; line-height: 1.05; letter-spacing: .01em; }
 .jjl-anime .jjl-signin { background: linear-gradient(90deg, #0e7e45, #43c978); }
 
-/* ═══ lanterns & leaves (added 2026-10-07) ═══
-   The designer's rule: the picture never moves - no camera drift, parallax, grain or
-   panel entrance - because motion in the scene made someone queasy. Only the drifting
-   leaves, the lantern glow and the gold reflections move, drawn on a canvas by
-   login-art.js (.jjl-glow) laid exactly over the picture. No headline over the art:
-   the sign-in is a floating glass card on the right, clear of the truck. */
-#login-screen.jjl-lanterns { background: #172a22; }
-.jjl-lanterns .jjl-parallax { transform: none; transition: none; }
-.jjl-lanterns .jjl-art { background-image: url("assets/login/jeffs-junk-lanterns.webp"); animation: none; }
-.jjl-lanterns .jjl-grain, .jjl-lanterns .jjl-copy, .jjl-lanterns .jjl-sweep { display: none; }
-.jjl-lanterns .jjl-grade { background: linear-gradient(90deg, rgba(5,18,14,.08) 25%, transparent 57%, rgba(6,23,16,.23) 100%), linear-gradient(0deg, rgba(3,16,12,.55), transparent 24%, transparent 85%, rgba(3,16,12,.3)); }
+/* ═══ the drawn sheets (every sheet but anime) ═══
+   login-art.js sets the poster, the classes and the --t-* colours from each sheet's entry,
+   so a new sheet needs no CSS of its own. The picture never animates in CSS: whatever
+   moves is drawn on the canvas (.jjl-glow) laid exactly over it, inside the same
+   pointer-drift layer so the two stay together.
+   Layouts: .jjl-float is a tall glass card on the right; .jjl-console is a short, wide
+   card in a corner (.jjl-at-bl / -br / -tr) with name, password and button on one row,
+   about 300px tall, for posters where a tall card would sit on the truck.
+   .jjl-still (Lanterns & Leaves, the designer's rule): no pointer drift and no pulsing
+   dot either - motion in the scene made someone queasy. */
+#login-screen.jjl-drawn { background: var(--t-bg); }
+.jjl-drawn .jjl-art { animation: none; }
+.jjl-drawn .jjl-grain, .jjl-drawn .jjl-copy, .jjl-drawn .jjl-sweep { display: none; }
+.jjl-drawn .jjl-grade { background: var(--t-grade); }
 .jjl-glow { position: absolute; z-index: 1; pointer-events: none; }
-.jjl-lanterns .jjl-dot { animation: none; }
-.jjl-lanterns .jjl-portal { color: #cfe8c5; }
-.jjl-lanterns .jjl-card h2 { font-family: Georgia, "Times New Roman", serif; font-style: normal; font-weight: 500; font-size: clamp(2.4rem, 2.9vw, 3.4rem); line-height: 1.05; letter-spacing: .005em; }
-.jjl-lanterns .jjl-intro { color: rgba(236,238,224,.8); }
-.jjl-lanterns .jjl-signin { background: linear-gradient(90deg, #4f8a3f, #6aa553); }
+.jjl-still .jjl-parallax { transform: none; transition: none; }
+.jjl-still .jjl-dot { animation: none; }
+.jjl-drawn .jjl-portal { color: var(--t-accent); }
+.jjl-drawn:not(.jjl-still) .jjl-portal .jjl-dot { background: var(--t-accent); box-shadow: 0 0 12px var(--t-accent); }
+.jjl-drawn .jjl-intro { color: var(--t-intro); }
+.jjl-drawn .jjl-signin { background: var(--t-btn); }
+.jjl-drawn .jjl-footer { color: var(--t-footer, #626a63); }
+.jjl-serif .jjl-card h2 { font-family: Georgia, "Times New Roman", serif; font-style: normal; font-weight: 500; font-size: clamp(2.4rem, 2.9vw, 3.4rem); line-height: 1.05; letter-spacing: .005em; }
+.jjl-caps .jjl-card h2 { font-family: 'Inter', "Helvetica Neue", Arial, sans-serif; font-style: normal; font-weight: 800; font-size: clamp(2.1rem, 2.5vw, 2.9rem); line-height: 1.05; letter-spacing: .06em; text-transform: uppercase; }
+.jjl-caps .jjl-signin { letter-spacing: .3em; }
 @media (min-width: 761px) {
-  #login-screen.jjl-lanterns { align-items: center; }
-  .jjl-lanterns .jjl-panel {
+  #login-screen.jjl-float { align-items: center; }
+  .jjl-float .jjl-panel {
     min-height: 0; margin-right: clamp(24px, 4.2vw, 96px);
     padding: clamp(28px, 2.6vw, 44px) clamp(28px, 2.6vw, 44px) 22px;
-    border: 1px solid rgba(255,255,255,.16); border-radius: 22px;
-    background: linear-gradient(145deg, rgba(48,74,52,.74), rgba(20,44,33,.86));
-    box-shadow: 0 30px 80px rgba(4,18,12,.45);
+    border: 1px solid var(--t-edge); border-radius: 22px;
+    background: var(--t-card);
+    box-shadow: 0 30px 80px rgba(0,0,0,.42);
     animation: none;
   }
-  .jjl-lanterns .jjl-card { padding: 22px 0 16px; }
-}
-@media (max-width: 760px) {
-  .jjl-lanterns .jjl-art { background-position: 30% center; }
-  .jjl-lanterns .jjl-card { border-color: rgba(255,255,255,.18); background: rgba(20,44,33,.62); }
-}
+  .jjl-float .jjl-card { padding: 22px 0 16px; }
+  .jjl-narrow .jjl-panel { width: clamp(380px, 26vw, 440px); }
 
-/* ═══ project hail mary (added 2026-10-14) ═══
-   The truck flies across the top-left, the face fills the middle-right and the astronaut
-   the bottom-right, so the only clear ground is the asteroid field bottom-left: the
-   sign-in is a floating card there. The art carries its own title, so no headline. The
-   picture stays still under the pointer drift; thrusters, stars, sun and dust are drawn
-   on the canvas by login-art.js (.jjl-glow), which sits in the same drifting layer. */
-#login-screen.jjl-hailmary { background: #1a0606; }
-.jjl-hailmary .jjl-art { background-image: url("assets/login/jeffs-junk-hail-mary.webp"); animation: none; }
-.jjl-hailmary .jjl-grain, .jjl-hailmary .jjl-copy, .jjl-hailmary .jjl-sweep { display: none; }
-.jjl-hailmary .jjl-grade { background: radial-gradient(ellipse 48% 62% at 0% 100%, rgba(12,3,6,.55), transparent 70%), linear-gradient(0deg, rgba(10,3,5,.35), transparent 30%); }
-.jjl-hailmary .jjl-portal { color: #9fd0ff; }
-.jjl-hailmary .jjl-portal .jjl-dot { background: #7fc0ff; box-shadow: 0 0 12px #7fc0ff; }
-.jjl-hailmary .jjl-card h2 { font-family: 'Inter', "Helvetica Neue", Arial, sans-serif; font-style: normal; font-weight: 800; font-size: clamp(2.1rem, 2.5vw, 2.9rem); line-height: 1.05; letter-spacing: .06em; text-transform: uppercase; }
-.jjl-hailmary .jjl-intro { color: rgba(240,226,220,.82); }
-.jjl-hailmary .jjl-signin { background: linear-gradient(90deg, #0e7e45, #43c978); letter-spacing: .3em; }
-.jjl-hailmary .jjl-footer { color: #b28a86; }
-@media (min-width: 761px) {
-  #login-screen.jjl-hailmary { justify-content: flex-start; align-items: flex-end; }
-  /* A short, wide console rather than the tall card: on a 1536x742 laptop the tall one
-     (578px) sat on top of the truck. Name, password and LAUNCH share one row, so the
-     whole thing is about 300px and stays under the truck and bin. No logo on this one. */
-  .jjl-hailmary .jjl-panel {
+  #login-screen.jjl-console { align-items: flex-end; }
+  #login-screen.jjl-at-bl { justify-content: flex-start; }
+  #login-screen.jjl-at-tr { align-items: flex-start; }
+  .jjl-console .jjl-panel {
     width: min(680px, calc(100vw - 80px)); min-height: 0;
-    margin: 0 0 clamp(16px, 2.6vh, 36px) clamp(18px, 2.4vw, 52px);
     padding: 20px 26px 14px;
-    border: 1px solid rgba(255,214,200,.16); border-radius: 22px;
-    background: linear-gradient(150deg, rgba(40,12,16,.62), rgba(12,6,14,.82));
-    box-shadow: 0 30px 80px rgba(8,2,4,.5), 0 0 0 1px rgba(127,192,255,.06) inset;
+    border: 1px solid var(--t-edge); border-radius: 22px;
+    background: var(--t-card);
+    box-shadow: 0 30px 80px rgba(0,0,0,.45);
     animation: none;
   }
-  .jjl-hailmary .jjl-brand { display: none; }
-  .jjl-hailmary .jjl-card {
+  .jjl-at-bl .jjl-panel { margin: 0 0 clamp(16px, 2.6vh, 36px) clamp(18px, 2.4vw, 52px); }
+  .jjl-at-br .jjl-panel { margin: 0 clamp(18px, 2.4vw, 52px) clamp(16px, 2.6vh, 36px) 0; }
+  .jjl-at-tr .jjl-panel { margin: clamp(16px, 2.6vh, 36px) clamp(18px, 2.4vw, 52px) 0 0; }
+  .jjl-console .jjl-brand { display: none; }
+  .jjl-console .jjl-card {
     max-width: none; padding: 0 0 10px;
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 168px; column-gap: 12px; align-items: end;
   }
-  .jjl-hailmary .jjl-card > .jjl-portal,
-  .jjl-hailmary .jjl-card > h2,
-  .jjl-hailmary .jjl-card > .jjl-intro,
-  .jjl-hailmary #login-error,
-  .jjl-hailmary .jjl-help { grid-column: 1 / -1; }
-  .jjl-hailmary .jjl-card h2 { margin: 8px 0 2px; }
-  .jjl-hailmary .jjl-intro { margin: 4px 0 6px; }
-  .jjl-hailmary .jjl-card label[for="login-username"] { grid-column: 1; grid-row: 4; margin: 8px 0 6px; }
-  .jjl-hailmary .jjl-card label[for="login-password"] { grid-column: 2; grid-row: 4; margin: 8px 0 6px; }
-  .jjl-hailmary .jjl-field:nth-of-type(1) { grid-column: 1; grid-row: 5; }
-  .jjl-hailmary .jjl-field:nth-of-type(2) { grid-column: 2; grid-row: 5; }
-  .jjl-hailmary .jjl-signin { grid-column: 3; grid-row: 5; margin-top: 0; height: 56px; }
-  .jjl-hailmary #login-error { min-height: 0; margin-top: 8px; }
-  .jjl-hailmary .jjl-help { margin-top: 2px; }
-  .jjl-hailmary .jjl-field, .jjl-hailmary .jjl-signin { height: 50px; }
+  .jjl-console .jjl-card > .jjl-portal,
+  .jjl-console .jjl-card > h2,
+  .jjl-console .jjl-card > .jjl-intro,
+  .jjl-console #login-error,
+  .jjl-console .jjl-help { grid-column: 1 / -1; }
+  .jjl-console .jjl-card h2 { margin: 8px 0 2px; }
+  .jjl-console .jjl-intro { margin: 4px 0 6px; }
+  .jjl-console .jjl-card label[for="login-username"] { grid-column: 1; grid-row: 4; margin: 8px 0 6px; }
+  .jjl-console .jjl-card label[for="login-password"] { grid-column: 2; grid-row: 4; margin: 8px 0 6px; }
+  .jjl-console .jjl-field:nth-of-type(1) { grid-column: 1; grid-row: 5; }
+  .jjl-console .jjl-field:nth-of-type(2) { grid-column: 2; grid-row: 5; }
+  .jjl-console .jjl-signin { grid-column: 3; grid-row: 5; margin-top: 0; }
+  .jjl-console #login-error { min-height: 0; margin-top: 8px; }
+  .jjl-console .jjl-help { margin-top: 2px; }
+  .jjl-console .jjl-field, .jjl-console .jjl-signin { height: 50px; }
 }
 @media (max-width: 760px) {
-  .jjl-hailmary .jjl-art { background-position: 24% center; }
-  .jjl-hailmary .jjl-card { border-color: rgba(255,214,200,.18); background: rgba(24,8,12,.6); }
+  .jjl-drawn .jjl-art { background-position: var(--t-phone-x) center; }
+  .jjl-drawn .jjl-card { border-color: var(--t-edge); background: var(--t-phone); }
 }
 
 /* ── responsive ──────────────────────────────────────────────────── */
@@ -338,6 +326,11 @@
   .jjl-card label { margin: 12px 0 6px; }
   .jjl-field, .jjl-signin { height: 50px; }
   .jjl-help { margin-top: 12px; }
+  /* The corner card shrinks to about 210px: a wide, short screen crops the top and bottom
+     of the poster, so the card reaches further up into the picture than on a taller one. */
+  .jjl-console .jjl-portal, .jjl-console .jjl-help { display: none; }
+  .jjl-console .jjl-panel { padding: 14px 22px 8px; }
+  .jjl-console .jjl-card h2 { font-size: 1.9rem; margin: 0 0 2px; }
 }
 
 @media (max-width: 1120px) {
