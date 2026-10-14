@@ -18099,13 +18099,16 @@ async function printBinRental(jobId) {
 
     // PO number, and whether this is a billable account (Jake, 2026-08-24).
     // The template has no printed labels for either, so both label and value are drawn.
-    // PO sits directly under "Swap Out #:" in the right-hand reference column — that
-    // label is at y=193 from the top, so one line below it is 213. The billable banner
-    // goes in the clear band between the e-mail line and the DESCRIPTION table header
-    // (y=264), which is the only full-width gap on the page, and it needs to be seen.
+    // Booked by sits directly under "Swap Out #:" in the right-hand reference column —
+    // that label is at y=193 from the top, so one line below it is 213 — and the PO goes
+    // on the same line after it. The line below that is taken by the billable banner,
+    // which runs to x=452 at y=240. That banner goes in the clear band between the e-mail
+    // line and the DESCRIPTION table header (y=264), the only full-width gap on the page.
+    var poX = _stampBookedBy(page, font, fontBold, j, 360, 213);
     if (j.poNumber) {
-      drawText('PO #:', 360, 213, { bold: true });
-      drawText(j.poNumber, 400, 213);
+      if (poX > 360) poX += 14;
+      drawText('PO #:', poX, 213, { bold: true });
+      drawText(j.poNumber, poX + fontBold.widthOfTextAtSize('PO #: ', 10), 213);
     }
     var _cl = clients.find(function(c){ return c.cid === j.clientId; });
     if (_cl && _cl.billable) {
@@ -18167,7 +18170,6 @@ async function printBinRental(jobId) {
     }
 
     // Generate and open
-    _stampBookedBy(page, font, fontBold, j);
     await _addOfficeDriverCopies(pdfDoc, font, { x: 395, y: 90 }, null, fontBold);
     var filledBytes = await pdfDoc.save();
     var blob = new Blob([filledBytes], { type: 'application/pdf' });
@@ -18197,15 +18199,18 @@ function _bookedByText(j){
   var when = j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-CA',{month:'short',day:'numeric'}) : '';
   return j.createdBy + (when ? ' · ' + when : '');
 }
-// On the PDF sheets it sits in the blank band under the company address, the one spot
-// that is empty on the bin, junk and Furniture Bank templates alike. Drawn before the
-// Office/Driver copies are made, so every copy carries it.
-function _stampBookedBy(page, font, fontBold, j){
+// On the PDF sheets it goes one line under the last label of the right-hand reference
+// column (Jake, 2026-10-14). Drawn before the Office/Driver copies are made, so every
+// copy carries it. Returns the x where the text ends (x itself when nothing printed),
+// so the bin sheet can put the PO number beside it.
+function _stampBookedBy(page, font, fontBold, j, x, yFromTop){
   var t = _bookedByText(j);
-  if(!t) return;
+  if(!t) return x;
   var black = PDFLib.rgb(0, 0, 0);
-  page.drawText('BOOKED BY:', { x: 126, y: 792 - 91, size: 10, font: fontBold, color: black });
-  page.drawText(t, { x: 126 + fontBold.widthOfTextAtSize('BOOKED BY: ', 10), y: 792 - 91, size: 10, font: font, color: black });
+  var labelW = fontBold.widthOfTextAtSize('BOOKED BY: ', 10);
+  page.drawText('BOOKED BY:', { x: x, y: 792 - yFromTop, size: 10, font: fontBold, color: black });
+  page.drawText(t, { x: x + labelW, y: 792 - yFromTop, size: 10, font: font, color: black });
+  return x + labelW + font.widthOfTextAtSize(t, 10);
 }
 
 // ── Office + Driver copies ──
@@ -18503,7 +18508,7 @@ async function printJunkRemoval(jobId) {
       });
     }
 
-    _stampBookedBy(page, font, fontBold, j);
+    _stampBookedBy(page, font, fontBold, j, 360, 213);   // under "Junk Removal Time:"
     await _addOfficeDriverCopies(pdfDoc, font, { x: 395, y: 114 }, null, fontBold);
     // The price goes on once the copies exist, so it can be placed per copy. A Junk
     // Quote is the customer's paper, so both copies show it. A Junk Removal shows it on
@@ -18781,7 +18786,7 @@ async function printFbPickup(jobId) {
     // Three labeled copies — Office / Driver / Storage Unit. FB Toronto dropped
     // 2026-09-09 (Jake); the other three stay as Kelly set them 2026-08-14.
     // All three are inside this one file: set the printer to 1 copy.
-    _stampBookedBy(page, font, fontBold, j);
+    _stampBookedBy(page, font, fontBold, j, 358, 228);   // under "Time:"
     await _addOfficeDriverCopies(pdfDoc, font, { x: 394, y: 164, label: 'Copy:', labelX: 358 }, ['Office', 'Driver', 'Storage Unit'], fontBold);
     var filledBytes = await pdfDoc.save();
     var blob = new Blob([filledBytes], { type: 'application/pdf' });
