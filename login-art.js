@@ -380,9 +380,6 @@
     });
   }
 
-  if (sheet.motion) sheet.motion();
-  else if (sheet.effects) runEffects(sheet);
-
   // ── THE MOTION LAYER ──
   // A canvas laid exactly over the picture, for sheets whose motion is drawn rather than
   // done in CSS. The picture itself never moves; draw(ctx, w, h, t, still) paints one
@@ -945,6 +942,10 @@
       }
     };
   };
+
+  // Started last, once FX, PART, PICK and WEIGHT above have been filled in.
+  if (sheet.motion) sheet.motion();
+  else if (sheet.effects) runEffects(sheet);
 
   window.JJLoginArt = {
     // Called by app.js once Supabase has accepted the password, so the next
