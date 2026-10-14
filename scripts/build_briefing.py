@@ -201,6 +201,17 @@ SIGN_OFF = [
     "That's everything. Do carry on.",
 ]
 
+# The last word, every morning (Jake, 2026-10-14). Rotates like the rest so
+# Josh gets a fresh one each day.
+JOSH = [
+    "And Josh. We know it was you. We just don't know what yet.",
+    "One more thing. Josh, the bins go on the truck. Not the other way round.",
+    "A word for Josh. We can haul away almost anything. Please don't test that.",
+    "Josh, if you're listening, and we suspect you aren't, carry on regardless.",
+    "And Josh. Whatever it is, put it back.",
+    "Josh. Hydrate. That is all.",
+]
+
 GREETING = [
     "Good morning. %s.",
     "Good morning. It is %s.",
@@ -278,6 +289,7 @@ def write_script(s, today):
         lines.append("A light one.")
 
     lines.append(pick(SIGN_OFF, today))
+    lines.append(pick(JOSH, today))
     return " ".join(lines)
 
 
