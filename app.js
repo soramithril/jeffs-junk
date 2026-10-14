@@ -14313,18 +14313,16 @@ function toggleWillCallForm(forceState){
     // and says WILL CALL in its place.
     _setBinDurationMode(true);
     if(btn){
-      btn.style.background='rgba(217,119,6,.18)';
-      btn.style.borderColor='var(--warn)';
-      btn.innerHTML='📞 Waiting on customer call — click to turn off';
+      btn.classList.add('on');
+      btn.innerHTML='✓ WILL CALL — click to turn off';
     }
   } else {
     pick.disabled=false; pickTime.disabled=false;
     pick.style.opacity='1'; pickTime.style.opacity='1';
     _setBinDurationMode(false);
     if(btn){
-      btn.style.background='';
-      btn.style.borderColor='rgba(217,119,6,.4)';
-      btn.innerHTML='📞 Waiting on customer call — no pickup date scheduled';
+      btn.classList.remove('on');
+      btn.innerHTML='📞 Will call — no pickup date';
     }
   }
 }

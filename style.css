@@ -592,6 +592,12 @@ body{
 .btn-ghost:active{transform:scale(.97);box-shadow:0 1px 2px rgba(26,33,30,.10);}
 .btn-danger{background:var(--bad-soft);color:var(--bad-ink);border:1px solid rgba(220,38,38,.22);}.btn-danger:hover{background:rgba(220,38,38,.18);border-color:var(--bad);color:var(--bad-ink);}.btn-danger:active{transform:scale(.97);}
 .btn-sm{padding:6px 13px;font-size:13px;}
+/* Will call on the booking form: as tall as the date boxes and tinted even when off, so it
+   reads as a choice to make rather than fine print. Solid once it is on. */
+.willcall-btn{width:100%;justify-content:center;margin-top:8px;min-height:44px;padding:10px 14px;font-size:15px;font-weight:800;color:var(--warn-ink);background:var(--warn-soft);border:1.5px solid var(--warn);}
+.willcall-btn:hover{background:rgba(217,119,6,.22);}
+.willcall-btn.on{background:var(--warn);border-color:var(--warn);color:#fff;}
+.willcall-btn.on:hover{background:#b45309;}
 /* Today's Jobs rows: shrink the action controls (bin badge, email, assign, pick-up,
    confirm) so the busiest bin rows fit on one line inside the fixed actions column
    instead of overflowing onto the city chip. Overrides the inline sizes set in app.js. */
