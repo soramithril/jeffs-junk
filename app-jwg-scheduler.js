@@ -2899,21 +2899,24 @@ async function deleteSummerServiceType(typeId){
 // ── WINTER.JS ──────────────────────────────────────────
 // Part of JWG Staff Scheduler
 
-let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],filter:"",sortBy:"name",serviceFilter:"",lowOnly:false};
+// Route groups and the Route map live in app-winter-routes.js (window.WinterRoutes).
+let WIN={locations:[],serviceTypes:[],locationServices:[],saltBins:[],groups:[],view:"list",filter:"",sortBy:"route",serviceFilter:"",lowOnly:false};
 const DEFAULT_SALT_THRESHOLD=5;
 
 async function loadWinterData(){
   try{
-    const[locs,types,ls,salt]=await Promise.all([
+    const[locs,types,ls,salt,groups]=await Promise.all([
       sbF("GET","jwg_service_locations?has_winter_service=eq.true&is_archived=eq.false&order=client_name"),
       sbF("GET","jwg_service_types?season=eq.winter&is_active=eq.true&order=sort_order"),
       sbF("GET","jwg_location_services?select=*,jwg_service_types!inner(season)&jwg_service_types.season=eq.winter"),
-      sbF("GET","jwg_salt_bins?select=*")
+      sbF("GET","jwg_salt_bins?select=*"),
+      sbF("GET","jwg_winter_groups?order=sort_order")
     ]);
     WIN.locations=locs||[];
     WIN.serviceTypes=types||[];
     WIN.locationServices=ls||[];
     WIN.saltBins=salt||[];
+    WIN.groups=groups||[];
   }catch(e){console.error("Load winter data failed:",e);toast("Failed to load winter services","error");}
 }
 
@@ -2929,18 +2932,25 @@ async function initWinterPage(){
 function renderWinterPage(){
   const root=document.getElementById("win-page");
   if(!root)return;
+  const viewBtn=(v,label)=>`<button type="button" class="wr-view-btn" aria-pressed="${WIN.view===v}" onclick="JWG.setWinterView('${v}')">${label}</button>`;
   let h=`<div class="si-header">
-    <div><div class="si-title">Snow &amp; salt locations</div></div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div class="si-title">Snow &amp; salt locations</div><div class="wr-view">${viewBtn("list","List")}${viewBtn("map","Route map")}</div></div>
     <div class="si-actions">
       <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">Add location</button>
       <button class="si-action-btn secondary" onclick="JWG.WIN.filtersOpen=!JWG.WIN.filtersOpen;var b=document.getElementById('win-filter-bar');if(b)b.style.display=JWG.WIN.filtersOpen?'':'none'">🔍 Filters</button>
       <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">Edit service list</button>
       <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
     </div>
-  </div>
-  <div class="si-filter-bar" id="win-filter-bar" style="${WIN.filtersOpen?"":"display:none"}">
+  </div>`;
+  if(WIN.view==="map"){
+    root.innerHTML=h+`<div class="wr-layout"><div class="wr-map-host" id="wr-map-host"></div><div class="wr-side" id="wr-side"></div></div>`;
+    WinterRoutes.render(document.getElementById("wr-map-host"),document.getElementById("wr-side"),WIN);
+    return;
+  }
+  h+=`<div class="si-filter-bar" id="win-filter-bar" style="${WIN.filtersOpen?"":"display:none"}">
     <input type="text" class="si-filter-input" placeholder="Search location…" id="win-search" oninput="JWG.WIN.filter=this.value;JWG.filterAndSortWinter()">
     <select class="si-filter-select" id="win-sort" onchange="JWG.WIN.sortBy=this.value;JWG.filterAndSortWinter()">
+      <option value="route"${WIN.sortBy==="route"?" selected":""}>Sort: Route order</option>
       <option value="name"${WIN.sortBy==="name"?" selected":""}>Sort: A–Z</option>
       <option value="city"${WIN.sortBy==="city"?" selected":""}>Sort: by City</option>
     </select>
@@ -2967,6 +2977,11 @@ function renderWinterPage(){
   });
 
   if(WIN.sortBy==="city")filtered.sort((a,b)=>a.city.localeCompare(b.city));
+  if(WIN.sortBy==="route"){
+    // Group order from jwg_winter_groups, then stop; sites with no code yet go last.
+    const gi=c=>{const i=WIN.groups.findIndex(g=>g.code===c);return i<0?999:i;};
+    filtered.sort((a,b)=>gi(a.winter_group)-gi(b.winter_group)||(a.winter_stop||999)-(b.winter_stop||999));
+  }
   if(WIN.lowOnly)filtered.sort((a,b)=>{
     const sa=WIN.saltBins.find(s=>s.location_id===a.id);
     const sb=WIN.saltBins.find(s=>s.location_id===b.id);
@@ -2979,6 +2994,7 @@ function renderWinterPage(){
     h+=`<div style="font-size:12px;color:var(--fg-muted);margin:0 0 10px;padding:0 2px">Showing ${filtered.length} of ${WIN.locations.length} location${WIN.locations.length!==1?"s":""}</div>`;
     h+=`<table class="win-table">
       <thead><tr>
+        <th class="win-th">Code</th>
         <th class="win-th">Client</th>
         <th class="win-th">Address</th>
         <th class="win-th">City</th>
@@ -2991,7 +3007,10 @@ function renderWinterPage(){
       const salt=WIN.saltBins.find(s=>s.location_id===loc.id);
       const isLow=salt&&salt.current_bags<=salt.min_threshold;
       const wServices=WIN.locationServices?WIN.locationServices.filter(ls=>ls.location_id===loc.id):[];
+      const grp=WIN.groups.find(g=>g.code===loc.winter_group);
+      const wcode=WinterRoutes.code(loc);
       h+=`<tr class="win-row">
+        <td class="win-td" data-label="Code">${wcode?`<span class="wr-code" style="background:${grp.color}">${wcode}</span>`:`<span class="wr-code none" title="${WinterRoutes.located(loc)?"No group yet":"Not on the map yet"}">—</span>`}</td>
         <td class="win-td win-td-client">${esc(loc.client_name)}</td>
         <td class="win-td" data-label="Address">${esc(loc.address)}</td>
         <td class="win-td" data-label="City">${esc(loc.city)}</td>
@@ -3043,6 +3062,36 @@ async function writeSalt(salt,newCount){
   }catch(e){toast("Failed to update salt count","error");console.error(e);}
 }
 
+function setWinterView(v){WIN.view=v;renderWinterPage();}
+async function reloadWinter(){await loadWinterData();renderWinterPage();}
+
+// The route group picker in the Add and Edit forms. Blank lets the app choose the
+// group whose sites are the shortest drive from this address.
+function winterGroupField(current){
+  return`<div class="si-form-group">
+      <label class="si-form-label">Route group</label>
+      <select class="si-form-input" id="win-group">
+        <option value=""${current?"":" selected"}>Pick for me from the address</option>
+        ${WIN.groups.map(g=>`<option value="${g.code}"${g.code===current?" selected":""}>${g.code} · ${esc(g.name)}</option>`).join("")}
+      </select>
+    </div>`;
+}
+
+// After a site is saved: put it on the map, settle its group, and renumber every
+// group it left or joined so codes stay in driving order. pt is the address lookup
+// (null = not found, undefined = address unchanged, keep the spot it has). A site
+// that cannot be found waits under "Not on the map yet" on the Route map.
+async function routeAfterSave(locId,pt,group,oldGroup){
+  await loadWinterData();
+  const loc=WIN.locations.find(l=>l.id===locId);
+  if(pt!==undefined){loc.lat=pt?pt.lat:null;loc.lng=pt?pt.lng:null;}
+  if(!group&&WinterRoutes.located(loc))group=await WinterRoutes.suggestGroup(loc,WIN.locations.filter(l=>l.id!==locId),WIN.groups);
+  loc.winter_group=group||null;
+  await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{lat:loc.lat,lng:loc.lng,winter_group:loc.winter_group,updated_at:new Date().toISOString()});
+  for(const g of new Set([oldGroup,loc.winter_group].filter(Boolean)))await WinterRoutes.renumberGroup(g,WIN.locations);
+  if(!WinterRoutes.located(loc))toast("Saved, but the address wasn't found on the map. Place its pin on the Route map.","error");
+}
+
 function openAddWinterLocation(){
   let svcToggles=WIN.serviceTypes.map(t=>{
     return`<div style="background:var(--bg-deep);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
@@ -3069,6 +3118,7 @@ function openAddWinterLocation(){
       <label class="si-form-label">City</label>
       <input type="text" class="si-form-input" id="win-city" placeholder="City">
     </div>
+    ${winterGroupField("")}
     <div class="si-form-group">
       <label class="si-form-label">Notes</label>
       <textarea class="si-form-textarea" id="win-notes" placeholder="Optional notes…"></textarea>
@@ -3100,6 +3150,7 @@ async function saveWinterLocation(){
   const addr=(document.getElementById("win-addr")?.value||"").trim();
   const city=(document.getElementById("win-city")?.value||"").trim();
   const notes=(document.getElementById("win-notes")?.value||"").trim();
+  const group=document.getElementById("win-group")?.value||"";
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
   try{
     const result=await sbF("POST","jwg_service_locations",{client_name:name,address:addr,city,notes,has_winter_service:true,has_summer_service:false,is_archived:false});
@@ -3114,10 +3165,12 @@ async function saveWinterLocation(){
       const svcNotes=notesEl?.value||'';
       await sbF("POST","jwg_location_services",{location_id:locId,service_type_id:typeId,notes:svcNotes,is_active:true});
     }
-    toast("Location added");
     closeModal();
-    await loadWinterData();
-    renderWinterPage();
+    toast("Location added");
+    const pt=await WinterRoutes.findAddress(addr,city);
+    try{await routeAfterSave(locId,pt,group,null);}
+    catch(e){toast("Saved, but the run order couldn't be worked out: "+e.message,"error");console.error(e);}
+    await reloadWinter();
   }catch(e){toast("Failed to save location","error");console.error(e);}
 }
 
@@ -3154,6 +3207,7 @@ function editWinterLocation(locId){
       <label class="si-form-label">City</label>
       <input type="text" class="si-form-input" id="win-city" value="${esc(loc.city)}">
     </div>
+    ${winterGroupField(loc.winter_group||"")}
     <div class="si-form-group">
       <label class="si-form-label">Notes</label>
       <textarea class="si-form-textarea" id="win-notes">${esc(loc.notes||"")}</textarea>
@@ -3193,7 +3247,11 @@ async function updateWinterLocation(locId){
   const addr=(document.getElementById("win-addr")?.value||"").trim();
   const city=(document.getElementById("win-city")?.value||"").trim();
   const notes=(document.getElementById("win-notes")?.value||"").trim();
+  const group=document.getElementById("win-group")?.value||"";
   if(!name||!addr||!city){toast("Please fill in required fields","error");return;}
+  const before=WIN.locations.find(l=>l.id===locId);
+  const moved=before.address!==addr||before.city!==city;
+  const oldGroup=before.winter_group;
   try{
     await sbF("PATCH",`jwg_service_locations?id=eq.${locId}`,{client_name:name,address:addr,city,notes,updated_at:new Date().toISOString()});
     // Save service toggles
@@ -3219,10 +3277,16 @@ async function updateWinterLocation(locId){
       const salt=WIN.saltBins.find(s=>s.location_id===locId);
       if(salt)await sbF("PATCH",`jwg_salt_bins?id=eq.${salt.id}`,{min_threshold:newMin,updated_at:new Date().toISOString()});
     }
-    toast("Location updated");
     closeModal();
-    await loadWinterData();
-    renderWinterPage();
+    toast("Location updated");
+    // Only a new address or a different group changes the run; anything else leaves
+    // the map and the codes alone.
+    if(moved||group!==(oldGroup||"")){
+      const pt=moved?await WinterRoutes.findAddress(addr,city):undefined;
+      try{await routeAfterSave(locId,pt,group,oldGroup);}
+      catch(e){toast("Saved, but the run order couldn't be worked out: "+e.message,"error");console.error(e);}
+    }
+    await reloadWinter();
   }catch(e){toast("Failed to update location","error");console.error(e);}
 }
 
@@ -3233,7 +3297,12 @@ async function deleteWinterLocation(locId){
     await sbF("DELETE",`jwg_service_locations?id=eq.${locId}`);
     toast("Location deleted");
     await loadWinterData();
-    renderWinterPage();
+    // Close the gap it left in its group's run.
+    if(loc&&loc.winter_group){
+      try{await WinterRoutes.renumberGroup(loc.winter_group,WIN.locations);}
+      catch(e){toast("Deleted, but the run order couldn't be worked out: "+e.message,"error");console.error(e);}
+    }
+    await reloadWinter();
   }catch(e){toast("Failed to delete location","error");console.error(e);}
 }
 
@@ -3822,5 +3891,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
+window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setWinterView:setWinterView,reloadWinter:reloadWinter,sbF:sbF,toast:toast,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
 })();
