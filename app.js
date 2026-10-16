@@ -3661,8 +3661,9 @@ function removeCrewMember(id){
 }
 
 // ── User Manager Modal (Settings → User Management) ──
-// Edits user_profiles rows (username, role, can_delete) and creates new logins through the
-// admin-only create-staff-login function.
+// Edits user_profiles rows (username, role, can_delete). New logins are added only in
+// Supabase (Authentication → Add user); a trigger gives each one a profile with no role,
+// so it shows up here with no access until someone picks its tier.
 var _userManagerUsers = [];
 // The six access tiers. The value is what lands in user_profiles.role and drives
 // every visibility check in the app; the label is what this dropdown shows. The
@@ -3682,7 +3683,8 @@ function roleLabel(role){
   return 'Office';
 }
 function roleOptionsHtml(selected){
-  return ROLE_TIERS.map(function(t){
+  var known=ROLE_TIERS.some(function(t){return t[0]===selected;});
+  return (known?'':'<option value="" selected disabled>No access yet — pick a role</option>')+ROLE_TIERS.map(function(t){
     return '<option value="'+t[0]+'"'+(selected===t[0]?' selected':'')+'>'+t[1]+' — '+t[2]+'</option>';
   }).join('');
 }
@@ -3690,21 +3692,8 @@ function openUserManager(){
   var html='<div class="modal-overlay open" id="user-modal-overlay" onclick="if(event.target===this)closeUserManager()">'
     +'<div style="background:var(--surface);border-radius:14px;padding:24px;max-width:640px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
     +'<div style="font-size:16px;font-weight:700;margin-bottom:6px">User Management</div>'
-    +'<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Edit roles and permissions, or add a new staff login. The tier decides which pages someone sees — no code change needed. Deleting is the separate tick box, so someone can have every page without being able to delete anything.</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:14px">Edit roles and permissions. New logins are added in Supabase (Authentication → Add user) and appear here with no access until you pick a role. The tier decides which pages someone sees — no code change needed. Deleting is the separate tick box, so someone can have every page without being able to delete anything.</div>'
     +'<div id="user-list" style="margin-bottom:18px"><div style="font-size:12px;color:var(--muted);padding:8px 0">Loading…</div></div>'
-    +'<div style="border-top:1px solid var(--border);padding-top:14px">'
-    +'<div style="font-size:13px;font-weight:600;margin-bottom:8px">Add new staff login</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
-    +'<input id="user-new-email" type="email" placeholder="Email" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
-    +'<input id="user-new-password" type="text" placeholder="Temp password (min 6 chars)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
-    +'<input id="user-new-username" type="text" placeholder="Username (display name)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
-    +'<select id="user-new-role" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">'
-    +roleOptionsHtml('office')
-    +'</select>'
-    +'</div>'
-    +'<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:10px"><input id="user-new-candelete" type="checkbox"> Can delete records</label>'
-    +'<button class="btn btn-primary" onclick="addNewUser()" style="font-size:12px;padding:8px 16px">Create User</button>'
-    +'</div>'
     +'<div style="text-align:right;margin-top:18px"><button class="btn btn-ghost" onclick="closeUserManager()">Done</button></div>'
     +'</div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
@@ -3756,31 +3745,6 @@ function removeUserProfile(id){
     renderUserList();
     toast('✓ Profile removed');
   });
-}
-async function addNewUser(){
-  var email=(document.getElementById('user-new-email').value||'').trim();
-  var password=(document.getElementById('user-new-password').value||'').trim();
-  var username=(document.getElementById('user-new-username').value||'').trim();
-  var role=document.getElementById('user-new-role').value;
-  var canDel=document.getElementById('user-new-candelete').checked;
-  if(!email||!password||!username){toast('Email, password, and username are required.','error');return;}
-  if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
-  // Public sign-up is off, so the login and its profile are made server-side by an
-  // admin-only function (supabase/functions/create-staff-login).
-  var token=(await db.auth.getSession()).data.session.access_token;
-  var res=await fetch(SUPABASE_URL+'/functions/v1/create-staff-login',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-    body:JSON.stringify({email:email,password:password,username:username,role:role,can_delete:canDel})
-  });
-  var out=await res.json();
-  if(!res.ok){toast('Create failed: '+out.error,'error');return;}
-  document.getElementById('user-new-email').value='';
-  document.getElementById('user-new-password').value='';
-  document.getElementById('user-new-username').value='';
-  document.getElementById('user-new-candelete').checked=false;
-  await loadUserList();
-  toast('✓ User created. They can now log in with '+email);
 }
 
 
