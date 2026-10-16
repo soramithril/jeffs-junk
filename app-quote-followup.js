@@ -45,7 +45,7 @@ async function renderQuoteFollowups(){
   });
 
   var tile = function(n, label, fg, bg){
-    return '<div style="flex:1 1 150px;background:' + bg + ';border-radius:14px;padding:14px 18px">'
+    return '<div style="flex:1 1 95px;background:' + bg + ';border-radius:14px;padding:14px 18px">'
       + '<div style="font-size:34px;font-weight:900;line-height:1;color:' + fg + '">' + n + '</div>'
       + '<div style="font-size:14px;font-weight:800;color:' + fg + ';margin-top:6px">' + label + '</div></div>';
   };
