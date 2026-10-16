@@ -107,7 +107,7 @@ function renderDrdCalc(){
           :'<span style="width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted)">'+JWGIcons.svg('furniture',{size:20})+'</span>';
         html+='<div class="drdc-item" data-name="'+_esc(item.name.toLowerCase())+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
           +thumb
-          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+item.name+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+escHtml(item.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:6px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdcStep('+i+',-1)" aria-label="Remove one"'+(c?'':' disabled')+'>&minus;</button>'
@@ -357,7 +357,7 @@ function drdcRenderChips(picked){
       :'<span style="width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)">'+JWGIcons.svg('furniture',{size:18})+'</span>';
     html+='<div style="display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5px 14px 5px 6px;box-shadow:0 1px 3px rgba(0,0,0,.05)">'
       +thumb
-      +'<div style="line-height:1.25;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap">'+p.item.name+'</div>'
+      +'<div style="line-height:1.25;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap">'+escHtml(p.item.name)+'</div>'
       +'<div style="font-size:10.5px;color:var(--muted);white-space:nowrap">'+p.qty+' × '+(p.item.vol||0)+' ft³</div></div>'
       +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:17px;color:var(--accent);letter-spacing:.5px;margin-left:6px;white-space:nowrap">'+((p.item.vol||0)*p.qty)+'</span>'
       +'<button type="button" class="drdc-chip-x" onclick="drdcRemove('+p.idx+')" title="Take '+p.item.name.replace(/"/g,'&quot;')+' off the truck" aria-label="Remove '+p.item.name.replace(/"/g,'&quot;')+'">&times;</button></div>';

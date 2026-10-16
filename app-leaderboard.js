@@ -106,7 +106,7 @@ async function renderDriverLeaderboard(){
       +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">'
         +'<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center">'+medal+'</div>'
         +'<div style="flex:1;min-width:0">'
-          +'<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:'+(v.color||'#22c55e')+'"></span>'+(v.name||d.name)+'</div>'
+          +'<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:50%;background:'+(v.color||'#22c55e')+'"></span>'+escHtml(v.name||d.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+Math.round(d.distance)+' km · '+d.days+' day'+(d.days!==1?'s':'')+(d.driveMin?' · '+Math.round(d.driveMin)+' min driving':'')+'</div>'
         +'</div>'
         +'<div style="text-align:center;flex-shrink:0">'
@@ -182,7 +182,7 @@ async function renderCrewLeaderboard(){
       +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">'
         +'<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center">'+medal+'</div>'
         +'<div style="flex:1;min-width:0">'
-          +'<div style="font-weight:700;font-size:15px">'+d.name+'</div>'
+          +'<div style="font-weight:700;font-size:15px">'+escHtml(d.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+Math.round(d.distance)+' km · '+d.days+' day'+(d.days!==1?'s':'')+' · '+d.vehicleCount+' vehicle'+(d.vehicleCount!==1?'s':'')+(d.driveMin?' · '+Math.round(d.driveMin)+' min driving':'')+'</div>'
         +'</div>'
         +'<div style="text-align:center;flex-shrink:0">'
@@ -268,11 +268,11 @@ function renderLbAssignments(){
     var crewHtml=assigned.length
       ? assigned.map(function(a){
           var perm=isPermanentAssignment(a.name, v.vid);
-          return '<span class="lb-assign-crew'+(perm?' lb-assign-perm':'')+'">'+(perm?'🔒 ':'')+a.name+'</span>';
+          return '<span class="lb-assign-crew'+(perm?' lb-assign-perm':'')+'">'+(perm?'🔒 ':'')+escHtml(a.name)+'</span>';
         }).join('')
       : '<span style="font-size:11px;color:var(--muted);font-style:italic">No crew</span>';
     return '<div class="lb-assign-card">'
-      +'<div class="lb-assign-vname">'+(v.leaderboardOnly?'':'🚛 ')+v.name+'</div>'
+      +'<div class="lb-assign-vname">'+(v.leaderboardOnly?'':'🚛 ')+escHtml(v.name)+'</div>'
       +'<div class="lb-assign-crew-row">'+crewHtml+'</div>'
       +'</div>';
   }).join('');
@@ -436,7 +436,7 @@ function renderLbWinnerBanner(rows,range,isCrewMode){
     +'<div style="font-size:48px;">🏆</div>'
     +'<div style="flex:1;min-width:200px;">'
       +'<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:2px;">Top Performer — '+range.label+'</div>'
-      +'<div style="font-size:24px;font-weight:800;">'+winner.name+'</div>'
+      +'<div style="font-size:24px;font-weight:800;">'+escHtml(winner.name)+'</div>'
       +'<div style="font-size:13px;color:var(--muted);margin-top:2px;">'+Math.round(winner.distance)+' km driven · '+winner.days+' day'+(winner.days!==1?'s':'')+' active · '+winner.totalEvents+' event'+(winner.totalEvents!==1?'s':'')+'</div>'
     +'</div>'
     +'<div style="text-align:center;">'
@@ -778,7 +778,7 @@ function renderLbImprovement(rows,range,isCrewMode){
 
     return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:var(--surface2)">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-        +'<div style="font-weight:700;font-size:14px;">'+d.name+'</div>'
+        +'<div style="font-weight:700;font-size:14px;">'+escHtml(d.name)+'</div>'
         +'<div style="display:flex;align-items:center;gap:8px;">'
           +'<span style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;color:'+safeColor+';line-height:1;">'+(d.safetyDelta>=0?'+':'')+d.safetyDelta+'</span>'
           +'<span style="font-size:12px;font-weight:700;color:'+safeColor+';background:'+safeColor+'14;padding:2px 8px;border-radius:6px;">'+(d.safetyPct>=0?'+':'')+d.safetyPct+'%</span>'
@@ -860,7 +860,7 @@ function renderLbRankings(rows,range,isCrewMode){
       +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px">'
         +'<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center">'+medal+'</div>'
         +'<div style="flex:1;min-width:0">'
-          +'<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px">'+dotHtml+d.name+'</div>'
+          +'<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px">'+dotHtml+escHtml(d.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted);margin-top:1px">'+Math.round(d.distance)+' km · '+d.days+' day'+(d.days!==1?'s':'')+(d.driveMin?' · '+Math.round(d.driveMin)+' min driving':'')+'</div>'
         +'</div>'
         +'<div style="text-align:center;flex-shrink:0">'

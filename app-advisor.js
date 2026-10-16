@@ -550,15 +550,15 @@ async function runAdvisor(){
       // priority tag colour — no icons, no background washes.
       var tagColors = {HIGH:'var(--red)',MEDIUM:'var(--accent-warm)',LOW:'var(--accent)'};
       cards.innerHTML = recs.map(function(r,_ci){
-        return '<div class="adv-card" data-status="'+r.status+'" data-idx="'+_ci+'">'
+        return '<div class="adv-card" data-status="'+escHtml(r.status)+'" data-idx="'+_ci+'">'
           +'<div class="adv-card-top">'
           +'<span class="adv-idx">'+(_ci<9?'0':'')+(_ci+1)+'</span>'
-          +'<span class="adv-card-t">'+r.title+'</span>'
-          +'<span class="adv-tag" style="color:'+(tagColors[r.priority]||'var(--accent)')+'">'+r.priority+'</span>'
-          +'<span class="adv-cat">'+r.category+'</span>'
+          +'<span class="adv-card-t">'+escHtml(r.title)+'</span>'
+          +'<span class="adv-tag" style="color:'+(tagColors[r.priority]||'var(--accent)')+'">'+escHtml(r.priority)+'</span>'
+          +'<span class="adv-cat">'+escHtml(r.category)+'</span>'
           +'</div>'
-          +'<p>'+r.detail+'</p>'
-          +'<div class="adv-next"><b>Next step</b>'+r.action+'</div>'
+          +'<p>'+escHtml(r.detail)+'</p>'
+          +'<div class="adv-next"><b>Next step</b>'+escHtml(r.action)+'</div>'
           +'</div>';
       }).join('');
     }

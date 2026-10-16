@@ -39,7 +39,7 @@ function docCard(d){
     + 'onmouseout="this.style.transform=\'\';this.style.boxShadow=\'\'">'
     + '<div style="font-size:32px;line-height:1;flex-shrink:0;margin-top:2px">📄</div>'
     + '<div style="min-width:0">'
-      + '<div style="font-weight:600;font-size:14px;color:var(--text);line-height:1.25">'+d.name+'</div>'
+      + '<div style="font-weight:600;font-size:14px;color:var(--text);line-height:1.25">'+escHtml(d.name)+'</div>'
       + '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.4">'+d.desc+'</div>'
       + '<div style="font-size:11px;color:var(--muted);margin-top:6px">' + docKind(d.file) + '</div>'
     + '</div>'

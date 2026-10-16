@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '695';
+var APP_VERSION = '697';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2219,7 +2219,7 @@ function _itemInpAC(inp){
   var matches=DRD_ITEMS.filter(function(item){return !item.hidden&&item.name.toLowerCase().indexOf(val)>=0;}).slice(0,8);
   if(!matches.length){dd.style.display='none';return;}
   dd.innerHTML=matches.map(function(m,i){
-    return '<div class="item-ac-opt'+(i===0?' item-ac-active':'')+'" onmousedown="_itemAcPick(this)" style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);font-family:\'DM Sans\',sans-serif;border-bottom:1px solid var(--border)" onmouseover="this.parentNode.querySelectorAll(\'.item-ac-opt\').forEach(function(o){o.classList.remove(\'item-ac-active\')});this.classList.add(\'item-ac-active\')">'+m.name+'</div>';
+    return '<div class="item-ac-opt'+(i===0?' item-ac-active':'')+'" onmousedown="_itemAcPick(this)" style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--text);font-family:\'DM Sans\',sans-serif;border-bottom:1px solid var(--border)" onmouseover="this.parentNode.querySelectorAll(\'.item-ac-opt\').forEach(function(o){o.classList.remove(\'item-ac-active\')});this.classList.add(\'item-ac-active\')">'+escHtml(m.name)+'</div>';
   }).join('');
   dd.style.display='block';
   // Big screens: the list grows to show all 8 suggestions, never past the bottom of the
@@ -3243,7 +3243,7 @@ function renderNeedsYou(){
       : (j.junkDate||j.date);
     var daysUntil=dropD2?Math.round((new Date(dropD2+'T12:00:00').getTime()-new Date(today+'T12:00:00').getTime())/86400000):null;
     var whenTxt=daysUntil==null?'':daysUntil<=0?'today':daysUntil===1?'tomorrow':(daysUntil+' days');
-    var nameHtml='<span class="ny-name">'+j.name+'</span>';
+    var nameHtml='<span class="ny-name">'+escHtml(j.name)+'</span>';
     var titleHtml='<span class="ny-t-desk">'+nameHtml+' — send confirmation email</span>'
       +'<span class="ny-t-phone">Send email · '+nameHtml+' · '+svcShort+(whenTxt?' · '+whenTxt:'')+'</span>';
     var cdChip='';
@@ -3377,7 +3377,7 @@ async function renderReviewFollowups(){
     var meta=[x.service, 'finished '+fd(x.done)+' · '+days+(days===1?' day ago':' days ago')].filter(Boolean).join(' · ');
     return '<div style="display:flex;align-items:center;gap:14px;background:#fffdf5;border:1px solid var(--border);border-left:3px solid #eab308;border-radius:12px;padding:13px 16px;margin-bottom:7px">'
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#fef9e7">⭐</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask for a review — '+x.name+'</div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask for a review — '+escHtml(x.name)+'</div>'
       +'<div style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
       +'<button class="djj-btn green" onclick="openEmailModal(\''+x.id+'\',\'review_request\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send request</button>'
       +'<button title="Changed your mind — take this one off the list" onclick="skipReviewAsk(\''+x.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">Skip</button>'
@@ -3434,7 +3434,7 @@ function renderDashVehicleStatus(){
     +'</div>';
     return '<div style="position:relative;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+dotColor+'14;border:1px solid '+dotColor+'33;cursor:pointer;white-space:nowrap;font-size:12px" title="'+statusTip+'" onclick="event.stopPropagation();toggleVehMenu(\''+menuId+'\')">'
       +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotColor+';flex-shrink:0"></span>'
-      +'<span style="font-weight:600;color:var(--text)">'+v.name+'</span>'
+      +'<span style="font-weight:600;color:var(--text)">'+escHtml(v.name)+'</span>'
       +(statusIcon?'<span style="font-size:10px">'+statusIcon+'</span>':'')
       +menuHtml
       +'</div>';
@@ -3611,7 +3611,7 @@ function renderCrewList(){
   el.innerHTML=crewMembers.map(function(c){
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'
       +'<input type="color" value="'+(c.color||'#22c55e')+'" title="Driver colour" onchange="setCrewColor(\''+c.id+'\',this.value)" style="width:26px;height:26px;border:none;background:none;cursor:pointer;padding:0;flex:0 0 auto">'
-      +'<span style="flex:1;font-size:13px">'+c.name+'</span>'
+      +'<span style="flex:1;font-size:13px">'+escHtml(c.name)+'</span>'
       +'<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px" onclick="renameCrewMember(\''+c.id+'\')" title="Rename">✎</button>'
       +'<button style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:16px;padding:2px 6px" onclick="removeCrewMember(\''+c.id+'\')" title="Remove">×</button>'
       +'</div>';
@@ -3707,7 +3707,7 @@ async function loadUserList(){
   var r=await db.from('user_profiles').select('id,username,role,can_delete').order('username');
   if(r.error){
     var el=document.getElementById('user-list');
-    if(el)el.innerHTML='<div style="font-size:12px;color:var(--bad)">Failed to load: '+r.error.message+'</div>';
+    if(el)el.innerHTML='<div style="font-size:12px;color:var(--bad)">Failed to load: '+escHtml(r.error.message)+'</div>';
     return;
   }
   _userManagerUsers=r.data||[];
@@ -3936,8 +3936,8 @@ async function refreshDashJobs(){
         var timeStr = st ? ft(st) : '';
         var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+svcInk(color)+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
-        var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
-        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>' : '';
+        var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+escHtml(j.city)+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+escHtml(j.businessName)+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+svcInk(color)+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
@@ -3979,7 +3979,7 @@ async function refreshDashJobs(){
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
-          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+(j.binLiveLoad?liveLoadBadge():'')+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+escHtml(j.name)+'</span>'+(j.binLiveLoad?liveLoadBadge():'')+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+escHtml(addr)+'</div>':'')+'</div>'
           +'<div class="tjr2-binslot">'+binBadge+'</div>'
           +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
@@ -4073,7 +4073,7 @@ async function renderWeekCal(){
     var chipCls = ev.type==='pickup' ? 'svc-pickup' : (clsMap[j.service]||'');
     var titleStr=(ev.type==='pickup'?'Bin Pickup':ev.type==='dropoff'?'Bin Drop-off':j.service)+' · '+j.name;
     var t=evTime(ev);
-    return '<div class="week-job-chip '+chipCls+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+titleStr+'">'+(t?ft(t)+' ':'')+icon+label+(j.confirmed?'':' 📞')+'</div>';
+    return '<div class="week-job-chip '+chipCls+cfmCls+'" draggable="true" data-jid="'+j.id+'" onclick="event.stopPropagation();openDetail(\''+j.id+'\')" title="'+(j.confirmed?'Confirmed':'Not confirmed')+' · '+escHtml(titleStr)+'">'+(t?ft(t)+' ':'')+icon+escHtml(label)+(j.confirmed?'':' 📞')+'</div>';
   }
 
   // Build header row
@@ -4142,11 +4142,11 @@ function shiftWeek(n){weekOffset+=n;renderWeekCal();}
 function goToday(){weekOffset=0;renderWeekCal();}
 function makeDashRows(list){
   if(!list.length) return '<tr><td colspan="3" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+fd(j.date)+'</td></tr>';}).join('');
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+escHtml(j.name)+'</strong></td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
 function makeDashRowsFurn(list){
   if(!list.length) return '<tr><td colspan="4" style="text-align:center;padding:14px;color:var(--muted);font-size:13px">No upcoming jobs</td></tr>';
-  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+j.name+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td></tr>';}).join('');
+  return list.map(function(j){return '<tr onclick="openDetail(\''+j.id+'\')">'+'<td>'+jid(j.id,j.service)+'</td><td><strong>'+escHtml(j.name)+'</strong></td><td>'+sb(j.service)+'</td><td>'+fd(j.date)+'</td></tr>';}).join('');
 }
 // Inline SVG icon helper (Feather-style, stroke=currentColor) — used by the bins
 // dashboard sections in place of emoji for a cleaner, more professional look.
@@ -4632,8 +4632,8 @@ async function renderDash(bg){
         var timeStr = st ? ft(st) : '';
         var timeCell = timeStr ? '<span class="tjr2-time" style="color:'+svcInk(color)+'">'+timeStr+'</span>' : '';
         var _cc=_cityColor(j.city);
-        var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+j.city+'</span>' : '';
-        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+j.businessName+'</span>' : '';
+        var cityChip = (j.city&&_cc) ? '<span class="djj-city" style="background:'+_cc.bg+';color:'+_cc.fg+'">'+escHtml(j.city)+'</span>' : '';
+        var bizChip  = j.businessName ? '<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+escHtml(j.businessName)+'</span>' : '';
         var rgbCsv = _hexOrRgbToRgbCsv(color) || '34,197,94';
         var durStr = (j.service==='Junk Removal'||j.service==='Extra Jobs'||j.service==='Furniture Delivery'||j.service==='Furniture Pickup') ? fmtDur(j.estDurationMin) : '';
         var durChip = durStr ? '<span style="font-size:10px;font-weight:700;color:'+svcInk(color)+';background:rgba('+rgbCsv+',.10);border:1px solid '+color+';border-radius:5px;padding:1px 6px;white-space:nowrap;flex-shrink:0;letter-spacing:0.3px">⏱ '+durStr+'</span>' : '';
@@ -4675,7 +4675,7 @@ async function renderDash(bg){
         var crewLeg = isBin ? (isPickup?'pickup':'dropoff') : null;
         return '<div class="tjr2'+(timeStr?' fixed':'')+'" style="--tjr-c:'+color+'" onclick="openDetail(\''+j.id+'\')">'
           +'<div style="display:flex;flex:none;align-items:center">'+jobCrewAvatarsHTML(j,crewLeg)+'</div>'+timeCell
-          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+j.name+'</span>'+(j.binLiveLoad?liveLoadBadge():'')+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+addr+'</div>':'')+'</div>'
+          +'<div class="djj-main"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="djj-name">'+escHtml(j.name)+'</span>'+(j.binLiveLoad?liveLoadBadge():'')+cityChip+bizChip+durChip+landChip+'</div>'+(addr?'<div class="djj-sub">'+escHtml(addr)+'</div>':'')+'</div>'
           +'<div class="tjr2-binslot">'+binBadge+'</div>'
           +'<div class="tjr2-actions" onclick="event.stopPropagation()">'+btns+'</div>'
         +'</div>';
@@ -5315,11 +5315,11 @@ function renderJobsBinsOut(){
     return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid var(--bad);border-radius:0 8px 8px 0;background:var(--surface2);cursor:pointer" onclick="'+(curJob?'openDetail(\''+jobId+'\')':'')+'">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:12px;background:rgba(220,38,38,.12);color:var(--bad);border:1px solid rgba(220,38,38,.35);border-radius:5px;padding:2px 8px;font-weight:700">'+b.num+' · '+b.size+'</span>'
-        +'<strong style="font-size:14px">'+name+'</strong>'
-        +(phone?'<span style="font-size:12px;color:var(--muted)">'+phone+'</span>':'')
+        +'<strong style="font-size:14px">'+escHtml(name)+'</strong>'
+        +(phone?'<span style="font-size:12px;color:var(--muted)">'+escHtml(phone)+'</span>':'')
         +(daysOut?'<span style="font-size:11px;color:var(--warn);margin-left:auto;font-weight:600">'+daysOut+'</span>':'')
       +'</div>'
-      +(addr?'<div style="font-size:12px;color:var(--muted);margin-top:3px">📍 '+addr+(city?' · '+city:'')+(curJob&&binPickupLabel(curJob)?' · Pickup: '+binPickupLabel(curJob):'')+(jobId?' · '+jobId:'')+'</div>':'')
+      +(addr?'<div style="font-size:12px;color:var(--muted);margin-top:3px">📍 '+escHtml(addr)+(city?' · '+escHtml(city):'')+(curJob&&binPickupLabel(curJob)?' · Pickup: '+binPickupLabel(curJob):'')+(jobId?' · '+jobId:'')+'</div>':'')
     +'</div>';
   }).join('')+'</div>';
 }
@@ -5507,9 +5507,9 @@ function makeJobCard(j){
     + '<button class="btn btn-ghost btn-sm" data-action="edit" data-jid="'+j.id+'">'+lineIcon('edit',14)+' Edit</button>';
   return '<tr data-jid="'+j.id+'" class="job-row jcard-tr'+(isCancelled?' is-cancelled':'')+'">'
     +'<td class="jcard-td" colspan="9">'
-      +'<div class="jcard-top"><span class="jcard-name">'+j.name+'</span>'+jid(j.id,j.service)+'</div>'
+      +'<div class="jcard-top"><span class="jcard-name">'+escHtml(j.name)+'</span>'+jid(j.id,j.service)+'</div>'
       +'<div class="jcard-chips">'+chips+'</div>'
-      +(addr?'<div class="jcard-addr">'+addr+'</div>':'')
+      +(addr?'<div class="jcard-addr">'+escHtml(addr)+'</div>':'')
       +'<div class="jcard-acts">'+acts+'</div>'
     +'</td></tr>';
 }
@@ -5519,7 +5519,7 @@ function makeJobRowNoSvc(j){
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j)+'</span></td>'
+    +'<td><strong style="font-size:15px">'+escHtml(j.name)+'</strong><br><span style="font-size:12px;color:var(--muted)">'+escHtml((j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j))+'</span></td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
     +binDropBtn(j)
@@ -5538,7 +5538,7 @@ function makeLandscapingRow(j){
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
     +'<td style="font-size:14px">'+(j.jobName?'<strong style="color:#65a30d">'+escHtml(j.jobName)+'</strong>':'<span style="color:var(--muted)">—</span>')+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j)+'</span></td>'
+    +'<td><strong style="font-size:15px">'+escHtml(j.name)+'</strong><br><span style="font-size:12px;color:var(--muted)">'+escHtml((j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j))+'</span></td>'
     +'<td style="text-align:center;font-size:15px;font-weight:700;color:#65a30d">'+(j.crewSize?('👷 '+j.crewSize):'<span style="color:var(--muted);font-weight:400">—</span>')+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
@@ -5553,7 +5553,7 @@ function makeJobRowWithSvc(j){
   var rowStyle = isCancelled ? ' style="opacity:.6"' : '';
   return '<tr data-jid="'+j.id+'" class="job-row"'+rowStyle+'>'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j)+'</span></td>'
+    +'<td><strong style="font-size:15px">'+escHtml(j.name)+'</strong><br><span style="font-size:12px;color:var(--muted)">'+escHtml((j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+_refInline(j))+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:15px">'+fd(j.date)+(j.time?'<br><span style="font-size:12px;color:var(--muted)">'+ft(j.time)+'</span>':'')+'</td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+( resolveAddr(j).display||'—')+'</td>'
@@ -5569,7 +5569,7 @@ function makeCancelledRow(j){
   if(isMobileView()) return makeJobCard(j);
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+escHtml(j.name)+'</strong><br><span style="font-size:12px;color:var(--muted)">'+escHtml((j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):''))+'</span></td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
     +'<td><div style="display:flex;gap:8px">'
@@ -5582,7 +5582,7 @@ function makeCancelledRowWithSvc(j){
   if(isMobileView()) return makeJobCard(j);
   return '<tr data-jid="'+j.id+'" class="job-row" style="opacity:.65">'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+j.name+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+escHtml(j.name)+'</strong><br><span style="font-size:12px;color:var(--muted)">'+escHtml((j.phone||'')+(jobEmail(j)?' · '+jobEmail(j):''))+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td style="font-size:14px">'+fd(j.date)+'</td>'
     +'<td style="font-size:13px;color:var(--muted);max-width:260px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
@@ -5598,7 +5598,7 @@ function makeCompletedRow(j){
   var done = j.completedAt ? fd(String(j.completedAt).slice(0,10)) : '—';
   return '<tr data-jid="'+j.id+'" class="job-row">'
     +'<td>'+jid(j.id,j.service)+'</td>'
-    +'<td><strong style="font-size:15px">'+(j.jobName?escHtml(j.jobName):escHtml(j.name||''))+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.jobName?escHtml(j.name||'')+' · ':'')+(j.phone||'')+'</span></td>'
+    +'<td><strong style="font-size:15px">'+(j.jobName?escHtml(j.jobName):escHtml(j.name||''))+'</strong><br><span style="font-size:12px;color:var(--muted)">'+(j.jobName?escHtml(j.name||'')+' · ':'')+escHtml(j.phone||'')+'</span></td>'
     +'<td>'+sb(j.service)+'</td>'
     +'<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#16a34a;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:3px 9px">✅ '+done+'</span></td>'
     +'<td style="font-size:14px;color:var(--muted);max-width:240px;white-space:normal;word-break:break-word">'+(resolveAddr(j).display||'—')+'</td>'
@@ -6351,7 +6351,7 @@ async function clientSearchLive(q){
     var r=await db.from('clients').select(CLIENT_LIST_COLS)
       .or('name.ilike.%'+_orSafe(q)+'%,business_name.ilike.%'+_orSafe(q)+'%,phone.ilike.%'+_orSafe(q)+'%,city.ilike.%'+_orSafe(q)+'%,email.ilike.%'+_orSafe(q)+'%,address.ilike.%'+_orSafe(q)+'%'+phoneSearchOr(q,'phone')+nameEmailSearchOr(q))
       .order('name').limit(12);
-    if(r.error){box.innerHTML='<div style="padding:10px 14px;color:var(--bad);font-size:13px">Search error: '+r.error.message+'</div>';return;}
+    if(r.error){box.innerHTML='<div style="padding:10px 14px;color:var(--bad);font-size:13px">Search error: '+escHtml(r.error.message)+'</div>';return;}
     if(!r.data||!r.data.length){
       // Searching for a customer who turns out to be new is how most new customers
       // arrive, and the dead-end message meant typing the name a second time into
@@ -6377,7 +6377,7 @@ async function clientSearchLive(q){
         +(c.city?' <span style="color:var(--muted);font-size:11px">· '+escHtml(c.city)+'</span>':'')+'</div>';
     }).join('');
     r.data.forEach(function(c){var cl=dbToClient(c);var idx=clients.findIndex(function(x){return x.cid===cl.cid;});if(idx>=0)clients[idx]=cl;else clients.push(cl);});
-  }catch(ex){box.innerHTML='<div style="padding:10px 14px;color:var(--bad);font-size:13px">Error: '+ex.message+'</div>';}
+  }catch(ex){box.innerHTML='<div style="padding:10px 14px;color:var(--bad);font-size:13px">Error: '+escHtml(ex.message)+'</div>';}
 }
 
 // ─── GLOBAL SEARCH (dashboard top bar) ───
@@ -7805,12 +7805,12 @@ async function openClientDetail(cid){
   if(!phones.length&&cl.phone) phones=[{num:cl.phone,ext:''}];
   var emails=(cl.emails||[]).filter(Boolean);
   if(!emails.length&&cl.email) emails=[cl.email];
-  var namesHtml=names.length>1?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">All Names</div>'+names.map(function(n){return'<div>'+n+'</div>';}).join(''):'';
+  var namesHtml=names.length>1?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">All Names</div>'+names.map(function(n){return'<div>'+escHtml(n)+'</div>';}).join(''):'';
   var phonesHtml=phones.map(function(p){
     var icon=p.type==='home'?'🏠':p.type==='office'?'🏢':'📱';
-    return'<div>'+icon+' '+p.num+(p.ext?' <span style="color:var(--accent)">x'+p.ext+'</span>':'')+'</div>';
+    return'<div>'+icon+' '+escHtml(p.num)+(p.ext?' <span style="color:var(--accent)">x'+escHtml(p.ext)+'</span>':'')+'</div>';
   }).join('')||'—';
-  var emailsHtml=emails.map(function(e){return'<div><a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a></div>';}).join('')||'—';
+  var emailsHtml=emails.map(function(e){return'<div><a href="mailto:'+escHtml(e)+'" style="color:var(--accent)">'+escHtml(e)+'</a></div>';}).join('')||'—';
   document.getElementById('cdet-body').innerHTML =
     '<div class="cdet-side">'+(cl.blacklisted?'<div style="background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.3);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--bad);font-weight:600">🚫 This client is blacklisted — do not contact for promotions</div>':'')
     +(cl.contractor?'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.3);border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#2563eb;font-weight:700;display:flex;align-items:center;gap:7px">🏗️ Contractor account</div>':'')
@@ -7820,12 +7820,12 @@ async function openClientDetail(cid){
     +(window.JJPlaybook ? window.JJPlaybook.card(cl) : '')
     +'<div class="detail-section"><div class="detail-grid">'
     +(namesHtml?'<div class="detail-item" style="grid-column:1/-1"><label>Contact Names</label><span>'+namesHtml+'</span></div>':'')
-    +(cl.businessName?'<div class="detail-item" style="grid-column:1/-1"><label>Business Name</label><span>'+cl.businessName+'</span></div>':'')
+    +(cl.businessName?'<div class="detail-item" style="grid-column:1/-1"><label>Business Name</label><span>'+escHtml(cl.businessName)+'</span></div>':'')
     +'<div class="detail-item"><label>Phone(s)</label><span>'+phonesHtml+'</span></div>'
     +'<div class="detail-item"><label>Email(s)</label><span>'+emailsHtml+'</span></div>'
-    +'<div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+(cl.address||'—')+'</span></div>'
-    +'<div class="detail-item"><label>City</label><span>'+(cl.city||'—')+'</span></div>'
-    +'<div class="detail-item"><label>Referral</label><span>'+(cl.referral||'—')+'</span></div>'
+    +'<div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+escHtml(cl.address||'—')+'</span></div>'
+    +'<div class="detail-item"><label>City</label><span>'+escHtml(cl.city||'—')+'</span></div>'
+    +'<div class="detail-item"><label>Referral</label><span>'+escHtml(cl.referral||'—')+'</span></div>'
     +(lastMktg?'<div class="detail-item"><label>Marketing Email</label><span>✉ Sent '+fd(lastMktg)+'</span></div>':'')
     +'</div></div>'
     +'</div><div class="cdet-main">'
@@ -7840,8 +7840,8 @@ async function openClientDetail(cid){
     +(jobRows?'<div class="table-wrap cdet-jobs" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
     +renderClientQuoteHistory(cl.cid)
-    +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+cl.notes+'</p></div>':'')
-    +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+cl.internalNotes+'</p></div>':'')
+    +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+escHtml(cl.notes)+'</p></div>':'')
+    +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+escHtml(cl.internalNotes)+'</p></div>':'')
     +((cl.photos&&cl.photos.length)?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">📎 Internal Files <span style="font-weight:400;color:var(--muted);font-size:11px">— shown when this client is booked</span></div><div class="photo-thumb-grid">'+cl.photos.map(function(u){return '<a href="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:1600}))+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in"><img src="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:200}))+'" alt="" loading="lazy">'+(_cloudinaryIsPdf(u)?'<span class="photo-thumb-pdf">PDF</span>':'')+'</a>';}).join('')+'</div></div>':'')
     +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">'
     +'<button class="btn btn-primary" onclick="closeM(\'client-detail-modal\');newJobForClient(\''+cl.cid+'\')">+ New Job</button>'
@@ -8068,7 +8068,7 @@ function renderPricingGrids(){
     areaComps.forEach(function(comp){
       var compTonne = comp.bins && comp.bins._tonne;
       binHtml += '<tr style="border-bottom:1px solid var(--border)">'
-        +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
+        +'<td style="padding:10px 14px"><div style="font-weight:600">'+escHtml(comp.name)+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+escHtml(comp.website)+'</div>':'')+'</td>'
         +binSizes.map(function(s){ return priceCell(comp.bins&&comp.bins[s], ap.bins&&ap.bins[s]); }).join('')
         +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(compTonne?'<span style="color:#0d6efd">$'+compTonne+'/T</span>':'—')+'</td>'
         +'<td style="padding:10px 14px;text-align:center;color:var(--muted)">'+(comp.binFuel?'<span style="color:var(--warn)">'+comp.binFuel+'%</span>':'—')+'</td>'
@@ -8101,7 +8101,7 @@ function renderPricingGrids(){
         +'<td></td></tr>';
       areaComps.forEach(function(comp){
         junkHtml += '<tr style="border-bottom:1px solid var(--border)">'
-          +'<td style="padding:10px 14px"><div style="font-weight:600">'+comp.name+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+comp.website+'</div>':'')+'</td>'
+          +'<td style="padding:10px 14px"><div style="font-weight:600">'+escHtml(comp.name)+'</div>'+(comp.website?'<div style="font-size:11px;color:var(--muted)">'+escHtml(comp.website)+'</div>':'')+'</td>'
           +junkTiers.map(function(t){ return priceCell(comp.junk&&comp.junk[t.k], ap.junk&&ap.junk[t.k]); }).join('')
           +'<td style="padding:10px 14px"><div style="display:flex;gap:6px">'
           +'<button class="btn btn-ghost btn-sm" onclick="openEditCompetitor(\''+comp.id+'\')">'+lineIcon('edit',15)+'</button>'
@@ -8551,7 +8551,7 @@ async function renderMap(){
       : (binPickupLabel(j)?'<span style="font-size:11px;color:var(--muted)">Pickup: '+binPickupLabel(j)+'</span>'
                     :'<span style="font-size:11px;color:#c2410c">No pickup booked</span>');
     return '<div class="bin-row'+(overdue?' attn':'')+'" id="br-'+j.id+'" onclick="flyTo(\''+j.id+'\')"'+(overdue?' style="border-left:3px solid var(--bad)"':'')+'>'
-    +'<div class="bin-row-name">'+(binNum?'<span style="font-weight:800;color:var(--accent)">'+escHtml(binNum)+'</span> · ':'')+j.name+'</div>'
+    +'<div class="bin-row-name">'+(binNum?'<span style="font-weight:800;color:var(--accent)">'+escHtml(binNum)+'</span> · ':'')+escHtml(j.name)+'</div>'
     +'<div class="bin-row-addr">'+(ra.display||'<span style="color:var(--red);font-size:11px">⚠ No address</span>')+'</div>'
     +'<div class="bin-row-meta">'+(j.binSize?'<span style="font-size:11px;color:var(--muted)">'+j.binSize+'</span>':'')+pickTxt+'</div>'
     +'</div>';}).join('')
@@ -8569,7 +8569,7 @@ async function renderMap(){
     var ra=resolveAddr(j);
     var binNum=_mapBinLabel(j);
     var isOverdue=!!(j.binPickup && j.binPickup<today);
-    var popup='<div class="p-id">'+j.id+(binNum?' · Bin '+escHtml(binNum):'')+'</div><div class="p-name">'+j.name+'</div><div class="p-addr">'+ra.display+'</div>'
+    var popup='<div class="p-id">'+j.id+(binNum?' · Bin '+escHtml(binNum):'')+'</div><div class="p-name">'+escHtml(j.name)+'</div><div class="p-addr">'+escHtml(ra.display)+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:5px 0">'+sb(j.service)+'</div>'
       +(isOverdue?'<div style="font-size:12px;font-weight:700;color:var(--bad);margin-bottom:4px">Overdue — pickup was '+fd(j.binPickup)+'</div>':'')
       +'<div class="p-meta">📅 '+fd(j.date)+(j.time?' · '+ft(j.time):'')+(binNum?'<br>🗑 Bin '+escHtml(binNum):'')+(j.binSize?'<br>📦 '+j.binSize:'')+(j.binDropoff?'<br>⬇ Drop-off: '+fd(j.binDropoff):'')+(binPickupLabel(j)?'<br>⬆ Pickup: '+binPickupLabel(j):'<br>⬆ No pickup booked')+'</div>'
@@ -9154,12 +9154,12 @@ function renderLinkBinJobs(list){
       +'<div style="flex:1">'
         +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
           +'<span style="font-size:11px;color:var(--accent);font-weight:700">'+j.id+'</span>'
-          +'<strong style="font-size:13px">'+j.name+'</strong>'
+          +'<strong style="font-size:13px">'+escHtml(j.name)+'</strong>'
           +'<span style="font-size:11px;color:var(--muted)">'+fd(j.date)+'</span>'
           +(j.binSize?'<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(34,197,94,.08);color:var(--accent)">'+j.binSize+'</span>':'')
           +(hasOtherBin?'<span style="font-size:10px;color:var(--warn)">Already has bin</span>':'')
         +'</div>'
-        +(j.address?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+(j.address||'').split(',')[0]+(j.city?' · '+j.city:'')+'</div>':'')
+        +(j.address?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📍 '+escHtml((j.address||'').split(',')[0]+(j.city?' · '+j.city:''))+'</div>':'')
       +'</div>'
       +'<button class="btn btn-primary btn-sm" style="font-size:11px;white-space:nowrap" onclick="event.stopPropagation();linkBinToJob(\''+_linkBinBid+'\',\''+j.id+'\')">Link</button>'
     +'</div>';
@@ -9263,7 +9263,7 @@ function _confirmReassignBinFromJob(bid, toJobId){
       + '<p style="margin:0 0 12px">This bin is currently out at:</p>'
       + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px">'
         + '<div style="font-weight:700">'+oldJob.id+' &middot; '+oldAddr+'</div>'
-        + (oldJob.name?'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+oldJob.name+'</div>':'')
+        + (oldJob.name?'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+escHtml(oldJob.name)+'</div>':'')
       + '</div>'
       + '<p style="margin:0 0 10px">Confirming will:</p>'
       + '<ul style="margin:0 0 14px 18px;padding:0;line-height:1.7">'
@@ -9398,12 +9398,12 @@ async function renderBinHistoryInto(bid, bodyEl, closeModalId){
     return '<div style="padding:10px 14px;border:1px solid var(--border);border-left:3px solid '+statusCol+';border-radius:0 8px 8px 0;margin-bottom:6px;background:var(--surface2);cursor:pointer" onclick="'+closeJs+'openDetail(\''+j.id+'\')">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<span style="font-size:11px;background:rgba(34,197,94,.08);color:var(--accent);border-radius:4px;padding:1px 7px;font-weight:700">'+j.id+'</span>'
-        +'<strong style="font-size:13px">'+j.name+'</strong>'
+        +'<strong style="font-size:13px">'+escHtml(j.name)+'</strong>'
         +'<span style="font-size:11px;color:var(--muted)">'+fd(j.date)+'</span>'
         +'<span style="font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;background:'+statusCol+'22;color:'+statusCol+'">'+j.status+'</span>'
       +'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-top:3px">'
-        +(j.address?'📍 '+j.address.split(',')[0]:'')
+        +(j.address?'📍 '+escHtml(j.address.split(',')[0]):'')
         +(j.city?' · '+j.city:'')
         +(j.phone?' · '+j.phone:'')
         +(j.binDropoff?' · Drop: '+fd(j.binDropoff):'')
@@ -9708,7 +9708,7 @@ async function openAssignCrewPicker(jobId, leg){
       html+='<div onclick="toggleAssignCrew(\''+jobId+'\',\''+c.id+'\''+legArg2+')" '
         +'style="padding:10px;border:2px solid '+(on?crewAvatarColor(c.id):(cst.state==='off'?'rgba(220,38,38,.5)':'var(--border)'))+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,197,94,.05)':'var(--surface2)')+';display:flex;align-items:center;gap:10px;transition:all .15s">'
         +teamAvatar(c.name, crewAvatarColor(c.id), 32)
-        +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+c.name+'</span>'
+        +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+escHtml(c.name)+'</span>'
         +warn
         +(on?'<span style="margin-left:auto;color:var(--accent);font-size:16px">✓</span>':'')
         +'</div>';
@@ -10567,7 +10567,7 @@ async function printJobPhotos(jobId){
     + '.ph{text-align:center;margin-bottom:12px;page-break-inside:avoid}'
     + '.ph img{max-width:100%;max-height:4.4in}'
     + '</style></head><body>'
-    + '<div class="hdr"><b>Job ' + j.id + '</b> — ' + name + (addr ? ' — ' + addr : '') + (when ? ' — ' + fd(when) : '') + ' — ' + photos.length + ' photo' + (photos.length === 1 ? '' : 's') + '</div>'
+    + '<div class="hdr"><b>Job ' + j.id + '</b> — ' + escHtml(name) + (addr ? ' — ' + escHtml(addr) : '') + (when ? ' — ' + fd(when) : '') + ' — ' + photos.length + ' photo' + (photos.length === 1 ? '' : 's') + '</div>'
     + imgs
     + '<script>window.onload=function(){window.print();};<\/script>'
     + '</body></html>');
@@ -11184,7 +11184,7 @@ function _openUnassignedBinList(){
     var displayName = (j.names && j.names.length) ? j.names.join(' & ') : (j.name || '(no name)');
     return '<div class="bin-alert-row">'
       + '<div class="bin-alert-row-info">'
-      + '<div class="bin-alert-row-id">'+displayName+(j.binSize?' &middot; '+j.binSize:'')+'</div>'
+      + '<div class="bin-alert-row-id">'+escHtml(displayName)+(j.binSize?' &middot; '+j.binSize:'')+'</div>'
       + '<div class="bin-alert-row-meta">'+(addr || '—')+(j.binDropoff?' &middot; dropped '+fd(j.binDropoff):'')+'</div>'
       + '</div>'
       + '<button class="btn btn-primary btn-sm" onclick="closeM(\'bin-alert-list-modal\');openAssignBinPicker(\''+j.id+'\')">Assign</button>'
@@ -12796,7 +12796,7 @@ async function openDetail(id, returnCid){
       +'<div class="detail-item"><label>Pickup Date <button class="btn btn-ghost btn-sm" style="padding:1px 9px;font-size:11px;margin-left:6px;vertical-align:middle" onclick="openBinPickup(\''+j.id+'\')" title="Change the pickup date without opening Edit">'+lineIcon('calendar',11)+' Change</button></label><span>'+(binPickupLabel(j)||'—')+(j.binPickup&&j.binPickupTime?' · '+ft(j.binPickupTime):'')+(j.binWillCall?' <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;background:rgba(217,119,6,.12);color:var(--warn);border:1px solid rgba(217,119,6,.4);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WILL CALL · TENTATIVE</span>':'')+'</span></div>'
       +'<div class="detail-item"><label>Driveway Side</label><span>'+(j.binSide?binSideLabel(j.binSide):'—')+'</span></div>'
       +'<div class="detail-item"><label>Bin Status</label><span>'+bsStatus+'</span></div>'
-      +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+j.materialType+'</span></div>':'')
+      +(j.materialType?'<div class="detail-item"><label>Material</label><span>'+escHtml(j.materialType)+'</span></div>':'')
       +(j.swapCount?'<div class="detail-item"><label>Swap Outs</label><span>'+j.swapCount+'</span></div>':'')
       +(function(){
         // Show dropoff / pickup driver attribution per leg (separately, since they may differ)
@@ -12826,7 +12826,7 @@ async function openDetail(id, returnCid){
     bin+='<div class="detail-section"><div class="detail-section-title">♻️ Recurring Schedule&nbsp;<span style="font-size:11px;background:rgba(13,110,253,.15);color:#0d6efd;border:1px solid rgba(13,110,253,.3);border-radius:5px;padding:1px 8px">'+recurLabel2+'</span></div><div style="font-size:13px;color:var(--muted)">'+runNote+'</div></div>';
   }
   var paymentInfo='';
-  if(j.payMethod){paymentInfo='<div class="detail-item"><label>Method</label><span>'+j.payMethod+'</span></div>';}
+  if(j.payMethod){paymentInfo='<div class="detail-item"><label>Method</label><span>'+escHtml(j.payMethod)+'</span></div>';}
   var etransferNote='';
   if(j.payMethod==='E-Transfer'&&j.binInstatus==='pickedup'){
     etransferNote='<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.3);font-size:13px">'
@@ -12837,7 +12837,7 @@ async function openDetail(id, returnCid){
   var emailConfBadge=j.emailConfirmed?'<span class="badge" style="display:inline-flex;align-items:center;gap:4px;background:rgba(13,110,253,.15);color:#0d6efd">'+lineIcon('email',13)+' Email Confirmed</span>':'';
   var detAddr=((j.address||'')+(j.city?', '+j.city:'')).trim();
   var detAddrCell=detAddr
-    ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
+    ? escHtml(detAddr)+' <a href="'+escHtml(mapsDirUrl(detAddr))+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
     : '—';
   document.getElementById('det-body').innerHTML='<div class="det-main">'+
     (j.service==='Junk Quote'?'<div id="det-quote-box" data-qid="'+j.id+'"></div>':'')   // filled by app-quote-followup.js
@@ -12847,10 +12847,10 @@ async function openDetail(id, returnCid){
       +(j.crewSize?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:'+(j.jobName?'2px':'0')+'">👷 '+j.crewSize+' '+(j.crewSize==1?'person':'people')+' needed</div>':'')
       +(j.tasks?'<div style="font-size:13px;margin-top:6px;line-height:1.7">'+j.tasks.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean).map(function(t){return '<div>☐ '+escHtml(t)+'</div>';}).join('')+'</div>':'')
       +'</div>':'')
-    +'<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(isShopJob(j)?shopBadgeHtml():(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+j.referral+'</span>':''))+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
+    +'<div class="detail-section"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+sb(j.service)+(isShopJob(j)?shopBadgeHtml():(j.referral?'<span class="badge" style="background:rgba(168,85,247,.15);color:#9b59b6">📣 '+escHtml(j.referral)+'</span>':''))+(j.confirmed?confirmedBadge:'')+(j.emailConfirmed?emailConfBadge:'')+'</div>'
     +'<div style="font-size:11px;color:var(--muted);margin-top:6px">Created '+fd(j.date)+(j.time?' · '+ft(j.time):'')+'</div>'
     +'</div>'
-    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+j.businessName+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+e+'" style="color:var(--accent)">'+e+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
+    +'<div class="detail-section"><div class="detail-section-title">👤 Customer</div><div class="detail-grid"><div class="detail-item"><label>'+((j.names&&j.names.length>1)?'Names':'Name')+'</label><span>'+escHtml((j.names&&j.names.length)?j.names.join(', '):(j.name||'—'))+'</span></div>'+(j.businessName?'<div class="detail-item"><label>Business</label><span>'+escHtml(j.businessName)+'</span></div>':'')+'<div class="detail-item"><label>'+((j.phones&&j.phones.length>1)?'Phones':'Phone')+'</label><span>'+escHtml((j.phones&&j.phones.length)?j.phones.map(function(p){return p.num+(p.ext?' ext. '+p.ext:'')+(p.type?' ('+p.type+')':'');}).join(', '):(j.phone||'—'))+'</span></div><div class="detail-item"><label>Email</label><span>'+((j.emails&&j.emails.length)?j.emails.map(function(e){return'<a href="mailto:'+escHtml(e)+'" style="color:var(--accent)">'+escHtml(e)+'</a>';}).join(', '):'—')+'</span></div><div class="detail-item" style="grid-column:1/-1"><label>Address</label><span>'+detAddrCell+'</span></div></div></div>'
     +(j.service!=='Bin Rental'?'<div class="detail-section"><div class="detail-section-title">📅 Schedule</div><div class="detail-grid">'
     +(j.service==='Furniture Delivery'||j.service==='Furniture Pickup'?'<div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Date</label><span>'+(j.fbDate?fd(j.fbDate):'—')+'</span></div><div class="detail-item"><label>'+(j.service==='Furniture Delivery'?'Delivery':'Pickup')+' Time</label><span>'+(j.fbTime?ft(j.fbTime):'—')+'</span></div>':'')
     +(j.service==='Junk Quote'||j.service==='Junk Removal'||j.service==='Extra Jobs'?'<div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Date</label><span>'+(j.junkDate?fd(j.junkDate):(isPossibleJob(j)?'<span style="color:#65a30d;font-style:italic">No date specified yet</span>':'—'))+'</span></div><div class="detail-item"><label>'+(j.service==='Junk Quote'?'Quote':'Job')+' Time</label><span>'+(j.junkTime?ft(j.junkTime):'—')+'</span></div>'+(j.service==='Junk Quote'&&j.price?'<div class="detail-item"><label>💰 Quoted Amount</label><span style="font-weight:700;color:var(--accent)">'+fm(j.price)+'</span></div>':'')+((j.service==='Junk Removal'||j.service==='Extra Jobs')?_renderJunkRemovalPricing(j):'')+((j.service==='Junk Removal'||j.service==='Extra Jobs')&&j.estDurationMin?'<div class="detail-item"><label>⏱️ Estimated Duration</label><span>'+fmtDur(j.estDurationMin)+'</span></div>':''):'')
@@ -12859,14 +12859,14 @@ async function openDetail(id, returnCid){
     +_renderItemsDetail(j)
     +bin
     +_renderJobPhotosDetail(j)
-    +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+j.payMethod+'</span></div></div>'+etransferNote+'</div>':'')
+    +(j.payMethod?'<div class="detail-section"><div class="detail-section-title">💳 Payment</div><div class="detail-grid"><div class="detail-item"><label>Payment Method</label><span>'+escHtml(j.payMethod)+'</span></div></div>'+etransferNote+'</div>':'')
     +(j.notes?'<div class="detail-section"><div class="detail-section-title">'+(j.service==='Extra Jobs'?'📋 Job Details / Scope':'📝 Notes')+'</div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+escHtml(j.notes)+'</p></div>':'')
     +(j.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+escHtml(j.internalNotes)+'</p></div>':'')
-    +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:var(--warn)">'+j.toolsNeeded+'</p></div>':'')
+    +(j.toolsNeeded?'<div class="detail-section"><div class="detail-section-title">🔧 Tools Needed</div><p style="font-size:14px;line-height:1.6;font-weight:600;color:var(--warn)">'+escHtml(j.toolsNeeded)+'</p></div>':'')
     +(j.service==='Furniture Pickup'?'<div id="drd-detail-section"></div>':'')
     +(j.createdBy||j.editedBy?'<div class="detail-section"><div class="detail-section-title">🕵️ Activity</div><div class="detail-grid">'
-      +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+j.createdBy+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
-      +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:var(--warn);font-weight:600">'+j.editedBy+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
+      +(j.createdBy?'<div class="detail-item"><label>Created by</label><span style="color:var(--accent);font-weight:600">'+escHtml(j.createdBy)+'</span>'+(j.createdAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.createdAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
+      +(j.editedBy?'<div class="detail-item"><label>Last edited by</label><span style="color:var(--warn);font-weight:600">'+escHtml(j.editedBy)+'</span>'+(j.updatedAt?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+new Date(j.updatedAt).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')+'</div>':'')
       +'</div></div>':'')
     +'<div class="detail-section"><div class="detail-section-title" style="cursor:pointer;user-select:none" onclick="toggleJobHistory(\''+j.id+'\')">'
     +'📜 Edit History <span id="history-toggle-'+j.id+'" style="font-size:11px;color:var(--muted);margin-left:6px">▶ Show</span></div>'
@@ -12978,7 +12978,7 @@ function toggleJobHistory(jobId){
             +' → <span style="font-weight:600">'+(c.new_value||'(empty)')+'</span></div>';
         }).join('');
         return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
-          +'<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--warn)">'+who+'</strong> <span style="color:var(--muted)">— '+when+'</span></div>'
+          +'<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--warn)">'+escHtml(who)+'</strong> <span style="color:var(--muted)">— '+when+'</span></div>'
           +lines+'</div>';
       }).join('');
       wrap.innerHTML = html;
@@ -13112,7 +13112,7 @@ function renderDrdInDetail(j){
         var item=DRD_ITEMS[i];
         var qty=qtys[i]||0;
         html+='<div class="drd-d-item" data-name="'+_esc(item.name.toLowerCase())+'" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:10px">'
-          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+item.name+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+escHtml(item.name)+'</div>'
           +'<div style="font-size:11px;color:var(--muted)"><span style="color:var(--accent);font-weight:600">$'+item.fee+'</span> pays · $'+item.val+' receipt'+(item.vol?' · '+item.vol+' ft³':'')+(item.hidden?' · no longer listed':'')+'</div></div>'
           +'<input type="number" id="drd-d-qty-'+i+'" min="0" value="'+(qty||'')+'" placeholder="0" style="width:56px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center;font-family:\'DM Sans\',sans-serif" oninput="drdDetailRecalc()">'
           +'</div>';
@@ -15043,7 +15043,7 @@ async function renderUsage(){
   box.innerHTML='<div style="padding:28px;color:var(--muted);font-size:13px">Loading usage data…</div>';
   var gHtml=await googleUsageHtml();
   var r=await db.rpc('page_usage_rollup');
-  if(r.error){box.innerHTML=gHtml+'<div style="padding:28px;color:var(--bad);font-size:13px">Couldn\'t load usage data: '+r.error.message+'</div>';return;}
+  if(r.error){box.innerHTML=gHtml+'<div style="padding:28px;color:var(--bad);font-size:13px">Couldn\'t load usage data: '+escHtml(r.error.message)+'</div>';return;}
   var rows=r.data||[];
   if(!rows.length){box.innerHTML=gHtml+'<div style="padding:28px;color:var(--muted);font-size:13px">Nothing recorded yet — counts start the moment people use the app.</div>';return;}
 
@@ -15935,13 +15935,13 @@ async function filterMergeList(which) {
       return '<div onclick="selectMergeClient(\'' + which + '\',\'' + c.cid + '\')" '
         + 'style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center;" '
         + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        + '<span><strong>' + c.name + '</strong>' + (c.city ? ' <span style="color:var(--muted);font-size:11px">· ' + c.city + '</span>' : '') + '</span>'
+        + '<span><strong>' + escHtml(c.name) + '</strong>' + (c.city ? ' <span style="color:var(--muted);font-size:11px">· ' + escHtml(c.city) + '</span>' : '') + '</span>'
         + '<span style="color:var(--muted);font-size:11px;flex-shrink:0;margin-left:8px;">' + cnt + ' job' + (cnt !== 1 ? 's' : '') + '</span>'
         + '</div>';
     }).join('');
 
   } catch(ex) {
-    drop.innerHTML = '<div style="padding:10px 14px;color:var(--bad);font-size:13px">Error: ' + ex.message + '</div>';
+    drop.innerHTML = '<div style="padding:10px 14px;color:var(--bad);font-size:13px">Error: ' + escHtml(ex.message) + '</div>';
   }
 }
 
@@ -16039,10 +16039,10 @@ function updateMergePreview() {
   // Jobs banner
   document.getElementById('merge-jobs-banner').innerHTML =
     '<span style="font-size:16px;">📋</span>'
-    + '<strong style="color:var(--text);">'+pc.name+'</strong>'
+    + '<strong style="color:var(--text);">'+escHtml(pc.name)+'</strong>'
     + '<span style="color:var(--muted);">'+pjobs+' jobs</span>'
     + '<span style="font-size:18px;color:var(--accent);">+</span>'
-    + '<strong style="color:var(--text);">'+sc.name+'</strong>'
+    + '<strong style="color:var(--text);">'+escHtml(sc.name)+'</strong>'
     + '<span style="color:var(--muted);">'+sjobs+' jobs</span>'
     + '<span style="font-size:18px;color:var(--muted);">=</span>'
     + '<strong style="color:#15803d;font-size:15px;">'+(pjobs+sjobs)+' total jobs</strong>';
@@ -16057,8 +16057,10 @@ function updateMergePreview() {
   btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
 }
 
+// Safe for text and for double-quoted attributes. Empty for null/undefined, so a missing
+// field never shows up as the word "undefined".
 function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 async function doMergeClients() {
@@ -16240,7 +16242,7 @@ function renderDrdModalGrid(keep){
           :'<span style="width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted)">'+JWGIcons.svg('furniture',{size:17})+'</span>';
         mhtml+='<div style="display:flex;align-items:center;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;gap:8px">'
           +thumb
-          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+item.name+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(item.name)+'">'+escHtml(item.name)+'</div>'
           +'<div style="font-size:10px;color:var(--muted)">$'+item.val+(item.vol?' · '+item.vol+' ft³':'')+(item.hidden?' · no longer listed':'')+'</div></div>'
           +'<div style="display:flex;align-items:center;gap:5px;flex:none">'
           +'<button type="button" class="drdc-step drdc-step-dec" onclick="drdModalStep('+i+',-1)" aria-label="Remove one">&minus;</button>'
@@ -16547,7 +16549,7 @@ function _furnPriceRow(idx, name, fee, val, hidden, isNew){
   }
   var vol=(idx!==null&&DRD_ITEMS[idx]&&DRD_ITEMS[idx].vol)?DRD_ITEMS[idx].vol:0;
   return '<div class="furn-row" data-idx="'+idx+'" data-hidden="'+(hidden?'1':'0')+'" style="display:flex;gap:8px;align-items:center;padding:5px 0'+(hidden?';opacity:.5':'')+'">'
-    +'<div style="flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(name)+'">'+name+(vol?' <span style="color:var(--muted);font-size:11px">· '+vol+' ft³</span>':'')+'</div>'
+    +'<div style="flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+_esc(name)+'">'+escHtml(name)+(vol?' <span style="color:var(--muted);font-size:11px">· '+vol+' ft³</span>':'')+'</div>'
     +'<input type="number" class="furn-fee" min="0" step="0.01" value="'+fee+'" style="width:80px;'+inpCss+'">'
     +'<input type="number" class="furn-val" min="0" step="0.01" value="'+val+'" style="width:80px;'+inpCss+'">'
     +'<button title="'+(hidden?'Restore':'Hide')+'" onclick="furnToggleHide(this)" style="background:none;border:none;color:'+(hidden?'var(--accent)':'var(--bad)')+';cursor:pointer;font-size:15px;padding:0 4px;width:24px">'+(hidden?'↺':'×')+'</button>'
@@ -17076,7 +17078,7 @@ function _renderVehAttention(rows){
     +'<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a3412;margin-bottom:11px;display:flex;align-items:center;gap:7px">⚠️ Needs attention <span style="background:var(--warn);color:#fff;border-radius:99px;padding:1px 8px;font-size:11px">'+out.length+'</span></div>'
     +'<div style="display:grid;gap:9px">'+out.map(function(a){
       return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:'+a.dot+'"></span>'
-        +'<div style="flex:1;min-width:140px"><span style="font-weight:700;font-size:13px">'+escHtml(a.name||'')+'</span> <span style="color:var(--muted);font-size:13px">— '+a.reason+'</span></div>'
+        +'<div style="flex:1;min-width:140px"><span style="font-weight:700;font-size:13px">'+escHtml(a.name||'')+'</span> <span style="color:var(--muted);font-size:13px">— '+escHtml(a.reason)+'</span></div>'
         +(a.act?'<button onclick="markOilServicedQuick(\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✅ Mark serviced</button>':'')
         +(a.fixId?'<button onclick="vehFixIssue(\''+a.fixId+'\',\''+a.vid+'\')" style="min-height:34px;padding:0 13px;border:1px solid #cdebd8;background:#f0fdf4;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">✓ Fixed</button>':'')
       +'</div>';
@@ -18534,7 +18536,7 @@ function openQuoteInvite(jobId){
   ov.className='modal-overlay open'; ov.id='quote-invite-overlay';
   ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
   var checks=QUOTE_INVITE_ATTENDEES.map(function(a,i){
-    return '<label style="display:flex;align-items:center;gap:9px;font-size:14px;padding:9px 4px;cursor:pointer"><input type="checkbox" id="qi-att-'+i+'" checked style="width:16px;height:16px;accent-color:var(--accent)"> '+a.name+' <span style="color:var(--muted);font-size:12px">'+a.email+'</span></label>';
+    return '<label style="display:flex;align-items:center;gap:9px;font-size:14px;padding:9px 4px;cursor:pointer"><input type="checkbox" id="qi-att-'+i+'" checked style="width:16px;height:16px;accent-color:var(--accent)"> '+escHtml(a.name)+' <span style="color:var(--muted);font-size:12px">'+escHtml(a.email)+'</span></label>';
   }).join('');
   ov.innerHTML='<div class="modal modal-sm" style="--modal-w:min(92vw,430px)">'
     +'<h3 style="margin:0 0 4px">📅 Calendar invite</h3>'
@@ -20532,7 +20534,7 @@ function renderDashCrewStatus(){
       +'</div>';
     return '<div style="position:relative;display:inline-flex;align-items:center;cursor:pointer" title="'+tip.replace(/"/g,'&quot;')+'" onclick="event.stopPropagation();toggleCrewMenu(\''+menuId+'\')">'
       +'<span style="display:inline-flex;border-radius:16px;padding:2px;border:2px solid '+ring+';background:'+tint+'">'
-        +'<span class="crew-chip" style="--pa:'+col+';color:'+teamInk(col)+'">'+crewChipLabel(c.name)+'</span>'
+        +'<span class="crew-chip" style="--pa:'+col+';color:'+teamInk(col)+'">'+escHtml(crewChipLabel(c.name))+'</span>'
       +'</span>'
       +(icon?'<span style="position:absolute;right:-3px;bottom:-3px;font-size:9px;line-height:1;background:var(--surface2);border-radius:50%;padding:1px 1px 0">'+icon+'</span>':'')
       +menu
