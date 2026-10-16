@@ -231,7 +231,8 @@ window.WinterRoutes = (function(){
       + (loc.client_name && loc.client_name !== loc.address ? '<div class="wr-info-nick">Crew calls it ' + esc(loc.client_name) + '</div>' : '')
       + '<div class="wr-info-svc">' + svcNames(W, loc).map(esc).join(' · ') + '</div>'
       + (loc.notes ? '<div class="wr-info-notes">' + esc(loc.notes) + '</div>' : '')
-      + '<div class="wr-info-acts"><button type="button" data-act="edit">Edit</button><button type="button" data-act="move">Move pin</button></div>';
+      + '<div class="wr-info-acts"><button type="button" data-act="plan">Site plan</button><button type="button" data-act="edit">Edit</button><button type="button" data-act="move">Move pin</button></div>';
+    div.querySelector('[data-act="plan"]').onclick = function(){ info.close(); WinterSitePlan.open(loc.id); };
     div.querySelector('[data-act="edit"]').onclick = function(){ info.close(); JWG.editWinterLocation(loc.id); };
     div.querySelector('[data-act="move"]').onclick = function(){ info.close(); startPlacing(loc.id); };
     info.setContent(div);
