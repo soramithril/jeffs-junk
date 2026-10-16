@@ -2939,7 +2939,8 @@ function renderWinterPage(){
       <button class="si-action-btn" onclick="JWG.openAddWinterLocation()">Add location</button>
       <button class="si-action-btn secondary" onclick="JWG.WIN.filtersOpen=!JWG.WIN.filtersOpen;var b=document.getElementById('win-filter-bar');if(b)b.style.display=JWG.WIN.filtersOpen?'':'none'">🔍 Filters</button>
       <button class="si-action-btn secondary" onclick="JWG.openManageWinterServiceTypes()">Edit service list</button>
-      <button class="si-action-btn secondary" onclick="window.print()">🖨 Print</button>
+      <button class="si-action-btn secondary" onclick="WinterBook.choose()">Print book</button>
+      <button class="si-action-btn secondary" onclick="window.print()">🖨 Print list</button>
     </div>
   </div>`;
   if(WIN.view==="map"){

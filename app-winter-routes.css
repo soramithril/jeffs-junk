@@ -75,3 +75,6 @@
 #view-jwgscheduler .sp-mark.sel{border-color:#fff;outline:2px dashed #012b1f}
 #view-jwgscheduler .sp-mark span{position:absolute;left:0;top:0;transform:translateY(-100%);background:#ffd60a;color:#3d3200;font:700 10px/14px ui-monospace,Consolas,monospace;padding:0 4px;white-space:nowrap}
 #view-jwgscheduler .sp-h{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#fff;border:2px solid #012b1f;border-radius:2px;cursor:nwse-resize}
+
+/* print-book group picker (app-winter-book.js) */
+#view-jwgscheduler .wb-pick{display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:13px;text-align:left}
