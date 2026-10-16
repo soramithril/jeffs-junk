@@ -32,6 +32,7 @@ ANON_KEY = "sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk"
 
 VOICE = "bm_daniel"     # British male — Jake picked it by ear over george/fable/lewis
 LANG = "b"              # British English
+SPEED = 0.9             # a touch slower than Kokoro's 1.0 — Jake found 1.0 fast on the TV (2026-10-16)
 
 # Truck -> regular driver, mirroring AUTO_ASSIGNMENTS in app-leaderboard.js and
 # TRUCK_DRIVERS in office-tv.html. Kept in step with those by hand; there is no
@@ -75,7 +76,7 @@ def sign_in():
 
 
 def spoken_date(d):
-    """'Monday the twentieth of July' — dates read aloud, not printed."""
+    """'Monday the twentieth' — dates read aloud, not printed."""
     ordinals = {
         1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth", 6: "sixth",
         7: "seventh", 8: "eighth", 9: "ninth", 10: "tenth", 11: "eleventh",
@@ -86,9 +87,7 @@ def spoken_date(d):
         26: "twenty-sixth", 27: "twenty-seventh", 28: "twenty-eighth",
         29: "twenty-ninth", 30: "thirtieth", 31: "thirty-first",
     }
-    return "%s the %s of %s" % (
-        d.strftime("%A"), ordinals[d.day], d.strftime("%B")
-    )
+    return "%s the %s" % (d.strftime("%A"), ordinals[d.day])
 
 
 def weather():
@@ -169,115 +168,46 @@ def plural(n, one, many):
     return "%d %s" % (n, one if n == 1 else many)
 
 
-def pick(pool, day):
-    """
-    Rotate a phrasing by date. Deterministic rather than random: it advances one
-    step a day so nothing repeats until the pool is exhausted, and re-running the
-    same morning produces the same briefing rather than a different one.
-
-    This exists because the wit is the part that wears out. Identical words at
-    9 AM five days a week stop being heard by about Wednesday.
-    """
-    return pool[day.toordinal() % len(pool)]
-
-
-# Said when every job has a driver. All must make the absence of a warning
-# unambiguous — silence should never be mistakable for an oversight.
-ALL_ASSIGNED = [
-    "Nothing is unassigned. I checked twice.",
-    "Every leg has a name against it.",
-    "Nothing outstanding. I did look.",
-    "All of it is spoken for.",
-    "No gaps anywhere. Verified.",
-    "Every job has someone. As it should be.",
-]
-
-SIGN_OFF = [
-    "The fleet is yours. Do carry on.",
-    "That is the board. Over to you.",
-    "The day is yours.",
-    "That's the picture. Off you go.",
-    "The fleet is yours. Bring it all back.",
-    "That's everything. Do carry on.",
-]
-
-GREETING = [
-    "Good morning. %s.",
-    "Good morning. It is %s.",
-    "Good morning. %s, and the board is set.",
-]
-
-
 def write_script(s, today):
     """
-    Plain sentences, read aloud. No headings, no bullets — this is heard once,
-    across a room, not read. Singular/plural matters more here than on screen:
-    "There are 1 bin movements" is invisible in a table and jarring out loud.
+    Plain short sentences, read aloud once across a room. Only the numbers a
+    driver is listening for — Jake found the longer, wittier version too much
+    (2026-10-16). Singular/plural still matters: "1 bins" is jarring out loud.
     """
-    lines = [pick(GREETING, today) % spoken_date(today)]
+    lines = ["Good morning, %s." % spoken_date(today)]
 
     movements = s["drops"] + s["picks"]
     if movements:
-        # "none" rather than "0" reads better aloud, but it can open the sentence,
-        # so capitalise whatever lands first.
-        split = "%s out, %s back." % (s["drops"] or "none", s["picks"] or "none")
-        lines.append(
-            "%s today. %s"
-            % (plural(movements, "bin movement", "bin movements"),
-               split[0].upper() + split[1:])
-        )
+        lines.append("%s today: %s out, %s back."
+                     % (plural(movements, "bin", "bins"), s["drops"] or "none", s["picks"] or "none"))
     else:
-        # Degraded, but deliberate — the room's real question on an empty day is
-        # "is it empty, or is the board broken?"
-        lines.append("The board is empty of bin movements today, "
-                     "which I have verified rather than assumed.")
+        # Said outright so an empty day never sounds like a broken board.
+        lines.append("No bins on the board today.")
 
-    # The line each driver is listening for. A tricolon so a half-listener catches
-    # their own name and number without holding anything in memory.
     if s.get("drivers"):
-        who = ["%s with %d" % (n, c) for n, c in s["drivers"]]
-        lines.append(
-            "The legs fall to %s."
-            % (", ".join(who[:-1]) + ", and " + who[-1] if len(who) > 1 else who[0])
-        )
+        lines.append(", ".join("%s has %d" % (n, c) for n, c in s["drivers"]) + ".")
 
-    # The only line that should change anyone's morning. Short and flat, straight
-    # after the longer driver sentence, so the contrast does the emphasis.
+    # The only line that should change anyone's morning, so it stays.
     if s.get("unassigned"):
-        lines.append(
-            "%s no driver. Kindly correct that before the trucks leave the yard."
-            % plural(s["unassigned"], "job has", "jobs have")
-        )
-    elif movements:
-        lines.append(pick(ALL_ASSIGNED, today))
+        lines.append("%s no driver. Kindly correct that before the trucks leave the yard."
+                     % plural(s["unassigned"], "job has", "jobs have"))
 
     tail = []
     if s["bins_out"]:
-        tail.append("%s out in the field" % plural(s["bins_out"], "bin is", "bins are"))
+        tail.append("%s in the field" % plural(s["bins_out"], "bin", "bins"))
     if s["junk"]:
-        tail.append("%s booked" % plural(s["junk"], "junk removal is", "junk removals are"))
+        tail.append(plural(s["junk"], "junk removal", "junk removals"))
     if tail:
-        lines.append((" and ".join(tail) + ".").capitalize())
+        lines.append(", ".join(tail) + ".")
 
     w = s.get("weather")
     if w:
-        lines.append("Outside, %d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else ""))
+        lines.append("%d degrees%s." % (w["high"], " and " + w["sky"] if w["sky"] else ""))
+        # Advice rather than colour, so it's the one remark worth keeping.
+        if w["sky"] in ("drizzly", "rainy", "wet", "snowy", "showery", "stormy"):
+            lines.append("Mind the driveways.")
 
-    # At most ONE observation, and only when the day actually warrants it — a
-    # remark every single morning is just the catchphrase problem again, one line
-    # further down. Wet weather comes first because it's the only one that's
-    # advice rather than colour.
-    wet = w and w["sky"] in ("drizzly", "rainy", "wet", "snowy", "showery", "stormy")
-    if wet:
-        lines.append("Mind the driveways.")
-    elif today.weekday() == 4:                       # Friday
-        lines.append("Last push of the week.")
-    elif movements >= 25:
-        lines.append("A full board today.")
-    elif 0 < movements <= 3:
-        lines.append("A light one.")
-
-    lines.append(pick(SIGN_OFF, today))
+    lines.append("Have a good one.")
     return " ".join(lines)
 
 
@@ -289,7 +219,7 @@ def speak(text, out_wav):
     voice = os.environ.get("BRIEFING_VOICE", "").strip() or VOICE
     print("voice: %s" % voice)
     pipeline = KPipeline(lang_code=LANG)
-    chunks = [audio for _, _, audio in pipeline(text, voice=voice)]
+    chunks = [audio for _, _, audio in pipeline(text, voice=voice, speed=SPEED)]
     if not chunks:
         sys.exit("Kokoro produced no audio")
     sf.write(out_wav, np.concatenate(chunks), 24000)
