@@ -85,7 +85,7 @@ async function renderQuoteFollowups(){
     + '</div>'
     + '<div style="font-size:13px;color:var(--muted);padding:0 4px 12px">This year\'s quotes — which ones turned into jobs, and the ones still waiting on a call.</div>'
     + tiles
-    + (open.length ? '<div style="max-height:620px;overflow-y:auto">' + rowsHtml + '</div>' : rowsHtml)
+    + (open.length ? '<div style="max-height:620px;overflow-y:auto;overflow-x:hidden">' + rowsHtml + '</div>' : rowsHtml)
   + '</div>';
 }
 
