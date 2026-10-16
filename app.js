@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '692';
+var APP_VERSION = '693';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -911,6 +911,7 @@ var geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){}
 
 var editId = null, editBinId = null;
+var _convertFromQuoteId = null;   // set by convertQuoteToJob; saveJob marks that quote booked (app-quote-followup.js)
 var svcF = 'all', searchF = '', invF = 'all', jobStatusF = 'all', jobDateF = 'all', binDropF = 'all';
 // 'all' | 'only' — "how many live loads did we do?" is a counting question, so this
 // one runs server-side (see loadJobsPage) and the answer is the pagination total.
@@ -4538,6 +4539,7 @@ async function renderDash(bg){
   // this function needs that number before it animates the greeting in.
   await refreshDashBinStats();
   renderReviewFollowups();
+  renderQuoteFollowups();      // app-quote-followup.js
   renderDashVehicleStatus();
   renderDashCrewStatus();
   renderDashMaintAlert();
@@ -11299,6 +11301,7 @@ document.getElementById('job-modal').addEventListener('focusin',function(e){
 
 function newJob(){
   editId=null;
+  _convertFromQuoteId=null;
   _selectedClientObj=null;
   window._binPresetDays=null;
   _resetJobModalScroll();
@@ -11765,6 +11768,7 @@ function realName(j){
 }
 async function openEdit(id){
   if(!mGuard())return;
+  _convertFromQuoteId=null;
   _resetJobModalScroll();
   // Fetch the row fresh — the local cache can be stale (refresh pauses while modals are
   // open), and saving a stale form full-row silently reverts another user's changes.
@@ -12509,6 +12513,7 @@ async function saveJob(e){
       if(idx >= 0) jobs[idx] = job; else jobs.push(job);
     } else {
       jobs.push(job);
+      if(_convertFromQuoteId){ quoteMarkBooked(_convertFromQuoteId, job.id); _convertFromQuoteId = null; }
     }
     editId = null;
     _clientStatsCache = null;
@@ -12856,7 +12861,8 @@ async function openDetail(id, returnCid){
     ? detAddr+' <a href="'+mapsDirUrl(detAddr)+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
     : '—';
   document.getElementById('det-body').innerHTML='<div class="det-main">'+
-    (j.service==='Extra Jobs'&&(j.jobName||j.crewSize||j.tasks||j.poNumber)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
+    (j.service==='Junk Quote'?'<div id="det-quote-box" data-qid="'+j.id+'"></div>':'')   // filled by app-quote-followup.js
+    +(j.service==='Extra Jobs'&&(j.jobName||j.crewSize||j.tasks||j.poNumber)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
       +(j.jobName?'<div style="font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:1px;color:#65a30d;line-height:1.1">🌿 '+escHtml(j.jobName)+'</div>':'')
       +(j.poNumber?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:2px">🧾 PO #'+escHtml(j.poNumber)+'</div>':'')
       +(j.crewSize?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:'+(j.jobName?'2px':'0')+'">👷 '+j.crewSize+' '+(j.crewSize==1?'person':'people')+' needed</div>':'')
@@ -12926,7 +12932,6 @@ async function openDetail(id, returnCid){
     // ── Group 3: Bin / Job Actions ──
     +(function(){
       var btns=[];
-      if(j.service==='Junk Quote') btns.push('<button class="btn btn-ghost" onclick="convertQuoteToJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.3);color:var(--accent);font-weight:700">⚡ Convert to Job</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="swapOutBin(\''+j.id+'\')" style="justify-content:center;border-color:rgba(168,85,247,.4);color:#9b59b6">🔄 Swap Out</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openExtendPopup(\''+j.id+'\',event)" style="justify-content:center;border-color:rgba(217,119,6,.4);color:var(--warn);position:relative">📅 Extend Pickup</button>');
       if(j.service==='Bin Rental') btns.push('<button class="btn btn-ghost" onclick="openRelocate(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">🚚 Relocate</button>');
@@ -12957,6 +12962,7 @@ async function openDetail(id, returnCid){
   document.getElementById('detail-modal').classList.add('open');
   stampBookedIfJustSaved(j);
   stampBinDroppedIfJustAssigned(j);
+  if(j.service==='Junk Quote') renderQuoteDetailBox(j.id);
   // Render embedded DRD form for Furniture Pickup only
   if(j.service==='Furniture Pickup'){
     setTimeout(function(){ renderDrdInDetail(j); },50);
@@ -13738,6 +13744,7 @@ function convertQuoteToJob(quoteId){
   closeM('detail-modal');
   // Pre-fill new job form from quote data
   editId=null;
+  _convertFromQuoteId=quoteId;
   _selectedClientObj=null;
   _phoneMatchDismissed=false;_phoneMatchReset();
   document.getElementById('modal-ttl').textContent='Convert Quote → New Job';
