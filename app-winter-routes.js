@@ -128,7 +128,9 @@ window.WinterRoutes = (function(){
     map = new google.maps.Map(mapEl, {
       center: SHOP, zoom: 12, mapTypeId: 'hybrid',
       streetViewControl: false, fullscreenControl: true, clickableIcons: false,
-      isFractionalZoomEnabled: true
+      isFractionalZoomEnabled: true,
+      // Google's shop and bus-stop icons crowded out the site pins.
+      styles: [{featureType: 'poi', stylers: [{visibility: 'off'}]}, {featureType: 'transit', stylers: [{visibility: 'off'}]}]
     });
     // Creating the map is the one thing Google bills; counted here and nowhere else,
     // into the same table as the office TV, so both show on the Usage page.
