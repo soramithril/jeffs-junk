@@ -1,96 +1,156 @@
-// ── QUOTE FOLLOW-UPS ───────────────────────────────────────────────────────
+// ── JUNK QUOTES: booked, follow-up, not going ahead ────────────────────────
 // Kelly's ask (2026-10-16): see which Junk Quotes turned into jobs and which didn't,
-// and chase the ones that didn't. Three jobs columns carry it — quote_outcome
-// (booked | lost | null = still open), quote_job_id, quote_note + quote_followed_up_at.
+// and chase the ones that didn't. Four jobs columns carry it — quote_outcome
+// (booked | lost | null = still open), quote_job_id, quote_note, quote_followed_up_at.
 // They are written ONLY here, through patchJob, and are deliberately left out of
 // jobToDb: saving a quote in the booking form can never wipe them.
 //
-// Two places show it, both big on purpose (Jake: "big and clear so it's easily
-// noticeable"): the dashboard card #dash-quote-followups, and the box at the top of
-// a quote's Job details (#det-quote-box). Its own query, like Review follow-ups —
-// the in-memory `jobs` array only holds the current week.
+// Three places show it, all big on purpose (Jake: "big and clear so it's easily
+// noticeable"):
+//   - the Junk Quotes page (#jq-root): the year's tally and every quote, by outcome;
+//   - the dashboard's Needs you card: ONLY quotes visited in the last QF_FRESH_DAYS
+//     that nobody has called yet (Jake, 2026-10-16 — the dashboard was getting full,
+//     and a two-month-old quote is not a call anyone will make). renderNeedsYou in
+//     app.js reads them from qfFreshQuotes();
+//   - the box at the top of a quote's Job details (#det-quote-box).
+// Own queries, like Review follow-ups — the in-memory `jobs` array only holds this week.
 //
 // "Not going ahead" counts cancelled quotes too: a cancelled quote visit is a quote
-// that didn't book. The 66 quotes that were already booked by hand before this
-// existed were matched by address on 2026-10-16 and say so in their note.
+// that didn't book. Two catch-ups on 2026-10-16 say so in their notes: 66 quotes booked
+// by hand were matched to their job by address, and 25 open quotes over 60 days old
+// were closed as "No answer".
 var QF_START = '2026-01-01';   // the tally counts this year's quotes
+var QF_FRESH_DAYS = 14;        // how far back the dashboard looks
 var QF_COLS = 'job_id,name,status,date,junk_date,price,address,city,quote_outcome,quote_job_id,quote_note,quote_followed_up_at';
+var _qfFresh = [];             // the dashboard's quote rows, filled by refreshQuoteNeedsYou
+var _qfTab = 'open';           // Junk Quotes page: which outcome is listed
 
 function _qfDay(row){ return row.junk_date || row.date || ''; }
 function _qfLost(row){ return row.quote_outcome === 'lost' || row.status === 'Cancelled'; }
+// Visited, and nobody has said how it went. A visit still to come isn't a follow-up yet.
+function _qfOpen(row, today){ return !row.quote_outcome && row.status !== 'Cancelled' && _qfDay(row) && _qfDay(row) <= today; }
 function _qfShortDate(ymd){
   return new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'});
 }
+function _qfAgo(day, today){
+  var n = Math.round((new Date(today + 'T12:00:00') - new Date(day + 'T12:00:00')) / 86400000);
+  return n === 0 ? 'today' : n === 1 ? '1 day ago' : n + ' days ago';
+}
+function _qfMeta(q, today){
+  return ['Quote visit ' + _qfShortDate(_qfDay(q)) + ' · ' + _qfAgo(_qfDay(q), today),
+          q.price ? '$' + q.price : '', [q.address, q.city].filter(Boolean).join(', ')]
+    .filter(Boolean).map(escHtml).join(' · ');
+}
+function _qfChased(q){
+  return q.quote_followed_up_at
+    ? '<div style="font-size:14px;font-weight:700;color:#1d4ed8;margin-top:4px">📞 Followed up ' + _qfShortDate(q.quote_followed_up_at.slice(0, 10))
+      + (q.quote_note ? ': ' + escHtml(q.quote_note) : '') + '</div>'
+    : '';
+}
 
-async function renderQuoteFollowups(){
-  var el = document.getElementById('dash-quote-followups');
-  if(!el) return;
+async function _qfQuery(since){
   var r = await db.from('jobs').select(QF_COLS).eq('service', 'Junk Quote')
-    .or('junk_date.gte.' + QF_START + ',date.gte.' + QF_START);
-  if(r.error) throw new Error('Quote follow-ups query failed: ' + r.error.message);
+    .or('junk_date.gte.' + since + ',date.gte.' + since);
+  if(r.error) throw new Error('Junk quotes query failed: ' + r.error.message);
+  return (r.data || []).filter(function(q){ return _qfDay(q) >= since; });
+}
+
+// ── Dashboard: the fresh ones, inside Needs you ──
+async function refreshQuoteNeedsYou(){
   var today = todayStr();
-  var rows = (r.data || []).filter(function(q){ return _qfDay(q) >= QF_START; });
-  var booked = rows.filter(function(q){ return q.quote_outcome === 'booked'; }).length;
-  var lost = rows.filter(_qfLost).length;
-  // Open = the visit has happened and nobody has said how it went. A quote still to
-  // be visited is not a follow-up yet.
-  var open = rows.filter(function(q){
-    return !q.quote_outcome && q.status !== 'Cancelled' && _qfDay(q) && _qfDay(q) <= today;
-  }).sort(function(a, b){
-    // Never chased first, then newest visit first — a fresh quote is the one most
-    // worth a call.
-    var fa = a.quote_followed_up_at ? 1 : 0, fb = b.quote_followed_up_at ? 1 : 0;
-    if(fa !== fb) return fa - fb;
-    return _qfDay(a) < _qfDay(b) ? 1 : _qfDay(a) > _qfDay(b) ? -1 : 0;
-  });
+  var d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - QF_FRESH_DAYS);
+  var rows = await _qfQuery(ymdLocal(d));
+  _qfFresh = rows.filter(function(q){ return _qfOpen(q, today) && !q.quote_followed_up_at; })
+    .sort(function(a, b){ return _qfDay(a) < _qfDay(b) ? 1 : _qfDay(a) > _qfDay(b) ? -1 : 0; });
+  renderNeedsYou();
+}
+function qfFreshQuotes(){ return _qfFresh; }
 
-  var tile = function(n, label, fg, bg){
-    return '<div style="flex:1 1 95px;background:' + bg + ';border-radius:14px;padding:14px 18px">'
-      + '<div style="font-size:34px;font-weight:900;line-height:1;color:' + fg + '">' + n + '</div>'
-      + '<div style="font-size:14px;font-weight:800;color:' + fg + ';margin-top:6px">' + label + '</div></div>';
-  };
-  var tiles = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
-    + tile(booked, '✅ Booked', '#15803d', '#dcfce7')
-    + tile(open.length, '📞 Need a follow-up', '#b45309', '#fef3c7')
-    + tile(lost, '✕ Not going ahead', '#475569', '#f1f5f9')
-    + '</div>';
-
-  var rowsHtml = open.length ? open.map(function(q){
-    var day = _qfDay(q);
-    var days = Math.round((new Date(today + 'T12:00:00') - new Date(day + 'T12:00:00')) / 86400000);
-    var addr = [q.address, q.city].filter(Boolean).join(', ');
-    var meta = ['Quote visit ' + _qfShortDate(day) + ' · ' + (days === 0 ? 'today' : days === 1 ? '1 day ago' : days + ' days ago'),
-                q.price ? '$' + q.price : '', addr].filter(Boolean).map(escHtml).join(' · ');
-    var chased = q.quote_followed_up_at
-      ? '<div style="font-size:14px;font-weight:700;color:#1d4ed8;margin-top:4px">📞 Followed up ' + _qfShortDate(q.quote_followed_up_at.slice(0, 10))
-        + (q.quote_note ? ': ' + escHtml(q.quote_note) : '') + '</div>'
-      : '';
-    return '<div style="background:#fffdf5;border:1px solid var(--border);border-left:5px solid #f59e0b;border-radius:12px;padding:14px 16px;margin-bottom:8px">'
-      + '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
-        + '<div style="flex:1 1 260px;min-width:0;cursor:pointer" onclick="openDetail(\'' + q.job_id + '\')">'
-          + '<div style="font-size:17px;font-weight:800">' + escHtml(q.name || ('Quote ' + q.job_id)) + '</div>'
-          + '<div style="font-size:13px;color:var(--muted);margin-top:2px">' + meta + '</div>'
-          + chased
-        + '</div>'
-        + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + _qfButtons(q.job_id, 'card', true) + '</div>'
+// One Needs you row — the email rows' shape, with the quote's own buttons.
+function qfNeedsYouRowHtml(q){
+  return '<div class="ny-row" data-nyk="' + q.job_id + ':quote" style="background:#fffdf5;border:1px solid var(--border);border-left:3px solid #f59e0b;border-radius:12px;padding:13px 16px;margin-bottom:7px">'
+    + '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
+      + '<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:#fef3c7">📞</span>'
+      + '<div style="flex:1 1 220px;min-width:0;cursor:pointer" onclick="openDetail(\'' + q.job_id + '\')">'
+        + '<div style="font-size:15px;font-weight:700">' + escHtml(q.name || ('Quote ' + q.job_id)) + ' — follow up on the quote</div>'
+        + '<div style="font-size:13px;color:var(--muted)">' + _qfMeta(q, todayStr()) + '</div>'
       + '</div>'
-      + '<div id="qf-card-' + q.job_id + '"></div>'
-    + '</div>';
-  }).join('') : '<div style="font-size:15px;font-weight:700;color:#15803d;padding:6px 4px">Every quote has been followed up. 👍</div>';
-
-  el.innerHTML = '<div class="chart-card" style="padding:18px;box-shadow:0 8px 28px rgba(0,0,0,.07)">'
-    + '<div style="display:flex;align-items:center;gap:9px;margin-bottom:3px;padding:0 4px">'
-      + '<span class="jj-sec-chip warm"></span>'
-      + '<span style="font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Junk quotes</span>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + _qfButtons(q.job_id, 'card', true) + '</div>'
     + '</div>'
-    + '<div style="font-size:13px;color:var(--muted);padding:0 4px 12px">This year\'s quotes — which ones turned into jobs, and the ones still waiting on a call.</div>'
-    + tiles
-    + (open.length ? '<div style="max-height:620px;overflow-y:auto;overflow-x:hidden">' + rowsHtml + '</div>' : rowsHtml)
+    + '<div id="qf-card-' + q.job_id + '"></div>'
   + '</div>';
 }
 
-// The buttons, shared by the dashboard row and the quote's own box (which draws its
-// own, bigger Convert above them).
+// ── The Junk Quotes page ──
+function qfTab(tab){ _qfTab = tab; renderJunkQuotesPage(); }
+
+async function renderJunkQuotesPage(){
+  var root = document.getElementById('jq-root');
+  if(!root) throw new Error('renderJunkQuotesPage: #jq-root missing');
+  var today = todayStr();
+  var rows = await _qfQuery(QF_START);
+  var lists = {
+    open: rows.filter(function(q){ return _qfOpen(q, today); }).sort(function(a, b){
+      // Never chased first, then newest visit first — a fresh quote is the one most worth a call.
+      var fa = a.quote_followed_up_at ? 1 : 0, fb = b.quote_followed_up_at ? 1 : 0;
+      if(fa !== fb) return fa - fb;
+      return _qfDay(a) < _qfDay(b) ? 1 : _qfDay(a) > _qfDay(b) ? -1 : 0;
+    }),
+    booked: rows.filter(function(q){ return q.quote_outcome === 'booked'; }),
+    lost: rows.filter(_qfLost)
+  };
+  ['booked', 'lost'].forEach(function(k){
+    lists[k].sort(function(a, b){ return _qfDay(a) < _qfDay(b) ? 1 : _qfDay(a) > _qfDay(b) ? -1 : 0; });
+  });
+
+  var tile = function(key, label, fg, bg){
+    var on = _qfTab === key;
+    return '<button onclick="qfTab(\'' + key + '\')" style="flex:1 1 95px;text-align:left;font-family:inherit;cursor:pointer;background:' + bg + ';border:3px solid ' + (on ? fg : 'transparent') + ';border-radius:14px;padding:14px 18px">'
+      + '<div style="font-size:34px;font-weight:900;line-height:1;color:' + fg + '">' + lists[key].length + '</div>'
+      + '<div style="font-size:14px;font-weight:800;color:' + fg + ';margin-top:6px">' + label + '</div></button>';
+  };
+  var rowsHtml = lists[_qfTab].map(function(q){
+    var right, extra = '';
+    if(_qfTab === 'open'){
+      right = _qfButtons(q.job_id, 'page', true);
+      extra = _qfChased(q);
+    } else if(_qfTab === 'booked'){
+      right = q.quote_job_id ? '<button class="djj-btn green" onclick="openDetail(\'' + q.quote_job_id + '\')" style="font-size:14px;padding:10px 18px;border-radius:10px">Open job ' + escHtml(q.quote_job_id) + '</button>' : '';
+      if(q.quote_note) extra = '<div style="font-size:13px;color:var(--muted);margin-top:4px">' + escHtml(q.quote_note) + '</div>';
+    } else {
+      right = q.status === 'Cancelled' ? '<span style="font-size:13px;font-weight:700;color:var(--muted)">Quote cancelled</span>'
+        : '<button onclick="qfReopen(\'' + q.job_id + '\')" style="font-family:inherit;font-size:14px;font-weight:800;padding:10px 16px;border-radius:10px;cursor:pointer;background:var(--surface);border:2px solid var(--border-strong);color:var(--muted)">Reopen</button>';
+      if(q.quote_note) extra = '<div style="font-size:13px;color:var(--muted);margin-top:4px">' + escHtml(q.quote_note) + '</div>';
+    }
+    var edge = {open:'#f59e0b', booked:'#16a34a', lost:'#94a3b8'}[_qfTab];
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-left:5px solid ' + edge + ';border-radius:12px;padding:14px 16px;margin-bottom:8px">'
+      + '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
+        + '<div style="flex:1 1 260px;min-width:0;cursor:pointer" onclick="openDetail(\'' + q.job_id + '\')">'
+          + '<div style="font-size:17px;font-weight:800">' + escHtml(q.name || ('Quote ' + q.job_id)) + '</div>'
+          + '<div style="font-size:13px;color:var(--muted);margin-top:2px">' + _qfMeta(q, today) + '</div>'
+          + extra
+        + '</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + right + '</div>'
+      + '</div>'
+      + '<div id="qf-page-' + q.job_id + '"></div>'
+    + '</div>';
+  }).join('');
+  var empty = {open:'Every quote has been followed up. 👍', booked:'No booked quotes yet this year.', lost:'Nothing here.'}[_qfTab];
+
+  root.innerHTML = '<div class="page-header"><div>'
+      + '<div class="page-title page-title-sm">📞 Junk Quotes</div>'
+      + '<div class="page-sub">This year\'s quote visits — which ones turned into jobs, and the ones still waiting on a call.</div>'
+    + '</div></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">'
+      + tile('open', '📞 Need a follow-up', '#b45309', '#fef3c7')
+      + tile('booked', '✅ Booked', '#15803d', '#dcfce7')
+      + tile('lost', '✕ Not going ahead', '#475569', '#f1f5f9')
+    + '</div>'
+    + (rowsHtml || '<div style="font-size:15px;font-weight:700;color:var(--muted);padding:12px 4px">' + empty + '</div>');
+}
+
+// The buttons, shared by the dashboard row, the page and the quote's own box (which
+// draws its own, bigger Convert above them).
 function _qfButtons(id, where, withConvert){
   var ghost = 'font-family:inherit;font-size:14px;font-weight:800;padding:11px 16px;border-radius:10px;cursor:pointer;background:var(--surface);';
   return (withConvert ? '<button class="djj-btn green" onclick="event.stopPropagation();qfConvert(\'' + id + '\')" style="font-size:15px;padding:12px 20px;border-radius:10px">⚡ Convert to job</button>' : '')
@@ -144,10 +204,13 @@ function quoteMarkBooked(quoteId, jobId){
   _qfPatch(quoteId, {quote_outcome:'booked', quote_job_id:jobId});
 }
 
+// Every change redraws all three places that show quotes, wherever it was made.
 async function _qfPatch(id, fields){
   var r = await patchJob(id, fields);
   if(r.error) return;            // patchJob already said so and put the screen back
-  renderQuoteFollowups();
+  refreshQuoteNeedsYou();
+  var page = document.getElementById('view-junkquotes');
+  if(page && page.classList.contains('active')) renderJunkQuotesPage();
   var box = document.getElementById('det-quote-box');
   if(box && box.dataset.qid === id) renderQuoteDetailBox(id);
 }

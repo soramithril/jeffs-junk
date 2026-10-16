@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '693';
+var APP_VERSION = '694';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2848,6 +2848,7 @@ function render(name, bg){
   else if(name==='maintenance'){ switchFleetTab('maintenance'); }
   else if(name==='documents') renderDocuments();
   else if(name==='writtenquotes') renderWrittenQuotes(bg);
+  else if(name==='junkquotes') renderJunkQuotesPage();
   else if(name==='emailtemplates') renderEmailTemplates();
   else if(name==='jwgscheduler') renderJwgScheduler();
   // Banner re-evaluates on every view render (including initial load — refresh() only fires later)
@@ -3205,16 +3206,22 @@ function renderNeedsYou(){
       : (j.junkDate||j.date);
     return dropD && dropD<=sevenOut && (j.emailSent||j.emailConfirmed);
   }).length;
-  el.setAttribute('data-count', items.length);
+  // Quotes visited in the last two weeks that nobody has called (app-quote-followup.js).
+  // They share this card rather than having their own, so the dashboard has one list
+  // of loose ends (Jake, 2026-10-16).
+  var quotes=qfFreshQuotes();
+  el.setAttribute('data-count', items.length+quotes.length);
+  el.setAttribute('data-emails', items.length);
+  el.setAttribute('data-quotes', quotes.length);
   renderGreeting();
   // Snapshot row positions before the re-render so surviving rows can glide to
   // their new spot (v546) — a ticked-off task shouldn't make the list teleport.
   var _flipSnap = window.JJMotion && JJMotion.snapRows ? JJMotion.snapRows(el) : null;
-  if(!items.length){
+  if(!items.length && !quotes.length){
     el.innerHTML='<div class="chart-card" style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:4px solid var(--accent-hero);background:linear-gradient(135deg,rgba(34,197,94,.14),var(--surface) 70%)">'
       +'<span style="width:6px;height:38px;border-radius:99px;background:var(--accent-hero);flex:none"></span>'
       +'<div><div style="font-size:16px;font-weight:800;color:var(--accent-hover)">All caught up</div>'
-      +'<div style="font-size:13px;color:var(--muted)">Every confirmation email is sent.</div></div>'
+      +'<div style="font-size:13px;color:var(--muted)">Every confirmation email is sent, and every recent quote has had a call.</div></div>'
     +'</div>';
     return;
   }
@@ -3261,11 +3268,14 @@ function renderNeedsYou(){
       // colour as the good news, so nothing about it said "look at me". Amber
       // does that without red's implication that something is already broken.
       +'<span class="jj-sec-chip warm"></span>'
-      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Needs to be emailed</span>'
-      +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'+items.length+' left &middot; '+doneToday+' done</span>'
+      +'<span style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--accent-warm)">Needs you</span>'
+      +'<span style="margin-left:auto;font-size:12px;color:#a1662f;font-weight:700">'
+        +(items.length?items.length+' email'+(items.length===1?'':'s')+' &middot; ':'')
+        +(quotes.length?quotes.length+' quote'+(quotes.length===1?'':'s')+' to call &middot; ':'')
+        +doneToday+' emails sent</span>'
     +'</div>'
-    +'<div style="font-size:12px;color:var(--muted);padding:0 4px 12px">Confirmation emails that have not gone out yet, due in the next 7 days.</div>'
-    +rowsHtml
+    +'<div style="font-size:12px;color:var(--muted);padding:0 4px 12px">Confirmation emails due in the next 7 days, and quotes from the last 2 weeks nobody has called yet.</div>'
+    +rowsHtml+quotes.map(qfNeedsYouRowHtml).join('')
   +'</div>';
   // Surviving rows glide to their new spot, then buzz the genuinely new ones
   // (first render seeds silently)
@@ -4448,10 +4458,14 @@ function renderGreeting(){
   var ny=document.getElementById('dash-needs-you');
   if(ny && ny.hasAttribute('data-count')){
     var n=parseInt(ny.getAttribute('data-count')||'0',10);
+    var ne=parseInt(ny.getAttribute('data-emails')||'0',10), nq=parseInt(ny.getAttribute('data-quotes')||'0',10);
+    var loose=[];
+    if(ne) loose.push(ne+' email'+(ne===1?'':'s')+' to send');
+    if(nq) loose.push(nq+' quote'+(nq===1?'':'s')+' to call');
     // Loose ends read amber to match the card they refer to; caught up reads
     // the hero green, because that is the one genuinely good outcome here.
     bits.push('<span style="color:'+(n>0?'var(--accent-warm)':'var(--accent-hover)')+';font-weight:800">'
-      +(n>0 ? n+' email'+(n===1?'':'s')+' to send' : 'All caught up')+'</span>');
+      +(n>0 ? loose.join(', ') : 'All caught up')+'</span>');
   }
   sumEl.innerHTML=bits.join('. ')+'.';
 }
@@ -4539,7 +4553,7 @@ async function renderDash(bg){
   // this function needs that number before it animates the greeting in.
   await refreshDashBinStats();
   renderReviewFollowups();
-  renderQuoteFollowups();      // app-quote-followup.js
+  refreshQuoteNeedsYou();      // app-quote-followup.js — adds recent quotes to Needs you
   renderDashVehicleStatus();
   renderDashCrewStatus();
   renderDashMaintAlert();
@@ -6533,6 +6547,7 @@ var PALETTE_PAGES=[
   {p:'landscaping',   n:'Extra Jobs',        h:'Possible · scheduled · done', a:'extra'},
   {p:'pricing',       n:'Bin Pricing',       h:'Quote a bin rental', a:'quote price bin'},
   {p:'drdcalc',       n:'Furniture Quote',   h:'Fill the truck', a:'quote drd calculator junk'},
+  {p:'junkquotes',    n:'Junk Quotes',       h:'Which quotes booked, and who to call', a:'quote quotes follow up followup booked converted'},
   {p:'livejobs',      n:'Live Jobs',         h:'Trucks on the road right now', a:'gps tracking'},
   {p:'dispatch',      n:'Dispatch',          h:'Plan the runs', a:'routes'},
   {p:'crew',          n:'Crew Schedule',     h:'Who is on which job that week', a:'schedule staff shifts jobs assignments'},
@@ -14147,7 +14162,7 @@ var NAV_ICO={
   "goJwg('summer')":'summerWinter', "go('documents')":'documents', "go('writtenquotes')":'edit', "go('usage')":'analytics',
   "go('livejobs')":'liveJobs', "go('dispatch')":'dispatch', "go('vehicles')":'vehicles',
   "go('crew')":'clients', "go('damage')":'damage', "go('bininventory')":'junk',
-  "go('drdcalc')":'junkQuote', "go('pricing')":'pricing',
+  "go('drdcalc')":'junkQuote', "go('pricing')":'pricing', "go('junkquotes')":'confirmed',
   "go('bookings')":'schedule', "go('analytics')":'analytics', "go('ourprices')":'pricing',
   "openFurniturePrices()":'furniture', "go('team')":'clients', "openUserManager()":'clients',
   "go('staffcheckin')":'confirmed', "go('emailtemplates')":'email', "goJwg('inventory')":'allJobs',
@@ -14163,7 +14178,7 @@ var NAV_COLOR={
   "go('documents')":'slate', "go('writtenquotes')":'green', "go('usage')":'violet', "go('livejobs')":'cyan',
   "go('dispatch')":'indigo', "go('vehicles')":'green', "go('crew')":'orange',
   "go('damage')":'red', "go('bininventory')":'bin',
-  "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('bookings')":'pink',
+  "go('drdcalc')":'violet', "go('pricing')":'yellow', "go('junkquotes')":'orange', "go('bookings')":'pink',
   "go('analytics')":'blue',
   "go('ourprices')":'green', "openFurniturePrices()":'pink',
   "go('team')":'indigo', "openUserManager()":'blue', "go('staffcheckin')":'teal',
@@ -14931,7 +14946,7 @@ function trackPageView(page){
   });
 }
 var PAGE_LABELS={dashboard:'Dashboard',jobs:'All Jobs',clients:'Clients',landscaping:'Extra Jobs',
-  jwgscheduler:'JWG Scheduler',documents:'Documents',writtenquotes:'Written Quotes',suggestions:'Suggestions',livejobs:'Live Jobs',
+  jwgscheduler:'JWG Scheduler',documents:'Documents',writtenquotes:'Written Quotes',junkquotes:'Junk Quotes',suggestions:'Suggestions',livejobs:'Live Jobs',
   dispatch:'Dispatch',crew:'Crew Schedule',damage:'Damage Reports',
   vehicles:'Vehicles',maintenance:'Vehicles · Maintenance tab',
   bininventory:'Bin Fleet',binmap:'Bin Fleet · Map tab',
