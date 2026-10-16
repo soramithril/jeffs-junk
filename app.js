@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '694';
+var APP_VERSION = '695';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3661,8 +3661,8 @@ function removeCrewMember(id){
 }
 
 // ── User Manager Modal (Settings → User Management) ──
-// Edits user_profiles rows (username, role, can_delete) and creates new logins via auth.signUp.
-// The admin's session is restored after signUp so they stay signed in as themselves.
+// Edits user_profiles rows (username, role, can_delete) and creates new logins through the
+// admin-only create-staff-login function.
 var _userManagerUsers = [];
 // The six access tiers. The value is what lands in user_profiles.role and drives
 // every visibility check in the app; the label is what this dropdown shows. The
@@ -3765,16 +3765,16 @@ async function addNewUser(){
   var canDel=document.getElementById('user-new-candelete').checked;
   if(!email||!password||!username){toast('Email, password, and username are required.','error');return;}
   if(password.length<6){toast('Password must be at least 6 characters.','error');return;}
-  var adminSession=(await db.auth.getSession()).data.session;
-  var signup=await db.auth.signUp({email:email,password:password});
-  if(signup.error){toast('Create failed: '+signup.error.message,'error');return;}
-  var newId=signup.data.user&&signup.data.user.id;
-  if(!newId){toast('Sign-up returned no user.','error');return;}
-  if(adminSession){
-    await db.auth.setSession({access_token:adminSession.access_token,refresh_token:adminSession.refresh_token});
-  }
-  var ins=await db.from('user_profiles').insert({id:newId,username:username,role:role,can_delete:canDel});
-  if(ins.error){toast('Profile insert failed: '+ins.error.message,'error');return;}
+  // Public sign-up is off, so the login and its profile are made server-side by an
+  // admin-only function (supabase/functions/create-staff-login).
+  var token=(await db.auth.getSession()).data.session.access_token;
+  var res=await fetch(SUPABASE_URL+'/functions/v1/create-staff-login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({email:email,password:password,username:username,role:role,can_delete:canDel})
+  });
+  var out=await res.json();
+  if(!res.ok){toast('Create failed: '+out.error,'error');return;}
   document.getElementById('user-new-email').value='';
   document.getElementById('user-new-password').value='';
   document.getElementById('user-new-username').value='';
