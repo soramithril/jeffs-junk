@@ -117,7 +117,8 @@ window.WinterBook = (function(){
       + '<div class="org"><b>JEFF WHITE GROUP</b><span>WINTER OPERATIONS · SITE BRIEF</span></div>'
       + '<div class="file"><div><span>FILE</span><b>JWG-W-' + code + '</b></div><div><span>SECTOR</span><b>' + esc(g.name.toUpperCase()) + '</b></div><div><span>INTEL</span><b>' + isoDay(today) + '</b></div></div></div>'
       + '<div class="title"><div class="num"><small>SITE</small>' + code + '</div>'
-      + '<dl class="kv"><dt>TARGET</dt><dd class="addr">' + esc(l.address) + '</dd>'
+      // Long multi-number addresses step the type down so they stay on two lines.
+      + '<dl class="kv"><dt>TARGET</dt><dd class="addr' + (l.address.length > 32 ? ' long' : l.address.length > 24 ? ' mid' : '') + '">' + esc(l.address) + '</dd>'
       + '<dt>LOCATION</dt><dd>' + esc((l.city || '').toUpperCase()) + ' · ' + esc(g.name.toUpperCase()) + '</dd>'
       + '<dt>CALLSIGN</dt><dd>' + (nick ? '<span class="call">' + esc(nick.toUpperCase()) + '</span>' : 'NONE ASSIGNED') + '</dd></dl>'
       + '<div class="stamp">AUTHORIZED</div></div>'
@@ -174,6 +175,7 @@ window.WinterBook = (function(){
     '.kv dt{font-family:var(--mono);font-size:1.2cqw;letter-spacing:.2em;color:var(--forest);font-weight:600}',
     '.kv dd{font-family:var(--mono);font-size:1.7cqw;color:#26332c;letter-spacing:.04em}',
     '.kv dd.addr{font-family:var(--ui);font-weight:800;font-size:4.2cqw;line-height:1.05;letter-spacing:-.01em;color:var(--deep);text-wrap:balance}',
+    '.kv dd.addr.mid{font-size:3.5cqw}.kv dd.addr.long{font-size:2.9cqw}',
     '.call{font-weight:600;background:var(--wash);color:var(--forest);border:1px solid var(--mint);padding:.1cqw 1cqw;letter-spacing:.06em}',
     '.stamp{align-self:start;margin-top:1cqw;border:.45cqw solid var(--logo);color:var(--logo);font-family:var(--stencil);font-size:2.4cqw;letter-spacing:.14em;padding:.4cqw 1.4cqw;transform:rotate(-8deg);opacity:.85;white-space:nowrap}',
     '.sect{display:flex;justify-content:space-between;margin:0 5.5cqw .8cqw;font-family:var(--mono);font-weight:600;font-size:1.25cqw;letter-spacing:.24em;color:var(--forest)}',
