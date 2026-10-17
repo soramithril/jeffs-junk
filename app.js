@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '698';
+var APP_VERSION = '699';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3201,7 +3201,7 @@ function renderNeedsYou(){
       : (j.junkDate||j.date);
     return dropD && dropD<=sevenOut && (j.emailSent||j.emailConfirmed);
   }).length;
-  // Quotes visited in the last two weeks that nobody has called (app-quote-followup.js).
+  // Quotes visited in the last two weeks that are due a call (app-quote-followup.js).
   // They share this card rather than having their own, so the dashboard has one list
   // of loose ends (Jake, 2026-10-16).
   var quotes=qfFreshQuotes();
@@ -10807,6 +10807,12 @@ async function maybeShowMorningBrief(force){
     if(ur.error) throw ur.error;
     undropped = (ur.data||[]).filter(function(r){ return !r.bin_instatus; });
   } catch(e){ console.warn('Morning brief undropped-bin check failed:', e); }
+
+  // Quote visits nobody has an answer for yet (app-quote-followup.js decides which
+  // are due — a "Followed up" one rests a few days before it is asked about again).
+  var quotes = [];
+  try { quotes = await qfDueQuotes(); }
+  catch(e){ console.warn('Morning brief quote check failed:', e); }
   // Marked seen only once it has actually been shown AND closed (see closeBrief) —
   // it used to be stamped here, before the popup was even built, so a phone call
   // mid-read cost you the whole list until tomorrow.
@@ -10819,6 +10825,7 @@ async function maybeShowMorningBrief(force){
   undropped.forEach(function(j){ queue.push({kind:'undropped', key:'u'+j.job_id, j:j}); });
   bins.forEach(function(j){ queue.push({kind:'bin', key:'b'+j.id, j:j}); });
   unemailed.forEach(function(j){ queue.push({kind:'email', key:'e'+j.job_id, j:j}); });
+  quotes.forEach(function(j){ queue.push({kind:'quote', key:'q'+j.job_id, j:j}); });
   _jjBriefQueue = queue.filter(function(it){ return !_jjBriefSkipped[it.key]; });
   _jjBriefDone = 0;
 
@@ -10914,8 +10921,9 @@ function _jjBriefCard(it){
         + '<button class="btn btn-ghost" onclick="undroppedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',false)">No — still in the yard</button>'
       + '</div></div>';
   }
+  if(it.kind === 'quote') return qfBriefCardHtml(j);
   if(it.kind === 'bin'){
-    var sub = [j.binSize, (j.address||'').split(',')[0], j.city].filter(Boolean).join(' · ');
+    var sub =[j.binSize, (j.address||'').split(',')[0], j.city].filter(Boolean).join(' · ');
     return '<div style="border:1px solid var(--border-strong);background:var(--surface);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)">'
       + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--warn);margin-bottom:8px">Needs a bin number</div>'
       + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.id)+'</div>'

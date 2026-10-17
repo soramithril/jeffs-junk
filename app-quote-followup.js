@@ -5,14 +5,21 @@
 // They are written ONLY here, through patchJob, and are deliberately left out of
 // jobToDb: saving a quote in the booking form can never wipe them.
 //
-// Three places show it, all big on purpose (Jake: "big and clear so it's easily
+// Five places show it, all big on purpose (Jake: "big and clear so it's easily
 // noticeable"):
 //   - the Junk Quotes page (#jq-root): the year's tally and every quote, by outcome;
 //   - the dashboard's Needs you card: ONLY quotes visited in the last QF_FRESH_DAYS
-//     that nobody has called yet (Jake, 2026-10-16 — the dashboard was getting full,
-//     and a two-month-old quote is not a call anyone will make). renderNeedsYou in
-//     app.js reads them from qfFreshQuotes();
+//     that are due a call (Jake, 2026-10-16 — the dashboard was getting full, and a
+//     two-month-old quote is not a call anyone will make). renderNeedsYou in app.js
+//     reads them from qfFreshQuotes();
+//   - the morning brief in app.js, one card per due quote (qfBriefCardHtml);
+//   - the 1 pm nudge card, once a day, for whatever is still due by then;
 //   - the box at the top of a quote's Job details (#det-quote-box).
+//
+// "Due" (Kelly, 2026-10-16: remind us about quotes that are neither booked nor
+// marked not going ahead): never followed up, or followed up QF_SNOOZE_DAYS ago or
+// more. "Followed up" puts a quote to sleep for a few days, never away for good —
+// only Booked or Not going ahead does that.
 // Own queries, like Review follow-ups — the in-memory `jobs` array only holds this week.
 //
 // "Not going ahead" counts cancelled quotes too: a cancelled quote visit is a quote
@@ -21,6 +28,8 @@
 // were closed as "No answer".
 var QF_START = '2026-01-01';   // the tally counts this year's quotes
 var QF_FRESH_DAYS = 14;        // how far back the dashboard looks
+var QF_SNOOZE_DAYS = 3;        // "Followed up" brings the quote back after this many days
+var QF_NUDGE_HOUR = 13;        // the afternoon nudge card, local time
 var QF_COLS = 'job_id,name,status,date,junk_date,price,address,city,quote_outcome,quote_job_id,quote_note,quote_followed_up_at';
 var _qfFresh = [];             // the dashboard's quote rows, filled by refreshQuoteNeedsYou
 var _qfTab = 'open';           // Junk Quotes page: which outcome is listed
@@ -29,6 +38,13 @@ function _qfDay(row){ return row.junk_date || row.date || ''; }
 function _qfLost(row){ return row.quote_outcome === 'lost' || row.status === 'Cancelled'; }
 // Visited, and nobody has said how it went. A visit still to come isn't a follow-up yet.
 function _qfOpen(row, today){ return !row.quote_outcome && row.status !== 'Cancelled' && _qfDay(row) && _qfDay(row) <= today; }
+// Open, and nobody has called in the last QF_SNOOZE_DAYS.
+function _qfDue(row, today){
+  if(!_qfOpen(row, today)) return false;
+  if(!row.quote_followed_up_at) return true;
+  var back = new Date(row.quote_followed_up_at); back.setDate(back.getDate() + QF_SNOOZE_DAYS);
+  return ymdLocal(back) <= today;
+}
 function _qfShortDate(ymd){
   return new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'});
 }
@@ -55,14 +71,18 @@ async function _qfQuery(since){
   return (r.data || []).filter(function(q){ return _qfDay(q) >= since; });
 }
 
-// ── Dashboard: the fresh ones, inside Needs you ──
-async function refreshQuoteNeedsYou(){
+// ── The due ones: Needs you, the morning brief and the 1 pm nudge all read this ──
+async function qfDueQuotes(){
   var today = todayStr();
   var d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - QF_FRESH_DAYS);
   var rows = await _qfQuery(ymdLocal(d));
-  _qfFresh = rows.filter(function(q){ return _qfOpen(q, today) && !q.quote_followed_up_at; })
+  return rows.filter(function(q){ return _qfDue(q, today); })
     .sort(function(a, b){ return _qfDay(a) < _qfDay(b) ? 1 : _qfDay(a) > _qfDay(b) ? -1 : 0; });
+}
+async function refreshQuoteNeedsYou(){
+  _qfFresh = await qfDueQuotes();
   renderNeedsYou();
+  if(document.getElementById('qf-nudge')) _qfNudgePaint();
 }
 function qfFreshQuotes(){ return _qfFresh; }
 
@@ -74,11 +94,88 @@ function qfNeedsYouRowHtml(q){
       + '<div style="flex:1 1 220px;min-width:0;cursor:pointer" onclick="openDetail(\'' + q.job_id + '\')">'
         + '<div style="font-size:15px;font-weight:700">' + escHtml(q.name || ('Quote ' + q.job_id)) + ' — follow up on the quote</div>'
         + '<div style="font-size:13px;color:var(--muted)">' + _qfMeta(q, todayStr()) + '</div>'
+        + _qfChased(q)
       + '</div>'
       + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + _qfButtons(q.job_id, 'card', true) + '</div>'
     + '</div>'
     + '<div id="qf-card-' + q.job_id + '"></div>'
   + '</div>';
+}
+
+// ── Morning brief: one card per due quote (app.js _jjBriefCard draws it) ──
+// No Convert here — that opens the booking form, and the brief steps aside for
+// nothing but its own buttons. Any answer moves the brief on (see _qfPatch).
+function qfBriefCardHtml(q){
+  return '<div style="border:2px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:18px 20px">'
+    + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#b45309;margin-bottom:8px">Quote waiting on an answer</div>'
+    + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">Did ' + escHtml(q.name || ('quote ' + q.job_id)) + ' book?</div>'
+    + '<div style="font-size:13px;color:var(--muted);margin-bottom:4px">' + _qfMeta(q, todayStr()) + '</div>'
+    + _qfChased(q)
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
+      + _qfButtons(q.job_id, 'brief', false)
+      + '<button class="btn btn-ghost" onclick="jjBriefSkip()">Skip for now</button>'
+    + '</div>'
+    + '<div id="qf-brief-' + q.job_id + '"></div>'
+  + '</div>';
+}
+
+// ── The 1 pm nudge ──
+// Once a day per browser, from QF_NUDGE_HOUR on, a card in the corner for the quotes
+// still due. Never over the booking form or the morning brief: it waits a minute and
+// asks again. Silent on purpose — sounds are for things a person just did.
+function _qfNudgeTick(){
+  if(!currentUser) return;
+  if(new Date().getHours() < QF_NUDGE_HOUR) return;
+  var today = todayStr();
+  if(localStorage.getItem('jjQuoteNudgeDay') === today) return;
+  if(document.getElementById('job-modal').classList.contains('open')) return;
+  if(document.getElementById('morning-brief-modal').classList.contains('open')) return;
+  localStorage.setItem('jjQuoteNudgeDay', today);   // checked = done for today, due or not
+  refreshQuoteNeedsYou().then(function(){ if(_qfFresh.length) _qfNudgePaint(); });
+}
+setInterval(_qfNudgeTick, 60000);
+
+var QF_NUDGE_ROWS = 3;   // more than this and it points at the Junk Quotes page instead
+function _qfNudgePaint(){
+  var el = document.getElementById('qf-nudge');
+  if(!_qfFresh.length){
+    if(!el) return;
+    el.innerHTML = '<div style="font-size:17px;font-weight:800;color:#15803d">All answered ✓</div>';
+    setTimeout(qfNudgeClose, 2500);
+    return;
+  }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'qf-nudge';
+    el.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:450;width:min(460px,calc(100vw - 32px));max-height:75vh;overflow-y:auto;'
+      + 'background:var(--surface);border:2px solid #f59e0b;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.22);padding:16px 18px;'
+      + 'animation:jjPop 520ms cubic-bezier(.34,1.56,.64,1) both';
+    document.body.appendChild(el);
+  }
+  var n = _qfFresh.length;
+  var rows = _qfFresh.slice(0, QF_NUDGE_ROWS).map(function(q){
+    return '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">'
+      + '<div style="cursor:pointer" onclick="openDetail(\'' + q.job_id + '\')">'
+        + '<div style="font-size:16px;font-weight:800">Did ' + escHtml(q.name || ('quote ' + q.job_id)) + ' book?</div>'
+        + '<div style="font-size:13px;color:var(--muted)">' + _qfMeta(q, todayStr()) + '</div>'
+        + _qfChased(q)
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">' + _qfButtons(q.job_id, 'nudge', false) + '</div>'
+      + '<div id="qf-nudge-' + q.job_id + '"></div>'
+    + '</div>';
+  }).join('');
+  var more = n > QF_NUDGE_ROWS
+    ? '<button onclick="qfNudgeClose();go(\'junkquotes\')" style="margin-top:12px;background:none;border:none;padding:0;font-family:inherit;font-size:14px;font-weight:800;color:#b45309;text-decoration:underline;cursor:pointer">+ ' + (n - QF_NUDGE_ROWS) + ' more on the Junk Quotes page</button>'
+    : '';
+  el.innerHTML = '<div style="display:flex;align-items:flex-start;gap:10px">'
+      + '<div style="flex:1;font-size:18px;font-weight:900;color:#b45309">📞 ' + n + (n === 1 ? ' quote is' : ' quotes are') + ' still waiting on an answer</div>'
+      + '<button onclick="qfNudgeClose()" title="Later" style="flex:none;font-family:inherit;font-size:14px;font-weight:700;padding:6px 12px;border-radius:9px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer">Later</button>'
+    + '</div>'
+    + rows + more;
+}
+function qfNudgeClose(){
+  var el = document.getElementById('qf-nudge');
+  if(el) el.remove();
 }
 
 // ── The Junk Quotes page ──
@@ -204,10 +301,14 @@ function quoteMarkBooked(quoteId, jobId){
   _qfPatch(quoteId, {quote_outcome:'booked', quote_job_id:jobId});
 }
 
-// Every change redraws all three places that show quotes, wherever it was made.
+// Every change redraws every place that shows quotes, wherever it was made. An answer
+// to the morning brief's own card also moves the brief on to its next one.
 async function _qfPatch(id, fields){
   var r = await patchJob(id, fields);
   if(r.error) return;            // patchJob already said so and put the screen back
+  var front = _jjBriefQueue[0];
+  if(front && front.kind === 'quote' && front.j.job_id === id
+     && document.getElementById('morning-brief-modal').classList.contains('open')) _jjBriefNext();
   refreshQuoteNeedsYou();
   var page = document.getElementById('view-junkquotes');
   if(page && page.classList.contains('active')) renderJunkQuotesPage();
