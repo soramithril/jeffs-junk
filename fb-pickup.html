@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>FB Pickups — Jeff's Junk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<style>
+/* The crew's Furniture Bank pickup iPad (Jake, 2026-10-16). Light only: it is used at
+   customers' doors, often outside. Built for a landscape iPad, still works on a phone. */
+:root{
+  --bg:#f7f9f8; --surface:#fff; --surface2:#eef1f0; --border:#d7dad9; --border-strong:#cbcfcd;
+  --text:#1a211e; --muted:#5f6563; --placeholder:#868e8b;
+  --accent:#16a34a; --accent-hero:#22c55e; --accent-soft:#f0fdf4; --nav:#123f24;
+  --purple:#7c3aed; --purple-soft:#f3efff; --blue:#0d6efd; --blue-soft:#eef4ff;
+  --warn:#b45309; --warn-soft:#fff7ed; --bad:#dc2626;
+  --display:'Bebas Neue',Impact,'Arial Narrow',sans-serif;
+  --body:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --shadow:0 1px 3px rgba(26,33,30,.08),0 8px 24px rgba(26,33,30,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit}
+.btn{font-weight:800;font-size:16px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface);padding:12px 16px;min-height:50px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--accent-hero);border-color:var(--accent-hero);color:#05230f}
+.btn.purple{background:var(--purple);border-color:var(--purple);color:#fff}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.tick:focus-visible,.step:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* sign in */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--nav)}
+.card{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:28px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px}
+.card h1{font-family:var(--display);font-weight:400;font-size:42px;line-height:.95;margin:0;letter-spacing:.5px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--purple)}
+.field{width:100%;font:inherit;font-size:17px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);border-radius:12px;padding:13px 14px}
+.field::placeholder{color:var(--placeholder)}
+.err{color:var(--bad);font-weight:700;min-height:22px;font-size:14px}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:5;background:var(--nav);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px}
+.bar .t{flex:1;min-width:0}
+.bar .k{font-size:12px;letter-spacing:1.3px;text-transform:uppercase;opacity:.75;font-weight:700}
+.bar .h{font-size:20px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .btn{min-height:44px;padding:8px 14px;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
+
+/* today's list */
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+.jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.jcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+.jcard .time{font-family:var(--display);font-size:28px;line-height:1;color:var(--purple)}
+.jcard .nm{font-size:19px;font-weight:800;line-height:1.2}
+.jcard .ad{color:var(--muted)}
+.jcard .ct{font-size:14px;font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;border-radius:999px;padding:4px 10px;align-self:flex-start}
+.chip.done{background:var(--accent-soft);color:var(--accent)}
+.chip.todo{background:var(--purple-soft);color:var(--purple)}
+.empty{background:var(--surface);border:1px dashed var(--border-strong);border-radius:14px;padding:36px 20px;text-align:center;color:var(--muted);font-size:17px}
+
+/* one pickup */
+.pick{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:calc(100vh - 70px)}
+.side{background:var(--surface);border-right:1px solid var(--border);padding:18px;display:flex;flex-direction:column;gap:14px}
+.side .who b{display:block;font-size:22px;line-height:1.2}
+.side .who a{color:var(--blue);font-weight:700;text-decoration:none;display:block;margin-top:4px}
+.side .note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px;white-space:pre-wrap}
+.tot{border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;font-variant-numeric:tabular-nums}
+.tot .r{display:flex;justify-content:space-between;gap:10px}
+.tot .r span:first-child{color:var(--muted)}
+.tot .big{font-family:var(--display);font-size:40px;line-height:1;color:var(--accent)}
+.tot .rec{color:var(--blue);font-weight:800}
+.tot s{color:var(--muted);font-weight:400}
+.tot .why{font-size:13px;color:var(--muted)}
+.side .grow{flex:1}
+.main{padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.prog{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.prog .top{display:flex;justify-content:space-between;font-weight:800}
+.prog .top span{color:var(--muted);font-weight:600;font-size:14px}
+.track{height:12px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent-hero);border-radius:999px;transition:width .25s}
+@media (prefers-reduced-motion:reduce){.track i{transition:none}}
+.lines{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px}
+.line{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px}
+.line.on{border-color:var(--accent);background:var(--accent-soft)}
+.line.added{border-style:dashed;border-color:var(--purple)}
+.line.on.added{background:var(--purple-soft)}
+.pic{width:52px;height:52px;flex:none;border-radius:10px;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:var(--display);font-size:22px;color:var(--placeholder)}
+.pic img{width:100%;height:100%;object-fit:contain}
+.line .nm{flex:1;min-width:0}
+.line .nm b{display:block;font-size:16px;line-height:1.2}
+.line .nm small{color:var(--muted);font-size:13px}
+.line .nm small em{font-style:normal;font-weight:800;color:var(--purple)}
+.qty{display:flex;align-items:center;gap:4px;flex:none}
+.step{width:40px;height:40px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);font-size:22px;font-weight:800;cursor:pointer;padding:0}
+.qty output{min-width:26px;text-align:center;font-weight:800;font-size:18px;font-variant-numeric:tabular-nums}
+.tick{width:50px;height:50px;flex:none;border-radius:50%;border:2px solid var(--border-strong);background:var(--surface);cursor:pointer;color:transparent;font-size:24px;font-weight:900;padding:0}
+.tick.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tick[disabled]{opacity:.35;cursor:not-allowed}
+.sect{font-size:12px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--purple);margin-top:6px}
+
+/* sheets (add item, customer sign-off) */
+.overlay{position:fixed;inset:0;z-index:20;background:rgba(18,25,22,.55);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:auto}
+.sheet{background:var(--bg);width:100%;max-width:980px;max-height:92vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden}
+.sheet .sh{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border)}
+.sheet .sh b{flex:1;font-size:19px}
+.sheet .sb{overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.pk{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;text-align:left;cursor:pointer;min-height:64px}
+.pk .nm{flex:1;min-width:0}
+.pk .nm b{display:block;font-size:15px;line-height:1.2}
+.pk .nm small{color:var(--muted);font-size:13px}
+.pk .plus{width:40px;height:40px;flex:none;border-radius:10px;background:var(--purple);color:#fff;font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.pk.has{border-color:var(--purple);background:var(--purple-soft)}
+.grp{font-size:12px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.cust{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.list{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.list .l{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
+.list .l:first-child{border-top:0}
+.list .l small{display:block;color:var(--muted);font-size:13px}
+.list .l .tag{color:var(--purple);font-weight:800}
+.list .l span:last-child{font-weight:800;white-space:nowrap}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border-radius:12px;padding:12px;border:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums}
+.tile .k{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.tile .now{font-family:var(--display);font-size:42px;line-height:1}
+.tile.pay .now{color:var(--accent)}
+.tile.rec{background:var(--blue-soft);border-color:transparent}
+.tile.rec .now{color:var(--blue)}
+.tile .was{font-size:14px;color:var(--muted)}
+.tax{display:flex;justify-content:space-between;color:var(--muted);font-variant-numeric:tabular-nums;padding:0 4px}
+.why{font-size:13px;color:var(--muted)}
+.sigbox{background:#fff;border:2px dashed #b8bcba;border-radius:12px;height:200px;position:relative;touch-action:none}
+.sigbox canvas{width:100%;height:100%;display:block;border-radius:10px}
+.sigbox .hint{position:absolute;left:14px;right:14px;bottom:34px;border-top:1.5px solid #b8bcba;padding-top:4px;font-size:13px;color:var(--placeholder);pointer-events:none}
+.done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:40px 16px}
+.done .ok{width:76px;height:76px;border-radius:50%;background:var(--accent-hero);color:#05230f;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900}
+.done h2{font-family:var(--display);font-weight:400;font-size:40px;margin:0}
+
+@media (max-width:820px){
+  .pick{grid-template-columns:1fr;min-height:0}
+  .side{border-right:0;border-bottom:1px solid var(--border)}
+  .side .grow{display:none}
+  .cust{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form class="card" id="login-form" autocomplete="off">
+    <div class="eyebrow">Jeff's Junk · Furniture Bank</div>
+    <h1>Pickup iPad</h1>
+    <input class="field" id="login-user" placeholder="Username" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <input class="field" id="login-pass" type="password" placeholder="Password" autocomplete="off">
+    <div class="err" id="login-err"></div>
+    <button class="btn primary" id="login-btn" type="submit">Sign in</button>
+  </form>
+</div>
+
+<div id="today" hidden>
+  <div class="bar">
+    <div class="t"><div class="k">Furniture Bank pickups</div><div class="h" id="today-date"></div></div>
+    <button class="btn" id="refresh-btn" type="button">Refresh</button>
+  </div>
+  <div class="wrap"><div id="today-list"></div></div>
+</div>
+
+<div id="job" hidden>
+  <div class="bar">
+    <button class="btn" id="back-btn" type="button">‹ Today</button>
+    <div class="t"><div class="k" id="job-k"></div><div class="h" id="job-h"></div></div>
+  </div>
+  <div class="pick">
+    <aside class="side">
+      <div class="who" id="job-who"></div>
+      <div id="job-note"></div>
+      <div class="tot" id="job-tot"></div>
+      <div class="grow"></div>
+      <button class="btn purple" id="add-btn" type="button">+ Add item</button>
+      <button class="btn primary" id="sign-btn" type="button">Customer sign-off</button>
+    </aside>
+    <main class="main">
+      <div class="prog" id="job-prog"></div>
+      <div id="job-lines"></div>
+    </main>
+  </div>
+</div>
+
+<div class="overlay" id="add-sheet">
+  <div class="sheet">
+    <div class="sh"><b>Add an item from the Furniture Bank list</b><button class="btn" id="add-close" type="button">Done</button></div>
+    <div class="sb">
+      <input class="field" id="add-search" placeholder="Search — sofa, dresser, box…" autocomplete="off">
+      <div id="add-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="sign-sheet">
+  <div class="sheet">
+    <div class="sh"><b>Please check your pickup</b><button class="btn" id="sign-close" type="button">Back</button></div>
+    <div class="sb" id="sign-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="furniture-pricing.js?v=698"></script>
+<script>
+(function(){
+  // Same project + publishable key as the dashboard. The truck iPad is signed in ONCE by
+  // the office and stays signed in for good (Jake, 2026-10-16: the crew never has a
+  // sign-in of its own). Its own storageKey keeps it apart from the dashboard's session,
+  // which the dashboard clears on every visit. There is deliberately no Sign out button;
+  // to lock a lost iPad out, change the crew login's password in Supabase.
+  var db = supabase.createClient('https://okoqzbdyfjfgcdgmcamq.supabase.co',
+    'sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk', { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'jj-fb-pickup-auth' } });
+
+  // Logins that may use this page: the crew iPad login, plus office staff checking it.
+  var PAGE_ROLES = ['crew','developer','owner','lead','office'];
+
+  var jobs = [];      // today's pickups
+  var checks = {};    // job_id -> saved fb_door_checks row
+  var cur = null;     // the open pickup
+  var lines = [];     // its at-the-door list: {name, idx, fee, val, booked, qty, loaded, added}
+
+  function $(id){ var el = document.getElementById(id); if (!el) throw new Error('Missing #' + id); return el; }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function money(n){ return '$' + (Math.round(n * 100) / 100).toFixed(2); }
+  function slug(name){ return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function torontoToday(){
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  }
+  function niceTime(t){
+    if (!t) return '';
+    if (t === 'anytime') return 'Anytime';
+    var m = /^(\d{1,2}):(\d{2})/.exec(t);
+    if (!m) return t;
+    var h = parseInt(m[1], 10);
+    return (h % 12 || 12) + ':' + m[2] + ' ' + (h >= 12 ? 'PM' : 'AM');
+  }
+  function custName(j){ return (j.names && j.names.length) ? j.names.join(' & ') : (j.name || 'No name'); }
+  function custPhones(j){
+    if (j.phones && j.phones.length) return j.phones.map(function(p){ return p.num; }).filter(Boolean);
+    return j.phone ? [j.phone] : [];
+  }
+  function picHtml(name){
+    return '<span class="pic">' + esc(name.charAt(0)) + '<img src="assets/furniture/thumbs/' + slug(name) + '.png" alt="" onerror="this.remove()" onload="this.parentNode.firstChild.remove()"></span>';
+  }
+  function show(id){ ['login','today','job'].forEach(function(s){ $(s).hidden = (s !== id); }); window.scrollTo(0, 0); }
+
+  // ── sign in ──
+  $('login-form').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var u = $('login-user').value.trim(), p = $('login-pass').value;
+    var err = $('login-err'), btn = $('login-btn');
+    err.textContent = '';
+    if (!u || !p) { err.textContent = 'Enter your username and password.'; return; }
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      var email = u;
+      if (u.indexOf('@') === -1) {
+        var em = await db.rpc('get_email_by_username', { lookup_username: u });
+        if (!em.data) { err.textContent = 'Username not found.'; return; }
+        email = em.data;
+      }
+      var r = await db.auth.signInWithPassword({ email: email, password: p });
+      if (r.error) { err.textContent = 'Wrong password — try again.'; return; }
+      $('login-pass').value = '';
+      await enter(r.data.user.id);
+    } catch (ex) {
+      console.error('sign in failed', ex);
+      err.textContent = 'Network problem — check the connection.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  });
+
+  $('refresh-btn').addEventListener('click', function(){ loadToday(); });
+
+  // ── today's pickups ──
+  async function loadToday(){
+    var today = torontoToday();
+    var res = await Promise.all([
+      db.from('furniture_prices').select('*'),
+      db.from('our_prices').select('*'),
+      db.from('jobs').select('job_id,name,names,phone,phones,address,city,business_name,fb_date,date,fb_time,items,notes')
+        .eq('service', 'Furniture Pickup').eq('status', '')
+        .or('fb_date.eq.' + today + ',and(fb_date.is.null,date.eq.' + today + ')')
+    ]);
+    res.forEach(function(r){ if (r.error) throw new Error(r.error.message); });
+    applyFurniturePrices(res[0].data);
+    applyOurPrices(res[1].data);
+    jobs = res[2].data.sort(function(a, b){ return String(a.fb_time || '').localeCompare(String(b.fb_time || '')); });
+    checks = {};
+    if (jobs.length) {
+      var c = await db.from('fb_door_checks').select('job_id,signed_name,finished_at').in('job_id', jobs.map(function(j){ return j.job_id; }));
+      if (c.error) throw new Error(c.error.message);
+      c.data.forEach(function(row){ checks[row.job_id] = row; });
+    }
+    $('today-date').textContent = new Date(today + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
+    renderToday();
+    show('today');
+  }
+
+  function bookedLines(j){
+    var drd = null;
+    if (j.items && j.items.charAt(0) === '{') drd = JSON.parse(j.items).drd || null;
+    var out = [];
+    if (!drd) return out;
+    (drd.quantities || []).forEach(function(q, i){
+      q = parseInt(q, 10) || 0;
+      if (q > 0) {
+        var it = DRD_ITEMS[i];
+        if (!it) throw new Error('Job ' + j.job_id + ' has a count for unknown item #' + i);
+        out.push({ name: it.name, idx: i, fee: it.fee, val: it.val, booked: q, qty: q, loaded: false, added: false });
+      }
+    });
+    (drd.otherItems || []).forEach(function(o){
+      var q = parseInt(o.qty, 10) || 0;
+      if (q > 0 && o.name) out.push({ name: o.name, idx: null, fee: Number(o.fee) || 0, val: Number(o.val) || 0, booked: q, qty: q, loaded: false, added: false });
+    });
+    return out;
+  }
+
+  function renderToday(){
+    var el = $('today-list');
+    if (!jobs.length) { el.innerHTML = '<div class="empty">No Furniture Bank pickups today.</div>'; return; }
+    el.innerHTML = '<div class="jobs">' + jobs.map(function(j, i){
+      var pcs = bookedLines(j).reduce(function(s, l){ return s + l.booked; }, 0);
+      var ch = checks[j.job_id];
+      var when = ch ? new Date(ch.finished_at).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }) : '';
+      return '<button class="jcard" type="button" data-i="' + i + '">'
+        + '<span class="time">' + esc(niceTime(j.fb_time) || 'No time set') + '</span>'
+        + '<span class="nm">' + esc(custName(j)) + '</span>'
+        + '<span class="ad">' + esc([j.address, j.city].filter(Boolean).join(', ')) + '</span>'
+        + '<span class="ct">' + pcs + ' piece' + (pcs === 1 ? '' : 's') + ' booked · job ' + esc(j.job_id) + '</span>'
+        + (ch ? '<span class="chip done">✓ Signed by ' + esc(ch.signed_name) + ' · ' + esc(when) + '</span>' : '<span class="chip todo">To do</span>')
+        + '</button>';
+    }).join('') + '</div>';
+    Array.prototype.forEach.call(el.querySelectorAll('.jcard'), function(b){
+      b.addEventListener('click', function(){ openJob(jobs[parseInt(b.getAttribute('data-i'), 10)]); });
+    });
+  }
+
+  // ── one pickup ──
+  // The list in progress is kept on this iPad, so a reload or a dropped signal doesn't
+  // lose the ticks. It is only a convenience: the saved record is the database row.
+  function draftKey(){ return 'fbDoor:' + cur.job_id; }
+  function saveDraft(){ try { localStorage.setItem(draftKey(), JSON.stringify(lines)); } catch (e) {} }
+  function readDraft(){ try { var s = localStorage.getItem(draftKey()); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function dropDraft(){ try { localStorage.removeItem(draftKey()); } catch (e) {} }
+
+  // A pickup already signed off opens on the list that was signed for, so a correction
+  // starts from what the customer saw; signing again replaces the record.
+  async function openJob(j){
+    cur = j;
+    lines = readDraft();
+    if (!lines && checks[j.job_id]) {
+      var r = await db.from('fb_door_checks').select('lines').eq('job_id', j.job_id).single();
+      if (r.error) throw new Error(r.error.message);
+      lines = r.data.lines;
+    }
+    if (!lines) lines = bookedLines(j);
+    $('job-k').textContent = (niceTime(j.fb_time) || 'No time set') + ' · job ' + j.job_id;
+    $('job-h').textContent = custName(j);
+    var addr = [j.address, j.city].filter(Boolean).join(', ');
+    $('job-who').innerHTML = '<b>' + esc(custName(j)) + '</b>'
+      + (j.business_name ? '<div>' + esc(j.business_name) + '</div>' : '')
+      + (addr ? '<a href="https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr) + '&travelmode=driving" target="_blank" rel="noopener">' + esc(addr) + ' ›</a>' : '')
+      + custPhones(j).map(function(p){ return '<a href="tel:' + esc(p.replace(/[^0-9+]/g, '')) + '">📞 ' + esc(p) + '</a>'; }).join('');
+    $('job-note').innerHTML = j.notes ? '<div class="note">' + esc(j.notes) + '</div>' : '';
+    renderJob();
+    show('job');
+  }
+  $('back-btn').addEventListener('click', function(){ renderToday(); show('today'); });
+
+  function totals(useBooked){
+    var fee = 0, rec = 0;
+    lines.forEach(function(l){ var q = useBooked ? l.booked : l.qty; fee += q * l.fee; rec += q * l.val; });
+    var p = furnitureCustomerPays(fee, cur.city);
+    var hst = Math.round(p.pay * HST_RATE * 100) / 100;
+    return { fee: fee, pay: p.pay, note: p.note, hst: hst, total: p.pay + hst, receipt: rec };
+  }
+  function changed(){ return lines.some(function(l){ return l.qty !== l.booked; }); }
+  function allLoaded(){ return lines.every(function(l){ return l.qty === 0 || l.loaded; }); }
+
+  function renderJob(){
+    var t = totals(false), b = totals(true), ch = changed();
+    $('job-tot').innerHTML =
+        '<div class="r"><span>Customer pays (before HST)</span></div>'
+      + '<div class="big">' + money(t.pay) + (ch ? ' <s style="font-family:var(--body);font-size:16px">' + money(b.pay) + '</s>' : '') + '</div>'
+      + '<div class="r"><span>HST 13%</span><span>' + money(t.hst) + '</span></div>'
+      + '<div class="r"><span>Total</span><b>' + money(t.total) + '</b></div>'
+      + '<div class="r"><span>Tax receipt value</span><span class="rec">' + money(t.receipt) + (ch ? ' <s>' + money(b.receipt) + '</s>' : '') + '</span></div>'
+      + '<div class="why">' + esc(t.note) + '</div>';
+
+    var live = lines.filter(function(l){ return l.qty > 0; });
+    var done = live.filter(function(l){ return l.loaded; }).length;
+    var pcs = live.reduce(function(s, l){ return s + l.qty; }, 0);
+    $('job-prog').innerHTML = '<div class="top">' + done + ' of ' + live.length + ' on the truck<span>' + pcs + ' piece' + (pcs === 1 ? '' : 's') + '</span></div>'
+      + '<div class="track"><i style="width:' + (live.length ? Math.round(done / live.length * 100) : 0) + '%"></i></div>';
+
+    var booked = lines.filter(function(l){ return !l.added; }), added = lines.filter(function(l){ return l.added; });
+    function lineHtml(l){
+      var i = lines.indexOf(l);
+      var sub = money(l.fee) + ' each';
+      if (l.added) sub = '<em>Added at the door</em> · ' + sub;
+      else if (l.qty !== l.booked) sub = '<em>Booked ' + l.booked + '</em> · ' + sub;
+      return '<div class="line' + (l.loaded && l.qty > 0 ? ' on' : '') + (l.added ? ' added' : '') + '">'
+        + picHtml(l.name)
+        + '<div class="nm"><b>' + esc(l.name) + '</b><small>' + sub + '</small></div>'
+        + '<div class="qty"><button class="step" type="button" data-i="' + i + '" data-d="-1" aria-label="One fewer ' + esc(l.name) + '">−</button>'
+        + '<output>' + l.qty + '</output>'
+        + '<button class="step" type="button" data-i="' + i + '" data-d="1" aria-label="One more ' + esc(l.name) + '">+</button></div>'
+        + '<button class="tick' + (l.loaded && l.qty > 0 ? ' on' : '') + '" type="button" data-t="' + i + '"' + (l.qty > 0 ? '' : ' disabled') + ' aria-label="' + esc(l.name) + ' is on the truck">✓</button>'
+        + '</div>';
+    }
+    $('job-lines').innerHTML =
+        (booked.length ? '<div class="lines">' + booked.map(lineHtml).join('') + '</div>' : '<div class="empty">Nothing was booked on this job. Add what the customer is giving.</div>')
+      + (added.length ? '<div class="sect">Added at the door</div><div class="lines">' + added.map(lineHtml).join('') + '</div>' : '');
+    Array.prototype.forEach.call($('job-lines').querySelectorAll('.step'), function(btn){
+      btn.addEventListener('click', function(){
+        var l = lines[parseInt(btn.getAttribute('data-i'), 10)];
+        var d = parseInt(btn.getAttribute('data-d'), 10);
+        l.qty = Math.max(0, l.qty + d);
+        if (d > 0) l.loaded = false;   // a new piece still has to go on the truck
+        if (l.added && l.qty === 0) lines.splice(lines.indexOf(l), 1);
+        saveDraft(); renderJob();
+      });
+    });
+    Array.prototype.forEach.call($('job-lines').querySelectorAll('.tick'), function(btn){
+      btn.addEventListener('click', function(){
+        var l = lines[parseInt(btn.getAttribute('data-t'), 10)];
+        l.loaded = !l.loaded;
+        saveDraft(); renderJob();
+      });
+    });
+    $('sign-btn').disabled = !allLoaded() || !lines.some(function(l){ return l.qty > 0; });
+    $('sign-btn').textContent = allLoaded() ? 'Customer sign-off' : 'Tick every item first';
+  }
+
+  // ── add an item at the door (Furniture Bank list items only) ──
+  $('add-btn').addEventListener('click', function(){
+    $('add-search').value = '';
+    renderAdd();
+    $('add-sheet').classList.add('open');
+  });
+  $('add-close').addEventListener('click', function(){ $('add-sheet').classList.remove('open'); renderJob(); });
+  $('add-search').addEventListener('input', renderAdd);
+
+  function renderAdd(){
+    var q = $('add-search').value.trim().toLowerCase();
+    var groups = {}, order = [];
+    DRD_ORDER.forEach(function(i){
+      var it = DRD_ITEMS[i];
+      if (q && it.name.toLowerCase().indexOf(q) === -1) return;
+      var g = it.grp || 'Other';
+      if (!groups[g]) { groups[g] = []; order.push(g); }
+      groups[g].push(i);
+    });
+    order.sort();
+    $('add-list').innerHTML = order.length ? order.map(function(g){
+      return '<div class="grp">' + esc(g) + '</div><div class="picks">' + groups[g].map(function(i){
+        var it = DRD_ITEMS[i];
+        var l = lines.filter(function(x){ return x.idx === i; })[0];
+        return '<button class="pk' + (l ? ' has' : '') + '" type="button" data-idx="' + i + '">' + picHtml(it.name)
+          + '<span class="nm"><b>' + esc(it.name) + '</b><small>' + money(it.fee) + ' · receipt ' + money(it.val) + (l ? ' · on list: ' + l.qty : '') + '</small></span>'
+          + '<span class="plus">+</span></button>';
+      }).join('') + '</div>';
+    }).join('') : '<div class="empty">Nothing on the Furniture Bank list matches that.</div>';
+    Array.prototype.forEach.call($('add-list').querySelectorAll('.pk'), function(btn){
+      btn.addEventListener('click', function(){
+        var i = parseInt(btn.getAttribute('data-idx'), 10), it = DRD_ITEMS[i];
+        var l = lines.filter(function(x){ return x.idx === i; })[0];
+        if (l) { l.qty += 1; l.loaded = false; }
+        else lines.push({ name: it.name, idx: i, fee: it.fee, val: it.val, booked: 0, qty: 1, loaded: false, added: true });
+        saveDraft(); renderAdd();
+      });
+    });
+  }
+
+  // ── customer sign-off ──
+  var sig = null;   // {canvas, ctx, drawn}
+  $('sign-btn').addEventListener('click', function(){ renderSign(); $('sign-sheet').classList.add('open'); });
+  $('sign-close').addEventListener('click', function(){ $('sign-sheet').classList.remove('open'); });
+
+  function renderSign(){
+    var t = totals(false), b = totals(true), ch = changed();
+    var live = lines.filter(function(l){ return l.qty > 0; });
+    $('sign-body').innerHTML = '<div class="cust"><div style="display:flex;flex-direction:column;gap:10px">'
+      + '<div class="list">' + live.map(function(l){
+          var tag = l.added ? '<span class="tag">Added today</span>' : (l.qty !== l.booked ? '<span class="tag">Was ' + l.booked + '</span>' : '');
+          return '<div class="l"><span>' + l.qty + ' × ' + esc(l.name) + '<small>' + money(l.fee) + ' each ' + tag + '</small></span><span>' + money(l.qty * l.fee) + '</span></div>';
+        }).join('') + '</div>'
+      + (lines.some(function(l){ return l.qty === 0 && l.booked > 0; }) ? '<div class="why">Not going today: ' + esc(lines.filter(function(l){ return l.qty === 0 && l.booked > 0; }).map(function(l){ return l.name; }).join(', ')) + '</div>' : '')
+      + '</div><div style="display:flex;flex-direction:column;gap:10px">'
+      + '<div class="tiles"><div class="tile pay"><span class="k">You pay</span><span class="now">' + money(t.pay) + '</span>'
+      + (ch ? '<span class="was">Booked: <s>' + money(b.pay) + '</s></span>' : '<span class="was">before HST</span>') + '</div>'
+      + '<div class="tile rec"><span class="k">Tax receipt value</span><span class="now">' + money(t.receipt) + '</span>'
+      + (ch ? '<span class="was">Booked: <s>' + money(b.receipt) + '</s></span>' : '<span class="was">from Furniture Bank</span>') + '</div></div>'
+      + '<div class="tax"><span>HST 13%</span><span>' + money(t.hst) + '</span></div>'
+      + '<div class="tax" style="color:var(--text);font-weight:800"><span>Total with HST</span><span>' + money(t.total) + '</span></div>'
+      + '<div class="why">' + esc(t.note) + '. Furniture Bank decides the final receipt value.</div>'
+      + '<input class="field" id="sign-name" placeholder="Your name" autocomplete="off">'
+      + '<div class="sigbox"><canvas id="sign-pad"></canvas><div class="hint">Sign here with your finger</div></div>'
+      + '<div style="display:flex;gap:8px"><button class="btn ghost" id="sign-clear" type="button" style="flex:1">Clear</button>'
+      + '<button class="btn primary" id="sign-ok" type="button" style="flex:2" disabled>Approve and finish</button></div>'
+      + '<div class="err" id="sign-err"></div>'
+      + '</div></div>';
+    setupPad();
+    $('sign-name').addEventListener('input', updateOk);
+    $('sign-clear').addEventListener('click', function(){ setupPad(); updateOk(); });
+    $('sign-ok').addEventListener('click', finish);
+  }
+  function updateOk(){ $('sign-ok').disabled = !(sig.drawn && $('sign-name').value.trim()); }
+
+  function setupPad(){
+    var c = $('sign-pad'), r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+    var ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr); ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
+    sig = { canvas: c, ctx: ctx, drawn: false };
+    var down = false;
+    function pt(e){ var b = c.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; }
+    c.onpointerdown = function(e){ down = true; c.setPointerCapture(e.pointerId); var p = pt(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    c.onpointermove = function(e){ if (!down) return; var p = pt(e); ctx.lineTo(p.x, p.y); ctx.stroke(); if (!sig.drawn) { sig.drawn = true; updateOk(); } };
+    c.onpointerup = c.onpointercancel = function(){ down = false; };
+  }
+
+  async function finish(){
+    var btn = $('sign-ok'), err = $('sign-err');
+    btn.disabled = true; btn.textContent = 'Saving…'; err.textContent = '';
+    var t = totals(false);
+    var row = {
+      job_id: cur.job_id,
+      lines: lines.map(function(l){ return { name: l.name, idx: l.idx, fee: l.fee, val: l.val, booked: l.booked, qty: l.qty, loaded: l.loaded, added: l.added }; }),
+      items_fee: t.fee, pay: t.pay, pay_note: t.note, hst: t.hst, receipt: t.receipt,
+      signed_name: $('sign-name').value.trim(),
+      signature: sig.canvas.toDataURL('image/png'),
+      finished_at: new Date().toISOString()
+    };
+    var r = await db.from('fb_door_checks').upsert(row, { onConflict: 'job_id' });
+    if (r.error) {
+      console.error('fb_door_checks save failed', r.error);
+      err.textContent = 'Couldn’t save — check the signal and press Approve again. (' + r.error.message + ')';
+      btn.disabled = false; btn.textContent = 'Approve and finish';
+      return;
+    }
+    dropDraft();
+    checks[cur.job_id] = { job_id: cur.job_id, signed_name: row.signed_name, finished_at: row.finished_at };
+    $('sign-body').innerHTML = '<div class="done"><div class="ok">✓</div><h2>Thank you!</h2>'
+      + '<div>Signed by ' + esc(row.signed_name) + ' · ' + money(t.pay) + ' before HST</div>'
+      + '<button class="btn primary" id="done-btn" type="button">Back to today’s pickups</button></div>';
+    $('done-btn').addEventListener('click', function(){ $('sign-sheet').classList.remove('open'); renderToday(); show('today'); });
+  }
+
+  // A login that isn't allowed here is signed straight back out.
+  async function enter(userId){
+    var prof = await db.from('user_profiles').select('role').eq('id', userId).single();
+    var role = prof.data ? String(prof.data.role || '').toLowerCase() : '';
+    if (PAGE_ROLES.indexOf(role) === -1) {
+      await db.auth.signOut();
+      show('login');
+      $('login-err').textContent = 'This login can’t use the pickup iPad.';
+      return;
+    }
+    await loadToday();
+  }
+
+  // Start-up: an iPad that was signed in before goes straight to today's pickups.
+  db.auth.getSession().then(function(r){
+    if (r.data.session) return enter(r.data.session.user.id);
+    show('login');
+  });
+})();
+</script>
+</body>
+</html>

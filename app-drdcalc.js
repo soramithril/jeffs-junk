@@ -1,5 +1,5 @@
 // ─── FURNITURE QUOTE CALCULATOR (standalone quote tool) ───
-// Depends on app.js globals: DRD_ITEMS, DRD_ORDER, drdGroupedOrder, toast, newJob,
+// Depends on globals: DRD_ITEMS, DRD_ORDER (furniture-pricing.js), drdGroupedOrder, toast, newJob,
 //   and for the Start-a-Job handoff: renderDrdModalGrid, drdModalAddOtherRow, drdModalRecalc
 // Also uses JWGIcons (jwg-icons.js) for the truck-panel readout tiles.
 // Called by render('drdcalc') in app.js.
