@@ -75,6 +75,21 @@
 #view-jwgscheduler .sp-mark.sel{border-color:#fff;outline:2px dashed #012b1f}
 #view-jwgscheduler .sp-mark span{position:absolute;left:0;top:0;transform:translateY(-100%);background:#ffd60a;color:#3d3200;font:700 10px/14px ui-monospace,Consolas,monospace;padding:0 4px;white-space:nowrap}
 #view-jwgscheduler .sp-h{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#fff;border:2px solid #012b1f;border-radius:2px;cursor:nwse-resize}
+/* drop zone / sidewalk switch, and the traced sidewalk lines (blue, white casing) */
+#view-jwgscheduler .sp-mode{display:flex;border:1px solid #cfd8d3;border-radius:8px;overflow:hidden}
+#view-jwgscheduler .sp-mode button{font:inherit;font-size:12.5px;font-weight:700;padding:6px 12px;border:0;background:#f4f7f5;color:#14201a;cursor:pointer}
+#view-jwgscheduler .sp-mode button+button{border-left:1px solid #cfd8d3}
+#view-jwgscheduler .sp-mode button[aria-pressed="true"]{background:#012b1f;color:#fff}
+#view-jwgscheduler .sp-walks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+#view-jwgscheduler .sp-walks polyline{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+#view-jwgscheduler .sp-walks .hit{stroke:transparent;stroke-width:16px;pointer-events:stroke;cursor:move}
+#view-jwgscheduler .sp-walks .case{stroke:#fff;stroke-width:7px}
+#view-jwgscheduler .sp-walks .line{stroke:#2f80ed;stroke-width:4px}
+#view-jwgscheduler .sp-walk.sel .case{stroke:#012b1f}
+#view-jwgscheduler .sp-walk.draft .line{stroke-dasharray:8 6}
+#view-jwgscheduler .sp-wlabel{position:absolute;transform:translate(-50%,-150%);background:#2f80ed;color:#fff;font:700 10px/14px ui-monospace,Consolas,monospace;padding:0 4px;white-space:nowrap;pointer-events:none}
+#view-jwgscheduler .sp-wlabel.below{transform:translate(-50%,50%)}
+#view-jwgscheduler .sp-v{position:absolute;width:12px;height:12px;transform:translate(-50%,-50%);background:#fff;border:2px solid #012b1f;border-radius:50%;cursor:grab}
 
 /* print-book group picker (app-winter-book.js) */
 #view-jwgscheduler .wb-pick{display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:13px;text-align:left}
