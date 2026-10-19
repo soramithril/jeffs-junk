@@ -509,6 +509,8 @@
   .opsl .who .pc.up{color:#8fd6a5}
   .opsl .who .pc.down{color:#f0a884}
   .opsl .who .pc em{color:var(--muted); font-weight:500; font-style:normal; font-size:18px}
+  /* last year's same-day count is a plain fact, not good or bad — cream, not the ▲/▼ hue */
+  .opsl .who .pc b{color:var(--cream)}
   .opsl .mid{flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; gap:18px; padding:18px 30px 18px 6px}
   .opsl .mid .big{display:flex; align-items:baseline; gap:14px}
   .opsl .mid .big .n{font:900 96px/.82 Inter; font-variant-numeric:tabular-nums}
@@ -1400,7 +1402,7 @@
           +'<div class="accent" style="background:'+s.accent+'"></div>'
           +'<div class="who"><div class="nm">'+esc(s.name)+'</div>'
             +(s.beat?'<div class="beatchip">★ BEAT LAST '+MONTH.slice(0,3).toUpperCase()+'</div>':'')
-            +'<div class="pc '+(up?'up':'down')+'">'+pctTxt+' <em>vs same days last '+MONTH+'</em></div></div>'
+            +'<div class="pc '+(up?'up':'down')+'">'+(pctTxt?pctTxt+' vs ':'')+'<b>'+s.lastTd+'</b> <em>by this day last '+MONTH.slice(0,3)+'</em></div></div>'
           +'<div class="mid"><div class="big"><span class="n" style="color:'+s.accent+'">'+s.cur+'</span>'
             +'<span class="lab">this '+MONTH+'<br>so far</span></div>'
             +'<div class="bar"><div class="fill" style="width:'+solid+'%;background:'+s.accent+'"></div>'
@@ -1438,7 +1440,7 @@
           +'</div></div>';
         var vd=s.beat?'AHEAD · proj '+s.proj:(s.onPace?'ON PACE ✓ proj '+s.proj:'BEHIND PACE · proj '+s.proj);
         caps+='<div class="opsa-col-cap"><div class="nm">'+esc(s.name)+'</div>'
-          +'<div class="vs">last '+MONTH+' '+s.last+' · <b style="color:'+pctCol+'">'+pctTxt+' vs same days</b></div>'
+          +'<div class="vs">last '+MONTH+' '+s.last+' · <b style="color:'+pctCol+'">'+pctTxt+'</b> vs '+s.lastTd+' by this day</div>'
           +'<div class="vd" style="color:'+(s.beat||s.onPace?'#8fe0a8':'#f0b877')+'">'+vd+'</div></div>';
       });
       return '<div class="opsa"><div class="opsa-head"><span class="t">Race to Beat Last '+MONTH+'</span>'
