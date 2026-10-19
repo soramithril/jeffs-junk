@@ -83,11 +83,12 @@
     --plate:#f5f0e4;
     /* dark ink, for type that sits ON gold or on a pale plate */
     --ink:#1a2415;
-    /* --spruce, --gold, --drop-bg and --pick-bg are the only custom properties the
-       PAGE SCRIPT writes into markup (renderLiveOps builds the map legend swatches
-       from all four). Each must therefore stay defined AND stay identical to the
-       fill of the pin it explains — --spruce to .lo-job, --drop-bg to .lo-bin.drop,
-       --pick-bg to .lo-bin.pick — or the key stops matching the pins it explains. */
+    /* --spruce and --gold are the only custom properties the PAGE SCRIPT writes
+       into markup (renderLiveOps builds the map legend swatches from them). Each
+       must therefore stay defined AND stay identical to the fill of the pin it
+       explains — --spruce to .lo-job, --gold to .lo-yard — or the key stops
+       matching the pins it explains. Bin chips take the driver's colour from the
+       database instead (see .lo-bin), so nothing here speaks for them. */
     --spruce:#1e2c20;
   }
   *{box-sizing:border-box}
@@ -627,8 +628,12 @@
      is what the eye picks out at wall distance, not the hue. */
   @keyframes tkping{0%{transform:scale(.7);opacity:.85}100%{transform:scale(2.1);opacity:0}}
   .lo-tk{position:relative; display:flex; flex-direction:column; align-items:center; gap:5px}
+  /* The outer ring is the DRIVER's colour when the day has told us who is in the
+     truck (--ring, set inline by truckIcon from the same crew_members.color the bin
+     board strips and the bin chips use), so a truck and its stops read as one
+     colour across the wall. A truck with nobody named keeps the dark ring. */
   .lo-tk .b{position:relative; display:grid; place-items:center; width:45px; height:45px; border-radius:50%;
-    box-shadow:0 9px 24px rgba(0,0,0,.38), 0 0 0 6px var(--plate), 0 0 0 10px rgba(20,29,17,.82)}
+    box-shadow:0 9px 24px rgba(0,0,0,.38), 0 0 0 6px var(--plate), 0 0 0 11px var(--ring, rgba(20,29,17,.82))}
   /* --glyph comes from TRUCK_GLYPH, set inline beside the disc colour, so the two
      are always picked together. A light disc needs a dark truck. */
   .lo-tk .b svg{width:24px; height:24px; stroke:var(--glyph); fill:none; stroke-width:2;
@@ -654,15 +659,22 @@
     box-shadow:0 5px 14px rgba(0,0,0,.32)}
   .lo-job{background:var(--spruce)}
   .lo-job.done{background:rgba(30,44,32,.55)}
-  /* Today's bin legs, in the same chip as the work pin so a town reads as one
-     group. Blue is a drop-off, pink is a pick-up (Jake, 2026-09-09) — deliberately
-     the SAME two colours the bins screen already puts on its Drop/Pick chips
-     (.bb-kind.k-drop / .k-pick), so the two screens on this wall speak one
-     language. Done fades rather than swapping fill: a second fill for each would
-     put four colours on one pin to say something the tick already says. */
-  .lo-bin.drop{background:var(--drop-bg)}
-  .lo-bin.pick{background:var(--pick-bg)}
-  .lo-bin.done{opacity:.5}
+  /* Today's bin legs: ONE CHIP PER DRIVER per town, filled with that driver's
+     colour (--drv, --drv-ink set inline from crew_members.color — the same colour
+     the bin board strip and the truck ring carry), so the wall answers "whose
+     stop is that?" at a glance (Jake, 2026-10-19). Drop-off versus pick-up is the
+     ARROW, not the colour: down into the bin for a drop, up out of it for a
+     pick-up. Until 2026-10-19 the chips were blue for a drop and pink for a
+     pick-up and said nothing about who. A leg nobody is assigned to is the same
+     alert red the bin board's "Assign!" strip uses. */
+  .lo-bin{position:relative; gap:5px; background:var(--drv); color:var(--drv-ink)}
+  .lo-bin svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:3.2;
+    stroke-linecap:round; stroke-linejoin:round}
+  /* Done is the bin board's own mark — dimmed, with the struck-through red line
+     — so the same stop reads finished the same way on both screens. */
+  .lo-bin.done{opacity:.55}
+  .lo-bin.done::after{content:''; position:absolute; left:-5px; right:-5px; top:50%; height:4px;
+    margin-top:-2px; border-radius:2px; background:var(--struck); box-shadow:0 0 8px var(--struck-glow)}
   /* Focused-truck card. An HTML overlay pinned above the truck, so it rides with
      the pin — there's no cursor on a wall, so nothing could ever hover it.
      It sits on the PALE map, so the card fill is pushed near-opaque: the board's
@@ -692,12 +704,20 @@
   /* Legend sits ON the map, bottom-left. It can't live in the panel head — that
      head is hidden now, and even before it was, the ambient truck/bin art
      (#tvtruck/#tvbin, z-index 5) was parked over that exact spot and buried it. */
-  #loLegend{position:absolute; left:20px; bottom:20px; z-index:400; display:flex; gap:22px;
+  /* wraps now that every driver with stops today has an entry of their own */
+  #loLegend{position:absolute; left:20px; bottom:20px; z-index:400; display:flex; flex-wrap:wrap; gap:14px 22px;
+    max-width:calc(100% - 40px);
     background:rgba(17,24,18,.88); border:1px solid var(--line); border-radius:16px; padding:13px 20px;
     box-shadow:0 6px 18px rgba(0,0,0,.4)}
   #loLegend b{display:flex; align-items:center; gap:10px; font:600 19px/1 Inter;
     color:#efe6c3; white-space:nowrap}
   #loLegend i{width:15px; height:15px; border-radius:50%}
+  /* the drivers with stops today, the two arrows, and what a done stop looks like */
+  #loLegend svg{width:20px; height:20px; stroke:#efe6c3; fill:none; stroke-width:3;
+    stroke-linecap:round; stroke-linejoin:round}
+  #loLegend i.lg-done{position:relative; background:#efe6c3; opacity:.55}
+  #loLegend i.lg-done::after{content:''; position:absolute; left:-4px; right:-4px; top:50%; height:3px;
+    margin-top:-1.5px; background:var(--struck)}
   /* where the highlighted truck is, top-right of the map */
   #loTown{position:absolute; right:20px; top:20px; z-index:400; display:none; align-items:center; gap:12px;
     background:rgba(17,24,18,.88); border:1px solid var(--line); border-radius:16px; padding:12px 20px;
@@ -1302,7 +1322,7 @@
         return;
       }
       wrap.innerHTML = board.map(function(g, gi){
-        var color = g.crewId ? (DATA.crewColor[g.crewId]||'#3a9d5a') : '#d9532b';
+        var color = driverColor(g.crewId);
         var last = g.legs.length-1;
         var rows = g.legs.map(function(l,idx){
           var j = l.j, who = j.business_name || j.name || 'Customer';
@@ -1836,12 +1856,18 @@
       var st = truckState(t), c = TRUCK_C[st];
       var gloss = 'radial-gradient(circle at 34% 28%, color-mix(in srgb, '+c+' 55%, #fff), '+c+')';
       var ping = st === 'moving' ? '<span class="ping" style="color:'+c+'"></span>' : '';
+      // The driver's colour on the outer ring and the name chip, so the truck matches
+      // its bin chips on the map and its strip on the bin board. No driver, no ring.
+      var driver = driverFor(t);
+      var crewId = driver ? crewIdByName(driver) : null;
+      var ring = crewId ? '; --ring:'+driverColor(crewId) : '';
+      var chip = crewId ? ' style="border-color:'+driverColor(crewId)+'; border-width:2px"' : '';
       // The disc sizes itself off .lo-tk / .lo-tk.sel in CSS, so there is no pixel
       // size to declare here the way a Leaflet icon needed one.
       return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'
-           + '<span class="b" style="background:'+gloss+'; --glyph:'+TRUCK_GLYPH[st]+'">'
+           + '<span class="b" style="background:'+gloss+'; --glyph:'+TRUCK_GLYPH[st]+ring+'">'
            +   TRUCK_SVG+ping+'</span>'
-           + '<span class="n">'+esc(t.name)+(driverFor(t) ? ' &middot; '+esc(driverFor(t)) : '')+'</span></div>';
+           + '<span class="n"'+chip+'>'+esc(t.name)+(driver ? ' &middot; '+esc(driver) : '')+'</span></div>';
     }
 
     // Each truck's regular driver — the same pairing app-leaderboard.js encodes as
@@ -2033,13 +2059,42 @@
       return TOWN_LL[String(city).toLowerCase().replace(/,.*$/, '').trim()] || null;
     }
 
-    // A town's chip for one kind of stop: how many are LEFT, or a tick once they
-    // are all done. Nothing is drawn for a kind the town has none of, so a town
-    // with only bins shows only bins.
+    // A town's chip for the junk work: how many jobs are LEFT, or a tick once they
+    // are all done. Nothing is drawn for a town with none.
     function stopChip(cls, c){
       if(!c.total) return '';
       var left = c.total - c.done;
       return '<div class="'+cls+(left ? '' : ' done')+'">'+(left || '✓')+'</div>';
+    }
+
+    // One colour per driver, from the Team page (crew_members.color) — the SAME
+    // lookup for the bin board strips, the bin chips on the map, the truck rings and
+    // the legend, so a person is one colour everywhere on the wall. A leg with no
+    // driver is the alert red of the board's "Assign!" strip.
+    function driverColor(crewId){
+      return crewId ? (DATA.crewColor[crewId] || '#3a9d5a') : '#d9532b';
+    }
+    // Cream or ink on top of a driver's colour, whichever reads. The Team page lets
+    // Jake pick any colour, pale yellows included, and cream on pale yellow is
+    // nothing at wall distance.
+    function inkOn(hex){
+      var m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex || '').trim());
+      if(!m) return 'var(--cream)';
+      var h = m[1].length === 3 ? m[1].replace(/./g, function(ch){ return ch + ch; }) : m[1];
+      var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+      return (0.299*r + 0.587*g + 0.114*b) > 150 ? 'var(--ink)' : 'var(--cream)';
+    }
+    // Down into the bin for a drop-off, up out of it for a pick-up.
+    var DROP_SVG = '<svg viewBox="0 0 24 24"><path d="M12 3v11M7 9l5 5 5-5M5 17h14l-1 4H6z"/></svg>';
+    var PICK_SVG = '<svg viewBox="0 0 24 24"><path d="M12 14V3M7 8l5-5 5 5M5 17h14l-1 4H6z"/></svg>';
+
+    // A driver's chip for one kind of bin leg in one town: the arrow says drop or
+    // pick-up, the number is how many are LEFT, and once they are all done the chip
+    // dims and takes the struck-through line.
+    function binChip(c){
+      var left = c.total - c.done, color = driverColor(c.crewId);
+      return '<div class="lo-bin'+(left ? '' : ' done')+'" style="--drv:'+color+'; --drv-ink:'+inkOn(color)+'">'
+           + (c.kind === 'drop' ? DROP_SVG : PICK_SVG) + (left || '✓') + '</div>';
     }
 
     function drawJobPins(){
@@ -2048,9 +2103,17 @@
       (DATA.jobs || []).forEach(function(j){
         var t = townOf(j.city);
         if(!t){ if(j.city) missed[j.city] = 1; return; }
-        var g = by[t[0]] || (by[t[0]] = { town:t, job:{total:0,done:0},
-                                          drop:{total:0,done:0}, pick:{total:0,done:0} });
-        var c = g[j.kind || 'job'];
+        var g = by[t[0]] || (by[t[0]] = { town:t, job:{total:0,done:0}, bins:{} });
+        var c;
+        if(j.kind){
+          // Bin legs split by driver as well as by kind, so a town where two
+          // drivers each have a drop shows two chips in two colours.
+          var crewId = j.crewIds[0] || '';
+          var key = crewId + '|' + j.kind;
+          c = g.bins[key] || (g.bins[key] = {crewId:crewId, kind:j.kind, total:0, done:0});
+        } else {
+          c = g.job;
+        }
         c.total++;
         if(j.completed) c.done++;
       });
@@ -2061,13 +2124,17 @@
 
       Object.keys(by).forEach(function(name){
         var g = by[name];
-        // One marker per town carrying up to three chips side by side — work, bins
-        // going out, bins coming back. One marker rather than three because they all
-        // sit on the same town coordinate: three separate markers would land on the
-        // same pixel and cover each other.
-        var html = stopChip('lo-job', g.job)
-                 + stopChip('lo-bin drop', g.drop)
-                 + stopChip('lo-bin pick', g.pick);
+        // One marker per town carrying a row of chips side by side — the junk work,
+        // then each driver's bins, drops before pick-ups. One marker rather than
+        // several because they all sit on the same town coordinate: separate markers
+        // would land on the same pixel and cover each other.
+        var bins = Object.keys(g.bins).map(function(k){ return g.bins[k]; }).sort(function(a, b){
+          if(!a.crewId !== !b.crewId) return a.crewId ? -1 : 1;   // unassigned last
+          var na = DATA.crew[a.crewId] || '', nb = DATA.crew[b.crewId] || '';
+          if(na !== nb) return na.localeCompare(nb);
+          return a.kind === b.kind ? 0 : (a.kind === 'drop' ? -1 : 1);
+        });
+        var html = stopChip('lo-job', g.job) + bins.map(binChip).join('');
         if(_jobMarkers[name]) _jobMarkers[name].setContent(html);
         else _jobMarkers[name] = htmlMarker(
           new google.maps.LatLng(g.town[1], g.town[2]), html, 'lo-mk-job');
@@ -2256,14 +2323,30 @@
       tag.style.display = list.length ? '' : 'none';
 
       // Built from TRUCK_C/TRUCK_LABEL rather than spelled out, so a state added
-      // to the pins can never go missing from the key underneath them.
+      // to the pins can never go missing from the key underneath them. The drivers
+      // are whoever has a bin leg today, in the colour their chips and truck ring
+      // wear; a leg with nobody on it earns the red "Needs a driver" swatch.
+      var drivers = {};
+      (DATA.jobs || []).forEach(function(j){
+        if(!j.kind) return;
+        var id = j.crewIds[0] || '';
+        drivers[id] = id ? (DATA.crew[id] || 'Unknown') : 'Needs a driver';
+      });
+      var driverKey = Object.keys(drivers).sort(function(a, b){
+        if(!a) return 1; if(!b) return -1;
+        return drivers[a].localeCompare(drivers[b]);
+      }).map(function(id){
+        return '<b><i style="background:'+driverColor(id)+'"></i>'+esc(drivers[id])+'</b>';
+      }).join('');
       el('loLegend').innerHTML = ['moving','idling','stopped'].map(function(s){
         return '<b><i style="background:'+TRUCK_C[s]+'"></i>'+TRUCK_LABEL[s]+'</b>';
       }).join('')
         + '<b><i style="background:var(--gold)"></i>Yard</b>'
         + '<b><i style="background:var(--spruce)"></i>Jobs left</b>'
-        + '<b><i style="background:var(--drop-bg)"></i>Bin drop</b>'
-        + '<b><i style="background:var(--pick-bg)"></i>Bin pick-up</b>';
+        + driverKey
+        + '<b>'+DROP_SVG+'Drop-off</b>'
+        + '<b>'+PICK_SVG+'Pick-up</b>'
+        + '<b><i class="lg-done"></i>Done</b>';
       // No clock here — the header already has one. This slot only speaks up when
       // the GPS feed has given us nothing, which the header can't tell you.
       el('loMeta').textContent = DATA.trucksAt ? '' : 'Waiting on GPS…';
