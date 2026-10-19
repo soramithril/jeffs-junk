@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '700';
+var APP_VERSION = '701';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -7838,7 +7838,9 @@ async function openClientDetail(cid){
     +'</div>'
     +(jobRows?'<div class="table-wrap cdet-jobs" style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Service</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody>'+jobRows+'</tbody></table></div>':'<p style="font-size:13px;color:var(--muted)">No jobs recorded for this client yet.</p>')
     +'</div>'
-    +renderClientQuoteHistory(cl.cid)
+    // Filled by app-client-timeline.js once the profile is on screen (the list
+    // needs two more queries, and the contact details shouldn't wait on them).
+    +'<div id="cdet-timeline"></div>'
     +(cl.notes?'<div class="detail-section"><div class="detail-section-title">📝 Notes</div><p style="font-size:14px;line-height:1.6">'+escHtml(cl.notes)+'</p></div>':'')
     +(cl.internalNotes?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">🔒 Internal Notes <span style="font-weight:400;color:var(--muted);font-size:11px">— does not print</span></div><p style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+escHtml(cl.internalNotes)+'</p></div>':'')
     +((cl.photos&&cl.photos.length)?'<div class="detail-section" style="background:rgba(234,179,8,.05);border:1px solid rgba(234,179,8,.35)"><div class="detail-section-title" style="color:#eab308">📎 Internal Files <span style="font-weight:400;color:var(--muted);font-size:11px">— shown when this client is booked</span></div><div class="photo-thumb-grid">'+cl.photos.map(function(u){return '<a href="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:1600}))+'" target="_blank" rel="noopener" class="photo-thumb" style="cursor:zoom-in"><img src="'+encodeURI(_cloudinaryDeliveryUrl(u,{width:200}))+'" alt="" loading="lazy">'+(_cloudinaryIsPdf(u)?'<span class="photo-thumb-pdf">PDF</span>':'')+'</a>';}).join('')+'</div></div>':'')
@@ -7849,47 +7851,15 @@ async function openClientDetail(cid){
     +'</div>'
     +'</div>';
   document.getElementById('client-detail-modal').classList.add('open');
+  if(window.tlRender) tlRender(cl, clientJobs);
 }
 
-// ─── CLIENT QUOTE HISTORY ───
-function renderClientQuoteHistory(cid){
-  var quotes = (quoteCorrespondence||[]).filter(function(q){return q.client_id===cid;})
-    .sort(function(a,b){return (b.sent_at||'').localeCompare(a.sent_at||'');});
-  var rows;
-  if(!quotes.length){
-    rows = '<p style="font-size:13px;color:var(--muted);margin:0">Nothing sent yet — every email and review text sent from the app (confirmations, quotes, cancellations) is filed here.</p>';
-  } else {
-    rows = '<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Sent by</th><th>Service</th><th>Subject</th><th>To</th><th></th></tr></thead><tbody>'
-      + quotes.map(function(q){
-          var d = (q.sent_at||'').slice(0,10);
-          var dateStr = d ? fd(d) : '—';
-          var timeStr = (q.sent_at||'').length>=16 ? ft(q.sent_at.slice(11,16)) : '';
-          return '<tr style="cursor:pointer" onclick="toggleQuoteBody(\''+q.id+'\')">'
-            +'<td>'+dateStr+(timeStr?'<div style="font-size:11px;color:var(--muted)">'+timeStr+'</div>':'')+'</td>'
-            +'<td>'+escHtml(q.sent_by||'—')+'</td>'
-            +'<td>'+escHtml(q.service||'—')+'</td>'
-            +'<td>'+escHtml(q.subject||'—')+'</td>'
-            +'<td>'+(q.channel==='text'?'💬 '+escHtml(q.to_phone||'—'):escHtml(q.to_email||'—'))+'</td>'
-            +'<td style="text-align:right">'+(canDelete?'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">'+lineIcon('del',15)+'</button>':'')+'</td>'
-            +'</tr>'
-            +'<tr id="qbody-'+q.id+'" style="display:none"><td colspan="6" style="background:rgba(0,0,0,.15);padding:12px 16px"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;margin:0;color:var(--text)">'+escHtml(q.body||'')+'</pre></td></tr>';
-        }).join('')
-      + '</tbody></table></div>';
-  }
-  // "Quote History" hid every confirmation and cancellation notice too, so nobody
-  // checking "did we send her the drop-off email?" had any reason to look here.
-  return '<div class="detail-section"><div class="detail-section-title">'+lineIcon('email',14)+' Emails and texts sent to this client</div>'+rows+'</div>';
-}
-
-function toggleQuoteBody(id){
-  var row = document.getElementById('qbody-'+id);
-  if(!row) return;
-  row.style.display = row.style.display==='none' ? 'table-row' : 'none';
-}
-
+// The sent-emails table that used to sit here is part of the client timeline now
+// (app-client-timeline.js, v701): same rows, same delete, in date order with
+// everything else the customer saw from us.
 function deleteQuoteRecord(id, cid){
   if (!canDelete) { toast('⚠ You don\'t have permission to delete.'); return; }
-  if(!confirm('Delete this quote record? The original email in your mail app is not affected.')) return;
+  if(!confirm('Delete this record from the timeline? The original email or text on the phone is not affected.')) return;
   db.from('quote_correspondence').delete().eq('id', id).then(function(r){
     if(r.error){ toast('Delete failed: '+r.error.message,'error'); return; }
     quoteCorrespondence = quoteCorrespondence.filter(function(q){return q.id!==id;});
