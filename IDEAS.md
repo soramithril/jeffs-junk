@@ -30,17 +30,20 @@ and trim it down to what is left.
   <sub>Jake, 2026-09-08 - quotes now lead the screen and the wrong-day jobs are fixed, both in v677 (see Done). Still owed: notifications that actually reach his phone (needs a manifest and a service worker on his page - iOS will not deliver web push without them), and the read-through of The Day, Photos and Trucks.</sub>
 - **Revamp the Furniture Bank quote page layout, and the booking that follows it** - The truck animation and the way items get added stay exactly as they are; Jake loves those. The layout around them is the problem - it is not the best and there is a better one out there. Look over the whole page again, and the booking step the same way. Mockup first, not code.
   <sub>Jake, 2026-10-05</sub>
-- **Winter operations playbook lives in the app** - Today it is a Canva document that only Jake can really change. Build it in the app so the office can read it and edit it themselves if Jake is not around. Wait for the contracts to come back and the Canva version to be finished first; that is the source to port.
-  <sub>Jake, 2026-10-05 - on Now from 2026-10-05</sub>
 
 ## Later
 
 *Things worth doing sometime.*
 
+- **Rework the Schedule page** - It is confusing to use as it stands. Not now, but on the list. Figure out what makes it confusing first (mockup or walkthrough with Jake), then rebuild the layout around that.
+  <sub>Jake, 2026-10-19</sub>
 
 ## Done
 
 *Built and live. Newest first.*
+
+- ~~**Winter operations playbook lives in the app**~~ - **Live 2026-10-15/16 (no version bump - app.js untouched).** The Canva snow book is now the Winter tab under Summer & Winter: all 47 sites with their aerial photos, sorted into seven groups in driving order with a Google route map; a Site plan editor to swap the photo and draw the snow drop zones; and a Print book button that makes the Dossier-style pages, one site per Letter page, whole book or one group. Still Jake's to do: prune the sites no longer serviced, confirm 353 Duckworth Road vs Street, raise the Google map daily cap. Crew phone view deliberately left for later.
+  <sub>Jake, 2026-10-05 - was on Now from 2026-10-05</sub>
 
 - ~~**Schedule glass card, one bin picker, calculator on laptops, help tour, day editor**~~ - **v687, 2026-10-07.** Assign shifts / Clear shifts / Same every week float as a frosted glass card with the final button always in view. The needs-a-bin banner and the unassigned list open the size-filtered bin picker like everywhere else. The Furniture calculator shows slim rows in two columns on laptops too (about 35% shorter). The Crew Schedule help tour drops a step for a button that no longer exists. The Schedule's day editor reads top to bottom with the From Jeff's Junk bookings first (Use this), hours and Add shift under the job tiles, and Day off / Off sick / Non working on their own band; it fits a 1366 laptop.
   <sub>Jake, 2026-10-07</sub>
