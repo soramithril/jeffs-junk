@@ -76,6 +76,7 @@ The dashboard is one static site, three files at repo root:
 - `app.js` (~19,672 lines) — all JavaScript. Big file but flat — grep for function names.
 - `motion.min.js` — vendored motion.dev v12.43.0 animation library (140 KB, exposes `window.Motion`). Never edit; replace wholesale to upgrade.
 - `app-motion.js` — the motion layer (`window.JJMotion`, v541). Stamp and modal animations run off observers with no call sites; app.js calls the rest behind `window.JJMotion &&` guards so stale-HTML users (and reduced-motion users) keep the pre-motion CSS behavior.
+- `qrcode.js` — vendored qrcode-generator 1.4.4 (MIT, 56 KB, exposes `qrcode`). Never edit; replace wholesale to upgrade. Used by `app-review-text.js` (v700) to draw the review-request text as a QR code the office iPhone scans.
 
 Other folders:
 - `docs/` — business PDFs.

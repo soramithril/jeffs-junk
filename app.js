@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '699';
+var APP_VERSION = '700';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3374,7 +3374,10 @@ async function renderReviewFollowups(){
       +'<span style="flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#fef9e7">⭐</span>'
       +'<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ask for a review — '+escHtml(x.name)+'</div>'
       +'<div style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+meta+'</div></div>'
-      +'<button class="djj-btn green" onclick="openEmailModal(\''+x.id+'\',\'review_request\')" style="font-size:13px;padding:9px 18px;border-radius:9px">Send request</button>'
+      // Text first — it's the one people answer (app-review-text.js). Guarded so a
+      // browser still on cached HTML without that script keeps the email button.
+      +(window.openReviewText?'<button class="djj-btn green" onclick="openReviewText(\''+x.id+'\')" title="Opens Messages on a phone, or a QR code to scan from this screen" style="font-size:13px;padding:9px 18px;border-radius:9px">💬 Text</button>':'')
+      +'<button class="djj-btn'+(window.openReviewText?'':' green')+'" onclick="openEmailModal(\''+x.id+'\',\'review_request\')" style="font-size:13px;padding:9px 18px;border-radius:9px">📧 Email</button>'
       +'<button title="Changed your mind — take this one off the list" onclick="skipReviewAsk(\''+x.id+'\')" style="flex:none;background:var(--surface);border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;cursor:pointer;white-space:nowrap">Skip</button>'
     +'</div>';
   }).join('');
@@ -7854,7 +7857,7 @@ function renderClientQuoteHistory(cid){
     .sort(function(a,b){return (b.sent_at||'').localeCompare(a.sent_at||'');});
   var rows;
   if(!quotes.length){
-    rows = '<p style="font-size:13px;color:var(--muted);margin:0">Nothing sent yet — every email sent from the app (confirmations, quotes, cancellations) is filed here.</p>';
+    rows = '<p style="font-size:13px;color:var(--muted);margin:0">Nothing sent yet — every email and review text sent from the app (confirmations, quotes, cancellations) is filed here.</p>';
   } else {
     rows = '<div class="table-wrap" style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Sent by</th><th>Service</th><th>Subject</th><th>To</th><th></th></tr></thead><tbody>'
       + quotes.map(function(q){
@@ -7866,7 +7869,7 @@ function renderClientQuoteHistory(cid){
             +'<td>'+escHtml(q.sent_by||'—')+'</td>'
             +'<td>'+escHtml(q.service||'—')+'</td>'
             +'<td>'+escHtml(q.subject||'—')+'</td>'
-            +'<td>'+escHtml(q.to_email||'—')+'</td>'
+            +'<td>'+(q.channel==='text'?'💬 '+escHtml(q.to_phone||'—'):escHtml(q.to_email||'—'))+'</td>'
             +'<td style="text-align:right">'+(canDelete?'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteQuoteRecord(\''+q.id+'\',\''+cid+'\')" title="Delete record">'+lineIcon('del',15)+'</button>':'')+'</td>'
             +'</tr>'
             +'<tr id="qbody-'+q.id+'" style="display:none"><td colspan="6" style="background:rgba(0,0,0,.15);padding:12px 16px"><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;margin:0;color:var(--text)">'+escHtml(q.body||'')+'</pre></td></tr>';
@@ -7875,7 +7878,7 @@ function renderClientQuoteHistory(cid){
   }
   // "Quote History" hid every confirmation and cancellation notice too, so nobody
   // checking "did we send her the drop-off email?" had any reason to look here.
-  return '<div class="detail-section"><div class="detail-section-title">'+lineIcon('email',14)+' Emails sent to this client</div>'+rows+'</div>';
+  return '<div class="detail-section"><div class="detail-section-title">'+lineIcon('email',14)+' Emails and texts sent to this client</div>'+rows+'</div>';
 }
 
 function toggleQuoteBody(id){
@@ -12883,6 +12886,7 @@ async function openDetail(id, returnCid){
       ?'<button class="btn btn-ghost" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:var(--accent);background:rgba(34,197,94,.08);font-weight:700">✅ Email Sent · Resend</button>'
       :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
     +reviewBtnHtml(j)
+    +(window.reviewTextBtnHtml?reviewTextBtnHtml(j):'')
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="openBinPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(8,145,178,.4);color:#0891b2">'+lineIcon('calendar',14)+' Change Pickup</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
@@ -15349,9 +15353,18 @@ var defaultPresets = {
      ChIJO526yTG9KogRwrEXa6bIjZA, verified against the Maps listing before it
      went in here. It drops the customer straight onto the star-rating box.
      Editable like any other template on the Email Templates page. */
+  /* Both review asks name the service and the town, and ask the customer to do the
+     same: a review that says "bin rental in Barrie" is what Google ranks the listing
+     for (the website SEO work said so — Jake, 2026-10-19). */
   review_request: {
     subject: 'How did we do?',
-    body: 'Hi {name},\n\nThanks again for choosing Jeff\'s Junk — we hope everything went smoothly.\n\nIf you have a minute, we\'d really appreciate a quick Google review. It makes a genuine difference to a small local business like ours:\n\nhttps://search.google.com/local/writereview?placeid=ChIJO526yTG9KogRwrEXa6bIjZA\n\nAnd if anything wasn\'t right, reply to this email and we\'ll make it right.\n\nThanks so much,\nJeff\'s Junk'
+    body: 'Hi {name},\n\nThanks again for choosing Jeff\'s Junk for your {service} in {city} — we hope everything went smoothly.\n\nIf you have a minute, we\'d really appreciate a quick Google review. It makes a genuine difference to a small local business like ours:\n\nhttps://search.google.com/local/writereview?placeid=ChIJO526yTG9KogRwrEXa6bIjZA\n\nA line about the {service} and that you\'re in {city} helps your neighbours find us.\n\nAnd if anything wasn\'t right, reply to this email and we\'ll make it right.\n\nThanks so much,\nJeff\'s Junk'
+  },
+  /* The text version (app-review-text.js). One paragraph: it lands in Messages, where
+     nobody reads a letter. No subject — texts don't have one. */
+  review_text: {
+    subject: '',
+    body: 'Hi {firstName}, it\'s Jeff\'s Junk. Thanks for having us out for your {service} in {city}! If you have a minute, a quick Google review would mean a lot to our small crew: https://search.google.com/local/writereview?placeid=ChIJO526yTG9KogRwrEXa6bIjZA\n\nA line about the {service} and that you\'re in {city} helps your neighbours find us. Thanks so much!'
   },
   bin_extension: {
     subject: 'Your Bin Rental – Extension Confirmation',
@@ -15363,15 +15376,29 @@ function getPreset(key) {
   return emailPresets[key] || defaultPresets[key] || {subject:'',body:''};
 }
 
+/* What the customer calls the job, for "{service}" in a review ask. The service
+   names in the app are ours (a Furniture Pickup is a Furniture Bank donation run);
+   these are the words a customer would put in a review. */
+var SERVICE_WORDS = {
+  'Bin Rental':'bin rental', 'Junk Removal':'junk removal', 'Junk Quote':'junk removal quote',
+  'Furniture Pickup':'furniture pickup', 'Furniture Delivery':'furniture delivery'
+};
+function serviceWord(j){ return SERVICE_WORDS[j.service] || 'job'; }
+
 function fillEmailTemplate(template, j) {
   var side = j.binSide ? ' (' + binSideLabel(j.binSide) + ')' : '';
+  var fullName = realName(j);
   // Use the correct scheduled date based on service type
   var schedDate = jobSchedDate(j);
   var dropoffDate = j.binDropoff || j.date || '';
   var pickupDate = j.binPickup || '';
   var duration = j.binDuration || '';
   return template
-    .replace(/{name}/g, realName(j))
+    .replace(/{name}/g, fullName)
+    // "Hi Sarah", not "Hi Sarah Thompson" — a text reads like one, a letter doesn't.
+    .replace(/{firstName}/g, fullName.split(' ')[0])
+    .replace(/{service}/g, serviceWord(j))
+    .replace(/{city}/g, j.city || 'the area')
     .replace(/{binSize}/g, j.binSize || 'bin')
     .replace(/{date}/g, fd(schedDate) || '')
     // ft() turns 'anytime' into "Anytime", which is a real promise on a Junk Removal
@@ -15719,9 +15746,11 @@ function sendEmail() {
 // ═══════════════════════════════════════
 // EMAIL TEMPLATES — full page (was a modal until v465)
 // ═══════════════════════════════════════
-var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled','review_request'];
-var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled',review_request:'Review Request'};
-var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫',review_request:'⭐'};
+var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled','review_request','review_text'];
+var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled',review_request:'Review Request',review_text:'Review Text'};
+var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫',review_request:'⭐',review_text:'💬'};
+// Texts have no subject line. The box stays in the page (etplStash reads it) but hidden.
+var ETPL_NO_SUBJECT = {review_text:1};
 /* Exactly the tokens fillEmailTemplate() substitutes — no more, no less. The old
    modal's hint advertised {time}, which nothing replaces, so staff were mailing
    customers a literal "{time}"; it also never mentioned {dropoffDate},
@@ -15729,6 +15758,9 @@ var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',j
    mistake: you can only insert something real. */
 var ETPL_FIELDS = [
   {t:'{name}',        label:'Customer name'},
+  {t:'{firstName}',   label:'First name'},
+  {t:'{service}',     label:'Service (bin rental, junk removal…)'},
+  {t:'{city}',        label:'Town'},
   {t:'{address}',     label:'Address'},
   {t:'{binSize}',     label:'Bin size'},
   {t:'{side}',        label:'Driveway side'},
@@ -15820,8 +15852,11 @@ function renderEmailTemplates(){
       + '<aside class="etpl-side"><div class="etpl-side-h">Templates</div>' + list + '</aside>'
       + '<section class="etpl-main">'
         + '<div class="etpl-card">'
+          + '<div' + (ETPL_NO_SUBJECT[_etplKey] ? ' style="display:none"' : '') + '>'
           + '<div class="etpl-lbl">Subject line</div>'
           + '<input id="etpl-subj" class="etpl-input" type="text" onfocus="etplFocus(\'etpl-subj\')" oninput="etplPreview()">'
+          + '</div>'
+          + (ETPL_NO_SUBJECT[_etplKey] ? '<div class="etpl-hint">This one goes out as a text message, so keep it short — it lands in Messages on the customer\'s phone.</div>' : '')
           + '<div class="etpl-lbl etpl-lbl-sp">Add a customer detail</div>'
           + '<div class="etpl-hint">Click one and it drops in where your cursor is — in the subject or the message. Each one fills itself in with the real customer\'s details when the email goes out.</div>'
           + '<div class="etpl-chips">' + chips + '</div>'

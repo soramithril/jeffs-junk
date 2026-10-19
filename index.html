@@ -2823,6 +2823,41 @@
 
 <!-- ═══════════════ ADMIN MODAL ═══════════════ -->
 
+<!-- ═══════════ REVIEW TEXT MODAL (app-review-text.js) ═══════════
+     The PC half of texting a review request: the sms: link as a QR code, scanned by
+     the office iPhone. On a phone the button opens Messages directly and this never
+     shows. Styles are inline so this stays out of style.css. -->
+<div class="modal-overlay" id="review-text-modal">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <div class="modal-title">💬 Text a review request — <span id="rt-who"></span></div>
+      <button class="modal-close" onclick="closeM('review-text-modal')">&#x2715;</button>
+    </div>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:0 0 320px;max-width:100%">
+        <div id="rt-qr" style="width:320px;max-width:100%;background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px"></div>
+        <div style="font-size:13px;line-height:1.5;color:var(--muted);margin-top:10px">Point the iPhone camera at the code, tap the <b>Messages</b> banner, and hit send. The number and the message are already filled in on the phone.</div>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>To (mobile number)</label>
+          <input id="rt-phone" type="tel" placeholder="705 555 1234" oninput="rtRedraw()">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Message</label>
+          <textarea id="rt-body" rows="9" oninput="rtRedraw()"></textarea>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">Edits here change the code as you type. Wording not right for everyone? Change the <b>Review Text</b> template under ⚙️ Edit Templates.</div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeM('review-text-modal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeM('review-text-modal');go('emailtemplates')">⚙️ Edit Templates</button>
+      <button class="btn btn-primary" onclick="rtDone()">✓ Sent it — mark as asked</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ EMAIL MODAL ═══════════ -->
 <div class="modal-overlay fullpage" id="email-modal">
   <div class="modal">
@@ -3120,7 +3155,7 @@
 <script src="jwg-icons.js?v=561"></script>
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=699"></script>
+<script src="app.js?v=700"></script>
 <script src="app-mobile.js?v=629"></script>
 <script src="app-jwg-inventory.js?v=682"></script>
   <script src="app-jwg-scheduler.js?v=696"></script>
@@ -3135,6 +3170,8 @@
 <script src="app-fbcollect.js?v=690"></script>
 <script src="app-fbdoor.js?v=698"></script>
 <script src="app-quote-followup.js?v=699"></script>
+<script src="qrcode.js?v=700"></script>
+<script src="app-review-text.js?v=700"></script>
 <script src="app-playbook.js?v=597"></script>
 <script src="app-prospects.js?v=628"></script>
 <script src="liquid-nav.js?v=638"></script>

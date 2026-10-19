@@ -12,7 +12,7 @@ import json
 import os
 import sys
 
-PROTECTED = {'motion.min.js'}
+PROTECTED = {'motion.min.js', 'qrcode.js'}
 
 
 def main():
@@ -29,7 +29,8 @@ def main():
             'permissionDecision': 'deny',
             'permissionDecisionReason':
                 'EDIT BLOCKED by scripts/block_vendored.py - %s is vendored '
-                '(motion.dev v12.43.0). CLAUDE.md: never edit it by hand; '
+                '(motion.min.js is motion.dev v12.43.0, qrcode.js is '
+                'qrcode-generator 1.4.4). CLAUDE.md: never edit it by hand; '
                 'replace the whole file to upgrade.' % name,
         }
     }))
