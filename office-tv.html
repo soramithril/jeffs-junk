@@ -2391,10 +2391,14 @@
       if(name==='bins') renderBins();
       else if(name==='kpis') renderKpis();
       else if(name==='liveops') renderLiveOps();
-      // count the numbers up on the Bin Work + Operations screens
+      // Copy the pill BEFORE the count-up: countUp zeroes the numbers it animates,
+      // and a copy taken after it froze the pill at "0 of 0 done".
+      syncLockup();
+      // count the numbers up on the Bin Work + Operations screens (pill included)
       if(name==='bins' || name==='kpis'){
         var panel = document.querySelector('.panel[data-panel="'+name+'"]');
         if(panel) countUp(panel);
+        countUp(el('toppill'));
       }
     }
 
@@ -2417,7 +2421,6 @@
       panelIdx = (i+PANELS.length)%PANELS.length;
       var name = PANELS[panelIdx];
       renderCurrent();
-      syncLockup();
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
       el('board').classList.toggle('map-full', name === 'liveops');
