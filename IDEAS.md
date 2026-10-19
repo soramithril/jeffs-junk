@@ -35,7 +35,7 @@ and trim it down to what is left.
 
 *Things worth doing sometime.*
 
-- **Rework the Schedule page** - It is confusing to use as it stands. Not now, but on the list. Figure out what makes it confusing first (mockup or walkthrough with Jake), then rebuild the layout around that.
+- **Rework the Schedule page** - The crew scheduler under Schedule (whole team, shifts by day), not Live Jobs. It is confusing to use as it stands. Not now, but on the list. Figure out what makes it confusing first (mockup or walkthrough with Jake), then rebuild the layout around that.
   <sub>Jake, 2026-10-19</sub>
 
 ## Done
