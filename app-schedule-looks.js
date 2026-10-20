@@ -207,7 +207,7 @@ function look1p(){
   h+=`<div style="height:24px"></div>`;
   if(S.sel){
     const e=editor('short'),p=S.sel.p;
-    h+=`<button class="sl-dim" ${dA('unsel')} aria-label="Close"></button>
+    h+=`<button class="sl-scrim" ${dA('unsel')} aria-label="Close"></button>
     <div class="sl-sheet"><div class="sl-grab"></div>
       <div class="sl-ph">${av(p,42)}<div><div class="sl-pname">${PEOPLE[p].name}</div><div class="sl-muted">${dayLabel(S.sel.d)}</div></div></div>
       <div>${lab('Job')}<div class="sl-jobs">${e.jobs}</div></div>
