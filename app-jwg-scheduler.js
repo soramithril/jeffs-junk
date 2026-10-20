@@ -831,7 +831,7 @@ function editorHtml(){
 
   const jobs=jobTypes().map(t=>{
     const on=!curAway&&curIds.includes(t.id);
-    return`<button class="task-opt dp-job${on?" sel":""}" id="topt_${t.id}" onclick="JWG.edJob('${t.id}')"${on?` style="border-color:${t.dot};background:${t.bg}"`:""}>${typeTile(t,32)}<span>${esc(t.label)}</span></button>`;
+    return`<button class="task-opt dp-job${on?" sel":""}" id="topt_${t.id}" onclick="JWG.edJob('${t.id}')"${on?` style="border-color:${t.dot};background:${t.bg}"`:""}>${typeTile(t,28)}<span>${esc(t.label)}</span></button>`;
   }).join("");
 
   let hours="";
@@ -1327,9 +1327,11 @@ function buildSched(){
       <aside class="day-panel" id="day-panel">${_ed&&!phone?editorHtml():panelIdleHtml()}</aside>
     </div>`;
     h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
-    h+=`<div id="day-sheet" class="day-sheet${_ed&&phone?" open":""}">${_ed&&phone?sheetHtml():""}</div>`;
   }
-  const result=h+`</div>`;
+  // The phone sheet sits OUTSIDE the card: a card lifts on hover with a transform, and a
+  // transformed ancestor pins a position:fixed child to itself instead of to the screen.
+  const sheet=S.employees.length?`<div id="day-sheet" class="day-sheet${_ed&&isPhone()?" open":""}">${_ed&&isPhone()?sheetHtml():""}</div>`:"";
+  const result=h+`</div>`+sheet;
   // After HTML is set, init grid drag and land the grid on today's column
   setTimeout(()=>{initGridDrag();scrollGridToToday();if(_ed)document.dispatchEvent(new CustomEvent("jwg:editor",{detail:{empId:_ed.empId,day:_ed.day}}));},0);
   return result;
