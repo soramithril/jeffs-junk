@@ -58,11 +58,13 @@
 #view-jwgscheduler .sc-grid td.day-cell.empty-cell:hover::after{content:"+";position:absolute;inset:6px;display:grid;place-items:center;border:1.5px dashed var(--sc-line2);border-radius:10px;color:var(--sc-mut);font-size:18px;font-weight:600}
 #view-jwgscheduler .sc-grid td.day-cell.is-sel{box-shadow:inset 0 0 0 3px var(--sc-ink);border-radius:10px}
 #view-jwgscheduler .sc-grid .shift-stack{display:flex;flex-direction:column;gap:4px}
-#view-jwgscheduler .sc-grid .shift-bar.ce-job{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 8px;border-radius:10px;border:0;background:var(--tb);color:var(--tt);box-shadow:none;margin:0}
+/* the older sheets position .shift-bar absolutely and force display:block / padding with !important */
+#view-jwgscheduler .sc-grid .shift-bar.ce-job{position:relative!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;display:flex!important;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:40px;padding:0 8px!important;border-radius:10px!important;border:0!important;background:var(--tb)!important;color:var(--tt)!important;box-shadow:none!important;margin:0;transform:none!important;font-size:14px}
+#view-jwgscheduler .sc-grid .shift-bar.ce-job:hover{filter:brightness(.97)}
 #view-jwgscheduler .sc-grid .ce-job .shift-txt{display:flex;flex-direction:column;min-width:0}
-#view-jwgscheduler .sc-grid .ce-job .shift-times{font-size:14px;font-weight:800;white-space:nowrap}
+#view-jwgscheduler .sc-grid .ce-job .shift-times{display:inline!important;font-size:14px!important;font-weight:800!important;opacity:1;margin:0;white-space:nowrap}
 #view-jwgscheduler .sc-grid .ce-job .shift-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-#view-jwgscheduler .sc-grid .status-label.ce-away{display:flex;align-items:center;gap:6px;min-height:40px;padding:0 9px;border-radius:10px;background:var(--sc-stripe);color:#334155;font-size:12.5px;font-weight:700;border:0;white-space:nowrap;overflow:hidden}
+#view-jwgscheduler .sc-grid .status-label.ce-away{position:relative!important;inset:auto!important;display:flex!important;align-items:center;gap:6px;width:100%;box-sizing:border-box;min-height:40px;padding:0 9px!important;border-radius:10px!important;background:var(--sc-stripe)!important;color:#334155!important;font-size:12.5px!important;font-weight:700!important;text-transform:none!important;letter-spacing:0!important;border:0!important;white-space:nowrap;overflow:hidden}
 #view-jwgscheduler .sc-grid .ce-away .ce-t{font-weight:600;color:var(--sc-mut);margin-left:auto}
 #view-jwgscheduler .sc-grid .cell-note{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px #fff;pointer-events:none}
 #view-jwgscheduler .sc-grid .foot-cell{text-align:center;font-size:11px;font-weight:600;color:var(--sc-mut);padding:10px 4px}
