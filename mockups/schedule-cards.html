@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crew Schedule Idea</title>
+<meta property="og:title" content="Crew schedule idea">
+<meta property="og:description" content="A new look for the Jeff White Group crew schedule. Tap a day to try it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Hanken+Grotesk:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7f9f8;--surface:#fff;--ink:#1a211e;--muted:#5f6563;--line:#e6e9e8;--line2:#d7dad9;--today:#86efac}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.top{background:var(--surface);border-bottom:1px solid var(--line);padding:18px 16px 10px;position:sticky;top:0;z-index:2}
+.wrap{max-width:1100px;margin:0 auto}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-family:'Hanken Grotesk',Inter,sans-serif;font-size:26px;font-weight:800;margin:0}
+.wk{font-weight:700;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.filters{display:flex;gap:6px;overflow-x:auto;margin:12px -16px 0;padding:0 16px 2px;scrollbar-width:none}
+.f{flex:none;height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);font:600 13px Inter,sans-serif;color:#454b46;cursor:pointer}
+.f.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.how{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-top:10px}
+.mini{width:20px;height:20px;border-radius:6px;display:inline-grid;place-items:center;color:#fff;flex:none}
+.mini svg{width:12px;height:12px}
+.hatch{background:repeating-linear-gradient(135deg,#f1f3f2 0 6px,#e8ebea 6px 12px);color:#454b46}
+main{padding:6px 12px 40px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.crewh{grid-column:1/-1;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 4px 0}
+.card{background:var(--surface);border:1px solid var(--line2);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ch{display:flex;align-items:center;gap:10px}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;flex:none}
+.nm{font-weight:700;font-size:16px}
+.sub{font-size:12px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:6px;margin-top:2px}
+.ring{margin-left:auto;position:relative;width:44px;height:44px;flex:none}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:700}
+.week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.dl{text-align:center;font-size:11px;font-weight:700;color:var(--muted)}
+.dl.today{color:#15803d}
+.day{height:56px;border-radius:12px;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font:700 10px Inter,sans-serif;color:#fff;padding:0;transition:transform .12s}
+.day:active{transform:scale(.94)}
+.day svg{width:20px;height:20px}
+.day.away{background:repeating-linear-gradient(135deg,#f1f3f2 0 6px,#e8ebea 6px 12px);color:#454b46}
+.day.empty{background:#fbfdfc;border:1.5px dashed var(--line2);color:#b8bcba;font-size:16px}
+.day.today{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--today)}
+.foot{text-align:center;font-size:12px;color:var(--muted);padding:20px 16px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="hrow"><h1>Schedule</h1><span class="wk">Oct 19 – 25</span></div>
+    <div class="filters" id="filters"></div>
+    <div class="how">Tap a day
+      <span class="mini" style="background:#16a34a"><svg class="i" viewBox="0 0 24 24"><path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg></span>
+      <span style="color:#b8bcba">→</span>
+      <span class="mini hatch"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      <span style="color:#b8bcba">→</span>
+      <span class="mini" style="border:1.5px dashed #cbcfcd"></span>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="cards" id="cards"></div>
+  <p class="foot">A design idea for the Jeff White Group crew schedule. Nothing here is saved.</p>
+</main>
+<script>
+var I={
+  cut:'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12',
+  garden:'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10zM2 21c0-3 1.85-5.36 5.08-6',
+  office:'M3 4h18v12H3zM8 20h8M12 16v4',
+  bins:'M1 4h14v12H1zM15 8h4l3 3v5h-7zM5.5 20.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18.5 20.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  junk:'M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V3h6v3',
+  furn:'M4 11V8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v3M2 13a2 2 0 0 1 4 0v2h12v-2a2 2 0 0 1 4 0v5H2zM5 18v2M19 18v2',
+  shop:'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z',
+  extra:'M3 20l6-10 4 6 3-4 5 8z',
+  vac:'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+  off:'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+  appt:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2'
+};
+var JM={cut:{name:'Cutting crew',s:'#16a34a'},garden:{name:'Garden crew',s:'#db2777'},office:{name:'Office',s:'#2563eb'},bins:{name:'Bins',s:'#0d9488'},junk:{name:'Junk',s:'#ea580c'},furn:{name:'Furniture Bank',s:'#7c3aed'},shop:{name:'Shop',s:'#ca8a04'},extra:{name:'Landscape',s:'#475569'}};
+var AM={vac:'Vacation',off:'Day off',appt:'Appt'};
+var HRS={'7–4':9,'7–5':10,'8:30–4:30':8,'10–4':6,'7–3:30':8.5,'8–4':8};
+var DAYS=['Mon','Tue','Wed','Thu','Fri'];
+var AVC=[['#e0e7ff','#3730a3'],['#fae8ff','#86198f'],['#e0f2fe','#075985'],['#fef3c7','#92400e'],['#dcfce7','#166534'],['#ffe4e6','#9f1239'],['#f1f5f9','#334155']];
+var CREWS=[
+  ['Owners',[['jeff','Jeff'],['barb','Barb']]],
+  ['Office',[['sam','Sam'],['kelly','Kelly'],['rachel','Rachel']]],
+  ['Misc jobs',[['josh','Josh'],['jordan','Jordan'],['max','Max'],['tylerm','Tyler']]],
+  ['Cutting crew',[['darrin','Darrin'],['jasper','Jasper'],['tylerc','Tyler']]],
+  ['Garden crew',[['micaela','Micaela']]],
+  ['Bins',[['kevin','Kevin'],['neil','Neil']]],
+  ['IT',[['jake','Jake']]]
+];
+var O='office|8:30–4:30',T='office|10–4',J='junk|7–4',C='cut|7–4',B='bins|7–5',S='shop|7–3:30',G='garden|7–4';
+var sched={
+  jeff:[T,'',T,'',T], barb:[O,O,O,O,'off'], sam:[O,O,O,O,O], kelly:[O,O,'appt',O,O], rachel:[T,T,'',T,'vac'],
+  josh:[J,J,J,J,J], jordan:[J,J,'furn|8–4',J,''], max:['furn|8–4',J,J,J,'vac'], tylerm:[S,S,S,'extra|7–4','extra|7–4'],
+  darrin:[C,C,C,C,S], jasper:[C,C,C,C,C], tylerc:[C,C,'',C,C], micaela:[G,G,'off',G,G], kevin:[B,B,B,B,B], neil:[B,B,B,B,'off'], jake:['',T,'',T,'']
+};
+var USUAL={jeff:T,barb:O,sam:O,kelly:O,rachel:T,josh:J,jordan:J,max:J,tylerm:S,darrin:C,jasper:C,tylerc:C,micaela:G,kevin:B,neil:B,jake:T};
+var crewFilter='All';
+var avOf={},n=0;
+CREWS.forEach(function(c){c[1].forEach(function(p){avOf[p[0]]=AVC[n++%AVC.length];});});
+
+function parse(code){
+  if(!code)return {kind:'empty'};
+  if(AM[code])return {kind:'away',k:code};
+  var i=code.indexOf('|');
+  return {kind:'job',k:code.slice(0,i),time:code.slice(i+1)};
+}
+function icon(d){return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="'+d+'"/></svg>';}
+function dayBtn(id,name,code,d){
+  var v=parse(code),today=d===0?' today':'',lbl=name+', '+DAYS[d];
+  if(v.kind==='job')return '<button class="day'+today+'" style="background:'+JM[v.k].s+'" data-p="'+id+'" data-d="'+d+'" aria-label="'+lbl+'">'+icon(I[v.k])+'<span>'+v.time+'</span></button>';
+  if(v.kind==='away')return '<button class="day away'+today+'" data-p="'+id+'" data-d="'+d+'" aria-label="'+lbl+'">'+icon(I[v.k])+'<span>'+AM[v.k]+'</span></button>';
+  return '<button class="day empty'+today+'" data-p="'+id+'" data-d="'+d+'" aria-label="'+lbl+'">+</button>';
+}
+function render(){
+  var circ=2*Math.PI*19,h='';
+  CREWS.forEach(function(c){
+    if(crewFilter!=='All'&&c[0]!==crewFilter)return;
+    h+='<div class="crewh">'+c[0]+'</div>';
+    c[1].forEach(function(p){
+      var id=p[0],name=p[1],a=avOf[id],u=parse(USUAL[id]);
+      var hrs=sched[id].reduce(function(t,code){var v=parse(code);return t+(v.kind==='job'?(HRS[v.time]||8):0);},0);
+      var ring=hrs>=40?'#16a34a':hrs>=24?'#ca8a04':'#cbcfcd',dash=(Math.min(1,hrs/45)*circ).toFixed(1)+' '+circ.toFixed(1);
+      h+='<div class="card"><div class="ch"><span class="av" style="background:'+a[0]+';color:'+a[1]+'">'+name.slice(0,2)+'</span>'
+        +'<div><div class="nm">'+name+'</div><div class="sub"><span class="mini" style="background:'+JM[u.k].s+'">'+icon(I[u.k])+'</span>'+JM[u.k].name+' · '+u.time+'</div></div>'
+        +'<div class="ring"><svg viewBox="0 0 46 46" width="44" height="44" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="#eef1f0" stroke-width="5"/><circle cx="23" cy="23" r="19" fill="none" stroke="'+ring+'" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+dash+'" transform="rotate(-90 23 23)"/></svg><b>'+hrs+'h</b></div></div>'
+        +'<div class="week">'+DAYS.map(function(dn,i){return '<span class="dl'+(i===0?' today':'')+'">'+dn+'</span>';}).join('')
+        +sched[id].map(function(code,d){return dayBtn(id,name,code,d);}).join('')+'</div></div>';
+    });
+  });
+  document.getElementById('cards').innerHTML=h;
+  document.getElementById('filters').innerHTML=['All'].concat(CREWS.map(function(c){return c[0];})).map(function(f){
+    return '<button class="f'+(f===crewFilter?' on':'')+'" data-f="'+f+'">'+f+'</button>';
+  }).join('');
+}
+document.getElementById('cards').addEventListener('click',function(e){
+  var b=e.target.closest('.day');if(!b)return;
+  var id=b.dataset.p,d=Number(b.dataset.d),v=parse(sched[id][d]);
+  sched[id][d]=v.kind==='job'?'off':v.kind==='away'?'':USUAL[id];
+  render();
+});
+document.getElementById('filters').addEventListener('click',function(e){
+  var b=e.target.closest('.f');if(!b)return;
+  crewFilter=b.dataset.f;render();
+});
+render();
+</script>
+</body>
+</html>
