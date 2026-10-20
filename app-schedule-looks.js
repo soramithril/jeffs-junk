@@ -549,6 +549,9 @@ function render(){
   const box=el().querySelector('.sl-modal');
   wasPhone=phone();
   box.innerHTML=shell(RENDER[S.look-1]());
+  // The tab row is redrawn too; keep the chosen tab in view on a narrow screen.
+  const tab=box.querySelector('.sl-tab.sl-on');
+  tab.parentElement.scrollLeft=tab.offsetLeft-12;
 }
 function open(){
   S=fresh(S?S.look:1);

@@ -170,7 +170,8 @@
 .sl-slot.sl-today{background:#f0fdf4}
 .sl-chip{display:flex;align-items:center;gap:7px;height:36px;border-radius:999px;border:0;padding:0 10px 0 3px;font-weight:600;font-size:13px;cursor:pointer;text-align:left;color:inherit}
 .sl-chip .sl-av{width:30px;height:30px}
-.sl-chipt{font-size:11px;font-weight:600;opacity:.8;margin-left:auto}
+.sl-chip{min-width:0;max-width:100%;overflow:hidden;white-space:nowrap}
+.sl-chipt{font-size:11px;font-weight:600;opacity:.8;margin-left:auto;white-space:nowrap}
 .sl-add{height:34px;border:1.5px dashed #d7dad9;background:transparent;border-radius:999px;font-weight:600;font-size:12px;color:#868e8b;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 12px}
 .sl-add .sl-i{width:14px;height:14px}
 .sl-add.sl-ready{border-style:solid;border-color:#1a211e;color:#1a211e;background:#fff}
@@ -207,6 +208,7 @@
 .sl-track{position:relative;height:52px;border-bottom:1px solid #eef1f0;background-image:linear-gradient(to right,#eef1f0 1px,transparent 1px);background-size:calc(100% / 14) 100%}
 .sl-tbar{position:absolute;top:8px;bottom:8px;border-radius:10px;border:0;display:flex;align-items:center;gap:8px;padding:0 10px;color:#fff;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;box-sizing:border-box}
 .sl-tbar.sl-on{outline:3px solid #1a211e;outline-offset:2px}
+.sl-tbar.sl-away{background:repeating-linear-gradient(135deg,#f1f3f2 0 7px,#e8ebea 7px 14px);color:#454b46;font-weight:600}
 .sl-tbn{font-weight:500;opacity:.9}
 .sl-tadd{position:absolute;top:8px;bottom:8px;border-radius:10px;border:1.5px dashed #d7dad9;background:transparent;color:#868e8b;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden}
 .sl-tadd:hover{border-color:#1a211e;color:#1a211e}
