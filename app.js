@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '704';
+var APP_VERSION = '702';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -84,9 +84,26 @@ function _checkForUpdate(){
     .then(function(t){
       if(!t) return;
       var latest = t.trim();
-      if(latest && latest !== APP_VERSION) _showUpdateBanner();
+      if(latest && latest !== APP_VERSION) _showUpdateWhenFree();
     })
     .catch(function(){});
+}
+// The takeover reloads on the first click, so it must never land on an open job
+// form: anything typed there (Kelly's Furniture Bank item counts, a half-booked
+// call) only saves on Save. While #job-modal is open it waits, and goes up the
+// moment the form closes, saved or cancelled (Jake, 2026-10-20).
+var _updateWaiter = null;
+function _showUpdateWhenFree(){
+  var jm = document.getElementById('job-modal');
+  if(!jm.classList.contains('open')){ _showUpdateBanner(); return; }
+  if(_updateWaiter) return;
+  _updateWaiter = new MutationObserver(function(){
+    if(jm.classList.contains('open')) return;
+    _updateWaiter.disconnect();
+    _updateWaiter = null;
+    _showUpdateBanner();
+  });
+  _updateWaiter.observe(jm, {attributes:true, attributeFilter:['class']});
 }
 function _showUpdateBanner(){
   if(document.getElementById('update-banner')) return;
@@ -10033,6 +10050,24 @@ function closeJobModal(){
   if(!closeJobModalGuard()) return;
   closeM('job-modal');
 }
+
+// Closing the tab or refreshing with a job half-entered asks first: nothing on the
+// form saves until Save, Furniture Bank item counts included (Jake, 2026-10-20).
+// "Touched" = the person typed or changed something since the form opened. Values the
+// form fills in itself fire no input event, so just looking at a job never asks.
+(function(){
+  var jm = document.getElementById('job-modal');
+  var touched = false;
+  jm.addEventListener('input', function(){ touched = true; });
+  jm.addEventListener('change', function(){ touched = true; });
+  new MutationObserver(function(){ if(!jm.classList.contains('open')) touched = false; })
+    .observe(jm, {attributes:true, attributeFilter:['class']});
+  window.addEventListener('beforeunload', function(e){
+    if(!touched || !jm.classList.contains('open')) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+})();
 
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
