@@ -1329,6 +1329,9 @@ function buildSched(){
       <button class="modal-done" style="padding:10px 24px" onclick="JWG.switchTab('team')">Go to Team →</button>
     </div>`;
   } else {
+    // Try-out of six redesigns of this page (app-schedule-looks.js, 2026-10-20).
+    // Goes once a look is picked and built.
+    h+=`<button class="wk-looks" onclick="ScheduleLooks.open()">✨ <span><b>New looks for this page.</b> Try six designs and pick your favourite.</span><span class="wk-looks-go">Try them →</span></button>`;
     // Weeks start empty now (no silent pre-fill since v559) — say so and point
     // at the two ways to fill one, instead of showing a bare grid.
     // The how-to line used to appear ONLY on a wholly empty week, so in practice
