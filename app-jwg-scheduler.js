@@ -59,15 +59,21 @@ function buildTimeOpts(sel){
 }
 function buildHourOpts(sel){let h="";for(let i=0;i<24;i++)h+=`<option value="${i}"${sel===i?" selected":""}>${fmtHour(i,0)}</option>`;return h;}
 
-// Tasks
+// Tasks — jobs and time away share ONE list (Jake, 2026-10-20). An away:true type (Day off,
+// Sick, No work, Vacation, Office closed, Personal, Appointment) is grey and striped, counts
+// no hours, and with no times on it lasts all day. The three built-in away types are fixed;
+// every other type is Barb's to rename, recolour or remove.
+function taskColours(hex){const[r,g,b]=hex2rgb(hex);return{bg:`rgba(${r},${g},${b},0.12)`,text:darken(hex),dot:hex};}
+const AWAY_GREY="#64748b";
 const DEFAULT_TASKS=[
-  {id:"off",label:"Off",bg:"rgba(0,0,0,0.04)",text:"rgba(0,0,0,0.28)",dot:"rgba(0,0,0,0.2)",builtIn:true},
-  {id:"sick",label:"Sick",bg:"#fff7ed",text:"#c2410c",dot:"#f97316",builtIn:true},
-  {id:"bins",label:"Bins",bg:"#dcfce7",text:"#15803d",dot:"#22c55e"},
-  {id:"junk",label:"Junk Removals",bg:"#dbeafe",text:"#1d4ed8",dot:"#60a5fa"},
-  {id:"furniture",label:"Furniture Bank",bg:"#ede9fe",text:"#7c3aed",dot:"#a78bfa"},
-  {id:"garbage",label:"Garbage",bg:"#fee2e2",text:"#dc2626",dot:"#f87171"},
-  {id:"shop",label:"Shop",bg:"#fef9c3",text:"#a16207",dot:"#eab308"},
+  {id:"off",label:"Day off",...taskColours(AWAY_GREY),builtIn:true,away:true},
+  {id:"sick",label:"Sick",...taskColours(AWAY_GREY),builtIn:true,away:true},
+  {id:"nowork",label:"No work",...taskColours(AWAY_GREY),builtIn:true,away:true},
+  {id:"bins",label:"Bins",...taskColours("#0d9488")},
+  {id:"junk",label:"Junk Removals",...taskColours("#ea580c")},
+  {id:"furniture",label:"Furniture Bank",...taskColours("#dc2626")},
+  {id:"garbage",label:"Garbage",...taskColours("#7c3aed")},
+  {id:"shop",label:"Shop",...taskColours("#ca8a04")},
 ];
 let tasks=JSON.parse(localStorage.getItem("ss_tasks")||"null")||DEFAULT_TASKS;
 const TM=()=>Object.fromEntries(tasks.map(t=>[t.id,t]));
@@ -110,6 +116,26 @@ function esc(s){const d=document.createElement("div");d.textContent=s;return d.i
 // Part of JWG Staff Scheduler
 
 function defSched(){const s={};DAYS.forEach(d=>{s[d]={status:"off",shifts:[]};});return s;}
+// The built-in away types count as away even before the saved task list has caught up.
+const AWAY_BUILTIN=["off","sick","nowork"];
+function taskOf(id){return TM()[id]||DEFAULT_TASKS.find(t=>t.id===id)||null;}
+function taskLabel(id){const t=taskOf(id);return t?t.label:String(id);}
+function isAwayTask(id){if(AWAY_BUILTIN.includes(id))return true;const t=TM()[id];return!!(t&&t.away);}
+function shiftIsAway(sh){const ids=getShiftTasks(sh);return ids.length>0&&ids.every(isAwayTask);}
+function awayTypes(){return[...AWAY_BUILTIN.map(taskOf),...tasks.filter(t=>t.away&&!AWAY_BUILTIN.includes(t.id))];}
+function jobTypes(){return tasks.filter(t=>!isAwayTask(t.id));}
+// The one place a day's status is decided: "work" when a job is on it, "away" when it only
+// holds time away, "off" when empty. Before 2026-10-20 time away was a STATUS of its own
+// (dayoff / sick / nonworking, no shifts); a day still saved that way reads as the away
+// entry it is now. The office TV counts "work" days, so away days must never say "work".
+function normDay(v){
+  if(!v)return{status:"off",shifts:[]};
+  let shifts=Array.isArray(v.shifts)?v.shifts:[];
+  const legacy={dayoff:"off",sick:"sick",nonworking:"nowork"}[v.status];
+  if(legacy&&!shifts.length)shifts=[{tasks:[legacy]}];
+  const status=!shifts.length?"off":shifts.some(sh=>!shiftIsAway(sh))?"work":"away";
+  return{...v,status,shifts};
+}
 // Migrate old format (single shift object) to new format (status+shifts array)
 function migrateSched(s){
   if(!s)return defSched();
@@ -117,31 +143,62 @@ function migrateSched(s){
   DAYS.forEach(d=>{
     const v=s[d];
     if(!v){out[d]={status:"off",shifts:[]};return;}
-    // Already new format
-    if(v.status!==undefined){out[d]=v;return;}
+    if(v.status!==undefined){out[d]=normDay(v);return;}
     // Old format: {task, start, end}
     if(v.task==="off"||!v.task){out[d]={status:"off",shifts:[]};}
-    else if(v.task==="sick"){out[d]={status:"sick",shifts:[]};}
-    else{out[d]={status:"work",shifts:[{task:v.task,start:v.start,end:v.end}]};}
+    else if(v.task==="sick"){out[d]=normDay({status:"sick",shifts:[]});}
+    else{out[d]=normDay({status:"work",shifts:[{task:v.task,start:v.start,end:v.end}]});}
   });
   return out;
 }
-function countH(s){
-  if(!s)return 0;let tot=0;
-  DAYS.forEach(d=>{
-    const day=s[d];
-    if(!day||day.status==="off"||day.status==="sick")return;
-    (day.shifts||[]).forEach(sh=>{
-      if(sh.start&&sh.end){const[sh2,sm]=sh.start.split(":").map(Number),[eh,em]=sh.end.split(":").map(Number);tot+=(eh+em/60)-(sh2+sm/60);}
-    });
-  });
-  return Math.round(tot*10)/10;
+function toHrs(k){const[h,m]=k.split(":").map(Number);return h+(m||0)/60;}
+// Time away counts no hours, timed or not (Jake: vacation and office closed are not paid).
+function shiftHours(sh){return shiftIsAway(sh)||!sh.start||!sh.end?0:toHrs(sh.end)-toHrs(sh.start);}
+function dayHours(day){return(day&&day.shifts||[]).reduce((t,sh)=>t+shiftHours(sh),0);}
+function countH(s){if(!s)return 0;return Math.round(DAYS.reduce((t,d)=>t+dayHours(s[d]),0)*10)/10;}
+function hShort(k){const[h,m]=k.split(":").map(Number);const hh=h>12?h-12:(h===0?12:h);return m?`${hh}:${String(m).padStart(2,"0")}`:`${hh}`;}
+function rangeShort(s,e){return s&&e?`${hShort(s)}–${hShort(e)}`:"";}
+
+// ── TYPE ICONS ── one plain glyph per job or away type: white on the job's colour, grey for away.
+const GLYPH={
+  scissors:"M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12",
+  leaf:"M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10zM2 21c0-3 1.85-5.36 5.08-6",
+  monitor:"M3 4h18v12H3zM8 20h8M12 16v4",
+  truck:"M1 4h14v12H1zM15 8h4l3 3v5h-7zM5.5 20.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18.5 20.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+  trash:"M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V3h6v3",
+  sofa:"M4 11V8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v3M2 13a2 2 0 0 1 4 0v2h12v-2a2 2 0 0 1 4 0v5H2zM5 18v2M19 18v2",
+  wrench:"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z",
+  mountain:"M3 20l6-10 4 6 3-4 5 8z",
+  sun:"M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
+  thermo:"M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z",
+  moon:"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+  lock:"M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4",
+  clock:"M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
+  user:"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  pause:"M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM10 9v6M14 9v6",
+  snow:"M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1 19.1 4.9",
+  clip:"M9 2h6v4H9zM15 4h3v18H6V4h3M9 12h6M9 16h4",
+  people:"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  gift:"M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C10 4 6 4 7 7M12 8c2-4 6-4 5-1",
+  dot:"M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"
+};
+const GLYPH_BY_ID={off:"moon",sick:"thermo",nowork:"pause",bins:"truck",junk:"trash",furniture:"sofa",garbage:"trash",shop:"wrench"};
+const GLYPH_BY_WORD=[["cut","scissors"],["mow","scissors"],["garden","leaf"],["office","monitor"],["admin","monitor"],["closed","lock"],
+  ["vacation","sun"],["holiday","sun"],["personal","user"],["out of office","user"],["appoint","clock"],["snow","snow"],["salt","snow"],
+  ["quote","clip"],["meeting","people"],["training","people"],["landscap","mountain"],["extra","mountain"],["birthday","gift"],
+  ["bin","truck"],["junk","trash"],["garbage","trash"],["furniture","sofa"],["shop","wrench"]];
+function glyphOf(t){
+  if(!t)return GLYPH.dot;
+  if(GLYPH_BY_ID[t.id])return GLYPH[GLYPH_BY_ID[t.id]];
+  const l=String(t.label||"").toLowerCase();
+  const w=GLYPH_BY_WORD.find(([k])=>l.includes(k));
+  return GLYPH[w?w[1]:(t.away?"user":"dot")];
 }
-function dayHours(day){
-  if(!day||day.status==="off"||day.status==="sick")return 0;
-  let t=0;(day.shifts||[]).forEach(sh=>{if(sh.start&&sh.end){const[a,b]=sh.start.split(":").map(Number),[c,e]=sh.end.split(":").map(Number);t+=(c+e/60)-(a+b/60);}});
-  return t;
+function typeTile(t,size){
+  const bg=t&&isAwayTask(t.id)?AWAY_GREY:((t&&t.dot)||"#94a3b8");
+  return`<span class="ty-tile" style="background:${bg};width:${size}px;height:${size}px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${glyphOf(t)}"/></svg></span>`;
 }
+function typeIcon(t){return`<svg class="ty-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${glyphOf(t)}"/></svg>`;}
 
 // Default working days: Monday–Saturday
 let S={tab:"schedule",weekOffset:0,employees:[],allSchedules:[],schedule:{},activeDays:[...WEEKDAYS,"Saturday"],saving:false,aPeriod:"4w",hFilter:"all",hOpen:{},mView:"week",mDay:null,mPerson:null,sortAlpha:false};
@@ -256,7 +313,7 @@ async function fillWeekFromUsual(){
   let filled=0;
   pend.forEach(({emp,days})=>{
     if(!S.schedule[emp.id])S.schedule[emp.id]=defSched();
-    days.forEach(d=>{S.schedule[emp.id][d]=JSON.parse(JSON.stringify(usualDay(emp,d)));filled++;});
+    days.forEach(d=>{S.schedule[emp.id][d]=normDay(JSON.parse(JSON.stringify(usualDay(emp,d))));filled++;});
     updBadge(emp.id);
   });
   autoSave(null);
@@ -443,18 +500,11 @@ function showSkeleton(){
   </div></div>`;
 }
 
-// ── FAB VISIBILITY (mobile only, schedule tab) ──
+// ── SCROLL-TO-TOP VISIBILITY ──
+// The floating 👥 button that sat beside this repeated "Assign shifts" and went with the
+// 2026-10-20 rebuild; Assign lives under More now.
 function updateFAB(){
-  const fab=document.getElementById("fab");
   const stt=document.getElementById("scroll-top");
-  if(!fab)return;
-  const isMobile=window.innerWidth<=900;
-  if(isMobile&&S.tab==="schedule"&&S.employees.length>0){
-    fab.classList.add("fab-show");
-  } else {
-    fab.classList.remove("fab-show");
-    fab.style.display="none";
-  }
   // Scroll to top — show when scrolled >300px on history tab
   if(stt){
     if(window.scrollY>300&&S.tab==="history"){
@@ -543,43 +593,42 @@ function applyWH(){
 }
 
 // ── TASK MANAGER ──
-function openTaskMgr(){openModal(buildTMHtml(),"460px");}
+function openTaskMgr(){openModal(buildTMHtml(),"480px");}
+// Jobs first, then time away. Time away is always grey, so it has no colour to pick. Rows
+// carry their index into `tasks` (data-i): tmLC / tmCC / tmDel address tasks by index, and
+// grouping the list means the screen order is no longer the array order.
+function tmRow(t,i){
+  const away=isAwayTask(t.id);
+  return`<div class="titem">
+    ${away?`<span class="tswatch tswatch-away">${typeIcon(t)}</span>`:`<div class="tswatch" data-i="${i}" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div>`}
+    <input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>
+    ${!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.38);flex-shrink:0;font-style:italic">default</span>`}
+  </div>`;
+}
+function tmListHtml(){
+  const idx=tasks.map((t,i)=>[t,i]);
+  return`<div class="sect-label">Jobs</div>${idx.filter(([t])=>!isAwayTask(t.id)).map(([t,i])=>tmRow(t,i)).join("")}
+    <div class="sect-label" style="margin-top:14px">Time away · counts no hours</div>${idx.filter(([t])=>isAwayTask(t.id)).map(([t,i])=>tmRow(t,i)).join("")}`;
+}
 function buildTMHtml(){
-  let h=`<div class="modal-title">Customize Tasks</div>
-  <div class="modal-sub">Rename, recolor, or create tasks specific to your team.</div>
-  <div id="tmList">`;
-  // Off and Sick are day STATUSES, not job types — they are set on the day itself
-  // (step 1 of the shift box) and are filtered out of every task picker there is.
-  // Listing them here sent people hunting for a Sick they could never select
-  // (v682). Skipped in place, never spliced: tmLC/tmCC/tmDel address tasks by
-  // index, so reindexing this list would edit the wrong job type.
-  tasks.forEach((t,i)=>{
-    if(t.id==="off"||t.id==="sick")return;
-    h+=`<div class="titem">
-      <div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div>
-      <input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>
-      ${!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.28);flex-shrink:0;font-style:italic">default</span>`}
-    </div>`;
-  });
-  h+=`</div>
+  return`<div class="modal-title">Job types &amp; time away</div>
+  <div class="modal-sub">Rename, recolour, or add your own.</div>
+  <div id="tmList">${tmListHtml()}</div>
   <div class="modal-divider"></div>
-  <div class="sect-label">Add New Task</div>
+  <div class="sect-label">Add new</div>
   <div class="add-task-row">
     <div class="new-color-wrap" id="ncw" style="background:#1a7a3c"><input type="color" id="ncol" value="#1a7a3c" oninput="document.getElementById('ncw').style.background=this.value"></div>
-    <input class="new-tname" id="nname" placeholder="e.g. Showing, Admin, Open House…" onkeydown="if(event.key==='Enter')JWG.tmAdd()">
+    <input class="new-tname" id="nname" placeholder="e.g. Showing, Training, Open House…" onkeydown="if(event.key==='Enter')JWG.tmAdd()">
     <button class="add-tbtn" onclick="JWG.tmAdd()">Add</button>
   </div>
+  <label class="tm-away-opt"><input type="checkbox" id="naway"> Time away, not a job (grey, no hours)</label>
   <div style="display:flex;justify-content:flex-end;margin-top:20px"><button class="modal-done" onclick="JWG.closeModal()">Done</button></div>`;
-  return h;
 }
-function reTMList(){const el=document.getElementById("tmList");if(!el)return;let h="";tasks.forEach((t,i)=>{if(t.id==="off"||t.id==="sick")return;h+=`<div class="titem"><div class="tswatch" style="background:${t.dot}"><input type="color" value="${t.dot}" oninput="JWG.tmCC(${i},this.value)"></div><input class="tname" value="${esc(t.label)}" oninput="JWG.tmLC(${i},this.value)"${t.builtIn?' title="Built-in"':''}>` + (!t.builtIn?`<button class="tdelbtn" onclick="JWG.tmDel(${i})">Remove</button>`:`<span style="font-size:10px;color:rgba(0,0,0,0.28);flex-shrink:0;font-style:italic">default</span>`) + `</div>`;});el.innerHTML=h;}
+function reTMList(){const el=document.getElementById("tmList");if(el)el.innerHTML=tmListHtml();}
 function tmLC(i,v){tasks[i].label=v;saveTasks();}
 function tmCC(i,hex){
-  const[r,g,b]=hex2rgb(hex);
-  tasks[i].dot=hex;
-  tasks[i].bg=`rgba(${r},${g},${b},0.12)`;
-  tasks[i].text=darken(hex);
-  const sw=document.querySelectorAll(".tswatch");if(sw[i])sw[i].style.background=hex;
+  Object.assign(tasks[i],taskColours(hex));
+  const sw=document.querySelector(`.tswatch[data-i="${i}"]`);if(sw)sw.style.background=hex;
   saveTasks();
 }
 // Removing a job type does not just remove the type: it strips that job off
@@ -617,7 +666,7 @@ async function tmDel(i){
     if(emp[d]?.shifts){
       emp[d].shifts=emp[d].shifts.map(sh=>{const t=getShiftTasks(sh).filter(t=>t!==id);return{...sh,tasks:t};}).filter(sh=>sh.tasks.length>0);
     }
-    if(emp[d]?.shifts?.length===0&&emp[d]?.status==="work")emp[d].status="off";
+    if(emp[d])emp[d]=normDay(emp[d]);
   }));
   saveTasks();
   // The schedule really changed, so save it now rather than leaving a wiped week
@@ -626,7 +675,7 @@ async function tmDel(i){
   reTMList();
   toast(hitShifts?`"${label}" removed, and taken off ${hitShifts} shift${hitShifts===1?"":"s"}`:`"${label}" removed`);
 }
-function tmAdd(){const n=document.getElementById("nname"),c=document.getElementById("ncol");const nm=(n?.value||"").trim();if(!nm){toast("Enter a task name","error");return;}const hex=c?.value||"#1a7a3c";const[r,g,b]=hex2rgb(hex);tasks.push({id:"c"+Date.now(),label:nm,bg:`rgba(${r},${g},${b},0.12)`,text:darken(hex),dot:hex});saveTasks();if(n)n.value="";reTMList();toast(`"${nm}" added`);}
+function tmAdd(){const n=document.getElementById("nname"),c=document.getElementById("ncol"),aw=document.getElementById("naway");const nm=(n?.value||"").trim();if(!nm){toast("Enter a name","error");return;}const away=!!(aw&&aw.checked);tasks.push({id:"c"+Date.now(),label:nm,...taskColours(away?AWAY_GREY:(c?.value||"#1a7a3c")),...(away?{away:true}:{})});saveTasks();if(n)n.value="";if(aw)aw.checked=false;reTMList();toast(`"${nm}" added`);}
 
 // ── RENDER ──
 /* ===== shifts.js ===== */
@@ -649,262 +698,187 @@ function getShiftTasks(sh){if(!sh)return[];return sh.tasks&&sh.tasks.length?sh.t
 function shiftTaskLabel(sh,tm){return getShiftTasks(sh).map(id=>(tm[id]?.label||id)).join(" + ")||"(no task)";}
 
 // ── SHIFT MODAL ──
-let _selTasks=[];  // array of selected task IDs (supports multi-task)
-let _editShiftIdx=null;
-let _editEmpId=null;
-let _editDay=null;
+// ── DAY EDITOR ──────────────────────────────────────────
+// Clicking a day opens its editor: a panel beside the grid on a computer, a sheet that slides
+// up on a phone (Barb picked the tidy grid, and liked the person cards for phones — 2026-10-20).
+// Every tap saves. The old full-page box held a pick until "Add shift" and threw it away on
+// Close; now a job, a time-away type or an hour button writes the day straight away.
+// _ed.idx is the entry the hour buttons act on; -1 means the next pick adds another entry.
+const HOUR_PRESETS=[["7:00","16:00"],["7:00","17:00"],["8:30","16:30"],["10:00","16:00"],["15:00","19:00"]];
+let _ed=null;
+function isPhone(){return window.innerWidth<=900;}
 function openShiftModal(empId,day){
-  const emp=S.employees.find(e=>e.id===empId);
   if(!S.schedule[empId])S.schedule[empId]=defSched();
-  const dayData=S.schedule[empId][day]||{status:"off",shifts:[]};
-  _selTasks=[];
-  _editShiftIdx=null;
-  renderShiftModal(empId,day,emp,dayData);
+  const n=((S.schedule[empId][day]||{}).shifts||[]).length;
+  _ed={empId,day,idx:n?n-1:-1,custom:false};
+  paintEditor();
 }
-function renderShiftModal(empId,day,emp,dayData){
-  const tm=TM();
-  const defStart=`${WH.start}:00`,defEnd=`${WH.end}:00`;
-  const shifts=dayData.shifts||[];
-  const status=dayData.status||"off";
+function closeEditor(){_ed=null;paintEditor();}
+function edDay(){return normDay(S.schedule[_ed.empId][_ed.day]);}
+function edWrite(shifts){
+  S.schedule[_ed.empId][_ed.day]=normDay({...edDay(),shifts});
+  if(_ed.idx>=shifts.length)_ed.idx=shifts.length-1;
+  updBadge(_ed.empId);autoSave(_ed.empId);paintEditor();
+}
+// A new job lands on the hours this person last worked it, so office staff get 8:30–4:30 and
+// the cutting crew 7–4 without touching an hour button.
+function lastHoursFor(empId,taskId){
+  const sc=S.schedule[empId]||{};let any=null;
+  for(const d of DAYS){
+    for(const sh of((sc[d]||{}).shifts||[])){
+      if(!sh.start||!sh.end||shiftIsAway(sh))continue;
+      if(getShiftTasks(sh).includes(taskId))return[sh.start,sh.end];
+      any=any||[sh.start,sh.end];
+    }
+  }
+  return any||HOUR_PRESETS[0];
+}
+// A second entry starts where the last timed one ends.
+function nextHours(shifts){
+  const timed=shifts.filter(sh=>sh.start&&sh.end);
+  if(!timed.length)return HOUR_PRESETS[0];
+  const last=timed[timed.length-1].end,e=Math.min(toHrs(last)+2,23);
+  return[last,`${Math.floor(e)}:${e%1?"30":"00"}`];
+}
+function edJob(id){
+  const shifts=[...edDay().shifts],cur=_ed.idx>=0?shifts[_ed.idx]:null;
+  if(cur&&!shiftIsAway(cur)){shifts[_ed.idx]={...cur,tasks:[id]};}
+  else if(_ed.idx===-1&&shifts.length){
+    const[s,e]=nextHours(shifts),entry={tasks:[id],start:s,end:e};
+    if(hasOverlap(shifts,entry,-1)){toast("That overlaps another entry — set its hours after adding","error");return;}
+    shifts.push(entry);_ed.idx=shifts.length-1;
+  }
+  else if(cur&&shifts.length>1){const[s,e]=lastHoursFor(_ed.empId,id);shifts[_ed.idx]={tasks:[id],start:cur.start||s,end:cur.end||e};}
+  else{const[s,e]=lastHoursFor(_ed.empId,id);shifts.splice(0,shifts.length,{tasks:[id],start:s,end:e});_ed.idx=0;}
+  edWrite(shifts);
+}
+function edAway(id){
+  const shifts=[...edDay().shifts],cur=_ed.idx>=0?shifts[_ed.idx]:null;
+  if(cur&&shiftIsAway(cur)){shifts[_ed.idx]={...cur,tasks:[id]};}
+  else if(_ed.idx===-1&&shifts.length){shifts.push({tasks:[id]});_ed.idx=shifts.length-1;}
+  else{shifts.splice(0,shifts.length,{tasks:[id]});_ed.idx=0;}
+  edWrite(shifts);
+}
+function edHrs(s,e){
+  const shifts=[...edDay().shifts],cur=_ed.idx>=0?shifts[_ed.idx]:null;
+  if(!cur){toast("Pick a job first, then its hours","error");return;}
+  if(toHrs(e)<=toHrs(s)){toast("End time must be after start","error");return;}
+  const next={...cur,start:s,end:e};
+  if(hasOverlap(shifts,next,_ed.idx)){toast("Those hours overlap another entry on this day","error");return;}
+  shifts[_ed.idx]=next;_ed.custom=false;
+  edWrite(shifts);
+}
+function edAllDay(){
+  const shifts=[...edDay().shifts],cur=shifts[_ed.idx];
+  if(!cur||!shiftIsAway(cur))return;
+  const{start,end,...rest}=cur;shifts[_ed.idx]=rest;
+  edWrite(shifts);
+}
+function edCustom(){_ed.custom=!_ed.custom;paintEditor();}
+function edCustomSet(){edHrs(document.getElementById("dp_s").value,document.getElementById("dp_e").value);}
+function edSel(i){_ed.idx=i;_ed.custom=false;paintEditor();}
+function edAdd(){_ed.idx=-1;_ed.custom=false;paintEditor();}
+function edRemove(i){const shifts=[...edDay().shifts];shifts.splice(i,1);_ed.idx=shifts.length-1;edWrite(shifts);}
+function edClear(){_ed.idx=-1;edWrite([]);}
+function edNote(val){
+  const dd=edDay();
+  S.schedule[_ed.empId][_ed.day]=normDay({...dd,note:val.trim()});
+  autoSave(_ed.empId);
+}
+// The Jeff's Junk strip's "Use this" (app-jwg-feed.js): put a booking on the day as a job.
+function edApply(id,s,e){
+  const shifts=[...edDay().shifts],entry={tasks:[id],start:s,end:e};
+  if(!shifts.length||shifts.every(shiftIsAway)){shifts.splice(0,shifts.length,entry);_ed.idx=0;}
+  else if(hasOverlap(shifts,entry,-1)){toast("That booking overlaps a shift already on this day","error");return;}
+  else{shifts.push(entry);_ed.idx=shifts.length-1;}
+  edWrite(shifts);
+}
+function paintEditor(){
+  refreshGrid();
+  const phone=isPhone();
+  const panel=document.getElementById("day-panel");
+  if(panel)panel.innerHTML=!phone&&_ed?editorHtml():panelIdleHtml();
+  const sheet=document.getElementById("day-sheet");
+  if(sheet){
+    sheet.classList.toggle("open",phone&&!!_ed);
+    sheet.innerHTML=phone&&_ed?sheetHtml():"";
+  }
+  if(_ed)document.dispatchEvent(new CustomEvent("jwg:editor",{detail:{empId:_ed.empId,day:_ed.day}}));
+}
+function sheetHtml(){return`<button class="ds-scrim" onclick="JWG.closeEditor()" aria-label="Close"></button><div class="ds-sheet"><div class="ds-grab"></div>${editorHtml()}</div>`;}
+function panelIdleHtml(){
+  return`<div class="dp-idle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18"/></svg><b>Click a day</b><span>to set the job, hours or time away</span></div>`;
+}
+function editorHtml(){
+  const emp=S.employees.find(e=>e.id===_ed.empId)||{name:""};
+  const dd=edDay(),shifts=dd.shifts,cur=_ed.idx>=0?shifts[_ed.idx]:null;
+  const curAway=!!cur&&shiftIsAway(cur),curIds=cur?getShiftTasks(cur):[];
+  const[abg,afg]=ac(emp.name);
+  const dt=new Date(getWS(S.weekOffset));dt.setDate(dt.getDate()+DAYS.indexOf(_ed.day));
+  const dLbl=`${_ed.day} · ${dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}`;
+  const X=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
 
-  const working=status!=="dayoff"&&status!=="sick"&&status!=="nonworking";
+  const entries=shifts.length?shifts.map((sh,i)=>{
+    const t=taskOf(getShiftTasks(sh)[0]),away=shiftIsAway(sh);
+    const lbl=getShiftTasks(sh).map(taskLabel).join(" + ");
+    const when=sh.start&&sh.end?rangeShort(sh.start,sh.end):(away?"All day":"");
+    return`<div class="dp-entry${i===_ed.idx?" on":""}${away?" away":""}"${away?"":` style="--tb:${t?t.bg:"#f1f5f9"};--tt:${t?t.text:"#334155"}"`}>
+      <button class="dp-entry-main" onclick="JWG.edSel(${i})">${typeTile(t,30)}<span class="dp-entry-nm">${esc(lbl)}</span><span class="dp-entry-t">${when}</span></button>
+      <button class="dp-x" onclick="JWG.edRemove(${i})" aria-label="Remove ${esc(lbl)}">${X}</button>
+    </div>`;
+  }).join(""):`<div class="dp-none">Not working yet</div>`;
+  const adding=_ed.idx===-1&&shifts.length;
 
-  // Build existing shifts list — with edit support. One card per shift: job tile, name, hours, edit,
-  // remove. The task's own colours ride in as --sbg / --sdot / --stx (styles: app-jwg-theme.css).
-  let shiftListHtml="";
-  if(shifts.length>0){
-    shifts.forEach((sh,i)=>{
-      const taskIds=getShiftTasks(sh);
-      const firstT=tm[taskIds[0]];
-      const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
-      const cardVars=`--sbg:${firstT?.bg||"#f5f5f5"};--sdot:${firstT?.dot||"#ccc"};--stx:${firstT?.text||"#333"}`;
-      if(_editShiftIdx===i){
-        // Editing this entry inline
-        shiftListHtml+=`<div class="sm-shift is-editing" style="${cardVars}">
-          <div class="sm-shift-top">
-            ${schChip(firstT,22)}
-            <span class="sm-shift-name">${esc(allLabels)}</span>
-            <span class="sm-shift-tag">editing</span>
-          </div>
-          <div class="sm-edit-row">
-            <div class="shift-form">
-              <div><div class="sf-label">Start</div><select class="sf-select" id="edit_s${i}">${buildTimeOpts(sh.start||defStart)}</select></div>
-              <div><div class="sf-label">End</div><select class="sf-select" id="edit_e${i}">${buildTimeOpts(sh.end||defEnd)}</select></div>
-            </div>
-            <div class="sm-edit-actions">
-              <button type="button" class="sm-ebtn" onclick="JWG.cancelEditShift()">Cancel</button>
-              <button type="button" class="sm-ebtn is-primary" onclick="JWG.saveEditShift('${empId}','${day}',${i})">Save</button>
-            </div>
-          </div>
-        </div>`;
-      } else {
-        shiftListHtml+=`<div class="sm-shift" style="${cardVars}">
-          ${schChip(firstT,26)}
-          <span class="sm-shift-name">${esc(allLabels)}</span>
-          <span class="sm-shift-time">${fmtRange(sh.start,sh.end)}</span>
-          <button type="button" class="sm-ibtn" title="Change the hours" aria-label="Edit shift" onclick="JWG.startEditShift('${empId}','${day}',${i})">✎</button>
-          <button type="button" class="sm-ibtn is-del" title="Remove this shift" aria-label="Remove shift" onclick="JWG.removeShiftEntry('${empId}','${day}',${i})">✕</button>
-        </div>`;
-      }
-    });
+  const jobs=jobTypes().map(t=>{
+    const on=!curAway&&curIds.includes(t.id);
+    return`<button class="task-opt dp-job${on?" sel":""}" id="topt_${t.id}" onclick="JWG.edJob('${t.id}')"${on?` style="border-color:${t.dot};background:${t.bg}"`:""}>${typeTile(t,28)}<span>${esc(t.label)}</span></button>`;
+  }).join("");
+
+  let hours="";
+  if(cur){
+    const timed=cur.start&&cur.end;
+    if(curAway)hours+=`<button class="dp-hc${timed?"":" on"}" onclick="JWG.edAllDay()">All day</button>`;
+    const inPreset=HOUR_PRESETS.some(([s,e])=>s===cur.start&&e===cur.end);
+    HOUR_PRESETS.forEach(([s,e])=>{hours+=`<button class="dp-hc${cur.start===s&&cur.end===e?" on":""}" onclick="JWG.edHrs('${s}','${e}')">${rangeShort(s,e)}</button>`;});
+    if(timed&&!inPreset)hours+=`<button class="dp-hc on" onclick="JWG.edCustom()">${rangeShort(cur.start,cur.end)}</button>`;
+    hours+=`<button class="dp-hc${_ed.custom?" on":""}" onclick="JWG.edCustom()">Other…</button>`;
+    if(_ed.custom){
+      const[ds,de]=timed?[cur.start,cur.end]:HOUR_PRESETS[0];
+      hours+=`<div class="dp-custom"><select id="dp_s" class="sf-select">${buildTimeOpts(ds)}</select><span>to</span><select id="dp_e" class="sf-select">${buildTimeOpts(de)}</select><button class="dp-set" onclick="JWG.edCustomSet()">Set</button></div>`;
+    }
+  }else{
+    hours=`<div class="dp-hint">Pick a job or time away first</div>`;
   }
 
-  // ONE question, one list of answers. The status switch and the job tiles used
-  // to be two separate controls — people answered one and missed the other
-  // (Jake, 2026-10-05: "user was confused becuase they lived in 2 diffferent
-  // places"). They are now a single grid: the jobs, a rule, then the three ways
-  // of not working. That is also how the data already thinks — Off and Sick sit
-  // in the same tasks list as Cutting Crew and Bins, and were only filtered out
-  // at display time.
-  const _ws=getWS(S.weekOffset),_dt=new Date(_ws);_dt.setDate(_dt.getDate()+DAYS.indexOf(day));
-  const _dayDate=_dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
-  const[_abg,_afg]=ac(emp?.name||"");
-  const _first=esc((emp?.name||"").split(" ")[0])||"They";
-  let h=`<div class="sm-head">
-    <div class="sm-id">
-      <div class="sm-avatar" style="background:${_abg};color:${_afg}">${empInitials(emp?.name||"")}</div>
-      <div><div class="sm-name">${esc(emp?.name||"")}</div><div class="sm-daylbl">${day} · ${_dayDate}</div></div>
-    </div>
-  </div>
-  <div class="sm-q">What's ${_first} doing ${day}?</div>`;
+  const aways=awayTypes().map(t=>{
+    const on=curAway&&curIds.includes(t.id);
+    return`<button class="dp-ac${on?" on":""}" onclick="JWG.edAway('${t.id}')">${typeIcon(t)}${esc(t.label)}</button>`;
+  }).join("");
 
-  if(!working){
-    // Not working: one line and an Undo. Nothing else to fill in, and the footer
-    // loses "Add shift" because there is nothing to add.
-    const _lbl=status==="sick"?"off sick":status==="nonworking"?"on a non working day":"on a day off";
-    const _tile=status==="sick"?schTile("sick",22):schTile("off",22);
-    h+=`<div class="sm-offnote sm-off-${status}">
-      ${_tile}
-      <span>${esc(emp?.name||"They")} is <b>${_lbl}</b> on ${day}. Nothing else to fill in.</span>
-      <button class="sm-undo" onclick="JWG.setDayWorking('${empId}','${day}')">Undo</button>
-    </div>`;
-  } else {
-    // Top to bottom, the order people work in: what is already on the day, then pick a job, set
-    // the hours and Add shift (hours and the button sit right under the tiles), then the not-working
-    // choices on their own band at the bottom - they replace the day's shifts, so they stay apart.
-    h+=`<div class="sm-body">
-    <div class="sm-top">
-      <div class="sm-sched">
-        <div class="sect-label">On the schedule</div>
-        ${shifts.length?`<div class="sm-shifts">${shiftListHtml}</div>`:`<div class="sm-emptyday">Nothing yet — pick a job below, set the hours, then Add shift.</div>`}
-      </div>
-      <div class="day-note-wrap">
-        <div class="sect-label">📝 Notes <span style="font-weight:400;opacity:.6;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <textarea class="day-note" id="day_note" rows="2" placeholder="e.g. Leaving early at 2pm, covering for Sarah, key with manager…" oninput="JWG.saveDayNote('${empId}','${day}',this.value)">${esc(dayData.note||"")}</textarea>
-      </div>
+  return`<div class="dp-editor">
+    <div class="dp-head">
+      <span class="dp-av" style="background:${abg};color:${afg}">${empInitials(emp.name)}</span>
+      <div class="dp-who"><b>${esc(emp.name)}</b><span>${dLbl}</span></div>
+      <button class="dp-close" onclick="JWG.closeEditor()" aria-label="Close">${X}</button>
     </div>
-    <div class="sm-pickwrap">
-      <div class="sect-label">On a job <span class="sm-hint">Pick one or more, set the hours, then Add shift.</span></div>
-      <div class="task-grid">`;
-    tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
-      h+=`<button class="task-opt" id="topt_${t.id}"
-        style="background:${t.bg};color:${t.text};border-color:transparent"
-        onclick="JWG.pickTask('${t.id}')">
-        ${schChip(t,24)}
-        ${esc(t.label)}
-      </button>`;
-    });
-    h+=`</div>
-      <div class="sm-when">
-        <div class="shift-form">
-          <div><div class="sf-label">Start</div><select class="sf-select" id="sm_start">${buildTimeOpts(defStart)}</select></div>
-          <div><div class="sf-label">End</div><select class="sf-select" id="sm_end">${buildTimeOpts(defEnd)}</select></div>
-        </div>
-        <button class="modal-add-btn" onclick="JWG.addShiftEntry('${empId}','${day}')">Add shift</button>
-      </div>
+    <div class="dp-q"></div>
+    <div class="dp-entries">${entries}
+      ${adding?`<div class="dp-adding">Pick a job or time away to add <button onclick="JWG.edSel(${shifts.length-1})">Cancel</button></div>`:(shifts.length?`<button class="dp-add" onclick="JWG.edAdd()">+ Add another</button>`:"")}
     </div>
-    <div class="sm-off">
-      <div class="sm-off-lbl"><b>Not working instead</b><span>Replaces this day's shifts</span></div>
-      <div class="sm-offgrid">
-        <button class="sm-off-opt" onclick="JWG.markDayOff('${empId}','${day}')">${schTile("off",20)}Day off</button>
-        <button class="sm-off-opt is-sick" onclick="JWG.markDaySick('${empId}','${day}')">${schTile("sick",20)}Off sick</button>
-        <button class="sm-off-opt" onclick="JWG.markDayNonWorking('${empId}','${day}')">${schTile("off",20)}Non working</button>
-      </div>
-    </div>
-    </div>`;
-  }
-  h+=`<div class="modal-footer-main">
-    <button class="modal-cancel" onclick="JWG.closeSaveShift('${empId}','${day}')">Close</button>
+    <div class="dp-sec"><div class="dp-lab">Job</div><div class="dp-jobs">${jobs}</div></div>
+    <div class="dp-sec"><div class="dp-lab">Hours</div><div class="dp-hours">${hours}</div></div>
+    <div class="dp-sec"><div class="dp-lab">Time away</div><div class="dp-aways">${aways}</div></div>
+    <textarea class="dp-note" rows="2" placeholder="Note (optional)" oninput="JWG.edNote(this.value)">${esc(dd.note||"")}</textarea>
+    ${shifts.length?`<div class="dp-foot"><button class="dp-clear" onclick="JWG.edClear()">Clear day</button></div>`:""}
   </div>`;
-  openModal(h,null,true);
 }
-
-function startEditShift(empId,day,idx){
-  _editShiftIdx=idx;
-  _editEmpId=empId;
-  _editDay=day;
-  const emp=S.employees.find(e=>e.id===empId);
-  const dayData=S.schedule[empId][day];
-  renderShiftModal(empId,day,emp,dayData);
-}
-function cancelEditShift(){
-  _editShiftIdx=null;
-  if(_editEmpId&&_editDay){
-    const emp=S.employees.find(e=>e.id===_editEmpId);
-    const dayData=S.schedule[_editEmpId]?.[_editDay];
-    if(emp&&dayData)renderShiftModal(_editEmpId,_editDay,emp,dayData);
-  }
-}
-
-function saveEditShift(empId,day,idx){
-  const s=document.getElementById(`edit_s${idx}`)?.value;
-  const e=document.getElementById(`edit_e${idx}`)?.value;
-  if(s&&e){
-    const[sh,sm]=s.split(":").map(Number),[eh,em]=e.split(":").map(Number);
-    if((eh+em/60)<=(sh+sm/60)){toast("End time must be after start","error");return;}
-  }
-  if(hasOverlap(S.schedule[empId][day].shifts||[],{start:s,end:e},idx)){toast("This shift overlaps with an existing one — adjust the times","error");return;}
-  S.schedule[empId][day].shifts[idx].start=s;
-  S.schedule[empId][day].shifts[idx].end=e;
-  _editShiftIdx=null;
-  const emp=S.employees.find(e=>e.id===empId);
-  renderShiftModal(empId,day,emp,S.schedule[empId][day]);
-  refreshGrid();updBadge(empId);
-  autoSave(empId);
-  toast("Time updated");
-}
-
-function pickTask(id){
-  const i=_selTasks.indexOf(id);
-  if(i>=0) _selTasks.splice(i,1); else _selTasks.push(id);
-  const tm=TM();
-  document.querySelectorAll(".task-opt[id^='topt_']").forEach(b=>{b.classList.remove("sel");b.style.borderColor="transparent";});
-  _selTasks.forEach(tid=>{
-    const el=document.getElementById("topt_"+tid);
-    if(el){el.classList.add("sel");const t=tm[tid];if(t)el.style.borderColor=t.dot;}
-  });
-}
-
-function addShiftEntry(empId,day){
-  const s=document.getElementById("sm_start")?.value;
-  const e=document.getElementById("sm_end")?.value;
-  if(!_selTasks.length){toast("Select at least one task first","error");return;}
-  if(s&&e){
-    const[sh,sm]=s.split(":").map(Number),[eh,em]=e.split(":").map(Number);
-    if((eh+em/60)<=(sh+sm/60)){toast("End time must be after start","error");return;}
-  }
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  const dayData=S.schedule[empId][day];
-  const newShift={tasks:[..._selTasks],start:s,end:e};
-  if(hasOverlap(dayData.shifts||[],newShift,-1)){toast("This shift overlaps with an existing one — adjust the times","error");return;}
-  dayData.status="work";
-  dayData.shifts=[...(dayData.shifts||[]),newShift];
-  _selTasks=[];
-  closeModal();
-  refreshGrid();updBadge(empId);autoSave(empId);
-  const tm=TM();
-  const label=newShift.tasks.map(id=>tm[id]?.label||id).join(" + ");
-  toast(`"${label}" added ✓`);
-}
-
-function removeShiftEntry(empId,day,idx){
-  if(!S.schedule[empId])return;
-  const dayData=S.schedule[empId][day];
-  dayData.shifts.splice(idx,1);
-  if(dayData.shifts.length===0)dayData.status="off";
-  const emp=S.employees.find(e=>e.id===empId);
-  renderShiftModal(empId,day,emp,dayData);
-  refreshGrid();updBadge(empId);autoSave(empId);
-}
-
-function markDayOff(empId,day){
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  S.schedule[empId][day]={status:"dayoff",shifts:[]};
-  closeModal();refreshGrid();updBadge(empId);autoSave(empId);
-}
-
-function markDaySick(empId,day){
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  S.schedule[empId][day]={status:"sick",shifts:[]};
-  closeModal();refreshGrid();updBadge(empId);autoSave(empId);
-}
-
-function markDayNonWorking(empId,day){
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  S.schedule[empId][day]={status:"nonworking",shifts:[]};
-  closeModal();refreshGrid();updBadge(empId);autoSave(empId);
-}
-
-function clearDayStatus(empId,day){
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  S.schedule[empId][day]={status:"off",shifts:[]};
-  const emp=S.employees.find(e=>e.id===empId);
-  renderShiftModal(empId,day,emp,S.schedule[empId][day]);
-  refreshGrid();updBadge(empId);autoSave(empId);
-}
-
-function setDayWorking(empId,day){
-  const dd=S.schedule[empId]&&S.schedule[empId][day];
-  if(dd&&(dd.status==="dayoff"||dd.status==="sick"||dd.status==="nonworking"))clearDayStatus(empId,day);
-}
-function closeSaveShift(empId,day){
-  closeModal();refreshGrid();updBadge(empId);
-}
-function saveDayNote(empId,day,val){
-  if(!S.schedule[empId])S.schedule[empId]=defSched();
-  S.schedule[empId][day].note=val.trim();
-  autoSave(empId);
-}
+// Redraw only when the screen crosses between phone and computer layout. A phone keyboard
+// opening is a resize too, and redrawing then would wipe a note half-typed.
+let _edPhone=isPhone();
+window.addEventListener("resize",()=>{
+  const p=isPhone();if(p===_edPhone)return;_edPhone=p;
+  if(_ed&&document.getElementById("day-panel"))paintEditor();
+});
 
 /* ===== multi.js ===== */
 // ── MULTI.JS ──────────────────────────────────────────
@@ -931,7 +905,7 @@ function renderMultiAssign(){
 
   // Task grid
   let taskHtml='<div class="task-grid">';
-  tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
+  [...jobTypes(),...awayTypes()].forEach(t=>{
     const sel=_ma.tasks.includes(t.id);
     taskHtml+=`<button class="task-opt${sel?" sel":""}" id="matopt_${t.id}"
       style="background:${t.bg};color:${t.text};border-color:${sel?t.dot:"transparent"}"
@@ -1054,6 +1028,10 @@ async function applyMultiAssign(){
   if(!_ma.tasks.length){toast("Select at least one task first","error");return;}
   if(!_ma.days.length){toast("Select at least one day","error");return;}
   if(!_ma.empIds.length){toast("Select at least one employee","error");return;}
+  // Time away is a whole day: it replaces what is there. A job is added alongside, and skips
+  // anyone away that day rather than writing over their vacation.
+  const awayPick=_ma.tasks.every(isAwayTask);
+  if(!awayPick&&_ma.tasks.some(isAwayTask)){toast("Pick jobs or time away, not both","error");return;}
   if(s&&e){
     const[sh,sm]=s.split(":").map(Number),[eh,em]=e.split(":").map(Number);
     if((eh+em/60)<=(sh+sm/60)){toast("End time must be after start","error");return;}
@@ -1066,19 +1044,18 @@ async function applyMultiAssign(){
   if(_ma.empIds.length*_ma.days.length>1&&!(await jwgConfirm({
     title:"Assign shifts",
     target:_whoStr,
-    message:`"${_taskStr}" ${s&&e?fmtRange(s,e)+" ":""}goes on ${_ma.days.length} day${_ma.days.length===1?"":"s"} for ${_ma.empIds.length} ${_ma.empIds.length===1?"person":"people"}. Days that already have an overlapping shift are skipped.`,
+    message:awayPick?`"${_taskStr}" (all day) replaces whatever is on ${_ma.days.length} day${_ma.days.length===1?"":"s"} for ${_ma.empIds.length} ${_ma.empIds.length===1?"person":"people"}.`:`"${_taskStr}" ${s&&e?fmtRange(s,e)+" ":""}goes on ${_ma.days.length} day${_ma.days.length===1?"":"s"} for ${_ma.empIds.length} ${_ma.empIds.length===1?"person":"people"}. Days with time away or an overlapping shift are skipped.`,
     confirmLabel:`Assign ${_ma.empIds.length*_ma.days.length} day${_ma.empIds.length*_ma.days.length===1?"":"s"}`
   })))return;
   let skipped=0;
-  const newShift={tasks:[..._ma.tasks],start:s,end:e};
+  const newShift=awayPick?{tasks:[..._ma.tasks]}:{tasks:[..._ma.tasks],start:s,end:e};
   _ma.empIds.forEach(empId=>{
     if(!S.schedule[empId])S.schedule[empId]=defSched();
     _ma.days.forEach(day=>{
-      if(!S.schedule[empId][day])S.schedule[empId][day]={status:"off",shifts:[]};
-      const dayData=S.schedule[empId][day];
-      if(hasOverlap(dayData.shifts||[],newShift,-1)){skipped++;return;}
-      dayData.status="work";
-      dayData.shifts=[...(dayData.shifts||[]),{tasks:[...newShift.tasks],start:newShift.start,end:newShift.end}];
+      const dayData=normDay(S.schedule[empId][day]);
+      if(awayPick){S.schedule[empId][day]=normDay({...dayData,shifts:[{tasks:[...newShift.tasks]}]});return;}
+      if(dayData.status==="away"||hasOverlap(dayData.shifts,newShift,-1)){skipped++;return;}
+      S.schedule[empId][day]=normDay({...dayData,shifts:[...dayData.shifts,{...newShift,tasks:[...newShift.tasks]}]});
     });
     updBadge(empId);
   });
@@ -1108,7 +1085,7 @@ function renderMultiClear(){
     <span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0;display:inline-block"></span>
     All Tasks
   </button>`;
-  tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{
+  [...jobTypes(),...awayTypes()].forEach(t=>{
     const sel=_mc.task===t.id;
     taskHtml+=`<button class="task-opt${sel?" sel":""}" style="background:${t.bg};color:${t.text};border-color:${sel?t.dot:"transparent"}" onclick="JWG.mcPickTask('${t.id}')">
       ${schChip(t,24)}
@@ -1224,7 +1201,7 @@ async function applyMultiClear(){
         // Remove only shifts matching this task (handles both legacy {task} and new {tasks:[]} format)
         const before=dayData.shifts.length;
         dayData.shifts=dayData.shifts.filter(sh=>!getShiftTasks(sh).includes(_mc.task));
-        if(dayData.shifts.length===0)dayData.status="off";
+        S.schedule[empId][day]=normDay(dayData);
         cleared+=before-dayData.shifts.length;
       }
     });
@@ -1288,60 +1265,45 @@ function render(){
 }
 
 // ── SCHEDULE ──
+// One bar: the week, which days show, and the tools. Assign / Clear / Job types / Hours live
+// under More — they used to be five equal buttons plus a floating one that repeated Assign,
+// and nobody could tell which mattered (2026-10-20 rebuild). The grid and the day editor sit
+// side by side; under 900px the grid gives way to one card per person (see buildMobileSched).
 function buildSched(){
   const ws=getWS(S.weekOffset);
-  let h=`<div class="card">
-  <div class="week-nav">
-    <button class="nav-btn" onclick="JWG.prevW()">← Prev</button>
-    <div class="week-label"><strong>${wlbl(S.weekOffset)}</strong><span>${fmtW(ws)}</span></div>
-    <div style="display:flex;gap:6px">${S.weekOffset!==0?`<button class="nav-btn" onclick="JWG.goToday()">Today</button>`:""}<button class="nav-btn" onclick="JWG.nextW()">Next →</button></div>
-  </div>
-  <div class="ctrl-bar">
-    <div class="ctrl-group"><span class="ctrl-label">Show days</span>`;
-
-  // Weekdays first (always shown prominently), weekends as toggleable
-  WEEKDAYS.forEach(d=>{
-    h+=`<button class="day-toggle${S.activeDays.includes(d)?" on":""}" onclick="JWG.toggleDay('${d}')">${d.slice(0,3)}</button>`;
-  });
-  h+=`<div class="ctrl-sep"></div>`;
-  WEEKEND.forEach(d=>{
-    h+=`<button class="day-toggle weekend${S.activeDays.includes(d)?" on":""}" onclick="JWG.toggleDay('${d}')">${d.slice(0,3)}</button>`;
-  });
-
-  h+=`</div>
-    <div class="ctrl-actions">
-      <span class="ctrl-label">Week tools</span>
-      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()" title="For anyone who works the same week every week — set it once and it fills in on its own">🔁 Same every week</button>
-      <button class="ctrl-btn ctrl-btn-accent" onclick="JWG.openMultiAssign()" title="Give the same shift to several people and days at once">➕ Assign shifts</button>
-      <button class="ctrl-btn ctrl-btn-danger" onclick="JWG.openMultiClear()" title="Remove shifts from several people and days at once">🗑 Clear shifts</button>
-      <button class="ctrl-btn" onclick="JWG.openTaskMgr()" title="Edit the list of job types and their colours">🏷️ Job types</button>
-      <button class="ctrl-btn" onclick="JWG.openWHSettings()" title="Change the workday start and end hours this page shows">⏰ Hours ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
+  const dayBtns=DAYS.map(d=>`<button class="day-toggle${WEEKEND.includes(d)?" weekend":""}${S.activeDays.includes(d)?" on":""}" onclick="JWG.toggleDay('${d}')">${d.slice(0,3)}</button>`).join("");
+  let h=`<div class="card sc-card">
+  <div class="sc-top">
+    <div class="sc-week">
+      <button class="sc-nav" onclick="JWG.prevW()" aria-label="Last week"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="sc-wk"><b>${wlbl(S.weekOffset)}</b><span>${fmtW(ws)}</span></div>
+      <button class="sc-nav" onclick="JWG.nextW()" aria-label="Next week"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+      ${S.weekOffset!==0?`<button class="sc-today" onclick="JWG.goToday()">This week</button>`:""}
     </div>
-    <button class="ctrl-btn ctrl-more-btn" onclick="this.closest('.ctrl-bar').classList.toggle('ctrl-expanded')"><span class="ctrl-more-btn-label">☰ More</span></button>
-  </div>`;
+    <div class="sc-days" title="Days shown">${dayBtns}</div>
+    <div class="ctrl-bar"><div class="ctrl-actions">
+      <span id="save-status"></span>
+      <button class="ctrl-btn" onclick="JWG.openUsualWeeks()" title="For anyone who works the same week every week">🔁 Same every week</button>
+      <details class="sc-more"><summary class="ctrl-btn">More</summary><div class="sc-more-menu">
+        <button onclick="JWG.openMultiAssign()">➕ Assign shifts to several people</button>
+        <button onclick="JWG.openMultiClear()">🗑 Clear shifts</button>
+        <button onclick="JWG.openTaskMgr()">🏷️ Job types &amp; time away</button>
+        <button onclick="JWG.openWHSettings()">⏰ Day hours ${fmtHour(WH.start,0)}–${fmtHour(WH.end,0)}</button>
+      </div></details>
+    </div></div>
+  </div>
+  <div class="sc-legend">${jobTypes().map(t=>`<span class="sc-lg">${typeTile(t,22)}${esc(t.label)}</span>`).join("")}<span class="sc-lg"><span class="sc-hatch"></span>Time away</span></div>`;
   if(!S.employees.length){
     h+=`<div class="empty" style="padding:52px 24px;display:flex;flex-direction:column;align-items:center;gap:16px">
       <div style="width:72px;height:72px;border-radius:50%;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:32px;">👥</div>
       <div style="text-align:center">
         <div style="font-size:16px;font-weight:700;color:var(--fg);margin-bottom:6px">No employees yet</div>
-        <div style="font-size:13px;color:var(--fg-muted);max-width:260px;line-height:1.5">Head to the <strong>Team</strong> tab to add your staff, then come back to start scheduling.</div>
+        <div style="font-size:13px;color:var(--fg-muted);max-width:260px;line-height:1.5">Add your staff on the <strong>Team</strong> page, then come back to start scheduling.</div>
       </div>
-      <button class="modal-done" style="padding:10px 24px" onclick="JWG.switchTab('team')">Go to Team →</button>
     </div>`;
   } else {
-    // Try-out of six redesigns of this page (app-schedule-looks.js, 2026-10-20).
-    // Goes once a look is picked and built.
-    h+=`<button class="wk-looks" onclick="ScheduleLooks.open()">✨ <span><b>New looks for this page.</b> Try six designs and pick your favourite.</span><span class="wk-looks-go">Try them →</span></button>`;
-    // Weeks start empty now (no silent pre-fill since v559) — say so and point
-    // at the two ways to fill one, instead of showing a bare grid.
-    // The how-to line used to appear ONLY on a wholly empty week, so in practice
-    // nobody ever saw it: any real week has a shift in it. It now stands all the
-    // time, and names what a cell can do besides a shift — the empty-week version
-    // keeps its extra nudge toward Same every week (v682).
     if(S.employees.every(e=>!empHasWeekData(S.schedule[e.id]))){
-      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Tap any cell to add a shift — or open <b>🔁 Same every week</b> for anyone who works the same week every week.</div>`;
-    } else {
-      h+=`<div class="wk-hint">👆 Tap anyone's day to <b>build a shift</b> — or mark them <b>Day off</b>, <b>Off sick</b> or <b>Non working</b>.</div>`;
+      h+=`<div class="wk-hint">🗓️ <b>${wlbl(S.weekOffset)} is empty.</b>&nbsp;Click any day to fill it in, or use <b>🔁 Same every week</b>.</div>`;
     }
     // Anyone on "same every week" whose week is still empty. The bar only shows
     // while there is something to do, and says exactly who and how many days.
@@ -1359,13 +1321,19 @@ function buildSched(){
         <button class="wkf-btn" onclick="JWG.fillWeekFromUsual()">Fill in this week</button>
       </div>`;
     }
-    h+=`<div class="grid-wrap" id="gw">${buildGrid()}</div>`;
+    const phone=isPhone();
+    h+=`<div class="sc-main">
+      <div class="grid-wrap" id="gw">${buildGrid()}</div>
+      <aside class="day-panel" id="day-panel">${_ed&&!phone?editorHtml():panelIdleHtml()}</aside>
+    </div>`;
     h+=`<div class="msched" id="msched">${buildMobileSched()}</div>`;
-    h+=`<div class="save-bar" id="save-bar"><span id="save-status"></span><span style="font-size:10px;color:var(--fg-subtle)">Auto-saves as you edit</span></div>`;
   }
-  const result=h+`</div>`;
+  // The phone sheet sits OUTSIDE the card: a card lifts on hover with a transform, and a
+  // transformed ancestor pins a position:fixed child to itself instead of to the screen.
+  const sheet=S.employees.length?`<div id="day-sheet" class="day-sheet${_ed&&isPhone()?" open":""}">${_ed&&isPhone()?sheetHtml():""}</div>`:"";
+  const result=h+`</div>`+sheet;
   // After HTML is set, init grid drag and land the grid on today's column
-  setTimeout(()=>{initGridDrag();scrollGridToToday();},0);
+  setTimeout(()=>{initGridDrag();scrollGridToToday();if(_ed)document.dispatchEvent(new CustomEvent("jwg:editor",{detail:{empId:_ed.empId,day:_ed.day}}));},0);
   return result;
 }
 
@@ -1383,23 +1351,45 @@ function buildInsights(){
 }
 
 // ── GRID ──
+// Rows cluster by crew so the people who work together read as a block (Jake, 2026-10-02:
+// bins was two people four rows apart). A-Z sort is the explicit "one flat alphabetical list"
+// escape hatch, so it skips the banding. Within a band people keep the hand-dragged emp_order,
+// managers first. Shared by the grid and the phone cards.
+function crewBands(list){
+  if(S.sortAlpha)return[{name:"",emps:[...list].sort((a,b)=>a.name.localeCompare(b.name))}];
+  const bands=[],seen=new Set(),order=crewGroupOrder();
+  order.forEach(g=>{
+    const inG=list.filter(e=>e.group===g);
+    const ordered=inG.filter(e=>e.manager).concat(inG.filter(e=>!e.manager));
+    ordered.forEach(e=>seen.add(e.id));
+    if(ordered.length)bands.push({name:g,emps:ordered});
+  });
+  const rest=list.filter(e=>!seen.has(e.id));
+  if(rest.length)bands.push({name:order.length?UNGROUPED:"",emps:rest});
+  return bands;
+}
+// One entry inside a grid cell. Jobs are a tinted block with the type's icon and the hours;
+// time away is grey and striped. The job's name stays in the markup (.shift-label) for screen
+// readers and for the Jeff's Junk overlay, which matches bookings to shifts by it.
+function cellEntry(sh){
+  const ids=getShiftTasks(sh),t=taskOf(ids[0]),lbl=ids.map(taskLabel).join(" + ");
+  const when=sh.start&&sh.end?rangeShort(sh.start,sh.end):"";
+  if(shiftIsAway(sh))return`<div class="status-label ce-away" title="${esc(lbl)}${when?" "+when:""}">${typeIcon(t)}<span>${esc(lbl)}</span>${when?`<span class="ce-t">${when}</span>`:""}</div>`;
+  return`<div class="shift-bar ce-job" style="--tb:${t?t.bg:"#f1f5f9"};--tt:${t?t.text:"#334155"}" title="${esc(lbl)}${when?" "+when:""}">${typeTile(t,24)}<span class="shift-txt"><span class="shift-label">${esc(lbl)}</span><span class="shift-times">${when}</span></span></div>`;
+}
 function buildGrid(){
-  const ws=getWS(S.weekOffset),tm=TM();
-  const daySpan=WH.end-WH.start;
-  const todayName=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
+  const ws=getWS(S.weekOffset);
+  const todayName=mTodayName();
   const isCurrentWeek=S.weekOffset===0;
 
-
-  let h=`<table class="sched-grid"><thead><tr><th class="name-col"><div style="display:flex;align-items:center;justify-content:space-between;gap:4px">EMPLOYEE<button onclick="event.stopPropagation();JWG.toggleAlphaSort()" title="${S.sortAlpha?"Sorted A–Z (click for custom order)":"Sort A–Z"}" style="background:${S.sortAlpha?"var(--accent)":"rgba(0,0,0,0.06)"};color:${S.sortAlpha?"white":"var(--fg-muted)"};border:none;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.3px;white-space:nowrap">A–Z</button></div></th>`;
+  let h=`<table class="sched-grid sc-grid"><thead><tr><th class="name-col"><div style="display:flex;align-items:center;justify-content:space-between;gap:4px">TEAM<button onclick="event.stopPropagation();JWG.toggleAlphaSort()" title="${S.sortAlpha?"Sorted A–Z (click for crews)":"Sort A–Z"}" class="az-btn${S.sortAlpha?" on":""}">A–Z</button></div></th>`;
   S.activeDays.forEach(d=>{
     const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
-    const isWknd=WEEKEND.includes(d);
     const isToday=isCurrentWeek&&d===todayName;
-    h+=`<th class="day-col${isToday?" is-today":""}"${isWknd&&!isToday?' style="background:#fafaf8;"':''}>
+    h+=`<th class="day-col${isToday?" is-today":""}${WEEKEND.includes(d)?" is-wknd":""}">
       <div class="th-day-wrap${isToday?" is-today":""}">
-        <div class="th-day${isToday?" is-today":""}"${isWknd&&!isToday?' style="color:#888;"':''}>${d.slice(0,3).toUpperCase()}</div>
+        <div class="th-day${isToday?" is-today":""}">${d.slice(0,3).toUpperCase()}</div>
         <div class="th-date${isToday?" is-today":""}">${dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}</div>
-        ${isToday?`<div class="today-dot"></div>`:""}
       </div>
     </th>`;
   });
@@ -1408,35 +1398,12 @@ function buildGrid(){
   // Soft-removed people only keep a row while this week still holds their shifts
   // (badged, so nothing vanishes silently) — otherwise they're gone from the grid.
   const gridEmps=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
-  const sortedEmps=S.sortAlpha?[...gridEmps].sort((a,b)=>a.name.localeCompare(b.name)):gridEmps;
-  // Rows cluster by crew so the people who work together read as a block (Jake,
-  // 2026-10-02: bins was two people four rows apart). A-Z sort is the explicit
-  // "show me one flat alphabetical list" escape hatch, so it skips the banding.
-  // Within a band people keep the hand-dragged emp_order, so reordering still works.
-  const bands=[];
-  if(S.sortAlpha){
-    bands.push({name:"",emps:sortedEmps});
-  } else {
-    const order=crewGroupOrder();
-    const seen=new Set();
-    order.forEach(g=>{
-      // Manager to the top of their own crew; everyone else keeps the dragged
-      // emp_order. A stable partition, not a sort, so dragging still decides
-      // the rest of the band.
-      const inG=sortedEmps.filter(e=>e.group===g);
-      const mgrs=inG.filter(e=>e.manager),rest=inG.filter(e=>!e.manager);
-      const ordered=mgrs.concat(rest);
-      ordered.forEach(e=>seen.add(e.id));
-      if(ordered.length)bands.push({name:g,emps:ordered});
-    });
-    const rest=sortedEmps.filter(e=>!seen.has(e.id));
-    if(rest.length)bands.push({name:order.length?UNGROUPED:"",emps:rest});
-  }
+  const bands=crewBands(gridEmps);
   const _nCols=S.activeDays.length+1;
   let empIdx=-1;
   bands.forEach(band=>{
     if(band.name){
-      const onNow=band.emps.filter(e=>{const dd=(S.schedule[e.id]||{})[todayName];return isCurrentWeek&&dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length;}).length;
+      const onNow=band.emps.filter(e=>isCurrentWeek&&normDay((S.schedule[e.id]||{})[todayName]).status==="work").length;
       h+=`<tr class="crew-band"><td colspan="${_nCols}">
         <span class="cb-name">${esc(band.name)}</span>
         <span class="cb-count">${band.emps.length}</span>
@@ -1444,224 +1411,91 @@ function buildGrid(){
       </td></tr>`;
     }
     band.emps.forEach(emp=>{
-    empIdx++;
-    const sc=S.schedule[emp.id]||defSched();
-    const hrs=countH(sc);
-    const[abg,afg]=ac(emp.name);
-    // Workload ring: filled relative to a ~40h target
-    const pct=Math.min(hrs/40,1);
-    const r=16,circ=2*Math.PI*r,dash=(pct*circ).toFixed(2),gap=(circ-pct*circ).toFixed(2);
-    const ringColor=pct>0.7?"#1a7a3c":pct>0.35?"#f59e0b":"transparent";
-    const hrsCls=pct>0.6?"hrs-high":pct>0.3?"hrs-mid":"hrs-low";
-    const tipText=hrs>0?`${hrs}h scheduled this week${emp.repeats_weekly?" (their normal week fills the empty days)":""}`:"No hours this week";
-    h+=`<tr class="emp-row" draggable="${S.sortAlpha?"false":"true"}" data-empid="${emp.id}" data-empidx="${empIdx}">
-      <td class="name-col">
-        <div class="emp-cell-inner">
-          ${S.sortAlpha?"":`<span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>`}
-          <div class="avatar" data-tip="${tipText}" style="background:${abg};color:${afg};width:38px;height:38px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
-          <div><div class="emp-name">${esc(emp.name)}${emp.manager?` <span class="emp-mgr" title="Manager of this crew — a label, not a permission">MGR</span>`:""}${emp.hidden?` <span title="Removed on the Team page — row stays while this week still has their shifts" style="font-size:9px;font-weight:800;letter-spacing:.5px;color:var(--warn-ink);background:rgba(245,158,11,.16);border-radius:5px;padding:1px 5px;vertical-align:middle">REMOVED</span>`:""}</div><div class="emp-hrs ${hrsCls}" id="hbadge_${emp.id}">${hrs}h</div></div>
-        </div>
-      </td>`;
-    S.activeDays.forEach(d=>{
-      const dayData=sc[d]||{status:"off",shifts:[]};
-      const status=dayData.status||"off";
-      const shifts=dayData.shifts||[];
-      const isWknd=WEEKEND.includes(d);
-      let cellContent="";
-
-      if(status==="off"){
-        cellContent=``;
-      } else if(status==="dayoff"){
-        cellContent=`<div class="status-label day-off-label">${schTile("off",15)}<span>Day Off</span></div>`;
-      } else if(status==="sick"){
-        cellContent=`<div class="status-label sick-label">${schTile("sick",15)}<span>Sick</span></div>`;
-      } else if(status==="nonworking"){
-        cellContent=`<div class="status-label nonworking-label">${schTile("off",15)}<span>Non Working</span></div>`;
-      } else if(shifts.length>0){
-        cellContent=`<div class="shift-stack">`;
-        shifts.forEach((sh,i)=>{
-          const taskIds=getShiftTasks(sh);
-          const firstT=tm[taskIds[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e",label:taskIds[0]||"?"};
-          const allLabels=taskIds.map(id=>tm[id]?.label||id).join(" + ");
-          const timeStr=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
-          cellContent+=`<div class="shift-bar shift-bar-flow${schTile(firstT.id)?" has-ico":""}" style="background:${firstT.bg};color:${firstT.text};border:1.5px solid ${firstT.dot}40;"
-            onclick="event.stopPropagation();JWG.openShiftModal('${emp.id}','${d}')">
-            ${schTile(firstT.id,20)}
-            <span class="shift-txt"><span class="shift-label">${esc(allLabels)}</span>${timeStr?`<span class="shift-times">${timeStr}</span>`:""}</span>
-          </div>`;
-        });
-        cellContent+=`</div>`;
-      } else {
-        cellContent=``;
-      }
-
-      const cellStyle=isWknd?'background:#fafaf8;':'';
-      const sickStyle=status==="sick"?'background:rgba(249,115,22,0.06);':'';
-      const dayOffStyle=status==="dayoff"?'background:rgba(0,0,0,0.04);':'';
-      const nonworkStyle=status==="nonworking"?'background:rgba(71,85,105,0.05);':'';
-      const isTodayCell=isCurrentWeek&&d===todayName;
-      const noteIndicator=dayData.note?`<span title="${esc(dayData.note)}" data-tip="${esc(dayData.note)}" style="position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px white,0 0 6px rgba(245,158,11,0.5);z-index:2;pointer-events:none;animation:notePulse 2s ease-in-out infinite"></span>`:'';
-      h+=`<td class="day-cell${isTodayCell?" is-today":""}${cellContent?"":" empty-cell"}" style="${cellStyle}${sickStyle}${dayOffStyle}${nonworkStyle}" onclick="JWG.openShiftModal('${emp.id}','${d}')">${cellContent}${noteIndicator}</td>`;
-    });
-    h+=`</tr>`;
+      empIdx++;
+      const sc=S.schedule[emp.id]||defSched();
+      const hrs=countH(sc);
+      const[abg,afg]=ac(emp.name);
+      const tipText=hrs>0?`${hrs}h scheduled this week`:"No hours this week";
+      h+=`<tr class="emp-row" draggable="${S.sortAlpha?"false":"true"}" data-empid="${emp.id}" data-empidx="${empIdx}">
+        <td class="name-col">
+          <div class="emp-cell-inner">
+            ${S.sortAlpha?"":`<span class="drag-handle" data-tip="Drag to reorder" title="Drag to reorder">⠿</span>`}
+            <div class="avatar" data-tip="${tipText}" style="background:${abg};color:${afg};width:34px;height:34px;font-size:12px;flex-shrink:0">${empInitials(emp.name)}</div>
+            <div class="emp-who"><div class="emp-name">${esc(emp.name)}${emp.manager?` <span class="emp-mgr" title="Manager of this crew — a label, not a permission">MGR</span>`:""}${emp.hidden?` <span class="emp-removed" title="Removed on the Team page — row stays while this week still has their shifts">REMOVED</span>`:""}</div>
+              <div class="emp-hbar"><i style="width:${Math.min(100,Math.round(hrs/45*100))}%"></i></div></div>
+            <div class="emp-hrs" id="hbadge_${emp.id}">${hrs}h</div>
+          </div>
+        </td>`;
+      S.activeDays.forEach(d=>{
+        const dd=normDay(sc[d]);
+        const content=dd.shifts.length?`<div class="shift-stack">${dd.shifts.map(cellEntry).join("")}</div>`:"";
+        const isTodayCell=isCurrentWeek&&d===todayName;
+        const sel=_ed&&_ed.empId===emp.id&&_ed.day===d;
+        const noteIndicator=dd.note?`<span class="cell-note" title="${esc(dd.note)}" data-tip="${esc(dd.note)}"></span>`:"";
+        h+=`<td class="day-cell${isTodayCell?" is-today":""}${WEEKEND.includes(d)?" is-wknd":""}${content?"":" empty-cell"}${sel?" is-sel":""}" onclick="JWG.openShiftModal('${emp.id}','${d}')">${content}${noteIndicator}</td>`;
+      });
+      h+=`</tr>`;
     });
   });
   let footCells="";
   S.activeDays.forEach(d=>{
     let cnt=0,hsum=0;
-    sortedEmps.forEach(emp=>{const dd=(S.schedule[emp.id]||{})[d];if(dd&&dd.status==="work"&&dd.shifts&&dd.shifts.length){cnt++;hsum+=dayHours(dd);}});
-    footCells+=`<td style="text-align:center;font-size:11px;font-weight:700;color:var(--fg-muted);padding:10px 4px"><span style="color:var(--accent)">${cnt} on</span> · ${Math.round(hsum*10)/10}h</td>`;
+    gridEmps.forEach(emp=>{const dd=normDay((S.schedule[emp.id]||{})[d]);if(dd.status==="work"){cnt++;hsum+=dayHours(dd);}});
+    footCells+=`<td class="foot-cell"><b>${cnt} on</b> · ${Math.round(hsum*10)/10}h</td>`;
   });
-  h+=`</tbody><tfoot><tr class="sched-foot"><td class="name-col" style="font-weight:700;color:var(--fg-muted);font-size:12px;padding:10px 12px">Daily total</td>${footCells}</tr></tfoot></table>`;
+  h+=`</tbody><tfoot><tr class="sched-foot"><td class="name-col foot-name">On shift</td>${footCells}</tr></tfoot></table>`;
   return h;
 }
 
-// ── MOBILE SCHEDULE (≤900px): Week at a glance / Day board / My week ──
-// The desktop grid hides below 900px and these take over. Same S.schedule
-// data, always the full Mon–Sun week, and every tap lands in the existing
-// day editor (openShiftModal). The junk feed decorates these screens too.
-function mSetView(v){S.mView=v;render();}
-function mOpenDay(d){S.mView="day";S.mDay=d;render();}
-function mSetPerson(id){S.mView="person";S.mPerson=id;render();}
+// ── PHONE (≤900px): one card per person ──
+// Barb liked the person cards for phones (2026-10-20). The grid hides below 900px and these
+// take over: each card is one person's week, one square per day. Tapping a square opens the
+// same day editor as the grid, as a sheet from the bottom.
 function mTodayName(){return["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];}
-// The phone board keeps its Working / Off headings — crew bands on top of those
-// would be grouping inside grouping on a 375px screen. Instead the people are
-// ORDERED by crew, so a crew still reads as a run of cards, managers first.
-function mSortedEmps(){
-  const base=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
-  if(S.sortAlpha)return[...base].sort((a,b)=>a.name.localeCompare(b.name));
-  const order=crewGroupOrder();
-  if(!order.length)return base;
-  const rank=e=>{const i=order.indexOf(e.group||"");return i===-1?order.length:i;};
-  return[...base].sort((a,b)=>rank(a)-rank(b)||(b.manager?1:0)-(a.manager?1:0)||base.indexOf(a)-base.indexOf(b));
-}
-function mChip(tm,sh){
-  const ids=getShiftTasks(sh);
-  const t=tm[ids[0]]||{bg:"#dcfce7",text:"#15803d",dot:"#22c55e"};
-  const label=ids.map(id=>tm[id]?.label||id).join(" + ");
-  const time=sh.start&&sh.end?fmtRange(sh.start,sh.end):"";
-  return `<span class="ms-chip" style="background:${t.bg};color:${t.text}"><span class="ms-dot" style="background:${t.dot}"></span>${esc(label)}${time?`<span class="ms-tm">${time}</span>`:""}</span>`;
+function mSetCrew(i){S.mCrew=S._mCrews[i];render();}
+function mDaySquare(emp,d,dd,isToday){
+  const sel=_ed&&_ed.empId===emp.id&&_ed.day===d;
+  const cls=`pc-day${isToday?" is-today":""}${sel?" is-sel":""}`;
+  const attrs=`data-empid="${emp.id}" data-day="${d}" onclick="JWG.openShiftModal('${emp.id}','${d}')" aria-label="${esc(emp.name)}, ${d}"`;
+  if(!dd.shifts.length)return`<button class="${cls} is-empty" ${attrs}>+</button>`;
+  const sh=dd.shifts[0],t=taskOf(getShiftTasks(sh)[0]),more=dd.shifts.length>1?`<i class="pc-more">+${dd.shifts.length-1}</i>`:"";
+  const when=sh.start&&sh.end?rangeShort(sh.start,sh.end):"";
+  if(shiftIsAway(sh))return`<button class="${cls} is-away" ${attrs}>${typeIcon(t)}<span>${when||esc(taskLabel(t?t.id:""))}</span>${more}</button>`;
+  return`<button class="${cls}" style="background:${t?t.dot:"#94a3b8"}" ${attrs}>${typeIcon(t)}<span>${when}</span>${more}</button>`;
 }
 function buildMobileSched(){
-  const v=S.mView||"week";
-  let h=`<div class="ms-switch">`;
-  [["week","Week"],["day","Day"],["person","My week"]].forEach(([id,label])=>{
-    h+=`<button class="ms-seg${v===id?" on":""}" onclick="JWG.mSetView('${id}')">${label}</button>`;
-  });
-  h+=`</div>`;
-  if(v==="day")h+=buildMDay();
-  else if(v==="person")h+=buildMPerson();
-  else h+=buildMWeek();
-  return h;
-}
-function buildMWeek(){
-  const ws=getWS(S.weekOffset),tm=TM();
-  const todayName=mTodayName(),isCur=S.weekOffset===0;
-  let h=`<div class="ms-list">`;
-  DAYS.forEach(d=>{
-    const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
-    let cnt=0,hsum=0,avs="",flags="";
-    mSortedEmps().forEach(emp=>{
-      const dd=(S.schedule[emp.id]||{})[d]||{status:"off",shifts:[]};
-      if(dd.status==="work"&&(dd.shifts||[]).length){
-        cnt++;hsum+=dayHours(dd);
-        if(cnt<=8){
-          const[abg,afg]=ac(emp.name);
-          const dot=(tm[getShiftTasks(dd.shifts[0])[0]]||{}).dot||"#22c55e";
-          avs+=`<span class="ms-wav" style="background:${abg};color:${afg}">${empInitials(emp.name)}<span class="ms-wavdot" style="background:${dot}"></span></span>`;
-        }
-      }
-      else if(dd.status==="sick")flags+=`<div class="ms-flag sick">${esc(emp.name.split(" ")[0])} sick</div>`;
-      else if(dd.status==="dayoff")flags+=`<div class="ms-flag offd">${esc(emp.name.split(" ")[0])} day off</div>`;
+  const isCur=S.weekOffset===0,todayName=mTodayName();
+  const list=S.employees.filter(e=>!e.hidden||empHasWeekData(S.schedule[e.id]));
+  const bands=crewBands(list);
+  const crew=S.mCrew&&bands.some(b=>b.name===S.mCrew)?S.mCrew:"All";
+  const circ=2*Math.PI*19;
+  // Crew names come from the Team page, so the buttons pass a position, never the name itself.
+  S._mCrews=["All",...bands.map(b=>b.name).filter(Boolean)];
+  let h=`<div class="pc-filters">${S._mCrews.map((n,i)=>`<button class="pc-f${crew===n?" on":""}" onclick="JWG.mSetCrew(${i})">${esc(n)}</button>`).join("")}</div>`;
+  bands.forEach(band=>{
+    if(crew!=="All"&&band.name!==crew)return;
+    if(band.name)h+=`<div class="pc-crew">${esc(band.name)}</div>`;
+    band.emps.forEach(emp=>{
+      const sc=S.schedule[emp.id]||defSched(),hrs=countH(sc);
+      const[abg,afg]=ac(emp.name);
+      const ring=hrs>=40?"#16a34a":hrs>=24?"#ca8a04":"#cbd5e1";
+      const dash=(Math.min(1,hrs/45)*circ).toFixed(1)+" "+circ.toFixed(1);
+      h+=`<div class="pc-card">
+        <div class="pc-head">
+          <span class="pc-av" style="background:${abg};color:${afg}">${empInitials(emp.name)}</span>
+          <div class="pc-name"><b>${esc(emp.name)}</b>${emp.manager?`<span class="emp-mgr">MGR</span>`:""}</div>
+          <span class="pc-ring"><svg viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="#eef1f0" stroke-width="5"/><circle cx="23" cy="23" r="19" fill="none" stroke="${ring}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${dash}" transform="rotate(-90 23 23)"/></svg><b>${hrs}h</b></span>
+        </div>
+        <div class="pc-week" style="grid-template-columns:repeat(${S.activeDays.length},minmax(0,1fr))">
+          ${S.activeDays.map(d=>`<span class="pc-dl${isCur&&d===todayName?" is-today":""}">${d.slice(0,3)}</span>`).join("")}
+          ${S.activeDays.map(d=>mDaySquare(emp,d,normDay(sc[d]),isCur&&d===todayName)).join("")}
+        </div>
+      </div>`;
     });
-    if(cnt>8)avs+=`<span class="ms-wav more">+${cnt-8}</span>`;
-    const quiet=cnt===0&&!flags;
-    const sum=cnt?`<b>${cnt} on</b> · ${Math.round(hsum*10)/10}h`:`<span class="ms-quiet">Nobody scheduled</span>`;
-    h+=`<button class="msw-row${isCur&&d===todayName?" is-today":""}${quiet?" quiet":""}" data-day="${d}" onclick="JWG.mOpenDay('${d}')">
-      <span class="ms-date"><span class="ms-dn">${d.slice(0,3).toUpperCase()}</span><span class="ms-dd">${dt.getDate()}</span></span>
-      <span class="msw-mid"><span class="msw-sum">${sum}</span>${flags}${avs?`<span class="ms-wavs">${avs}</span>`:""}</span>
-      <span class="msw-arr">›</span>
-    </button>`;
   });
-  h+=`</div>`;
   return h;
 }
-function buildMDay(){
-  const ws=getWS(S.weekOffset),tm=TM();
-  const todayName=mTodayName(),isCur=S.weekOffset===0;
-  if(!DAYS.includes(S.mDay))S.mDay=isCur?todayName:"Monday";
-  const day=S.mDay;
-  let h=`<div class="ms-strip">`;
-  DAYS.forEach(d=>{
-    const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
-    h+=`<button class="ms-stab${d===day?" sel":""}${isCur&&d===todayName?" tdy":""}" onclick="JWG.mOpenDay('${d}')"><span class="ms-dn">${d.slice(0,3).toUpperCase()}</span><span class="ms-dd">${dt.getDate()}</span><span class="ms-tdot"></span></button>`;
-  });
-  h+=`</div>`;
-  const on=[],rest=[];let hsum=0;
-  mSortedEmps().forEach(emp=>{
-    const dd=(S.schedule[emp.id]||{})[day]||{status:"off",shifts:[]};
-    if(dd.status==="work"&&(dd.shifts||[]).length){on.push([emp,dd]);hsum+=dayHours(dd);}
-    else rest.push([emp,dd]);
-  });
-  h+=`<div class="ms-ribbon" id="msd-ribbon"><b>${on.length} on</b> · ${Math.round(hsum*10)/10}h scheduled</div>`;
-  h+=`<div class="ms-grp-h">Working</div><div class="ms-list" id="msd-on">`;
-  if(!on.length)h+=`<div class="ms-none">Nobody scheduled — tap a person below to add them</div>`;
-  on.forEach(([emp,dd])=>{h+=mDayCard(emp,dd,day,tm,false);});
-  h+=`</div><div class="ms-grp-h">Off · Away</div><div class="ms-list" id="msd-off">`;
-  rest.forEach(([emp,dd])=>{h+=mDayCard(emp,dd,day,tm,true);});
-  if(!rest.length)h+=`<div class="ms-none">Everyone's working</div>`;
-  h+=`</div>`;
-  return h;
-}
-function mDayCard(emp,dd,day,tm,dim){
-  const[abg,afg]=ac(emp.name);
-  const st=dd.status==="work"&&(dd.shifts||[]).length?"work":(dd.status||"off");
-  let chips="",badge;
-  if(st==="work"){chips=(dd.shifts||[]).map(sh=>mChip(tm,sh)).join("");badge=`<span class="ms-badge on">${Math.round(dayHours(dd)*10)/10}h</span>`;}
-  else if(st==="sick")badge=`<span class="ms-badge sick">Sick</span>`;
-  else if(st==="dayoff")badge=`<span class="ms-badge off">Day off</span>`;
-  else if(st==="nonworking")badge=`<span class="ms-badge off">Non working</span>`;
-  else badge=`<span class="ms-badge off">Off</span>`;
-  const note=dd.note?`<span class="ms-note" title="${esc(dd.note)}">●</span>`:"";
-  return `<div class="msd-card${dim?" dim":""}" data-empid="${emp.id}" data-day="${day}" data-st="${st}" onclick="JWG.openShiftModal('${emp.id}','${day}')">
-    <span class="ms-av" style="background:${abg};color:${afg}">${empInitials(emp.name)}</span>
-    <span class="ms-mid"><span class="ms-name">${esc(emp.name)}${note}</span><span class="ms-chips msd-chips">${chips}</span></span>${badge}
-  </div>`;
-}
-function buildMPerson(){
-  const ws=getWS(S.weekOffset),tm=TM();
-  const emps=mSortedEmps();
-  if(!emps.length)return"";
-  if(!emps.some(e=>e.id===S.mPerson))S.mPerson=emps[0].id;
-  const emp=emps.find(e=>e.id===S.mPerson);
-  const todayName=mTodayName(),isCur=S.weekOffset===0;
-  let h=`<div class="ms-pchips">`;
-  emps.forEach(e=>{
-    const[abg,afg]=ac(e.name);
-    h+=`<button class="ms-pchip${e.id===S.mPerson?" sel":""}" onclick="JWG.mSetPerson('${e.id}')"><span class="ms-av sm" style="background:${abg};color:${afg}">${empInitials(e.name)}</span>${esc(e.name.split(" ")[0])}</button>`;
-  });
-  h+=`</div>`;
-  const sc=S.schedule[emp.id]||defSched();
-  h+=`<div class="ms-ribbon"><b>${esc(emp.name)}</b> · ${countH(sc)}h this week</div><div class="ms-list">`;
-  DAYS.forEach(d=>{
-    const dt=new Date(ws);dt.setDate(dt.getDate()+DAYS.indexOf(d));
-    const dd=sc[d]||{status:"off",shifts:[]};
-    const st=dd.status==="work"&&(dd.shifts||[]).length?"work":(dd.status||"off");
-    let mid="";
-    if(st==="work")mid=(dd.shifts||[]).map(sh=>mChip(tm,sh)).join("");
-    else if(st==="sick")mid=`<span class="ms-badge sick">Sick</span>`;
-    else if(st==="dayoff")mid=`<span class="ms-badge off">Day off</span>`;
-    else if(st==="nonworking")mid=`<span class="ms-badge off">Non working</span>`;
-    else mid=`<span class="ms-quiet">—</span>`;
-    h+=`<div class="msp-row${st==="work"?"":" offr"}${isCur&&d===todayName?" is-today":""}" data-empid="${emp.id}" data-day="${d}" onclick="JWG.openShiftModal('${emp.id}','${d}')">
-      <span class="ms-date"><span class="ms-dn">${d.slice(0,3).toUpperCase()}</span><span class="ms-dd">${dt.getDate()}</span></span>
-      <span class="msp-mid ms-chips">${mid}</span>
-    </div>`;
-  });
-  h+=`</div>`;
-  return h;
-}
-// Desktop touch-up: on load, bring today's column into view when the grid overflows
+
 function scrollGridToToday(){
   if(S.weekOffset!==0||S._todayScrolled)return;
   const gw=document.getElementById("gw");if(!gw)return;
@@ -1670,9 +1504,10 @@ function scrollGridToToday(){
   S._todayScrolled=true;
 }
 
-function prevW(){S.weekOffset--;loadWeekSched();render();}
-function nextW(){S.weekOffset++;loadWeekSched();render();}
-function goToday(){S.weekOffset=0;loadWeekSched();render();}
+// A different week closes the day editor: the day it was showing is not on screen any more.
+function prevW(){S.weekOffset--;_ed=null;loadWeekSched();render();}
+function nextW(){S.weekOffset++;_ed=null;loadWeekSched();render();}
+function goToday(){S.weekOffset=0;_ed=null;loadWeekSched();render();}
 function toggleDay(d){
   const i=S.activeDays.indexOf(d);
   if(i>=0)S.activeDays.splice(i,1);
@@ -1707,19 +1542,13 @@ function renderUsualWeeks(fresh){
     if(tpl&&!tplHasData){
       summary=`<div style="font-size:11.5px;color:var(--warn-ink,#9a3412);background:#fff7ed;border:1px solid rgba(249,115,22,0.28);border-radius:7px;padding:6px 9px;margin-top:6px;display:inline-block;font-weight:650">⚠ This saved schedule is empty — it holds no shifts, so there is nothing to apply. Build their week on the grid, then save it again.</div>`;
     } else if(tpl){
-      const chips=DAYS.filter(d=>{const day=tpl[d];if(!day||day.status==="off")return false;if(day.status==="work"&&(!day.shifts||!day.shifts.length))return false;return true;}).map(d=>{
-        const day=tpl[d];
-        let lbl,style;
-        if(day.status==="dayoff"){lbl="Off";style="background:rgba(0,0,0,0.05);color:rgba(0,0,0,0.45)";}
-        else if(day.status==="sick"){lbl="Sick";style="background:#fff7ed;color:#c2410c";}
-        else if(day.status==="nonworking"){lbl="Non working";style="background:rgba(71,85,105,0.08);color:#475569";}
-        else{
-          const sh=day.shifts[0];
-          const tid=getShiftTasks(sh)[0];
-          const t=tm[tid];
-          lbl=(t?t.label:tid||"?")+(sh.start&&sh.end?" "+fmtRange(sh.start,sh.end):"")+(day.shifts.length>1?" +"+(day.shifts.length-1):"");
-          style=`background:${t?t.bg:"var(--surface-sm)"};color:${t?t.text:"var(--fg-muted)"}`;
-        }
+      const chips=DAYS.filter(d=>normDay(tpl[d]).shifts.length).map(d=>{
+        const day=normDay(tpl[d]);
+        const sh=day.shifts[0];
+        const tid=getShiftTasks(sh)[0];
+        const t=taskOf(tid);
+        const lbl=taskLabel(tid)+(sh.start&&sh.end?" "+fmtRange(sh.start,sh.end):"")+(day.shifts.length>1?" +"+(day.shifts.length-1):"");
+        const style=shiftIsAway(sh)?"background:#eef1f0;color:#475569":`background:${t?t.bg:"var(--surface-sm)"};color:${t?t.text:"var(--fg-muted)"}`;
         return `<span style="${style};padding:3px 8px;border-radius:12px;font-size:10.5px;font-weight:700;display:inline-flex;gap:5px;align-items:center;white-space:nowrap"><b style="opacity:.55;font-weight:800">${d.slice(0,3).toUpperCase()}</b>${esc(lbl)}</span>`;
       });
       summary=chips.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:7px">${chips.join("")}</div>`:`<div style="font-size:11.5px;color:var(--fg-muted);margin-top:5px">Saved schedule is empty</div>`;
@@ -1936,19 +1765,15 @@ function buildAnalytics(){
   const empData=(empFilter==="all"?S.employees:S.employees.filter(e=>e.id===empFilter)).map(emp=>{
     const ss=S.allSchedules.filter(s=>s.employee_id===emp.id&&allWks.includes(s.week_start));
     const totalH=ss.reduce((n,s)=>n+countH(migrateSched(s.schedule_data)),0);
-    const tally=Object.fromEntries(tasks.map(t=>[t.id,0]));
-    let daysOff=0,daysSick=0,daysNonwork=0;
+    // Days per type, jobs and time away alike: a type counts once on a day however many
+    // entries it has there.
+    const tally={};
     ss.forEach(s=>{
       const sched=migrateSched(s.schedule_data);
-      DAYS.forEach(d=>{
-        const day=sched?.[d];
-        if(!day)return;
-        if(day.status==="sick")daysSick++;
-        else if(day.status==="dayoff")daysOff++;  // only explicit day-off
-        else if(day.status==="nonworking")daysNonwork++;
-        else if(day.status==="work"&&day.shifts)day.shifts.forEach(sh=>{getShiftTasks(sh).forEach(tid=>{tally[tid]=(tally[tid]||0)+1;});});
-      });
+      DAYS.forEach(d=>{new Set(sched[d].shifts.flatMap(getShiftTasks)).forEach(tid=>{tally[tid]=(tally[tid]||0)+1;});});
     });
+    const daysSick=tally.sick||0,daysNonwork=tally.nowork||0;
+    const daysOff=Object.keys(tally).filter(k=>isAwayTask(k)&&k!=="sick"&&k!=="nowork").reduce((n,k)=>n+tally[k],0);
     return{...emp,totalH:Math.round(totalH*10)/10,tally,daysOff,daysSick,daysNonwork};
   }).sort((a,b)=>a.name.localeCompare(b.name));
 
@@ -1970,11 +1795,11 @@ function buildAnalytics(){
     </div>
     <div class="stat-tile grey">
       <div class="stat-num" data-count="${totOff}">0</div>
-      <div class="stat-label">Days Off</div>
+      <div class="stat-label">Days off &amp; vacation</div>
     </div>
     <div class="stat-tile grey">
       <div class="stat-num" data-count="${totNonwork}">0</div>
-      <div class="stat-label">Non Working</div>
+      <div class="stat-label">No work</div>
     </div>
   </div>`;
 
@@ -1982,7 +1807,7 @@ function buildAnalytics(){
   h+=`<div class="sect-label" style="margin-bottom:10px">Employee Totals — ${periodLabel}</div>`;
   empData.forEach(emp=>{
     const[abg,afg]=ac(emp.name);
-    const top=Object.entries(emp.tally).filter(([k])=>k!=="off"&&k!=="sick").sort((a,b)=>b[1]-a[1])[0];
+    const top=Object.entries(emp.tally).filter(([k])=>!isAwayTask(k)).sort((a,b)=>b[1]-a[1])[0];
     h+=`<div class="acard"><div style="display:flex;align-items:center;gap:12px">
       <div class="avatar" style="background:${abg};color:${afg}">${empInitials(emp.name)}</div>
       <div style="flex:1">
@@ -1996,15 +1821,13 @@ function buildAnalytics(){
       </div></div>
     <div class="ptrack"><div class="pbar" style="width:${(emp.totalH/mxH*100).toFixed(1)}%"></div></div>
     <div class="chips">`;
-    tasks.filter(t=>t.id!=="off"&&t.id!=="sick"&&emp.tally[t.id]>0).forEach(t=>{h+=`<span class="chip" style="background:${t.bg};color:${t.text}">${esc(t.label)}: ${emp.tally[t.id]}d</span>`;});
-    if(emp.daysSick>0)h+=`<span class="chip" style="background:#fff7ed;color:#c2410c;border:1px solid rgba(249,115,22,0.25);display:inline-flex;align-items:center;gap:5px">${schTile("sick",13)}Sick: ${emp.daysSick}d</span>`;
-    if(emp.daysOff>0)h+=`<span class="chip" style="background:rgba(0,0,0,0.06);color:rgba(0,0,0,0.5);border:1px solid rgba(0,0,0,0.15);display:inline-flex;align-items:center;gap:5px">${schTile("off",13)}Off: ${emp.daysOff}d</span>`;
-    if(emp.daysNonwork>0)h+=`<span class="chip" style="background:rgba(71,85,105,0.08);color:#475569;border:1px solid rgba(71,85,105,0.2);display:inline-flex;align-items:center;gap:5px">${schTile("off",13)}Non working: ${emp.daysNonwork}d</span>`;
+    jobTypes().filter(t=>emp.tally[t.id]>0).forEach(t=>{h+=`<span class="chip" style="background:${t.bg};color:${t.text}">${esc(t.label)}: ${emp.tally[t.id]}d</span>`;});
+    awayTypes().filter(t=>emp.tally[t.id]>0).forEach(t=>{h+=`<span class="chip" style="background:#eef1f0;color:#475569;border:1px solid rgba(71,85,105,0.2);display:inline-flex;align-items:center;gap:5px">${typeIcon(t)}${esc(t.label)}: ${emp.tally[t.id]}d</span>`;});
     h+=`</div></div>`;
   });
 
   h+=`<div class="legbox" style="margin-top:18px"><div class="sect-label" style="margin-bottom:12px">Task Legend</div><div class="chips">`;
-  tasks.filter(t=>t.id!=="off"&&t.id!=="sick").forEach(t=>{h+=`<div style="display:flex;align-items:center;gap:6px;background:${t.bg};color:${t.text};padding:5px 11px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid ${t.dot}30"><span style="width:6px;height:6px;border-radius:50%;background:${t.dot};display:inline-block"></span>${esc(t.label)}</div>`;});
+  jobTypes().forEach(t=>{h+=`<div style="display:flex;align-items:center;gap:6px;background:${t.bg};color:${t.text};padding:5px 11px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid ${t.dot}30"><span style="width:6px;height:6px;border-radius:50%;background:${t.dot};display:inline-block"></span>${esc(t.label)}</div>`;});
   h+=`</div></div></div></div>`;return h;
 }
 
@@ -2068,7 +1891,7 @@ function buildHistory(){
       if(!s)return;
       const sched=migrateSched(s.schedule_data);
       totalH+=countH(sched);
-      DAYS.forEach(d=>{if(sched[d]?.status==="sick")sickCount++;});
+      DAYS.forEach(d=>{if(sched[d].shifts.some(sh=>getShiftTasks(sh).includes("sick")))sickCount++;});
     });
     totalH=Math.round(totalH*10)/10;
 
@@ -2106,24 +1929,18 @@ function buildHistory(){
         </div>
         <div class="wk-days-col">`;
       DAYS.forEach(d=>{
-        const day=sched[d]||{status:"off",shifts:[]};
-        const status=day.status||"off";
+        const day=normDay(sched[d]);
         const note=day.note||"";
-        if(status==="sick"){
-          h+=`<div class="dc2 chip-sick" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t" style="display:inline-flex;align-items:center;gap:4px">${schTile("sick",12)}Sick</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
-        } else if(status==="dayoff"){
-          h+=`<div class="dc2" style="background:rgba(0,0,0,0.04);color:rgba(0,0,0,0.35);border-color:rgba(0,0,0,0.1)" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t" style="display:inline-flex;align-items:center;gap:4px">${schTile("off",12)}Off</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
-        } else if(status==="nonworking"){
-          h+=`<div class="dc2" style="background:rgba(71,85,105,0.06);color:#64748b;border-color:rgba(71,85,105,0.15)" title="${d}${note?" · "+esc(note):""}"><span class="dc-d">${d.slice(0,3).toUpperCase()}</span><span class="dc-t" style="display:inline-flex;align-items:center;gap:4px">${schTile("off",12)}Non working</span>${note?`<span class="dc-n">${esc(note)}</span>`:""}</div>`;
-        } else if(status==="work"&&day.shifts?.length>0){
-          const firstTask=getShiftTasks(day.shifts[0])[0];
-          const t=tm[firstTask];
-          if(t)usedTaskIds.add(firstTask);
+        if(day.shifts.length){
+          const sh=day.shifts[0],firstTask=getShiftTasks(sh)[0],t=taskOf(firstTask),away=shiftIsAway(sh);
+          if(t&&!away)usedTaskIds.add(firstTask);
           const multiLabel=day.shifts.length>1?`+${day.shifts.length-1}`:"";
-          h+=`<div class="dc2" style="background:${t?t.bg:"var(--surface-sm)"};color:${t?t.text:"var(--fg-subtle)"};border-color:${t?t.dot+"40":"var(--border)"}" title="${d}: ${day.shifts.map(sh=>{const tid=getShiftTasks(sh)[0];return(tm[tid]?.label||tid)+(sh.start?` ${fmtRange(sh.start,sh.end)}`:"")+( day.note?" · "+day.note:"");}).join(", ")}">
+          const look=away?"background:#eef1f0;color:#475569;border-color:rgba(71,85,105,0.15)":`background:${t?t.bg:"var(--surface-sm)"};color:${t?t.text:"var(--fg-subtle)"};border-color:${t?t.dot+"40":"var(--border)"}`;
+          const full=day.shifts.map(x=>getShiftTasks(x).map(taskLabel).join(" + ")+(x.start?` ${fmtRange(x.start,x.end)}`:"")).join(", ");
+          h+=`<div class="dc2" style="${look}" title="${d}: ${esc(full)}${note?" · "+esc(note):""}">
             <span class="dc-d">${d.slice(0,3).toUpperCase()}</span>
-            <span class="dc-t">${esc(t?.label||firstTask||"")}${multiLabel?`<span style="font-size:8px;opacity:.7"> ${multiLabel}</span>`:""}</span>
-            ${day.shifts[0].start?`<span class="dc-r">${fmtRange(day.shifts[0].start,day.shifts[0].end)}</span>`:""}
+            <span class="dc-t">${esc(taskLabel(firstTask))}${multiLabel?`<span style="font-size:8px;opacity:.7"> ${multiLabel}</span>`:""}</span>
+            ${sh.start?`<span class="dc-r">${fmtRange(sh.start,sh.end)}</span>`:""}
             ${note?`<span class="dc-n">${esc(note)}</span>`:""}
           </div>`;
         } else {
@@ -3896,5 +3713,5 @@ function renderJwgScheduler(){
 window.renderJwgScheduler=renderJwgScheduler;
 // The Team page (app-team.js) calls these when someone is removed there.
 window.JWGRoster={forwardSummary:rosterForwardSummary,clearForward:rosterClearForward};
-window.JWG={addShiftEntry:addShiftEntry,addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,cancelEditShift:cancelEditShift,clearDayStatus:clearDayStatus,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,closeModal:closeModal,closeSaveShift:closeSaveShift,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,markDayNonWorking:markDayNonWorking,markDayOff:markDayOff,markDaySick:markDaySick,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,pickTask:pickTask,prevW:prevW,removeShiftEntry:removeShiftEntry,saveDayNote:saveDayNote,saveEditShift:saveEditShift,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setDayWorking:setDayWorking,setWinterSalt:setWinterSalt,setWinterView:setWinterView,reloadWinter:reloadWinter,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,mSetView:mSetView,mOpenDay:mOpenDay,mSetPerson:mSetPerson,startEditShift:startEditShift,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render};
+window.JWG={addSummerServiceType:addSummerServiceType,addWinterServiceType:addWinterServiceType,adjustWinterSalt:adjustWinterSalt,applyMultiAssign:applyMultiAssign,applyMultiClear:applyMultiClear,applyWH:applyWH,clDelete:clDelete,clOpenAdd:clOpenAdd,clOpenEdit:clOpenEdit,clSaveForm:clSaveForm,clSetCompany:clSetCompany,clSetFilter:clSetFilter,clSetPeriod:clSetPeriod,clSetSearch:clSetSearch,clToggleFormer:clToggleFormer,closeModal:closeModal,deleteSummerLocation:deleteSummerLocation,deleteSummerServiceType:deleteSummerServiceType,deleteWinterLocation:deleteWinterLocation,deleteWinterServiceType:deleteWinterServiceType,dismissToast:dismissToast,editSummerLocation:editSummerLocation,editWinterLocation:editWinterLocation,filterAndSortSummer:filterAndSortSummer,filterAndSortWinter:filterAndSortWinter,goToday:goToday,maPick:maPick,maToggleAllDays:maToggleAllDays,maToggleDay:maToggleDay,maToggleEmp:maToggleEmp,maToggleEveryone:maToggleEveryone,fillWeekFromUsual:fillWeekFromUsual,setRepeats:setRepeats,mcPickTask:mcPickTask,mcToggleAllDays:mcToggleAllDays,mcToggleDay:mcToggleDay,mcToggleEmp:mcToggleEmp,mcToggleEveryone:mcToggleEveryone,nextW:nextW,openAddSummerLocation:openAddSummerLocation,openAddWinterLocation:openAddWinterLocation,openManageSummerServiceTypes:openManageSummerServiceTypes,openManageWinterServiceTypes:openManageWinterServiceTypes,openMultiAssign:openMultiAssign,openMultiClear:openMultiClear,openShiftModal:openShiftModal,openTaskMgr:openTaskMgr,openUsualWeeks:openUsualWeeks,saveUsualWeek:saveUsualWeek,clearUsualWeek:clearUsualWeek,applyUsualWeek:applyUsualWeek,openWHSettings:openWHSettings,prevW:prevW,saveSummerLocation:saveSummerLocation,setSummerView:setSummerView,saveWinterLocation:saveWinterLocation,setWinterSalt:setWinterSalt,setWinterView:setWinterView,reloadWinter:reloadWinter,sbF:sbF,toast:toast,openModal:openModal,jwgConfirm:jwgConfirm,switchTab:switchTab,tmAdd:tmAdd,tmCC:tmCC,tmDel:tmDel,tmLC:tmLC,toggleAlphaSort:toggleAlphaSort,toggleDay:toggleDay,toggleHistoryWeek:toggleHistoryWeek,updateSummerLocation:updateSummerLocation,updateWinterLocation:updateWinterLocation,wtDelete:wtDelete,wtMarkDone:wtMarkDone,wtOpenAdd:wtOpenAdd,wtOpenEdit:wtOpenEdit,wtPickPrio:wtPickPrio,wtReopen:wtReopen,wtSaveForm:wtSaveForm,wtSetFilter:wtSetFilter,wtTogglePerson:wtTogglePerson,S:S,SUM:SUM,WIN:WIN,CL:CL,WT:WT,render:render,closeEditor:closeEditor,edJob:edJob,edAway:edAway,edHrs:edHrs,edAllDay:edAllDay,edCustom:edCustom,edCustomSet:edCustomSet,edSel:edSel,edAdd:edAdd,edRemove:edRemove,edClear:edClear,edNote:edNote,edApply:edApply,mSetCrew:mSetCrew};
 })();

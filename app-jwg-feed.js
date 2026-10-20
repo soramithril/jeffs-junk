@@ -234,7 +234,7 @@
     var entries=(byDay&&byDay[day])||[];
     if(!entries.length)return [];
     var dd=(S.schedule[emp.id]||{})[day]||{};
-    if(dd.status==="dayoff"||dd.status==="sick"||dd.status==="nonworking")return [];
+    if(dd.status==="away")return [];                 // time away: the scheduler wins outright
     if(_showAll)return entries.slice();
     var labels=[];
     (dd.shifts||[]).forEach(function(sh){(sh.tasks||(sh.task?[sh.task]:[])).forEach(function(tid){labels.push(tmap[tid]||String(tid).toLowerCase());});});
@@ -247,54 +247,23 @@
     s.innerHTML="🚚 "+esc(en.label)+(en.count>1?" ×"+en.count:"")+(en.time?' <span style="font-weight:600;opacity:.75">'+esc(en.time)+"</span>":"");
     return s;
   }
+  // Phone cards: a day square with an un-scheduled booking gets a small truck, and tapping the
+  // square opens the day editor, where the "From Jeff's Junk" strip offers it.
   function paintMobile(view,S,occ){
     var ms=view.querySelector("#msched");
     if(!ms)return;
-    ms.querySelectorAll(".jwg-mghost,.jwg-mflag").forEach(function(n){n.remove();});
+    ms.querySelectorAll(".jwg-mghost").forEach(function(n){n.remove();});
     var tmap=taskLabelMap();
-    var emps=S.employees||[];
-    var empById={};emps.forEach(function(em){empById[em.id]=em;});
-    // Day board: chips on cards; ghost-only people move up into Working as "Booking"
-    var ghosted=0;
-    ms.querySelectorAll(".msd-card").forEach(function(card){
-      var emp=empById[card.getAttribute("data-empid")];if(!emp)return;
-      var vis=uncoveredFor(S,tmap,emp,card.getAttribute("data-day"),occ);
+    var empById={};(S.employees||[]).forEach(function(em){empById[em.id]=em;});
+    ms.querySelectorAll(".pc-day[data-empid]").forEach(function(sq){
+      var emp=empById[sq.getAttribute("data-empid")];if(!emp)return;
+      var vis=uncoveredFor(S,tmap,emp,sq.getAttribute("data-day"),occ);
       if(!vis.length)return;
-      ghosted++;
-      var host=card.querySelector(".msd-chips");if(!host)return;
-      vis.forEach(function(en){host.appendChild(mGhostEl(en));});
-      if(card.getAttribute("data-st")!=="work"){
-        var badge=card.querySelector(".ms-badge");
-        if(badge){badge.className="ms-badge book";badge.textContent="Booking";}
-        var onList=ms.querySelector("#msd-on");
-        if(onList&&!card.dataset.jwgMoved){card.dataset.jwgMoved="1";card.classList.remove("dim");onList.appendChild(card);}
-      }
-    });
-    var ribbon=ms.querySelector("#msd-ribbon");
-    if(ribbon&&ghosted){
-      var f=document.createElement("span");
-      f.className="jwg-mflag";f.textContent="· "+ghosted+" from bookings";
-      ribbon.appendChild(f);
-    }
-    // Week rows: how many people have an un-scheduled booking that day
-    ms.querySelectorAll(".msw-row").forEach(function(row){
-      var day=row.getAttribute("data-day"),cnt=0;
-      emps.forEach(function(emp){if(uncoveredFor(S,tmap,emp,day,occ).length)cnt++;});
-      if(!cnt)return;
-      var mid=row.querySelector(".msw-mid");if(!mid)return;
-      var wf=document.createElement("span");
-      wf.className="jwg-mflag";wf.textContent="🚚 "+cnt+" from bookings";
-      mid.insertBefore(wf,mid.querySelector(".ms-wavs"));
-    });
-    // My week rows
-    ms.querySelectorAll(".msp-row").forEach(function(row){
-      var emp=empById[row.getAttribute("data-empid")];if(!emp)return;
-      var vis=uncoveredFor(S,tmap,emp,row.getAttribute("data-day"),occ);
-      if(!vis.length)return;
-      var mid=row.querySelector(".msp-mid");if(!mid)return;
-      row.classList.remove("offr");
-      var dash=mid.querySelector(".ms-quiet");if(dash)dash.remove();
-      vis.forEach(function(en){mid.appendChild(mGhostEl(en));});
+      var g=document.createElement("span");
+      g.className="jwg-mghost";
+      g.title="Booked on Jeff's Junk: "+vis.map(function(en){return en.label+(en.time?" "+en.time:"");}).join(", ");
+      g.textContent="🚚"+(vis.length>1?vis.length:"");
+      sq.appendChild(g);
     });
   }
 
@@ -352,41 +321,27 @@
     finally{reobserve();}
   }
 
-  // ── SHIFT-MODAL PRE-FILL ──
-  // Wrap the scheduler's exposed openShiftModal: after the modal renders, if the junk feed
-  // has uncovered entries for that person+day, show a "From Jeff's Junk" strip under the title and (when
-  // there's exactly one) pre-select the matching task + fill the time dropdowns — so it
-  // reads as already inputted. Committing still goes through the scheduler's own
-  // "Add shift" → its data only; the junk side is never written.
-  var _pendingModal=null,_appliedTaskId=null;
-  function hookShiftModal(){
-    if(!window.JWG||typeof JWG.openShiftModal!=="function"||JWG.openShiftModal._jwgFeedWrapped)return;
-    var orig=JWG.openShiftModal;
-    var wrapped=function(empId,day){
-      orig(empId,day);
-      try{prefillModal(empId,day);}catch(e){console.warn("[jwg-feed] prefill failed",e);}
-    };
-    wrapped._jwgFeedWrapped=true;
-    JWG.openShiftModal=wrapped;
-  }
-  function prefillModal(empId,day){
-    _pendingModal=null;_appliedTaskId=null;
+  // ── DAY-EDITOR STRIP ──
+  // The scheduler fires "jwg:editor" each time its day editor draws. If that person is booked on
+  // junk jobs that day that no shift covers yet, a "From Jeff's Junk" strip goes at the top of the
+  // editor, one card per booking. "Use this" puts the booking on the day as a job through the
+  // scheduler's own JWG.edApply — the scheduler saves it; the junk side is never written.
+  var _strip=null;
+  function editorEl(){return document.querySelector("#day-sheet .dp-editor")||document.querySelector("#day-panel .dp-editor");}
+  function onEditor(ev){
+    _strip=null;
     var S=window.JWG&&JWG.S;if(!S)return;
     var occ=_weekCache[localDateStr(getWS(S.weekOffset||0))];if(!occ)return;
+    var empId=ev.detail.empId,day=ev.detail.day;
     var emp=(S.employees||[]).find(function(e){return e.id===empId;});if(!emp)return;
     var byDay=occ[(emp.name||"").toLowerCase()];
     var entries=(byDay&&byDay[day])||[];if(!entries.length)return;
     var dd=(S.schedule[empId]||{})[day]||{};
-    if(dd.status==="dayoff"||dd.status==="sick")return;
-    var modal=document.querySelector("#moverlay .modal");if(!modal)return;
-    if(!modal.querySelector("#sm_start"))return;     // a non-working day has no shift form to fill in
-    // task id → label map straight from the modal's own picker (works with custom task lists)
-    var tmap={};
-    [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){tmap[(b.id||"").replace(/^topt_/,"")]=(b.textContent||"").trim().toLowerCase();});
-    var labels=[];
-    (dd.shifts||[]).forEach(function(sh){
-      (sh.tasks||(sh.task?[sh.task]:[])).forEach(function(tid){labels.push(tmap[tid]||String(tid).toLowerCase());});
-    });
+    if(dd.status==="away")return;                    // time away wins outright
+    var ed=editorEl();
+    if(!ed)throw new Error("jwg:editor fired but no .dp-editor is on screen");
+    var tmap=taskLabelMap(),labels=[];
+    (dd.shifts||[]).forEach(function(sh){(sh.tasks||(sh.task?[sh.task]:[])).forEach(function(tid){labels.push(tmap[tid]||String(tid).toLowerCase());});});
     var visible=entries.filter(function(en){return !coveredBy(labels,en.taskKey);});
     if(!visible.length)return;
     // earliest first, so the strip reads like the day; ones with no time go last
@@ -394,17 +349,16 @@
       var x=a.en.startMin==null?1e9:a.en.startMin,y=b.en.startMin==null?1e9:b.en.startMin;
       return x-y||a.i-b.i;
     }).map(function(o){return o.en;});
-    _pendingModal={entries:visible};
-    injectStrip(modal,visible,emp);
-    if(visible.length===1)applyGhost(0);
+    _strip={entries:visible};
+    injectStrip(ed,visible,emp);
   }
-  // The modal's own picker tile for a junk service (direct id, else label keyword). It is used to
-  // pick the task and to borrow the tile's icon, so a booking looks like the tile it fills in.
-  function taskBtnFor(modal,taskKey){
-    var btn=modal.querySelector("#topt_"+taskKey);
+  // The editor's own job tile for a junk service (direct id, else label keyword). It picks the
+  // job and lends its icon, so a booking looks like the tile it fills in.
+  function taskBtnFor(ed,taskKey){
+    var btn=ed.querySelector("#topt_"+taskKey);
     if(btn)return btn;
     var keys=FAMILY[taskKey]||[];
-    [].forEach.call(modal.querySelectorAll(".task-opt"),function(b){
+    [].forEach.call(ed.querySelectorAll(".task-opt"),function(b){
       if(!btn&&keys.some(function(k){return (b.textContent||"").toLowerCase().indexOf(k)>=0;}))btn=b;
     });
     return btn;
@@ -413,18 +367,13 @@
     var p=en.places||[];
     return p.length?p[0]+(p.length>1?" +"+(p.length-1)+" more":""):"";
   }
-  // The "From Jeff's Junk" strip: first thing under "What's <name> doing <day>?", one card per booking
-  // (icon, what + where, time, "Use this"). Styles: app-jwg-scheduler.css, "From Jeff's Junk strip".
-  function injectStrip(modal,entries,emp){
-    var old=modal.querySelector("#jwg-feed-strip");if(old)old.remove();
-    var q=modal.querySelector(".sm-q");
-    if(!q)throw new Error("day editor has no .sm-q title to place the Jeff's Junk strip under");
+  function injectStrip(ed,entries,emp){
+    var host=ed.querySelector(".dp-q");
+    if(!host)throw new Error("day editor has no .dp-q slot for the Jeff's Junk strip");
     var many=entries.length>1;
     var first=esc((emp.name||"").split(" ")[0])||"They";
-    var strip=document.createElement("div");
-    strip.id="jwg-feed-strip";
-    var h='<div class="jwg-strip-head"><span class="jwg-strip-title">🚚 From Jeff\'s Junk · '+entries.length+(many?" bookings":" booking")+'</span>'
-      +'<span class="jwg-strip-note">'+first+' is booked on '+(many?"these":"this")+'. “Use this” fills in the shift below; nothing is saved until you press Add shift.</span></div>'
+    var h='<div id="jwg-feed-strip"><div class="jwg-strip-head"><span class="jwg-strip-title">🚚 From Jeff\'s Junk · '+entries.length+(many?" bookings":" booking")+'</span>'
+      +'<span class="jwg-strip-note">'+first+' is booked on '+(many?"these":"this")+'. “Use this” puts it on the day.</span></div>'
       +'<div class="jwg-strip-list">';
     entries.forEach(function(en,i){
       var where=placeText(en);
@@ -438,40 +387,23 @@
         +'<button type="button" class="btn btn-ghost btn-sm jwg-strip-use">Use this</button>'
         +'</div>';
     });
-    h+='</div>';
-    strip.innerHTML=h;
-    [].forEach.call(strip.querySelectorAll(".jwg-strip-ico"),function(slot,i){
-      var btn=taskBtnFor(modal,entries[i].taskKey),icon=btn&&btn.firstElementChild;
+    host.innerHTML=h+'</div></div>';
+    [].forEach.call(host.querySelectorAll(".jwg-strip-ico"),function(slot,i){
+      var btn=taskBtnFor(ed,entries[i].taskKey),icon=btn&&btn.firstElementChild;
       if(icon)slot.appendChild(icon.cloneNode(true));else slot.remove();
     });
-    q.insertAdjacentElement("afterend",strip);
   }
+  function hm(mins){return Math.floor(mins/60)+":"+pad(mins%60);}
   function applyGhost(i){
-    var pm=_pendingModal;if(!pm)return;
-    var en=pm.entries[i];if(!en)return;
-    var modal=document.querySelector("#moverlay .modal");if(!modal)return;
-    // time dropdowns run on the same 30-min values our rounding produces (e.g. "8:00","11:30")
-    function setSel(id,mins){
-      if(mins==null)return;
-      var el=modal.querySelector("#"+id);if(!el)return;
-      var v=Math.floor(mins/60)+":"+pad(mins%60);
-      if([].some.call(el.options,function(o){return o.value===v;}))el.value=v;
-    }
-    setSel("sm_start",en.startMin);
-    setSel("sm_end",en.endMin);
-    // highlight the matching task in the picker
-    var btn=taskBtnFor(modal,en.taskKey);
-    var newId=btn?btn.id.replace(/^topt_/,""):null;
-    if(_appliedTaskId&&_appliedTaskId!==newId){
-      var prev=modal.querySelector("#topt_"+_appliedTaskId);
-      if(prev&&prev.classList.contains("sel"))JWG.pickTask(_appliedTaskId);   // unpick the old one
-    }
-    if(newId&&!btn.classList.contains("sel"))JWG.pickTask(newId);
-    _appliedTaskId=newId;
-    [].forEach.call(modal.querySelectorAll(".jwg-strip-row"),function(r,idx){
-      r.classList.toggle("is-on",idx===i);
-      r.querySelector(".jwg-strip-use").textContent=(idx===i)?"✓ Using this":"Use this";
-    });
+    var en=_strip&&_strip.entries[i];if(!en)return;
+    var ed=editorEl();if(!ed)return;
+    var btn=taskBtnFor(ed,en.taskKey);
+    if(!btn){JWG.toast("No job type matches "+en.label+" — pick one in the editor","error");return;}
+    var taskId=btn.id.replace(/^topt_/,"");
+    // No time on the booking: the editor's own pick lands it on this person's usual hours.
+    if(en.startMin==null){JWG.edJob(taskId);return;}
+    var end=en.endMin!=null&&en.endMin>en.startMin?en.endMin:en.startMin+120;
+    JWG.edApply(taskId,hm(en.startMin),hm(end));
   }
 
   function schedulePaint(){
@@ -488,7 +420,7 @@
     if(!app){setTimeout(init,500);return;}
     _observer=new MutationObserver(schedulePaint);
     _observer.observe(app,{childList:true,subtree:true});
-    hookShiftModal();
+    document.addEventListener("jwg:editor",onEditor);
     schedulePaint();
   }
 
