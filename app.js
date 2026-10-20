@@ -10051,6 +10051,24 @@ function closeJobModal(){
   closeM('job-modal');
 }
 
+// Closing the tab or refreshing with a job half-entered asks first: nothing on the
+// form saves until Save, Furniture Bank item counts included (Jake, 2026-10-20).
+// "Touched" = the person typed or changed something since the form opened. Values the
+// form fills in itself fire no input event, so just looking at a job never asks.
+(function(){
+  var jm = document.getElementById('job-modal');
+  var touched = false;
+  jm.addEventListener('input', function(){ touched = true; });
+  jm.addEventListener('change', function(){ touched = true; });
+  new MutationObserver(function(){ if(!jm.classList.contains('open')) touched = false; })
+    .observe(jm, {attributes:true, attributeFilter:['class']});
+  window.addEventListener('beforeunload', function(e){
+    if(!touched || !jm.classList.contains('open')) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+})();
+
 // ─── JOB MODALS ───
 function closeM(id){document.getElementById(id).classList.remove('open');document.body.classList.remove('modal-open');}
 function openM(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
