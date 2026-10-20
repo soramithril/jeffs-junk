@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '701';
+var APP_VERSION = '705';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -84,9 +84,26 @@ function _checkForUpdate(){
     .then(function(t){
       if(!t) return;
       var latest = t.trim();
-      if(latest && latest !== APP_VERSION) _showUpdateBanner();
+      if(latest && latest !== APP_VERSION) _showUpdateWhenFree();
     })
     .catch(function(){});
+}
+// The takeover reloads on the first click, so it must never land on an open job
+// form: anything typed there (Kelly's Furniture Bank item counts, a half-booked
+// call) only saves on Save. While #job-modal is open it waits, and goes up the
+// moment the form closes, saved or cancelled (Jake, 2026-10-20).
+var _updateWaiter = null;
+function _showUpdateWhenFree(){
+  var jm = document.getElementById('job-modal');
+  if(!jm.classList.contains('open')){ _showUpdateBanner(); return; }
+  if(_updateWaiter) return;
+  _updateWaiter = new MutationObserver(function(){
+    if(jm.classList.contains('open')) return;
+    _updateWaiter.disconnect();
+    _updateWaiter = null;
+    _showUpdateBanner();
+  });
+  _updateWaiter.observe(jm, {attributes:true, attributeFilter:['class']});
 }
 function _showUpdateBanner(){
   if(document.getElementById('update-banner')) return;
