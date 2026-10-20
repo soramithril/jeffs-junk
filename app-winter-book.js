@@ -2,9 +2,10 @@
 // The printed winter book (Jake, 2026-10-15): one US Letter page per snow site in
 // the "Dossier" style he picked from the mockups — white paper, Jeff White Group
 // green and logo, the site's aerial photo with its numbered drop zones (DZ-01...)
-// and the sidewalks we plow (SW-01..., blue lines). The book opens with a cover,
-// then pages run in route order, and each group opens with a divider page listing
-// its stops, so the binder reads front to back the way the trucks drive.
+// and the sidewalks we plow (SW-01..., blue lines). The book opens with a black
+// "Snow & Ice · Task Force" cover, then pages run in route order, and each group
+// opens with a divider page listing its stops, so the binder reads front to back
+// the way the trucks drive.
 //
 // It opens as a preview in its own window with a Print button on top, so the
 // dashboard behind it is untouched. Photos come from the private 'winter-sites' bucket through signed
@@ -90,33 +91,28 @@ window.WinterBook = (function(){
     });
   }
 
-  // Cover: the logo, WINTER OPERATIONS in stencil over a faint snowflake, the
-  // file box, and a tab index of the groups in their colours. A one-group book
-  // gets that group's colour and name instead of the index.
+  // Cover (Jake picked it from 18 mockups, 2026-10-20): black page, two green
+  // bands slashed across it, the logo in a white badge, WINTER OPERATIONS in
+  // condensed caps, "SNOW & ICE · TASK FORCE" (the Canva book's own name), the
+  // site count as a promise, then the route groups as ringed codes. A one-group
+  // book lists just that group.
   function cover(groups, bySite, n, today){
     var one = groups.length === 1 ? groups[0] : null;
     var pages = n + groups.length + 1;
-    var flake = '<svg class="cv-flake" viewBox="-50 -50 100 100">' + [0, 60, 120, 180, 240, 300].map(function(a){
-      return '<g transform="rotate(' + a + ')"><line x1="0" y1="0" x2="0" y2="-46"/><line x1="0" y1="-18" x2="-9" y2="-27"/><line x1="0" y1="-18" x2="9" y2="-27"/><line x1="0" y1="-32" x2="-7" y2="-39"/><line x1="0" y1="-32" x2="7" y2="-39"/></g>';
-    }).join('') + '</svg>';
-    return '<section class="page cover"' + (one ? ' style="--g:' + one.color + '"' : '') + '>'
-      + '<div class="class">WINTER OPS // CREW EYES ONLY // SEASON ' + season(today) + '</div>'
-      + '<div class="cv-body">' + flake
-      + '<img class="cv-logo" src="' + new URL('assets/jwg-logo.png', location.href).href + '" alt="">'
-      + '<div class="cv-org">JEFF WHITE GROUP</div>'
-      + '<div class="cv-sub">SNOW &amp; ICE · SITE BOOK</div>'
+    return '<section class="page cover">'
+      + '<div class="cv-band"></div><div class="cv-band thin"></div><div class="cv-band line"></div>'
+      + '<div class="cv-head"><span>JEFF WHITE GROUP</span><span>SEASON ' + season(today) + (one ? ' · GROUP ' + one.code : '') + '</span></div>'
+      + '<div class="cv-badge"><img src="' + new URL('assets/jwg-logo.png', location.href).href + '" alt=""></div>'
       + '<div class="cv-title">WINTER<br>OPERATIONS</div>'
-      + '<div class="cv-season">SEASON ' + season(today) + (one ? ' · GROUP ' + one.code : '') + '</div>'
-      + (one ? '<div class="cv-one"><span class="cv-code">' + one.code + '</span><span class="cv-gname">' + esc(one.name) + '</span></div>' : '')
-      + '<div class="cv-file"><div><span>FILE</span><b>JWG-W-' + (one ? one.code : 'BOOK') + '</b></div><div><span>ISSUED</span><b>' + isoDay(today) + '</b></div>'
-      + '<div><span>SITES</span><b>' + n + '</b></div><div><span>PAGES</span><b>' + pages + '</b></div><div><span>BASE</span><b>92 DAVIDSON ST</b></div></div>'
-      + '<div class="cv-stamp">AUTHORIZED</div>'
-      + '</div>'
-      + (one ? '' : '<div class="cv-index">' + groups.map(function(g){
-          return '<div style="--g:' + g.color + '"><b>' + g.code + '</b><span>' + esc(g.name) + '</span><i>' + bySite[g.code].length + '</i></div>';
-        }).join('') + '</div>')
-      + '<div class="foot"><span>Jeff White Group</span><span>Winter operations</span><span>' + (one ? 'Group ' + one.code : 'Whole book') + '</span></div>'
-      + '<div class="class">WINTER OPS // CREW EYES ONLY // DO NOT LEAVE ON DASH</div></section>';
+      + '<div class="cv-force">SNOW &amp; ICE · TASK FORCE</div>'
+      + '<div class="cv-promise">' + n + ' site' + (n === 1 ? '' : 's') + '. Cleared by morning.</div>'
+      + '<div class="cv-sp"></div>'
+      + '<div class="cv-groups">' + groups.map(function(g){
+          var k = bySite[g.code].length;
+          return '<div><b>' + g.code + '</b><span>' + esc(g.name) + '</span><i>' + k + ' SITE' + (k === 1 ? '' : 'S') + '</i></div>';
+        }).join('') + '</div>'
+      + '<div class="cv-foot"><span>FILE JWG-W-' + (one ? one.code : 'BOOK') + '</span><span>ISSUED ' + isoDay(today) + '</span><span>' + pages + ' PAGES</span><span>BASE 92 DAVIDSON ST</span></div>'
+      + '</section>';
   }
 
   function divider(g, stops, W){
@@ -186,7 +182,7 @@ window.WinterBook = (function(){
   // The book opens as a preview; the bar on top prints it and never prints itself.
   function bookHtml(pages, label, n){
     return '<!doctype html><html><head><meta charset="utf-8"><title>Winter book · ' + esc(label) + '</title>'
-      + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Saira+Stencil+One&family=IBM+Plex+Mono:wght@500;600&display=swap">'
+      + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Saira+Stencil+One&family=Bebas+Neue&family=IBM+Plex+Mono:wght@500;600&display=swap">'
       + '<style>' + BOOK_CSS + '</style></head><body>'
       + '<div class="bar"><b>Winter book · ' + esc(label) + '</b><span>' + n + ' site page' + (n === 1 ? '' : 's') + ' plus a cover and a divider for each group. Print on Letter paper, margins: none.</span>'
       + '<button onclick="print()">Print</button></div>'
@@ -197,7 +193,7 @@ window.WinterBook = (function(){
   var BOOK_CSS = [
     '@page{size:letter;margin:0}',
     ':root{--deep:#012b1f;--forest:#00732e;--logo:#33a661;--mint:#a2d1a3;--wash:#eaf5ec;--pile:#ffd60a;--ink:#3d3200;--walk:#2f80ed;',
-    '  --ui:"Archivo",system-ui,sans-serif;--stencil:"Saira Stencil One","Archivo",Impact,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}',
+    '  --ui:"Archivo",system-ui,sans-serif;--stencil:"Saira Stencil One","Archivo",Impact,sans-serif;--condensed:"Bebas Neue",Impact,"Arial Narrow",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}',
     '*{box-sizing:border-box;margin:0;padding:0}',
     'html,body{background:#d9dfdb}',
     'body{-webkit-print-color-adjust:exact;print-color-adjust:exact}',
@@ -267,24 +263,24 @@ window.WinterBook = (function(){
     '.dv-list{list-style:none;display:grid;gap:1.2cqw;font-size:2cqw}',
     '.dv-list li{display:grid;grid-template-columns:10cqw minmax(0,1fr);gap:2cqw;border-bottom:1px solid #d8e0db;padding-bottom:1cqw}',
     '.dv-list b{font-family:var(--mono);color:var(--g)}.dv-list i{color:#56655d;font-style:normal}',
-    // cover page: everything centred over a faint snowflake, group tab index along the bottom
-    '.cover .cv-body{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:4cqw 8cqw 2cqw;overflow:hidden}',
-    '.cv-flake{position:absolute;left:50%;top:50%;width:92cqw;height:92cqw;transform:translate(-50%,-50%);stroke:var(--wash);stroke-width:2.2;stroke-linecap:round;fill:none;pointer-events:none}',
-    '.cv-body>*:not(.cv-flake){position:relative}',
-    '.cv-logo{width:13cqw;height:13cqw;margin-bottom:1.4cqw}',
-    '.cv-org{font-weight:800;font-size:3.4cqw;letter-spacing:.2em;color:var(--deep)}',
-    '.cv-sub{font-family:var(--mono);font-weight:600;font-size:1.5cqw;letter-spacing:.3em;color:var(--forest);margin:.8cqw 0 3.5cqw}',
-    '.cv-title{font-family:var(--stencil);font-size:12.5cqw;line-height:.92;color:var(--deep);border-top:.6cqw double var(--forest);border-bottom:.6cqw double var(--forest);padding:2.4cqw 0 2cqw;width:100%}',
-    '.cv-season{font-family:var(--mono);font-weight:600;font-size:2cqw;letter-spacing:.3em;color:var(--forest);margin:1.8cqw 0 3cqw}',
-    '.cv-one{display:flex;align-items:center;gap:2cqw;margin:-1.2cqw 0 2.6cqw}',
-    '.cv-code{font-family:var(--stencil);font-size:6cqw;line-height:1;color:var(--g);border:.45cqw solid var(--g);padding:.5cqw 1.4cqw .2cqw}',
-    '.cv-gname{font-weight:800;font-size:3.2cqw;color:var(--deep);text-align:left;line-height:1.05}',
-    '.cv-file{border:.25cqw solid var(--deep);font-family:var(--mono);font-size:1.4cqw;color:var(--deep);letter-spacing:.12em;width:52cqw;text-align:left;background:#fff}',
-    '.cv-file div{padding:.55cqw 1.6cqw;display:flex;justify-content:space-between;gap:2cqw}.cv-file div+div{border-top:.18cqw solid var(--deep)}.cv-file b{font-weight:600}',
-    '.cv-stamp{margin-top:2.4cqw;border:.6cqw solid var(--logo);color:var(--logo);font-family:var(--stencil);font-size:3.6cqw;letter-spacing:.16em;padding:.5cqw 2.2cqw;transform:rotate(-7deg);opacity:.85}',
-    '.cv-index{flex:none;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:.6cqw;padding:0 5.5cqw 2.4cqw}',
-    '.cv-index div{border-top:1.4cqw solid var(--g);padding-top:.8cqw;display:grid;gap:.2cqw;line-height:1.15}',
-    '.cv-index b{font-family:var(--mono);font-size:1.9cqw;color:var(--g)}.cv-index span{font-size:1.2cqw;color:var(--deep);font-weight:600}.cv-index i{font-family:var(--mono);font-style:normal;font-size:1.1cqw;color:#56655d}'
+    // cover page: black, two green bands slashed across, everything else centred; the group codes ringed in green
+    '.cover{background:#0d0d0d;color:#f4f4f4;position:relative;padding:5.4cqw 6.6cqw 4.4cqw;align-items:center;text-align:center}',
+    '.cv-band{position:absolute;left:-24.5cqw;top:30.6cqw;width:160cqw;height:18.4cqw;background:var(--logo);transform:rotate(-18deg);opacity:.95}',
+    '.cv-band.thin{top:52.7cqw;height:2.7cqw;opacity:.7}.cv-band.line{top:24.5cqw;height:1.2cqw;background:#fff;opacity:.35}',
+    '.cover>*:not(.cv-band){position:relative}',
+    '.cv-head{display:flex;justify-content:space-between;width:100%;font-family:var(--mono);font-weight:600;font-size:1.3cqw;letter-spacing:.36em;color:#9a9a9a}',
+    '.cv-badge{margin-top:6.6cqw;width:26cqw;height:26cqw;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 0 0 .85cqw #0d0d0d,0 0 0 1.35cqw #fff}',
+    '.cv-badge img{width:24.8cqw;height:24.8cqw;border-radius:50%}',
+    '.cv-title{font-family:var(--condensed);font-size:20.6cqw;line-height:.86;color:#fff;letter-spacing:.01em;margin-top:5.4cqw}',
+    '.cv-force{font-family:var(--condensed);font-size:5.6cqw;line-height:1;letter-spacing:.12em;color:var(--logo);margin-top:1.2cqw}',
+    '.cv-promise{font-size:2cqw;font-weight:600;color:#fff;letter-spacing:.04em;margin-top:1cqw}',
+    '.cv-sp{flex:1}',
+    '.cv-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5cqw 4.9cqw;width:100%;text-align:left}',
+    '.cv-groups div{display:flex;align-items:center;gap:1.5cqw}',
+    '.cv-groups b{width:5.1cqw;height:5.1cqw;flex:none;border-radius:50%;border:.37cqw solid var(--logo);display:grid;place-items:center;font-family:var(--condensed);font-size:2.45cqw;line-height:1;color:#fff}',
+    '.cv-groups span{font-size:1.6cqw;font-weight:600;color:#f4f4f4}',
+    '.cv-groups i{font-family:var(--mono);font-style:normal;font-weight:600;font-size:1.25cqw;letter-spacing:.1em;color:#9a9a9a;margin-left:auto}',
+    '.cv-foot{display:flex;justify-content:space-between;width:100%;font-family:var(--mono);font-weight:600;font-size:1.15cqw;letter-spacing:.22em;color:#9a9a9a;margin-top:3.2cqw;border-top:.25cqw solid var(--logo);padding-top:1.5cqw}'
   ].join('\n');
 
   return {choose: choose, print: print};
