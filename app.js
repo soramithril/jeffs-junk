@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '703';
+var APP_VERSION = '704';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -2821,8 +2821,26 @@ function go(name){
   // a body class collapses .main's padding so they get the whole viewport.
   document.body.classList.toggle('pv-full', ['pricing','ourprices'].indexOf(name)!==-1);
   if(typeof mSyncTab==='function') mSyncTab(name);
+  _rememberScreen(name);
   // Tab-merged host pages log from their tab switchers (per-tab usage counts)
   if(['vehicles','bininventory','analytics','ourprices'].indexOf(name)===-1) trackPageView(name);
+}
+// ── BACK TO THE SAME SCREEN ──
+// Every refresh ends at the sign-in screen (an update, the session lock, F5), and sign-in
+// used to always open the dashboard. The screen you were on is kept for this browser tab and
+// reopened after sign-in (Jake, 2026-10-22). Only for the same person: whoever signs in
+// next on a shared computer starts on their own dashboard.
+function _screenOwner(){return currentUser?(currentUser.displayName||currentUser.email||''):'';}
+function _rememberScreen(name){
+  if(!currentUser)return;
+  var tab=(name==='jwgscheduler'&&window.JWG&&window.JWG.S)?window.JWG.S.tab:null;
+  try{sessionStorage.setItem('jjScreen',JSON.stringify({u:_screenOwner(),p:name,t:tab}));}catch(e){}
+}
+function _resumeScreen(){
+  var s=null;
+  try{s=JSON.parse(sessionStorage.getItem('jjScreen')||'null');}catch(e){}
+  if(!s||s.p==='dashboard'||s.u!==_screenOwner())return;
+  if(s.p==='jwgscheduler')goJwg(s.t||'schedule');else go(s.p);
 }
 // Open the JWG scheduler at a specific internal tab (sidebar deep-links).
 function goJwg(tab){
@@ -14885,7 +14903,8 @@ async function loadSignedInApp() {
   // Keep the push service worker registered/updated on devices that enabled it
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
   startSessionGuards();
-  loadAllFromSupabase();
+  // The data load ends by drawing the dashboard, so the screen you were on reopens after it.
+  loadAllFromSupabase().then(_resumeScreen);
 }
 
 function applyDeleteVisibility() {
