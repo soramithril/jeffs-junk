@@ -622,7 +622,7 @@
   .lo-mk-job{z-index:2; display:flex; align-items:center; gap:6px}
   .lo-mk-truck{z-index:3}
   .lo-pop{z-index:4}
-  /* Truck pin — a glossed disc, a ring PAIR, a name chip, and a ping ring while
+  /* Truck pin — a glossed disc, a ring PAIR, and a ping ring while
      it's moving. Two rings, not one: cream first, because that is what lifts the
      disc off a pale map, then a near-solid dark one outside it, because the discs
      are green, amber and red and so are Google's traffic lines directly under
@@ -642,12 +642,32 @@
     stroke-linecap:round; stroke-linejoin:round}
   .lo-tk .ping{position:absolute; inset:-8px; border-radius:50%; border:3px solid currentColor;
     animation:tkping 1.7s ease-out infinite; pointer-events:none}
-  .lo-tk .n{background:rgba(17,24,18,.92); border:1px solid var(--card-line); border-radius:9px;
-    padding:4px 11px; font:900 16px/1.15 Inter;
-    color:var(--cream); white-space:nowrap; box-shadow:0 3px 12px rgba(0,0,0,.35)}
+  /* The driver's name in a big bubble over the truck (Jake, 2026-10-20): zoomed out,
+     the old 16px chip was unreadable from across the office. Absolutely placed so
+     htmlMarker, which centres a marker on its own box, keeps centring on the TRUCK -
+     an absolute child is not counted in offsetWidth/offsetHeight. --bub is the
+     driver's colour; a truck with nobody named gets the dark bubble, smaller,
+     because it carries a truck name rather than a first name. */
+  .lo-tk .bub{position:absolute; bottom:calc(100% + 16px); left:50%; transform:translateX(-50%);
+    padding:6px 20px 8px; border-radius:20px; border:4px solid var(--plate);
+    background:var(--bub, rgba(17,24,18,.92)); color:var(--cream);
+    font:900 36px/1 Inter; letter-spacing:-.02em; white-space:nowrap;
+    box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  .lo-tk .bub::after{content:''; position:absolute; left:50%; top:calc(100% + 4px); transform:translateX(-50%);
+    border:12px solid transparent; border-top-color:var(--plate)}
+  .lo-tk .bub.none{font-size:24px}
+  /* The truck's real picture. The pale halo lifts green paint off green fields
+     and dark imagery the way the ring pair does for the disc. The status colour
+     rides on a dot at the corner instead of being the whole disc. */
+  .lo-tk .ph{position:relative; display:block; width:120px}
+  .lo-tk .ph img{display:block; width:100%;
+    filter:drop-shadow(0 0 2px var(--plate)) drop-shadow(0 8px 10px rgba(0,0,0,.5))}
+  .lo-tk .ph .dot{position:absolute; top:-6px; right:-8px; width:26px; height:26px; border-radius:50%;
+    border:4px solid var(--plate); box-shadow:0 3px 8px rgba(0,0,0,.4)}
   /* the truck the map is currently focused on */
   .lo-tk.sel .b{width:57px; height:57px}
   .lo-tk.sel .b svg{width:30px; height:30px}
+  .lo-tk.sel .ph{width:150px}
   .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--plate), 0 4px 10px rgba(0,0,0,.35)}
   /* Today's work, pinned by town. Deliberately unlike a truck pin — no pale ring
@@ -1852,24 +1872,44 @@
       return outTrucks().filter(function(t){ return !isParked(t); });
     }
 
-    // The mockup's marker: glossed disc, white ring, name chip, and a ping ring
-    // while the truck is moving. `sel` is the truck the map is focused on.
+    // Which picture a truck gets on the map, matched on its Geotab name. The L7 is
+    // the one conventional cab; every other Hino is a cab-over. Darrin's truck, the
+    // Silverado and the Furniture Bank van are not bin trucks, so a bin-truck picture
+    // would be wrong for them - they keep the round icon.
+    function truckPhoto(t){
+      var name = String(t.name || '');
+      if(/L7/.test(name)) return 'assets/tv-pin-l7.png';
+      if(/^Hino/.test(name)) return 'assets/tv-pin-hino.png';
+      return null;
+    }
+
+    // A truck pin: the driver's name in a big bubble over the truck, the truck itself
+    // (its real picture, or the round icon), and the status colour with a ping ring
+    // while it's moving. `sel` is the truck the map is focused on.
     function truckIcon(t, sel){
       var st = truckState(t), c = TRUCK_C[st];
-      var gloss = 'radial-gradient(circle at 34% 28%, color-mix(in srgb, '+c+' 55%, #fff), '+c+')';
       var ping = st === 'moving' ? '<span class="ping" style="color:'+c+'"></span>' : '';
-      // The driver's colour on the outer ring and the name chip, so the truck matches
-      // its bin chips on the map and its strip on the bin board. No driver, no ring.
+      // The bubble is in the driver's colour, so the truck matches its bin chips on
+      // the map and its strip on the bin board. A truck the day has not named a
+      // driver for gets a dark bubble with the truck's own name.
       var driver = driverFor(t);
       var crewId = driver ? crewIdByName(driver) : null;
-      var ring = crewId ? '; --ring:'+driverColor(crewId) : '';
-      var chip = crewId ? ' style="border-color:'+driverColor(crewId)+'; border-width:2px"' : '';
-      // The disc sizes itself off .lo-tk / .lo-tk.sel in CSS, so there is no pixel
-      // size to declare here the way a Leaflet icon needed one.
-      return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'
-           + '<span class="b" style="background:'+gloss+'; --glyph:'+TRUCK_GLYPH[st]+ring+'">'
-           +   TRUCK_SVG+ping+'</span>'
-           + '<span class="n"'+chip+'>'+esc(t.name)+(driver ? ' &middot; '+esc(driver) : '')+'</span></div>';
+      var bub = crewId
+        ? '<span class="bub" style="--bub:'+driverColor(crewId)+'; color:'+inkOn(driverColor(crewId))+'">'+esc(driver)+'</span>'
+        : '<span class="bub none">'+esc(driver || t.name)+'</span>';
+      var photo = truckPhoto(t), body;
+      if(photo){
+        body = '<span class="ph"><img src="'+photo+'" alt="">'
+             +   '<span class="dot" style="background:'+c+'">'+ping+'</span></span>';
+      } else {
+        var gloss = 'radial-gradient(circle at 34% 28%, color-mix(in srgb, '+c+' 55%, #fff), '+c+')';
+        var ring = crewId ? '; --ring:'+driverColor(crewId) : '';
+        body = '<span class="b" style="background:'+gloss+'; --glyph:'+TRUCK_GLYPH[st]+ring+'">'
+             +   TRUCK_SVG+ping+'</span>';
+      }
+      // Sizes live in CSS (.lo-tk / .lo-tk.sel), so there is no pixel size to
+      // declare here the way a Leaflet icon needed one.
+      return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'+bub+body+'</div>';
     }
 
     // Each truck's regular driver — the same pairing app-leaderboard.js encodes as
@@ -2228,7 +2268,9 @@
       // an earlier pass cleared only the rail, so trucks still hid behind the
       // chip top-left and the key bottom-left. The key has since moved onto the
       // footer, which is why nothing extra is reserved for it down there.
-      _map.fitBounds(b, { top:272, right:380, bottom:150, left:64 });
+      // The top also carries the driver bubble's height (~80px over the truck), or
+      // the northernmost driver's name lands behind the town chip.
+      _map.fitBounds(b, { top:352, right:380, bottom:150, left:64 });
       // fitBounds takes no maxZoom, and one truck out collapses the bounds to a
       // point, which would slam the map to rooftop level. THAT is the only case
       // worth clamping. Capping at the old fixed tour zoom of 13 was wrong and made
