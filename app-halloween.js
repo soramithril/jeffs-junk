@@ -12,14 +12,14 @@
                              only when someone books (the one place stampSound plays)
      - Day cleared           once a day, when Live Jobs has nothing left to go
      - off switch            "Turn off Halloween look" on the dashboard, for this
-                             browser only (localStorage jjHalloween = 'off')
+                             browser and this year only (localStorage jjHalloween<year>)
    Loaded after app.js and jwg-stamp.js. No app.js changes: it wraps the two
    globals it needs (JWGStamp.stampPage / .booked and stampSound).
    ========================================================================== */
 (function () {
   'use strict';
 
-  var KEY = 'jjHalloween';
+  var KEY = 'jjHalloween' + new Date().getFullYear();   // turned off this year doesn't mean next year
   var root = document.documentElement;
 
   function inSeason(d) { return d.getMonth() === 9; }          // October only
