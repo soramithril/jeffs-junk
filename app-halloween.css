@@ -56,6 +56,16 @@ html.jj-hw #view-dashboard .djj-btn{background:rgba(255,236,200,.08)!important;b
 html.jj-hw #view-dashboard .djj-biz{background:rgba(167,139,250,.16)!important;color:#c4b5fd!important}
 html.jj-hw #view-dashboard .djj-sub.attn{color:#fdba74!important}
 html.jj-hw #view-dashboard .gs-input{background:rgba(0,0,0,.35)!important;color:var(--text)!important}
+/* the jump bar (Today's jobs / Needs you / ...): its pills and count badges are mixed
+   with white in style.css, so they get their own dark versions here */
+html.jj-hw #view-dashboard .djj-seg{background:rgba(255,236,200,.08)!important;color:#ecdec3!important}
+html.jj-hw #view-dashboard .djj-seg.is-active{background:rgba(240,164,66,.22)!important;color:#ffd9a3!important;box-shadow:inset 0 0 0 1.5px rgba(240,164,66,.6)!important}
+html.jj-hw #view-dashboard .djj-seg .djj-seg-badge{border:none!important}
+html.jj-hw #view-dashboard .djj-seg:nth-child(1) .djj-seg-badge{background:rgba(134,239,172,.2)!important;color:#86efac!important}
+html.jj-hw #view-dashboard .djj-seg:nth-child(2) .djj-seg-badge{background:rgba(252,211,77,.2)!important;color:#fcd34d!important}
+html.jj-hw #view-dashboard .djj-seg:nth-child(3) .djj-seg-badge{background:rgba(253,186,116,.2)!important;color:#fdba74!important}
+html.jj-hw #view-dashboard .djj-seg:nth-child(4) .djj-seg-badge{background:rgba(103,232,249,.2)!important;color:#67e8f9!important}
+html.jj-hw #view-dashboard .djj-seg:nth-child(5) .djj-seg-badge{background:rgba(255,236,200,.16)!important;color:#f6ecd9!important}
 
 /* gold carved lettering and the deep red Today's Jobs banner */
 html.jj-hw #view-dashboard :is(.card-head,#dash-strip-date,.djj-section-h){font-family:'Cinzel',Georgia,serif!important;letter-spacing:1.4px!important}
