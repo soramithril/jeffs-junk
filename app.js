@@ -88,22 +88,25 @@ function _checkForUpdate(){
     })
     .catch(function(){});
 }
-// The takeover reloads on the first click, so it must never land on an open job
-// form: anything typed there (Kelly's Furniture Bank item counts, a half-booked
-// call) only saves on Save. While #job-modal is open it waits, and goes up the
-// moment the form closes, saved or cancelled (Jake, 2026-10-20).
+// The takeover reloads on the first click, so it must never land on work in progress:
+// anything typed in a form only saves on Save. It waited for the job form alone (Jake,
+// 2026-10-20), which still threw away a half-typed customer, quote or email template.
+// Now it waits while ANY popup is open (every modal uses .modal-overlay.open) or one of
+// the two full-page editors has unsaved changes, and goes up once the person is done.
 var _updateWaiter = null;
+function _hasWorkInProgress(){
+  if(document.querySelector('.modal-overlay.open')) return true;
+  return window._wqDirty === true || window._etplDirty === true;
+}
 function _showUpdateWhenFree(){
-  var jm = document.getElementById('job-modal');
-  if(!jm.classList.contains('open')){ _showUpdateBanner(); return; }
+  if(!_hasWorkInProgress()){ _showUpdateBanner(); return; }
   if(_updateWaiter) return;
-  _updateWaiter = new MutationObserver(function(){
-    if(jm.classList.contains('open')) return;
-    _updateWaiter.disconnect();
+  _updateWaiter = setInterval(function(){
+    if(_hasWorkInProgress()) return;
+    clearInterval(_updateWaiter);
     _updateWaiter = null;
     _showUpdateBanner();
-  });
-  _updateWaiter.observe(jm, {attributes:true, attributeFilter:['class']});
+  }, 3000);
 }
 function _showUpdateBanner(){
   if(document.getElementById('update-banner')) return;
@@ -1452,39 +1455,50 @@ function patchBin(bid, fields) {
   });
 }
 
-function saveVehicles() {
-  // Sync vehicles to Supabase
-  try {
-    var rows = vehicles.map(function(v){
-      return {vid:v.vid, name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null, oil_date:v.oilDate||null, oil_km:v.oilKm?parseInt(v.oilKm):null, oil_interval:v.oilInterval?parseInt(v.oilInterval):null, vehicle_status:v.vehicleStatus||'Available'};
-    });
-    if(rows.length) {
-      db.from('vehicles').upsert(rows, {onConflict:'vid'}).then(function(r){
-        if(r.error) console.warn('Vehicle sync failed:', r.error.message);
-      });
-    }
-  } catch(e){ console.warn('Vehicle sync error:',e); }
+// One truck at a time. This used to upsert the WHOLE fleet from this tab's copy, which is loaded
+// at sign-in and never refreshed — so recording one truck's oil change put every other truck's
+// oil date, sticker and In Shop status back to how they were that morning. Failures only reached
+// the console, after the screen had already said it worked.
+function _vehRow(v){
+  return {name:v.name, type:v.type, color:v.color||'#22c55e', notes:v.notes||'', sticker_month:v.stickerMonth||null, sticker_year:v.stickerYear||null, oil_date:v.oilDate||null, oil_km:v.oilKm?parseInt(v.oilKm):null, oil_interval:v.oilInterval?parseInt(v.oilInterval):null};
+}
+function patchVehicle(vid, fields){
+  return db.from('vehicles').update(fields).eq('vid', vid).then(function(r){
+    if(r.error) toast('⚠ Truck didn\'t save: '+r.error.message,'error');
+    return r;
+  });
+}
+function insertVehicle(v){
+  // vehicle_status is only set here: nothing on screen edits it now (see _vehStatusTxt), but
+  // jeff.html still reads it, so a new truck starts Available.
+  return db.from('vehicles').insert(Object.assign({vid:v.vid, vehicle_status:'Available'}, _vehRow(v))).then(function(r){
+    if(r.error) toast('⚠ New truck didn\'t save: '+r.error.message,'error');
+    return r;
+  });
 }
 
-// Replaces a truck's blocked dates: delete them all, then put the current set back. There is no
-// transaction here, so a failure between the two steps loses that truck's blocked dates entirely.
-// Both steps are now checked and reported — it used to fail to the console only, where nobody
-// would ever see it, and the screen would keep showing blocks that no longer existed.
+// Writes a truck's blocked dates: save the current set first (UNIQUE vid+date makes it an
+// upsert), THEN remove only the dates that were taken off. It used to delete them all and put
+// them back, so a dropped connection between the two steps lost the whole list, repair costs
+// included. Now a failure at either step leaves every date that was there.
 async function saveVehBlocks(vid) {
   var blocks = vehBlocks[vid] || {};
   var dates = Object.keys(blocks);
-  var rDel = await db.from('vehicle_blocks').delete().eq('vid', vid);
-  if(rDel.error){
-    toast('⚠ Couldn\'t update blocked dates for this truck: '+rDel.error.message,'error');
-    return;
+  if(dates.length){
+    var rows = dates.map(function(d){
+      return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null, cost:blocks[d].cost!=null?blocks[d].cost:null};
+    });
+    var rUp = await db.from('vehicle_blocks').upsert(rows, {onConflict:'vid,date'});
+    if(rUp.error){
+      toast('⚠ Couldn\'t save blocked dates for this truck: '+rUp.error.message,'error');
+      return;
+    }
   }
-  if(!dates.length) return;
-  var rows = dates.map(function(d){
-    return {vid:vid, date:d, reason:blocks[d].reason||'', notes:blocks[d].notes||'', open_ended:!!blocks[d].openEnded, open_from:blocks[d].openFrom||null, cost:blocks[d].cost!=null?blocks[d].cost:null};
-  });
-  var rIns = await db.from('vehicle_blocks').insert(rows);
-  if(rIns.error){
-    toast('⚠ This truck\'s blocked dates were cleared but couldn\'t be saved back: '+rIns.error.message+' — refresh before changing them again','error');
+  var del = db.from('vehicle_blocks').delete().eq('vid', vid);
+  if(dates.length) del = del.not('date', 'in', '('+dates.join(',')+')');
+  var rDel = await del;
+  if(rDel.error){
+    toast('⚠ Couldn\'t remove the cleared dates for this truck: '+rDel.error.message,'error');
   }
 }
 
@@ -2279,9 +2293,15 @@ function openAddClient(){
   }catch(ex){console.error(ex);alert('Couldn\'t open the new-customer form.\n\nNothing was lost - close this and try again.');}
 }
 
-function editClient(cid){
-  var cl=null;clients.forEach(function(c){if(c.cid===cid)cl=c;});
-  if(!cl)return;
+// Fills from a FRESH copy of this one customer. It used to fill from this tab's list, which
+// only refreshes when Clients reloads — and Save writes the whole customer, so a colleague's
+// newer staff note or photo was put back the way this tab last saw it.
+async function editClient(cid){
+  var r=await db.from('clients').select(CLIENT_LIST_COLS).eq('cid',cid).single();
+  if(r.error||!r.data){ toast('⚠ Couldn\'t load this customer to edit: '+(r.error?r.error.message:'not found'),'error'); return; }
+  var cl=dbToClient(r.data);
+  var i=clients.findIndex(function(c){return c.cid===cid;});
+  if(i>=0) clients[i]=cl; else clients.push(cl);
   editClientId=cid;
   document.getElementById('client-modal-ttl').textContent='Edit Client';
   document.getElementById('client-save-btn').textContent='Save Changes';
@@ -16692,9 +16712,12 @@ function saveVehicle(){
   }
   // Editing MERGES onto the existing truck. Replacing it wholesale dropped every field the modal
   // doesn't render — leaderboardOnly among them — and forced active back to true.
-  if(editVehicleId){vehicles=vehicles.map(function(x){return x.vid===editVehicleId?Object.assign({},x,v,{active:x.active!==false}):x;});}
-  else{vehicles.push(v);if(!vehBlocks[v.vid])vehBlocks[v.vid]={};}
-  saveVehicles();renderVehicles();
+  if(editVehicleId){
+    vehicles=vehicles.map(function(x){return x.vid===editVehicleId?Object.assign({},x,v,{active:x.active!==false}):x;});
+    patchVehicle(editVehicleId, _vehRow(vehicles.find(function(x){return x.vid===editVehicleId;})));
+  }
+  else{vehicles.push(v);if(!vehBlocks[v.vid])vehBlocks[v.vid]={};insertVehicle(v);}
+  renderVehicles();
   closeM('vehicle-modal');
   toast(editVehicleId?'Vehicle updated!':'Vehicle added!');
 }
@@ -16714,7 +16737,7 @@ async function delVehicle(vid){
   if(!confirm('Delete this vehicle? All blocked dates will be removed.'))return;
   vehicles=vehicles.filter(function(v){return v.vid!==vid;});
   delete vehBlocks[vid];
-  saveVehicles();renderVehicles();
+  renderVehicles();
   // Remove from Supabase
   try { db.from('vehicles').delete().eq('vid',vid).then(function(r){ if(r.error) console.warn('Vehicle delete sync failed:',r.error.message); }); } catch(e){}
   try { db.from('vehicle_blocks').delete().eq('vid',vid).then(function(r){ if(r.error) console.warn('Vehicle blocks delete failed:',r.error.message); }); } catch(e){}
@@ -16906,7 +16929,7 @@ async function markOilServicedQuick(vid){
   var odo = window._odometerCache && window._odometerCache[vid];
   v.oilDate = todayStr();
   if(odo && odo.odometer_km) v.oilKm = String(odo.odometer_km);
-  saveVehicles();
+  patchVehicle(vid, {oil_date:v.oilDate, oil_km:v.oilKm?parseInt(v.oilKm):null});
   _vehLogService(vid,'🛢️ Oil change',(odo&&odo.odometer_km)?('at '+Number(odo.odometer_km).toLocaleString()+' km'):'');
   toast('✅ Oil change recorded for '+v.name);
   _rerenderFleet();
@@ -17611,7 +17634,7 @@ async function vehStickerRenewed(vid){
   var mName=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
   if(!confirm('Mark the yellow sticker renewed?\nNew expiry: '+mName+' '+newY)) return;
   v.stickerYear=String(newY);
-  saveVehicles();
+  patchVehicle(vid, {sticker_year:v.stickerYear});
   _vehLogService(vid,'📋 Sticker renewed','good to '+mName+' '+newY);
   renderVehicles();
   toast('📋 Sticker updated to '+mName+' '+newY);
