@@ -41,6 +41,7 @@ html.jj-hw #view-dashboard{
   --text:#f6ecd9;--text-secondary:#ecdec3;--muted:#d2c1a1;--placeholder:#a8977c;
   --accent:#f0a442;--accent-light:rgba(240,164,66,.16);--accent-hover:#ffc477;--accent-warm:#fb923c;
   --ok-ink:#86efac;--warn-ink:#fcd34d;--bad-ink:#fca5a5;--info-ink:#93c5fd;--data:#67e8f9;--green:#86efac;
+  --ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--red:#f87171;--info:#60a5fa;--blue:#60a5fa;
   --shadow-sm:0 4px 18px rgba(0,0,0,.35);--shadow-md:0 12px 32px rgba(0,0,0,.45);--shadow-lg:0 20px 48px rgba(0,0,0,.5);
   --hw-gold:#e2bd6b;color:var(--text);color-scheme:dark}
 
@@ -52,7 +53,7 @@ html.jj-hw #view-dashboard .jj-bin{background:rgba(255,255,255,.06)!important;bo
 html.jj-hw #view-dashboard :is(.djj-row,.tjr2){background:rgba(42,30,20,.74)!important;border-color:rgba(255,255,255,.08)!important}
 html.jj-hw #view-dashboard .tjr2.fixed{background:rgba(34,197,94,.10)!important}
 html.jj-hw #view-dashboard .djj-row.attn{background:rgba(220,53,69,.22)!important;border-color:rgba(248,113,113,.5)!important}
-html.jj-hw #view-dashboard .djj-btn{background:rgba(255,236,200,.08)!important;border-color:rgba(255,226,180,.24)!important}
+html.jj-hw #view-dashboard .djj-btn:not(.green){background:rgba(255,236,200,.08)!important;border-color:rgba(255,226,180,.24)!important}
 html.jj-hw #view-dashboard .djj-biz{background:rgba(167,139,250,.16)!important;color:#c4b5fd!important}
 html.jj-hw #view-dashboard .djj-sub.attn{color:#fdba74!important}
 html.jj-hw #view-dashboard .gs-input{background:rgba(0,0,0,.35)!important;color:var(--text)!important}
@@ -79,7 +80,12 @@ html.jj-hw #view-dashboard [style*="background:#eef5e0"]{background:rgba(190,242
 html.jj-hw #view-dashboard [style*="background:#eaf2ff"],
 html.jj-hw #view-dashboard [style*="background:#f9fbfd"]{background:rgba(147,197,253,.12)!important}
 html.jj-hw #view-dashboard [style*="background:#fef9e7"],
-html.jj-hw #view-dashboard [style*="background:#fffdf5"]{background:rgba(252,211,77,.12)!important}
+html.jj-hw #view-dashboard [style*="background:#fffdf5"],
+html.jj-hw #view-dashboard [style*="background:#fffbeb"],
+html.jj-hw #view-dashboard [style*="background:#fef3c7"]{background:rgba(252,211,77,.14)!important}
+html.jj-hw #view-dashboard [style*="background:#f3f0fb"]{background:rgba(196,181,253,.14)!important}
+html.jj-hw #view-dashboard [style*="background:#fdecee"]{background:rgba(248,113,113,.16)!important}
+html.jj-hw #view-dashboard :is([style*="background:#fff7ed"],[style*="rgb(255, 247, 237)"]){background:rgba(253,186,116,.14)!important}
 
 /* coloured words the dashboard writes straight in, made lighter so they read on dark glass */
 html.jj-hw #view-dashboard :is([style*="color:#0891b2"],[style*="color:#0e7490"]){color:#67e8f9!important}
