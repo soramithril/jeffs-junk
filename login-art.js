@@ -135,7 +135,7 @@
     },
     {
       // Jake's own art (2026-10-23). Phone number on the bin repainted to the real one.
-      key: 'porthole', season: 'always', layout: 'console bl', font: 'caps', phoneX: '55%', theme: ['night', { accent: '#9fd0ff' }],
+      key: 'porthole', season: 'always', layout: 'console tr', font: 'caps', phoneX: '55%', theme: ['night', { accent: '#9fd0ff' }],
       title: 'Houston, we have junk', intro: 'Pickup spotted below. Ready for descent.', button: 'LAUNCH',
       effects: [
         { fx: 'glints', box: [400, 0, 900, 180], pick: 'dark', count: 30, size: 1.4, colour: '220,235,255', cross: true },
@@ -325,7 +325,7 @@
       ]
     },
     {
-      key: 'halloween-banners', season: 'halloween', layout: 'console tr', font: 'serif', phoneX: '45%', theme: ['dusk', { accent: '#ffb366' }],
+      key: 'halloween-banners', season: 'halloween', layout: 'console bl', font: 'serif', phoneX: '45%', theme: ['dusk', { accent: '#ffb366' }],
       title: 'House Junk', intro: 'Banners up. Every table set.', button: 'ENTER',
       effects: [
         { fx: 'glow', at: [880, 55], r: 70, colour: '255,190,90', flicker: true },
