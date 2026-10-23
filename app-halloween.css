@@ -99,7 +99,12 @@ html.jj-hw #view-dashboard :is([style*="color:#1d4ed8"],[style*="color:#0d6efd"]
 html.jj-hw #view-dashboard :is([style*="color:#3f6212"],[style*="color:#65a30d"]){color:#bef264!important}
 html.jj-hw #view-dashboard [style*="color:#a1662f"]{color:#fcd9a4!important}
 
-/* stamps take their ink from one setting: lighter inks on the dark dashboard */
+/* the dashboard's own faint green wash would tint the hall: off while the picture is up */
+html.jj-hw #view-dashboard{background:none!important}
+
+/* stamps take their ink from one setting: lighter inks on the dark dashboard, and a dark
+   card behind them instead of their white paper */
+html.jj-hw #view-dashboard .jwg-stamp{background:rgba(20,14,10,.55)!important}
 html.jj-hw #view-dashboard .jwg-stamp.green{--ink:#4ade80}
 html.jj-hw #view-dashboard .jwg-stamp.cyan{--ink:#67e8f9}
 html.jj-hw #view-dashboard .jwg-stamp.indigo{--ink:#a5b4fc}
