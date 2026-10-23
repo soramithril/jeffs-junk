@@ -32,8 +32,10 @@
   var IW = 1672, IH = 941;   // every poster's size; effect positions are in its pixels
 
   // ── THE CALENDAR ──
-  // Which season today is in, or null. The order settles overlaps: Valentine's
-  // inside the winter stretch, St. Patrick's against an early Easter.
+  // Which seasons today is in (usually one, sometimes none). The order settles
+  // overlaps: Valentine's inside the winter stretch, St. Patrick's against an early
+  // Easter. Early October is the one shared stretch: Thanksgiving and Halloween
+  // sheets come up together from Oct 1 to Thanksgiving Monday (Jake, 2026-10-23).
   function md(m, d) { return m * 100 + d; }   // 1225 = Dec 25
   function easterSunday(y) {   // the Gregorian computus
     var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
@@ -46,24 +48,26 @@
     var first = new Date(y, 9, 1);
     return 1 + ((8 - first.getDay()) % 7) + 7;
   }
-  function seasonOn(date) {
+  function seasonsOn(date) {
     var y = date.getFullYear(), t = md(date.getMonth() + 1, date.getDate());
     var day = new Date(y, date.getMonth(), date.getDate());
     var easter = easterSunday(y);
     var easterFrom = new Date(y, easter.getMonth(), easter.getDate() - 13);
     var easterTo = new Date(y, easter.getMonth(), easter.getDate() + 1);   // Easter Monday
     var thanks = md(10, thanksgivingMonday(y));
-    if (t >= 1211 && t <= 1225) return 'christmas';
-    if (t >= 1226 || t <= 110) return 'newyears';
-    if (t >= 201 && t <= 214) return 'valentines';
-    if (t >= 310 && t <= 317) return 'stpatricks';
-    if (day >= easterFrom && day <= easterTo) return 'easter';
-    if (t >= 624 && t <= 701) return 'canadaday';
-    if (t >= 920 && t <= thanks) return 'thanksgiving';
-    if (t > thanks && t <= 1031) return 'halloween';
-    if (t >= 111 && t <= 229) return 'winter';
-    if (t >= 702 && t <= 831) return 'summer';
-    return null;
+    if (t >= 1115 && t <= 1225) return ['christmas'];
+    if (t >= 1226 || t <= 110) return ['newyears'];
+    if (t >= 201 && t <= 214) return ['valentines'];
+    if (t >= 310 && t <= 317) return ['stpatricks'];
+    if (day >= easterFrom && day <= easterTo) return ['easter'];
+    if (t >= 624 && t <= 701) return ['canadaday'];
+    var autumn = [];
+    if (t >= 920 && t <= thanks) autumn.push('thanksgiving');
+    if (t >= 1001 && t <= 1031) autumn.push('halloween');
+    if (autumn.length) return autumn;
+    if (t >= 111 && t <= 229) return ['winter'];
+    if (t >= 702 && t <= 831) return ['summer'];
+    return [];
   }
   function springToFall(date) {
     var t = md(date.getMonth() + 1, date.getDate());
@@ -127,6 +131,18 @@
         { fx: 'glow', at: [650, 500], r: 46, colour: '140,255,180', period: 3 },
         { fx: 'glow', at: [1020, 220], r: 40, colour: '255,170,90', flicker: true },
         { fx: 'glow', at: [150, 60], r: 50, colour: '255,214,150', period: 6 }
+      ]
+    },
+    {
+      // Jake's own art (2026-10-23). Phone number on the bin repainted to the real one.
+      key: 'porthole', season: 'always', layout: 'console bl', font: 'caps', phoneX: '55%', theme: ['night', { accent: '#9fd0ff' }],
+      title: 'Houston, we have junk', intro: 'Pickup spotted below. Ready for descent.', button: 'LAUNCH',
+      effects: [
+        { fx: 'glints', box: [400, 0, 900, 180], pick: 'dark', count: 30, size: 1.4, colour: '220,235,255', cross: true },
+        { fx: 'glints', box: [700, 100, 1300, 450], pick: 'bright', count: 40, size: 2, colour: '255,230,190' },
+        { fx: 'glow', at: [965, 600], r: 28, colour: '255,240,210', period: 4 },
+        { fx: 'glow', at: [1350, 370], r: 22, colour: '255,190,110', flicker: true },
+        { fx: 'fall', kind: 'snow', count: 60, box: [150, -300, 1500, 700], travel: [-40, 700], period: 2.5, size: 1.1, colours: ['200,220,255'] }
       ]
     },
     {
@@ -256,6 +272,91 @@
         { fx: 'fall', kind: 'leaf', count: 26, box: [0, -100, IW, 600], travel: [260, 520], period: 14, size: 6, colours: AUTUMN }
       ]
     },
+    // Jake's own Great Hall set (2026-10-23): floating jack-o'-lanterns flicker, the
+    // braziers and fireplaces burn, candles twinkle.
+    {
+      key: 'halloween-hall', season: 'halloween', layout: 'float', font: 'serif', phoneX: '43%', theme: ['dusk', { accent: '#ffb366' }],
+      title: 'The great haul', intro: 'Pumpkins are lit. The feast can wait.', button: 'ENTER',
+      effects: [
+        { fx: 'glow', at: [1040, 195], r: 70, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [90, 290], r: 55, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [385, 45], r: 35, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [250, 180], r: 35, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [1450, 345], r: 30, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [1170, 410], r: 22, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [145, 420], r: 22, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [1630, 680], r: 40, colour: '255,150,60', flicker: true },
+        { fx: 'glints', box: [400, 480, 950, 560], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' },
+        { fx: 'glints', box: [430, 330, 620, 420], pick: 'bright', count: 16, size: 2, colour: '255,230,170' },
+        { fx: 'fall', kind: 'ember', count: 12, box: [1390, 300, 1510, 360], travel: [20, -260], period: 4, size: 2.2, colours: ['255,170,70', '255,120,40'] }
+      ]
+    },
+    {
+      key: 'halloween-feast', season: 'halloween', layout: 'console br', font: 'serif', phoneX: '36%', theme: ['dusk', { accent: '#ffb366' }],
+      title: 'Feast night', intro: 'The bin is full of pumpkins. Let’s haul.', button: 'ENTER',
+      effects: [
+        { fx: 'glow', at: [1110, 130], r: 75, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [395, 45], r: 45, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [275, 100], r: 32, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [55, 245], r: 35, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [255, 385], r: 30, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [1480, 285], r: 30, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [1160, 385], r: 22, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [155, 370], r: 22, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [1620, 610], r: 40, colour: '255,150,60', flicker: true },
+        { fx: 'glints', box: [430, 260, 720, 370], pick: 'bright', count: 30, size: 2, colour: '255,220,140' },
+        { fx: 'fall', kind: 'ember', count: 12, box: [1440, 230, 1530, 290], travel: [20, -240], period: 4, size: 2.2, colours: ['255,170,70', '255,120,40'] }
+      ]
+    },
+    {
+      // The truck's tree logo and "Property Maintenance" lettering are as Jake made them (his call).
+      key: 'halloween-truck', season: 'halloween', layout: 'console tr', font: 'serif', phoneX: '68%', theme: ['dusk', { accent: '#ffb366' }],
+      title: 'Trick or treat', intro: 'Even the owls ride along tonight.', button: 'ENTER',
+      effects: [
+        { fx: 'glow', at: [1120, 140], r: 70, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [400, 115], r: 40, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [900, 135], r: 30, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [250, 250], r: 26, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [1570, 215], r: 32, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [105, 290], r: 22, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [1390, 565], r: 26, colour: '255,240,200', period: 4 },
+        { fx: 'glints', box: [500, 380, 800, 470], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' },
+        { fx: 'glints', box: [800, 240, 1300, 330], pick: 'warm', count: 24, size: 2.2, colour: '255,220,150' }
+      ]
+    },
+    {
+      key: 'halloween-banners', season: 'halloween', layout: 'console tr', font: 'serif', phoneX: '45%', theme: ['dusk', { accent: '#ffb366' }],
+      title: 'House Junk', intro: 'Banners up. Every table set.', button: 'ENTER',
+      effects: [
+        { fx: 'glow', at: [880, 55], r: 70, colour: '255,190,90', flicker: true },
+        { fx: 'glow', at: [500, 90], r: 40, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [630, 125], r: 26, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [800, 875], r: 60, colour: '255,190,90', flicker: true },
+        { fx: 'glow', at: [780, 640], r: 22, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [800, 350], r: 26, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [905, 365], r: 22, colour: '255,170,80', flicker: true },
+        { fx: 'glow', at: [620, 255], r: 26, colour: '255,170,80', flicker: true },
+        { fx: 'glints', box: [700, 550, 1100, 720], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' }
+      ]
+    },
+    {
+      key: 'halloween-castle', season: 'halloween', layout: 'console br', font: 'serif', phoneX: '40%', theme: ['night', { accent: '#ffb366', footer: '#b39acb' }],
+      title: 'Owl post', intro: 'A letter just came in. Junk to collect.', button: 'ENTER',
+      effects: [
+        { fx: 'glow', at: [1578, 72], r: 46, colour: '230,235,255', period: 7 },
+        { fx: 'glow', at: [60, 230], r: 40, colour: '255,190,100', flicker: true },
+        { fx: 'glow', at: [365, 350], r: 26, colour: '255,190,100', flicker: true },
+        { fx: 'glow', at: [65, 775], r: 50, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [450, 330], r: 30, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [1510, 575], r: 32, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [1240, 680], r: 18, colour: '255,150,50', flicker: true },
+        { fx: 'glow', at: [330, 630], r: 26, colour: '255,240,200', period: 5 },
+        { fx: 'glints', box: [1000, 250, 1600, 420], pick: 'warm', count: 50, size: 2, colour: '255,210,130' },
+        { fx: 'bats', box: [850, 40, 1500, 250], count: 5 },
+        { fx: 'fog', box: [1100, 380, 1600, 520], colour: '200,210,230' },
+        { fx: 'fall', kind: 'leaf', count: 22, box: [0, -100, IW, 500], travel: [260, 520], period: 14, size: 6, colours: AUTUMN }
+      ]
+    },
     {
       key: 'christmas', season: 'christmas', layout: 'console br', font: 'serif', phoneX: '30%', theme: ['holly'],
       title: "Season's greetings", intro: "Sleigh's loaded. Let's roll.", button: 'LOG IN',
@@ -271,9 +372,9 @@
   // ── THE PICK ──
   function byKey(key) { return SHEETS.filter(function (s) { return s.key === key; })[0]; }
   function pools(date) {
-    var season = seasonOn(date), sf = springToFall(date);
+    var seasons = seasonsOn(date), sf = springToFall(date);
     return {
-      inSeason: SHEETS.filter(function (s) { return s.season === season; }),
+      inSeason: SHEETS.filter(function (s) { return seasons.indexOf(s.season) >= 0; }),
       base: SHEETS.filter(function (s) { return s.season === 'always' || (s.season === 'springfall' && sf); })
     };
   }
