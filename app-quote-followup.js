@@ -12,7 +12,7 @@
 //     that are due a call (Jake, 2026-10-16 — the dashboard was getting full, and a
 //     two-month-old quote is not a call anyone will make). renderNeedsYou in app.js
 //     reads them from qfFreshQuotes();
-//   - the morning brief in app.js, one card per due quote (qfBriefCardHtml);
+//   - the Morning Brief (app-brief.js), one reminder line linking to the Junk Quotes page;
 //   - the 1 pm nudge card, once a day, for whatever is still due by then;
 //   - the box at the top of a quote's Job details (#det-quote-box).
 //
@@ -99,23 +99,6 @@ function qfNeedsYouRowHtml(q){
       + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + _qfButtons(q.job_id, 'card', true) + '</div>'
     + '</div>'
     + '<div id="qf-card-' + q.job_id + '"></div>'
-  + '</div>';
-}
-
-// ── Morning brief: one card per due quote (app.js _jjBriefCard draws it) ──
-// No Convert here — that opens the booking form, and the brief steps aside for
-// nothing but its own buttons. Any answer moves the brief on (see _qfPatch).
-function qfBriefCardHtml(q){
-  return '<div style="border:2px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:18px 20px">'
-    + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#b45309;margin-bottom:8px">Quote waiting on an answer</div>'
-    + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">Did ' + escHtml(q.name || ('quote ' + q.job_id)) + ' book?</div>'
-    + '<div style="font-size:13px;color:var(--muted);margin-bottom:4px">' + _qfMeta(q, todayStr()) + '</div>'
-    + _qfChased(q)
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
-      + _qfButtons(q.job_id, 'brief', false)
-      + '<button class="btn btn-ghost" onclick="jjBriefSkip()">Skip for now</button>'
-    + '</div>'
-    + '<div id="qf-brief-' + q.job_id + '"></div>'
   + '</div>';
 }
 
@@ -301,14 +284,10 @@ function quoteMarkBooked(quoteId, jobId){
   _qfPatch(quoteId, {quote_outcome:'booked', quote_job_id:jobId});
 }
 
-// Every change redraws every place that shows quotes, wherever it was made. An answer
-// to the morning brief's own card also moves the brief on to its next one.
+// Every change redraws every place that shows quotes, wherever it was made.
 async function _qfPatch(id, fields){
   var r = await patchJob(id, fields);
   if(r.error) return;            // patchJob already said so and put the screen back
-  var front = _jjBriefQueue[0];
-  if(front && front.kind === 'quote' && front.j.job_id === id
-     && document.getElementById('morning-brief-modal').classList.contains('open')) _jjBriefNext();
   refreshQuoteNeedsYou();
   var page = document.getElementById('view-junkquotes');
   if(page && page.classList.contains('active')) renderJunkQuotesPage();
