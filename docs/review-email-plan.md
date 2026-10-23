@@ -1,36 +1,59 @@
-# Designed Google review email: plan (not built yet)
+# Designed Google review email
 
-Started 2026-10-23 in the website session, moved here by Jake. Nothing in the app has changed; this branch only holds the mockup.
+Started 2026-10-23. Built on branch `review-email-build-1023` (from `review-email-design`, which holds the mockup).
+NOT merged: the plain review email and the review text carry on unchanged until Jake approves the look with Sam.
 
 ## The mockup
 - `review-email-mockup.html`: the email at computer and phone width, bin rental and junk removal versions.
   Sam's copy: https://soramithril.github.io/site-preview/email-review.html
-- `assets/email/review.html`, `review-junk.html`: the email itself, built the way email needs it (tables, inline styles,
-  Arial, 600 px with Outlook-for-Windows fixes). Example customer: Sarah, 14 yard bin rental, Innisfil / Mike, junk removal, Barrie.
-- `assets/email/`: `logo.png`, `review-photo-bin.jpg` (bin truck), `review-photo-junk.jpg` (junk truck). The photo matches the job's service.
-- Source it was made from: `jjwebsite/mockup-build/review_email.py` (the wording defaults and layout are there).
+- `assets/email/`: `logo.png`, `review-photo-bin.jpg` (bin truck), `review-photo-junk.jpg` (junk truck).
+  The sending piece attaches these inside each email, so they must stay at these paths.
 
-## What Jake decided
-- **Option 2:** the app sends the designed email itself through Microsoft 365 (Graph), not by copy-paste into Outlook.
-- **Every email must land in the Outlook Sent folder** as the receipt (Graph `sendMail` with `saveToSentItems`).
-- **Kelly, Sam or anyone can edit the words before sending:** subject, heading and each paragraph in their own box, with
-  the finished email shown beside them. The stars, button, signature and footer stay fixed. Default wording editable on
-  the Email Templates page like the other templates.
-- **Hidden until Jake confirms the look with Sam:** behind a switch only Jake can turn on.
-- **The rating line updates itself:** "4.9 from 258 Google reviews" comes from Google once a day (Places API (New) Place
-  Details, fields `rating,userRatingCount`, using the existing `GOOGLE_PLACES_KEY` in `places-proxy`; one call a day is
-  inside the free allowance).
+## Jake's answers (2026-10-23)
+- Sends from **hello@jeffsjunk.ca**. Every email lands in its Sent folder; replies come back to its inbox.
+- Signature: the **logo stands in** for the photo of Jeff & Barbara until there is one.
+- Build now, hidden. Jake will change things later; the wording is editable by anyone, the design by asking.
 
-## Still open (ask Jake)
-- Which mailbox sends: assumed hello@jeffsjunk.ca. If Sam and Kelly use their own Outlook addresses, the design changes.
-- Microsoft setup in Jake's account: register the app in the Entra admin centre, Graph **Mail.Send** (application),
-  admin consent, client secret into Supabase secrets, then lock it to the one mailbox (Exchange application access policy /
-  RBAC for Applications). Microsoft 365 is through GoDaddy (MX is Proofpoint `ppe-hosted`, autodiscover is Outlook),
-  so first check Jake can reach the Entra admin centre; GoDaddy may need to turn on admin access.
-- Photo of Jeff & Barbara for the signature (dashed `[Jeff: ...]` circle in the mockup).
+## How it is built
+- `supabase/functions/review-email/build.js`: the email itself (the mockup's HTML, word boxes filled in, escaped).
+  Plain JS so a V8 check can run it; checked against `assets/email/review.html` (same apart from the signature).
+- `supabase/functions/review-email/index.ts`: `mode:'preview'` returns the HTML; `mode:'send'` sends it with
+  Microsoft Graph `sendMail` + `saveToSentItems:true`. The recipient is the job's first email (never the client's).
+  Refuses: not staff, switched off (unless developer), no_email, no address, cancelled, Extra Jobs, job older than 2 years.
+  Pictures go inside the email (inline attachments, `cid:`), fetched from the live site's `assets/email/`.
+- Rating line: Google Places (New) Place Details `rating,userRatingCount` with `GOOGLE_PLACES_KEY`, counted as
+  `places_details` by `bump_google_api`, kept in `jwg_app_settings` key `google_rating`. Asked at most once a day,
+  by the first preview or send of the day (so ~1 call a day, only on days it's used).
+- `app-review-email.js`: the "✉️ Review email" button in Job details, the editing window (subject + five boxes,
+  live preview of the real email, Send holds 10 s with Undo), and the Email Templates tab "Review Email (designed)".
+  After sending: stamps `review_asked_at`, files a `quote_correspondence` row (channel `email`), like the review text.
+- The switch: `jwg_app_settings` key `review_email_on`. Only Jake (developer tier) sees the switch (on the Email
+  Templates tab). Off: only Jake sees the button and the tab, and the function refuses everyone else.
+- Wording: `email_presets` key `review_email`, body = JSON of the five boxes. New placeholder `{job}`
+  ("14 yard bin rental" / "junk removal"), added to every template's placeholder list.
+- No database changes.
 
-## Rules already in the email
-- Footer has the business mailing address and "Reply stop and we'll take you off our list" (CASL: sender ID, mailing
-  address, unsubscribe). Only email customers from the last 2 years or who said yes.
-- Every star and the button go to the same Google review link (no filtering happy customers: against Google's rules).
-- Sending should stamp `review_asked_at` and file a `quote_correspondence` row, the same as the review text (app-review-text.js).
+## Microsoft setup (Jake does these; nothing can send until they're done)
+1. Sign in at **entra.microsoft.com** with the jeffsjunk.ca admin account. If it says no access, call GoDaddy:
+   "I need admin access to my Microsoft 365 tenant to register an app."
+2. **App registrations → New registration.** Name: `Jeff's Junk dashboard - review email`. "Accounts in this
+   organizational directory only". No redirect. Register.
+3. From its Overview page, copy the **Application (client) ID** and the **Directory (tenant) ID**.
+4. **API permissions → Add a permission → Microsoft Graph → Application permissions → Mail.Send → Add.**
+   Then **Grant admin consent** (the green tick must show).
+5. **Certificates & secrets → New client secret**, 24 months. Copy the **Value** at once (it's shown one time).
+   Note the expiry date: sending stops the day it runs out.
+6. Lock it to hello@ only (otherwise Mail.Send can send as any mailbox). Done together in Exchange Online
+   PowerShell: a mail-enabled security group holding hello@, then
+   `New-ApplicationAccessPolicy -AppId <client id> -PolicyScopeGroupId <group> -AccessRight RestrictAccess`.
+7. **Supabase → Edge Functions → Secrets**, add `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`.
+   Jake pastes these himself.
+
+## Going live (needs Jake's word)
+1. Deploy the `review-email` function from this branch (`get_edge_function` afterwards and compare with the repo).
+   NOTE 2026-10-23: version 1 went up by mistake with a placeholder `build.js` (so it can't build an email).
+   Nothing calls it. Redeploying from the repo fixes it.
+2. Merge the branch, bump app.js's three version numbers and `app-review-email.js?v=` to the deploy's number
+   (re-read `version.txt` first), verify live.
+3. Jake sends test emails to himself, opens them in Outlook on the PC and on his phone, checks with Sam.
+4. Jake flips the switch on the Email Templates page.

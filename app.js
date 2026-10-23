@@ -12575,6 +12575,7 @@ async function openDetail(id, returnCid){
       :'<button class="btn btn-blue-solid" onclick="openEmailModal(\''+j.id+'\')" style="justify-content:center;font-weight:700">'+lineIcon('email',14)+' Email Not Sent — Send Now</button>'))
     +reviewBtnHtml(j)
     +(window.reviewTextBtnHtml?reviewTextBtnHtml(j):'')
+    +(window.reviewEmailBtnHtml?reviewEmailBtnHtml(j):'')
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="printBinRental(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Bin Rental'?'<button class="btn btn-ghost" onclick="openBinPickup(\''+j.id+'\')" style="justify-content:center;border-color:rgba(8,145,178,.4);color:#0891b2">'+lineIcon('calendar',14)+' Change Pickup</button>':'')
     +(j.service==='Junk Removal'?'<button class="btn btn-ghost" onclick="printJunkRemoval(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
@@ -15059,6 +15060,19 @@ var defaultPresets = {
     subject: 'How did we do?',
     body: 'Hi {name},\n\nThanks again for choosing Jeff\'s Junk for your {service} in {city} — we hope everything went smoothly.\n\nIf you have a minute, we\'d really appreciate a quick Google review. It makes a genuine difference to a small local business like ours:\n\nhttps://search.google.com/local/writereview?placeid=ChIJO526yTG9KogRwrEXa6bIjZA\n\nA line about the {service} and that you\'re in {city} helps your neighbours find us.\n\nAnd if anything wasn\'t right, reply to this email and we\'ll make it right.\n\nThanks so much,\nJeff\'s Junk'
   },
+  /* The designed review email (app-review-email.js). The body is the five word boxes
+     as JSON; the layout around them lives in the review-email edge function. Same
+     wording as the mockup Jake and Sam looked at (branch review-email-design). */
+  review_email: {
+    subject: 'How did we do, {firstName}?',
+    body: JSON.stringify({
+      heading: 'How did we do, {firstName}?',
+      p1: 'Thanks for choosing Jeff’s Junk for your {job} in {city}. We hope everything went smoothly.',
+      p2: 'Would you leave us a quick Google review? It takes about a minute, and it helps other families around Simcoe County find a local, family-run company.',
+      tip: 'If you can, say what we did and where, like “{job} in {city}”. It helps your neighbours find us.',
+      closing: 'Something not quite right? Just reply to this email or call 705.333.7767. Jeff reads every one.'
+    })
+  },
   /* The text version (app-review-text.js). One paragraph: it lands in Messages, where
      nobody reads a letter. No subject — texts don't have one. */
   review_text: {
@@ -15083,6 +15097,8 @@ var SERVICE_WORDS = {
   'Furniture Pickup':'furniture pickup', 'Furniture Delivery':'furniture delivery'
 };
 function serviceWord(j){ return SERVICE_WORDS[j.service] || 'job'; }
+// "{job}": what we did, the way the review email's mockup says it — "14 yard bin rental".
+function jobWords(j){ return (j.service === 'Bin Rental' && j.binSize) ? j.binSize + ' ' + serviceWord(j) : serviceWord(j); }
 
 function fillEmailTemplate(template, j) {
   var side = j.binSide ? ' (' + binSideLabel(j.binSide) + ')' : '';
@@ -15097,6 +15113,7 @@ function fillEmailTemplate(template, j) {
     // "Hi Sarah", not "Hi Sarah Thompson" — a text reads like one, a letter doesn't.
     .replace(/{firstName}/g, fullName.split(' ')[0])
     .replace(/{service}/g, serviceWord(j))
+    .replace(/{job}/g, jobWords(j))
     .replace(/{city}/g, j.city || 'the area')
     .replace(/{binSize}/g, j.binSize || 'bin')
     .replace(/{date}/g, fd(schedDate) || '')
@@ -15447,9 +15464,9 @@ function sendEmail() {
 // ═══════════════════════════════════════
 // EMAIL TEMPLATES — full page (was a modal until v465)
 // ═══════════════════════════════════════
-var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled','review_request','review_text'];
-var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled',review_request:'Review Request',review_text:'Review Text'};
-var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫',review_request:'⭐',review_text:'💬'};
+var ETPL_KEYS = ['bin_dropoff','bin_pickup','bin_extension','junk_removal','furniture_bank','junk_quote','bin_cancelled','review_request','review_email','review_text'];
+var ETPL_LABELS = {bin_dropoff:'Bin Drop-off',bin_pickup:'Bin Pick-up',bin_extension:'Bin Extension',junk_removal:'Junk Removal',furniture_bank:'Furniture Bank',junk_quote:'Junk Quote',bin_cancelled:'Bin Cancelled',review_request:'Review Request',review_email:'Review Email (designed)',review_text:'Review Text'};
+var ETPL_ICONS = {bin_dropoff:'🚛',bin_pickup:'🚚',bin_extension:'🗓️',junk_removal:'🧹',furniture_bank:'🛋️',junk_quote:'📋',bin_cancelled:'🚫',review_request:'⭐',review_email:'✉️',review_text:'💬'};
 // Texts have no subject line. The box stays in the page (etplStash reads it) but hidden.
 var ETPL_NO_SUBJECT = {review_text:1};
 /* Exactly the tokens fillEmailTemplate() substitutes — no more, no less. The old
@@ -15461,6 +15478,7 @@ var ETPL_FIELDS = [
   {t:'{name}',        label:'Customer name'},
   {t:'{firstName}',   label:'First name'},
   {t:'{service}',     label:'Service (bin rental, junk removal…)'},
+  {t:'{job}',         label:'What we did (14 yard bin rental…)'},
   {t:'{city}',        label:'Town'},
   {t:'{address}',     label:'Address'},
   {t:'{binSize}',     label:'Bin size'},
@@ -15501,12 +15519,14 @@ function etplPreview(){
   var j = _etplSample();
   var s = document.getElementById('etpl-subj'), b = document.getElementById('etpl-body');
   if(!s || !b) return;
+  if(_etplKey === 'review_email') reTplSync();   // its five boxes → the stored body
   // Capture on every keystroke, not only when switching templates or pressing Save.
   // Typing then walking away used to lose the wording — and worse, a background
   // refresh could rebuild the page from the stored copy mid-sentence.
   etplStash();
   _etplDirty = true;
   _etplMarkDirty();
+  if(_etplKey === 'review_email'){ reTplPreview(); return; }
   document.getElementById('etpl-prev-subj').textContent = fillEmailTemplate(s.value, j);
   document.getElementById('etpl-prev-body').textContent = fillEmailTemplate(b.value, j);
 }
@@ -15541,7 +15561,8 @@ function renderEmailTemplates(){
   // leave it alone — etplPreview keeps the in-memory copy current anyway.
   if(_etplDirty && host.querySelector('#etpl-body')) return;
   var p = getPreset(_etplKey);
-  var list = ETPL_KEYS.map(function(k){
+  // The designed review email stays Jake's alone until he switches it on (app-review-email.js).
+  var list = ETPL_KEYS.filter(function(k){ return k !== 'review_email' || reviewEmailVisible(); }).map(function(k){
     return '<button class="etpl-tab' + (k===_etplKey?' on':'') + '" onclick="etplSelect(\'' + k + '\')">'
       + '<span class="etpl-tab-ico">' + ETPL_ICONS[k] + '</span>' + ETPL_LABELS[k] + '</button>';
   }).join('');
@@ -15574,6 +15595,7 @@ function renderEmailTemplates(){
   /* Set values as properties, not markup — no escaping to get wrong. */
   document.getElementById('etpl-subj').value = p.subject || '';
   document.getElementById('etpl-body').value = p.body || '';
+  if(_etplKey === 'review_email') reTplMount();
   etplPreview();
 }
 
