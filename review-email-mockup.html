@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Review email preview</title>
+<style>
+body{margin:0;background:#f3f4f1;color:#15191c;font:16px/1.5 Arial,Helvetica,sans-serif;padding:24px 16px 48px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:20px}
+h1{margin:0;font-size:clamp(1.6rem,4vw,2.2rem);line-height:1.15}
+p{margin:0;color:#4a5258;max-width:70ch}
+.k{font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#17803a}
+.ex{display:inline-block;padding:1px 6px;border-radius:5px;background:#fff7d6;color:#5f4700;font-size:.85em;font-weight:700}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{font:inherit;font-weight:700;padding:10px 16px;border-radius:999px;border:1.5px solid #c9cec9;background:#fff;cursor:pointer}
+.tabs button[aria-pressed=true]{background:#15191c;color:#fff;border-color:#15191c}
+.frames{display:grid;gap:20px;align-items:start}
+@media (min-width:1000px){.frames{grid-template-columns:minmax(0,1fr) 390px}}
+.f{display:grid;gap:8px}.f span{font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#59616a}
+iframe{width:100%;border:1px solid #dde0da;border-radius:14px;background:#eef0ec;height:1250px}
+.phone iframe{max-width:390px;border-radius:28px;height:1400px}
+ul{margin:0;padding-left:20px;color:#4a5258}
+</style></head><body><div class="wrap">
+<span class="k">Preview only &middot; nothing is sent from this page</span>
+<h1>The Google review email</h1>
+<p>What a customer gets after their job. The name, job and town are examples <span class="ex">Sarah, 14 yard bin, Innisfil</span>. In the office app you&rsquo;ll be able to change the words before sending. It goes from Outlook, so it lands in the Sent folder like any other email.</p>
+<ul>
+<li>The stars and the button both open the Google review page.</li>
+<li>The rating at the bottom updates itself from Google every day.</li>
+<li>The dashed circle is waiting for a photo of Jeff &amp; Barbara.</li>
+</ul>
+<div class="tabs" role="group" aria-label="Which job">
+<button type="button" aria-pressed="true" data-src="assets/email/review.html">Bin rental</button>
+<button type="button" aria-pressed="false" data-src="assets/email/review-junk.html">Junk removal</button>
+</div>
+<div class="frames">
+<div class="f"><span>Computer</span><iframe title="The email on a computer" src="assets/email/review.html"></iframe></div>
+<div class="f phone"><span>Phone</span><iframe title="The email on a phone" src="assets/email/review.html"></iframe></div>
+</div>
+</div>
+<script>
+document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){
+document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
+document.querySelectorAll('iframe').forEach(function(f){f.src=b.dataset.src});});});
+</script>
+</body></html>
