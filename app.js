@@ -3218,6 +3218,28 @@ function markNoEmail(jobId){
 // you before end of day" with day-before pickup calls in the same list until
 // 2026-09-04; the office only ever used it for the emails, so the calls came out.
 // Reads the in-memory `jobs` array (populated by refreshDashBinStats above).
+// The jobs still owed a confirmation email. One list, read by this card and by the
+// Morning Brief (app-brief.js), so the two can never disagree.
+function needsEmailJobs(){
+  var today=todayStr();
+  var dt7=new Date(today+'T12:00:00'); dt7.setDate(dt7.getDate()+7);
+  var sevenOut=ymdLocal(dt7);
+  return jobs.filter(function(j){
+    if(j.status==='Cancelled' || j.service==='Extra Jobs') return false;
+    if(j.service==='Bin Rental' && j.binInstatus==='pickedup') return false;
+    var d=_needsEmailDate(j);
+    // Due within the next 7 days (or already due). noEmail jobs are a deliberate decision,
+    // not an outstanding task — a swap-out, or a customer taking two bins in a day. A
+    // customer marked "never needs a confirmation" has answered this for good.
+    return d && d<=sevenOut && !(j.emailSent||j.emailConfirmed||j.noEmail) && !_jjNoConfirmClient(j.clientId);
+  });
+}
+// Each service keeps its own date column; fall back to the plain date like the day list does.
+function _needsEmailDate(j){
+  return j.service==='Bin Rental' ? (j.binDropoff||j.date)
+    : (j.service==='Furniture Pickup'||j.service==='Furniture Delivery') ? (j.fbDate||j.date)
+    : (j.junkDate||j.date);
+}
 function renderNeedsYou(){
   var el=document.getElementById('dash-needs-you');
   if(!el) return;
@@ -3234,26 +3256,9 @@ function renderNeedsYou(){
     if(j.service==='Bin Rental') return j.binInstatus!=='pickedup';
     return true;
   });
-  var items=[];
-  active.forEach(function(j){
-    // Each service keeps its own date column; fall back to the plain date like the
-    // day list does, so a job with only `date` set is still chased.
-    var dropD = j.service==='Bin Rental' ? (j.binDropoff||j.date)
-      : (j.service==='Furniture Pickup'||j.service==='Furniture Delivery') ? (j.fbDate||j.date)
-      : (j.junkDate||j.date);
-    var upcoming=dropD && dropD<=sevenOut;            // due within the next 7 days (or already due) — skip far-future bookings
-    // noEmail jobs are a deliberate decision, not an outstanding task — a swap-out,
-    // or a customer taking two bins in a day who doesn't want two emails. Leaving
-    // them here made the list permanently dirty, which is how real misses get missed.
-    // A customer marked "never needs a confirmation" has answered this for good, so
-    // the nag has to leave here too — otherwise saying it in the morning brief just
-    // moved the same booking one card over onto the dashboard.
-    if(upcoming && !(j.emailSent||j.emailConfirmed||j.noEmail) && !_jjNoConfirmClient(j.clientId)) items.push({j:j,kind:'email'});
-  });
+  var items=needsEmailJobs().map(function(j){ return {j:j,kind:'email'}; });
   var doneToday=active.filter(function(j){
-    var dropD = j.service==='Bin Rental' ? (j.binDropoff||j.date)
-      : (j.service==='Furniture Pickup'||j.service==='Furniture Delivery') ? (j.fbDate||j.date)
-      : (j.junkDate||j.date);
+    var dropD=_needsEmailDate(j);
     return dropD && dropD<=sevenOut && (j.emailSent||j.emailConfirmed);
   }).length;
   // Quotes visited in the last two weeks that are due a call (app-quote-followup.js).
@@ -5154,6 +5159,7 @@ async function confirmJob(id, e){
   var j=jobs.find(function(x){return x.id===id;});
   if(!j)return;
   j.confirmed=true;
+  if(window.JJFun && e && e.currentTarget) JJFun.confirmStamp(e.currentTarget.getBoundingClientRect());
   // The call-back panel this used to prune was removed from the page long ago, so
   // fifteen lines of DOM surgery here were running against a container that never
   // exists. Confirming shows on the day rows and in the Needs You card instead.
@@ -6296,6 +6302,7 @@ function renderJobs(){
       var id = btn.getAttribute('data-jid');
       var action = btn.getAttribute('data-action');
       if(action==='confirm'){
+        if(window.JJFun) JJFun.confirmStamp(btn.getBoundingClientRect());
         jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});
         patchJob(id,{confirmed:true}); toast('✅ Confirmed!');
         row.querySelector('.jcell-confirm').outerHTML = confirmedHtml(id,true, (jobs.find(function(j){return j.id===id;})||{}).service||'Bin Rental');
@@ -9398,6 +9405,7 @@ async function linkBinToJob(bid,jobId){
   // No work order on screen here (this runs from the Bin Fleet page), so the toast
   // is the receipt — it says the bin went out rather than just "linked".
   toast(dropped ? ('Bin #'+b.num+' is out at '+jobId+'.') : ('Bin #'+b.num+' linked to '+jobId+'!'));
+  if(dropped && window.JJFun) JJFun.dropScene(b.num);
   loadBinJobsThenRender();
 }
 
@@ -9779,17 +9787,31 @@ async function toggleAssignCrew(jobId,crewId,leg){
     j.assignedCrewIds = union;
     var patch = {assignedCrewIds: union};
     patch[legField] = nextLegId;
-    patchJob(j.id, patch);
+    var saved = patchJob(j.id, patch);
+    var added = nextLegId === crewId;
+    var legDay = leg==='dropoff' ? j.binDropoff : j.binPickup;
   } else {
     // Non-Bin-Rental (or no leg specified): legacy union behavior.
     var ids=(j.assignedCrewIds||[]).slice();
     var idx=ids.indexOf(crewId);
     if(idx>=0) ids.splice(idx,1); else ids.push(crewId);
     j.assignedCrewIds=ids;
-    patchJob(j.id,{assignedCrewIds:ids});
+    var saved = patchJob(j.id,{assignedCrewIds:ids});
+    var added = idx<0;
+    var legDay = jobSchedDate(j);
   }
   // Refresh modal in place (preserving leg)
   openAssignCrewPicker(jobId, leg);
+  if(added){
+    // The person just picked hops and their tick pops (the picker stays open).
+    var tile = [].find.call(document.querySelectorAll('#assign-crew-body [onclick^="toggleAssignCrew"]'), function(t){
+      return t.getAttribute('onclick').indexOf("'"+crewId+"'")>=0;
+    });
+    if(tile && window.JJFun) JJFun.pickHop(tile);
+    // Giving tomorrow's last stop its driver rolls the convoy (checked once the save lands).
+    var tmr=new Date(); tmr.setDate(tmr.getDate()+1);
+    if(legDay===ymdLocal(tmr)) saved.then(function(r){ if(!r.error) jjbCelebrateIfTomorrowDispatched(); });
+  }
   // Refresh dashboard rows
   if(typeof refreshDashJobs==='function') refreshDashJobs();
   if(typeof renderLiveJobs==='function') renderLiveJobs();
@@ -10747,26 +10769,7 @@ function _getUnassignedBinJobs(){
   });
 }
 
-// ── MORNING BRIEF ──
-// First dashboard sign-in of the day (per browser) gets one popup: the day's
-// greeting on the left, and ONE outstanding thing on the right. Since v473 it
-// opens every morning, clean or not, because it carries the greeting (Jake
-// 2026-07-25, replacing the earlier nothing-outstanding-no-popup rule). Called at
-// the end of the dashboard data load so the greeting's job count and loose-end
-// count are already in when the entrance animation plays.
-//
-// It used to show two stacked lists (Jake 2026-07-24) and was being closed on
-// sight. Measured why: the second list — yesterday's bookings whose confirmation
-// email never went out — sat at 50-60% unactioned every single week for ten
-// straight weeks, about four every morning. That was never a backlog anyone was
-// working through, so half the popup was permanent noise and the whole thing got
-// dismissed as a unit. So: one card, one action, a "1 of 3" counter. Answering or
-// skipping brings the next one; the last one closes the brief. Nothing to scan.
-var _jjBriefTimer=null;   // auto-close; only ever set when there is nothing in it
-var _jjBriefWait=null;    // retry timer while a booking form is in the way
-var _jjBriefQueue=[];     // still to answer, front first — the card shows queue[0]
-var _jjBriefDone=0;       // answered or skipped so far: the left half of "2 of 5"
-var _jjBriefSkipped={};   // skipped this page load, so reopening doesn't ask again
+// ── MORNING BRIEF ── lives in app-brief.js (the reminder list, v706).
 
 // The "never needs a confirmation" switch lives on the CLIENT, not the booking.
 // Jake: "some people dont need emails as they are regulars, but some do it
@@ -10775,364 +10778,6 @@ function _jjNoConfirmClient(cid){
   if(!cid) return false;
   var cl = clients.find(function(c){ return c.cid===cid; });
   return !!(cl && cl.noConfirmationNeeded);
-}
-
-async function maybeShowMorningBrief(force){
-  var today = todayStr();
-  if(!force && localStorage.getItem('jjBriefDay') === today) return;
-  // The brief belongs to the dashboard: it is called from the dashboard's own
-  // arrival render, and the waiting retry below must never surface it over some
-  // other page the user has walked to in the meantime.
-  var view = document.querySelector('.view.active');
-  if(!view || view.id !== 'view-dashboard') return;
-  // Never on top of the booking form — Jake: "sometimes they need to book asap".
-  // The brief waits instead. Nothing is stamped while it waits, so even a dropped
-  // wait costs nothing: the next arrival on the dashboard asks again.
-  if(document.getElementById('job-modal').classList.contains('open')){
-    clearTimeout(_jjBriefWait);
-    _jjBriefWait = setTimeout(function(){ maybeShowMorningBrief(force); }, 4000);
-    return;
-  }
-  await _loadUnassignedBinAlertJobs(true);
-  var bins = _getUnassignedBinJobs();
-  // Yesterday means yesterday HERE. The date column is a real timestamp and the
-  // database runs on UTC, so a plain "2026-08-21T00:00:00" was read as 8 pm the
-  // evening before, Ontario time — a booking taken after 8 pm was missed by a whole
-  // day. Bound the window on local midnight to local midnight instead.
-  var ydStart = new Date(); ydStart.setHours(0,0,0,0); ydStart.setDate(ydStart.getDate()-1);
-  var ydEnd = new Date(ydStart); ydEnd.setDate(ydEnd.getDate()+1);
-  var unemailed = [];
-  try {
-    var r = await db.from('jobs')
-      .select('job_id,name,service,created_at,status,email_sent,email_confirmed,no_email,client_cid')
-      .gte('created_at', ydStart.toISOString()).lt('created_at', ydEnd.toISOString())
-      .neq('status','Cancelled').order('created_at');
-    if(r.error) throw r.error;
-    unemailed = (r.data||[]).filter(function(j){
-      // no_email is a decision, not an outstanding task — same rule as Needs You.
-      if(j.service === 'Extra Jobs') return false;
-      if(j.email_sent || j.email_confirmed || j.no_email) return false;
-      return !_jjNoConfirmClient(j.client_cid);
-    });
-  } catch(e){ console.warn('Morning brief email check failed:', e); }
-
-  // Bins stranded by a cancelled job. Cancelling hides a job from every list, so a bin
-  // still marked dropped on one has nothing left to chase it — bin 20-07 sat that way
-  // for seven weeks. Nobody can tell from a screen whether it came back, so the brief
-  // asks the one person who would know, every morning, until she answers.
-  var stranded = [];
-  try {
-    var sr = await db.from('jobs')
-      .select('job_id,name,address,city,bin_bid,bin_pickup,bin_dropoff')
-      .eq('service','Bin Rental').eq('status','Cancelled').eq('bin_instatus','dropped')
-      .not('bin_bid','is',null).neq('bin_bid','');
-    if(sr.error) throw sr.error;
-    stranded = sr.data || [];
-  } catch(e){ console.warn('Morning brief stranded-bin check failed:', e); }
-
-  // Rentals that have a bin number but nobody has said the bin actually went out.
-  // Putting the number on IS the drop once the day has come, so this is normally
-  // empty — but a number put on ahead of the day, or a dropped job whose date gets
-  // pushed out, both land here, and then the day arrives with nothing to mark it.
-  // Until someone answers, the bin still shows as sitting in the yard and can be
-  // handed to a second job. No screen can see this, so the brief asks.
-  var undropped = [];
-  try {
-    // Yesterday and back, not today: a bin due out this afternoon has not gone out
-    // yet at 8am, and asking then would be noise. Same one-day grace the unassigned
-    // bin banner uses. Thirty-day floor so it never digs through the archive.
-    var uCut = new Date(); uCut.setHours(0,0,0,0); uCut.setDate(uCut.getDate()-1);
-    var uCutStr = uCut.toISOString().split('T')[0];
-    var uFloor = new Date(); uFloor.setHours(0,0,0,0); uFloor.setDate(uFloor.getDate()-30);
-    var uFloorStr = uFloor.toISOString().split('T')[0];
-    var ur = await db.from('jobs')
-      .select('job_id,name,address,city,bin_bid,bin_size,bin_dropoff,bin_instatus')
-      .eq('service','Bin Rental').neq('status','Cancelled')
-      .not('bin_bid','is',null).neq('bin_bid','')
-      .lte('bin_dropoff', uCutStr).gte('bin_dropoff', uFloorStr);
-    if(ur.error) throw ur.error;
-    undropped = (ur.data||[]).filter(function(r){ return !r.bin_instatus; });
-  } catch(e){ console.warn('Morning brief undropped-bin check failed:', e); }
-
-  // Quote visits nobody has an answer for yet (app-quote-followup.js decides which
-  // are due — a "Followed up" one rests a few days before it is asked about again).
-  var quotes = [];
-  try { quotes = await qfDueQuotes(); }
-  catch(e){ console.warn('Morning brief quote check failed:', e); }
-  // Marked seen only once it has actually been shown AND closed (see closeBrief) —
-  // it used to be stamped here, before the popup was even built, so a phone call
-  // mid-read cost you the whole list until tomorrow.
-
-  // Stranded bins go first: that question is the only prompt that exists for a bin
-  // nothing else on any screen can see, and answering it is what frees the bin to be
-  // booked again. Then bins waiting on a number, then yesterday's missing emails.
-  var queue = [];
-  stranded.forEach(function(j){ queue.push({kind:'stranded', key:'s'+j.job_id, j:j}); });
-  undropped.forEach(function(j){ queue.push({kind:'undropped', key:'u'+j.job_id, j:j}); });
-  bins.forEach(function(j){ queue.push({kind:'bin', key:'b'+j.id, j:j}); });
-  unemailed.forEach(function(j){ queue.push({kind:'email', key:'e'+j.job_id, j:j}); });
-  quotes.forEach(function(j){ queue.push({kind:'quote', key:'q'+j.job_id, j:j}); });
-  _jjBriefQueue = queue.filter(function(it){ return !_jjBriefSkipped[it.key]; });
-  _jjBriefDone = 0;
-
-  // Ask the same two questions again. The three lookups above take up to a second
-  // and a half, and the answers from before they started are stale: in that window
-  // she can have hit "+ New Job" and started typing, or walked off to Jobs. Nothing
-  // has been marked read yet, so backing out here costs nothing.
-  var viewNow = document.querySelector('.view.active');
-  if(!viewNow || viewNow.id !== 'view-dashboard') return;
-  if(document.getElementById('job-modal').classList.contains('open')){
-    clearTimeout(_jjBriefWait);
-    _jjBriefWait = setTimeout(function(){ maybeShowMorningBrief(force); }, 4000);
-    return;
-  }
-
-  _jjBriefPaint(false);
-  document.getElementById('morning-brief-modal').classList.add('open');
-  jjApplyVibe(); // paints today's vibe AND replays the greeting entrance, now that it's visible
-  _showBriefLink();
-  // Shows itself out after 10s (4s -> 10s -> 9s -> 10s; 4 was far too short to act on
-  // the buttons at all, and nine turned out to be a second too quick after living with
-  // it) — but ONLY when there is nothing in it. With a real card up it waits to be
-  // answered: ten seconds is not long enough to read a name and act, and for junk and
-  // furniture bookings this popup is the only place a missed confirmation is chased.
-  clearTimeout(_jjBriefTimer);
-  if(!_jjBriefQueue.length) _jjBriefTimer = setTimeout(closeBrief, 10000);
-}
-
-// Paints whatever is at the front of the queue — one card and a counter, never a
-// list. replay=true animates just the new card; on the first open it is left alone
-// so jjApplyVibe's cascade takes it along with the greeting.
-function _jjBriefPaint(replay){
-  var host = document.getElementById('mb-body');
-  // The pane is most of a 92vh card, so one small card pinned to the top would sit
-  // over a lot of nothing. Set on the element rather than in style.css so this stays
-  // one self-contained change. Centred with margin:auto on the child, not
-  // justify-content — this pane scrolls, and centring by justify-content puts the top
-  // of a too-tall card out of reach on a short screen.
-  host.style.display = 'flex';
-  host.style.flexDirection = 'column';
-  var it = _jjBriefQueue[0];
-  var inner;
-  if(it){
-    inner = '<div style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px">'
-      + (_jjBriefDone+1) + ' of ' + (_jjBriefDone + _jjBriefQueue.length) + '</div>'
-      + _jjBriefCard(it);
-  } else {
-    // Deliberately not "every confirmation is out" — the queue is also empty when
-    // everything in it was skipped, and the popup must never tell them something
-    // was done when it wasn't.
-    inner = '<div style="font-size:26px;font-weight:800;color:var(--accent);margin-bottom:6px">Nothing waiting ✓</div>'
-      + '<div style="font-size:15px;color:var(--text-secondary)">Nothing needs you here right now. Have a good one.</div>';
-  }
-  host.innerHTML = '<div data-anim="pop" style="width:100%;max-width:560px;margin:auto 0">'+inner+'</div>';
-  if(replay){
-    var el = host.firstElementChild;
-    if(el) el.style.animation = 'jjPop 520ms cubic-bezier(.34,1.56,.64,1) both';
-  }
-}
-
-// One card, one question, plain words on the buttons. Only job ids and client
-// numbers ever go inside an onclick — names stay in text, where escHtml is enough.
-function _jjBriefCard(it){
-  var j = it.j;
-  if(it.kind === 'stranded'){
-    var where = [j.address, j.city].filter(Boolean).join(', ');
-    return '<div style="border:2px solid var(--bad);background:rgba(220,38,38,.08);border-radius:14px;padding:18px 20px">'
-      + '<div style="font-size:22px;font-weight:800;color:var(--bad);line-height:1.25;margin-bottom:6px">'
-        + 'Has bin ' + escHtml(j.bin_bid) + ' been picked up?</div>'
-      + '<div style="font-size:15px;color:var(--text);line-height:1.45;margin-bottom:4px">'
-        + escHtml(j.name||'') + (where ? ' — ' + escHtml(where) : '') + '</div>'
-      + '<div style="font-size:13px;color:#c2410c;font-weight:700;margin-bottom:14px">'
-        + 'This booking was cancelled, but the bin was still marked out. It was due for pickup '
-        + (j.bin_pickup ? fd(j.bin_pickup) : 'earlier') + '.</div>'
-      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-        + '<button class="btn btn-primary" style="background:#16a34a;border-color:#16a34a" onclick="strandedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',true)">Yes — it\'s back</button>'
-        + '<button class="btn btn-ghost" onclick="strandedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',false)">No — still there</button>'
-      + '</div></div>';
-  }
-  if(it.kind === 'undropped'){
-    var uwhere = [j.address, j.city].filter(Boolean).join(', ');
-    return '<div style="border:2px solid var(--warn);background:rgba(217,119,6,.08);border-radius:14px;padding:18px 20px">'
-      + '<div style="font-size:22px;font-weight:800;color:#c2410c;line-height:1.25;margin-bottom:6px">'
-        + 'Did bin ' + escHtml(j.bin_bid) + ' go out?</div>'
-      + '<div style="font-size:15px;color:var(--text);line-height:1.45;margin-bottom:4px">'
-        + escHtml(j.name||'') + (uwhere ? ' — ' + escHtml(uwhere) : '') + '</div>'
-      + '<div style="font-size:13px;color:#c2410c;font-weight:700;margin-bottom:14px">'
-        + 'Down for drop-off '
-        + (j.bin_dropoff ? fd(j.bin_dropoff) : 'earlier')
-        + ', but nobody has marked it dropped — so the bin still shows as in the yard.</div>'
-      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-        + '<button class="btn btn-primary" onclick="undroppedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',true)">Yes — it went out</button>'
-        + '<button class="btn btn-ghost" onclick="undroppedBinAnswer(\''+j.job_id+'\',\''+escHtml(j.bin_bid)+'\',false)">No — still in the yard</button>'
-      + '</div></div>';
-  }
-  if(it.kind === 'quote') return qfBriefCardHtml(j);
-  if(it.kind === 'bin'){
-    var sub =[j.binSize, (j.address||'').split(',')[0], j.city].filter(Boolean).join(' · ');
-    return '<div style="border:1px solid var(--border-strong);background:var(--surface);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)">'
-      + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--warn);margin-bottom:8px">Needs a bin number</div>'
-      + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.id)+'</div>'
-      + '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">Dropped '+fd(j.binDropoff)+', and we still don\'t know which bin went out.</div>'
-      + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+escHtml(sub)+'</div>'
-      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-        + '<button class="btn btn-primary" onclick="jjBriefAssignBin(\''+j.id+'\')">Pick the bin</button>'
-        + '<button class="btn btn-ghost" onclick="jjBriefSkip()">Skip for now</button>'
-      + '</div></div>';
-  }
-  var cl = j.client_cid ? clients.find(function(c){ return c.cid===j.client_cid; }) : null;
-  var t = j.created_at ? new Date(j.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
-  var who = String((cl && cl.name) ? cl.name : (j.name||''));
-  // Most names are stored shouting (BARBARA WHITE), and "BARBARA never needs one"
-  // reads like an accusation. First word only, cased like a person would write it —
-  // after an apostrophe, hyphen or full stop too, so O'BRIEN comes back as O'Brien and
-  // P.J. stays P.J. (it read "P.j. never needs one").
-  var first = (who.split(' ')[0] || '').toLowerCase().replace(/(^|['\-.])([a-z])/g, function(m, sep, ch){ return sep + ch.toUpperCase(); });
-  if(!first) first = 'This customer';
-  return '<div style="border:1px solid var(--border-strong);background:var(--surface);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)">'
-    + '<div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0d6efd;margin-bottom:8px">No confirmation sent</div>'
-    + '<div style="font-size:22px;font-weight:800;line-height:1.25;margin-bottom:4px">'+escHtml(j.name||j.job_id)+'</div>'
-    + '<div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">Booked yesterday'+(t?' at '+t:'')+' and never got a confirmation email.</div>'
-    + '<div style="font-size:13px;color:var(--muted);margin-bottom:14px">'+escHtml(j.service||'')+'</div>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      + '<button class="btn btn-primary" onclick="jjBriefSendEmail(\''+j.job_id+'\')">Send the confirmation</button>'
-      + (cl ? '<button class="btn btn-ghost" onclick="jjBriefNoConfirm(\''+cl.cid+'\')">'+escHtml(first)+' never needs one</button>' : '')
-      + '<button class="btn btn-ghost" onclick="jjBriefSkip()">Skip for now</button>'
-    + '</div></div>';
-}
-
-// Answered or skipped — the next one arrives. The last one closes the brief, which
-// is the whole point: there is never a leftover list to dismiss.
-function _jjBriefNext(){
-  _jjBriefDone++;
-  _jjBriefQueue.shift();
-  if(!_jjBriefQueue.length){ closeBrief(); return; }
-  _jjBriefPaint(true);
-}
-
-// Skipping is deliberate, so it holds for the rest of this page load — reopening
-// the brief from the greeting link must not put the same card back in your way.
-function jjBriefSkip(){
-  var it = _jjBriefQueue[0];
-  if(it) _jjBriefSkipped[it.key] = true;
-  _jjBriefNext();
-}
-
-// Both of these hand over to another popup, so the brief steps out of the way
-// first — one thing on screen at a time. It deliberately does NOT mark the day as
-// read: acting on one card is not reading the list. Stamping here meant the first
-// person to press "Pick the bin" or "Send the confirmation" threw away every card
-// behind it until tomorrow — including the missing confirmations this whole thing
-// exists to chase. Coming back to the dashboard re-opens the brief with whatever is
-// left; the card just handled drops out on its own (the bin now has a number, the
-// email is sent), and anything skipped stays skipped for this page load. No
-// farewell animation, because 420ms in front of the next modal reads as lag.
-function _jjBriefLeave(){
-  _showBriefLink();
-  clearTimeout(_jjBriefTimer);
-  closeM('morning-brief-modal');
-}
-function jjBriefAssignBin(jobId){ _jjBriefLeave(); openAssignBinPicker(jobId); }
-function jjBriefSendEmail(jobId){ _jjBriefLeave(); openEmailModal(jobId); }
-
-// One click from where the nag appears, written to the CLIENT so it answers for
-// every booking that customer will ever make. Their other cards in this same queue
-// go with it — asking again about the same person a card later is the noise we are
-// removing — so the counter shrinks by the same number to stay honest.
-async function jjBriefNoConfirm(cid){
-  var r = await db.from('clients').update({no_confirmation_needed:true}).eq('cid',cid);
-  if(r.error){ toast('Could not save that: '+r.error.message, 'error'); return; }
-  var cl = clients.find(function(c){ return c.cid===cid; });
-  if(cl) cl.noConfirmationNeeded = true;
-  _jjBriefQueue = _jjBriefQueue.filter(function(it, i){
-    return i===0 || !(it.kind==='email' && it.j.client_cid===cid);
-  });
-  toast((cl && cl.name ? cl.name : 'That customer')+' won\'t be asked about confirmation emails again.');
-  _jjBriefNext();
-}
-
-// Once the brief has been seen there's a small link by the greeting to call it back
-// for the rest of the day — closing it used to be permanent until tomorrow.
-function _showBriefLink(){
-  var el = document.getElementById('dash-brief-link');
-  if(el) el.style.display = '';
-}
-function reopenMorningBrief(){ maybeShowMorningBrief(true); }
-
-// Kelly's answer to "has this bin come back?". Yes frees the bin and closes the
-// question for good; No leaves everything alone and it asks again tomorrow, which is
-// the right default — the bin really might still be sitting there. Either answer is
-// an answer, so the brief moves on to the next card rather than shutting.
-async function strandedBinAnswer(jobId, binBid, isBack){
-  if(!isBack){
-    // "No" changes nothing in the data, so the card would be waiting again the next
-    // time the brief opens. She has answered it; hold it for the rest of the day the
-    // same way a deliberate skip is held.
-    var answered = _jjBriefQueue[0];
-    if(answered) _jjBriefSkipped[answered.key] = true;
-    toast('Left as still out — it will ask again tomorrow.');
-    _jjBriefNext();
-    return;
-  }
-  var r = await patchJob(jobId, {binInstatus:'pickedup'});
-  if(r && r.error) return;              // patchJob toasts and re-syncs on failure
-  if(binBid) await patchBin(binBid, {status:'in'});
-  var j = jobs.find(function(x){ return x.id===jobId; });
-  if(j) j.binInstatus='pickedup';
-  toast('Bin '+binBid+' marked back in the yard — free to book again.');
-  _jjBriefNext();
-  refresh();
-}
-
-// "Yes" is the person saying the bin went out — the same act as tapping Mark Dropped
-// on the work order, so it writes exactly what that button writes. "No" changes
-// nothing and the brief asks again tomorrow.
-async function undroppedBinAnswer(jobId, binBid, wentOut){
-  if(!wentOut){
-    // "No" writes nothing, so without this hold the card comes straight back the
-    // next time the brief rebuilds — minutes later, having just promised tomorrow.
-    var answered = _jjBriefQueue[0];
-    if(answered) _jjBriefSkipped[answered.key] = true;
-    toast('Left as still in the yard — it will ask again tomorrow.');
-    _jjBriefNext();
-    return;
-  }
-  // The bin may have been booked onto another job since this card was built.
-  // Stamping it dropped here as well would put one physical bin at two addresses.
-  var _elsewhere = binDroppedElsewhere(binBid, jobId);
-  if(_elsewhere){
-    toast('Bin '+binBid+' is already recorded as dropped at '+_elsewhere.id+'. Sort that one out first.','error');
-    _jjBriefNext();
-    return;
-  }
-  var r = await patchJob(jobId, {binInstatus:'dropped'});
-  if(r && r.error) return;              // patchJob toasts and re-syncs on failure
-  if(binBid) await patchBin(binBid, {status:'out'});
-  var j = jobs.find(function(x){ return x.id===jobId; });
-  if(j) j.binInstatus='dropped';
-  toast('Bin '+binBid+' marked as out at '+jobId+'.');
-  _jjBriefNext();
-  refresh();
-}
-
-// The brief leaves on an animation rather than blinking out. Everything that
-// dismisses it deliberately — the ✕, the backdrop, Got it, the timer, and the last
-// card being answered — comes through here, and only here does the day get marked
-// as read. The buttons that hand over to another popup go through _jjBriefLeave
-// instead: they leave the day unmarked so the rest of the list survives, and they
-// skip the 420ms farewell, which in front of the next modal reads as lag.
-function closeBrief(){
-  var overlay = document.getElementById('morning-brief-modal');
-  if(!overlay.classList.contains('open')) return;   // already gone; don't reach
-  localStorage.setItem('jjBriefDay', todayStr());   // seen = seen and closed, not merely fetched
-  _showBriefLink();
-  clearTimeout(_jjBriefTimer);                      // under whatever replaced it
-  var card = document.getElementById('mb-card');
-  card.style.animation = 'jjCardOut .42s cubic-bezier(.55,0,.85,.3) both';
-  setTimeout(function(){
-    card.style.animation = '';
-    closeM('morning-brief-modal');
-  }, 420);
 }
 
 function _removeBinChip(){
@@ -12316,8 +11961,8 @@ async function saveJob(e){
     // Auto-revert: if user changed binDropoff to a future date and the bin was already
     // marked 'dropped' (e.g. auto-set when the previous date passed), revert to "not dropped".
     // Nothing re-drops it on its own — a bin is dropped when a person says so. Once the
-    // new date comes and nobody has said it, the morning brief asks (see _jjBriefCard's
-    // 'undropped' card), so the bin can't sit in Available while it's at a customer's.
+    // new date comes and nobody has said it, the Morning Brief lists it (app-brief.js,
+    // 'undropped'), so the bin can't sit in Available while it's at a customer's.
     if(editId){
       var _oldJobForDrop = jobs.find(function(x){return x.id===editId;});
       var _today = todayStr();
@@ -13600,7 +13245,12 @@ async function _doSwapOutBin(){
   openDetail(newId);
 }
 
-function markConfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});patchJob(id,{confirmed:true});toast('Customer marked as confirmed!');refresh();}
+function markConfirmed(id){
+  // The CONFIRMED stamp lands on the button that was pressed, before the work order redraws.
+  var b=document.activeElement;
+  if(window.JJFun && b && b.tagName==='BUTTON') JJFun.confirmStamp(b.getBoundingClientRect());
+  jobs.forEach(function(j){if(j.id===id)j.confirmed=true;});patchJob(id,{confirmed:true});toast('Customer marked as confirmed!');refresh();
+}
 
 function openExtendPopup(jobId, e){
   if(e)e.stopPropagation();
@@ -13861,7 +13511,9 @@ function markBinPickedUp2(id){
   j.binInstatus='pickedup';
   binBackInYard(j.binBid, id);
   writeBinHistory(j);
-  patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');openDetail(id);refresh();
+  patchJob(id,{binInstatus:'pickedup'});toast('Bin marked as picked up!');
+  if(window.JJFun) JJFun.pickupScene(binLabel(j.binBid));
+  openDetail(id);refresh();
 }
 function revertPickedUp(id){
   if(!mGuard())return;
@@ -14069,8 +13721,11 @@ function markPickedUp(id,e){
   if(j.binWillCall){ j.binWillCall=false; patch.binWillCall=false; }
   patchJob(id,patch);
   toast('Bin marked picked up!');
+  if(window.JJFun) JJFun.pickupScene(binLabel(j.binBid));
   refresh();
 }
+// The number painted on the bin, for the little truck scenes.
+function binLabel(bid){ var b=binItems.find(function(x){return x.bid===bid;}); return b ? b.num : (bid||''); }
 function toggleWillCall(id,e){
   if(e)e.stopPropagation();
   var j=jobs.find(function(jj){return jj.id===id;});
@@ -15625,6 +15280,7 @@ function stampBinDroppedIfJustAssigned(job){
   var meta = 'DROPPED · ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}).replace(/\s/g,'')
     + (who ? ' · ' + who.toUpperCase() : '');
   var overlay = JWGStamp.stampPage(host, 'bin', {num: info.num, sub: info.size, meta: meta});
+  if(window.JJFun) JJFun.dropScene(info.num);   // the truck tips the bin off while the stamp lands
   if(!overlay) return;
   setTimeout(function(){
     overlay.style.transition = 'opacity .4s ease';
@@ -15699,6 +15355,7 @@ function sendEmail() {
   }
   var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.open(mailto, '_blank');
+  if (window.JJFun) JJFun.letterOnReturn();   // the wax-sealed letter, once they're back from the mail program
   var clientIdForRecord = null, serviceForRecord = null;
   if (emailJobId) {
     /* Captured now, not read inside the undo closure: the 10-second window
