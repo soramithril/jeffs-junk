@@ -50,9 +50,9 @@ NOT merged: the plain review email and the review text carry on unchanged until 
    Jake pastes these himself.
 
 ## Going live (needs Jake's word)
-1. Deploy the `review-email` function from this branch (`get_edge_function` afterwards and compare with the repo).
-   NOTE 2026-10-23: version 1 went up by mistake with a placeholder `build.js` (so it can't build an email).
-   Nothing calls it. Redeploying from the repo fixes it.
+1. The `review-email` function is already up (version 2, 2026-10-23, Jake's OK): byte-identical to this branch,
+   checked with `get_edge_function`, and it refuses signed-out callers (401 `not_signed_in`). Version 1 had a
+   placeholder `build.js` by mistake; nothing ever called it. Redeploy and re-compare after any change here.
 2. Merge the branch, bump app.js's three version numbers and `app-review-email.js?v=` to the deploy's number
    (re-read `version.txt` first), verify live.
 3. Jake sends test emails to himself, opens them in Outlook on the PC and on his phone, checks with Sam.
