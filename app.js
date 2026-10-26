@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '707';
+var APP_VERSION = '708';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4238,7 +4238,7 @@ async function renderBinsAttention(){
   var all=(r.data||[]).map(dbToJob);
   all.forEach(function(j){
     var drop=j.binDropoff||j.date;
-    j._days=drop?Math.max(0,Math.floor((Date.now()-new Date(drop+'T12:00:00').getTime())/86400000)):0;
+    j._days=binDaysOut(drop);
     j._overdue=!!(j.binPickup && j.binPickup<todayS);
   });
   var att=all.filter(function(j){return j._overdue || j._days>=7;});
@@ -4988,7 +4988,7 @@ async function renderWillCallCard(){
     var detail=[sz,(bid?'#'+_esc(bid):''),addr,_esc(j.city)].filter(Boolean).join(' · ');
     var dropD=j.binDropoff||j.date;
     var days=binDaysOut(dropD);
-    var daysPill='<span class="djj-days'+(days>=15?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
+    var daysPill='<span class="djj-days'+(days>=14?' over':'')+'">out '+days+' day'+(days===1?'':'s')+'</span>';
     var bizChip=j.businessName?'<span class="djj-biz" style="display:inline-flex;align-items:center;gap:4px">'+lineIcon('clients',11)+_esc(j.businessName)+'</span>':'';
     var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none">'+lineIcon('call',13)+' '+_esc(j.phone)+'</a>':'';
     var schedBtn='<button class="djj-btn green" onclick="scheduleWillCallPickup(\''+j.id+'\',event);event.stopPropagation()">📅 Schedule</button>';
@@ -5007,7 +5007,7 @@ async function renderWillCallCard(){
 // "overdue". See the note inside renderDashBinsOut() for why the line is 30 days and
 // not 14 — it comes off the real fleet, not a guess. (30/14 became 31/15 when the
 // drop-off day started counting as day 1, so the lines themselves did not move.)
-var WILL_CALL_STALE_DAYS = 31;
+var WILL_CALL_STALE_DAYS = 30;
 
 async function renderDashBinsOut(){
   var el=document.getElementById('dash-bins-out-list');if(!el)return;
@@ -5030,7 +5030,7 @@ async function renderDashBinsOut(){
     // contractors, who keep a bin for weeks quite legitimately, so 30 picks out the four
     // genuine stragglers. 14 would have flagged six and turned into noise.
     j._willCallStale=!!(j.binWillCall && !j.binPickup && j._days>=WILL_CALL_STALE_DAYS);
-    j._attn=j._overdue || j._days>=8;
+    j._attn=j._overdue || j._days>=7;
   });
   var nOut=droppedJobs.length;
   var nAttn=droppedJobs.filter(function(j){return j._attn;}).length;
@@ -5082,7 +5082,7 @@ async function renderDashBinsOut(){
             : ('out '+j._days+' days'
                + (j.binWillCall && !j.binPickup ? ' · will-call, no pickup booked' : '')))
       : [addr,(j.binWillCall?'will call':(j.binPickup?'pickup '+fd(j.binPickup):''))].filter(Boolean).join(' · ');
-    var daysPill='<span class="djj-days'+(j._days>=15?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
+    var daysPill='<span class="djj-days'+(j._days>=14?' over':'')+'">out '+j._days+' day'+(j._days===1?'':'s')+'</span>';
     var phoneBtn=j.phone?'<a href="tel:'+_esc(j.phone)+'" class="djj-btn call" onclick="event.stopPropagation()" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+lineIcon('call',13)+_esc(j.phone)+'</a>':'';
     var dateBtn='<button class="djj-btn" onclick="openBinPickup(\''+j.id+'\',event)" title="Change pickup date">'+lineIcon('calendar',13)+' '+(binPickupLabel(j)||'Set pickup')+'</button>';
     var callBtn=attn?'<button class="djj-btn danger" onclick="event.stopPropagation();'+(j.phone?('window.location.href=\''+'tel:'+_esc(j.phone)+'\''):('openDetail(\''+j.id+'\')'))+'">'+lineIcon('call',14)+' Call customer</button>':'';
@@ -11244,9 +11244,12 @@ function _avoidSundayPickup(dateStr){
   return dateStr;
 }
 
-// The drop-off day is day 1 of the rental (Jake, 2026-08-31), so a 3 day rental
-// dropped Monday comes back Wednesday, not Thursday - hence days-1. Both the preset
-// buttons and the re-run when the drop-off date moves come through here. When this
+// The drop-off day is NOT counted (Jake, 2026-10-26): a 3 day rental dropped Monday
+// comes back Thursday, a 7 day rental the same weekday the next week. That is how the
+// office booked it from 2016 on; the Aug 31 "drop-off day is day 1" rule (days-1) put
+// pickups a day early and staff were moving about half of them back by hand. Both the
+// preset buttons and the re-run when the drop-off date moves come through
+// _binPickupAfter. When this
 // arithmetic lived in both of them they drifted: fixing the button alone still left
 // the other one putting the extra day straight back the moment the drop date was edited.
 // The duration box holds WORDS ("3 days", "1 month"), but the price sheet and the preset
@@ -11265,26 +11268,26 @@ function binDurationDays(txt){
 
 // A short rental never comes back on a weekend (Jake, 2026-09-09). We cannot promise a
 // time on the pickup day and Sunday is not a working day, so a 3 day rental dropped
-// Thursday would have landed Saturday and now rides through to Monday - the same answer
-// a Friday drop already got off the Sunday rule alone. Applies to 2-4 day rentals: a
-// 1 day rental's pickup IS the drop day, so there is nothing to roll, and rolling it
-// would hand a Saturday customer two free days. Longer rentals keep the plain Sunday
-// rule - a 7 day rental is the same day the next week, so Sunday is one of its seven
-// days rather than a day off the end, which is why it never needed touching.
+// Wednesday would land Saturday and rides through to Monday; a Thursday drop lands
+// Sunday and gets Monday off the Sunday rule. Applies to 2-4 day rentals only: a 1 day
+// rental is back the next day, and rolling a Friday drop's Saturday pickup would hand
+// the customer two free days. Longer rentals keep the plain Sunday rule - a 7 day
+// rental is the same day the next week, so Sunday is one of its seven days rather
+// than a day off the end.
 function _binPickupAfter(dropStr, days){
   var d=new Date(dropStr+'T12:00:00');
-  d.setDate(d.getDate()+days-1);
+  d.setDate(d.getDate()+days);
   if(days>=2 && days<=4 && d.getDay()===6) d.setDate(d.getDate()+2);
   return _avoidSundayPickup(d.toISOString().split('T')[0]);
 }
 
-// Days a bin has been out, counting the drop-off day as day 1 (Jake, 2026-08-31) - the
-// same rule the booking form uses, so "out 3 days" and a 3 day rental now agree. The
-// attention thresholds that read this moved 7/14/30 -> 8/15/31 in the same change, so
-// nothing starts flagging a day earlier than the lines Jake set off the real fleet.
+// Days a bin has been out, NOT counting the drop-off day (Jake, 2026-10-26) - the same
+// rule the booking form uses, so a 3 day rental dropped Monday reads "out 3 days" on
+// its Thursday pickup. The attention thresholds that read this went back to the
+// 7/14/30 Jake set off the real fleet (they had moved to 8/15/31 for the Aug 31 rule).
 function binDaysOut(dropStr){
   if(!dropStr) return 0;
-  return Math.max(0,Math.floor((Date.now()-new Date(dropStr+'T12:00:00').getTime())/86400000))+1;
+  return Math.max(0,Math.floor((Date.now()-new Date(dropStr+'T12:00:00').getTime())/86400000));
 }
 
 // A will-call has no pickup date - the customer rings in when the bin is ready - so
