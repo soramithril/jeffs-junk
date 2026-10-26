@@ -152,6 +152,12 @@ function furnitureCustomerPays(itemsTotal, town){
   return {pay:itemsTotal, note:'Items are over the zone '+z.zone+' minimum of $'+z.min+', so no trip charge'};
 }
 
+// HST on what the customer pays (after the zone minimum), to the cent. The one place
+// furniture tax is worked out: the quote calculator, the booking form, a booked job
+// and the FB door iPad all use it, so they always agree. The tax receipt value is a
+// donation figure and is never taxed.
+function furnitureHst(pay){ return Math.round(pay * HST_RATE * 100) / 100; }
+
 // The sheet is one row per town, with an area's other towns listed in `towns`.
 function _priceAreaForCity(city){
   var c=String(city||'').trim().toLowerCase();

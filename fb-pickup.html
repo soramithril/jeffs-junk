@@ -209,7 +209,7 @@ button{font:inherit;color:inherit}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="furniture-pricing.js?v=698"></script>
+<script src="furniture-pricing.js?v=707"></script>
 <script>
 (function(){
   // Same project + publishable key as the dashboard. The truck iPad is signed in ONCE by
@@ -383,7 +383,7 @@ button{font:inherit;color:inherit}
     var fee = 0, rec = 0;
     lines.forEach(function(l){ var q = useBooked ? l.booked : l.qty; fee += q * l.fee; rec += q * l.val; });
     var p = furnitureCustomerPays(fee, cur.city);
-    var hst = Math.round(p.pay * HST_RATE * 100) / 100;
+    var hst = furnitureHst(p.pay);
     return { fee: fee, pay: p.pay, note: p.note, hst: hst, total: p.pay + hst, receipt: rec };
   }
   function changed(){ return lines.some(function(l){ return l.qty !== l.booked; }); }
