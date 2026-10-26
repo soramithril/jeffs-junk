@@ -1578,7 +1578,9 @@
       <div class="drdc-quote">
         <div class="drdc-money">
           <div><div class="drdc-money__k">Items</div><div class="drdc-money__v" style="color:var(--text);font-family:inherit;font-size:20px" id="drdc-total-items">0</div></div>
-          <div><div class="drdc-money__k">Customer Pays</div><div class="drdc-money__v" style="color:var(--accent)">$<span id="drdc-total-pay">0.00</span></div></div>
+          <div><div class="drdc-money__k">Customer Pays <span style="text-transform:none;letter-spacing:0">(before tax)</span></div><div class="drdc-money__v" style="color:var(--accent)">$<span id="drdc-total-pay">0.00</span></div></div>
+          <div><div class="drdc-money__k">HST 13%</div><div class="drdc-money__v" style="color:var(--text)">$<span id="drdc-total-hst">0.00</span></div></div>
+          <div><div class="drdc-money__k">Total</div><div class="drdc-money__v" style="color:var(--accent)">$<span id="drdc-total-all">0.00</span></div></div>
           <div><div class="drdc-money__k">Tax Receipt</div><div class="drdc-money__v" style="color:#0d6efd">$<span id="drdc-total-receipt">0.00</span></div></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -2352,7 +2354,7 @@
         </div>
         <div style="display:flex;gap:30px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);align-items:center">
           <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Items: </span><strong id="drd-m-total-items">0</strong></div>
-          <div><span style="font-size:11px;text-transform:uppercase;color:var(--accent)">Customer Pays: </span><strong id="drd-m-total-pay" style="color:var(--accent)">$0.00</strong> <span id="drd-m-floor-note" style="font-size:11px;color:#b45309"></span></div>
+          <div><span style="font-size:11px;text-transform:uppercase;color:var(--accent)">Customer Pays: </span><strong id="drd-m-total-pay" style="color:var(--accent)">$0.00</strong> <span style="font-size:12px;color:var(--muted)">+ <span id="drd-m-total-hst">$0.00</span> HST =</span> <strong id="drd-m-total-all" style="color:var(--accent)">$0.00</strong> <span id="drd-m-floor-note" style="font-size:11px;color:#b45309"></span></div>
           <div><span style="font-size:11px;text-transform:uppercase;color:var(--muted)">Tax Receipt: </span><strong id="drd-m-total-value">$0.00</strong></div>
           <div class="form-group" style="margin:0;margin-left:auto"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-m-emailed" class="form-input" style="font-size:12px;padding:6px 8px;width:150px"></div>
         </div>
@@ -3131,10 +3133,10 @@
     </div>
   </div>
 </div>
-<script src="furniture-pricing.js?v=698"></script>
+<script src="furniture-pricing.js?v=707"></script>
 <script src="app-documents.js?v=697"></script>
 <script src="app-written-quotes.js?v=680"></script>
-<script src="app-drdcalc.js?v=698"></script>
+<script src="app-drdcalc.js?v=707"></script>
 <script src="app-dispatch.js?v=697"></script>
 <script src="app-leaderboard.js?v=697"></script>
 <script src="app-analytics.js?v=638"></script>
@@ -3159,7 +3161,7 @@
 <script src="jwg-stamp.js?v=466"></script>
 <script src="app-fun.js?v=706"></script>
 <script src="app-icons-3d.js?v=614"></script>
-<script src="app.js?v=706"></script>
+<script src="app.js?v=707"></script>
 <script src="app-halloween.js?v=708"></script>
 <script src="app-mobile.js?v=629"></script>
 <script src="app-jwg-inventory.js?v=682"></script>

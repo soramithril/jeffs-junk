@@ -214,8 +214,11 @@ function drdcRecalc(){
   var tf=document.getElementById('drdc-total-pay');
   var tv=document.getElementById('drdc-total-receipt');
   var tn=document.getElementById('drdc-trip');
+  var hst=furnitureHst(floor.pay);
   if(ti)ti.textContent=totalItems;
   if(tf)tf.textContent=floor.pay.toFixed(2);
+  document.getElementById('drdc-total-hst').textContent=hst.toFixed(2);
+  document.getElementById('drdc-total-all').textContent=(floor.pay+hst).toFixed(2);
   if(tn)tn.textContent=floor.note;
   if(tv)tv.textContent=totalVal.toFixed(2);
   drdcRenderTruck();
@@ -409,6 +412,8 @@ function drdcClear(skipConfirm){
 function drdcCopy(){
   var items=document.getElementById('drdc-total-items').textContent;
   var pay=document.getElementById('drdc-total-pay').textContent;
+  var hst=document.getElementById('drdc-total-hst').textContent;
+  var all=document.getElementById('drdc-total-all').textContent;
   var rec=document.getElementById('drdc-total-receipt').textContent;
   // Totals alone left a pasted quote saying "6 items" with no record of WHICH six,
   // so a note or email made from it couldn't be checked against later.
@@ -421,7 +426,7 @@ function drdcCopy(){
     if(c.name) lines.push('  ' + (c.qty||1) + ' x ' + c.name);
   });
   var trip=document.getElementById('drdc-trip').textContent;   // the note already painted under the quote
-  var text=items+' items · Customer pays $'+pay+' · Tax receipt $'+rec
+  var text=items+' items · Customer pays $'+pay+' + $'+hst+' HST = $'+all+' · Tax receipt $'+rec
     + (lines.length ? '\n' + lines.join('\n') : '')
     + (drdcTown() ? '\n' + trip : '');
   if(navigator.clipboard) navigator.clipboard.writeText(text);

@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '706';
+var APP_VERSION = '707';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12823,11 +12823,13 @@ function renderDrdInDetail(j){
     +'<div id="drd-d-other-rows"></div>'
     +'</div>';
 
-  // Totals — mirrors the quote calculator (Items / Customer Pays / Tax Receipt Value)
+  // Totals — mirrors the quote calculator (Items / Customer Pays / HST / Total / Tax Receipt Value)
   html+='<div style="background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);padding:14px 16px;margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-radius:10px">'
     +'<div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Items</div><div style="font-size:22px;font-weight:800" id="drd-d-total-items">0</div></div>'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Customer Pays</div><div style="font-size:28px;font-weight:800;color:var(--accent);font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-pay">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Pickup fees · before tax</div><div id="drd-d-floor-note" style="font-size:11px;color:#b45309;margin-top:4px"></div></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">HST 13%</div><div style="font-size:28px;font-weight:800;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-hst">0.00</span></div></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-size:28px;font-weight:800;color:var(--accent);font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-all">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">With tax</div></div>'
     +'<div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Tax Receipt Value</div><div style="font-size:28px;font-weight:800;color:#0d6efd;font-family:\'Bebas Neue\',sans-serif">$<span id="drd-d-total-value">0.00</span></div><div style="font-size:10px;color:var(--muted);margin-top:2px">Donation receipt total</div></div>'
     +'</div>'
     +'<div class="form-group" style="margin:0"><label style="font-size:11px">Date Receipt Emailed</label><input type="date" id="drd-d-emailed" class="form-input" value="'+_esc(emailedDate)+'" style="font-size:12px;padding:4px 8px"></div>'
@@ -13016,8 +13018,11 @@ function drdDetailRecalc(){
   var tf=document.getElementById('drd-d-total-pay');
   var tv=document.getElementById('drd-d-total-value');
   var tn=document.getElementById('drd-d-floor-note');
+  var hst=furnitureHst(floor.pay);
   if(ti)ti.textContent=totalItems;
   if(tf)tf.textContent=floor.pay.toFixed(2);
+  document.getElementById('drd-d-total-hst').textContent=hst.toFixed(2);
+  document.getElementById('drd-d-total-all').textContent=(floor.pay+hst).toFixed(2);
   if(tn)tn.textContent=floor.note;
   if(tv)tv.textContent=totalVal.toFixed(2);
 }
@@ -16034,6 +16039,9 @@ function drdModalRecalc(){
   var isPickup=document.getElementById('f-svc').value==='Furniture Pickup';
   var floor=isPickup?furnitureCustomerPays(totalFee, document.getElementById('f-city').value):{pay:totalFee, note:''};
   var tf=document.getElementById('drd-m-total-pay');if(tf)tf.textContent='$'+floor.pay.toFixed(2);
+  var hst=furnitureHst(floor.pay);
+  document.getElementById('drd-m-total-hst').textContent='$'+hst.toFixed(2);
+  document.getElementById('drd-m-total-all').textContent='$'+(floor.pay+hst).toFixed(2);
   var tn=document.getElementById('drd-m-floor-note');if(tn)tn.textContent=floor.note;
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$'+totalVal.toFixed(2);
   _syncDrdToJobItems();
@@ -16124,6 +16132,8 @@ function _clearDrdModal(){
   var em=document.getElementById('drd-m-emailed');if(em)em.value='';
   var ti=document.getElementById('drd-m-total-items');if(ti)ti.textContent='0';
   var tp=document.getElementById('drd-m-total-pay');if(tp)tp.textContent='$0.00';
+  document.getElementById('drd-m-total-hst').textContent='$0.00';
+  document.getElementById('drd-m-total-all').textContent='$0.00';
   var tv=document.getElementById('drd-m-total-value');if(tv)tv.textContent='$0.00';
 }
 function _fillDrdModal(drd){
