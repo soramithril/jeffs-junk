@@ -1,82 +1,56 @@
 /* ============================================================================
-   Jeff's Junk — HALLOWEEN (Jake, 2026-10-23)  ·  window.JJHalloween
-   The Great Hall dashboard and its fun touches, on from October 1 to October 31.
-   On November 1 nothing here switches on and the app is exactly as normal.
-   Looks live in app-halloween.css, all hung off html.jj-hw.
+   Jeff's Junk — HALLOWEEN fun touches (Jake, 2026-10-23; simplified 2026-10-26)
+   window.JJHalloween · on from October 1 to October 31, nothing at all from
+   November 1. The dashboard keeps its normal look: the Great Hall theme (picture
+   behind glass cards) was removed on Jake's word — too big a change for a work
+   screen, and its blur made the app laggy. Styling in app-halloween.css, all hung
+   off html.jj-hw.
 
-   What it does while it's on:
-     - html.jj-hw            the picture, the glass, the gold (CSS)
-     - countdown             "8 nights to Halloween" beside the dashboard date
+   What it does in October:
+     - countdown             "5 nights to Halloween" beside the dashboard date
      - BOO-KED               the booking stamp, in pumpkin ink
-     - spooky booking sound  a short ghostly "woo" instead of the usual sound,
-                             only when someone books (the one place stampSound plays)
+     - spooky booking sound  a short ghostly "woo" instead of the usual sound, only
+                             when someone books (the one place stampSound plays);
+                             the usual sound switch (jjStampSound) still silences it
+     - ghost                 on "All caught up" and an empty Live Jobs list (CSS)
+     - pumpkin help button   (CSS)
      - Day cleared           once a day, when Live Jobs has nothing left to go
-     - off switch            "Turn off Halloween look" on the dashboard, for this
-                             browser and this year only (localStorage jjHalloween<year>)
    Loaded after app.js and jwg-stamp.js. No app.js changes: it wraps the two
    globals it needs (JWGStamp.stampPage / .booked and stampSound).
    ========================================================================== */
 (function () {
   'use strict';
 
-  var KEY = 'jjHalloween' + new Date().getFullYear();   // turned off this year doesn't mean next year
-  var root = document.documentElement;
+  if (new Date().getMonth() !== 9) return;                    // October only; November 1 onwards: nothing
 
-  function inSeason(d) { return d.getMonth() === 9; }          // October only
-  function turnedOff() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
-  function isOn() { return inSeason(new Date()) && !turnedOff(); }
-
-  if (!inSeason(new Date())) return;                          // November 1 onwards: nothing at all
-
-  /* ── the look ── */
+  document.documentElement.classList.add('jj-hw');
   var font = document.createElement('link');
   font.rel = 'stylesheet';
-  font.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap';
+  font.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap';
   document.head.appendChild(font);
 
-  function apply() { root.classList.toggle('jj-hw', isOn()); }
-  apply();
-
-  /* ── countdown beside the date ── */
+  /* ── countdown beside the dashboard date (shown by CSS from data-hw) ── */
   function countdown() {
     var now = new Date();
     var nights = Math.round((new Date(now.getFullYear(), 9, 31) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
     return nights <= 0 ? 'Happy Halloween' : nights === 1 ? '1 night to Halloween' : nights + ' nights to Halloween';
   }
-
-  /* ── the off switch, top right of the dashboard date strip ── */
-  function mountToggle() {
-    var strip = document.getElementById('dash-strip');
+  function markDate() {
     var date = document.getElementById('dash-strip-date');
-    if (!strip || !date) return;
-    date.setAttribute('data-hw', countdown());
-    var btn = document.getElementById('hw-toggle');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'hw-toggle';
-      btn.className = 'hw-toggle';
-      btn.addEventListener('click', function () {
-        try { localStorage.setItem(KEY, isOn() ? 'off' : 'on'); } catch (e) {}
-        apply(); label();
-      });
-      strip.appendChild(btn);
-    }
-    function label() { btn.textContent = isOn() ? 'Turn off Halloween look' : 'Turn on Halloween look'; }
-    label();
+    if (date) date.setAttribute('data-hw', countdown());
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountToggle);
-  else mountToggle();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', markDate);
+  else markDate();
 
   /* ── BOO-KED: the booking stamp in pumpkin ink ── */
   if (window.JWGStamp) {
     var pageStamp = JWGStamp.stampPage, rowBooked = JWGStamp.booked;
     JWGStamp.stampPage = function (host, kind, opts) {
-      if (kind === 'booked' && isOn()) { opts = opts || {}; opts.sub = 'BOO-KED'; opts.ink = 'pumpkin'; }
+      if (kind === 'booked') { opts = opts || {}; opts.sub = 'BOO-KED'; opts.ink = 'pumpkin'; }
       return pageStamp(host, kind, opts);
     };
     JWGStamp.booked = function (opts) {
-      if (isOn()) { opts = opts || {}; opts.sub = 'BOO-KED'; opts.ink = 'pumpkin'; }
+      opts = opts || {}; opts.sub = 'BOO-KED'; opts.ink = 'pumpkin';
       return rowBooked(opts);
     };
   }
@@ -85,10 +59,8 @@
      stampSound() plays only when a person books a job (app.js), so this never sounds
      on anything automatic. Same off switch as the normal sound (jjStampSound). */
   if (typeof window.stampSound === 'function') {
-    var normalSound = window.stampSound;
     var ctx = null;
     window.stampSound = function () {
-      if (!isOn()) return normalSound();
       try { if (localStorage.getItem('jjStampSound') === 'off') return; } catch (e) {}
       try {
         ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
@@ -114,7 +86,6 @@
      Reads the Live Jobs counters (#lj-stats) as they are drawn; nothing else changes. */
   function todayKey() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
   function dayCleared() {
-    if (!isOn()) return;
     try { if (localStorage.getItem('jjHwCleared') === todayKey()) return; localStorage.setItem('jjHwCleared', todayKey()); } catch (e) {}
     var el = document.createElement('div');
     el.className = 'hw-cleared';
@@ -140,5 +111,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchLiveJobs);
   else watchLiveJobs();
 
-  window.JJHalloween = { isOn: isOn, dayCleared: dayCleared };
+  window.JJHalloween = { dayCleared: dayCleared };
 })();

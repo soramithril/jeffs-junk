@@ -1,136 +1,20 @@
 /* ============================================================================
-   Jeff's Junk — HALLOWEEN: the Great Hall dashboard (Jake, 2026-10-23)
-   Everything here hangs off html.jj-hw, which app-halloween.js sets only in
-   October (Oct 1-31) and only when this browser hasn't switched it off. On
-   November 1 the class is never set, so none of this applies.
-
-   Scope: the picture, glass and recolouring apply ONLY while the Dashboard is the
-   page on screen (body:has(#view-dashboard.active)); every other page and every
-   popup keeps its normal look. The pumpkin help button and the ghost on an empty
-   Live Jobs list show on any page during October.
+   Jeff's Junk — HALLOWEEN fun touches (Jake, 2026-10-23; simplified 2026-10-26)
+   Everything hangs off html.jj-hw, which app-halloween.js sets only in October.
+   The dashboard keeps its normal look; these are small additions on top of it.
+   (The Great Hall picture-behind-glass theme was removed on Jake's word.)
    ========================================================================== */
 
-/* ── the picture behind the dashboard ── */
-html.jj-hw:has(#view-dashboard.active){background:#0d0907!important}
-html.jj-hw body:has(#view-dashboard.active){background:transparent!important}
-html.jj-hw body:has(#view-dashboard.active)::before{
-  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-  background:linear-gradient(180deg,rgba(10,6,3,.32),rgba(10,6,3,.58)),
-             url("assets/login/jeffs-junk-halloween-hall.webp") center/cover no-repeat}
-html.jj-hw body:has(#view-dashboard.active) .main{background:transparent!important}
-
-/* ── the sidebar: darker green glass with a gold edge, a glass pill for the open page ──
-   The sliding "liquid" tab is painted the page's own colour so it melts into the page;
-   over a picture there is no single colour, so it steps aside while the Dashboard is
-   open and comes back on every other page (and for good on November 1). */
-html.jj-hw body:has(#view-dashboard.active) .sidebar{
-  background:rgba(12,34,22,.86)!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  box-shadow:inset -1px 0 0 rgba(226,189,107,.45)}
-html.jj-hw body:has(#view-dashboard.active) .liquid-nav-svg{display:none!important}
-html.jj-hw body:has(#view-dashboard.active) .sidebar .nav > .nav-item.active{
-  background:rgba(255,255,255,.14)!important;color:#e2bd6b!important;
-  width:100%!important;margin-right:0!important;border-radius:11px!important}
-
-/* ── the dashboard's own colours, turned to dark glass ── */
-html.jj-hw #view-dashboard{
-  --n1:rgba(255,236,200,.04);--n2:rgba(255,236,200,.06);--n3:rgba(255,236,200,.09);--n4:rgba(255,236,200,.12);
-  --n5:rgba(255,226,180,.16);--n6:rgba(255,226,180,.2);--n7:rgba(255,226,180,.28);
-  --n8:#8f7f66;--n9:#b7a689;--n10:#c4b496;--n11:#d8c8a8;--n12:#f6ecd9;
-  --bg:transparent;--surface:rgba(20,14,10,.80);--surface2:rgba(255,236,200,.08);--surface-solid:#20160f;
-  --surface-hover:rgba(255,236,200,.1);--border:rgba(255,226,180,.18);--border-strong:rgba(255,226,180,.3);
-  --text:#f6ecd9;--text-secondary:#ecdec3;--muted:#d2c1a1;--placeholder:#a8977c;
-  --accent:#f0a442;--accent-light:rgba(240,164,66,.16);--accent-hover:#ffc477;--accent-warm:#fb923c;
-  --ok-ink:#86efac;--warn-ink:#fcd34d;--bad-ink:#fca5a5;--info-ink:#93c5fd;--data:#67e8f9;--green:#86efac;
-  --ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--red:#f87171;--info:#60a5fa;--blue:#60a5fa;
-  --shadow-sm:0 4px 18px rgba(0,0,0,.35);--shadow-md:0 12px 32px rgba(0,0,0,.45);--shadow-lg:0 20px 48px rgba(0,0,0,.5);
-  --hw-gold:#e2bd6b;color:var(--text);color-scheme:dark}
-
-/* frosted glass on the big blocks */
-html.jj-hw #view-dashboard :is(.chart-card,#dash-strip,.djj-jumpbar,.dfs-strip,.tj-cat,.glass-card,.stat-card){
-  background:rgba(20,14,10,.80)!important;border-color:rgba(255,226,180,.18)!important;
-  backdrop-filter:blur(14px) saturate(130%);-webkit-backdrop-filter:blur(14px) saturate(130%)}
-html.jj-hw #view-dashboard .jj-bin{background:rgba(255,255,255,.06)!important;border-color:rgba(255,226,180,.18)!important}
-html.jj-hw #view-dashboard :is(.djj-row,.tjr2){background:rgba(42,30,20,.74)!important;border-color:rgba(255,255,255,.08)!important}
-html.jj-hw #view-dashboard .tjr2.fixed{background:rgba(34,197,94,.10)!important}
-html.jj-hw #view-dashboard .djj-row.attn{background:rgba(220,53,69,.22)!important;border-color:rgba(248,113,113,.5)!important}
-html.jj-hw #view-dashboard .djj-btn:not(.green){background:rgba(255,236,200,.08)!important;border-color:rgba(255,226,180,.24)!important}
-html.jj-hw #view-dashboard .djj-biz{background:rgba(167,139,250,.16)!important;color:#c4b5fd!important}
-html.jj-hw #view-dashboard .djj-sub.attn{color:#fdba74!important}
-html.jj-hw #view-dashboard .gs-input{background:rgba(0,0,0,.35)!important;color:var(--text)!important}
-/* the jump bar (Today's jobs / Needs you / ...): its pills and count badges are mixed
-   with white in style.css, so they get their own dark versions here */
-html.jj-hw #view-dashboard .djj-seg{background:rgba(255,236,200,.08)!important;color:#ecdec3!important}
-html.jj-hw #view-dashboard .djj-seg.is-active{background:rgba(240,164,66,.22)!important;color:#ffd9a3!important;box-shadow:inset 0 0 0 1.5px rgba(240,164,66,.6)!important}
-html.jj-hw #view-dashboard .djj-seg .djj-seg-badge{border:none!important}
-html.jj-hw #view-dashboard .djj-seg:nth-child(1) .djj-seg-badge{background:rgba(134,239,172,.2)!important;color:#86efac!important}
-html.jj-hw #view-dashboard .djj-seg:nth-child(2) .djj-seg-badge{background:rgba(252,211,77,.2)!important;color:#fcd34d!important}
-html.jj-hw #view-dashboard .djj-seg:nth-child(3) .djj-seg-badge{background:rgba(253,186,116,.2)!important;color:#fdba74!important}
-html.jj-hw #view-dashboard .djj-seg:nth-child(4) .djj-seg-badge{background:rgba(103,232,249,.2)!important;color:#67e8f9!important}
-html.jj-hw #view-dashboard .djj-seg:nth-child(5) .djj-seg-badge{background:rgba(255,236,200,.16)!important;color:#f6ecd9!important}
-
-/* gold carved lettering and the deep red Today's Jobs banner */
-html.jj-hw #view-dashboard :is(.card-head,#dash-strip-date,.djj-section-h){font-family:'Cinzel',Georgia,serif!important;letter-spacing:1.4px!important}
-html.jj-hw #view-dashboard #dash-strip-date{color:var(--hw-gold)!important}
-html.jj-hw #view-dashboard #dash-strip{border-left-color:var(--hw-gold)!important}
-html.jj-hw #view-dashboard #card-today-jobs > div:first-of-type{
-  background:linear-gradient(135deg,rgba(92,20,20,.94),rgba(140,42,28,.92))!important;box-shadow:inset 0 -2px 0 var(--hw-gold)}
-
-/* tints the dashboard writes straight into its rows, made dark */
-html.jj-hw #view-dashboard [style*="background:#eef5e0"]{background:rgba(190,242,100,.12)!important}
-html.jj-hw #view-dashboard [style*="background:#eaf2ff"],
-html.jj-hw #view-dashboard [style*="background:#f9fbfd"]{background:rgba(147,197,253,.12)!important}
-html.jj-hw #view-dashboard [style*="background:#fef9e7"],
-html.jj-hw #view-dashboard [style*="background:#fffdf5"],
-html.jj-hw #view-dashboard [style*="background:#fffbeb"],
-html.jj-hw #view-dashboard [style*="background:#fef3c7"]{background:rgba(252,211,77,.14)!important}
-html.jj-hw #view-dashboard [style*="background:#f3f0fb"]{background:rgba(196,181,253,.14)!important}
-html.jj-hw #view-dashboard [style*="background:#fdecee"]{background:rgba(248,113,113,.16)!important}
-html.jj-hw #view-dashboard :is([style*="background:#fff7ed"],[style*="rgb(255, 247, 237)"]){background:rgba(253,186,116,.14)!important}
-
-/* coloured words the dashboard writes straight in, made lighter so they read on dark glass */
-html.jj-hw #view-dashboard :is([style*="color:#0891b2"],[style*="color:#0e7490"]){color:#67e8f9!important}
-html.jj-hw #view-dashboard :is([style*="color:#0d9488"],[style*="color:#0f766e"]){color:#5eead4!important}
-html.jj-hw #view-dashboard :is([style*="color:#8b5cf6"],[style*="color:#7c3aed"]){color:#c4b5fd!important}
-html.jj-hw #view-dashboard [style*="color:#a16207"]{color:#fcd34d!important}
-html.jj-hw #view-dashboard :is([style*="color:#e67e22"],[style*="color:#c2410c"]){color:#fdba74!important}
-html.jj-hw #view-dashboard :is([style*="color:#ec4899"],[style*="color:#be185d"]){color:#f9a8d4!important}
-html.jj-hw #view-dashboard [style*="color:#15803d"]{color:#86efac!important}
-html.jj-hw #view-dashboard :is([style*="color:#1d4ed8"],[style*="color:#0d6efd"]){color:#93c5fd!important}
-html.jj-hw #view-dashboard :is([style*="color:#3f6212"],[style*="color:#65a30d"]){color:#bef264!important}
-html.jj-hw #view-dashboard [style*="color:#a1662f"]{color:#fcd9a4!important}
-html.jj-hw #view-dashboard #jb-booked-emails{color:#fdba74!important}   /* coloured by script, rgb() form */
-
-/* the dashboard's own faint green wash would tint the hall: off while the picture is up */
-html.jj-hw #view-dashboard{background:none!important}
-
-/* stamps take their ink from one setting: lighter inks on the dark dashboard, and a dark
-   card behind them instead of their white paper */
-html.jj-hw #view-dashboard .jwg-stamp{background:rgba(20,14,10,.55)!important}
-html.jj-hw #view-dashboard .jwg-stamp.green{--ink:#4ade80}
-html.jj-hw #view-dashboard .jwg-stamp.cyan{--ink:#67e8f9}
-html.jj-hw #view-dashboard .jwg-stamp.indigo{--ink:#a5b4fc}
-html.jj-hw #view-dashboard .jwg-stamp.amber{--ink:#fbbf24}
-html.jj-hw #view-dashboard .jwg-stamp.slate{--ink:#cbd5e1}
-html.jj-hw #view-dashboard .jwg-stamp.red{--ink:#fca5a5}
-/* the BOO-KED stamp (app-halloween.js) — pumpkin ink, darker on white pages */
-html.jj-hw .jwg-stamp.pumpkin{--ink:#c2410c}
-html.jj-hw #view-dashboard .jwg-stamp.pumpkin{--ink:#fb923c}
-
-/* ── fun touch: the countdown beside the date ── */
+/* ── the countdown beside the dashboard date ── */
 html.jj-hw #dash-strip-date[data-hw]::after{
   content:attr(data-hw);margin-left:12px;padding:3px 11px;border-radius:99px;vertical-align:1px;
   font-family:'Cinzel',Georgia,serif;font-size:10.5px;font-weight:700;letter-spacing:1.4px;
-  background:rgba(226,189,107,.16);color:#f3d58f;border:1px solid rgba(226,189,107,.45)}
+  background:#fff1e6;color:#9a3412;border:1px solid #fdba74}
 
-/* ── the switch to turn it off (or back on) for this screen ── */
-#dash-strip{position:relative}
-.hw-toggle{position:absolute;top:8px;right:14px;z-index:2;font-family:inherit;font-size:11px;font-weight:600;line-height:1;letter-spacing:.3px;
-  padding:6px 10px;border-radius:99px;cursor:pointer;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
-.hw-toggle:hover{color:var(--text);border-color:var(--border-strong)}
-.hw-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-html.jj-hw .hw-toggle{background:rgba(255,236,200,.08);color:#e2d3b6;border-color:rgba(255,226,180,.28)}
+/* ── BOO-KED: pumpkin ink for the booking stamp (app-halloween.js) ── */
+.jwg-stamp.pumpkin{--ink:#c2410c}
 
-/* ── fun touch: the ghost in an empty list ── */
+/* ── the ghost in an empty list: "All caught up" on the dashboard, an empty Live Jobs ── */
 html.jj-hw #dash-needs-you > .chart-card:not(:has(.ny-row)) > span:first-child{display:none}
 html.jj-hw #dash-needs-you > .chart-card:not(:has(.ny-row))::before,
 html.jj-hw .lj-empty::before{
@@ -138,19 +22,19 @@ html.jj-hw .lj-empty::before{
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 54 62'%3E%3Cpath d='M27 2C13 2 4 13 4 27v31l7-6 6 6 6-6 4 6 4-6 6 6 6-6 7 6V27C50 13 41 2 27 2z' fill='%23f3ece0' stroke='%239aa3a0' stroke-width='1.5'/%3E%3Ccircle cx='20' cy='26' r='3.5' fill='%231b1320'/%3E%3Ccircle cx='34' cy='26' r='3.5' fill='%231b1320'/%3E%3Cellipse cx='27' cy='36' rx='4' ry='5' fill='%231b1320'/%3E%3C/svg%3E") center/contain no-repeat}
 html.jj-hw .lj-empty::before{margin:0 auto 10px}
 html.jj-hw #dash-needs-you > .chart-card:not(:has(.ny-row)) > div:last-child::after,
-html.jj-hw .lj-empty::after{content:"Eerily quiet.";display:block;margin-top:2px;font-family:'Cinzel',Georgia,serif;font-weight:700;letter-spacing:1px}
-html.jj-hw #dash-needs-you > .chart-card:not(:has(.ny-row)) > div:last-child::after{color:var(--hw-gold)}
+html.jj-hw .lj-empty::after{content:"Eerily quiet.";display:block;margin-top:2px;
+  font-family:'Cinzel',Georgia,serif;font-weight:700;letter-spacing:1px;color:#9a3412}
 @keyframes hwGhost{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 
-/* ── fun touch: the jack-o'-lantern help button (every page) ── */
+/* ── the jack-o'-lantern help button (every page) ── */
 html.jj-hw .help-fab{background:#ea580c url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 58'%3E%3Cpath d='M31 12C31 6 34 3 39 2' stroke='%233f5a22' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3Cellipse cx='32' cy='34' rx='29' ry='22' fill='%23ffb15c'/%3E%3Cellipse cx='32' cy='34' rx='9' ry='22' fill='%23ffc47e'/%3E%3Cpath d='M18 29l6-8 6 8zM34 29l6-8 6 8z' fill='%237c2d12'/%3E%3Cpath d='M17 39c7 10 23 10 30 0l-4 1-3 4-3-4-4 5-3-5-4 4-3-4z' fill='%237c2d12'/%3E%3C/svg%3E") center/34px 31px no-repeat!important;
-  box-shadow:0 6px 20px rgba(234,88,12,.5)!important}
+  box-shadow:0 6px 20px rgba(234,88,12,.45)!important}
 html.jj-hw .help-fab > svg{visibility:hidden}
 
-/* ── fun touch: "Day cleared" when the last Live Jobs leg is done ── */
+/* ── "Day cleared" when the last Live Jobs leg is done ── */
 .hw-cleared{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom,0px));z-index:600;overflow:hidden;
   transform:translateX(-50%);min-width:320px;padding:14px 26px;border-radius:14px;text-align:center;pointer-events:none;
-  background:rgba(20,14,10,.92);border:1px solid rgba(226,189,107,.5);box-shadow:0 14px 40px rgba(0,0,0,.45);
+  background:rgba(20,14,10,.92);border:1px solid rgba(226,189,107,.5);box-shadow:0 14px 40px rgba(0,0,0,.35);
   opacity:0;transition:opacity .5s ease}
 .hw-cleared.show{opacity:1}
 .hw-cleared b{display:block;font-family:'Cinzel',Georgia,serif;font-size:17px;color:#e2bd6b;letter-spacing:1.2px}
