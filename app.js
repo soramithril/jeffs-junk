@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '708';
+var APP_VERSION = '709';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -12536,7 +12536,7 @@ async function openDetail(id, returnCid){
     ? escHtml(detAddr)+' <a href="'+escHtml(mapsDirUrl(detAddr))+'" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;white-space:nowrap;margin-left:6px">'+lineIcon('directions',14)+' Directions</a>'
     : '—';
   document.getElementById('det-body').innerHTML='<div class="det-main">'+
-    (j.service==='Junk Quote'?'<div id="det-quote-box" data-qid="'+j.id+'"></div>':'')   // filled by app-quote-followup.js
+    (j.service==='Junk Quote'?'<div id="det-quote-box" data-qid="'+j.id+'"></div>':'<div id="det-fromquote-box" data-jid="'+j.id+'"></div>')   // filled by app-quote-followup.js
     +(j.service==='Extra Jobs'&&(j.jobName||j.crewSize||j.tasks||j.poNumber)?'<div class="detail-section" style="border-bottom:none;padding-bottom:0;margin-bottom:6px">'
       +(j.jobName?'<div style="font-family:Bebas Neue,sans-serif;font-size:28px;letter-spacing:1px;color:#65a30d;line-height:1.1">🌿 '+escHtml(j.jobName)+'</div>':'')
       +(j.poNumber?'<div style="font-size:14px;font-weight:700;color:#65a30d;margin-top:2px">🧾 PO #'+escHtml(j.poNumber)+'</div>':'')
@@ -12639,6 +12639,7 @@ async function openDetail(id, returnCid){
   stampBookedIfJustSaved(j);
   stampBinDroppedIfJustAssigned(j);
   if(j.service==='Junk Quote') renderQuoteDetailBox(j.id);
+  else renderFromQuoteBox(j.id);
   // Render embedded DRD form for Furniture Pickup only
   if(j.service==='Furniture Pickup'){
     setTimeout(function(){ renderDrdInDetail(j); renderFbDoorInDetail(j); },50);
