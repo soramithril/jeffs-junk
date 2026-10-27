@@ -3,18 +3,15 @@
    ═══════════════════════════════════════════════════════════════════
    The sign-in posters, run by the calendar (Jake, 2026-10-14):
    - A seasonal sheet shows only in its own dates (THE CALENDAR below). While a
-     season is on, 9 sign-ins in 10 get one of that season's sheets and 1 in 10
-     gets a year-round one.
+     season is on, 9 times in 10 it is one of that season's sheets and 1 in 10
+     a year-round one.
    - Out of season it is the year-round sheets: the movie posters and the
      lakeside all year, the anime one and Lanterns & Leaves spring to fall.
    - Never the same sheet twice in a row when there is a choice.
 
-   The pick happens exactly once, on a Supabase-verified sign-in — app.js
-   calls advance() at that point. Deliberately NOT on page load: otherwise
-   refreshing the login screen, or mistyping your password and reloading,
-   would shuffle the artwork under you. The one exception is a stored sheet
-   whose dates have passed (Christmas still saved in January): that is
-   swapped for one that is in season the next time the page loads.
+   A new sheet is picked every time the sign-in screen comes up (Jake,
+   2026-10-27): opening the page, a refresh, and signing out, which reloads
+   the page. Until then the pick only moved on at sign-in.
 
    Adding a sheet: put the poster in assets/login/ as jeffs-junk-<key>.webp
    (1672x941, like the rest), add an entry to SHEETS with its season, where
@@ -288,7 +285,14 @@
         { fx: 'glow', at: [1630, 680], r: 40, colour: '255,150,60', flicker: true },
         { fx: 'glints', box: [400, 480, 950, 560], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' },
         { fx: 'glints', box: [430, 330, 620, 420], pick: 'bright', count: 16, size: 2, colour: '255,230,170' },
-        { fx: 'fall', kind: 'ember', count: 12, box: [1390, 300, 1510, 360], travel: [20, -260], period: 4, size: 2.2, colours: ['255,170,70', '255,120,40'] }
+        { fx: 'fall', kind: 'ember', count: 12, box: [1390, 300, 1510, 360], travel: [20, -260], period: 4, size: 2.2, colours: ['255,170,70', '255,120,40'] },
+        // More of it (Jake, 2026-10-27): bats in the vault, sparks off two more fire
+        // bowls, the magic trail round the truck drifting, a warm haze over the aisle.
+        { fx: 'bats', box: [470, 20, 960, 230], count: 4 },
+        { fx: 'fall', kind: 'ember', count: 8, box: [115, 395, 180, 425], travel: [15, -220], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'ember', count: 8, box: [1135, 385, 1205, 420], travel: [15, -220], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'glitter', count: 18, box: [430, 340, 800, 430], travel: [160, -40], period: 6, size: 2, colours: ['255,215,120', '255,240,190'] },
+        { fx: 'fog', box: [450, 540, 1250, 640], colour: '255,200,150' }
       ]
     },
     {
@@ -305,7 +309,11 @@
         { fx: 'glow', at: [155, 370], r: 22, colour: '255,170,80', flicker: true },
         { fx: 'glow', at: [1620, 610], r: 40, colour: '255,150,60', flicker: true },
         { fx: 'glints', box: [430, 260, 720, 370], pick: 'bright', count: 30, size: 2, colour: '255,220,140' },
-        { fx: 'fall', kind: 'ember', count: 12, box: [1440, 230, 1530, 290], travel: [20, -240], period: 4, size: 2.2, colours: ['255,170,70', '255,120,40'] }
+        { fx: 'fall', kind: 'ember', count: 12, box: [1440, 230, 1530, 290], travel: [20, -240], period: 4, size: 2.2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'bats', box: [480, 20, 1000, 230], count: 4 },
+        { fx: 'fall', kind: 'ember', count: 8, box: [125, 350, 190, 385], travel: [15, -220], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'ember', count: 8, box: [1125, 365, 1195, 400], travel: [15, -220], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'glitter', count: 18, box: [430, 260, 720, 340], travel: [200, -30], period: 6, size: 2, colours: ['255,215,120', '255,240,190'] }
       ]
     },
     {
@@ -321,7 +329,10 @@
         { fx: 'glow', at: [105, 290], r: 22, colour: '255,170,80', flicker: true },
         { fx: 'glow', at: [1390, 565], r: 26, colour: '255,240,200', period: 4 },
         { fx: 'glints', box: [500, 380, 800, 470], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' },
-        { fx: 'glints', box: [800, 240, 1300, 330], pick: 'warm', count: 24, size: 2.2, colour: '255,220,150' }
+        { fx: 'glints', box: [800, 240, 1300, 330], pick: 'warm', count: 24, size: 2.2, colour: '255,220,150' },
+        { fx: 'bats', box: [480, 20, 820, 260], count: 4 },
+        { fx: 'fall', kind: 'ember', count: 8, box: [75, 270, 140, 300], travel: [15, -220], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'ember', count: 8, box: [1535, 190, 1610, 230], travel: [15, -200], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] }
       ]
     },
     {
@@ -336,7 +347,11 @@
         { fx: 'glow', at: [800, 350], r: 26, colour: '255,170,80', flicker: true },
         { fx: 'glow', at: [905, 365], r: 22, colour: '255,170,80', flicker: true },
         { fx: 'glow', at: [620, 255], r: 26, colour: '255,170,80', flicker: true },
-        { fx: 'glints', box: [700, 550, 1100, 720], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' }
+        { fx: 'glints', box: [700, 550, 1100, 720], pick: 'warm', count: 30, size: 2.2, colour: '255,220,150' },
+        { fx: 'bats', box: [380, 30, 1000, 330], count: 3 },
+        { fx: 'fall', kind: 'ember', count: 8, box: [775, 330, 830, 360], travel: [15, -200], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'ember', count: 8, box: [880, 350, 935, 375], travel: [15, -200], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] },
+        { fx: 'fall', kind: 'ember', count: 8, box: [595, 235, 650, 270], travel: [15, -200], period: 4, size: 2, colours: ['255,170,70', '255,120,40'] }
       ]
     },
     {
@@ -353,6 +368,7 @@
         { fx: 'glow', at: [330, 630], r: 26, colour: '255,240,200', period: 5 },
         { fx: 'glints', box: [1000, 250, 1600, 420], pick: 'warm', count: 50, size: 2, colour: '255,210,130' },
         { fx: 'bats', box: [850, 40, 1500, 250], count: 5 },
+        { fx: 'bats', box: [1380, 40, IW, 220], count: 3 },   // past the moon
         { fx: 'fog', box: [1100, 380, 1600, 520], colour: '200,210,230' },
         { fx: 'fall', kind: 'leaf', count: 22, box: [0, -100, IW, 500], travel: [260, 520], period: 14, size: 6, colours: AUTUMN }
       ]
@@ -370,6 +386,10 @@
   ];
 
   // ── THE PICK ──
+  // localStorage keeps the sheet shown last, so the next one is a different one. A dot
+  // asks for one sheet by name in sessionStorage, and that ask is used once, on the
+  // reload the dot makes.
+  var ASKED = 'jjLoginArtAsked';
   function byKey(key) { return SHEETS.filter(function (s) { return s.key === key; })[0]; }
   function pools(date) {
     var seasons = seasonsOn(date), sf = springToFall(date);
@@ -388,9 +408,13 @@
   }
   function stored() { try { return localStorage.getItem(STORE); } catch (e) { return null; } }
   function store(key) { try { localStorage.setItem(STORE, key); } catch (e) {} }
+  function ask(key) { try { sessionStorage.setItem(ASKED, key); } catch (e) {} }
+  function asked() {
+    try { var key = sessionStorage.getItem(ASKED); sessionStorage.removeItem(ASKED); return key; } catch (e) { return null; }
+  }
 
-  var key = stored();
-  if (!eligible(new Date()).some(function (s) { return s.key === key; })) { key = choose(key); store(key); }
+  var key = asked() || choose(stored());
+  store(key);
   var sheet = byKey(key);
 
   var shell = document.getElementById('login-screen');
@@ -420,6 +444,11 @@
     if (sh.font) shell.classList.add('jjl-' + sh.font);
     if (sh.still) shell.classList.add('jjl-still');
     shell.querySelector('.jjl-art').style.backgroundImage = 'url("' + artUrl(sh) + '")';
+    // The picture fades up only once it has arrived (.jjl-ready in login-art.css), so on
+    // a slow connection the fade never plays over an empty screen.
+    var pic = new Image();
+    pic.addEventListener('load', function () { shell.classList.add('jjl-ready'); }, { once: true });
+    pic.src = artUrl(sh);
     var theme = Object.assign({ grade: GRADES[parts[0] === 'float' ? 'float' : parts[1]] }, PALETTES[sh.theme[0]], sh.theme[1] || {});
     shell.style.setProperty('--t-phone-x', sh.phoneX);
     ['bg', 'card', 'phone', 'edge', 'btn', 'accent', 'intro', 'footer', 'grade'].forEach(function (k) {
@@ -474,7 +503,7 @@
       if (here) b.setAttribute('aria-current', 'true');
       b.addEventListener('click', function () {
         if (here) return;
-        store(sh.key);
+        ask(sh.key);
         location.reload();
       });
       dots.appendChild(b);
@@ -1047,10 +1076,6 @@
   // Started last, once FX, PART, PICK and WEIGHT above have been filled in.
   if (sheet.motion) sheet.motion();
   else if (sheet.effects) runEffects(sheet);
-
-  window.JJLoginArt = {
-    // Called by app.js once Supabase has accepted the password, so the next
-    // time this browser lands on the login screen it gets a fresh pick.
-    advance: function () { store(choose(sheet.key)); }
-  };
+  // No window.JJLoginArt any more: the pick happens on load, so there is nothing for
+  // app.js to move on at sign-in. Its call there is guarded and now does nothing.
 })();

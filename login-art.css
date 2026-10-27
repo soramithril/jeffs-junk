@@ -256,6 +256,32 @@
 .jjl-drawn .jjl-intro { color: var(--t-intro); }
 .jjl-drawn .jjl-signin { background: var(--t-btn); }
 .jjl-drawn .jjl-footer { color: var(--t-footer, #626a63); }
+
+/* ═══ arrival and drift (Jake, 2026-10-27) ═══
+   Every drawn sheet but the still one. Once the poster has loaded (login-art.js adds
+   .jjl-ready) it fades up out of the dark background and settles from a slight zoom,
+   then keeps a very slow zoom in and out. The canvas lives in the same .jjl-parallax
+   layer, so the lights and bats stay on their spots. `scale` is a property of its own,
+   so it never fights the pointer drift, which uses `transform`.
+   The card rises in after it and its lines follow one by one. Fill mode is backwards,
+   never both: a finished animation that kept holding `transform` would cancel the
+   button's hover lift and the field's focus lift. */
+.jjl-drawn:not(.jjl-still) .jjl-parallax { opacity: 0; }
+.jjl-drawn.jjl-ready:not(.jjl-still) .jjl-parallax {
+  opacity: 1;
+  animation: jjl-arrive 1.8s cubic-bezier(.2,.7,.2,1) backwards, jjl-drift 28s 1.8s ease-in-out infinite alternate;
+}
+.jjl-drawn:not(.jjl-still) .jjl-panel { animation: jjl-cardin 1s .5s cubic-bezier(.19,1,.22,1) backwards; }
+.jjl-drawn:not(.jjl-still) .jjl-card > * { animation: jjl-linein .8s cubic-bezier(.19,1,.22,1) backwards; }
+.jjl-drawn:not(.jjl-still) .jjl-card > :nth-child(1) { animation-delay: .7s; }
+.jjl-drawn:not(.jjl-still) .jjl-card > :nth-child(2) { animation-delay: .8s; }
+.jjl-drawn:not(.jjl-still) .jjl-card > :nth-child(3) { animation-delay: .9s; }
+.jjl-drawn:not(.jjl-still) .jjl-card > :nth-child(n+4) { animation-delay: 1s; }
+.jjl-drawn:not(.jjl-still) .jjl-card > :nth-child(n+6) { animation-delay: 1.08s; }
+.jjl-drawn:not(.jjl-still) .jjl-card > :nth-child(n+8) { animation-delay: 1.16s; }
+@media (prefers-reduced-motion: reduce) {
+  .jjl-drawn .jjl-parallax, .jjl-drawn .jjl-panel, .jjl-drawn .jjl-card > * { animation: none !important; }
+}
 .jjl-serif .jjl-card h2 { font-family: Georgia, "Times New Roman", serif; font-style: normal; font-weight: 500; font-size: clamp(2.4rem, 2.9vw, 3.4rem); line-height: 1.05; letter-spacing: .005em; }
 .jjl-caps .jjl-card h2 { font-family: 'Inter', "Helvetica Neue", Arial, sans-serif; font-style: normal; font-weight: 800; font-size: clamp(2.1rem, 2.5vw, 2.9rem); line-height: 1.05; letter-spacing: .06em; text-transform: uppercase; }
 .jjl-caps .jjl-signin { letter-spacing: .3em; }
@@ -310,6 +336,9 @@
 @media (max-width: 760px) {
   .jjl-drawn .jjl-art { background-position: var(--t-phone-x) center; }
   .jjl-drawn .jjl-card { border-color: var(--t-edge); background: var(--t-phone); }
+  /* On a phone the blur is on the card, not the panel, and a panel fading in around it
+     would leave the card unblurred until the fade ends. The lines still rise in. */
+  .jjl-drawn:not(.jjl-still) .jjl-panel { animation: none; }
 }
 
 /* ── responsive ──────────────────────────────────────────────────── */
@@ -411,6 +440,10 @@
 @keyframes jjl-panellight { 0%,54%,100% { transform: translateX(-70%); opacity: 0; } 68% { opacity: .6; } 86% { transform: translateX(72%); opacity: 0; } }
 @keyframes jjl-pulse { 0%,100% { opacity: .52; transform: scale(.82); } 50% { opacity: 1; transform: scale(1.08); } }
 @keyframes jjl-sheen { 0%,62%,100% { transform: translateX(0) skewX(-20deg); opacity: 0; } 70% { opacity: 1; } 88% { transform: translateX(410%) skewX(-20deg); opacity: 0; } }
+@keyframes jjl-arrive { from { opacity: 0; scale: 1.07; } to { opacity: 1; scale: 1; } }
+@keyframes jjl-drift { from { scale: 1; } to { scale: 1.04; } }
+@keyframes jjl-cardin { from { opacity: 0; transform: translateY(24px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes jjl-linein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   #login-screen *, #login-screen *::before, #login-screen *::after {
