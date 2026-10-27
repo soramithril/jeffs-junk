@@ -4,7 +4,8 @@
    The sign-in posters, run by the calendar (Jake, 2026-10-14):
    - A seasonal sheet shows only in its own dates (THE CALENDAR below). While a
      season is on, 9 times in 10 it is one of that season's sheets and 1 in 10
-     a year-round one.
+     a year-round one. Halloween is the exception: all Halloween, no year-round
+     sheets at all (Jake, 2026-10-27).
    - Out of season it is the year-round sheets: the movie posters and the
      lakeside all year, the anime one and Lanterns & Leaves spring to fall.
    - Never the same sheet twice in a row when there is a choice.
@@ -391,17 +392,20 @@
   // reload the dot makes.
   var ASKED = 'jjLoginArtAsked';
   function byKey(key) { return SHEETS.filter(function (s) { return s.key === key; })[0]; }
+  // base is the year-round sheets that may be mixed in. Empty during Halloween, so the
+  // dots and the pick both offer Halloween (and, early October, Thanksgiving) only.
   function pools(date) {
     var seasons = seasonsOn(date), sf = springToFall(date);
     return {
       inSeason: SHEETS.filter(function (s) { return seasons.indexOf(s.season) >= 0; }),
-      base: SHEETS.filter(function (s) { return s.season === 'always' || (s.season === 'springfall' && sf); })
+      base: seasons.indexOf('halloween') >= 0 ? []
+        : SHEETS.filter(function (s) { return s.season === 'always' || (s.season === 'springfall' && sf); })
     };
   }
   function eligible(date) { var p = pools(date); return p.inSeason.concat(p.base); }
   function choose(exceptKey) {
     var p = pools(new Date());
-    var pool = (p.inSeason.length && Math.random() < .9) ? p.inSeason : p.base;
+    var pool = (p.inSeason.length && (!p.base.length || Math.random() < .9)) ? p.inSeason : p.base;
     var options = pool.filter(function (s) { return s.key !== exceptKey; });
     if (!options.length) options = pool;   // a season with one sheet
     return options[Math.floor(Math.random() * options.length)].key;
