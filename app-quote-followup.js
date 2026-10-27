@@ -257,12 +257,13 @@ async function qfSave(id, where, kind){
   var val = document.getElementById('qf-in-' + where + '-' + id).value.trim();
   if(!val){ toast(kind === 'booked' ? 'Type the job number first.' : 'Type a short note first.', 'error'); return; }
   if(kind === 'booked'){
-    var r = await db.from('jobs').select('job_id,service').eq('job_id', val).maybeSingle();
+    var r = await db.from('jobs').select('job_id,service,photos,notes').eq('job_id', val).maybeSingle();
     if(r.error) throw new Error('Job lookup failed: ' + r.error.message);
     if(!r.data){ toast('There is no job ' + val + ' — check the number.', 'error'); return; }
     if(r.data.service === 'Junk Quote'){ toast(val + ' is another quote, not a job.', 'error'); return; }
+    var copied = await _qfCarryToJob(id, r.data);
     await _qfPatch(id, {quote_outcome:'booked', quote_job_id:val});
-    toast('✅ Quote ' + id + ' marked booked as job ' + val + '.');
+    toast('✅ Quote ' + id + ' marked booked as job ' + val + (copied ? ' — ' + copied + ' copied over.' : '.'));
   } else {
     await _qfPatch(id, {quote_note:val, quote_followed_up_at:new Date().toISOString()});
     toast('📞 Follow-up saved.');
@@ -277,6 +278,37 @@ async function qfLost(id){
 async function qfReopen(id){
   await _qfPatch(id, {quote_outcome:null, quote_job_id:null});
   toast('Quote ' + id + ' is open again.');
+}
+
+// "Already booked" links a quote to a job someone made by hand, so the quote's photos
+// and notes never reached it (Jake, 2026-10-27). Copy them on: photos the job lacks are
+// added after its own, the notes go at the end under "From quote N:". Returns what was
+// copied, in words, or '' when there was nothing to copy.
+async function _qfCarryToJob(quoteId, job){
+  var r = await db.from('jobs').select('photos,notes').eq('job_id', quoteId).single();
+  if(r.error) throw new Error('Could not load quote ' + quoteId + ': ' + r.error.message);
+  var have = job.photos || [];
+  var add = (r.data.photos || []).filter(function(p){ return have.indexOf(p) < 0; });
+  var qNotes = (r.data.notes || '').trim();
+  var tag = 'From quote ' + quoteId + ':';
+  var fields = {}, said = [];
+  if(add.length){
+    fields.photos = have.concat(add);
+    said.push(add.length + ' photo' + (add.length === 1 ? '' : 's'));
+  }
+  if(qNotes && (job.notes || '').indexOf(tag) < 0){
+    fields.notes = (job.notes ? job.notes + '\n\n' : '') + tag + '\n' + qNotes;
+    said.push('the notes');
+  }
+  if(!said.length) return '';
+  var w = await patchJob(job.job_id, fields);
+  if(w.error) throw new Error('Could not copy quote ' + quoteId + ' onto job ' + job.job_id + ': ' + w.error.message);
+  var local = jobs.find(function(j){ return j.id === job.job_id; });
+  if(local){
+    if(fields.photos) local.photos = fields.photos.slice();
+    if(fields.notes) local.notes = fields.notes;
+  }
+  return said.join(' and ');
 }
 
 // Called by saveJob once a job made with Convert to job has saved.
@@ -304,6 +336,22 @@ async function qfConvert(id){
     jobs.push(dbToJob(r.data));
   }
   convertQuoteToJob(id);
+}
+
+// The way back: a job that a quote was booked as names that quote at the top of its
+// Job details, with a button to open it. Empty for every other job.
+async function renderFromQuoteBox(jobId){
+  var el = document.getElementById('det-fromquote-box');
+  if(!el) return;
+  var r = await db.from('jobs').select('job_id').eq('quote_job_id', jobId).eq('quote_outcome', 'booked').limit(1);
+  if(r.error) throw new Error('From-quote lookup failed: ' + r.error.message);
+  if(document.getElementById('det-fromquote-box') !== el || el.dataset.jid !== jobId) return;   // another job opened meanwhile
+  if(!r.data.length){ el.innerHTML = ''; return; }
+  var qid = r.data[0].job_id;
+  el.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:12px 16px;margin-bottom:14px">'
+    + '<div style="flex:1 1 auto;font-size:15px;font-weight:800;color:#b45309">📋 Booked from quote ' + escHtml(qid) + '</div>'
+    + '<button class="djj-btn" onclick="openDetail(\'' + escHtml(qid) + '\')" style="font-size:14px;padding:10px 18px;border-radius:10px;border:2px solid #f59e0b;background:var(--surface);color:#b45309;font-weight:800">Open quote ' + escHtml(qid) + '</button>'
+  + '</div>';
 }
 
 // The box at the top of a quote's Job details.
