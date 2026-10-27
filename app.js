@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '709';
+var APP_VERSION = '710';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -947,8 +947,11 @@ var sizeOrder = {'4 yard':0,'7 yard':1,'14 yard':2,'20 yard':3};
 
 // Column list for list/calendar views. names/phones/emails ARE loaded — job lists show the
 // contact under the name, and the email screen reads emails off the job (see openEmailModal).
-// Detail views do their own fresh select('*'). Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
-var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,bin_live_load,bin_will_call,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at';
+// photos and internal_notes ARE loaded too: openDetail shows the cached job as-is, and the
+// photo upload adds to its list — without them Job details said "Photos (0)" and an upload
+// wiped the job's other photos (fixed 2026-10-27). Edit (openEdit) does its own fresh select('*').
+// Partial jobs in memory must only be saved via patchJob(), never saveSingleJob.
+var JOB_LIST_COLS = 'job_id,service,status,name,names,phone,phones,emails,address,city,date,time,price,quoted_amount,est_duration_min,paid,notes,items,referral,confirmed,email_sent,no_email,bin_size,bin_duration,bin_dropoff,bin_dropoff_time,bin_pickup,bin_pickup_time,bin_instatus,bin_side,bin_bid,bin_live_load,bin_will_call,deposit,deposit_paid,etransfer_refund_sent,created_at,updated_at,created_by,edited_by,created_by_email,edited_by_email,pay_method,recurring,recur_interval,material_type,tools_needed,email_confirmed,swap_count,business_name,fb_date,fb_time,junk_date,junk_time,completed_by_vehicle,client_cid,assigned_crew_ids,dropoff_crew_id,pickup_crew_id,job_name,crew_size,tasks,po_number,completed,completed_at,truck_size,review_ask,review_asked_at,photos,internal_notes';
 // Minimal columns for building client stats (used by clients page aggregation only)
 var JOB_STATS_COLS = 'client_cid,name,service,date';
 // Client columns. addresses MUST stay in this list: dbToClient falls back to deriving it from the
@@ -13429,18 +13432,14 @@ function convertQuoteToJob(quoteId){
   var q=null;jobs.forEach(function(j){if(j.id===quoteId)q=j;});
   if(!q)return;
   closeM('detail-modal');
-  // Pre-fill new job form from quote data
-  editId=null;
+  // Start from New Job's clean form. The form is shared, so anything not cleared here
+  // carried the last opened job's business name, internal notes, items, tools, truck
+  // size… into this booking (stale-field trap, fixed 2026-10-27).
+  newJob();
   _convertFromQuoteId=quoteId;
-  _selectedClientObj=null;
-  _phoneMatchDismissed=false;_phoneMatchReset();
   document.getElementById('modal-ttl').textContent='Convert Quote → New Job';
   document.getElementById('save-btn').textContent='Create Job';
   setFormSvc('Junk Removal');
-  document.getElementById('f-status').value='';
-  // The form's contact fields are multi-row wraps (same shapes as openEdit fills).
-  // The emails wrap must be filled too — leaving it alone carries the previously
-  // opened job's emails into the converted booking (stale-field trap).
   var convNames=q.names&&q.names.length?q.names:(q.name?[q.name]:[]);
   document.getElementById('f-names-wrap').innerHTML=convNames.length?convNames.map(function(n){return _jobNameRow(n);}).join(''):_jobNameRow('');
   var convPhones=q.phones&&q.phones.length?q.phones:(q.phone?[{num:q.phone,ext:'',type:'cell'}]:[]);
@@ -13450,8 +13449,7 @@ function convertQuoteToJob(quoteId){
   var addrParts=(q.address||'').split(',').map(function(p){return p.trim();});
   document.getElementById('f-addr').value=addrParts[0]||'';
   document.getElementById('f-city').value=q.city||(addrParts[1]||'');
-  var qnow=new Date();document.getElementById('f-date').value=todayStr();  // local, not UTC
-  document.getElementById('f-time').value=qnow.toTimeString().slice(0,5);
+  document.getElementById('f-business-name').value=q.businessName||'';
   document.getElementById('f-price').value=q.price||'';
   document.getElementById('f-paid').value=q.paid||'Unpaid';
   document.getElementById('f-paymethod').value=q.payMethod||'';
@@ -13459,25 +13457,14 @@ function convertQuoteToJob(quoteId){
   // Carry quote amount → both Quoted and Actual fields on the new Junk Removal
   var fjqConv=document.getElementById('f-junk-quoted');if(fjqConv)fjqConv.value=q.price||'';
   var fjaConv=document.getElementById('f-junk-actual');if(fjaConv)fjaConv.value=q.price||'';
-  var fedConv=document.getElementById('f-est-duration');if(fedConv)fedConv.value='';
   document.getElementById('f-notes').value=(q.notes?'Converted from quote '+quoteId+'.\n'+q.notes:'Converted from quote '+quoteId+'.');
+  document.getElementById('f-internal-notes').value=q.internalNotes||'';
+  var convItems=_notesToItems(q.items||'');
+  if(convItems.length) document.getElementById('f-items-wrap').innerHTML=convItems.map(function(s){return _jobItemRow(s);}).join('');
   document.getElementById('f-client-select').value=q.clientId||'';
-  document.getElementById('f-client-search').value='';
   setJobFormBlacklistWarning(clients.find(function(c){return c.cid===q.clientId;}));
-  var badge=document.getElementById('f-client-selected-badge');if(badge)badge.style.display='none';
-  var res=document.getElementById('f-client-results');if(res)res.style.display='none';
-  var picker=document.getElementById('f-addr-picker');if(picker)picker.style.display='none';
-  document.getElementById('bin-extra').style.display='none';
-  // Same reason as openEdit: the bin box is hidden here, so a live load left ticked
-  // by the last job opened is invisible. Switch this converted quote to Bin Rental
-  // and the save would force its pickup date onto the drop-off date.
-  var llConv=document.getElementById('f-liveload');
-  if(llConv){ llConv.checked=false; _liveLoadPrevPickup=null; syncLiveLoadForm(); }
-  toggleBin();
-  ['f-svc','f-names','f-date'].forEach(clearErr);
   _formPhotos = (q.photos || []).slice();
   _renderFormPhotos();
-  document.getElementById('job-modal').classList.add('open');
 }
 function markUnconfirmed(id){jobs.forEach(function(j){if(j.id===id)j.confirmed=false;});patchJob(id,{confirmed:false});toast('Confirmation removed.');refresh();}
 function markEmailSent(id){jobs.forEach(function(j){if(j.id===id)j.emailSent=true;});patchJob(id,{emailSent:true});toast('Email marked as sent!');refresh();}
