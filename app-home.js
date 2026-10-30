@@ -295,9 +295,10 @@ function _homeTodos(d, who, reviews, noPhotos){
     none.concat(big).forEach(function(s){ keys[s.leg + ':' + s.j.job_id] = 1; });
     var sub = [];
     if(none.length) sub.push(tDay + ' has ' + none.length + ' stop' + _homeS(none.length, '', 's') + ' with no driver yet');
+    var bigWords = big.length === 1 ? 'a 4 or 7 yard pickup' : big.length + ' pickups of 4 or 7 yard bins';
     if(big.length) sub.push(kevinOff
-      ? 'Kevin is off ' + tDay + ': ' + big.length + ' 4 or 7 yard pickup' + _homeS(big.length, ' needs', 's need') + ' him'
-      : big.length + ' 4 or 7 yard pickup' + _homeS(big.length, ' isn\'t', 's aren\'t') + ' with Kevin');
+      ? 'Kevin is off ' + tDay + ', and only he can do ' + bigWords
+      : (big.length === 1 ? 'A 4 or 7 yard pickup isn\'t' : big.length + ' pickups of 4 or 7 yard bins aren\'t') + ' with Kevin');
     add({ n: Object.keys(keys).length, t: 'Pick drivers for tomorrow', s: sub.join(' · '), go: 'Assign',
       fn: function(){ _dispatchDate = tomorrow; go('dispatch'); } });
   }
