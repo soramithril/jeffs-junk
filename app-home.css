@@ -56,8 +56,9 @@
 
 /* Today's Jobs: what's missing in red words. */
 #home #dash-today-jobs .tjr2-bin.unassigned{background:var(--bad-soft);color:var(--bad-ink);border:1px solid var(--bad);font-size:12.5px}
+/* !important only because style.css sets these three with !important on .job-avatar-empty. */
 #home #dash-today-jobs .job-avatar-empty{width:auto;height:auto;border-radius:6px;padding:3px 8px;font-size:0;
-  background:var(--bad-soft);border:1px solid var(--bad);color:var(--bad-ink)}
+  background:var(--bad-soft)!important;border:1px solid var(--bad)!important;color:var(--bad-ink)!important}
 #home #dash-today-jobs .job-avatar-empty::after{content:'No driver yet';font-size:12.5px;font-weight:800;white-space:nowrap}
 #home #dcat-junk .job-avatar-empty::after,#home #dcat-quotes .job-avatar-empty::after,
 #home #dcat-furniture .job-avatar-empty::after,#home #dcat-extra .job-avatar-empty::after{content:'No crew yet'}
