@@ -8,11 +8,13 @@
 // the set_home_layout() database function because people can't edit their own profile
 // row directly (it carries their role).
 //
-// The new layout is a RE-ARRANGEMENT of the dashboard, not a second copy of it. The bin
-// photo cards, Today's Jobs, Waiting on Customer Call and Entered Today are the real
+// Mostly a RE-ARRANGEMENT of the dashboard, not a second copy of it. The bin photo
+// cards (#dash-bin-by-size), Waiting on Customer Call and Entered Today are the real
 // cards, moved into the new grid (their renderers find them by id wherever they sit)
 // and moved back when the switch goes off. Everything else on the old dashboard is
-// only hidden. So the old dashboard is exactly what it was the moment the switch is off.
+// only hidden, so the old dashboard is exactly what it was the moment the switch is off.
+// The one piece drawn here is Today's Jobs: Jake wanted the mockup's plain rows (v712),
+// so the new layout lists the day itself and the old card keeps its buttons and chips.
 //
 // The to-do buttons read the same lists the morning brief does (_jjbGather in
 // app-brief.js), so the brief and the buttons can never disagree.
@@ -30,6 +32,7 @@ var _homeOn = false;      // the new layout is on screen right now
 var _homeReady = false;   // the dashboard's data (jobs, crew) has loaded since sign-in
 var _homeMoved = [];      // [{node, mark}] cards moved into the new layout, and where they came from
 var _homeBusy = false, _homeAgain = false, _homeTimer = null, _homeTruckTimer = null;
+var _homeJobsDay = null;  // the day Today's Jobs is showing (null = today)
 var _homeCalls = [];      // the pickup-call popup's list, one at a time
 var _homeCallAt = 0;
 
@@ -143,8 +146,7 @@ function homeApply(on){
   if(on){
     _homeBuild();
     var slots = {
-      'home-slot-bins': document.getElementById('card-binavail'),
-      'home-slot-today': document.getElementById('card-today-jobs').closest('.dash-section'),
+      'home-slot-bins': document.getElementById('dash-bin-by-size'),
       'home-slot-willcall': document.getElementById('card-will-call').closest('.dash-section'),
       'home-slot-booked': document.getElementById('sec-bookings')
     };
@@ -156,8 +158,8 @@ function homeApply(on){
       _homeMoved.push({ node: node, mark: mark });
     });
     view.classList.add('home-on');
+    document.body.classList.add('home-on');   // hides the corner quote reminder (see app-home.css)
     _homeOn = true;
-    _homeDecorateJobs();
     homeRefresh();
     _homeTrucks();
     clearInterval(_homeTruckTimer);
@@ -166,11 +168,9 @@ function homeApply(on){
     _homeMoved.forEach(function(m){ m.mark.parentNode.insertBefore(m.node, m.mark); m.mark.remove(); });
     _homeMoved = [];
     view.classList.remove('home-on');
+    document.body.classList.remove('home-on');
     _homeOn = false;
     clearInterval(_homeTruckTimer);
-    // The red "no bin number yet" words were written into Today's Jobs; a redraw puts
-    // the old dashboard's own words back.
-    refreshDashJobs();
   }
   _homeSwitchPaint();
 }
@@ -191,10 +191,12 @@ function _homeBuild(){
         + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Job</button>'
       + '<button type="button" class="home-btn home-btn-ghost" onclick="go(\'drdcalc\')">Furniture Quote</button>'
     + '</div>'
-    + '<div id="home-slot-bins"></div>'
+    + '<div class="home-binrow"><div class="home-binrow-h"><span>Bins in the yard</span>'
+      + '<span class="home-note">Same pictures as before, so you can show customers the sizes</span></div>'
+      + '<div id="home-slot-bins"></div></div>'
     + '<div class="home-cols">'
       + '<div class="home-main">'
-        + '<div id="home-slot-today"></div>'
+        + '<div id="home-jobs" class="home-card"></div>'
         + '<div id="home-overdue" class="home-card"></div>'
         + '<div class="home-folds">'
           + '<button type="button" class="home-fold" onclick="homeFold(\'willcall\')">Waiting on a call to pick up <span class="home-fold-c" id="home-fold-willcall">0 ›</span></button>'
@@ -215,7 +217,6 @@ function _homeBuild(){
   ['dash-today-jobs', 'dash-will-call-list', 'dash-today-bookings', 'dash-needs-you'].forEach(function(id){
     new MutationObserver(function(){
       if(!_homeOn) return;
-      if(id === 'dash-today-jobs') _homeDecorateJobs();
       clearTimeout(_homeTimer);
       _homeTimer = setTimeout(homeRefresh, 1500);
     }).observe(document.getElementById(id), { childList:true, subtree:true });
@@ -227,17 +228,6 @@ function homeFold(which){
   el.hidden = !el.hidden;
 }
 
-// Today's Jobs is the dashboard's own renderer. What's missing reads as red words
-// instead of a "+" and an amber chip: CSS turns the empty driver "+" into "No driver
-// yet", and this rewrites the bin chip's "unassigned".
-function _homeDecorateJobs(){
-  document.querySelectorAll('#dash-today-jobs .tjr2-bin.unassigned').forEach(function(el){
-    if(el.dataset.home) return;
-    el.dataset.home = '1';
-    el.textContent = el.textContent.replace(/unassigned$/i, 'no bin number yet');
-  });
-}
-
 // ── The list, the greeting and the overdue bins ──
 async function homeRefresh(){
   if(!_homeOn || !_homeReady) return;
@@ -245,11 +235,13 @@ async function homeRefresh(){
   _homeBusy = true;
   try {
     var who = _jjbWho();
-    var extra = await Promise.all([_jjbGather(), who === 'barbara' ? reviewFollowupsDue() : [], who === 'barbara' ? _homeQuotesNoPhotos() : [], _homeOverdue()]);
+    var day = _homeJobsDay || todayStr();
+    var extra = await Promise.all([_jjbGather(), who === 'barbara' ? reviewFollowupsDue() : [], who === 'barbara' ? _homeQuotesNoPhotos() : [], _homeOverdue(), _homeJobsLoad(day)]);
     _homeGreet();
     _homeFoldCounts();
     _homeTodosPaint(_homeTodos(extra[0], who, extra[1], extra[2]));
     _homeOverduePaint(extra[3]);
+    _homeJobsPaint(day, extra[4]);
   } catch(e){
     document.getElementById('home-todos').innerHTML = '<div class="home-err">Couldn\'t load your list: ' + escHtml(e.message) + '</div>';
     throw e;
@@ -332,8 +324,8 @@ function _homeTodos(d, who, reviews, noPhotos){
   function binsBack(){
     var bt = d.backToday;
     add({ n: bt.length, t: 'Mark ' + bt.length + ' bin' + _homeS(bt.length, '', 's') + ' back in the yard',
-      s: 'Picked up today, not marked back yet', go: 'Mark',
-      fn: homeShowTodayPickups });
+      s: (bt.length ? 'Bin ' + (bt[0].j.bin_bid || '') + ', ' + (bt[0].j.name || '') + ' · ' : '') + 'picked up today, not marked back yet', go: 'Mark',
+      fn: function(){ openDetail(bt[0].j.job_id); } });
   }
   function reviewAsks(){
     add({ n: reviews.length, t: reviews.length === 1 ? 'Ask a happy customer for a review' : 'Ask ' + reviews.length + ' happy customers for a review',
@@ -350,14 +342,6 @@ function _homeTodos(d, who, reviews, noPhotos){
   else if(who === 'barbara'){ quotes(); reviewAsks(); photos(); calls(); }
   else { drivers(); binNumbers(); emails(); quotes(); calls(); }
   return T;
-}
-
-// Today's pickups are where Mark picked up lives. Today's Jobs may be showing another
-// day, so it is put back on today first.
-async function homeShowTodayPickups(){
-  var dp = document.getElementById('dash-bin-date');
-  if(dp.value !== todayStr()){ dp.value = todayStr(); updateDashDateLabel(); await refreshDashJobs(); }
-  document.getElementById('dcat-pickups').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 var _homeGo = [];
@@ -384,6 +368,120 @@ async function _homeQuotesNoPhotos(){
     .or('junk_date.eq.' + today + ',and(junk_date.is.null,date.eq.' + today + ')');
   if(r.error) throw new Error('Homepage: quote photos query failed: ' + r.error.message);
   return r.data.filter(function(q){ return !(q.photos || []).length; });
+}
+
+// ── Today's Jobs, the mockup's way ──
+// Drop-offs and pickups side by side, then junk, quotes and furniture. Each row is
+// one line of words: time, customer, town and bin, the size, and who is driving. What
+// is missing is said in red ("No driver yet", "no bin number yet") and the row turns
+// pink. Clicking a row opens the job, which has every button the old rows carried.
+var HOME_JOB_COLS = 'job_id,name,city,service,status,date,time,bin_size,bin_bid,bin_dropoff,bin_pickup,bin_dropoff_time,bin_pickup_time,'
+  + 'junk_date,junk_time,fb_date,fb_time,dropoff_crew_id,pickup_crew_id,assigned_crew_ids,bin_live_load,bin_instatus,est_duration_min,completed';
+var HOME_OTHER = ['Junk Removal', 'Junk Quote', 'Furniture Pickup', 'Furniture Delivery', 'Extra Jobs'];
+
+async function _homeJobsLoad(day){
+  var res = await Promise.all([
+    db.from('jobs').select(HOME_JOB_COLS).eq('service', 'Bin Rental').neq('status', 'Cancelled')
+      .or('bin_dropoff.eq.' + day + ',and(bin_dropoff.is.null,date.eq.' + day + ')'),
+    db.from('jobs').select(HOME_JOB_COLS).eq('service', 'Bin Rental').neq('status', 'Cancelled').eq('bin_pickup', day),
+    db.from('jobs').select(HOME_JOB_COLS).in('service', HOME_OTHER).neq('status', 'Cancelled')
+      .or('junk_date.eq.' + day + ',fb_date.eq.' + day + ',date.eq.' + day)
+  ]);
+  res.forEach(function(r){ if(r.error) throw new Error('Homepage: day list query failed: ' + r.error.message); });
+  return {
+    // Same rules as the old card: a bin with no drop date but a pickup that day is a pickup,
+    // and a live load is one truck visit, shown on the drop side only.
+    drops: res[0].data.filter(function(j){ return !(!j.bin_dropoff && j.bin_pickup === day); }),
+    picks: res[1].data.filter(function(j){ return !(j.bin_live_load && j.bin_dropoff === day); }),
+    other: res[2].data.filter(function(j){
+      var d = (j.service === 'Furniture Pickup' || j.service === 'Furniture Delivery') ? (j.fb_date || j.date) : (j.junk_date || j.date);
+      return d === day && !(j.service === 'Extra Jobs' && j.completed);
+    })
+  };
+}
+
+function _homeCrewName(id){
+  var c = crewMembers.find(function(m){ return m.id === id; });
+  return c ? c.name.split(' ')[0] : 'Unknown crew';
+}
+function _homeTime(t){ return t === 'anytime' ? 'Any' : t ? ft(t).replace(/ (AM|PM)$/, '') : ''; }
+
+// One row: time, name, sub (html), size, who (html), flag.
+function _homeJobRow(j, leg, kevinId){
+  var flag = false, sub = [], who = '';
+  if(j.city) sub.push(escHtml(j.city));
+  if(j.service === 'Bin Rental'){
+    if(j.bin_bid) sub.push('bin ' + escHtml(j.bin_bid));
+    else if(leg === 'drop' && !j.bin_live_load){ sub.push('<span class="home-miss">no bin number yet</span>'); flag = true; }
+    var drv = leg === 'drop' ? j.dropoff_crew_id : j.pickup_crew_id;
+    var size = parseInt(j.bin_size, 10);
+    if(leg === 'pick' && j.bin_instatus === 'pickedup') who = '<span class="home-drv home-ok">Back ✓</span>';
+    else if(!drv){ who = '<span class="home-drv home-miss">No driver yet</span>'; flag = true; }
+    else if(leg === 'pick' && (size === 4 || size === 7) && drv !== kevinId){
+      who = '<span class="home-drv home-miss">' + escHtml(_homeCrewName(drv)) + ' · needs Kevin</span>'; flag = true;
+    }
+    else who = '<span class="home-drv">' + escHtml(_homeCrewName(drv)) + '</span>';
+    return { time: _homeTime(leg === 'drop' ? j.bin_dropoff_time : j.bin_pickup_time), name: j.name, sub: sub.join(' · '), size: size || '', who: who, flag: flag, id: j.job_id };
+  }
+  var label = j.service === 'Junk Quote' ? 'Quote visit' : j.service === 'Extra Jobs' ? 'Extra job' : j.service;
+  if(j.est_duration_min) sub.push(fmtDur(j.est_duration_min));
+  var crew = j.assigned_crew_ids || [];
+  if(!crew.length){ who = '<span class="home-drv home-miss">No crew yet</span>'; flag = true; }
+  else who = '<span class="home-drv">' + escHtml(crew.map(_homeCrewName).join(', ')) + '</span>';
+  var furn = j.service === 'Furniture Pickup' || j.service === 'Furniture Delivery';
+  return { time: _homeTime(furn ? j.fb_time : j.junk_time), name: label + ' · ' + (j.name || ''), sub: sub.join(' · '), size: '', who: who, flag: flag, id: j.job_id };
+}
+
+// Timed stops first in time order, then "Any", then no time at all.
+function _homeTimeKey(t){
+  if(!t) return '99';
+  if(t === 'Any') return '98';
+  var p = t.split(':'), h = parseInt(p[0], 10);
+  if(h < 6) h += 12;   // the AM/PM was dropped for the row; nobody books a bin before 6
+  return (h < 10 ? '0' : '') + h + ':' + p[1];
+}
+function _homeRowsHtml(rows, empty){
+  if(!rows.length) return empty ? '<div class="home-jempty">' + empty + '</div>' : '';
+  rows.sort(function(a, b){ var x = _homeTimeKey(a.time), y = _homeTimeKey(b.time); return x < y ? -1 : x > y ? 1 : 0; });
+  return rows.map(function(r){
+    return '<button type="button" class="home-jrow' + (r.flag ? ' home-flag' : '') + '" onclick="openDetail(\'' + r.id + '\')">'
+      + '<span class="home-jtm">' + escHtml(r.time) + '</span>'
+      + '<span class="home-jmain"><span class="home-jnm">' + escHtml(r.name || r.id) + '</span><span class="home-jsub">' + r.sub + '</span></span>'
+      + '<span class="home-jrt">' + (r.size ? '<span class="home-size">' + r.size + '</span>' : '') + r.who + '</span></button>';
+  }).join('');
+}
+
+function _homeJobsPaint(day, d){
+  var kevinId = _homeKevin().id;
+  var drops = d.drops.map(function(j){ return _homeJobRow(j, 'drop', kevinId); });
+  var picks = d.picks.map(function(j){ return _homeJobRow(j, 'pick', kevinId); });
+  var other = d.other.map(function(j){ return _homeJobRow(j, 'other', kevinId); });
+  var all = drops.concat(picks, other), need = all.filter(function(r){ return r.flag; }).length;
+  var off = Math.round((new Date(day + 'T12:00:00') - new Date(todayStr() + 'T12:00:00')) / 86400000);
+  var title = off === 0 ? 'Today\'s Jobs' : off === 1 ? 'Tomorrow\'s Jobs' : off === -1 ? 'Yesterday\'s Jobs'
+    : new Date(day + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  var half = Math.ceil(other.length / 2);
+  var ready = all.length - need;
+  document.getElementById('home-jobs').innerHTML =
+    '<div class="home-jhead"><span class="home-jt">' + title + '</span><span class="home-jcnt">' + all.length + '</span>'
+      + '<span class="home-daynav"><button type="button" onclick="homeJobsDay(-1)">‹ Back</button>'
+      + '<button type="button"' + (off === 0 ? ' class="on"' : '') + ' onclick="homeJobsDay(0)">Today</button>'
+      + '<button type="button" onclick="homeJobsDay(1)">Next ›</button></span></div>'
+    + '<div class="home-sumline">' + (!all.length ? 'Nothing booked.' : need
+        ? ready + ' ' + _homeS(ready, 'is', 'are') + ' ready. <b>' + need + ' still ' + _homeS(need, 'needs', 'need') + ' something</b>, shown in red below.'
+        : 'All ' + all.length + ' are ready.') + '</div>'
+    + '<div class="home-legs"><div class="home-leg"><div class="home-leg-h">Dropping off bins · ' + drops.length + '</div>' + _homeRowsHtml(drops, 'No drop-offs.') + '</div>'
+      + '<div class="home-leg"><div class="home-leg-h">Picking up bins · ' + picks.length + '</div>' + _homeRowsHtml(picks, 'No pickups.') + '</div></div>'
+    + (other.length ? '<div class="home-leg-h home-leg-top">Junk, quotes and furniture · ' + other.length + '</div>'
+      + '<div class="home-legs"><div class="home-leg">' + _homeRowsHtml(other.slice(0, half), '') + '</div><div class="home-leg">' + _homeRowsHtml(other.slice(half), '') + '</div></div>' : '');
+}
+
+// ‹ Back / Today / Next ›: step a day, or come back to today.
+async function homeJobsDay(step){
+  var cur = _homeJobsDay || todayStr();
+  _homeJobsDay = step === 0 ? null : _jjbPlus(cur, step);
+  var day = _homeJobsDay || todayStr();
+  _homeJobsPaint(day, await _homeJobsLoad(day));
 }
 
 // ── Bins that should have come back: always open, nothing folded ──
