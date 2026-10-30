@@ -1,0 +1,126 @@
+/* ── THE NEW HOMEPAGE (v711, opt-in) — see app-home.js ──────────────────────────
+   Red is the only warning colour on it: a thing that needs doing is red and says
+   what to do in words. Bigger text and buttons than the old dashboard throughout.
+   Desktop only; under 901px the switch and the layout never appear. */
+
+/* The switch: the same top-right corner on both layouts. On the old layout it sits on
+   the right of the date line inside the day strip, which is empty there, so nothing
+   on the old dashboard moves. */
+#view-dashboard{position:relative}
+.home-switch{display:none}
+@media(min-width:901px){
+  /* 30px tall, centred on the day strip's date line (empty on the right), above the
+     search box. Measured 2026-10-30 at 1440px: strip top 10px into the view, date line
+     21-38px, search box from 54px. */
+  .home-switch{position:absolute;top:14px;right:16px;z-index:1002;display:inline-flex;align-items:center;gap:9px;
+    font:inherit;font-weight:700;font-size:13.5px;padding:3px 13px 3px 4px;border-radius:99px;
+    border:2px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+  .home-switch:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .home-sw-track{width:36px;height:20px;border-radius:99px;background:var(--n7);position:relative;flex:none;transition:background .15s}
+  .home-sw-knob{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+  .home-switch[aria-pressed="true"] .home-sw-track{background:var(--accent)}
+  .home-switch[aria-pressed="true"] .home-sw-knob{left:19px}
+}
+
+/* With the layout on, the old dashboard's other sections are hidden, not removed. */
+#home{display:none}
+#view-dashboard.home-on > *:not(#home):not(.home-switch){display:none!important}
+#view-dashboard.home-on > #home{display:flex;flex-direction:column;gap:18px;padding-top:52px;font-size:15px}
+
+.home-strip{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.home-hello{display:flex;flex-direction:column;line-height:1.2;min-width:250px}
+.home-hello b{font-size:24px;font-weight:800;color:var(--text)}
+.home-hello span{font-size:15px;color:var(--muted)}
+.home-search{flex:1;min-width:280px;display:flex;align-items:center;gap:12px;text-align:left;font:inherit;font-size:16px;cursor:pointer;
+  background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:14px 16px;color:var(--muted)}
+.home-search:hover{border-color:var(--accent)}
+.home-btn{font:inherit;font-weight:700;font-size:16px;padding:14px 20px;border-radius:13px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:9px;white-space:nowrap}
+.home-btn-green{background:var(--accent);color:#fff}
+.home-btn-ghost{background:var(--surface);color:var(--text);border:2px solid var(--border)}
+.home-search:focus-visible,.home-btn:focus-visible,.home-todo:focus-visible,.home-fold:focus-visible,.home-row:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* The moved cards keep their own look; only the gaps are the grid's. */
+#home-slot-bins > #card-binavail{margin-bottom:0!important}
+#home-slot-today > .dash-section,#home-slot-willcall > .dash-section,#home-slot-booked > .dash-section{margin-bottom:0!important}
+/* A bin size running low reads red here, not amber (the card's own colours, retuned). */
+#home #card-binavail{--warn-ink:var(--bad-ink);--warn-soft:var(--bad-soft)}
+
+.home-cols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;align-items:start}
+.home-main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.home-side{display:flex;flex-direction:column;gap:16px}
+/* Laptop width: the side column goes under, "your list" first. */
+@media(max-width:1280px){
+  .home-cols{grid-template-columns:minmax(0,1fr)}
+  .home-side{order:-1}
+}
+
+/* Today's Jobs: what's missing in red words. */
+#home #dash-today-jobs .tjr2-bin.unassigned{background:var(--bad-soft);color:var(--bad-ink);border:1px solid var(--bad);font-size:12.5px}
+/* !important only because style.css sets these three with !important on .job-avatar-empty. */
+#home #dash-today-jobs .job-avatar-empty{width:auto;height:auto;border-radius:6px;padding:3px 8px;font-size:0;
+  background:var(--bad-soft)!important;border:1px solid var(--bad)!important;color:var(--bad-ink)!important}
+#home #dash-today-jobs .job-avatar-empty::after{content:'No driver yet';font-size:12.5px;font-weight:800;white-space:nowrap}
+#home #dcat-junk .job-avatar-empty::after,#home #dcat-quotes .job-avatar-empty::after,
+#home #dcat-furniture .job-avatar-empty::after,#home #dcat-extra .job-avatar-empty::after{content:'No crew yet'}
+
+/* Overdue bins: its own always-open list. */
+.home-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.home-card[hidden]{display:none}
+.home-leg-h{padding:13px 18px 9px;font-size:13px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.home-bad{color:var(--bad-ink)!important}
+.home-row{font:inherit;color:var(--text);text-align:left;width:100%;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;
+  padding:11px 18px;border:none;border-top:1px solid var(--border);background:var(--bad-soft)}
+.home-row:hover{filter:brightness(.97)}
+.home-row-main{min-width:0;display:flex;flex-direction:column}
+.home-row-nm{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-row-sub{font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-size{font-family:'Bebas Neue',sans-serif;font-size:22px;min-width:30px;text-align:center;line-height:1}
+.home-miss{font-size:14px;font-weight:800;color:var(--bad-ink);white-space:nowrap}
+
+/* Waiting on a call / Booked today: one row each, opening the real card underneath. */
+.home-folds{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.home-fold{font:inherit;color:var(--text);cursor:pointer;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;
+  display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.home-fold:hover{border-color:var(--accent)}
+.home-fold-c{margin-left:auto;font-weight:800;color:var(--muted)}
+.home-folded[hidden]{display:none}
+
+/* Side column. */
+.home-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.home-ph{font-size:13px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.home-yours .home-ph{color:var(--text);font-size:14px}
+.home-ph-note{margin-left:auto;font-weight:600;letter-spacing:0;text-transform:none}
+#home-todos{display:flex;flex-direction:column;gap:10px}
+.home-todo{font:inherit;text-align:left;width:100%;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:13px;
+  border:2px solid var(--bad);background:var(--bad-soft);color:var(--text);cursor:pointer}
+.home-todo:hover{background:color-mix(in srgb,var(--bad) 18%,var(--surface))}
+.home-todo-n{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:.9;color:var(--bad-ink);min-width:32px;text-align:center}
+.home-todo-t{flex:1;min-width:0}
+.home-todo-t b{display:block;font-size:16.5px;line-height:1.3}
+.home-todo-t small{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
+.home-todo-go{font-weight:800;font-size:14px;color:var(--bad-ink);white-space:nowrap}
+.home-allclear{padding:14px 16px;border-radius:13px;background:var(--ok-soft);color:var(--ok-ink);font-weight:700}
+.home-err{padding:12px 14px;border-radius:11px;background:var(--bad-soft);color:var(--bad-ink);font-weight:700;font-size:14px}
+
+.home-trucks{display:flex;flex-direction:column}
+.home-trk{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:14.5px}
+.home-trk:first-child{border-top:none}
+.home-trk-w{font-weight:800;min-width:110px}
+.home-trk-wh{flex:1;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-trk-st{font-weight:700;font-size:13.5px;white-space:nowrap}
+.home-trk.home-go .home-trk-st{color:var(--ok-ink)}
+.home-trk.home-dim{opacity:.6}
+
+/* The welcome question and the pickup calls: ordinary .modal-overlay popups. */
+.modal.home-ask,.modal.home-calls{width:480px;padding:28px 30px;display:flex;flex-direction:column;gap:14px}
+.home-ask h3,.home-calls h3{margin:0;font-size:26px;font-weight:800;line-height:1.2}
+.home-ask p{margin:0;font-size:16.5px;line-height:1.5}
+.home-ask-btns,.home-call-btns{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+.home-ask-yes,.home-ask-no{font:inherit;font-weight:700;font-size:16px;padding:13px 20px;border-radius:12px;border:none;cursor:pointer}
+.home-ask-yes{background:var(--accent);color:#fff}
+.home-ask-no{background:var(--surface);color:var(--text);border:2px solid var(--border)}
+.home-ask-yes:focus-visible,.home-ask-no:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.home-call-n{font-size:13px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.home-call-phone{display:block;font-size:30px;font-weight:800;color:var(--text);text-decoration:none;font-variant-numeric:tabular-nums}
+.home-call-sub{margin:0;font-size:15px;color:var(--muted)}
+.home-call-q{margin:4px 0 0;font-size:17px;font-weight:700}

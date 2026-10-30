@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '710';
+var APP_VERSION = '711';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -3413,9 +3413,9 @@ function reviewDoneDate(r){
   return r.date;
 }
 
-async function renderReviewFollowups(){
-  var el=document.getElementById('dash-review-followups');
-  if(!el) return;
+// The flagged-happy customers due to be asked for a review. One list, read by the card
+// below and by the new homepage's to-do buttons (app-home.js), so the two can't disagree.
+async function reviewFollowupsDue(){
   var r = await db.from('jobs')
     .select('job_id,name,service,date,bin_pickup,fb_date,junk_date')
     .eq('review_ask',true).is('review_asked_at',null).neq('status','Cancelled');
@@ -3423,11 +3423,18 @@ async function renderReviewFollowups(){
   var today=todayStr();
   var cd=new Date(today+'T12:00:00'); cd.setDate(cd.getDate()-REVIEW_DELAY_DAYS);
   var cutoff=ymdLocal(cd);
-  var due=(r.data||[]).map(function(row){
+  return (r.data||[]).map(function(row){
     return {id:row.job_id, name:row.name||row.job_id, service:row.service||'', done:reviewDoneDate(row)};
   }).filter(function(x){
     return x.done && x.done<=cutoff;
   }).sort(function(a,b){ return a.done<b.done?-1:a.done>b.done?1:0; });   // longest-waiting first
+}
+
+async function renderReviewFollowups(){
+  var el=document.getElementById('dash-review-followups');
+  if(!el) return;
+  var due=await reviewFollowupsDue();
+  var today=todayStr();
   // Nothing due is the normal state — an empty card every day is just noise.
   if(!due.length){ el.innerHTML=''; return; }
   var rowsHtml=due.map(function(x){
@@ -14575,7 +14582,8 @@ async function loadSignedInApp() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
   startSessionGuards();
   // The data load ends by drawing the dashboard, so the screen you were on reopens after it.
-  loadAllFromSupabase().then(_resumeScreen);
+  // The opt-in homepage (app-home.js) puts each person's layout on while that loads.
+  homeSignedIn(loadAllFromSupabase().then(_resumeScreen));
 }
 
 function applyDeleteVisibility() {
