@@ -9,8 +9,10 @@
 #view-dashboard{position:relative}
 .home-switch{display:none}
 @media(min-width:901px){
-  /* 30px tall at top:5px: inside the strip's empty date line, above the search box. */
-  .home-switch{position:absolute;top:5px;right:16px;z-index:1002;display:inline-flex;align-items:center;gap:9px;
+  /* 30px tall, centred on the day strip's date line (empty on the right), above the
+     search box. Measured 2026-10-30 at 1440px: strip top 10px into the view, date line
+     21-38px, search box from 54px. */
+  .home-switch{position:absolute;top:14px;right:16px;z-index:1002;display:inline-flex;align-items:center;gap:9px;
     font:inherit;font-weight:700;font-size:13.5px;padding:3px 13px 3px 4px;border-radius:99px;
     border:2px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
   .home-switch:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -23,7 +25,7 @@
 /* With the layout on, the old dashboard's other sections are hidden, not removed. */
 #home{display:none}
 #view-dashboard.home-on > *:not(#home):not(.home-switch){display:none!important}
-#view-dashboard.home-on > #home{display:flex;flex-direction:column;gap:18px;padding-top:44px;font-size:15px}
+#view-dashboard.home-on > #home{display:flex;flex-direction:column;gap:18px;padding-top:52px;font-size:15px}
 
 .home-strip{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .home-hello{display:flex;flex-direction:column;line-height:1.2;min-width:250px}

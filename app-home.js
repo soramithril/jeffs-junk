@@ -441,10 +441,11 @@ function _homeKm(aLat, aLng, bLat, bLng){
   var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(aLat * k) * Math.cos(bLat * k) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-// Nearest town from the coverage list in app.js (name at [2], lat/lng at [6]/[7]).
+// Nearest town from the coverage list in app.js (its rows become {area, lat, lng} at start-up).
 function _homeTown(lat, lng){
   var best = '', bestKm = Infinity;
-  RC_CITIES.forEach(function(c){ var km = _homeKm(lat, lng, c[6], c[7]); if(km < bestKm){ bestKm = km; best = c[2]; } });
+  RC_CITIES.forEach(function(c){ var km = _homeKm(lat, lng, c.lat, c.lng); if(km < bestKm){ bestKm = km; best = c.area; } });
+  if(!best) throw new Error('Homepage: no town found for ' + lat + ',' + lng);
   return best;
 }
 
