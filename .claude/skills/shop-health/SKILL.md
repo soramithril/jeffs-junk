@@ -94,9 +94,9 @@ everything is fine say so in one line.
    drop it (Jake, 2026-09-05: "after a while we don't need to do it").
 
 8. **Is the backup actually running?** (Jake, 2026-09-29: "always make sure its
-   working".) The weekly backup is its OWN private repo - `soramithril/supabase-backups`,
-   the "Weekly Supabase Backup" Action (`.github/workflows/nightly-backup.yml`, workflow
-   id 257636944, Sunday 9 PM ET) runs `backup.py` and commits
+   working".) The backup is its OWN private repo - `soramithril/supabase-backups`,
+   the "Daily Supabase Backup" Action (`.github/workflows/nightly-backup.yml`, workflow
+   id 257636944, every night 9 PM ET; weekly until 2026-10-30) runs `backup.py` and commits
    `data/jeffs-junk/<table>.csv`. It failed silently for ELEVEN WEEKS (2026-07-13 to
    2026-09-21; last good copy before the fix was 2026-07-06) and nobody noticed, so never
    skip this and never assume from a green tick. No `gh` CLI on this machine - get a token
@@ -105,7 +105,7 @@ everything is fine say so in one line.
    the backup is down and it goes in the loud first line:
    - **Age of the newest backup** - newest commit touching the data folder:
      `/repos/soramithril/supabase-backups/commits?path=data/jeffs-junk&per_page=1`.
-     Older than 8 days = red. This is the number that actually matters, because a run can
+     Older than 2 days = red. This is the number that actually matters, because a run can
      finish green and commit nothing at all.
    - **Did the last SCHEDULED run pass** -
      `.../actions/workflows/nightly-backup.yml/runs?per_page=10`, then find the newest run
