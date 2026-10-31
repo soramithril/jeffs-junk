@@ -931,6 +931,7 @@ var geoCache = {};
 try { geoCache = JSON.parse(localStorage.getItem('jj-geo') || '{}'); } catch(e){}
 
 var editId = null, editBinId = null;
+var _editLoadedAt = '';   // updated_at of the job when the Edit form loaded it
 var _convertFromQuoteId = null;   // set by convertQuoteToJob; saveJob marks that quote booked (app-quote-followup.js)
 var svcF = 'all', searchF = '', invF = 'all', jobStatusF = 'all', jobDateF = 'all', binDropF = 'all';
 // 'all' | 'only' — "how many live loads did we do?" is a counting question, so this
@@ -11462,7 +11463,7 @@ async function openEdit(id){
   var j=dbToJob(fr.data);
   var jIdx=-1;jobs.forEach(function(jj,i){if(jj.id===id)jIdx=i;});
   if(jIdx>=0)jobs[jIdx]=j;else jobs.push(j); // keep the cache in step (saveJob preserves createdBy/crew from it)
-  editId=id;closeM('detail-modal');renderClientSelectOptions();
+  editId=id;_editLoadedAt=fr.data.updated_at;closeM('detail-modal');renderClientSelectOptions();
   // Reset leftover client-picker state from a previous form session — a stale
   // _selectedClientObj could inject another client's address via the picker.
   _selectedClientObj=null;
@@ -11662,11 +11663,37 @@ function changeJobType(id){
     setTimeout(function(){ picker.classList.remove('svc-picker-flash'); }, 2600);
   }, 400);
 }
+// Two people can have the same job open, and Save writes the whole form, so the last
+// save used to wipe the other person's changes without a word. That is how Anita
+// Moore's restored items were lost on 2026-10-30. Returns the stored row when the job
+// changed after this form loaded it, null when it did not.
+async function _jobChangedSinceOpened(jobId){
+  var read = function(){ return db.from('jobs').select('updated_at').eq('job_id', jobId).single(); };
+  var r = await read();
+  if(r.error && isAuthExpiredError(r.error) && await refreshSessionNow()) r = await read();
+  if(r.error) throw new Error('could not check whether someone else changed this job (' + r.error.message + ')');
+  return r.data.updated_at === _editLoadedAt ? null : r.data;
+}
+
 async function saveJob(e){
   if(e && e.preventDefault) e.preventDefault();
   if(_saveJobLock){ console.warn("saveJob already running"); return; }
   _setSaveJobLock(true);
   try {
+
+  // First, before anything writes (the client record is saved further down).
+  if(editId){
+    var changedRow;
+    try { changedRow = await _jobChangedSinceOpened(editId); }
+    catch(ex){
+      alert('❌ Nothing was saved — ' + ex.message + '.\n\nThe form still has everything you typed. Check the internet connection and hit Save again.');
+      return;
+    }
+    if(changedRow && !confirm('⚠ Someone else changed job ' + editId + ' at '
+        + new Date(changedRow.updated_at).toLocaleTimeString('en-CA', {hour:'numeric', minute:'2-digit'})
+        + ', after you opened it.\n\nSaving now replaces their changes with what is in this form.\n\n'
+        + 'OK = save mine anyway\nCancel = don\'t save. Close this form and open the job again to see their changes.')) return;
+  }
 
   // Clear error banner
   var banner = document.getElementById('job-form-errors');
@@ -12656,6 +12683,7 @@ async function openDetail(id, returnCid){
   }
 }
 
+var HISTORY_BULKY_FIELDS = ['Items','Furniture Items','Photos'];
 function toggleJobHistory(jobId){
   var wrap = document.getElementById('job-history-'+jobId);
   var toggle = document.getElementById('history-toggle-'+jobId);
@@ -12680,10 +12708,15 @@ function toggleJobHistory(jobId){
         var who = (g.by||'system').split('@')[0];
         var when = new Date(g.at).toLocaleString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
         var lines = g.changes.map(function(c){
+          // Items and photos are logged in full so they can be recovered, but the stored
+          // value is a block of receipt data or picture links nobody can read here.
+          if(HISTORY_BULKY_FIELDS.indexOf(c.field_name) >= 0)
+            return '<div style="font-size:12px;color:var(--fg);padding:2px 0">'
+              +'<span style="color:var(--muted)">'+escHtml(c.field_name)+':</span> <span style="font-weight:600">changed</span></div>';
           return '<div style="font-size:12px;color:var(--fg);padding:2px 0">'
-            +'<span style="color:var(--muted)">'+c.field_name+':</span> '
-            +'<span style="text-decoration:line-through;opacity:.5">'+(c.old_value||'(empty)')+'</span>'
-            +' → <span style="font-weight:600">'+(c.new_value||'(empty)')+'</span></div>';
+            +'<span style="color:var(--muted)">'+escHtml(c.field_name)+':</span> '
+            +'<span style="text-decoration:line-through;opacity:.5">'+escHtml(c.old_value||'(empty)')+'</span>'
+            +' → <span style="font-weight:600">'+escHtml(c.new_value||'(empty)')+'</span></div>';
         }).join('');
         return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
           +'<div style="font-size:12px;margin-bottom:4px"><strong style="color:var(--warn)">'+escHtml(who)+'</strong> <span style="color:var(--muted)">— '+when+'</span></div>'
