@@ -15,7 +15,10 @@
 // animates while the screen is off.
 (function(){
 'use strict';
-var W=400,H=270,RT=178,ROADY=RT+5,HY=RT+28,YARD_Y=150,SPEED=14;
+var W=400,H=312,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+/* below the main road (Jake, 2026-11-02: "all info on the board", no "+N more"):
+   row A of today's stops, a lane, row B, every bin out on rental, then the park */
+var ROWA=198,LANE_TOP=217,LANEY=LANE_TOP+2,ROWB=232,OUT_TOP=252,PARK_TOP=290,CX=3,LOTS_X=28;
 var REPLAY_MS=14000;                 // how long "today so far" takes to play
 var AMBIENT_MIN_PER_SEC=2;           // office and yard folk move on this clock, not the real one
 var MIN=60000;
@@ -164,9 +167,32 @@ function tree(g,cx,cy,r2){
   if(SE.blossom)for(k=0;k<8;k++)rect(g,SE.blossom,cx+Math.floor(r2()*10)-5,cy+Math.floor(r2()*6)-3,1,1);
 }
 var HSTYLE=[{roof:'#a8483a',roof2:'#7f352a',wall:'#e6c39a'},{roof:'#4f6d8a',roof2:'#3a5168',wall:'#d4dde4'},{roof:'#6b5040',roof2:'#4f3a2e',wall:'#e9d6b0'}];
-var TREES_A=[70,118,166,214,352,384],TREES_B=[94,142,190,238,340,372];
-var HOUSE_N=8;
-function houseX(k){return 10+k*48;}
+var TREES=[76,104,132,160,188,216,236,344,372];
+var MINIBIN=[
+"OOOOOOO",
+"OBBBBBO",
+".OBBBO.",
+"..OOO.."];
+/* a small house that fits a lot of any width */
+function drawMiniHouse(g,x,y,w,s){
+  var rh=Math.min(6,Math.ceil(w/2)-1);
+  for(var r=0;r<rh;r++){var inset=Math.round((rh-1-r)*(w/2-1)/rh);rect(g,SE.snow&&r<2?C.snow:s.roof,x+inset,y+r,w-2*inset,1);}
+  rect(g,s.wall,x+1,y+rh,w-2,14-rh);rect(g,s.roof2,x+1,y+13,w-2,1);
+  rect(g,C.wood,x+Math.floor(w/2)-1,y+rh+3,2,14-rh-4);
+  if(w>=14){rect(g,C.sky,x+3,y+rh+2,2,2);rect(g,C.sky,x+w-5,y+rh+2,2,2);}
+}
+function drawLot(g,st){
+  var L=st.lot;
+  drawMiniHouse(g,L.x+1,L.top+1,L.hw,HSTYLE[st.i%3]);
+  if(SE.flowers)for(var f=0;f<L.hw-2;f+=3)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],L.x+2+f,L.top+15,1,1);
+  if(SE.pumpkins&&L.w-L.hw>5){rect(g,'#e8590c',L.x+L.hw+1,L.top+12,3,2);rect(g,'#2f6a3a',L.x+L.hw+2,L.top+11,1,1);}
+  if(SE.leafPiles)for(var q=0;q<5;q++)rect(g,SE.leaves[q%4],L.x+2+q*2,L.top+16,2,1);
+}
+/* every bin out on rental, as a field of little bins with the count beside it */
+function drawOutBins(g,n){
+  sign(g,'OUT ON RENTAL',36,OUT_TOP+3);badge(g,String(n),36,OUT_TOP+15,C.bin);
+  for(var k=0;k<n;k++)spr(g,MINIBIN,binPal,70+(k%36)*9,OUT_TOP+2+Math.floor(k/36)*7,false);
+}
 
 /* ---------- static background: drawn once per showing ---------- */
 var bgc=null,bgx=null;
@@ -244,15 +270,21 @@ function drawBG(){
   rect(g,C.sky,339,24,6,4);rect(g,C.wood,346,27,3,6);
   rect(g,SE.snow?'#d9dcd8':C.dirt,336,176,46,2);
   sign(g,'DUMP',364,1);
-  /* the street: houses only - which stop each one is gets drawn live */
-  for(var k=0;k<HOUSE_N;k++){var hx=houseX(k);rect(g,C.drive,hx+2,RT+19,22,9);if(SE.snow)rect(g,C.snow,hx+2,RT+19,1,9);
-    drawHouse(g,hx,HY,HSTYLE[k%3]);
-    if(SE.flowers)for(var f=0;f<7;f++)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],hx+3+f*3,HY+21,1,1);
-    if(SE.pumpkins){rect(g,'#e8590c',hx+22,HY+17,4,3);rect(g,'#2f6a3a',hx+23,HY+16,1,1);rect(g,C.ink,hx+23,HY+18,1,1);}
-    if(SE.leafPiles){for(var q=0;q<9;q++)rect(g,SE.leaves[q%4],hx+2+(q%5)*2,HY+27+Math.floor(q/5),2,1);}}
-  TREES_A.forEach(function(tx){tree(g,tx,HY+40,r2);});TREES_B.forEach(function(tx){tree(g,tx,HY+55,r2);});
-  if(!SE.snow){rect(g,'#7a5a3c',8,HY+34,52,26);for(i=0;i<60;i++)rect(g,'#6a4c32',8+r2()*52|0,HY+34+r2()*26|0,1,1);}
-  if(SE.park==='snowman'){var sy=HY+32;
+  /* the side road down to the lane, and the lane itself */
+  rect(g,C.road,0,RT+18,26,LANE_TOP-RT-18);
+  rect(g,C.curb,0,LANE_TOP-1,W,1);rect(g,C.road,0,LANE_TOP,W,12);rect(g,C.curb,0,LANE_TOP+12,W,1);
+  for(x=30;x<W;x+=14)rect(g,C.line,x,LANE_TOP+6,5,1);
+  if(SE.snow){rect(g,C.snow,26,LANE_TOP-1,W,1);rect(g,C.snow,0,LANE_TOP+12,W,1);}
+  /* a lot for every stop today, row A along the road and row B along the lane */
+  M.stops.forEach(function(st){drawLot(g,st);});
+  if(!M.stops.length)sign(g,'NO STOPS TODAY',W/2,ROWA+4);
+  /* every bin out on rental */
+  rect(g,SE.snow?C.snow2:SE.grass2,0,OUT_TOP-2,W,1);rect(g,SE.snow?C.snow2:SE.grass2,0,PARK_TOP-2,W,1);
+  drawOutBins(g,M.counts.binsOut);
+  /* the park: trees, a flower bed and a lawn the JWG crew look after */
+  TREES.forEach(function(tx){tree(g,tx,PARK_TOP+6,r2);});
+  if(!SE.snow){rect(g,'#7a5a3c',8,PARK_TOP,52,21);for(i=0;i<50;i++)rect(g,'#6a4c32',8+r2()*52|0,PARK_TOP+r2()*21|0,1,1);}
+  if(SE.park==='snowman'){var sy=PARK_TOP-1;
     rect(g,C.white,286,sy+14,9,8);rect(g,C.white,287,sy+7,7,7);rect(g,C.white,288,sy+2,5,5);
     rect(g,C.ink,289,sy+4,1,1);rect(g,C.ink,291,sy+4,1,1);rect(g,'#e8590c',290,sy+5,2,1);rect(g,C.red,287,sy+7,7,1);
     rect(g,C.wood,284,sy+10,3,1);rect(g,C.wood,294,sy+10,3,1);rect(g,C.ink,290,sy+9,1,1);rect(g,C.ink,290,sy+11,1,1);
@@ -287,21 +319,14 @@ function buildModel(s){
     var kind=e.kind||(e.service==='Junk Removal'?'junk':/^Furniture/.test(e.service)?'furn':'other');
     var r=geo[e.jobId],doneAt=null;
     if(e.done&&r){var t=kind==='pick'?r.left:r.any;doneAt=isFinite(t)?t:null;}
-    return{i:i,jobId:e.jobId,kind:kind,service:e.service,town:e.town||'',time:e.time||'',hasDriver:!!e.hasDriver,done:!!e.done,doneAt:doneAt,slot:null,cust:CUSTOMERS[i%CUSTOMERS.length]};});
-  /* the street shows eight stops: whatever a truck is at now, then the latest ones a
-     truck has finished (up to five, so the replay has somewhere to go), then the next
-     ones still to do. The rest are counted on the "+N more today" sign. */
-  var visitedJobs={};s.visits.forEach(function(v){visitedJobs[String(v.job_id)]=v.inside&&!v.exited_at?'now':'yes';});
-  var atNow=m.stops.filter(function(st){return visitedJobs[String(st.jobId)]==='now';});
-  var finished=m.stops.filter(function(st){return st.doneAt!=null&&atNow.indexOf(st)<0;}).sort(function(a,b){return b.doneAt-a.doneAt;});
-  var todo=m.stops.filter(function(st){return!st.done&&atNow.indexOf(st)<0;});
-  var shown=atNow.slice(0,HOUSE_N);
-  finished.slice(0,Math.max(0,5-shown.length)).forEach(function(st){shown.push(st);});
-  todo.forEach(function(st){if(shown.length<HOUSE_N)shown.push(st);});
-  finished.forEach(function(st){if(shown.length<HOUSE_N&&shown.indexOf(st)<0)shown.push(st);});
-  shown.sort(function(a,b){return(a.doneAt||Infinity)-(b.doneAt||Infinity)||a.i-b.i;});
-  shown.forEach(function(st,k){st.slot=k;st.loc={x:houseX(k)+3,y:RT+18,ex:houseX(k)+3};});
-  m.shown=shown;m.more=m.stops.length-shown.length;
+    return{i:i,jobId:e.jobId,kind:kind,service:e.service,town:e.town||'',time:e.time||'',hasDriver:!!e.hasDriver,done:!!e.done,doneAt:doneAt,cust:CUSTOMERS[i%CUSTOMERS.length]};});
+  /* every stop gets a lot, in time order: the first half along the main road, the rest
+     along the lane. Lots narrow as the day gets busier, so nothing is ever left off. */
+  var perRow=Math.max(8,Math.ceil(m.stops.length/2)),lotW=Math.floor((W-4-LOTS_X)/perRow);
+  m.stops.forEach(function(st,k){
+    var row=k<perRow?0:1,x0=LOTS_X+(row?k-perRow:k)*lotW,tx=clamp(Math.round(x0+lotW/2-10),LOTS_X-2,W-22);
+    st.lot={x:x0,w:lotW,top:row?ROWB:ROWA,hw:clamp(lotW-13,10,24)};
+    st.loc={x:tx,y:row?LANEY:ROADY,ex:tx,lane:!!row};});
   /* trucks, with the zones each one stood in today */
   var byJob={};m.stops.forEach(function(st){(byJob[st.jobId]=byJob[st.jobId]||[]).push(st);});
   var yardSlots=[153,175,223,243,288];
@@ -371,10 +396,15 @@ function truckAt(T,t){
 }
 var EDGE={x:378,y:ROADY,ex:378};
 function locOf(T,ref){if(ref==='yard')return T.yard;if(ref&&ref.loc)return ref.loc;return EDGE;}
+/* yard, shop and row A stops sit on the main road; row B stops on the lane, reached
+   down the side road at the left edge (CX) */
 function route(from,to){
   if(from===to)return[[to.x,to.y]];
   var pts=[[from.x,from.y]];(from.outPts||[]).forEach(function(p){pts.push(p.slice());});
-  pts.push([from.ex,ROADY]);pts.push([to.ex,ROADY]);
+  var fy=from.lane?LANEY:ROADY,ty=to.lane?LANEY:ROADY;
+  pts.push([from.ex,fy]);
+  if(fy!==ty){pts.push([CX,fy]);pts.push([CX,ty]);}
+  pts.push([to.ex,ty]);
   (to.inPts||[]).forEach(function(p){pts.push(p.slice());});
   pts.push([to.x,to.y]);return pts;
 }
@@ -498,12 +528,12 @@ function newFlake(w,anyY){var f={x:Math.random()*W,y:anyY?Math.random()*H:-4,ph:
   if(w==='snow'){f.vy=6+Math.random()*8;f.c=Math.random()<.7?'#ffffff':'#dbe4ec';}
   else if(w==='rain'){f.vy=110+Math.random()*40;f.c='#9fc3e0';}
   else if(w==='leaves'){f.vy=5+Math.random()*6;f.c=SE.leaves[Math.floor(Math.random()*SE.leaves.length)];}
-  else{f.x=170+Math.random()*150;f.y=HY-6+Math.random()*60;f.vy=0;f.c=['#f2c14e','#ffffff','#f4b6c8','#e8590c'][Math.floor(Math.random()*4)];}
+  else{f.x=170+Math.random()*150;f.y=PARK_TOP+Math.random()*18;f.vy=0;f.c=['#f2c14e','#ffffff','#f4b6c8','#e8590c'][Math.floor(Math.random()*4)];}
   return f;}
 function updWeather(dtR){
   var w=weatherNow();
   wx.forEach(function(f,i){
-    if(w==='butterflies'){f.ph+=dtR*3;f.x+=Math.cos(f.ph*.7)*10*dtR;f.y+=Math.sin(f.ph)*8*dtR;f.x=clamp(f.x,4,396);f.y=clamp(f.y,HY-6,H-4);return;}
+    if(w==='butterflies'){f.ph+=dtR*3;f.x+=Math.cos(f.ph*.7)*10*dtR;f.y+=Math.sin(f.ph)*8*dtR;f.x=clamp(f.x,4,396);f.y=clamp(f.y,PARK_TOP-4,H-4);return;}
     f.ph+=dtR*2;f.y+=f.vy*dtR;if(w!=='rain')f.x+=Math.sin(f.ph)*(w==='leaves'?10:5)*dtR+(w==='leaves'?3*dtR:0);
     if(f.y>H+2||f.x>W+4)wx[i]=newFlake(w,false);
   });
@@ -618,10 +648,12 @@ function drawOffice(nowT,t,vals,news){
     for(var q=0;q<8;q++)rect(ctx,cols[(q+sh)%4],132+(q*3)%6,145+q*3,1,1);}
 }
 function drawYard(nowT){
+  /* every bin in the yard: ready ones in the main stack, then down the right-hand
+     side the ones being prepped (amber tag) and the ones out of rotation (grey, red tag) */
   var b=M.bins,k;
-  for(k=0;k<Math.min(b.ready,30);k++)spr(ctx,BIN,binPal,155+(k%5)*15,19+Math.floor(k/5)*10,false);
-  if(b.ready>30)badge(ctx,'+'+(b.ready-30),190,76,C.bin);
-  for(k=0;k<Math.min(b.off,3);k++){spr(ctx,BIN,offPal,238,19+k*8,false);rect(ctx,C.amber,246,20+k*8,2,2);}
+  for(k=0;k<b.ready;k++)spr(ctx,BIN,binPal,153+(k%7)*13,19+Math.floor(k/7)*7,false);
+  for(k=0;k<b.prep;k++){spr(ctx,BIN,binPal,250,19+k*7,false);rect(ctx,C.amber,258,20+k*7,2,2);}
+  for(k=0;k<b.off;k++){var oy=19+(b.prep+k)*7;spr(ctx,BIN,offPal,250,oy,false);rect(ctx,C.red,258,oy+1,2,2);}
   A.yard.slice().sort(function(a,c){return a.y-c.y;}).forEach(function(j,i){
     person(ctx,j.x,j.y,i===0?P.yard1:P.yard2,{face:j.face,step:j.moving&&Math.floor(nowT/180)%2});});
   person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});
@@ -633,28 +665,25 @@ function drawTruck(T,pos,t,nowT){
   var tagX=flip?x+1:x+13,tagY=y-9;
   rect(ctx,T.color,tagX,tagY,5,7);text(ctx,T.letter,tagX+1,tagY+1,C.white);rect(ctx,T.color,tagX+2,tagY+7,1,1);
   if(pos.st.mode==='stop'&&pos.st.stop&&pos.st.stop.loc){
-    person(ctx,pos.st.stop.loc.x+30,RT+23,{hair:'#5a4030',cap:T.color,shirt:C.staff,pants:'#3a3f47'},{face:1,arm:Math.floor(nowT/300)%2});}
+    person(ctx,x+21,y-2,{hair:'#5a4030',cap:T.color,shirt:C.staff,pants:'#3a3f47'},{face:-1,arm:Math.floor(nowT/300)%2});}
 }
-function drawStreet(nowT,t,replaying){
-  M.shown.forEach(function(st){
-    var hx=houseX(st.slot),done=stopDone(st,t);
-    if(st.kind==='drop'&&done)spr(ctx,BIN,binPal,hx+30,HY+12,false);
-    if(st.kind==='pick'&&!done)spr(ctx,BIN,binPal,hx+30,HY+12,false);
+function drawLots(nowT,t,replaying){
+  M.stops.forEach(function(st){
+    var L=st.lot,done=stopDone(st,t),bx=L.x+L.hw+2,by=L.top+9,small=L.w-L.hw-3<11;
+    if((st.kind==='drop'&&done)||(st.kind==='pick'&&!done))spr(ctx,small?MINIBIN:BIN,binPal,bx,by+(small?1:0),false);
     if((st.kind==='junk'||st.kind==='furn'||st.kind==='other')&&!done){
-      var hc=['#8a6d4f','#a3a3a3','#c45a3a','#d8cfa8','#5f7f9e'];for(var i=0;i<12;i++)rect(ctx,hc[i%5],hx+31+(i%6)*2,HY+14+Math.floor(i/6)*-1+(i%2),2,1);}
-    if((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver&&!done)badge(ctx,'NO DRIVER',hx+13,HY-8,C.red);
+      var hc=['#8a6d4f','#a3a3a3','#c45a3a','#d8cfa8','#5f7f9e'];for(var i=0;i<8;i++)rect(ctx,hc[i%5],bx+(i%4)*2,by+2-Math.floor(i/4),2,1);}
+    if((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver&&!done)badge(ctx,'!',L.x+Math.round(L.hw/2)+1,L.top-6,C.red);
     var waving=st.doneAt!=null&&t>=st.doneAt&&t<st.doneAt+(replaying?25*MIN:10*MIN);
-    if(waving)person(ctx,hx+42,RT+30,st.cust,{face:-1,wave:true,arm:Math.floor(nowT/200)%2});
-    var lbl=String(st.town||'').slice(0,11);if(lbl)text(ctx,lbl,hx+13-tw(lbl)/2,HY+23,SE.snow?'#4f6d8a':'#2d4a22');
+    if(waving)person(ctx,L.x+Math.round(L.hw/2)-1,L.top+4,st.cust,{face:1,wave:true,arm:Math.floor(nowT/200)%2});
   });
-  if(M.more>0)sign(ctx,'+'+M.more+' MORE STOPS TODAY',200,H-10);
   if(SE.lights){var cols=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/450);
-    for(var k=0;k<HOUSE_N;k++)for(var i2=0;i2<8;i2++)rect(ctx,cols[(i2+sh+k)%4],houseX(k)+2+i2*3,HY+8,1,1);}
+    M.stops.forEach(function(st,k){var L=st.lot;for(var i2=0;i2<L.hw-2;i2+=3)rect(ctx,cols[(i2/3+sh+k)%4|0],L.x+2+i2,L.top+6,1,1);});}
 }
 function drawJWG(nowT,t){
-  var top=HY+34,amb=A.t,f;
+  var top=PARK_TOP,amb=A.t,f;
   if(SE.park==='mow'){
-    var hr=new Date(t).getHours()+new Date(t).getMinutes()/60,p=clamp((hr-9)/6,0,1),N=6,rows=Math.floor(p*N),frac=p*N-rows,x0=250,x1=330;
+    var hr=new Date(t).getHours()+new Date(t).getMinutes()/60,p=clamp((hr-9)/6,0,1),N=5,rows=Math.floor(p*N),frac=p*N-rows,x0=250,x1=330;
     for(var r=0;r<N;r++){if(r<rows||(r===rows&&frac>0)){var len=r<rows?80:Math.round(frac*80),rx=r%2===0?x0:x1-len;rect(ctx,r%2?SE.grass2:SE.grass3,rx,top+r*4,len,4);}}
     var cr=Math.min(rows,N-1),cx=p>=1?x1:(cr%2===0?x0+frac*80:x1-frac*80),cy=top+cr*4-6;
     rect(ctx,'#e8590c',cx-4,cy+8,9,4);rect(ctx,C.tire,cx-4,cy+12,2,2);rect(ctx,C.tire,cx+3,cy+12,2,2);
@@ -662,15 +691,15 @@ function drawJWG(nowT,t){
   }
   if(SE.bed){
     var grown=SE.bed==='plant'?Math.floor(clamp((new Date(t).getHours()-8)/7,0,1)*24):24;
-    for(f=0;f<grown;f++){var fx=11+(f%8)*6,fy=top+3+Math.floor(f/8)*8;rect(ctx,'#3f7a2e',fx,fy+1,1,2);rect(ctx,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],fx-1,fy,3,1);}
+    for(f=0;f<grown;f++){var fx=11+(f%8)*6,fy=top+2+Math.floor(f/8)*7;rect(ctx,'#3f7a2e',fx,fy+1,1,2);rect(ctx,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],fx-1,fy,3,1);}
     var mx=10+((Math.floor(amb/2))%40);if(Math.floor(amb/80)%2===0)mx=50-((Math.floor(amb/2))%40);
-    person(ctx,mx,top+6,P.jwg2,{face:Math.floor(amb/80)%2?1:-1,step:Math.floor(nowT/200)%2,can:SE.bed==='water'});
+    person(ctx,mx,top+4,P.jwg2,{face:Math.floor(amb/80)%2?1:-1,step:Math.floor(nowT/200)%2,can:SE.bed==='water'});
   }
   if(SE.park==='rake'){
     var piles=Math.floor(clamp((new Date(t).getHours()-9)/6,0,1)*5);
-    for(f=0;f<5;f++){var px=258+f*15,big=f<piles?1:0;rect(ctx,SE.leaves[f%4],px,top+20-big,6+big*2,2+big);rect(ctx,SE.leaves[(f+1)%4],px+2,top+19-big,3,1);}
+    for(f=0;f<5;f++){var px=258+f*15,big=f<piles?1:0;rect(ctx,SE.leaves[f%4],px,top+17-big,6+big*2,2+big);rect(ctx,SE.leaves[(f+1)%4],px+2,top+16-big,3,1);}
     var rx2=255+(Math.floor(amb)%70);if(Math.floor(amb/70)%2)rx2=325-(Math.floor(amb)%70);
-    person(ctx,rx2,top+4,P.jwg2,{face:Math.floor(amb/70)%2?-1:1,step:Math.floor(nowT/220)%2,rake:true});
+    person(ctx,rx2,top+2,P.jwg2,{face:Math.floor(amb/70)%2?-1:1,step:Math.floor(nowT/220)%2,rake:true});
   }
   if(weatherNow()==='snow'){
     var span=560,pos=(amb*18)%span,dir=Math.floor(amb*18/span)%2,px2=dir?W+80-pos:pos-80,flip=!!dir;
@@ -686,7 +715,7 @@ function drawJWG(nowT,t){
     for(var b=0;b<3;b++){var bx=(nowT/40*(1+b*.3)+b*140)%(W+40)-20,by=12+b*12+Math.sin(nowT/300+b)*4,up=Math.floor(nowT/120+b)%2;
       rect(ctx,'#2b1d3a',bx,by,2,2);rect(ctx,'#2b1d3a',bx-3,by-up,3,1);rect(ctx,'#2b1d3a',bx+2,by-up,3,1);}
   }
-  if(SE.snow&&Math.random()<.08){var hx=houseX(Math.floor(Math.random()*HOUSE_N));parts.push({x:hx+19,y:HY-1,vx:3+Math.random()*3,vy:-(4+Math.random()*3),life:1.6,c:'#c9ced4'});}
+  if(SE.snow&&M.stops.length&&Math.random()<.08){var L=M.stops[Math.floor(Math.random()*M.stops.length)].lot;parts.push({x:L.x+L.hw/2,y:L.top,vx:3+Math.random()*3,vy:-(4+Math.random()*3),life:1.6,c:'#c9ced4'});}
 }
 function drawTint(t){
   var d=new Date(t),m=d.getHours()*60+d.getMinutes(),a=0,col=null;
@@ -703,7 +732,7 @@ function draw(nowT){
   if(reached>lastEv){
     for(var k=lastEv+1;k<=reached;k++){var e=M.events[k];
       if(!tt.replaying&&k<reached)continue;
-      if(e.kind==='done'&&e.stop&&e.stop.slot!=null)stamp(houseX(e.stop.slot)+13,RT+16,'DONE',C.red,nowT);
+      if(e.kind==='done'&&e.stop)stamp(e.stop.lot.x+e.stop.lot.w/2,e.stop.lot.top-4,'DONE',C.red,nowT);
       if(e.kind==='new')flashUntil=nowT+1200;
       if(e.kind==='badge'&&nowT-showAt<=REPLAY_MS+500){banner={name:e.badge.name,icon:e.badge.icon,born:nowT};burstConfetti();}}
     lastEv=reached;}
@@ -716,7 +745,7 @@ function draw(nowT){
   }
   ctx.drawImage(bgc,0,0);
   drawOffice(nowT,t,vals,news);drawYard(nowT);
-  drawJWG(nowT,t);drawStreet(nowT,t,tt.replaying);
+  drawJWG(nowT,t);drawLots(nowT,t,tt.replaying);
   M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
     .forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
   drawWeather(nowT);drawStamps(nowT);drawTint(t);drawBanner(nowT);
@@ -764,6 +793,9 @@ window.JJHQ={
     if(!cv)throw new Error('JJHQ.show before JJHQ.mount');
     SE=SEASONS[seasonFor(new Date(snap.now))];WX=wxKind(snap.wx);
     M=buildModel(snap);
+    /* the yard crew walk below however many bins are stacked today */
+    var ytop=clamp(19+Math.ceil(M.bins.ready/7)*7+2,84,136);
+    A.yard.forEach(function(j){j.region=[156,240,ytop,136];j.y=clamp(j.y,ytop,136);j.ty=clamp(j.ty,ytop,136);});
     drawBG();resetWeather();
     stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;sideKey='';
     cancelAnimationFrame(raf);
