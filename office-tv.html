@@ -244,7 +244,7 @@
      drawn in the world). The canvas is 720x312 drawn pixel-for-pixel, so it is
      scaled up with pixelated sampling to the stage width. ── */
   .panel[data-panel="hq"] .p-body{padding:0 40px; display:flex; align-items:center; justify-content:center}
-  #hqCanvas{display:block; width:100%; height:auto; aspect-ratio:720/312; border-radius:14px;
+  #hqCanvas{display:block; height:100%; width:auto; max-width:100%; aspect-ratio:720/330; border-radius:14px;
     image-rendering:crisp-edges; image-rendering:pixelated; box-shadow:0 10px 30px rgba(0,0,0,.35)}
 
   /* ── Trucks: the map is the whole board ──────────────────────────────────
@@ -844,7 +844,7 @@
           <div class="p-head"><span class="bar"></span><h2>Today at HQ</h2>
             <span class="tag" id="hqTag"></span></div>
           <div class="p-body">
-            <canvas id="hqCanvas" width="720" height="312"></canvas>
+            <canvas id="hqCanvas" width="720" height="330"></canvas>
           </div>
         </section>
 
@@ -1337,7 +1337,9 @@
         // when each zone saw a truck arrive and leave today, and which truck it was
         db.from('geofence_notifications').select('job_id,status,created_at').gte('created_at',dayStartIso),
         db.from('geofence_visits').select('device_id,job_id,entered_at,exited_at,inside').gte('entered_at',dayStartIso),
-        db.from('bin_items').select('status,rotation')
+        db.from('bin_items').select('status,rotation'),
+        // where every bin out on rental is, by town - the same rows the "Bins out" count reads
+        db.from('jobs').select('city').eq('service','Bin Rental').eq('bin_instatus','dropped').neq('status','Cancelled')
       ]);
       for(var i=0;i<res.length;i++){ if(res[i].error) throw new Error('HQ: '+res[i].error.message); }
       var bins = {ready:0, prep:0, off:0};
@@ -1348,7 +1350,8 @@
       });
       DATA.hq = { entered:res[0].data||[], tomorrow:res[1].count||0, quotesWeek:res[2].count||0,
                   quotesDue:(res[3].data||[]).filter(function(q){ return qfDue(q, today, qfSince); }).length,
-                  notifs:res[4].data||[], visits:res[5].data||[], bins:bins };
+                  notifs:res[4].data||[], visits:res[5].data||[], bins:bins,
+                  outTowns:(res[7].data||[]).map(function(j){ return j.city; }) };
     }
     // The dashboard's "due a call" rule (app-quote-followup.js _qfOpen/_qfDue: visited,
     // no outcome, never chased or chased 3+ days ago, inside the 14-day window) -
@@ -1376,7 +1379,7 @@
         // yesterday's last ping is not today's news - same cut as the trucks rail
         trucks: (DATA.trucks||[]).filter(function(t){ return !t.lastUpdate || Date.now()-Date.parse(t.lastUpdate) <= RAIL_STALE_MS; })
                   .map(function(t){ return { id:t.id, name:t.name, driver:driverFor(t), state:truckState(t) }; }),
-        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins,
+        crewColor: colorByName, entered:h.entered, notifs:h.notifs, visits:h.visits, bins:h.bins, outTowns:h.outTowns,
         counts: { tomorrow:h.tomorrow, week:(DATA.kpi||{}).weekJobs||0, quotesWeek:h.quotesWeek,
                   quotesDue:h.quotesDue, binsOut:(DATA.kpi||{}).binsOut||0 },
         wx: DATA.wxCode

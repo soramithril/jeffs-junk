@@ -16,12 +16,14 @@
 (function(){
 'use strict';
 /* 720x312 fills the TV's whole stage (Jake, 2026-11-02: the whole screen is the game) */
-var W=720,H=312,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+var W=720,H=330,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
 /* the right-hand block: the "who's out" board and the badge wall, with a parking lot under them */
 var BOARD_X=404,LOT_Y=148;
 /* below the main road (Jake, 2026-11-02: "all info on the board", no "+N more"):
    row A of today's stops, a lane, row B, every bin out on rental, then the park */
-var ROWA=198,LANE_TOP=217,LANEY=LANE_TOP+2,ROWB=232,OUT_TOP=252,PARK_TOP=290,CX=3,LOTS_X=28;
+/* below the main road (Jake, 2026-11-02): one block per TOWN - row A along the road,
+   row B along the lane - each with its bins out and today's stops; then the park */
+var ROWA=198,BLOCK_H=38,LANE_TOP=238,LANEY=LANE_TOP+2,ROWB=253,PARK_TOP=294,CX=3,LOTS_X=28;
 var REPLAY_MS=14000;                 // how long "today so far" takes to play
 var AMBIENT_MIN_PER_SEC=2;           // office and yard folk move on this clock, not the real one
 var MIN=60000;
@@ -207,11 +209,6 @@ function tree(g,cx,cy,r2){
 }
 var HSTYLE=[{roof:'#a8483a',roof2:'#7f352a',wall:'#e6c39a'},{roof:'#4f6d8a',roof2:'#3a5168',wall:'#d4dde4'},{roof:'#6b5040',roof2:'#4f3a2e',wall:'#e9d6b0'}];
 var TREES=[76,104,132,160,188,216,236,344,372,410,450,490,530,570,610,650,690];
-var MINIBIN=[
-"OOOOOOO",
-"OBBBBBO",
-".OBBBO.",
-"..OOO.."];
 /* a small house that fits a lot of any width */
 function drawMiniHouse(g,x,y,w,s){
   var rh=Math.min(6,Math.ceil(w/2)-1);
@@ -220,22 +217,17 @@ function drawMiniHouse(g,x,y,w,s){
   rect(g,C.wood,x+Math.floor(w/2)-1,y+rh+3,2,14-rh-4);
   if(w>=14){rect(g,C.sky,x+3,y+rh+2,2,2);rect(g,C.sky,x+w-5,y+rh+2,2,2);}
 }
-function drawLot(g,st){
-  var L=st.lot;
-  drawMiniHouse(g,L.x+1,L.top+1,L.hw,HSTYLE[st.i%3]);
-  /* a front path, a picket fence along the lot and a post between neighbours */
-  rect(g,'#cfcabd',L.x+Math.floor(L.hw/2),L.top+15,2,2);
-  for(var px=L.x;px<L.x+L.w-1;px+=2)rect(g,SE.snow?'#c9ced4':'#efe9dc',px,L.top+17,1,1);
-  rect(g,SE.snow?'#c9ced4':'#efe9dc',L.x,L.top+16,L.w-1,1);rect(g,C.wood,L.x+L.w-1,L.top+12,1,6);
-  if(SE.flowers)for(var f=0;f<L.hw-2;f+=3)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],L.x+2+f,L.top+15,1,1);
-  if(SE.pumpkins&&L.w-L.hw>5){rect(g,'#e8590c',L.x+L.hw+1,L.top+12,3,2);rect(g,'#2f6a3a',L.x+L.hw+2,L.top+11,1,1);}
-  if(SE.leafPiles)for(var q=0;q<5;q++)rect(g,SE.leaves[q%4],L.x+2+q*2,L.top+16,2,1);
-}
-/* every bin out on rental, as a field of little bins with the count beside it */
-function drawOutBins(g,n){
-  sign(g,'OUT ON RENTAL',36,OUT_TOP+3);badge(g,String(n),36,OUT_TOP+15,C.bin);
-  var perRow=Math.floor((W-74)/9);
-  for(var k=0;k<n;k++)spr(g,MINIBIN,binPal,70+(k%perRow)*9,OUT_TOP+2+Math.floor(k/perRow)*7,false);
+/* a town's block: its own lawn, a house or two and a picket fence. The sign, the
+   bins and the stop markers change through the day, so drawTowns paints those. */
+function drawTownBlock(g,T){
+  var B=T.block,x=B.x,w=B.w,top=B.top,fence=SE.snow?'#c9ced4':'#efe9dc';
+  rect(g,SE.snow?C.snow2:SE.grass3,x+1,top+10,w-2,BLOCK_H-11);
+  for(var px=x+1;px<x+w-1;px+=2)rect(g,fence,px,top+BLOCK_H-1,1,1);
+  rect(g,fence,x+1,top+BLOCK_H-2,w-2,1);rect(g,C.wood,x+w-1,top+10,1,BLOCK_H-9);
+  for(var h=0;h<B.houses;h++)drawMiniHouse(g,x+2+h*14,top+11,12,HSTYLE[(T.i+h)%3]);
+  if(SE.flowers)for(var f=0;f<B.houses*12;f+=3)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],x+3+f,top+26,1,1);
+  if(SE.pumpkins)rect(g,'#e8590c',x+3,top+25,3,2);
+  if(SE.leafPiles)for(var q=0;q<4;q++)rect(g,SE.leaves[q%4],x+4+q*3,top+26,2,1);
 }
 /* the parking lot for the vans and pickups, under the board */
 function drawParking(g,r2){
@@ -350,15 +342,13 @@ function drawBG(){
   sign(g,'DUMP',364,1);
   drawParking(g,r2);
   drawStreetBits(g);
-  /* a lot for every stop today, row A along the road and row B along the lane */
-  M.stops.forEach(function(st){drawLot(g,st);});
-  if(!M.stops.length)sign(g,'NO STOPS TODAY',W/2,ROWA+4);
-  /* every bin out on rental */
-  rect(g,SE.snow?C.snow2:SE.grass2,0,OUT_TOP-2,W,1);rect(g,SE.snow?C.snow2:SE.grass2,0,PARK_TOP-2,W,1);
-  drawOutBins(g,M.counts.binsOut);
+  /* a block for every town with a bin out or a stop today, row A along the road and row B along the lane */
+  M.towns.forEach(function(T){drawTownBlock(g,T);});
+  if(!M.towns.length)sign(g,'NO BINS OUT AND NO STOPS TODAY',W/2,ROWA+4);
   /* the park: trees, a flower bed and a lawn the JWG crew look after */
-  TREES.forEach(function(tx){tree(g,tx,PARK_TOP+6,r2);});
-  if(!SE.snow){rect(g,'#7a5a3c',8,PARK_TOP,52,21);for(i=0;i<50;i++)rect(g,'#6a4c32',8+r2()*52|0,PARK_TOP+r2()*21|0,1,1);}
+  rect(g,SE.snow?C.snow2:SE.grass2,0,PARK_TOP-2,W,1);
+  TREES.forEach(function(tx){tree(g,tx,PARK_TOP+8,r2);});
+  if(!SE.snow){rect(g,'#7a5a3c',8,PARK_TOP,52,30);for(i=0;i<60;i++)rect(g,'#6a4c32',8+r2()*52|0,PARK_TOP+r2()*30|0,1,1);}
   if(SE.park==='snowman'){var sy=PARK_TOP-1;
     rect(g,C.white,286,sy+14,9,8);rect(g,C.white,287,sy+7,7,7);rect(g,C.white,288,sy+2,5,5);
     rect(g,C.ink,289,sy+4,1,1);rect(g,C.ink,291,sy+4,1,1);rect(g,'#e8590c',290,sy+5,2,1);rect(g,C.red,287,sy+7,7,1);
@@ -395,13 +385,23 @@ function buildModel(s){
     var r=geo[e.jobId],doneAt=null;
     if(e.done&&r){var t=kind==='pick'?r.left:r.any;doneAt=isFinite(t)?t:null;}
     return{i:i,jobId:e.jobId,kind:kind,service:e.service,town:e.town||'',time:e.time||'',hasDriver:!!e.hasDriver,done:!!e.done,doneAt:doneAt,cust:CUSTOMERS[i%CUSTOMERS.length]};});
-  /* every stop gets a lot, in time order: the first half along the main road, the rest
-     along the lane. Lots narrow as the day gets busier, so nothing is ever left off. */
-  var perRow=Math.max(8,Math.ceil(m.stops.length/2)),lotW=Math.floor((W-4-LOTS_X)/perRow);
-  m.stops.forEach(function(st,k){
-    var row=k<perRow?0:1,x0=LOTS_X+(row?k-perRow:k)*lotW,tx=clamp(Math.round(x0+lotW/2-TRUCK_W/2),LOTS_X-2,W-TRUCK_W-2);
-    st.lot={x:x0,w:lotW,top:row?ROWB:ROWA,hw:clamp(lotW-13,10,24)};
-    st.loc={x:tx,y:row?LANEY:ROADY,ex:tx,lane:!!row};});
+  /* one block per town (Jake, 2026-11-02): every town with a bin out on rental or a
+     stop today, the busiest first, half along the main road and half along the lane.
+     Blocks narrow as there are more towns, so no town is ever left off. A stop's
+     truck parks at its town's block. */
+  var towns={},order=[];
+  function townOf(name){var nm=String(name||'').trim()||'No town',k=nm.toLowerCase();
+    if(!towns[k]){towns[k]={key:k,name:nm,out:0,stops:[]};order.push(towns[k]);}return towns[k];}
+  (s.outTowns||[]).forEach(function(c){townOf(c).out++;});
+  m.stops.forEach(function(st){var T=townOf(st.town);T.stops.push(st);st.townObj=T;});
+  order.sort(function(a,b){return(b.out+b.stops.length)-(a.out+a.stops.length)||a.name.localeCompare(b.name);});
+  var perRow=Math.max(8,Math.ceil(order.length/2)),bw=Math.floor((W-4-LOTS_X)/perRow);
+  order.forEach(function(T,k){
+    var row=k<perRow?0:1,x0=LOTS_X+(row?k-perRow:k)*bw,houses=bw>=50?2:1,tx=clamp(Math.round(x0+bw/2-TRUCK_W/2),LOTS_X-2,W-TRUCK_W-2);
+    T.i=k;T.block={x:x0,w:bw,top:row?ROWB:ROWA,houses:houses,binX:x0+3+houses*14};
+    T.loc={x:tx,y:row?LANEY:ROADY,ex:tx,lane:!!row};});
+  m.towns=order;
+  m.stops.forEach(function(st){st.loc=st.townObj.loc;});
   /* trucks, with the zones each one stood in today */
   var byJob={};m.stops.forEach(function(st){(byJob[st.jobId]=byJob[st.jobId]||[]).push(st);});
   /* the hook-lifts park in the yard, two rows each side of the gate lane (x 199), plus
@@ -803,18 +803,38 @@ function drawTruck(T,pos,t,nowT){
   rect(ctx,T.color,tx,ty,bw,7);text(ctx,lbl,tx+2,ty+1,T.ink);rect(ctx,T.color,tx+Math.floor(bw/2),ty+7,1,1);
   if(atStop)person(ctx,x+TRUCK_W+1,y-1,{hair:'#5a4030',cap:T.color,shirt:C.staff,pants:'#3a3f47'},{face:-1,arm:Math.floor(nowT/300)%2});
 }
-function drawLots(nowT,t,replaying){
-  M.stops.forEach(function(st){
-    var L=st.lot,done=stopDone(st,t),bx=L.x+L.hw+2,by=L.top+9,small=L.w-L.hw-3<11;
-    if((st.kind==='drop'&&done)||(st.kind==='pick'&&!done))spr(ctx,small?MINIBIN:BIN,binPal,bx,by+(small?1:0),false);
-    if((st.kind==='junk'||st.kind==='furn'||st.kind==='other')&&!done){
-      var hc=['#8a6d4f','#a3a3a3','#c45a3a','#d8cfa8','#5f7f9e'];for(var i=0;i<8;i++)rect(ctx,hc[i%5],bx+(i%4)*2,by+2-Math.floor(i/4),2,1);}
-    if((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver&&!done)badge(ctx,'!',L.x+Math.round(L.hw/2)+1,L.top-6,C.red);
-    var waving=st.doneAt!=null&&t>=st.doneAt&&t<st.doneAt+(replaying?25*MIN:10*MIN);
-    if(waving)person(ctx,L.x+Math.round(L.hw/2)-1,L.top+4,st.cust,{face:1,wave:true,arm:Math.floor(nowT/200)%2});
+/* bins out in a town at time t: what is out now, wound back through today's drop-offs
+   and pick-ups still to happen at t - so the replay moves the bins with the trucks */
+function binsAtTown(T,t){
+  var n=T.out;
+  T.stops.forEach(function(st){if(st.doneAt!=null&&st.doneAt>t){if(st.kind==='drop')n--;else if(st.kind==='pick')n++;}});
+  return Math.max(0,n);
+}
+/* bin sizes to try, biggest first, so every bin a town has fits its block */
+var TOWN_BINS=[{w:5,h:3,px:6,py:4},{w:3,h:2,px:4,py:3},{w:2,h:2,px:3,py:3}];
+function drawTowns(nowT,t,replaying){
+  M.towns.forEach(function(T){
+    var B=T.block,n=binsAtTown(T,t),ax=B.binX,aw=B.x+B.w-3-ax,ay=B.top+11,ah=16,k,sz=TOWN_BINS[TOWN_BINS.length-1];
+    /* the sign: the town's name, and its bins out in green */
+    var cnt=String(n),cw=tw(cnt)+4,nm=T.name.toUpperCase(),room=Math.floor((B.w-cw-9)/4);
+    if(nm.length>room)nm=nm.slice(0,room);
+    var sw=tw(nm)+6;rect(ctx,C.sign,B.x+1,B.top,sw,9);text(ctx,nm,B.x+4,B.top+2,C.signText);
+    badge(ctx,cnt,B.x+B.w-2-cw/2,B.top+1,n?'#15803d':'#6b727e');
+    /* a bright green bin for every bin out there */
+    for(k=0;k<TOWN_BINS.length;k++){var s0=TOWN_BINS[k];if(Math.floor(aw/s0.px)*Math.floor(ah/s0.py)>=n){sz=s0;break;}}
+    var cols=Math.max(1,Math.floor(aw/sz.px));
+    for(k=0;k<n;k++){var bx=ax+(k%cols)*sz.px,by=ay+Math.floor(k/cols)*sz.py;rect(ctx,C.bin,bx,by,sz.w,sz.h-1);rect(ctx,C.bin2,bx,by+sz.h-1,sz.w,1);}
+    /* today's stops: green done, white to do, red a bin stop with no driver */
+    var per=Math.max(1,Math.floor((B.w-4)/4));
+    T.stops.forEach(function(st,j){
+      var done=stopDone(st,t),c=done?'#16a34a':((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver?C.red:'#f2f0e6');
+      var sx=B.x+3+(j%per)*4,sy=B.top+28+Math.floor(j/per)*4;rect(ctx,C.ink,sx,sy+1,3,3);rect(ctx,c,sx,sy,3,3);});
+    /* someone steps out and waves when a stop in their town is done */
+    if(T.stops.some(function(st){return st.doneAt!=null&&t>=st.doneAt&&t<st.doneAt+(replaying?25*MIN:10*MIN);}))
+      person(ctx,B.x+B.houses*14-4,B.top+12,CUSTOMERS[T.i%CUSTOMERS.length],{face:1,wave:true,arm:Math.floor(nowT/200)%2});
   });
-  if(SE.lights){var cols=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/450);
-    M.stops.forEach(function(st,k){var L=st.lot;for(var i2=0;i2<L.hw-2;i2+=3)rect(ctx,cols[(i2/3+sh+k)%4|0],L.x+2+i2,L.top+6,1,1);});}
+  if(SE.lights){var cols2=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/450);
+    M.towns.forEach(function(T,q){for(var h=0;h<T.block.houses;h++)for(var i2=0;i2<10;i2+=3)rect(ctx,cols2[(i2/3+sh+q+h)%4|0],T.block.x+3+h*14+i2,T.block.top+16,1,1);});}
 }
 function drawJWG(nowT,t){
   var top=PARK_TOP,amb=A.t,f;
@@ -851,7 +871,7 @@ function drawJWG(nowT,t){
     for(var b=0;b<3;b++){var bx=(nowT/40*(1+b*.3)+b*140)%(W+40)-20,by=12+b*12+Math.sin(nowT/300+b)*4,up=Math.floor(nowT/120+b)%2;
       rect(ctx,'#2b1d3a',bx,by,2,2);rect(ctx,'#2b1d3a',bx-3,by-up,3,1);rect(ctx,'#2b1d3a',bx+2,by-up,3,1);}
   }
-  if(SE.snow&&M.stops.length&&Math.random()<.08){var L=M.stops[Math.floor(Math.random()*M.stops.length)].lot;parts.push({x:L.x+L.hw/2,y:L.top,vx:3+Math.random()*3,vy:-(4+Math.random()*3),life:1.6,c:'#c9ced4'});}
+  if(SE.snow&&M.towns.length&&Math.random()<.08){var B=M.towns[Math.floor(Math.random()*M.towns.length)].block;parts.push({x:B.x+8,y:B.top+11,vx:3+Math.random()*3,vy:-(4+Math.random()*3),life:1.6,c:'#c9ced4'});}
 }
 function drawTint(t){
   var d=new Date(t),m=d.getHours()*60+d.getMinutes(),a=0,col=null;
@@ -868,7 +888,7 @@ function draw(nowT){
   if(reached>lastEv){
     for(var k=lastEv+1;k<=reached;k++){var e=M.events[k];
       if(!tt.replaying&&k<reached)continue;
-      if(e.kind==='done'&&e.stop)stamp(e.stop.lot.x+e.stop.lot.w/2,e.stop.lot.top-4,'DONE',C.red,nowT);
+      if(e.kind==='done'&&e.stop){var SB=e.stop.townObj.block;stamp(SB.x+SB.w/2,SB.top-2,'DONE',C.red,nowT);}
       if(e.kind==='new')flashUntil=nowT+1200;
       if(e.kind==='badge'&&nowT-showAt<=REPLAY_MS+500){banner={name:e.badge.name,icon:e.badge.icon,born:nowT};burstConfetti();}}
     lastEv=reached;}
@@ -881,7 +901,7 @@ function draw(nowT){
   }
   ctx.drawImage(bgc,0,0);
   drawOffice(nowT,t,vals,news);drawYard(nowT);drawWhoBoard(t);drawBadgeWall(t);
-  drawJWG(nowT,t);drawLots(nowT,t,tt.replaying);drawScenery(nowT);
+  drawJWG(nowT,t);drawTowns(nowT,t,tt.replaying);drawScenery(nowT);
   M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
     .forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
   drawWeather(nowT);drawStamps(nowT);drawTint(t);drawBanner(nowT);
