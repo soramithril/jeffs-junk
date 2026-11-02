@@ -32,8 +32,9 @@ import { authenticate, call, getOrCreateBinRentalsGroup, ZONE_PREFIX } from "../
  * real list rather than guessing (the SILVERADO, for instance, is registered as
  * "2022 - 2500 SILVERADO", not "Silverado").
  *
+ * Since 2026-11-02 the vans and the two pickups in daily use are on it too.
  * Everything else Geotab carries stays out: the JWG side (tractors, Kubotas,
- * skid steer, loader), the pickups, and the Furniture Bank Van.
+ * skid steer, loader) and the vehicles no longer in use.
  *
  * NOTE this list is shared — the dashboard's Live Jobs map reads the same proxy,
  * so anything dropped here disappears from that map too. Bin cross-off is
@@ -47,6 +48,12 @@ const DEFAULT_WHITELIST = [
   "Hino 2020",
   "Hino L7 2023",
   "Darrin Truck",   // Jake 2026-09-05: on the wall so the office can see where he is; no bin legs
+  // Jake 2026-11-02: the vans and the two pickups in use go on the map too.
+  // HINO 258, GMC 2015, Chevy 2018 and Bob's Truck stay off - Jake thinks they are no longer used.
+  "Furniture Bank Van",
+  "Mercedes Van",
+  "2022 - 2500 SILVERADO",
+  "2025 1500-JOSH",
 ];
 
 function getWhitelist(): string[] {
