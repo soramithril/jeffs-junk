@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quotes</title>
+<link rel="icon" type="image/png" href="assets/app-icon-192.png">
+<link rel="apple-touch-icon" href="assets/app-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Quotes">
+<meta name="theme-color" content="#16a34a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:#eef1f3;font-family:'Inter',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;color:#17223a}
+button{font-family:inherit;cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible{outline:3px solid #16a34a;outline-offset:2px}
+button[disabled]{cursor:not-allowed}
+.app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+.bebas{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.5px;line-height:1}
+.hero{background:#16a34a;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px 18px;display:flex;flex-direction:column;gap:4px}
+.hero .sm{font-size:13px;font-weight:700;opacity:.92}
+.hero .big{font-size:40px}
+.hero .back{align-self:flex-start;background:rgba(255,255,255,.18);border:none;border-radius:99px;color:#fff;font-size:14px;font-weight:800;padding:8px 14px;margin-bottom:6px;min-height:40px}
+.top{background:#fff;border-bottom:1px solid #dde2e7;padding:calc(env(safe-area-inset-top,0px) + 16px) 20px 14px;display:flex;flex-direction:column;gap:10px}
+.top .nm{font-size:30px}
+.top .ad{font-size:13px;color:#5b6472;font-weight:600}
+.dots{display:flex;gap:5px}
+.dots i{flex:1;height:6px;border-radius:99px;background:#dde2e7}
+.dots i.on{background:#16a34a}
+.body{flex:1;padding:18px 20px 24px;display:flex;flex-direction:column;gap:12px}
+.lbl{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#5b6472;margin-top:4px}
+.visit{display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border:2px solid #dde2e7;border-radius:16px;padding:14px 16px;width:100%}
+.visit .tm{font-size:26px;color:#15803d;min-width:64px}
+.visit .who{font-size:17px;font-weight:800}
+.visit .sub{font-size:13.5px;color:#5b6472}
+.visit .nt{font-size:13px;color:#5b6472;margin-top:2px}
+.visit .go{font-size:15px;font-weight:800;color:#15803d;white-space:nowrap}
+.sent{font-size:12px;font-weight:800;color:#15803d;background:#ecfdf3;border-radius:99px;padding:4px 10px;white-space:nowrap}
+.q{font-size:25px;font-weight:800;line-height:1.2}
+.qsub{font-size:15px;color:#5b6472}
+.shot{display:flex;align-items:center;justify-content:center;gap:12px;min-height:110px;border:3px dashed #16a34a;border-radius:18px;background:#ecfdf3;color:#15803d;font-weight:800;font-size:20px;width:100%}
+.thumbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.thumbs div{aspect-ratio:1;border-radius:12px;background:#cfd6dc center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#3c4652}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.opt{border-radius:14px;border:2px solid #cfd5db;background:#fff;font-weight:800}
+.opt.on{background:#16a34a;border-color:#16a34a;color:#fff}
+.bin{height:76px;font-size:38px}
+.tick{min-height:54px;font-size:15px;font-weight:700;text-align:left;padding:0 14px}
+.yn{min-height:58px;font-size:18px}
+.yn.yes.on{background:#6d28d9;border-color:#6d28d9}
+.yn.maybe.on{background:#c2410c;border-color:#c2410c}
+.yn.no.on{background:#17223a;border-color:#17223a}
+.note{border-radius:14px;padding:12px 14px;font-size:14.5px;font-weight:600;line-height:1.45}
+.note.fb{background:#f3effd;color:#5b21b6}
+.note.warn{background:#fff7ed;color:#9a3412;border:2px solid #fdba74;font-weight:700}
+.note.err{background:#fef2f2;color:#991b1b;border:2px solid #fca5a5;font-weight:700}
+.box{background:#fff;border:1px solid #dde2e7;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.box .big{font-size:48px}
+.box .hint{font-size:12.5px;font-weight:700;color:#15803d}
+.step{display:flex;gap:8px}
+.step button{width:48px;height:48px;border-radius:12px;border:2px solid #cfd5db;background:#fff;font-size:24px;font-weight:800}
+.money{display:flex;align-items:center;gap:8px;background:#fff;border:2px solid #cfd5db;border-radius:14px;padding:4px 14px}
+.money span{font-size:22px;font-weight:800;color:#5b6472}
+.money input{flex:1;min-width:0;border:none;background:transparent;font:inherit;font-size:22px;font-weight:800;color:#17223a;padding:10px 0;outline:none}
+.sum{background:#fff;border:1px solid #dde2e7;border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:15px}
+.sum dt{color:#5b6472;font-weight:700}.sum dd{margin:0;font-weight:700}
+.foot{position:sticky;bottom:0;display:flex;gap:10px;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:#fff;border-top:1px solid #dde2e7}
+.btn{min-height:56px;border-radius:14px;font-size:17px;font-weight:800;border:none}
+.btn.back{padding:0 20px;border:2px solid #cfd5db;background:#fff}
+.btn.go{flex:1;background:#16a34a;color:#fff}
+.btn.go[disabled]{background:#cfd5db;color:#5b6472}
+.empty{font-size:15px;color:#5b6472;line-height:1.5;padding:8px 2px}
+.check{width:64px;height:64px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app" id="app"></div>
+<input type="file" id="photo-in" accept="image/*" multiple hidden>
+<script>
+// ── PHONE QUOTES (Jake, 2026-11-02) ─────────────────────────────────────────
+// Jeff, Josh and Jake open this at a quote visit: their quote visits, then four
+// screens — photos, bins, anything harder + Furniture Bank, crew/hours/price — and
+// Send. The answers go onto the Junk Quote the office booked: photos and price into
+// its own columns, the rest into quote_bins / quote_crew / quote_hours / quote_flags /
+// quote_fb (supabase/migrations/20261102_quote_visit_answers.sql). The dashboard shows
+// them on the quote, on the job it is booked as, and on the printed job sheet
+// (app-quote-visit.js).
+// No login of its own: it shares the dashboard's session, like jeff.html.
+(function(){
+  'use strict';
+  var SB_URL = 'https://okoqzbdyfjfgcdgmcamq.supabase.co';
+  var SB_KEY = 'sb_publishable_zN3Npl7I-6qUjilF_fhLnQ_5aMtilJk';
+  var db = supabase.createClient(SB_URL, SB_KEY);
+  var CLOUDINARY_CLOUD_NAME = 'dglezca2l';
+  var CLOUDINARY_PRESET = 'jeffs_junk';
+
+  // The answers. TICKS is stored as typed into quote_flags; SLOW are the ones that add time.
+  var BINS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5];
+  var TICKS = ['Stairs', 'Elevator', 'Long carry', 'Heavy items', 'Taking apart', 'Appliances',
+    'Narrow doors', 'Packed full', 'Wet or mouldy', 'Dirt, brick, concrete', 'Tight driveway', 'Customer not home'];
+  var SLOW = ['Stairs', 'Elevator', 'Long carry', 'Heavy items', 'Taking apart', 'Narrow doors',
+    'Packed full', 'Wet or mouldy', 'Dirt, brick, concrete'];
+  // Starting rule until Jake sets real numbers: 1¼ h a bin plus ½ h for each thing that
+  // slows the job, at least 1 h, at most a day. 3 bins or more = 3 guys (Jake's rule).
+  function sugHours(bins, ticks){
+    var slow = SLOW.filter(function(t){ return ticks[t]; }).length;
+    var h = Math.max(1, bins * 1.25 + slow * 0.5);
+    return Math.min(8, Math.round(h * 2) / 2);
+  }
+  function sugCrew(bins){ return bins >= 3 ? 3 : 2; }
+
+  var params = new URLSearchParams(location.search);
+  var FROM_JEFF = params.get('from') === 'jeff';
+  var S = { me: null, crewId: null, rows: null, loadErr: '', q: null, step: 0 };
+  var A = null;   // the answers for the open quote
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function ymd(d){ return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function dayOff(n){ var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return ymd(d); }
+  function day(r){ return r.junk_date || r.date || ''; }
+  function time(r){ return r.junk_date ? r.junk_time : r.time; }
+  function prettyTime(t){
+    if(!t) return '';
+    if(String(t) === 'anytime') return 'Any';
+    var m = String(t).match(/^(\d{1,2}):(\d{2})/);
+    if(!m) return String(t);
+    var h = parseInt(m[1], 10);
+    return (h % 12 || 12) + ':' + m[2];
+  }
+  function timeKey(t){ var m = String(t || '').match(/(\d{1,2}):(\d{2})/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 9999; }
+  function dayName(d){
+    if(d === dayOff(0)) return 'Today';
+    if(d === dayOff(1)) return 'Tomorrow';
+    if(d === dayOff(-1)) return 'Yesterday';
+    return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  }
+  function binsLabel(n){
+    if(n >= 5) return '5+';
+    var w = Math.floor(n), f = n - w;
+    return (w ? String(w) : '') + (f === 0.25 ? '¼' : f === 0.5 ? '½' : f === 0.75 ? '¾' : '');
+  }
+  function binsText(n){ return binsLabel(n) + (n <= 1 ? ' bin' : ' bins'); }
+  function picked(){ return TICKS.filter(function(t){ return A.ticks[t]; }); }
+  function thumb(url){ return url.indexOf('/upload/') < 0 ? url : url.replace('/upload/', '/upload/f_auto,q_auto,w_240/'); }
+
+  // ---------- photos (same compress + unsigned preset as jeff.html and app.js) ----------
+  async function compressImage(file){
+    var bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    var scale = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
+    var w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+    var c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    return new Promise(function(res, rej){ c.toBlob(function(b){ b ? res(b) : rej(new Error('Could not read the photo')); }, 'image/jpeg', 0.82); });
+  }
+  async function upload(file){
+    var blob = await compressImage(file);
+    var fd = new FormData(); fd.append('file', blob); fd.append('upload_preset', CLOUDINARY_PRESET);
+    var res = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD_NAME + '/image/upload', { method: 'POST', body: fd });
+    if(!res.ok) throw new Error('Photo upload failed (' + res.status + ')');
+    var data = await res.json();
+    if(!data.secure_url) throw new Error('Photo upload failed');
+    return data.secure_url;
+  }
+  async function onPhotos(e){
+    var files = Array.prototype.slice.call(e.target.files || []);
+    e.target.value = '';
+    for(var i = 0; i < files.length; i++){
+      A.uploading++; A.photoErr = ''; render();
+      try { A.photos.push(await upload(files[i])); }
+      catch(err){ A.photoErr = err.message + '. Try that one again.'; }
+      A.uploading--; render();
+    }
+  }
+
+  // ---------- data ----------
+  var COLS = 'job_id,name,address,city,junk_date,junk_time,date,time,notes,status,assigned_crew_ids,photos,price,quote_bins,quote_crew,quote_hours,quote_flags,quote_fb';
+  async function loadMe(user){
+    var r = await db.from('user_profiles').select('username').eq('id', user.id).single();
+    if(r.error) throw new Error('Could not load your profile: ' + r.error.message);
+    S.me = r.data.username;
+    var c = await db.from('crew_members').select('id').eq('name', S.me).limit(1);
+    if(c.error) throw new Error('Could not load the crew list: ' + c.error.message);
+    S.crewId = c.data.length ? c.data[0].id : null;
+  }
+  async function loadRows(){
+    var from = dayOff(-1), to = dayOff(6);
+    var r = await db.from('jobs').select(COLS).eq('service', 'Junk Quote')
+      .or('and(junk_date.gte.' + from + ',junk_date.lte.' + to + '),and(junk_date.is.null,date.gte.' + from + ',date.lte.' + to + ')');
+    if(r.error){ S.loadErr = 'Could not load quotes: ' + r.error.message; render(); return; }
+    S.loadErr = '';
+    S.rows = r.data.filter(function(q){ return q.status !== 'Cancelled'; });
+    render();
+  }
+  async function openQuote(id){
+    var row = (S.rows || []).find(function(q){ return q.job_id === id; });
+    if(!row){
+      var r = await db.from('jobs').select(COLS).eq('job_id', id).single();
+      if(r.error){ S.loadErr = 'Could not open quote ' + id + ': ' + r.error.message; render(); return; }
+      row = r.data;
+    }
+    S.q = row; S.step = 0;
+    var bins = row.quote_bins != null ? Number(row.quote_bins) : 0;
+    var ticks = {};
+    (row.quote_flags || []).forEach(function(t){ ticks[t] = true; });
+    A = {
+      photos: [], uploading: 0, photoErr: '',
+      bins: bins, ticks: ticks, fb: row.quote_fb || null,
+      crew: row.quote_crew != null ? row.quote_crew : null,
+      hours: row.quote_hours != null ? Number(row.quote_hours) : null,
+      price: row.price != null ? String(row.price) : '',
+      saving: false, saveErr: ''
+    };
+    render(); window.scrollTo(0, 0);
+  }
+  function crewNow(){ return A.crew != null ? A.crew : sugCrew(A.bins); }
+  function hoursNow(){ return A.hours != null ? A.hours : sugHours(A.bins, A.ticks); }
+  function priceValue(){
+    var t = A.price.replace(/[$,\s]/g, '');
+    if(t === '') return null;
+    var n = Number(t);
+    if(!isFinite(n) || n < 0) throw new Error('The price "' + A.price + '" is not a number.');
+    return Math.round(n * 100) / 100;
+  }
+  async function send(){
+    var price;
+    try { price = priceValue(); } catch(e){ A.saveErr = e.message; render(); return; }
+    A.saving = true; A.saveErr = ''; render();
+    var id = S.q.job_id;
+    // Read the photos fresh: the office may have added some since the list loaded.
+    var cur = await db.from('jobs').select('photos,assigned_crew_ids').eq('job_id', id).single();
+    if(cur.error){ A.saving = false; A.saveErr = 'Not sent: ' + cur.error.message + '. Check your signal and try again.'; render(); return; }
+    var have = cur.data.photos || [];
+    var fields = {
+      photos: have.concat(A.photos.filter(function(u){ return have.indexOf(u) < 0; })),
+      quote_bins: A.bins,
+      quote_crew: crewNow(),
+      quote_hours: hoursNow(),
+      quote_flags: picked(),
+      quote_fb: A.fb,
+      edited_by: S.me
+    };
+    if(price != null) fields.price = price;
+    // An unassigned quote becomes the sender's, so "Quoted By" has a name.
+    if(!(cur.data.assigned_crew_ids || []).length && S.crewId) fields.assigned_crew_ids = [S.crewId];
+    var w = await db.from('jobs').update(fields).eq('job_id', id).select('job_id');
+    A.saving = false;
+    if(w.error){ A.saveErr = 'Not sent: ' + w.error.message + '. Try again.'; render(); return; }
+    if(!w.data.length){ A.saveErr = 'Not sent: your sign-in is not allowed to change quotes. Ask Jake.'; render(); return; }
+    A.sentPrice = price;
+    S.step = 4; render(); window.scrollTo(0, 0);
+    loadRows();
+  }
+
+  // ---------- screens ----------
+  function render(){
+    var app = $('app');
+    if(!S.me){ app.innerHTML = '<div class="body"><div class="empty">' + (S.loadErr ? esc(S.loadErr) : 'Loading…') + '</div></div>'; return; }
+    app.innerHTML = S.q ? visitHtml() : listHtml();
+    var pr = $('price'); if(pr) pr.addEventListener('input', function(){ A.price = pr.value; });
+  }
+
+  function visitCard(q){
+    var done = q.quote_bins != null;
+    var note = (q.notes || '').replace(/\s+/g, ' ').trim();
+    if(note.length > 70) note = note.slice(0, 68) + '…';
+    return '<button type="button" class="visit" data-act="open" data-id="' + esc(q.job_id) + '">'
+      + '<span class="bebas tm">' + esc(prettyTime(time(q)) || '—') + '</span>'
+      + '<span style="display:flex;flex-direction:column;flex:1;min-width:0">'
+        + '<span class="who">' + esc(q.name || 'Quote ' + q.job_id) + '</span>'
+        + '<span class="sub">' + esc([q.address, q.city].filter(Boolean).join(', ')) + '</span>'
+        + (note ? '<span class="nt">' + esc(note) + '</span>' : '')
+      + '</span>'
+      + (done ? '<span class="sent">Sent ✓</span>' : '<span class="go">Start</span>')
+    + '</button>';
+  }
+  function listHtml(){
+    var rows = S.rows;
+    var hero = '<div class="hero">'
+      + (FROM_JEFF ? '<button type="button" class="back" data-act="jeff">‹ Jeff\'s app</button>' : '')
+      + '<span class="sm">' + esc(new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })) + '</span>'
+      + '<span class="bebas big">Hi ' + esc(S.me) + '</span>';
+    if(rows === null) return hero + '<span style="font-size:15px;font-weight:600">Loading your quotes…</span></div>' + (S.loadErr ? '<div class="body"><div class="note err">' + esc(S.loadErr) + '</div><button type="button" class="btn go" data-act="reload">Try again</button></div>' : '');
+    // Mine = the office put my name on it. With no crew record (shouldn't happen for the
+    // three quoters) everyone's quotes show, so nothing is hidden by mistake.
+    var mine = rows.filter(function(q){ return !S.crewId || (q.assigned_crew_ids || []).indexOf(S.crewId) >= 0; });
+    var open = rows.filter(function(q){ return S.crewId && !(q.assigned_crew_ids || []).length; });
+    var today = dayOff(0);
+    var mineShown = mine.filter(function(q){ return day(q) !== dayOff(-1) || q.quote_bins == null; });
+    var nToday = mine.filter(function(q){ return day(q) === today; }).length;
+    hero += '<span style="font-size:15px;font-weight:600">' + (nToday ? nToday + ' quote visit' + (nToday === 1 ? '' : 's') + ' today' : 'No quote visits today') + '</span></div>';
+    var byDay = {};
+    mineShown.forEach(function(q){ (byDay[day(q)] = byDay[day(q)] || []).push(q); });
+    var html = '';
+    Object.keys(byDay).sort().forEach(function(d){
+      html += '<span class="lbl">' + esc(dayName(d)) + '</span>'
+        + byDay[d].sort(function(a, b){ return timeKey(time(a)) - timeKey(time(b)); }).map(visitCard).join('');
+    });
+    if(!html) html = '<div class="empty">Nothing on your list this week. When the office puts your name on a quote, it shows up here.</div>';
+    var openNow = open.filter(function(q){ return day(q) === today || day(q) === dayOff(1); });
+    if(openNow.length){
+      html += '<span class="lbl" style="margin-top:14px">Not given to anyone yet</span>'
+        + openNow.sort(function(a, b){ return day(a) < day(b) ? -1 : day(a) > day(b) ? 1 : timeKey(time(a)) - timeKey(time(b)); }).map(visitCard).join('');
+    }
+    return hero + '<div class="body">' + (S.loadErr ? '<div class="note err">' + esc(S.loadErr) + '</div>' : '') + html + '</div>';
+  }
+
+  function visitHtml(){
+    var q = S.q, st = S.step;
+    var top = '<div class="top"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
+      + '<span class="bebas nm">' + esc(q.name || 'Quote ' + q.job_id) + '</span>'
+      + '<span class="ad">' + esc([q.address, q.city].filter(Boolean).join(', ')) + '</span></div>'
+      + (st < 4 ? '<div class="dots">' + [0, 1, 2, 3].map(function(i){ return '<i class="' + (i <= st ? 'on' : '') + '"></i>'; }).join('') + '</div>' : '')
+      + '</div>';
+    var body = '', next = { label: 'Next', off: false, act: 'next' };
+    var have = (q.photos || []).length, total = have + A.photos.length;
+    if(st === 0){
+      body = '<div class="q">Take photos of everything</div><div class="qsub">Each room or pile, and the way out to the truck.</div>'
+        + '<button type="button" class="shot" data-act="photo"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>Take a photo</button>'
+        + (A.photoErr ? '<div class="note err">' + esc(A.photoErr) + '</div>' : '')
+        + '<div class="thumbs">'
+          + A.photos.map(function(u){ return '<div style="background-image:url(\'' + esc(thumb(u)) + '\')"></div>'; }).join('')
+          + (A.uploading ? '<div>Uploading…</div>' : '')
+        + '</div>'
+        + (have ? '<div class="qsub">' + have + ' photo' + (have === 1 ? ' is' : 's are') + ' already on this quote.</div>' : '');
+      if(A.uploading){ next = { label: 'Uploading…', off: true, act: 'next' }; }
+      else if(!total){ next = { label: 'Take a photo first', off: true, act: 'next' }; }
+      else next.label = 'Next (' + total + ' photo' + (total === 1 ? '' : 's') + ')';
+    } else if(st === 1){
+      body = '<div class="q">How many bins will it take?</div><div class="qsub">Your best guess. 14 yard bins.</div>'
+        + '<div class="grid4">' + BINS.map(function(n){
+          return '<button type="button" class="opt bin bebas' + (A.bins === n ? ' on' : '') + '" data-act="bins" data-n="' + n + '">' + binsLabel(n) + '</button>';
+        }).join('') + '</div>';
+      if(!A.bins) next = { label: 'Pick the bins', off: true, act: 'next' };
+    } else if(st === 2){
+      body = '<div class="q">Anything that makes it harder?</div>'
+        + '<div class="grid2">' + TICKS.map(function(t, i){
+          return '<button type="button" class="opt tick' + (A.ticks[t] ? ' on' : '') + '" data-act="tick" data-i="' + i + '">' + esc(t) + '</button>';
+        }).join('') + '</div>'
+        + '<div class="q" style="font-size:21px;margin-top:8px">Anything for Furniture Bank?</div>'
+        + '<div class="grid3">'
+          + ['yes', 'maybe', 'no'].map(function(v){ return '<button type="button" class="opt yn ' + v + (A.fb === v ? ' on' : '') + '" data-act="fb" data-v="' + v + '">' + v.charAt(0).toUpperCase() + v.slice(1) + '</button>'; }).join('')
+        + '</div>'
+        + (A.fb === 'yes' ? '<div class="note fb">The office picks the items from your photos. Furniture Bank goes on its own truck and is charged on top.</div>' : '')
+        + (A.fb === 'maybe' ? '<div class="note warn" style="border:none;font-weight:600">Marked "to be decided". The office asks the customer when they call back.</div>' : '');
+      if(!A.fb) next = { label: 'Furniture Bank: yes, maybe or no', off: true, act: 'next' };
+    } else if(st === 3){
+      var crew = crewNow(), hours = hoursNow(), sc = sugCrew(A.bins), sh = sugHours(A.bins, A.ticks);
+      var low = crew < sc || hours < sh;
+      body = '<div class="q">Crew, time and price</div>'
+        + '<div class="qsub" style="font-weight:600">' + esc(binsText(A.bins)) + (picked().length ? ' · ' + esc(picked().join(', ')) : '') + '</div>'
+        + '<div class="grid2">'
+          + '<div class="box"><span class="lbl" style="margin:0">Guys</span><span class="bebas big">' + crew + '</span>'
+            + '<div class="step"><button type="button" data-act="crew" data-d="-1" aria-label="Fewer guys">−</button><button type="button" data-act="crew" data-d="1" aria-label="More guys">+</button></div>'
+            + '<span class="hint">' + (A.bins >= 3 ? '3+ bins: 3 guys' : 'Suggested: 2') + '</span></div>'
+          + '<div class="box"><span class="lbl" style="margin:0">Hours</span><span class="bebas big">' + hours + '</span>'
+            + '<div class="step"><button type="button" data-act="hours" data-d="-0.5" aria-label="Less time">−</button><button type="button" data-act="hours" data-d="0.5" aria-label="More time">+</button></div>'
+            + '<span class="hint">Suggested: ' + sh + '</span></div>'
+        + '</div>'
+        + (low ? '<div class="note warn">Less than suggested. Days get overbooked when jobs run long.</div>' : '')
+        + '<label for="price" class="q" style="font-size:19px;margin-top:4px">Price you gave them</label>'
+        + '<div class="money"><span>$</span><input id="price" inputmode="decimal" autocomplete="off" placeholder="Or write it on paper" value="' + esc(A.price) + '"></div>'
+        + (A.saveErr ? '<div class="note err">' + esc(A.saveErr) + '</div>' : '');
+      next = { label: A.saving ? 'Sending…' : 'Send to office', off: A.saving, act: 'send' };
+    } else {
+      var tk = picked();
+      body = '<div class="check"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></div>'
+        + '<div class="bebas" style="font-size:40px">Sent to the office</div>'
+        + '<dl class="sum">'
+          + '<dt>Photos</dt><dd>' + total + '</dd>'
+          + '<dt>Size</dt><dd>' + esc(binsText(A.bins)) + '</dd>'
+          + '<dt>Harder</dt><dd>' + esc(tk.length ? tk.join(', ') : 'Nothing') + '</dd>'
+          + '<dt>Furniture Bank</dt><dd>' + esc({ yes: 'Yes', maybe: 'To be decided', no: 'No' }[A.fb]) + '</dd>'
+          + '<dt>Crew</dt><dd>' + crewNow() + ' guys, about ' + hoursNow() + ' h</dd>'
+          + '<dt>Price</dt><dd>' + (A.sentPrice != null ? '$' + A.sentPrice.toFixed(2) : 'On the paper form') + '</dd>'
+        + '</dl>'
+        + '<div class="qsub">It\'s on the Junk Quotes page with the photos, ready to call back.</div>';
+      next = { label: 'Back to my quotes', off: false, act: 'list' };
+    }
+    var foot = '<div class="foot">'
+      + (st < 4 ? '<button type="button" class="btn back" data-act="back"' + (A.saving ? ' disabled' : '') + '>Back</button>' : '')
+      + '<button type="button" class="btn go" data-act="' + next.act + '"' + (next.off ? ' disabled' : '') + '>' + esc(next.label) + '</button>'
+    + '</div>';
+    return top + '<div class="body">' + body + '</div>' + foot;
+  }
+
+  // ---------- taps ----------
+  var ACTS = {
+    open: function(el){ openQuote(el.getAttribute('data-id')); },
+    reload: function(){ loadRows(); },
+    jeff: function(){ location.href = 'jeff.html'; },
+    photo: function(){ $('photo-in').click(); },
+    bins: function(el){ A.bins = Number(el.getAttribute('data-n')); A.crew = null; A.hours = null; render(); },
+    tick: function(el){ var t = TICKS[Number(el.getAttribute('data-i'))]; A.ticks[t] = !A.ticks[t]; A.hours = null; render(); },
+    fb: function(el){ A.fb = el.getAttribute('data-v'); render(); },
+    crew: function(el){ A.crew = Math.min(6, Math.max(1, crewNow() + Number(el.getAttribute('data-d')))); render(); },
+    hours: function(el){ A.hours = Math.min(10, Math.max(0.5, hoursNow() + Number(el.getAttribute('data-d')))); render(); },
+    next: function(){ S.step++; render(); window.scrollTo(0, 0); },
+    send: function(){ send(); },
+    back: function(){
+      if(S.step > 0){ S.step--; render(); return; }
+      if(A.photos.length && !confirm('Leave without sending? The photos you took will not be saved on the quote.')) return;
+      ACTS.list();
+    },
+    list: function(){
+      S.q = null; A = null;
+      if(FROM_JEFF && params.get('q')){ location.href = 'jeff.html'; return; }
+      render(); window.scrollTo(0, 0);
+    }
+  };
+  $('app').addEventListener('click', function(e){
+    var el = e.target.closest('[data-act]');
+    if(!el || el.disabled) return;
+    ACTS[el.getAttribute('data-act')](el);
+  });
+  $('photo-in').addEventListener('change', onPhotos);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && S.me && !S.q) loadRows(); });
+
+  // ---------- sign-in (the dashboard's, shared like jeff.html) ----------
+  function toDashboardLogin(){
+    try { localStorage.setItem('jjReturn', 'quotes.html'); } catch(e){}
+    location.replace('index.html');
+  }
+  var started = false;
+  async function start(session){
+    if(started) return; started = true;
+    try { await loadMe(session.user); }
+    catch(e){ S.loadErr = e.message; render(); return; }
+    render();
+    await loadRows();
+    var want = params.get('q');
+    if(want) openQuote(want);
+  }
+  db.auth.getSession().then(function(r){
+    var sess = r.data && r.data.session;
+    if(sess) start(sess); else toDashboardLogin();
+  });
+  db.auth.onAuthStateChange(function(ev, session){
+    if(session) start(session);
+    else if(ev === 'SIGNED_OUT') toDashboardLogin();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

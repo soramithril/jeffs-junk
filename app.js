@@ -14594,13 +14594,14 @@ async function loadSignedInApp() {
     location.replace(mobileHome);
     return;
   }
-  // Jeff's mobile app has no login of its own — it sends people here and marks where it
-  // wants them back. Honoured only on a real sign-in, so a session that won't stick lands
-  // on the dashboard rather than looping between the two pages.
+  // Jeff's mobile app and the phone Quotes page have no login of their own — they send
+  // people here and mark where they want them back. Honoured only on a real sign-in, so a
+  // session that won't stick lands on the dashboard rather than looping between pages.
   try {
-    if (localStorage.getItem('jjReturn') === 'jeff.html') {
+    var _ret = localStorage.getItem('jjReturn');
+    if (_ret === 'jeff.html' || _ret === 'quotes.html') {
       localStorage.removeItem('jjReturn');
-      location.replace('jeff.html');
+      location.replace(_ret);
       return;
     }
   } catch(e){}
@@ -18186,6 +18187,21 @@ async function printJunkRemoval(jobId) {
     }
 
     _stampBookedBy(page, font, fontBold, j, 360, 213);   // under "Junk Removal Time:"
+
+    // The phone quote this job was booked from (quotes.html, app-quote-visit.js): who
+    // quoted it in the form's empty "Quoted By" box, and bins / guys / hours with the
+    // harder ticks beside EQUIPMENT NEEDED, so the crew sees them before leaving the yard.
+    if (j.service === 'Junk Removal') {
+      var qv = await qvForJob(j.id);
+      if (qvHas(qv)) {
+        var qvl = qvSheetLines(qv);
+        if (qvl.by) dt(qvl.by, 416, 132);
+        page.drawText(qvl.head, { x: 232, y: H - 326, size: 10, font: fontBold, color: black });
+        var qvSub = qvl.sub, qvCut = false;
+        while (qvSub && font.widthOfTextAtSize(qvSub + (qvCut ? '...' : ''), 8.5) > 262) { qvSub = qvSub.slice(0, -1); qvCut = true; }
+        if (qvSub) dt(qvCut ? qvSub.replace(/[\s,]+$/, '') + '...' : qvSub, 232, 338, 8.5);
+      }
+    }
     await _addOfficeDriverCopies(pdfDoc, font, { x: 395, y: 114 }, null, fontBold);
     // The price goes on once the copies exist, so it can be placed per copy. A Junk
     // Quote is the customer's paper, so both copies show it. A Junk Removal shows it on
