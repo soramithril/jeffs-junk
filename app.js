@@ -2,7 +2,7 @@
 //  APP VERSION + AUTO-UPDATE NOTIFIER
 // ═══════════════════════════════════════
 // Bump APP_VERSION, version.txt, and the cache buster in index.html together on every deploy.
-var APP_VERSION = '713';
+var APP_VERSION = '714';
 
 // ── Emboss icon tiles (JWGIcons, loaded in index.html before app.js) ──
 // One helper for every service/status emboss tile on a white surface, so sizing
@@ -4962,6 +4962,7 @@ function _landscapeCardHTML(j, kind){
       +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();reopenLandscapeJob(\''+j.id+'\')" style="white-space:nowrap;color:#16a34a;border-color:rgba(34,197,94,.4)">↩ Reopen</button>';
   } else {
     btns='<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printLandscaping(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+lineIcon('print',14)+' Print</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printCrewSheet(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+lineIcon('print',14)+' Crew Sheet</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEdit(\''+j.id+'\')" style="white-space:nowrap;color:#3f6212;border-color:rgba(101,163,13,.4)">'+(kind==='possible'?lineIcon('schedule',14)+' Schedule':lineIcon('edit',14)+' Edit')+'</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();completeLandscapeJob(\''+j.id+'\')" style="white-space:nowrap;color:#16a34a;border-color:rgba(34,197,94,.4)">✅ Mark Completed</button>';
   }
@@ -12621,6 +12622,7 @@ async function openDetail(id, returnCid){
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="printJunkQuote(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
     +(j.service==='Junk Quote'?'<button class="btn btn-ghost" onclick="openQuoteInvite(\''+j.id+'\')" style="justify-content:center;border-color:rgba(13,110,253,.4);color:#0d6efd">📅 Calendar Invite</button>':'')
     +(j.service==='Extra Jobs'?'<button class="btn btn-ghost" onclick="printLandscaping(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Print Form</button>':'')
+    +(j.service==='Extra Jobs'&&!j.completed?'<button class="btn btn-ghost" onclick="printCrewSheet(\''+j.id+'\')" style="justify-content:center;border-color:var(--border-strong);color:var(--text-secondary)">'+lineIcon('print',14)+' Crew Sheet</button>':'')
     +(j.service==='Extra Jobs'?(j.completed
         ?'<button class="btn btn-ghost" onclick="reopenLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.5);color:#16a34a;background:rgba(34,197,94,.08);font-weight:700">✅ Completed'+(j.completedAt?' '+fd(String(j.completedAt).slice(0,10)):'')+' · Reopen</button>'
         :'<button class="btn btn-ghost" onclick="completeLandscapeJob(\''+j.id+'\')" style="justify-content:center;border-color:rgba(34,197,94,.4);color:#16a34a">✅ Mark Completed</button>'):'')
