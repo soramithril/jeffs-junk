@@ -50,7 +50,7 @@ button[disabled]{cursor:not-allowed}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .opt{border-radius:14px;border:2px solid #cfd5db;background:#fff;font-weight:800}
 .opt.on{background:#16a34a;border-color:#16a34a;color:#fff}
-.bin{height:76px;font-size:38px}
+.bin{height:72px;font-size:32px}
 .tick{min-height:54px;font-size:15px;font-weight:700;text-align:left;padding:0 14px}
 .yn{min-height:58px;font-size:18px}
 .yn.yes.on{background:#6d28d9;border-color:#6d28d9}
@@ -68,6 +68,7 @@ button[disabled]{cursor:not-allowed}
 .money{display:flex;align-items:center;gap:8px;background:#fff;border:2px solid #cfd5db;border-radius:14px;padding:4px 14px}
 .money span{font-size:22px;font-weight:800;color:#5b6472}
 .money input{flex:1;min-width:0;border:none;background:transparent;font:inherit;font-size:22px;font-weight:800;color:#17223a;padding:10px 0;outline:none}
+.notes{width:100%;border:2px solid #cfd5db;border-radius:14px;padding:12px 14px;font:inherit;font-size:16px;color:#17223a;background:#fff;resize:vertical}
 .sum{background:#fff;border:1px solid #dde2e7;border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:15px}
 .sum dt{color:#5b6472;font-weight:700}.sum dd{margin:0;font-weight:700}
 .foot{position:sticky;bottom:0;display:flex;gap:10px;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:#fff;border-top:1px solid #dde2e7}
@@ -101,14 +102,17 @@ button[disabled]{cursor:not-allowed}
   var CLOUDINARY_CLOUD_NAME = 'dglezca2l';
   var CLOUDINARY_PRESET = 'jeffs_junk';
 
-  // The answers. TICKS is stored as typed into quote_flags; SLOW are the ones that add time.
-  var BINS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5];
+  // The answers. A bin answer is one number or a range [low, high] (Jake: "1 to 2 bins,
+  // 2 to 3 bins"); it is stored as quote_bins = low and quote_bins_max = high (NULL for a
+  // single number). TICKS is stored as typed into quote_flags; SLOW are the ones that add time.
+  var BINS = [[0.25], [0.5], [0.75], [1], [1, 2], [2], [2, 3], [3], [3, 4], [4], [4, 5], [5]];
   var TICKS = ['Stairs', 'Elevator', 'Long carry', 'Heavy items', 'Taking apart', 'Appliances',
     'Narrow doors', 'Packed full', 'Wet or mouldy', 'Dirt, brick, concrete', 'Tight driveway', 'Customer not home'];
   var SLOW = ['Stairs', 'Elevator', 'Long carry', 'Heavy items', 'Taking apart', 'Narrow doors',
     'Packed full', 'Wet or mouldy', 'Dirt, brick, concrete'];
   // Starting rule until Jake sets real numbers: 1¼ h a bin plus ½ h for each thing that
   // slows the job, at least 1 h, at most a day. 3 bins or more = 3 guys (Jake's rule).
+  // A range counts as its top number, so a "2 to 3" day is never booked short.
   function sugHours(bins, ticks){
     var slow = SLOW.filter(function(t){ return ticks[t]; }).length;
     var h = Math.max(1, bins * 1.25 + slow * 0.5);
@@ -142,12 +146,14 @@ button[disabled]{cursor:not-allowed}
     if(d === dayOff(-1)) return 'Yesterday';
     return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   }
-  function binsLabel(n){
+  function oneBin(n){
     if(n >= 5) return '5+';
     var w = Math.floor(n), f = n - w;
     return (w ? String(w) : '') + (f === 0.25 ? '¼' : f === 0.5 ? '½' : f === 0.75 ? '¾' : '');
   }
-  function binsText(n){ return binsLabel(n) + (n <= 1 ? ' bin' : ' bins'); }
+  function binsLabel(lo, hi){ return hi != null ? oneBin(lo) + '–' + oneBin(hi) : oneBin(lo); }
+  function binsText(lo, hi){ return binsLabel(lo, hi) + ((hi != null ? hi : lo) <= 1 ? ' bin' : ' bins'); }
+  function binsTop(){ return A.binsMax != null ? A.binsMax : A.bins; }
   function picked(){ return TICKS.filter(function(t){ return A.ticks[t]; }); }
   function thumb(url){ return url.indexOf('/upload/') < 0 ? url : url.replace('/upload/', '/upload/f_auto,q_auto,w_240/'); }
 
@@ -180,7 +186,7 @@ button[disabled]{cursor:not-allowed}
   }
 
   // ---------- data ----------
-  var COLS = 'job_id,name,address,city,junk_date,junk_time,date,time,notes,status,assigned_crew_ids,photos,price,quote_bins,quote_crew,quote_hours,quote_flags,quote_fb';
+  var COLS = 'job_id,name,address,city,junk_date,junk_time,date,time,notes,status,assigned_crew_ids,photos,price,quote_bins,quote_bins_max,quote_crew,quote_hours,quote_flags,quote_fb,quote_visit_note';
   async function loadMe(user){
     var r = await db.from('user_profiles').select('username').eq('id', user.id).single();
     if(r.error) throw new Error('Could not load your profile: ' + r.error.message);
@@ -211,7 +217,9 @@ button[disabled]{cursor:not-allowed}
     (row.quote_flags || []).forEach(function(t){ ticks[t] = true; });
     A = {
       photos: [], uploading: 0, photoErr: '',
-      bins: bins, ticks: ticks, fb: row.quote_fb || null,
+      bins: bins, binsMax: row.quote_bins_max != null ? Number(row.quote_bins_max) : null,
+      note: row.quote_visit_note || '',
+      ticks: ticks, fb: row.quote_fb || null,
       crew: row.quote_crew != null ? row.quote_crew : null,
       hours: row.quote_hours != null ? Number(row.quote_hours) : null,
       price: row.price != null ? String(row.price) : '',
@@ -219,8 +227,8 @@ button[disabled]{cursor:not-allowed}
     };
     render(); window.scrollTo(0, 0);
   }
-  function crewNow(){ return A.crew != null ? A.crew : sugCrew(A.bins); }
-  function hoursNow(){ return A.hours != null ? A.hours : sugHours(A.bins, A.ticks); }
+  function crewNow(){ return A.crew != null ? A.crew : sugCrew(binsTop()); }
+  function hoursNow(){ return A.hours != null ? A.hours : sugHours(binsTop(), A.ticks); }
   function priceValue(){
     var t = A.price.replace(/[$,\s]/g, '');
     if(t === '') return null;
@@ -228,9 +236,25 @@ button[disabled]{cursor:not-allowed}
     if(!isFinite(n) || n < 0) throw new Error('The price "' + A.price + '" is not a number.');
     return Math.round(n * 100) / 100;
   }
+  // The notes print on the job sheet in Helvetica, which only has the Windows-1252
+  // letters. An emoji there would stop the sheet from printing, so it is refused here,
+  // where the person typing can see which one.
+  var CP1252_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+  function unprintable(text){
+    var chars = Array.from(text);
+    for(var i = 0; i < chars.length; i++){
+      var c = chars[i], n = c.codePointAt(0);
+      if(c === '\n' || c === '\r' || c === '\t') continue;
+      if((n >= 32 && n < 127) || (n >= 160 && n < 256) || CP1252_EXTRA.indexOf(c) >= 0) continue;
+      return c;
+    }
+    return '';
+  }
   async function send(){
     var price;
     try { price = priceValue(); } catch(e){ A.saveErr = e.message; render(); return; }
+    var bad = unprintable(A.note);
+    if(bad){ A.saveErr = 'Take the ' + bad + ' out of the notes. The printed job sheet can\'t show it.'; render(); return; }
     A.saving = true; A.saveErr = ''; render();
     var id = S.q.job_id;
     // Read the photos fresh: the office may have added some since the list loaded.
@@ -240,6 +264,8 @@ button[disabled]{cursor:not-allowed}
     var fields = {
       photos: have.concat(A.photos.filter(function(u){ return have.indexOf(u) < 0; })),
       quote_bins: A.bins,
+      quote_bins_max: A.binsMax,
+      quote_visit_note: A.note.trim() || null,
       quote_crew: crewNow(),
       quote_hours: hoursNow(),
       quote_flags: picked(),
@@ -264,6 +290,7 @@ button[disabled]{cursor:not-allowed}
     if(!S.me){ app.innerHTML = '<div class="body"><div class="empty">' + (S.loadErr ? esc(S.loadErr) : 'Loading…') + '</div></div>'; return; }
     app.innerHTML = S.q ? visitHtml() : listHtml();
     var pr = $('price'); if(pr) pr.addEventListener('input', function(){ A.price = pr.value; });
+    var nt = $('note'); if(nt) nt.addEventListener('input', function(){ A.note = nt.value; });
   }
 
   function visitCard(q){
@@ -334,8 +361,9 @@ button[disabled]{cursor:not-allowed}
       else next.label = 'Next (' + total + ' photo' + (total === 1 ? '' : 's') + ')';
     } else if(st === 1){
       body = '<div class="q">How many bins will it take?</div><div class="qsub">Your best guess. 14 yard bins.</div>'
-        + '<div class="grid4">' + BINS.map(function(n){
-          return '<button type="button" class="opt bin bebas' + (A.bins === n ? ' on' : '') + '" data-act="bins" data-n="' + n + '">' + binsLabel(n) + '</button>';
+        + '<div class="grid4">' + BINS.map(function(o, i){
+          var on = A.bins === o[0] && A.binsMax === (o.length > 1 ? o[1] : null);
+          return '<button type="button" class="opt bin bebas' + (on ? ' on' : '') + '" data-act="bins" data-i="' + i + '">' + binsLabel(o[0], o.length > 1 ? o[1] : null) + '</button>';
         }).join('') + '</div>';
       if(!A.bins) next = { label: 'Pick the bins', off: true, act: 'next' };
     } else if(st === 2){
@@ -351,14 +379,14 @@ button[disabled]{cursor:not-allowed}
         + (A.fb === 'maybe' ? '<div class="note warn" style="border:none;font-weight:600">Marked "to be decided". The office asks the customer when they call back.</div>' : '');
       if(!A.fb) next = { label: 'Furniture Bank: yes, maybe or no', off: true, act: 'next' };
     } else if(st === 3){
-      var crew = crewNow(), hours = hoursNow(), sc = sugCrew(A.bins), sh = sugHours(A.bins, A.ticks);
+      var crew = crewNow(), hours = hoursNow(), sc = sugCrew(binsTop()), sh = sugHours(binsTop(), A.ticks);
       var low = crew < sc || hours < sh;
       body = '<div class="q">Crew, time and price</div>'
-        + '<div class="qsub" style="font-weight:600">' + esc(binsText(A.bins)) + (picked().length ? ' · ' + esc(picked().join(', ')) : '') + '</div>'
+        + '<div class="qsub" style="font-weight:600">' + esc(binsText(A.bins, A.binsMax)) + (picked().length ? ' · ' + esc(picked().join(', ')) : '') + '</div>'
         + '<div class="grid2">'
           + '<div class="box"><span class="lbl" style="margin:0">Guys</span><span class="bebas big">' + crew + '</span>'
             + '<div class="step"><button type="button" data-act="crew" data-d="-1" aria-label="Fewer guys">−</button><button type="button" data-act="crew" data-d="1" aria-label="More guys">+</button></div>'
-            + '<span class="hint">' + (A.bins >= 3 ? '3+ bins: 3 guys' : 'Suggested: 2') + '</span></div>'
+            + '<span class="hint">' + (binsTop() >= 3 ? '3+ bins: 3 guys' : 'Suggested: 2') + '</span></div>'
           + '<div class="box"><span class="lbl" style="margin:0">Hours</span><span class="bebas big">' + hours + '</span>'
             + '<div class="step"><button type="button" data-act="hours" data-d="-0.5" aria-label="Less time">−</button><button type="button" data-act="hours" data-d="0.5" aria-label="More time">+</button></div>'
             + '<span class="hint">Suggested: ' + sh + '</span></div>'
@@ -366,6 +394,8 @@ button[disabled]{cursor:not-allowed}
         + (low ? '<div class="note warn">Less than suggested. Days get overbooked when jobs run long.</div>' : '')
         + '<label for="price" class="q" style="font-size:19px;margin-top:4px">Price you gave them</label>'
         + '<div class="money"><span>$</span><input id="price" inputmode="decimal" autocomplete="off" placeholder="Or write it on paper" value="' + esc(A.price) + '"></div>'
+        + '<label for="note" class="q" style="font-size:19px;margin-top:4px">Notes for the office and crew</label>'
+        + '<textarea id="note" class="notes" rows="3" placeholder="Gate code, where to park, what they\'re keeping…">' + esc(A.note) + '</textarea>'
         + (A.saveErr ? '<div class="note err">' + esc(A.saveErr) + '</div>' : '');
       next = { label: A.saving ? 'Sending…' : 'Send to office', off: A.saving, act: 'send' };
     } else {
@@ -374,11 +404,12 @@ button[disabled]{cursor:not-allowed}
         + '<div class="bebas" style="font-size:40px">Sent to the office</div>'
         + '<dl class="sum">'
           + '<dt>Photos</dt><dd>' + total + '</dd>'
-          + '<dt>Size</dt><dd>' + esc(binsText(A.bins)) + '</dd>'
+          + '<dt>Size</dt><dd>' + esc(binsText(A.bins, A.binsMax)) + '</dd>'
           + '<dt>Harder</dt><dd>' + esc(tk.length ? tk.join(', ') : 'Nothing') + '</dd>'
           + '<dt>Furniture Bank</dt><dd>' + esc({ yes: 'Yes', maybe: 'To be decided', no: 'No' }[A.fb]) + '</dd>'
           + '<dt>Crew</dt><dd>' + crewNow() + ' guys, about ' + hoursNow() + ' h</dd>'
           + '<dt>Price</dt><dd>' + (A.sentPrice != null ? '$' + A.sentPrice.toFixed(2) : 'On the paper form') + '</dd>'
+          + '<dt>Notes</dt><dd style="white-space:pre-line">' + esc(A.note.trim() || 'None') + '</dd>'
         + '</dl>'
         + '<div class="qsub">It\'s on the Junk Quotes page with the photos, ready to call back.</div>';
       next = { label: 'Back to my quotes', off: false, act: 'list' };
@@ -396,7 +427,10 @@ button[disabled]{cursor:not-allowed}
     reload: function(){ loadRows(); },
     jeff: function(){ location.href = 'jeff.html'; },
     photo: function(){ $('photo-in').click(); },
-    bins: function(el){ A.bins = Number(el.getAttribute('data-n')); A.crew = null; A.hours = null; render(); },
+    bins: function(el){
+      var o = BINS[Number(el.getAttribute('data-i'))];
+      A.bins = o[0]; A.binsMax = o.length > 1 ? o[1] : null; A.crew = null; A.hours = null; render();
+    },
     tick: function(el){ var t = TICKS[Number(el.getAttribute('data-i'))]; A.ticks[t] = !A.ticks[t]; A.hours = null; render(); },
     fb: function(el){ A.fb = el.getAttribute('data-v'); render(); },
     crew: function(el){ A.crew = Math.min(6, Math.max(1, crewNow() + Number(el.getAttribute('data-d')))); render(); },

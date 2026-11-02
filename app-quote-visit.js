@@ -13,17 +13,20 @@
 
 // The answers plus what the boxes need beside them. Callers add job_id/price/dates
 // themselves where their own select lacks them (PostgREST must not see a column twice).
-var QV_COLS = 'quote_bins,quote_crew,quote_hours,quote_flags,quote_fb,assigned_crew_ids,photos';
+var QV_COLS = 'quote_bins,quote_bins_max,quote_crew,quote_hours,quote_flags,quote_fb,quote_visit_note,assigned_crew_ids,photos';
 
 function qvHas(q){ return !!q && q.quote_bins != null; }
 
-function qvBins(n){
+// One number (¼ .. 1, 5 = "5+") or a range, quote_bins to quote_bins_max ("1–2").
+function _qvOneBin(n){
   n = Number(n);
-  if(n >= 5) return '5+ bins';
+  if(n >= 5) return '5+';
   var w = Math.floor(n), f = n - w;
-  var t = (w ? String(w) : '') + (f === 0.25 ? '¼' : f === 0.5 ? '½' : f === 0.75 ? '¾' : '');
-  return t + (n <= 1 ? ' bin' : ' bins');
+  return (w ? String(w) : '') + (f === 0.25 ? '¼' : f === 0.5 ? '½' : f === 0.75 ? '¾' : '');
 }
+function qvBinsNum(q){ return _qvOneBin(q.quote_bins) + (q.quote_bins_max != null ? '–' + _qvOneBin(q.quote_bins_max) : ''); }
+function qvBinsWord(q){ return Number(q.quote_bins_max != null ? q.quote_bins_max : q.quote_bins) <= 1 ? 'bin' : 'bins'; }
+function qvBins(q){ return qvBinsNum(q) + ' ' + qvBinsWord(q); }
 function qvHours(h){ return String(Number(h)).replace(/\.0+$/, ''); }
 function qvFb(q){ return {yes:'Yes', maybe:'Maybe', no:'No'}[q.quote_fb] || ''; }
 
@@ -37,7 +40,7 @@ function qvWho(q){
 
 // "2 bins · 3 guys · 4.5 h" — the Junk Quotes page row.
 function qvShortLine(q){
-  return qvBins(q.quote_bins) + ' · ' + q.quote_crew + ' guys · ' + qvHours(q.quote_hours) + ' h';
+  return qvBins(q) + ' · ' + q.quote_crew + ' guys · ' + qvHours(q.quote_hours) + ' h';
 }
 
 // The box on the quote (title "From Josh's visit") and on the booked job ("From the quote").
@@ -57,13 +60,14 @@ function qvBoxHtml(q, title){
   return '<div style="background:var(--surface);border:2px solid #16a34a;border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px">'
     + '<div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#15803d">' + escHtml(title) + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(' + (q.price != null ? 4 : 3) + ',minmax(0,1fr));gap:8px">'
-      + tile(qvBins(q.quote_bins).replace(/ bins?$/, ''), Number(q.quote_bins) <= 1 ? 'bin' : 'bins')
+      + tile(qvBinsNum(q), qvBinsWord(q))
       + tile(String(q.quote_crew), 'guys')
       + tile(qvHours(q.quote_hours), 'hours')
       + (q.price != null ? tile('$' + Number(q.price).toLocaleString('en-CA', {maximumFractionDigits: 2}), 'quoted') : '')
     + '</div>'
     + (flags ? '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:13px;font-weight:700;color:var(--muted)">Harder:</span>' + flags + '</div>' : '')
     + fb
+    + (q.quote_visit_note ? '<div style="font-size:14px;line-height:1.45;white-space:pre-line;background:var(--surface2);border-radius:10px;padding:9px 12px"><b>Notes:</b> ' + escHtml(q.quote_visit_note) + '</div>' : '')
     + (nPhotos ? '<div style="font-size:13px;color:var(--muted)">' + nPhotos + ' photo' + (nPhotos === 1 ? '' : 's') + ' on the quote</div>' : '')
   + '</div>';
 }
@@ -84,7 +88,9 @@ function qvSheetLines(q){
   if(q.quote_fb === 'yes' || q.quote_fb === 'maybe') sub.push('Furniture Bank: ' + q.quote_fb);
   return {
     by: who ? who + (when ? '  (quoted ' + new Date(when + 'T12:00:00').toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) + ')' : '') : '',
-    head: (qvBins(q.quote_bins) + '  ·  ' + q.quote_crew + ' guys  ·  about ' + qvHours(q.quote_hours) + ' hours').toUpperCase(),
-    sub: sub.join(', ')
+    head: (qvBins(q) + '  ·  ' + q.quote_crew + ' guys  ·  about ' + qvHours(q.quote_hours) + ' hours').toUpperCase(),
+    sub: sub.join(', '),
+    // Goes at the top of the sheet's notes box, ahead of the office's notes.
+    note: q.quote_visit_note ? 'From the quote: ' + q.quote_visit_note.trim() : ''
   };
 }

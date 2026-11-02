@@ -30,7 +30,7 @@ var QF_START = '2026-01-01';   // the tally counts this year's quotes
 var QF_FRESH_DAYS = 14;        // how far back the dashboard looks
 var QF_SNOOZE_DAYS = 3;        // "Followed up" brings the quote back after this many days
 var QF_NUDGE_HOUR = 13;        // the afternoon nudge card, local time
-var QF_COLS = 'job_id,name,status,date,junk_date,price,address,city,quote_outcome,quote_job_id,quote_note,quote_followed_up_at,quote_bins,quote_crew,quote_hours';
+var QF_COLS = 'job_id,name,status,date,junk_date,price,address,city,quote_outcome,quote_job_id,quote_note,quote_followed_up_at,quote_bins,quote_bins_max,quote_crew,quote_hours';
 var _qfFresh = [];             // the dashboard's quote rows, filled by refreshQuoteNeedsYou
 var _qfTab = 'open';           // Junk Quotes page: which outcome is listed
 
@@ -371,7 +371,7 @@ async function renderFromQuoteBox(jobId){
 async function renderQuoteDetailBox(id){
   var el = document.getElementById('det-quote-box');
   if(!el) return;
-  var r = await db.from('jobs').select(QF_COLS + ',quote_flags,quote_fb,assigned_crew_ids,photos').eq('job_id', id).single();
+  var r = await db.from('jobs').select(QF_COLS + ',quote_flags,quote_fb,quote_visit_note,assigned_crew_ids,photos').eq('job_id', id).single();
   if(r.error) throw new Error('Quote box query failed: ' + r.error.message);
   var q = r.data;
   if(document.getElementById('det-quote-box') !== el || el.dataset.qid !== id) return;   // another job opened meanwhile

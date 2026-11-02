@@ -18164,7 +18164,11 @@ async function printJunkRemoval(jobId) {
     // it. If items/equipment are printed in the rows above, start below the last
     // printed row instead. Flow down the blank description rows; anything past
     // the payment row spills to the bin-placement area at the bottom.
-    var notesText = j.notes || '';
+    // The phone quote this job was booked from (quotes.html, app-quote-visit.js). Its
+    // visit notes lead the notes box; the rest is drawn after Booked By, below.
+    var qv = j.service === 'Junk Removal' ? await qvForJob(j.id) : null;
+    var qvl = qvHas(qv) ? qvSheetLines(qv) : null;
+    var notesText = [qvl ? qvl.note : '', j.notes || ''].filter(Boolean).join('\n');
     if (notesText) {
       var noteLines = _wrapForWidth(notesText, font, 9, 355).filter(function(l){ return l !== ''; });
       var noteY = printed > 0 ? _FORM_ITEM_ROWS[printed - 1] + 20 : 373;  // 373 = 3 lines lower per Jake
@@ -18188,19 +18192,15 @@ async function printJunkRemoval(jobId) {
 
     _stampBookedBy(page, font, fontBold, j, 360, 213);   // under "Junk Removal Time:"
 
-    // The phone quote this job was booked from (quotes.html, app-quote-visit.js): who
-    // quoted it in the form's empty "Quoted By" box, and bins / guys / hours with the
-    // harder ticks beside EQUIPMENT NEEDED, so the crew sees them before leaving the yard.
-    if (j.service === 'Junk Removal') {
-      var qv = await qvForJob(j.id);
-      if (qvHas(qv)) {
-        var qvl = qvSheetLines(qv);
-        if (qvl.by) dt(qvl.by, 416, 132);
-        page.drawText(qvl.head, { x: 232, y: H - 326, size: 10, font: fontBold, color: black });
-        var qvSub = qvl.sub, qvCut = false;
-        while (qvSub && font.widthOfTextAtSize(qvSub + (qvCut ? '...' : ''), 8.5) > 262) { qvSub = qvSub.slice(0, -1); qvCut = true; }
-        if (qvSub) dt(qvCut ? qvSub.replace(/[\s,]+$/, '') + '...' : qvSub, 232, 338, 8.5);
-      }
+    // The phone quote, continued: who quoted it in the form's empty "Quoted By" box, and
+    // bins / guys / hours with the harder ticks beside EQUIPMENT NEEDED, so the crew sees
+    // them before leaving the yard.
+    if (qvl) {
+      if (qvl.by) dt(qvl.by, 416, 132);
+      page.drawText(qvl.head, { x: 232, y: H - 326, size: 10, font: fontBold, color: black });
+      var qvSub = qvl.sub, qvCut = false;
+      while (qvSub && font.widthOfTextAtSize(qvSub + (qvCut ? '...' : ''), 8.5) > 262) { qvSub = qvSub.slice(0, -1); qvCut = true; }
+      if (qvSub) dt(qvCut ? qvSub.replace(/[\s,]+$/, '') + '...' : qvSub, 232, 338, 8.5);
     }
     await _addOfficeDriverCopies(pdfDoc, font, { x: 395, y: 114 }, null, fontBold);
     // The price goes on once the copies exist, so it can be placed per copy. A Junk
