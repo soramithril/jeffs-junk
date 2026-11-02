@@ -565,33 +565,20 @@ function stepAmbient(dt){
     A.office.forEach(function(w){updWorker(w,d);});A.yard.forEach(function(j){updWander(j,d);});}
 }
 
-/* ---------- scenery that keeps the picture busy: passing cars, people on the
-   sidewalk, gulls over the dump and a loader on the pile. None of it is data. ---------- */
+/* ---------- scenery that keeps the picture busy: people on the sidewalk, gulls
+   over the dump and a loader on the pile. None of it is data. (No passing cars -
+   Jake took them out 2026-11-02: the road is for our trucks.) ---------- */
 var SC=null;
 function newScenery(){
-  var cols=['#c4482b','#2f74c8','#e3b13a','#e6e4dc','#3a3f47','#8b5cf6','#5f8f8f','#a3a3a3'];
-  SC={cars:[
-      {x:40,y:RT+11,v:26,c:cols[0]},{x:230,y:RT+11,v:22,c:cols[1]},{x:330,y:RT+3,v:-24,c:cols[2]},
-      {x:120,y:RT+3,v:-30,c:cols[3]},{x:300,y:LANE_TOP+3,v:16,c:cols[4]},{x:90,y:LANE_TOP+3,v:-14,c:cols[5]}],
-    peds:[{x:20,v:7,look:{hair:'#3b2416',shirt:'#c4482b',pants:'#2b2f36'}},{x:260,v:-6,look:{hair:'#d8b46a',shirt:'#4f6d8a',pants:'#3a3f47'}},
+  SC={peds:[{x:20,v:7,look:{hair:'#3b2416',shirt:'#c4482b',pants:'#2b2f36'}},{x:260,v:-6,look:{hair:'#d8b46a',shirt:'#4f6d8a',pants:'#3a3f47'}},
       {x:150,v:5,look:{hair:'#2b2b2b',shirt:'#e3b13a',pants:'#3a3f47'},dog:true}],
     gulls:[0,1.6,3.1,4.4],loader:{x:360,dir:1}};
 }
 function updScenery(dtR){
-  SC.cars.forEach(function(c){c.x+=c.v*dtR;if(c.v>0&&c.x>W+10)c.x=-24;if(c.v<0&&c.x<-24)c.x=W+10;});
   SC.peds.forEach(function(p){p.x+=p.v*dtR;if(p.x>W+6)p.x=-8;if(p.x<-8)p.x=W+6;});
   var L=SC.loader;L.x+=L.dir*4*dtR;if(L.x>378){L.dir=-1;}if(L.x<354){L.dir=1;}
 }
-function drawCar(c,nowT){
-  var x=Math.round(c.x),y=c.y,left=c.v<0;
-  ctx.globalAlpha=.25;rect(ctx,C.ink,x+1,y+7,13,1);ctx.globalAlpha=1;
-  rect(ctx,c.c,x,y+3,15,3);rect(ctx,c.c,left?x+5:x+3,y+1,7,2);
-  rect(ctx,C.glass,left?x+6:x+4,y+1,2,2);rect(ctx,C.glass,left?x+9:x+7,y+1,2,2);
-  rect(ctx,C.light,left?x:x+14,y+3,1,1);rect(ctx,C.red,left?x+14:x,y+3,1,1);
-  rect(ctx,C.tire,x+2,y+6,3,2);rect(ctx,C.tire,x+10,y+6,3,2);
-}
 function drawScenery(nowT){
-  SC.cars.forEach(function(c){drawCar(c,nowT);});
   SC.peds.forEach(function(p){
     person(ctx,p.x,RT-13,p.look,{face:p.v>0?1:-1,step:Math.floor(nowT/220)%2});
     if(p.dog){var dx=p.x+(p.v>0?9:-6);rect(ctx,'#8a5a3c',dx,RT-4,5,2);rect(ctx,'#8a5a3c',p.v>0?dx+4:dx-1,RT-5,2,2);rect(ctx,'#5a3a24',dx,RT-2,1,1);rect(ctx,'#5a3a24',dx+4,RT-2,1,1);}});
