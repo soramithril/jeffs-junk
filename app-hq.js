@@ -15,7 +15,10 @@
 // animates while the screen is off.
 (function(){
 'use strict';
-var W=400,H=312,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+/* 720x312 fills the TV's whole stage (Jake, 2026-11-02: the whole screen is the game) */
+var W=720,H=312,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+/* the right-hand block: the "who's out" board and the badge wall, with a parking lot under them */
+var BOARD_X=404,LOT_Y=148;
 /* below the main road (Jake, 2026-11-02: "all info on the board", no "+N more"):
    row A of today's stops, a lane, row B, every bin out on rental, then the park */
 var ROWA=198,LANE_TOP=217,LANEY=LANE_TOP+2,ROWB=232,OUT_TOP=252,PARK_TOP=290,CX=3,LOTS_X=28;
@@ -51,6 +54,11 @@ function text(g,s,x,y,c){s=String(s).toUpperCase();x=Math.round(x);y=Math.round(
   for(var i=0;i<s.length;i++){var gl=GL[s.charAt(i)]||GL[' '];
     for(var r=0;r<5;r++){var bt=gl[r];if(bt&4)g.fillRect(x,y+r,1,1);if(bt&2)g.fillRect(x+1,y+r,1,1);if(bt&1)g.fillRect(x+2,y+r,1,1);}
     x+=4;}}
+/* the same font at double size, for what has to be read from across the office */
+function text2(g,s,x,y,c){s=String(s).toUpperCase();x=Math.round(x);y=Math.round(y);g.fillStyle=c;
+  for(var i=0;i<s.length;i++){var gl=GL[s.charAt(i)]||GL[' '];
+    for(var r=0;r<5;r++)for(var b=0;b<3;b++)if(gl[r]&(4>>b))g.fillRect(x+b*2,y+r*2,2,2);
+    x+=8;}}
 function tw(s){return String(s).length*4-1;}
 function sign(g,s,cx,y){var w=tw(s)+6,x=Math.round(cx-w/2);rect(g,C.sign,x,y,w,9);text(g,s,x+3,y+2,C.signText);}
 function badge(g,s,cx,y,col){var w=tw(s)+4,x=Math.round(cx-w/2);rect(g,col,x,y,w,7);text(g,s,x+2,y+1,C.white);}
@@ -75,6 +83,25 @@ var TRUCK=[
 "...KkkkK.....KkkkK.....KkkkK",
 "....KKK.......KKK.......KKK."];
 var TRUCK_W=28,TRUCK_H=12;
+/* what a Geotab vehicle is, and what to call it when nobody is named as its driver */
+function vehicleKind(name){name=String(name||'');if(/van/i.test(name))return'van';if(/^hino/i.test(name))return'truck';return'pickup';}
+function vehicleName(name){name=String(name||'').trim();
+  if(/furniture bank/i.test(name))return'FB Van';if(/mercedes/i.test(name))return'Mercedes';if(/silverado/i.test(name))return'Silverado';
+  if(/L7/i.test(name))return'L7';var hy=name.match(/^hino\s+\d\d(\d\d)$/i);if(hy)return'Hino '+hy[1];
+  return name.replace(/[^A-Za-z0-9 ]/g,'').trim().slice(0,10);}
+/* a van or a pickup in the same 28x12 box as a hook-lift, so placement is the same */
+function drawSmallVehicle(kind,x,y,flip,stripe){
+  function r(x0,y0,w,h,c){rect(ctx,c,flip?x+TRUCK_W-x0-w:x+x0,y+y0,w,h);}
+  if(kind==='van'){
+    r(2,2,22,8,C.out);r(3,3,20,6,'#eef1f4');r(22,4,4,6,C.out);r(22,5,3,4,'#eef1f4');
+    r(15,3,6,3,C.glass);r(22,5,2,2,C.glass);r(3,7,20,1,stripe);r(25,7,1,1,C.light);
+    [5,18].forEach(function(c){r(c,10,4,2,C.tire);r(c+1,10,2,1,C.rim);});
+  }else{
+    r(1,5,15,5,C.out);r(2,6,13,3,'#c9ced4');r(15,2,10,8,C.out);r(16,3,8,6,'#c9ced4');r(25,5,2,5,C.out);r(25,6,1,3,'#c9ced4');
+    r(18,3,5,3,C.glass);r(16,7,8,1,stripe);r(26,6,1,1,C.light);
+    [4,19].forEach(function(c){r(c,10,4,2,C.tire);r(c+1,10,2,1,C.rim);});
+  }
+}
 var BIGBIN=[
 "OOOOOOOOOOOOOOO",
 "OBBBBBBBBBBBBBO",
@@ -179,7 +206,7 @@ function tree(g,cx,cy,r2){
   if(SE.blossom)for(k=0;k<8;k++)rect(g,SE.blossom,cx+Math.floor(r2()*10)-5,cy+Math.floor(r2()*6)-3,1,1);
 }
 var HSTYLE=[{roof:'#a8483a',roof2:'#7f352a',wall:'#e6c39a'},{roof:'#4f6d8a',roof2:'#3a5168',wall:'#d4dde4'},{roof:'#6b5040',roof2:'#4f3a2e',wall:'#e9d6b0'}];
-var TREES=[76,104,132,160,188,216,236,344,372];
+var TREES=[76,104,132,160,188,216,236,344,372,410,450,490,530,570,610,650,690];
 var MINIBIN=[
 "OOOOOOO",
 "OBBBBBO",
@@ -207,7 +234,15 @@ function drawLot(g,st){
 /* every bin out on rental, as a field of little bins with the count beside it */
 function drawOutBins(g,n){
   sign(g,'OUT ON RENTAL',36,OUT_TOP+3);badge(g,String(n),36,OUT_TOP+15,C.bin);
-  for(var k=0;k<n;k++)spr(g,MINIBIN,binPal,70+(k%36)*9,OUT_TOP+2+Math.floor(k/36)*7,false);
+  var perRow=Math.floor((W-74)/9);
+  for(var k=0;k<n;k++)spr(g,MINIBIN,binPal,70+(k%perRow)*9,OUT_TOP+2+Math.floor(k/perRow)*7,false);
+}
+/* the parking lot for the vans and pickups, under the board */
+function drawParking(g,r2){
+  asphalt(g,r2,BOARD_X,LOT_Y,W-BOARD_X-4,RT-LOT_Y-1);
+  for(var x=BOARD_X+2;x<W-4;x+=31)rect(g,'#e6e4dc',x,LOT_Y+2,1,22);
+  if(SE.snow)rect(g,C.snow,BOARD_X,LOT_Y,W-BOARD_X-4,1);
+  sign(g,'PARKING',BOARD_X+24,LOT_Y-8);
 }
 
 /* ---------- roads: asphalt, sidewalk, edge lines, a double yellow centre, crosswalks ---------- */
@@ -231,7 +266,7 @@ function drawRoads(g,r2){
 }
 /* lamps along the sidewalk, drawn after the buildings so they stand in front of them */
 function drawStreetBits(g){
-  [40,110,170,250,300,390].forEach(function(lx){rect(g,'#3a3f47',lx,RT-10,1,9);rect(g,'#3a3f47',lx-1,RT-11,3,1);rect(g,C.light,lx-1,RT-10,3,1);});
+  [40,110,170,250,300,390,460,540,620,700].forEach(function(lx){rect(g,'#3a3f47',lx,RT-10,1,9);rect(g,'#3a3f47',lx-1,RT-11,3,1);rect(g,C.light,lx-1,RT-10,3,1);});
 }
 
 /* ---------- static background: drawn once per showing ---------- */
@@ -313,6 +348,7 @@ function drawBG(){
   rect(g,C.sky,339,24,6,4);rect(g,C.wood,346,27,3,6);
   rect(g,SE.snow?'#d9dcd8':C.dirt,336,176,46,2);
   sign(g,'DUMP',364,1);
+  drawParking(g,r2);
   drawStreetBits(g);
   /* a lot for every stop today, row A along the road and row B along the lane */
   M.stops.forEach(function(st){drawLot(g,st);});
@@ -339,14 +375,14 @@ function fmtClock(ms){var d=new Date(ms),h=d.getHours(),m=d.getMinutes();return(
 function needsEmail(j){return j.status!=='Cancelled'&&!(j.email_sent||j.email_confirmed||j.no_email);}
 
 var BADGE_DEFS=[
-  {id:'early',name:'Early start',hint:'A stop done before 8:45',icon:'sun'},
-  {id:'ten',name:'Ten by noon',hint:'10 stops done before noon',icon:'clock'},
-  {id:'big',name:'Big day',hint:'15 stops done',icon:'truck'},
-  {id:'phone',name:"Phone's ringing",hint:'10 jobs entered today',icon:'phone'},
-  {id:'sweep',name:'Clean sweep',hint:'Every bin stop done',icon:'star'},
-  {id:'nodriver',name:'Nobody waiting',hint:'Every bin stop has a driver',icon:'person'},
-  {id:'inbox',name:'Inbox zero',hint:"Every new job's email sent",icon:'mail'},
-  {id:'quotes',name:'Quotes covered',hint:'No quote waiting on a call',icon:'paper'}];
+  {id:'early',name:'Early start',short:'EARLY START',hint:'A stop done before 8:45',icon:'sun'},
+  {id:'ten',name:'Ten by noon',short:'TEN BY NOON',hint:'10 stops done before noon',icon:'clock'},
+  {id:'big',name:'Big day',short:'BIG DAY',hint:'15 stops done',icon:'truck'},
+  {id:'phone',name:"Phone's ringing",short:'PHONE BUSY',hint:'10 jobs entered today',icon:'phone'},
+  {id:'sweep',name:'Clean sweep',short:'CLEAN SWEEP',hint:'Every bin stop done',icon:'star'},
+  {id:'nodriver',name:'Nobody waiting',short:'ALL DRIVERS',hint:'Every bin stop has a driver',icon:'person'},
+  {id:'inbox',name:'Inbox zero',short:'INBOX ZERO',hint:"Every new job's email sent",icon:'mail'},
+  {id:'quotes',name:'Quotes covered',short:'QUOTES DONE',hint:'No quote waiting on a call',icon:'paper'}];
 
 function buildModel(s){
   var m={now:s.now,dayStart:s.dayStart,counts:s.counts,bins:s.bins};
@@ -368,12 +404,14 @@ function buildModel(s){
     st.loc={x:tx,y:row?LANEY:ROADY,ex:tx,lane:!!row};});
   /* trucks, with the zones each one stood in today */
   var byJob={};m.stops.forEach(function(st){(byJob[st.jobId]=byJob[st.jobId]||[]).push(st);});
-  /* two rows each side of the gate lane (x 199), and the shop doorway for a fifth */
+  /* the hook-lifts park in the yard, two rows each side of the gate lane (x 199), plus
+     the shop doorway; the vans and pickups (and any hook-lift past five) in the lot */
   var yardSlots=[[153,YARD_Y],[230,YARD_Y],[153,YARD_Y-15],[230,YARD_Y-15],[288,YARD_Y]];
-  /* who's who: the driver's name and app colour; a truck nobody has driven today goes by its own name */
+  var lotSlots=[];for(var ls=BOARD_X+4;ls+TRUCK_W<W-4;ls+=31)lotSlots.push([ls,LOT_Y+12]);
+  /* who's who: the driver's name and app colour; a vehicle nobody has driven today goes by its own name */
   var trucks=s.trucks.map(function(t){
-    var truckName=String(t.name||'').replace(/[^A-Za-z0-9 ]/g,'').trim().slice(0,10);
-    return{id:t.id,driver:t.driver||null,label:(t.driver||truckName||'Truck').toUpperCase(),truckName:truckName,
+    var truckName=vehicleName(t.name);
+    return{id:t.id,driver:t.driver||null,label:(t.driver||truckName||'Truck').toUpperCase(),truckName:truckName,kind:vehicleKind(t.name),
            color:(t.driver&&s.crewColor[t.driver])||C.nodriver,state:t.state,visits:[]};});
   var byId={};trucks.forEach(function(T){byId[T.id]=T;});
   var used={};
@@ -381,8 +419,15 @@ function buildModel(s){
     var T=byId[v.device_id];if(!T)return;
     var legs=byJob[v.job_id]||[],u=used[v.job_id]||0,st=legs[Math.min(u,legs.length-1)]||null;used[v.job_id]=u+1;
     T.visits.push({tin:Date.parse(v.entered_at),tout:v.exited_at?Date.parse(v.exited_at):null,inside:!!v.inside&&!v.exited_at,stop:st});});
-  m.trucks=trucks.filter(function(T){return T.visits.length||T.state!=='yard';}).slice(0,yardSlots.length);
-  m.trucks.forEach(function(T,i){var sl=yardSlots[i],gate=sl[0]===288?288:199;
+  /* every vehicle the board has today: hook-lifts first, the ones that have worked
+     today ahead of the ones that haven't, then by name */
+  m.trucks=trucks.slice().sort(function(a,b){return(a.kind==='truck'?0:1)-(b.kind==='truck'?0:1)
+      ||(b.visits.length?1:0)-(a.visits.length?1:0)||a.label.localeCompare(b.label);})
+    .slice(0,yardSlots.length+lotSlots.length);
+  var yi=0,li=0;
+  m.trucks.forEach(function(T){
+    var inYard=T.kind==='truck'&&yi<yardSlots.length,sl=inYard?yardSlots[yi++]:lotSlots[li++],
+        gate=!inYard?sl[0]:sl[0]===288?288:199;
     T.yard={x:sl[0],y:sl[1],ex:gate,inPts:[[gate,sl[1]]],outPts:[[gate,sl[1]]]};
     var c=T.color.replace('#',''),lum=(parseInt(c.substr(0,2),16)*299+parseInt(c.substr(2,2),16)*587+parseInt(c.substr(4,2),16)*114)/255000;
     T.ink=lum>.62?C.ink:C.white;});
@@ -595,7 +640,7 @@ function drawScenery(nowT){
 /* ---------- weather and particles ---------- */
 var wx=[],parts=[],conf=[],stamps=[],banner=null;
 function weatherNow(){return WX||SE.ambient||null;}
-function resetWeather(){wx=[];var w=weatherNow(),n=w==='snow'?190:w==='rain'?110:w==='leaves'?30:w==='butterflies'?5:0;
+function resetWeather(){wx=[];var w=weatherNow(),n=Math.round((w==='snow'?190:w==='rain'?110:w==='leaves'?30:w==='butterflies'?5:0)*W/400);
   for(var i=0;i<n;i++)wx.push(newFlake(w,true));}
 function newFlake(w,anyY){var f={x:Math.random()*W,y:anyY?Math.random()*H:-4,ph:Math.random()*6.28};
   if(w==='snow'){f.vy=6+Math.random()*8;f.c=Math.random()<.7?'#ffffff':'#dbe4ec';}
@@ -606,7 +651,7 @@ function newFlake(w,anyY){var f={x:Math.random()*W,y:anyY?Math.random()*H:-4,ph:
 function updWeather(dtR){
   var w=weatherNow();
   wx.forEach(function(f,i){
-    if(w==='butterflies'){f.ph+=dtR*3;f.x+=Math.cos(f.ph*.7)*10*dtR;f.y+=Math.sin(f.ph)*8*dtR;f.x=clamp(f.x,4,396);f.y=clamp(f.y,PARK_TOP-4,H-4);return;}
+    if(w==='butterflies'){f.ph+=dtR*3;f.x+=Math.cos(f.ph*.7)*10*dtR;f.y+=Math.sin(f.ph)*8*dtR;f.x=clamp(f.x,4,W-4);f.y=clamp(f.y,PARK_TOP-4,H-4);return;}
     f.ph+=dtR*2;f.y+=f.vy*dtR;if(w!=='rain')f.x+=Math.sin(f.ph)*(w==='leaves'?10:5)*dtR+(w==='leaves'?3*dtR:0);
     if(f.y>H+2||f.x>W+4)wx[i]=newFlake(w,false);
   });
@@ -656,7 +701,7 @@ function drawBanner(nowT){
 }
 
 /* ---------- one frame ---------- */
-var cv=null,ctx=null,els={},raf=0,showAt=0,lastFrame=0,lastSide=0,lastEv=-1,flashUntil=0;
+var cv=null,ctx=null,raf=0,showAt=0,lastFrame=0,lastEv=-1,flashUntil=0;
 function sceneTime(nowT){
   var p=clamp((nowT-showAt)/REPLAY_MS,0,1),e=p<1?1-Math.pow(1-p,2):1;
   return{t:M.start+(M.now-M.start)*e,replaying:p<1};
@@ -741,14 +786,17 @@ function carrying(st,t){
   return false;
 }
 function drawTruck(T,pos,t,nowT){
-  var x=Math.round(pos.x),y=Math.round(pos.y),flip=pos.face<0,st=pos.st,atStop=st.mode==='stop',carry=carrying(st,t);
+  var x=Math.round(pos.x),y=Math.round(pos.y),flip=pos.face<0,st=pos.st,atStop=st.mode==='stop',hook=T.kind==='truck',carry=hook&&carrying(st,t);
   ctx.globalAlpha=.3;rect(ctx,C.ink,x+2,y+TRUCK_H,TRUCK_W-4,1);ctx.globalAlpha=1;
-  spr(ctx,TRUCK,{O:C.out,W:C.glass,G:C.truck,g:C.truck2,d:'#1f5e2c',S:T.color,Y:C.light,K:C.tire,k:C.rim},x,y,flip);
-  if(pos.moving&&Math.floor(nowT/120)%2)[5,15,25].forEach(function(c){rect(ctx,C.tire,flip?x+TRUCK_W-1-c:x+c,y+10,1,1);});
-  if(SE.snow)rect(ctx,C.snow,flip?x+3:x+19,y,6,1);
+  if(hook){
+    spr(ctx,TRUCK,{O:C.out,W:C.glass,G:C.truck,g:C.truck2,d:'#1f5e2c',S:T.color,Y:C.light,K:C.tire,k:C.rim},x,y,flip);
+    if(pos.moving&&Math.floor(nowT/120)%2)[5,15,25].forEach(function(c){rect(ctx,C.tire,flip?x+TRUCK_W-1-c:x+c,y+10,1,1);});
+  }else drawSmallVehicle(T.kind,x,y,flip,T.color);
+  if(SE.snow)rect(ctx,C.snow,flip?x+3:x+(hook?19:15),y+(hook?0:2),6,1);
   if(carry)spr(ctx,BIGBIN,binPal,flip?x+12:x+1,y-2,false);
   /* the driver sits in the cab, except out at a stop or parked up in the yard */
-  if(!atStop&&st.mode!=='yard'){var hx=flip?x+5:x+20;rect(ctx,T.color,hx,y+1,3,1);rect(ctx,C.skin,hx,y+2,3,1);rect(ctx,C.ink,flip?hx:hx+2,y+2,1,1);}
+  if(!atStop&&st.mode!=='yard'){var cx0=hook?20:T.kind==='van'?18:19,cy0=hook?1:3,hx=flip?x+TRUCK_W-cx0-3:x+cx0;
+    rect(ctx,T.color,hx,y+cy0,3,1);rect(ctx,C.skin,hx,y+cy0+1,3,1);rect(ctx,C.ink,flip?hx:hx+2,y+cy0+1,1,1);}
   if(pos.moving&&Math.random()<.18)parts.push({x:flip?x+TRUCK_W:x-1,y:y+7,vx:(flip?1:-1)*5,vy:-3,life:.9,c:'#a8adb4'});
   /* who it is, in their colour */
   var lbl=T.label,bw=tw(lbl)+4,tx=Math.round(x+TRUCK_W/2-bw/2),ty=y-(carry?13:9);
@@ -832,7 +880,7 @@ function draw(nowT){
     else{var recent=M.events.slice(Math.max(0,reached-4),reached+1),n=Math.floor((nowT-showAt-REPLAY_MS)/4000);news=recent[recent.length-1-((n%recent.length)+recent.length)%recent.length].flap;}
   }
   ctx.drawImage(bgc,0,0);
-  drawOffice(nowT,t,vals,news);drawYard(nowT);
+  drawOffice(nowT,t,vals,news);drawYard(nowT);drawWhoBoard(t);drawBadgeWall(t);
   drawJWG(nowT,t);drawLots(nowT,t,tt.replaying);drawScenery(nowT);
   M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
     .forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
@@ -840,54 +888,62 @@ function draw(nowT){
   return tt;
 }
 
-/* ---------- the side column: who's who in the trucks, badges and today's story, in the board's own type ---------- */
-function truckLine(T,t){
+/* ---------- the right-hand block, in the world itself: the "who's out" board (every
+   vehicle's colour, name in big letters, what it is doing, stops done) and the badge wall ---------- */
+function boardStatus(T,t){
   var s=truckAt(T,t);
-  if(s.mode==='stop')return'At a stop'+(s.stop&&s.stop.town?' in '+s.stop.town:'');
-  if(s.mode==='drive')return s.to==='yard'?'Heading back to the yard':'Driving to '+(s.to&&s.to.town?s.to.town:'a stop');
-  if(s.mode==='yard')return'In the yard';
-  return'Out on the road';
+  function town(st){return st&&st.town?String(st.town).toUpperCase():'';}
+  if(s.mode==='stop')return'AT '+(town(s.stop)||'A STOP');
+  if(s.mode==='drive')return s.to==='yard'?'BACK TO BASE':'TO '+(town(s.to)||'A STOP');
+  if(s.mode==='yard')return T.kind==='truck'?'IN THE YARD':'PARKED';
+  return'ON THE ROAD';
 }
 function stopsDoneBy(T,t){return T.visits.filter(function(v){return v.tout!=null&&v.tout<=t;}).length;}
-var sideKey='';
-function renderSide(t){
-  var lines=M.trucks.map(function(T){return truckLine(T,t)+'|'+stopsDoneBy(T,t);});
-  var key=M.events.filter(function(e){return e.t<=t;}).length+'|'+(t>=M.now)+'|'+lines.join(',');
-  if(key===sideKey)return;sideKey=key;
-  if(els.trucks){
-    els.trucks.innerHTML=M.trucks.length?M.trucks.map(function(T){var n=stopsDoneBy(T,t);
-      return'<li><i style="background:'+T.color+'"></i><b>'+escH(T.driver||T.truckName||'Truck')+'</b><span>'+escH(truckLine(T,t))+'</span><em>'
-        +n+' stop'+(n===1?'':'s')+'</em></li>';}).join('')
-      :'<li class="empty"><span>No trucks out yet</span></li>';
-  }
-  if(els.badges){
-    els.badges.innerHTML=BADGE_DEFS.map(function(b){var at=M.earned[b.id],got=at!=null&&at<=t;
-      return'<div class="hq-badge'+(got?' got':'')+'"><canvas width="9" height="9" data-icon="'+b.icon+'"></canvas><b>'+b.name+'</b><span>'
-        +(got?(at>=M.now-MIN?'Earned':'Earned '+fmtClock(at)):b.hint)+'</span></div>';}).join('');
-    [].forEach.call(els.badges.querySelectorAll('canvas'),function(c){var ic=ICONS[c.getAttribute('data-icon')];spr(c.getContext('2d'),ic.rows,ic.pal,0,0,false);});
-  }
-  if(els.story){
-    var seen=M.events.filter(function(e){return e.t<=t;}).slice(-5).reverse();
-    els.story.innerHTML=seen.length?seen.map(function(e){return'<li class="'+e.kind+'"><time>'+fmtClock(e.t)+'</time><span>'+escH(e.line)+'</span></li>';}).join('')
-      :'<li class="empty"><span>Nothing yet today</span></li>';
-  }
+function bigSpr(rows,pal,x,y,s,grey){
+  for(var r=0;r<rows.length;r++)for(var i=0;i<rows[r].length;i++){var col=pal[rows[r].charAt(i)];if(!col)continue;
+    rect(ctx,grey?'#4a4f57':col,x+i*s,y+r*s,s,s);}
 }
-function escH(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function boardFrame(x0,y0,w,h,title){
+  rect(ctx,'#6b4a32',x0,y0,w,h);rect(ctx,'#15181c',x0+2,y0+2,w-4,h-4);
+  rect(ctx,'#6b4a32',x0+10,y0+h,2,LOT_Y-y0-h-9);rect(ctx,'#6b4a32',x0+w-12,y0+h,2,LOT_Y-y0-h-9);
+  text(ctx,title,x0+6,y0+5,'#f2c14e');rect(ctx,'#3a3f47',x0+4,y0+12,w-8,1);
+}
+function drawWhoBoard(t){
+  var x0=BOARD_X,y0=4,w=196,h=132;
+  boardFrame(x0,y0,w,h,"WHO'S OUT");text(ctx,'STOPS',x0+w-25,y0+5,'#8a8f98');
+  if(!M.trucks.length){text(ctx,'NO TRUCKS REPORTING',x0+6,y0+20,'#cfc6a6');return;}
+  M.trucks.slice(0,9).forEach(function(T,i){
+    var ry=y0+16+i*12,n=String(stopsDoneBy(T,t));
+    rect(ctx,T.color,x0+6,ry,6,10);
+    text2(ctx,T.label.slice(0,7),x0+15,ry,'#f2f0e6');
+    text(ctx,boardStatus(T,t).slice(0,17),x0+76,ry+3,'#cfc6a6');
+    text2(ctx,n,x0+w-6-n.length*8,ry,'#3cc46f');
+  });
+}
+function drawBadgeWall(t){
+  var x0=BOARD_X+200,y0=4,w=W-4-x0,h=132,cw=Math.floor((w-8)/2);
+  boardFrame(x0,y0,w,h,'TEAM BADGES');
+  BADGE_DEFS.forEach(function(b,i){
+    var at=M.earned[b.id],got=at!=null&&at<=t,cx=x0+4+(i%2)*cw,cy=y0+16+Math.floor(i/2)*29,ic=ICONS[b.icon];
+    if(got){rect(ctx,C.gold2,cx+1,cy-1,cw-2,28);rect(ctx,'#2a2412',cx+2,cy,cw-4,26);}
+    bigSpr(ic.rows,ic.pal,cx+Math.floor((cw-18)/2),cy+1,2,!got);
+    text(ctx,b.short,cx+Math.floor((cw-tw(b.short))/2),cy+20,got?C.gold:'#6b727e');
+  });
+}
 function badgeCount(){return BADGE_DEFS.filter(function(b){return M.earned[b.id]!=null;}).length;}
 
 function frame(nowT){
   var dtR=Math.min(.1,Math.max(0,(nowT-lastFrame)/1000));lastFrame=nowT;
   stepAmbient(dtR*AMBIENT_MIN_PER_SEC);updWeather(dtR);updScenery(dtR);
-  var tt=draw(nowT);
-  if(nowT-lastSide>250){lastSide=nowT;renderSide(tt.t);}
+  draw(nowT);
   raf=requestAnimationFrame(frame);
 }
 
 window.JJHQ={
-  /* opts: {canvas, trucks, badges, story} - the board's own elements */
+  /* opts: {canvas} - the board's own canvas; everything else is drawn in the world */
   mount:function(opts){
     if(!opts||!opts.canvas)throw new Error('JJHQ.mount needs a canvas');
-    cv=opts.canvas;ctx=cv.getContext('2d');els={trucks:opts.trucks,badges:opts.badges,story:opts.story};
+    cv=opts.canvas;ctx=cv.getContext('2d');
     bgc=document.createElement('canvas');bgc.width=W;bgc.height=H;bgx=bgc.getContext('2d');
     newAmbient();newScenery();
   },
@@ -900,11 +956,11 @@ window.JJHQ={
     var ytop=clamp(19+Math.ceil(M.bins.ready/7)*7+2,84,118);
     A.yard.forEach(function(j){j.region=[176,232,ytop,118];j.x=clamp(j.x,176,232);j.y=clamp(j.y,ytop,118);j.tx=clamp(j.tx,176,232);j.ty=clamp(j.ty,ytop,118);});
     drawBG();resetWeather();
-    stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;sideKey='';
+    stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;
     cancelAnimationFrame(raf);
-    showAt=lastFrame=performance.now();lastSide=0;
+    showAt=lastFrame=performance.now();
     /* a hidden tab gets no animation frames - draw the end state once so the screen is never blank */
-    if(document.hidden){showAt-=REPLAY_MS;draw(showAt+REPLAY_MS);renderSide(M.now);return;}
+    if(document.hidden){showAt-=REPLAY_MS;draw(showAt+REPLAY_MS);return;}
     raf=requestAnimationFrame(frame);
   },
   hide:function(){cancelAnimationFrame(raf);raf=0;},
