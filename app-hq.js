@@ -16,14 +16,16 @@
 (function(){
 'use strict';
 /* 720x312 fills the TV's whole stage (Jake, 2026-11-02: the whole screen is the game) */
-var W=720,H=330,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+/* 640x360 is exactly a third of the TV's 1920x1080, so the whole TV is the game and
+   every pixel lands as a clean 3x3 block (Jake, 2026-11-02) */
+var W=640,H=360,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
 /* the right-hand block: the "who's out" board and the badge wall, with a parking lot under them */
-var BOARD_X=404,LOT_Y=148;
+var BOARD_X=404,BOARD_H=136,LOT_Y=152;
 /* below the main road (Jake, 2026-11-02: "all info on the board", no "+N more"):
    row A of today's stops, a lane, row B, every bin out on rental, then the park */
 /* below the main road (Jake, 2026-11-02): one block per TOWN - row A along the road,
    row B along the lane - each with its bins out and today's stops; then the park */
-var ROWA=198,BLOCK_H=38,LANE_TOP=238,LANEY=LANE_TOP+2,ROWB=253,PARK_TOP=294,CX=3,LOTS_X=28;
+var ROWA=198,BLOCK_H=44,LANE_TOP=244,LANEY=LANE_TOP+2,ROWB=259,PARK_TOP=306,CX=3,LOTS_X=28;
 var REPLAY_MS=14000;                 // how long "today so far" takes to play
 var AMBIENT_MIN_PER_SEC=2;           // office and yard folk move on this clock, not the real one
 var MIN=60000;
@@ -88,7 +90,7 @@ var TRUCK_W=28,TRUCK_H=12;
 /* what a Geotab vehicle is, and what to call it when nobody is named as its driver */
 function vehicleKind(name){name=String(name||'');if(/van/i.test(name))return'van';if(/^hino/i.test(name))return'truck';return'pickup';}
 function vehicleName(name){name=String(name||'').trim();
-  if(/furniture bank/i.test(name))return'FB Van';if(/mercedes/i.test(name))return'Mercedes';if(/silverado/i.test(name))return'Silverado';
+  if(/furniture bank/i.test(name))return'FB Van';if(/mercedes/i.test(name))return'Merc Van';if(/silverado/i.test(name))return'Chevy';
   if(/L7/i.test(name))return'L7';var hy=name.match(/^hino\s+\d\d(\d\d)$/i);if(hy)return'Hino '+hy[1];
   return name.replace(/[^A-Za-z0-9 ]/g,'').trim().slice(0,10);}
 /* a van or a pickup in the same 28x12 box as a hook-lift, so placement is the same */
@@ -120,17 +122,19 @@ var BIN=[
 var binPal={O:C.out,B:C.bin,b:C.bin2},offPal={O:C.out,B:C.binOff,b:C.binOff2};
 
 /* ---------- the office crew (decoration: nameplates on the desks, nothing more) ---------- */
+/* everyone looks different, so you know who's who without reading a tag
+   (Jake, 2026-11-02): their own colour and one signature detail each */
 var P={
-  kelly:{hair:'#3b2416',long:true,shirt:C.staff},
-  rachel:{hair:'#c4703a',long:true,shirt:C.staff},
-  sam:{hair:'#2b2b2b',shirt:'#3a5168',pants:'#2b2f36'},
-  barb:{hair:'#d8cfc0',shirt:C.staff},
-  jake:{hair:'#5a4030',shirt:'#2b2f36'},
-  shop:{hair:'#2b2b2b',shirt:'#56606e',pants:'#3a3f47'},
-  yard1:{hair:'#5a4030',cap:'#1f7a33',shirt:C.staff,pants:'#3a3f47',coffee:true},
-  yard2:{hair:'#3b2416',cap:'#2b2f36',shirt:C.staff,pants:'#3a3f47',clip:true},
-  jwg1:{hair:'#6b4a32',cap:'#e8590c',shirt:'#e8590c',pants:'#3a3f47'},
-  jwg2:{hair:'#8a5a3c',long:true,shirt:'#6b8e23',pants:'#4f3a2e'}};
+  kelly:{hair:'#3b2416',long:true,shirt:'#2f74c8',headset:true},                    /* blue, phone headset */
+  rachel:{hair:'#b5532a',ponytail:true,shirt:'#d6336c',glasses:true},               /* pink, auburn ponytail, glasses */
+  sam:{hair:'#1d1d1d',shirt:'#3a5168',pants:'#2b2f36',tie:true},                     /* navy, red tie */
+  barb:{hair:'#d8d4cc',shirt:'#8b5cf6',pearls:true},                                 /* purple, silver hair, pearls */
+  jake:{hair:'#5a4030',shirt:'#3a3f47',hood:true,phones:'#d9412b',logo:true},       /* dark hoodie, red headphones */
+  shop:{hair:'#2b2b2b',shirt:'#56606e',pants:'#3a3f47',hardhat:'#f2c14e',belt:true}, /* Darrin: hard hat, tool belt */
+  jeff:{hair:'#5a4030',cap:'#1f7a33',shirt:C.staff,pants:'#3a3f47',coffee:true,beard:true},  /* green cap, beard, coffee */
+  josh:{hair:'#3b2416',shirt:'#1d1d1d',pants:'#1d1d1d',pimp:true,chain:true,cane:true},     /* the hat, the chain, the cane */
+  jwg1:{hair:'#6b4a32',cap:'#e8590c',shirt:'#e8590c',pants:'#3a3f47',vest:true},     /* hi-vis */
+  jwg2:{hair:'#8a5a3c',long:true,shirt:'#6b8e23',pants:'#4f3a2e',sunhat:true}};      /* straw sun hat */
 var CUSTOMERS=[{hair:'#3b2416',shirt:'#c4482b'},{hair:'#d8b46a',shirt:'#5f7f9e'},{hair:'#2b2b2b',shirt:'#e3b13a'},{hair:'#8a5a3c',shirt:'#8b5cf6'},
   {hair:'#c9c2b8',shirt:'#3f8f8f'},{hair:'#5a4030',shirt:'#d6336c'},{hair:'#2b2b2b',shirt:'#6b8e23'},{hair:'#a07a52',shirt:'#4f6d8a'}];
 /* office walkways: aisle between the desk rows (y 96), the gap between Barb's and Jake's desks (x 54), the floor at the bottom (y 134) */
@@ -141,7 +145,9 @@ var OFFICE=[
   {key:'sam',seat:[110,69],home:[114,AISLE],left:22},
   {key:'barb',seat:[26,111],home:[30,FLOOR],left:55},
   {key:'jake',seat:[74,111],home:[80,FLOOR],left:32}];
-var PLACES=[{p:[38,FLOOR]},{p:[46,FLOOR]},{p:[86,AISLE],not:'jake'},{p:[33,AISLE],not:'kelly'},
+/* where a booking is pinned: in front of the ticket wall in the booking room */
+var BOOK_SPOT={p:[101,148]};
+var PLACES=[BOOK_SPOT,{p:[38,FLOOR]},{p:[46,FLOOR]},{p:[86,AISLE],not:'jake'},{p:[33,AISLE],not:'kelly'},
   {p:[75,AISLE],not:'rachel'},{p:[108,AISLE],not:'sam'},{p:[22,FLOOR],not:'barb'}];
 
 /* ---------- seasons, from today's date; weather, from the board's real forecast ---------- */
@@ -166,24 +172,39 @@ function wxKind(code){
 var SE=SEASONS.fall,WX=null;
 
 /* ---------- drawing helpers ---------- */
-function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.face||1;
+function person(g,x,y,p,f){f=f||{};x=Math.round(x);y=Math.round(y);var face=f.face||1,dk='#2b2f36';
   if(p.long)rect(g,p.hair,x-1,y,7,8);
+  if(p.ponytail)rect(g,p.hair,face>0?x-2:x+5,y+1,2,4);
   rect(g,C.skin,x,y+1,5,4);
   rect(g,p.hair,x,y,5,2);
   if(!p.long){rect(g,p.hair,x,y+2,1,1);rect(g,p.hair,x+4,y+2,1,1);}
   rect(g,C.ink,x+1,y+3,1,1);rect(g,C.ink,x+3,y+3,1,1);
+  if(p.glasses){rect(g,C.ink,x,y+3,5,1);rect(g,'#bfe2f2',x+1,y+3,1,1);rect(g,'#bfe2f2',x+3,y+3,1,1);}
+  if(p.beard)rect(g,p.hair,x+1,y+4,3,1);
+  if(p.hood){rect(g,p.shirt,x-1,y,1,5);rect(g,p.shirt,x+5,y,1,5);}
+  if(p.headset){rect(g,dk,x,y-1,5,1);rect(g,dk,x-1,y+1,1,2);rect(g,dk,x+5,y+1,1,2);rect(g,dk,face>0?x+4:x,y+4,1,1);}
+  if(p.phones){rect(g,p.phones,x,y-1,5,1);rect(g,p.phones,x-1,y+1,1,3);rect(g,p.phones,x+5,y+1,1,3);}
   var cap=f.cap||p.cap;
   if(f.santa){rect(g,C.red,x,y-2,5,3);rect(g,C.red,face>0?x+4:x-1,y-3,2,1);rect(g,C.white,face>0?x+5:x-2,y-3,1,1);rect(g,C.white,x-1,y,7,1);}
+  else if(p.pimp){rect(g,'#6b3fa0',x-2,y,9,1);rect(g,'#6b3fa0',x,y-3,5,3);rect(g,C.gold,x,y-1,5,1);rect(g,C.red,face>0?x+4:x,y-5,1,2);rect(g,C.red,face>0?x+5:x-1,y-6,1,1);}
+  else if(p.hardhat){rect(g,p.hardhat,x-1,y-1,7,2);rect(g,p.hardhat,x,y-2,5,1);rect(g,'#c99a1e',x-1,y,7,1);}
+  else if(p.sunhat){rect(g,'#d8c27a',x-2,y,9,1);rect(g,'#d8c27a',x,y-2,5,2);rect(g,'#a8632a',x,y-1,5,1);}
   else if(cap){rect(g,cap,x,y-1,5,2);rect(g,cap,face>0?x+4:x-2,y,3,1);}
   rect(g,p.shirt,x-1,y+5,7,f.seated?6:4);
+  if(p.tie)rect(g,C.red,x+2,y+5,1,f.seated?5:4);
+  if(p.chain){rect(g,C.gold,x,y+5,5,1);rect(g,C.gold,x+2,y+6,1,1);}
+  if(p.pearls)for(var pq=0;pq<5;pq+=2)rect(g,C.white,x+pq,y+5,1,1);
+  if(p.logo)rect(g,'#3cc46f',x+3,y+6,1,1);
+  if(p.vest){rect(g,'#e6e4dc',x-1,y+7,7,1);rect(g,'#e6e4dc',x+1,y+5,1,2);rect(g,'#e6e4dc',x+3,y+5,1,2);}
   if(f.seated)return;
+  if(p.belt){rect(g,'#6b4a32',x-1,y+8,7,1);rect(g,'#9aa0a6',x+4,y+8,1,2);}
   rect(g,C.skin,x-2,y+6,1,2);
   if(f.wave)rect(g,C.skin,x+6,y+(f.arm?1:2),1,4);else rect(g,C.skin,x+6,y+6-(f.arm?2:0),1,2);
   var s=f.step?1:0,pants=p.pants||'#3a3f47';
   rect(g,pants,x,y+9,2,3-s);rect(g,pants,x+3,y+9,2,2+s);
   rect(g,C.ink,x,y+12-s,2,1);rect(g,C.ink,x+3,y+11+s,2,1);
   if(p.coffee){var cx=face>0?x+7:x-4;rect(g,C.white,cx,y+6,2,2);rect(g,C.wood,cx,y+6,2,1);}
-  if(p.clip){var kx=face>0?x+6:x-4;rect(g,'#8a6440',kx,y+5,3,4);rect(g,C.white,kx,y+6,3,2);}
+  if(p.cane){var kx=face>0?x+7:x-3;rect(g,'#1d1d1d',kx,y+6,1,7);rect(g,C.gold,kx,y+5,1,1);rect(g,C.gold,face>0?kx-1:kx+1,y+5,1,1);}
   if(f.rake){var rx=face>0?x+7:x-3;rect(g,C.wood,rx,y+3,1,9);rect(g,'#8a8f98',rx-1,y+12,3,1);}
   if(f.can){var wx=face>0?x+7:x-4;rect(g,'#5f8f8f',wx,y+7,3,3);rect(g,'#5f8f8f',face>0?wx+3:wx-1,y+7,1,1);}
 }
@@ -208,7 +229,7 @@ function tree(g,cx,cy,r2){
   if(SE.blossom)for(k=0;k<8;k++)rect(g,SE.blossom,cx+Math.floor(r2()*10)-5,cy+Math.floor(r2()*6)-3,1,1);
 }
 var HSTYLE=[{roof:'#a8483a',roof2:'#7f352a',wall:'#e6c39a'},{roof:'#4f6d8a',roof2:'#3a5168',wall:'#d4dde4'},{roof:'#6b5040',roof2:'#4f3a2e',wall:'#e9d6b0'}];
-var TREES=[76,104,132,160,188,216,236,344,372,410,450,490,530,570,610,650,690];
+var TREES=[76,104,132,160,188,216,236,344,372,410,450,490,530,570,610];
 /* a small house that fits a lot of any width */
 function drawMiniHouse(g,x,y,w,s){
   var rh=Math.min(6,Math.ceil(w/2)-1);
@@ -258,7 +279,7 @@ function drawRoads(g,r2){
 }
 /* lamps along the sidewalk, drawn after the buildings so they stand in front of them */
 function drawStreetBits(g){
-  [40,110,170,250,300,390,460,540,620,700].forEach(function(lx){rect(g,'#3a3f47',lx,RT-10,1,9);rect(g,'#3a3f47',lx-1,RT-11,3,1);rect(g,C.light,lx-1,RT-10,3,1);});
+  [40,110,170,250,300,390,460,540,620].forEach(function(lx){rect(g,'#3a3f47',lx,RT-10,1,9);rect(g,'#3a3f47',lx-1,RT-11,3,1);rect(g,C.light,lx-1,RT-10,3,1);});
 }
 
 /* ---------- static background: drawn once per showing ---------- */
@@ -286,13 +307,18 @@ function drawBG(){
   rect(g,'#9fd3f0',29,135,5,5);rect(g,'#e8eef2',29,140,5,12);rect(g,'#b9c3c9',29,151,5,1);
   rect(g,'#6b4f36',41,150,12,2);rect(g,'#6b4f36',42,152,2,6);rect(g,'#6b4f36',50,152,2,6);
   rect(g,'#c9ced4',40,141,14,9);rect(g,'#9aa0a6',40,141,14,2);rect(g,C.dark,42,145,10,1);rect(g,'#3cc46f',51,147,1,1);
-  rect(g,'#9a6644',86,146,42,3);rect(g,C.desk,86,149,42,8);rect(g,C.desk2,86,157,42,1);
-  for(x=90;x<128;x+=8)rect(g,C.desk2,x,150,1,6);
-  rect(g,C.gold2,121,144,3,2);rect(g,C.gold,122,143,1,1);
-  rect(g,'#8c3f2e',60,161,24,9);rect(g,'#a8503c',62,163,20,5);
-  if(SE.lights){for(i=0;i<12;i++){var w2=1+Math.floor(i*.7);rect(g,'#2f6a3a',135-Math.floor(w2/2),142+i*2,w2+1,2);}
-    rect(g,C.wood,134,166,2,4);rect(g,C.gold,134,140,2,2);}
-  else{rect(g,'#b86b45',132,162,7,7);rect(g,'#4f8f3a',130,153,11,9);rect(g,'#6aa84f',132,151,6,3);}
+  /* the booking room (Jake, 2026-11-02): tiled floor, walls with a door off the floor
+     lane, a ticket wall on the right and the bell on a little table. drawBooking paints
+     the tickets and the bell. */
+  rect(g,'#ddd1bb',86,138,53,35);for(x=86;x<139;x+=6)rect(g,'#d2c6ae',x,138,1,35);
+  rect(g,C.brick,84,136,55,2);rect(g,C.brick,84,136,2,37);rect(g,'#ddd1bb',96,136,11,2);
+  rect(g,'#7a5530',110,146,28,25);rect(g,'#c49a5a',111,147,26,23);
+  rect(g,'#8b6b4a',87,164,13,2);rect(g,'#6b4f36',88,166,2,6);rect(g,'#6b4f36',97,166,2,6);
+  sign(g,'BOOKINGS',118,139);
+  rect(g,'#8c3f2e',60,161,22,9);rect(g,'#a8503c',62,163,18,5);
+  if(SE.lights){for(i=0;i<10;i++){var w2=1+Math.floor(i*.7);rect(g,'#2f6a3a',70-Math.floor(w2/2),140+i*2,w2+1,2);}
+    rect(g,C.wood,69,160,2,3);rect(g,C.gold,69,138,2,2);}
+  else{rect(g,'#b86b45',66,152,7,6);rect(g,'#4f8f3a',64,144,11,9);rect(g,'#6aa84f',66,142,6,3);}
   sign(g,"JEFF'S JUNK",73,1);
   /* yard: 150..264 x 14..176 */
   var yg=SE.snow?'#e3e8ec':C.gravel,yg2=SE.snow?'#c9c4b6':C.gravel2;
@@ -432,14 +458,16 @@ function buildModel(s){
     var c=T.color.replace('#',''),lum=(parseInt(c.substr(0,2),16)*299+parseInt(c.substr(2,2),16)*587+parseInt(c.substr(4,2),16)*114)/255000;
     T.ink=lum>.62?C.ink:C.white;});
   /* entered today, for the flip board and the news line */
-  m.entered=s.entered.map(function(j){return{t:Date.parse(j.created_at),service:j.service,city:j.city||''};}).sort(function(a,b){return a.t-b.t;});
+  m.entered=s.entered.map(function(j){return{t:Date.parse(j.created_at),service:j.service,city:j.city||'',by:String(j.created_by||'').trim()};}).sort(function(a,b){return a.t-b.t;});
   m.emails=s.entered.filter(needsEmail).length;
   /* bin legs only, the same as the bin board's red "Unassigned" card - junk and
      furniture jobs are often not given a driver in the app, so they would cry wolf */
   m.noDriver=m.stops.filter(function(st){return(st.kind==='drop'||st.kind==='pick')&&!st.hasDriver;}).length;
   /* the events, in order */
   var ev=[];
-  m.entered.forEach(function(e){var sv=SVC_SHORT[e.service]||'job';ev.push({t:e.t,line:'New '+sv+(e.city?' · '+e.city:''),flap:'NEW '+sv+(e.city?' - '+e.city:''),kind:'new'});});
+  m.entered.forEach(function(e){var sv=SVC_SHORT[e.service]||'job',who=bookerName(e);
+    var what=who?who+' booked a '+sv:'New '+sv;
+    ev.push({t:e.t,line:what+(e.city?' · '+e.city:''),flap:what+(e.city?' - '+e.city:''),kind:'new'});});
   m.stops.forEach(function(st){if(st.doneAt==null)return;
     var what=st.kind==='drop'?'Bin dropped off':st.kind==='pick'?'Bin picked up':'Job done';
     ev.push({t:st.doneAt,line:what+(st.town?' · '+st.town:''),flap:what+(st.town?' - '+st.town:''),kind:'done',stop:st});});
@@ -597,7 +625,62 @@ function updWorker(w,dt){
       w.target=pick(PLACES.filter(function(p){return p.not!==w.key;}));w.pts=officeRoute([w.x,w.y],w.target.p);w.mode='walk';}
     else{w.pts=officeRoute([w.x,w.y],w.home);w.mode='back';}
     return;}
-  if(walkPath(w,dt,6)){if(w.mode==='walk'){w.mode='visit';w.left=5+rng()*8;}else{w.mode='seat';w.left=25+rng()*50;}}
+  /* a booking is walked a little quicker than a coffee run */
+  if(walkPath(w,dt,w.ticket?14:6)){
+    if(w.mode==='walk'){w.mode='visit';w.left=w.ticket?1.5:5+rng()*8;if(w.ticket){pinTicket(w.ticket,performance.now());w.ticket=null;}}
+    else{w.mode='seat';w.left=25+rng()*50;}}
+}
+
+/* ---------- the booking room: today's tickets on the wall, and new bookings walked in ----------
+   Every job records who entered it (jobs.created_by: Kelly, Rachel, Jake... or "system"
+   for ones made automatically). Each time the screen comes up, the bookings since the
+   last showing join a queue and play one at a time once the replay is done - the person
+   who booked it walks the ticket to the room, pins it and rings the bell - so a burst of
+   bookings is never missed even though the screen is only up for part of each lap. A
+   "system" booking comes out of the printer instead. The wall keeps every ticket all day. */
+var BQ=[],bookSeen=null,bookActive=null,bookNextAt=0,bellUntil=0,printUntil=0,bookNews=null;
+function bookerName(e){var b=e.by;return b&&!/^system$/i.test(b)?b.charAt(0).toUpperCase()+b.slice(1):'';}
+function bookerWorker(e){var k=String(e.by||'').toLowerCase();return A.ow[k]||null;}
+function queueBookings(){
+  var fresh=bookSeen==null?M.entered.slice(-2)        /* first showing after a reload: walk the latest two */
+    :M.entered.filter(function(e){return e.t>bookSeen;});
+  BQ=fresh.slice(-6).map(function(e){return{e:e,pinned:false};});
+  if(M.entered.length)bookSeen=M.entered[M.entered.length-1].t;
+  bookActive=null;bookNextAt=0;
+  A.office.forEach(function(w){w.ticket=null;});
+}
+function pinTicket(q,nowT){
+  q.pinned=true;bookActive=null;bookNextAt=nowT+1200;
+  bellUntil=nowT+1600;flashUntil=nowT+1200;stamp(118,128,'BOOKED',C.green,nowT);
+  var sv=(SVC_SHORT[q.e.service]||'job').toUpperCase(),who=bookerName(q.e);
+  bookNews={flap:(who?who.toUpperCase()+' BOOKED A ':'NEW ')+sv+(q.e.city?' - '+q.e.city.toUpperCase():''),until:nowT+8000};
+}
+function runBookings(nowT){
+  if(nowT-showAt<REPLAY_MS+500||nowT<bookNextAt)return;
+  if(bookActive){if(bookActive.printAt&&nowT>bookActive.printAt+1500)pinTicket(bookActive,nowT);return;}
+  var q=BQ.filter(function(b){return!b.pinned;})[0];if(!q)return;
+  bookActive=q;
+  var w=bookerWorker(q.e);
+  if(w){if(w.mode==='seat'){w.x=w.home[0];w.y=w.home[1];}
+    w.ticket=q;w.target=BOOK_SPOT;w.pts=officeRoute([w.x,w.y],BOOK_SPOT.p);w.mode='walk';}
+  else{q.printAt=nowT;printUntil=nowT+1500;}
+}
+var TICKET_COL={'Bin Rental':'#22c55e','Junk Removal':'#a8632a','Junk Quote':'#e39a1c','Furniture Pickup':'#8b5cf6','Furniture Delivery':'#8b5cf6'};
+var TICKET_SIZES=[{w:3,h:4,px:4,py:5},{w:2,h:3,px:3,py:4},{w:2,h:2,px:3,py:3}];
+function drawBooking(nowT,t){
+  /* the wall: every job entered so far, less the queued ones not yet walked in */
+  var waiting=BQ.filter(function(b){return!b.pinned;}).map(function(b){return b.e;});
+  var tickets=M.entered.filter(function(e){return e.t<=t&&waiting.indexOf(e)<0;});
+  var ax=112,ay=149,aw=25,ah=20,sz=TICKET_SIZES[TICKET_SIZES.length-1],k;
+  for(k=0;k<TICKET_SIZES.length;k++){var s0=TICKET_SIZES[k];if(Math.floor(aw/s0.px)*Math.floor(ah/s0.py)>=tickets.length){sz=s0;break;}}
+  var cols=Math.max(1,Math.floor(aw/sz.px));
+  tickets.forEach(function(e,i){var x=ax+(i%cols)*sz.px,y=ay+Math.floor(i/cols)*sz.py;
+    rect(ctx,'#f7f5ef',x,y,sz.w,sz.h);rect(ctx,TICKET_COL[e.service]||'#9aa0a6',x,y+1,sz.w,sz.h-1);rect(ctx,C.red,x+Math.floor(sz.w/2),y,1,1);});
+  /* the bell, which shakes when a ticket goes up */
+  var j=bellUntil>nowT?(Math.floor(nowT/60)%2?1:-1):0;
+  rect(ctx,C.gold2,90+j,161,6,2);rect(ctx,C.gold,91+j,159,4,2);rect(ctx,C.gold,92+j,158,2,1);rect(ctx,C.ink,92+j,163,2,1);
+  /* the printer, for bookings nobody walked in */
+  if(printUntil>nowT){var pr=1-(printUntil-nowT)/1500,ph=Math.round(pr*7);rect(ctx,C.white,43,140-ph,8,ph+1);rect(ctx,'#7d8a82',44,141-ph,5,1);}
 }
 function updWander(j,dt){
   if(j.wait>0){j.wait-=dt;j.moving=false;return;}
@@ -740,6 +823,7 @@ function drawSeat(w,f){
 function drawWalkers(nowT,lower){
   A.office.filter(function(w){return w.mode!=='seat'&&(w.y>=110)===lower;}).sort(function(a,b){return a.y-b.y;}).forEach(function(w){
     person(ctx,w.x,w.y,P[w.key],{face:w.face,step:w.mode!=='visit'&&Math.floor(nowT/180)%2});
+    if(w.ticket){var tx=w.face>0?w.x+6:w.x-3;rect(ctx,C.white,tx,w.y+4,3,4);rect(ctx,TICKET_COL[w.ticket.e.service]||'#9aa0a6',tx,w.y+5,3,1);}
     badge(ctx,w.key.toUpperCase(),w.x+2,w.y-9,C.sign);});   /* away from the desk nameplate, they carry their name */
 }
 function drawOffice(nowT,t,vals,news){
@@ -764,18 +848,27 @@ function drawOffice(nowT,t,vals,news){
   if(Math.floor(nowT/400)%2)rect(ctx,'#e8eef2',20,140,1,2);else rect(ctx,'#e8eef2',21,139,1,2);
   if(SE.lights){var cols=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/500);
     for(var lx=6;lx<142;lx+=4)rect(ctx,cols[(lx/4+sh)%4|0],lx,10,1,1);
-    for(var q=0;q<8;q++)rect(ctx,cols[(q+sh)%4],132+(q*3)%6,145+q*3,1,1);}
+    for(var q=0;q<8;q++)rect(ctx,cols[(q+sh)%4],67+(q*3)%6,142+q*2,1,1);}
 }
-function drawYard(nowT){
+function drawYard(nowT,t){
   /* every bin in the yard: ready ones in the main stack, then down the right-hand
      side the ones being prepped (amber tag) and the ones out of rotation (grey, red tag) */
   var b=M.bins,k;
   for(k=0;k<b.ready;k++)spr(ctx,BIN,binPal,153+(k%7)*13,19+Math.floor(k/7)*7,false);
   for(k=0;k<b.prep;k++){spr(ctx,BIN,binPal,250,19+k*7,false);rect(ctx,C.amber,258,20+k*7,2,2);}
   for(k=0;k<b.off;k++){var oy=19+(b.prep+k)*7;spr(ctx,BIN,offPal,250,oy,false);rect(ctx,C.red,258,oy+1,2,2);}
-  A.yard.slice().sort(function(a,c){return a.y-c.y;}).forEach(function(j,i){
-    person(ctx,j.x,j.y,i===0?P.yard1:P.yard2,{face:j.face,step:j.moving&&Math.floor(nowT/180)%2});});
+  /* Jeff and Josh walk the yard - each keeps his own look however they pass. Josh is
+     only in the yard while his pickup is (it is on the GPS feed); out on the road
+     he is in its cab. */
+  var joshTruck=M.trucks.filter(function(T){return T.driver==='Josh';})[0],
+      joshOut=joshTruck&&truckAt(joshTruck,t).mode!=='yard';
+  [{j:A.yard[0],p:P.jeff,name:'JEFF'},{j:A.yard[1],p:P.josh,name:'JOSH'}]
+    .filter(function(o){return!(o.name==='JOSH'&&joshOut);})
+    .sort(function(a,c){return a.j.y-c.j.y;}).forEach(function(o){var j=o.j;
+      person(ctx,j.x,j.y,o.p,{face:j.face,step:j.moving&&Math.floor(nowT/180)%2,santa:SE.lights&&o.name==='JEFF'});
+      badge(ctx,o.name,j.x+2,j.y-(o.name==='JOSH'?14:9),C.sign);});
   person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});
+  badge(ctx,'DARRIN',292,33,C.sign);
 }
 /* whether the hook is carrying a bin, read off the stops: on the way to a drop-off,
    or on the way out of a pick-up - the only times a bin has to be on the truck */
@@ -796,7 +889,8 @@ function drawTruck(T,pos,t,nowT){
   if(carry)spr(ctx,BIGBIN,binPal,flip?x+12:x+1,y-2,false);
   /* the driver sits in the cab, except out at a stop or parked up in the yard */
   if(!atStop&&st.mode!=='yard'){var cx0=hook?20:T.kind==='van'?18:19,cy0=hook?1:3,hx=flip?x+TRUCK_W-cx0-3:x+cx0;
-    rect(ctx,T.color,hx,y+cy0,3,1);rect(ctx,C.skin,hx,y+cy0+1,3,1);rect(ctx,C.ink,flip?hx:hx+2,y+cy0+1,1,1);}
+    rect(ctx,T.color,hx,y+cy0,3,1);rect(ctx,C.skin,hx,y+cy0+1,3,1);rect(ctx,C.ink,flip?hx:hx+2,y+cy0+1,1,1);
+    if(T.driver==='Josh'){rect(ctx,'#6b3fa0',hx-1,y+cy0,5,1);rect(ctx,'#6b3fa0',hx,y+cy0-1,3,1);rect(ctx,C.gold,hx,y+cy0,3,1);}}   /* the hat shows through the window */
   if(pos.moving&&Math.random()<.18)parts.push({x:flip?x+TRUCK_W:x-1,y:y+7,vx:(flip?1:-1)*5,vy:-3,life:.9,c:'#a8adb4'});
   /* who it is, in their colour */
   var lbl=T.label,bw=tw(lbl)+4,tx=Math.round(x+TRUCK_W/2-bw/2),ty=y-(carry?13:9);
@@ -814,7 +908,7 @@ function binsAtTown(T,t){
 var TOWN_BINS=[{w:5,h:3,px:6,py:4},{w:3,h:2,px:4,py:3},{w:2,h:2,px:3,py:3}];
 function drawTowns(nowT,t,replaying){
   M.towns.forEach(function(T){
-    var B=T.block,n=binsAtTown(T,t),ax=B.binX,aw=B.x+B.w-3-ax,ay=B.top+11,ah=16,k,sz=TOWN_BINS[TOWN_BINS.length-1];
+    var B=T.block,n=binsAtTown(T,t),ax=B.binX,aw=B.x+B.w-3-ax,ay=B.top+11,ah=BLOCK_H-22,k,sz=TOWN_BINS[TOWN_BINS.length-1];
     /* the sign: the town's name, and its bins out in green */
     var cnt=String(n),cw=tw(cnt)+4,nm=T.name.toUpperCase(),room=Math.floor((B.w-cw-9)/4);
     if(nm.length>room)nm=nm.slice(0,room);
@@ -828,7 +922,7 @@ function drawTowns(nowT,t,replaying){
     var per=Math.max(1,Math.floor((B.w-4)/4));
     T.stops.forEach(function(st,j){
       var done=stopDone(st,t),c=done?'#16a34a':((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver?C.red:'#f2f0e6');
-      var sx=B.x+3+(j%per)*4,sy=B.top+28+Math.floor(j/per)*4;rect(ctx,C.ink,sx,sy+1,3,3);rect(ctx,c,sx,sy,3,3);});
+      var sx=B.x+3+(j%per)*4,sy=B.top+BLOCK_H-11+Math.floor(j/per)*4;rect(ctx,C.ink,sx,sy+1,3,3);rect(ctx,c,sx,sy,3,3);});
     /* someone steps out and waves when a stop in their town is done */
     if(T.stops.some(function(st){return st.doneAt!=null&&t>=st.doneAt&&t<st.doneAt+(replaying?25*MIN:10*MIN);}))
       person(ctx,B.x+B.houses*14-4,B.top+12,CUSTOMERS[T.i%CUSTOMERS.length],{face:1,wave:true,arm:Math.floor(nowT/200)%2});
@@ -899,8 +993,10 @@ function draw(nowT){
     if(tt.replaying)news=M.events[reached].flap;
     else{var recent=M.events.slice(Math.max(0,reached-4),reached+1),n=Math.floor((nowT-showAt-REPLAY_MS)/4000);news=recent[recent.length-1-((n%recent.length)+recent.length)%recent.length].flap;}
   }
+  if(bookNews&&nowT<bookNews.until)news=bookNews.flap;   /* a booking just pinned takes the news line */
+  runBookings(nowT);
   ctx.drawImage(bgc,0,0);
-  drawOffice(nowT,t,vals,news);drawYard(nowT);drawWhoBoard(t);drawBadgeWall(t);
+  drawOffice(nowT,t,vals,news);drawBooking(nowT,t);drawYard(nowT,t);drawWhoBoard(t);drawBadgeWall(t);
   drawJWG(nowT,t);drawTowns(nowT,t,tt.replaying);drawScenery(nowT);
   M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
     .forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
@@ -928,26 +1024,29 @@ function boardFrame(x0,y0,w,h,title){
   rect(ctx,'#6b4a32',x0+10,y0+h,2,LOT_Y-y0-h-9);rect(ctx,'#6b4a32',x0+w-12,y0+h,2,LOT_Y-y0-h-9);
   text(ctx,title,x0+6,y0+5,'#f2c14e');rect(ctx,'#3a3f47',x0+4,y0+12,w-8,1);
 }
+/* every vehicle on one row each: colour, name big, what it's doing, stops done -
+   ten rows fit, which is the whole fleet on the map */
 function drawWhoBoard(t){
-  var x0=BOARD_X,y0=4,w=196,h=132;
+  var x0=BOARD_X,y0=4,w=156,h=BOARD_H;
   boardFrame(x0,y0,w,h,"WHO'S OUT");text(ctx,'STOPS',x0+w-25,y0+5,'#8a8f98');
   if(!M.trucks.length){text(ctx,'NO TRUCKS REPORTING',x0+6,y0+20,'#cfc6a6');return;}
-  M.trucks.slice(0,9).forEach(function(T,i){
-    var ry=y0+16+i*12,n=String(stopsDoneBy(T,t));
-    rect(ctx,T.color,x0+6,ry,6,10);
-    text2(ctx,T.label.slice(0,7),x0+15,ry,'#f2f0e6');
-    text(ctx,boardStatus(T,t).slice(0,17),x0+76,ry+3,'#cfc6a6');
-    text2(ctx,n,x0+w-6-n.length*8,ry,'#3cc46f');
+  M.trucks.slice(0,Math.floor((h-18)/11)).forEach(function(T,i){
+    var ry=y0+16+i*11,n=String(stopsDoneBy(T,t));
+    rect(ctx,T.color,x0+5,ry,5,10);
+    text2(ctx,T.label.slice(0,7),x0+13,ry,'#f2f0e6');
+    text(ctx,boardStatus(T,t).slice(0,13),x0+72,ry+3,'#cfc6a6');
+    text2(ctx,n,x0+w-5-n.length*8,ry,'#3cc46f');
   });
 }
+/* the badges in one column: icon and name, gold once earned */
 function drawBadgeWall(t){
-  var x0=BOARD_X+200,y0=4,w=W-4-x0,h=132,cw=Math.floor((w-8)/2);
-  boardFrame(x0,y0,w,h,'TEAM BADGES');
+  var x0=BOARD_X+160,y0=4,w=W-4-x0,h=BOARD_H;
+  boardFrame(x0,y0,w,h,'BADGES');
   BADGE_DEFS.forEach(function(b,i){
-    var at=M.earned[b.id],got=at!=null&&at<=t,cx=x0+4+(i%2)*cw,cy=y0+16+Math.floor(i/2)*29,ic=ICONS[b.icon];
-    if(got){rect(ctx,C.gold2,cx+1,cy-1,cw-2,28);rect(ctx,'#2a2412',cx+2,cy,cw-4,26);}
-    bigSpr(ic.rows,ic.pal,cx+Math.floor((cw-18)/2),cy+1,2,!got);
-    text(ctx,b.short,cx+Math.floor((cw-tw(b.short))/2),cy+20,got?C.gold:'#6b727e');
+    var at=M.earned[b.id],got=at!=null&&at<=t,cy=y0+16+i*15,ic=ICONS[b.icon];
+    if(got){rect(ctx,C.gold2,x0+3,cy-1,w-6,14);rect(ctx,'#2a2412',x0+4,cy,w-8,12);}
+    bigSpr(ic.rows,ic.pal,x0+6,cy+1,1,!got);
+    text(ctx,b.short,x0+18,cy+4,got?C.gold:'#6b727e');
   });
 }
 function badgeCount(){return BADGE_DEFS.filter(function(b){return M.earned[b.id]!=null;}).length;}
@@ -977,6 +1076,7 @@ window.JJHQ={
     A.yard.forEach(function(j){j.region=[176,232,ytop,118];j.x=clamp(j.x,176,232);j.y=clamp(j.y,ytop,118);j.tx=clamp(j.tx,176,232);j.ty=clamp(j.ty,ytop,118);});
     drawBG();resetWeather();
     stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;
+    bookNews=null;bellUntil=0;printUntil=0;queueBookings();
     cancelAnimationFrame(raf);
     showAt=lastFrame=performance.now();
     /* a hidden tab gets no animation frames - draw the end state once so the screen is never blank */
