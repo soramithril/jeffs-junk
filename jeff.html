@@ -431,6 +431,7 @@ a:hover{color:#15803d}
     setAngle:function(arg){ setAngle(arg); }, nextAngle:nextAngle,
     addPhoto:function(arg){ addPhoto(arg); },
     goQuotes:function(){ state.filter='Quote'; nav('photos'); },
+    openVisit:function(id){ location.href='quotes.html?from=jeff&q='+encodeURIComponent(id); },
     delPhoto:delPhoto,
     retryJobs:function(){ showToast('🔄 Trying again…'); loadJobs(); },
     retryPhotoSave:retryPhotoSave, giveUpPhotoSave:giveUpPhotoSave,
@@ -450,7 +451,7 @@ a:hover{color:#15803d}
     return (state.jobs||[]).filter(function(j){ return j.service==='Junk Quote' && (j.junk_date||j.date)===T; })
       .map(function(j){
         var tm = j.junk_date ? j.junk_time : j.time;
-        return { who:[j.name,j.city].filter(Boolean).join(' · '), addr:j.address||'', time:prettyTime(tm), tk:timeKey(tm) };
+        return { id:j.job_id, who:[j.name,j.city].filter(Boolean).join(' · '), addr:j.address||'', time:prettyTime(tm), tk:timeKey(tm) };
       })
       .sort(function(a,b){ return a.tk-b.tk; });
   }
@@ -489,10 +490,11 @@ a:hover{color:#15803d}
       qRows = '<div class="qrow"><div style="flex:1;font-size:14px;color:#98a0aa">Loading…</div></div>';
     } else if(quotes.length){
       qRows = quotes.map(function(q){
-        return '<div class="pa qrow" data-act="goQuotes">'+
+        // A tap starts the quote visit on the phone Quotes page (quotes.html).
+        return '<div class="pa qrow" data-act="openVisit" data-arg="'+esc(q.id)+'">'+
             '<div class="qtm">'+esc(q.time||'—')+'</div>'+
             '<div style="flex:1;min-width:0"><div class="qwho">'+esc(q.who||'Quote')+'</div>'+(q.addr?'<div class="qaddr">'+esc(q.addr)+'</div>':'')+'</div>'+
-            '<div style="font-size:17px">📷</div>'+
+            '<div style="font-size:15px;font-weight:800;color:#16a34a">Start ›</div>'+
           '</div>';
       }).join('');
     } else {

@@ -30,7 +30,7 @@ var QF_START = '2026-01-01';   // the tally counts this year's quotes
 var QF_FRESH_DAYS = 14;        // how far back the dashboard looks
 var QF_SNOOZE_DAYS = 3;        // "Followed up" brings the quote back after this many days
 var QF_NUDGE_HOUR = 13;        // the afternoon nudge card, local time
-var QF_COLS = 'job_id,name,status,date,junk_date,price,address,city,quote_outcome,quote_job_id,quote_note,quote_followed_up_at';
+var QF_COLS = 'job_id,name,status,date,junk_date,price,address,city,quote_outcome,quote_job_id,quote_note,quote_followed_up_at,quote_bins,quote_bins_max,quote_crew,quote_hours';
 var _qfFresh = [];             // the dashboard's quote rows, filled by refreshQuoteNeedsYou
 var _qfTab = 'open';           // Junk Quotes page: which outcome is listed
 
@@ -208,6 +208,7 @@ async function renderJunkQuotesPage(){
         + '<div style="flex:1 1 260px;min-width:0;cursor:pointer" onclick="openDetail(\'' + q.job_id + '\')">'
           + '<div style="font-size:17px;font-weight:800">' + escHtml(q.name || ('Quote ' + q.job_id)) + '</div>'
           + '<div style="font-size:13px;color:var(--muted);margin-top:2px">' + _qfMeta(q, today) + '</div>'
+          + (qvHas(q) ? '<div style="font-size:14px;font-weight:800;color:#15803d;margin-top:4px">' + escHtml(qvShortLine(q)) + '</div>' : '')
           + extra
         + '</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + right + '</div>'
@@ -257,7 +258,7 @@ async function qfSave(id, where, kind){
   var val = document.getElementById('qf-in-' + where + '-' + id).value.trim();
   if(!val){ toast(kind === 'booked' ? 'Type the job number first.' : 'Type a short note first.', 'error'); return; }
   if(kind === 'booked'){
-    var r = await db.from('jobs').select('job_id,service,photos,notes').eq('job_id', val).maybeSingle();
+    var r = await db.from('jobs').select('job_id,service,photos,notes,est_duration_min').eq('job_id', val).maybeSingle();
     if(r.error) throw new Error('Job lookup failed: ' + r.error.message);
     if(!r.data){ toast('There is no job ' + val + ' — check the number.', 'error'); return; }
     if(r.data.service === 'Junk Quote'){ toast(val + ' is another quote, not a job.', 'error'); return; }
@@ -285,7 +286,7 @@ async function qfReopen(id){
 // added after its own, the notes go at the end under "From quote N:". Returns what was
 // copied, in words, or '' when there was nothing to copy.
 async function _qfCarryToJob(quoteId, job){
-  var r = await db.from('jobs').select('photos,notes').eq('job_id', quoteId).single();
+  var r = await db.from('jobs').select('photos,notes,quote_hours').eq('job_id', quoteId).single();
   if(r.error) throw new Error('Could not load quote ' + quoteId + ': ' + r.error.message);
   var have = job.photos || [];
   var add = (r.data.photos || []).filter(function(p){ return have.indexOf(p) < 0; });
@@ -300,6 +301,11 @@ async function _qfCarryToJob(quoteId, job){
     fields.notes = (job.notes ? job.notes + '\n\n' : '') + tag + '\n' + qNotes;
     said.push('the notes');
   }
+  // The phone quote's hours become the job's estimated time, unless the job has one.
+  if(r.data.quote_hours != null && job.est_duration_min == null){
+    fields.est_duration_min = Math.round(Number(r.data.quote_hours) * 60);
+    said.push('the time estimate');
+  }
   if(!said.length) return '';
   var w = await patchJob(job.job_id, fields);
   if(w.error) throw new Error('Could not copy quote ' + quoteId + ' onto job ' + job.job_id + ': ' + w.error.message);
@@ -307,6 +313,7 @@ async function _qfCarryToJob(quoteId, job){
   if(local){
     if(fields.photos) local.photos = fields.photos.slice();
     if(fields.notes) local.notes = fields.notes;
+    if(fields.est_duration_min != null) local.estDurationMin = fields.est_duration_min;
   }
   return said.join(' and ');
 }
@@ -336,6 +343,12 @@ async function qfConvert(id){
     jobs.push(dbToJob(r.data));
   }
   convertQuoteToJob(id);
+  // The phone quote's hours fill the new job's estimated time (the form keeps minutes
+  // for Junk Removal). Crew, bins and the harder ticks stay on the quote and show on
+  // the job through renderFromQuoteBox and the printed sheet.
+  var v = await db.from('jobs').select('quote_hours').eq('job_id', id).single();
+  if(v.error) throw new Error('Could not load quote ' + id + ' hours: ' + v.error.message);
+  if(v.data.quote_hours != null) setEstDuration(Math.round(Number(v.data.quote_hours) * 60));
 }
 
 // The way back: a job that a quote was booked as names that quote at the top of its
@@ -343,32 +356,34 @@ async function qfConvert(id){
 async function renderFromQuoteBox(jobId){
   var el = document.getElementById('det-fromquote-box');
   if(!el) return;
-  var r = await db.from('jobs').select('job_id').eq('quote_job_id', jobId).eq('quote_outcome', 'booked').limit(1);
-  if(r.error) throw new Error('From-quote lookup failed: ' + r.error.message);
+  var q = await qvForJob(jobId);
   if(document.getElementById('det-fromquote-box') !== el || el.dataset.jid !== jobId) return;   // another job opened meanwhile
-  if(!r.data.length){ el.innerHTML = ''; return; }
-  var qid = r.data[0].job_id;
+  if(!q){ el.innerHTML = ''; return; }
+  var qid = q.job_id;
   el.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:12px 16px;margin-bottom:14px">'
     + '<div style="flex:1 1 auto;font-size:15px;font-weight:800;color:#b45309">📋 Booked from quote ' + escHtml(qid) + '</div>'
     + '<button class="djj-btn" onclick="openDetail(\'' + escHtml(qid) + '\')" style="font-size:14px;padding:10px 18px;border-radius:10px;border:2px solid #f59e0b;background:var(--surface);color:#b45309;font-weight:800">Open quote ' + escHtml(qid) + '</button>'
-  + '</div>';
+  + '</div>'
+  + (qvHas(q) ? qvBoxHtml(q, 'From the quote' + (qvWho(q) ? ' · ' + qvWho(q) : '')) : '');
 }
 
 // The box at the top of a quote's Job details.
 async function renderQuoteDetailBox(id){
   var el = document.getElementById('det-quote-box');
   if(!el) return;
-  var r = await db.from('jobs').select(QF_COLS).eq('job_id', id).single();
+  var r = await db.from('jobs').select(QF_COLS + ',quote_flags,quote_fb,quote_visit_note,assigned_crew_ids,photos').eq('job_id', id).single();
   if(r.error) throw new Error('Quote box query failed: ' + r.error.message);
   var q = r.data;
   if(document.getElementById('det-quote-box') !== el || el.dataset.qid !== id) return;   // another job opened meanwhile
   if(q.status === 'Cancelled'){ el.innerHTML = ''; return; }
+  // The phone answers sit above whichever box follows (open, booked or not going ahead).
+  var visit = qvHas(q) ? qvBoxHtml(q, qvWho(q) ? 'From ' + qvWho(q) + '\'s visit' : 'From the visit') : '';
   var note = q.quote_note
     ? '<div style="font-size:14px;margin-top:8px;color:var(--text-secondary)">' + (q.quote_followed_up_at ? '📞 ' + _qfShortDate(q.quote_followed_up_at.slice(0, 10)) + ': ' : '') + escHtml(q.quote_note) + '</div>'
     : '';
   var reopen = '<button onclick="qfReopen(\'' + id + '\')" style="margin-top:10px;background:none;border:none;padding:0;font-family:inherit;font-size:13px;font-weight:700;color:var(--muted);text-decoration:underline;cursor:pointer">Not right? Reopen this quote</button>';
   if(q.quote_outcome === 'booked'){
-    el.innerHTML = '<div style="background:#dcfce7;border:2px solid #16a34a;border-radius:14px;padding:16px 18px;margin-bottom:14px">'
+    el.innerHTML = visit + '<div style="background:#dcfce7;border:2px solid #16a34a;border-radius:14px;padding:16px 18px;margin-bottom:14px">'
       + '<div style="font-size:22px;font-weight:900;color:#15803d">✅ BOOKED</div>'
       + '<div style="font-size:15px;font-weight:700;margin-top:4px">This quote became job ' + escHtml(q.quote_job_id || '') + '.</div>'
       + (q.quote_job_id ? '<button class="djj-btn green" onclick="openDetail(\'' + q.quote_job_id + '\')" style="margin-top:10px;font-size:14px;padding:10px 18px;border-radius:10px">Open job ' + escHtml(q.quote_job_id) + '</button>' : '')
@@ -376,12 +391,12 @@ async function renderQuoteDetailBox(id){
     return;
   }
   if(q.quote_outcome === 'lost'){
-    el.innerHTML = '<div style="background:#f1f5f9;border:2px solid #94a3b8;border-radius:14px;padding:16px 18px;margin-bottom:14px">'
+    el.innerHTML = visit + '<div style="background:#f1f5f9;border:2px solid #94a3b8;border-radius:14px;padding:16px 18px;margin-bottom:14px">'
       + '<div style="font-size:22px;font-weight:900;color:#475569">✕ NOT GOING AHEAD</div>'
       + note + '<div>' + reopen + '</div></div>';
     return;
   }
-  el.innerHTML = '<div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:16px 18px;margin-bottom:14px">'
+  el.innerHTML = visit + '<div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:16px 18px;margin-bottom:14px">'
     + '<div style="font-size:15px;font-weight:900;color:#b45309;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Did this quote turn into a job?</div>'
     + '<button class="djj-btn green" onclick="qfConvert(\'' + id + '\')" style="width:100%;justify-content:center;font-size:19px;padding:16px 20px;border-radius:12px">⚡ Convert quote to job</button>'
     + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">'
