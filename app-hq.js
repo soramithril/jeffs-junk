@@ -435,7 +435,7 @@ function drawBoard(nowT,vals,news){
   var rows=[['ENTERED',vals.entered,'TOMORROW',vals.tomorrow],['WEEK',vals.week,'QUOTES',vals.quotesWeek],['CHASE',vals.quotesDue,'BINS OUT',vals.binsOut]];
   rows.forEach(function(r,i){var y=15+i*10;
     numFlap(37,y,r[0],r[1],65,'n'+i+'a',nowT,init,i===0&&vals.flash>nowT);
-    numFlap(82,y,r[2],r[3],113,'n'+i+'b',nowT,init,false);});
+    numFlap(82,y,r[2],r[3],114,'n'+i+'b',nowT,init,false);});
   rect(ctx,'#3a3f47',36,45,88,1);
   var msg=String(news||'GOOD MORNING').toUpperCase();
   if(msg!==tick.msg){tick.msg=msg;tick.pages=wrapPages(msg,20);tick.page=0;tick.pageAt=nowT;}
@@ -647,7 +647,7 @@ function drawStreet(nowT,t,replaying){
     if(waving)person(ctx,hx+42,RT+30,st.cust,{face:-1,wave:true,arm:Math.floor(nowT/200)%2});
     var lbl=String(st.town||'').slice(0,11);if(lbl)text(ctx,lbl,hx+13-tw(lbl)/2,HY+23,SE.snow?'#4f6d8a':'#2d4a22');
   });
-  if(M.more>0)sign(ctx,'+'+M.more+' MORE TODAY',356,HY+62);
+  if(M.more>0)sign(ctx,'+'+M.more+' MORE STOPS TODAY',200,H-10);
   if(SE.lights){var cols=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/450);
     for(var k=0;k<HOUSE_N;k++)for(var i2=0;i2<8;i2++)rect(ctx,cols[(i2+sh+k)%4],houseX(k)+2+i2*3,HY+8,1,1);}
 }
