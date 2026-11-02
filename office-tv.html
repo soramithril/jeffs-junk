@@ -239,13 +239,15 @@
   .p-head{display:none}
   .p-body{flex:1 1 auto; min-height:0}
 
-  /* ── Today at HQ (screen 4): the pixel scene from app-hq.js fills the whole stage
-     (Jake, 2026-11-02 - the whole screen is the game; who's who and the badges are
-     drawn in the world). The canvas is 720x312 drawn pixel-for-pixel, so it is
-     scaled up with pixelated sampling to the stage width. ── */
-  .panel[data-panel="hq"] .p-body{padding:0 40px; display:flex; align-items:center; justify-content:center}
-  #hqCanvas{display:block; height:100%; width:auto; max-width:100%; aspect-ratio:720/330; border-radius:14px;
-    image-rendering:crisp-edges; image-rendering:pixelated; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  /* ── Today at HQ (screen 4): the pixel scene from app-hq.js IS the screen (Jake,
+     2026-11-02). While it is up #board carries .hq-full: the stage covers all
+     1920x1080 and the header and footer step aside - the clock, the weather and the
+     bins-out count are all inside the picture. The canvas is 640x360, exactly a third
+     of the board each way, so every pixel lands as a clean 3x3 block. ── */
+  #board.hq-full #stage{position:absolute; inset:0; margin:0; z-index:0}
+  #board.hq-full #topbar, #board.hq-full #botbar{visibility:hidden}
+  .panel[data-panel="hq"] .p-body{padding:0}
+  #hqCanvas{display:block; width:100%; height:100%; image-rendering:crisp-edges; image-rendering:pixelated}
 
   /* ── Trucks: the map is the whole board ──────────────────────────────────
      The stage leaves the flow so it can cover all 1920x1080, and the header and
@@ -646,27 +648,35 @@
      The dot's outer ring is the DRIVER's colour when the day has told us who is in
      the truck (--ring, set inline by truckIcon from crew_members.color), so a truck
      and its stops read as one colour across the wall. */
-  .lo-tk{position:relative; width:18px; height:18px}
+  /* Small but it has to POP (Jake, same day): a white ring, the driver's colour,
+     and behind the dot a soft glow in the status colour (--c, set inline) that
+     breathes slowly, so every truck jumps out of the map without getting big. */
+  @keyframes tkhalo{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.35);opacity:.25}}
+  .lo-tk{position:relative; width:20px; height:20px}
+  .lo-tk .halo{position:absolute; inset:-13px; border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, var(--c) 0%, var(--c) 35%, transparent 70%);
+    animation:tkhalo 2.6s ease-in-out infinite}
   .lo-tk .b{position:absolute; inset:0; border-radius:50%;
-    box-shadow:0 0 0 3px var(--plate), 0 0 0 7px var(--ring, rgba(20,29,17,.82)), 0 4px 10px rgba(0,0,0,.45)}
-  .lo-tk .ping{position:absolute; inset:-7px; border-radius:50%; border:3px solid currentColor;
+    box-shadow:0 0 0 3px #fff, 0 0 0 7px var(--ring, rgba(20,29,17,.9)), 0 0 0 9px rgba(255,255,255,.85), 0 5px 12px rgba(0,0,0,.5)}
+  .lo-tk .ping{position:absolute; inset:-9px; border-radius:50%; border:3px solid currentColor;
     animation:tkping 1.7s ease-out infinite; pointer-events:none}
-  .lo-tk .flag{position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+  .lo-tk .flag{position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; pointer-events:none}
   /* --bub is the driver's colour; a truck with nobody named gets the dark bubble,
      smaller, because it carries a vehicle name rather than a first name. */
-  .lo-tk .bub{padding:3px 12px 5px; border-radius:14px; border:3px solid var(--plate);
-    background:var(--bub, rgba(17,24,18,.92)); color:var(--cream);
-    font:900 24px/1 Inter; letter-spacing:-.01em; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,.45)}
-  .lo-tk .bub.none{font-size:18px}
-  .lo-tk .ph{display:block; width:52px; margin-top:2px}
-  .lo-tk .ph img{display:block; width:100%;
-    filter:drop-shadow(0 0 2px var(--plate)) drop-shadow(0 4px 6px rgba(0,0,0,.5))}
-  .lo-tk .stem{width:3px; height:10px; border-radius:2px; background:var(--plate); box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .lo-tk .bub{padding:3px 13px 5px; border-radius:14px; border:3px solid #fff;
+    background:var(--bub, rgba(17,24,18,.94)); color:var(--cream);
+    font:900 26px/1 Inter; letter-spacing:-.01em; white-space:nowrap; box-shadow:0 5px 14px rgba(0,0,0,.55)}
+  .lo-tk .bub.none{font-size:19px}
+  /* the picture rides on a white sticker card so it lifts off the map */
+  .lo-tk .ph{display:block; width:62px; margin-top:3px; padding:3px 4px; border-radius:10px;
+    background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.5)}
+  .lo-tk .ph img{display:block; width:100%}
+  .lo-tk .stem{width:3px; height:10px; border-radius:2px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.5)}
   /* the truck the map is currently focused on */
-  .lo-tk.sel{width:24px; height:24px}
-  .lo-tk.sel .bub{font-size:30px}
-  .lo-tk.sel .ph{width:66px}
+  .lo-tk.sel{width:26px; height:26px}
+  .lo-tk.sel .bub{font-size:32px}
+  .lo-tk.sel .ph{width:76px}
   .lo-yard{width:22px; height:22px; border-radius:50%; background:var(--gold);
     box-shadow:0 0 0 4px var(--plate), 0 4px 10px rgba(0,0,0,.35)}
   /* Today's work, pinned by town. Deliberately unlike a truck pin — no pale ring
@@ -844,7 +854,7 @@
           <div class="p-head"><span class="bar"></span><h2>Today at HQ</h2>
             <span class="tag" id="hqTag"></span></div>
           <div class="p-body">
-            <canvas id="hqCanvas" width="720" height="330"></canvas>
+            <canvas id="hqCanvas" width="640" height="360"></canvas>
           </div>
         </section>
 
@@ -871,7 +881,7 @@
   <div id="netdot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app-hq.js?v=714"></script>
+  <script src="app-hq.js?v=715"></script>
   <script>
   (function(){
     "use strict";
@@ -888,8 +898,10 @@
     // read in seconds, and holding the wall on it for two minutes was showing the same
     // picture over and over (Jake, 2026-09-09). One lap of the highlight is enough.
     // Everything else stays at ROTATE_MS.
-    // Today at HQ replays the day in 14s, then holds on right now.
-    var PANEL_MS   = { liveops: 30000, hq: 25000 };
+    // Jake, 2026-11-02: slow the whole lap down so there is time to look at each
+    // screen - about 3.5 minutes a lap. Today at HQ replays the day in 14s, then
+    // holds on right now while the day's new bookings are walked to the booking room.
+    var PANEL_MS   = { bins: 40000, kpis: 30000, liveops: 45000, hq: 90000 };
     function panelMs(name){ return PANEL_MS[name] || ROTATE_MS; }
     var REFRESH_MS = 900000;  // how often data is refetched (15 min — keeps Supabase egress low; panels still rotate every 20s so the board stays lively)
     // The weekly crew schedule came off the wall on 2026-09-06 (Jake: "we don't
@@ -1325,7 +1337,7 @@
       var qfSince = ymd(new Date(parseLocal(today).getTime()-14*864e5));   // QF_FRESH_DAYS in app-quote-followup.js
       var res = await Promise.all([
         // entered today - the same rows as the dashboard's "Entered Today" card
-        db.from('jobs').select('service,city,status,created_at,email_sent,email_confirmed,no_email').gte('created_at',dayStartIso).lt('created_at',dayEndIso),
+        db.from('jobs').select('service,city,status,created_at,created_by,email_sent,email_confirmed,no_email').gte('created_at',dayStartIso).lt('created_at',dayEndIso),
         // jobs tomorrow, any leg, not counting quotes or landscaping (same exclusions as weekJobs)
         db.from('jobs').select('*',{count:'exact',head:true})
           .or('date.eq.'+tomorrow+',junk_date.eq.'+tomorrow+',fb_date.eq.'+tomorrow+',bin_dropoff.eq.'+tomorrow+',bin_pickup.eq.'+tomorrow)
@@ -1988,10 +2000,12 @@
       var ring = crewId ? '; --ring:'+driverColor(crewId) : '';
       var body = '<span class="flag">'+bub+(photo ? '<span class="ph"><img src="'+photo+'" alt=""></span>' : '')
                + '<span class="stem"></span></span>'
+               + '<span class="halo"></span>'
                + '<span class="b" style="background:'+c+ring+'">'+ping+'</span>';
       // Sizes live in CSS (.lo-tk / .lo-tk.sel), so there is no pixel size to
-      // declare here the way a Leaflet icon needed one.
-      return '<div class="lo-tk'+(sel ? ' sel' : '')+'">'+bub+body+'</div>';
+      // declare here the way a Leaflet icon needed one. --c is the status colour the
+      // halo glows in.
+      return '<div class="lo-tk'+(sel ? ' sel' : '')+'" style="--c:'+c+'">'+body+'</div>';
     }
 
     // Each truck's regular driver — the same pairing app-leaderboard.js encodes as
@@ -2553,6 +2567,8 @@
       syncFooter();
       // the trucks screen runs the map full bleed; the other two do not
       el('board').classList.toggle('map-full', name === 'liveops');
+      // ...and Today at HQ fills the whole TV, header and footer included
+      el('board').classList.toggle('hq-full', name === 'hq');
       // ...and the map has to be told, or it keeps framing for the old box
       if(name === 'liveops' && _map) google.maps.event.trigger(_map, 'resize');
       var panels = document.querySelectorAll('.panel');
@@ -2654,7 +2670,7 @@
     // standing at the wall saying "silence". Every notable event goes to the
     // proxy's tv-log action (function log only, no auth, no Geotab, nothing
     // stored). Fire-and-forget: telemetry must never be able to break the board.
-    var TV_BUILD = '2026-11-02-hq2';
+    var TV_BUILD = '2026-11-02-hq3';
     function tvLog(event, detail){
       try{
         fetch(SUPABASE_URL + '/functions/v1/geotab-proxy', {
