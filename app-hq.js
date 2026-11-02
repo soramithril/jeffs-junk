@@ -15,7 +15,15 @@
 // animates while the screen is off.
 (function(){
 'use strict';
-var W=400,H=270,RT=178,ROADY=RT+5,HY=RT+28,YARD_Y=150,SPEED=14;
+/* 720x312 fills the TV's whole stage (Jake, 2026-11-02: the whole screen is the game) */
+var W=720,H=330,RT=178,ROADY=RT+5,YARD_Y=150,SPEED=14;
+/* the right-hand block: the "who's out" board and the badge wall, with a parking lot under them */
+var BOARD_X=404,LOT_Y=148;
+/* below the main road (Jake, 2026-11-02: "all info on the board", no "+N more"):
+   row A of today's stops, a lane, row B, every bin out on rental, then the park */
+/* below the main road (Jake, 2026-11-02): one block per TOWN - row A along the road,
+   row B along the lane - each with its bins out and today's stops; then the park */
+var ROWA=198,BLOCK_H=38,LANE_TOP=238,LANEY=LANE_TOP+2,ROWB=253,PARK_TOP=294,CX=3,LOTS_X=28;
 var REPLAY_MS=14000;                 // how long "today so far" takes to play
 var AMBIENT_MIN_PER_SEC=2;           // office and yard folk move on this clock, not the real one
 var MIN=60000;
@@ -30,7 +38,7 @@ var C={road:'#585f6b',line:'#e9d98f',curb:'#b9b3a3',drive:'#a9a59a',
   gravel:'#cfc4ab',gravel2:'#bdb196',fence:'#7b5d41',metal:'#6b7280',metal2:'#5b6270',concrete:'#bdbab1',concrete2:'#aaa79e',
   dirt:'#a99172',dirt2:'#957e61',mound:'#8f8272',mound2:'#776b5d',mound3:'#a99c8a',
   truck:'#3d9b4f',truck2:'#2b7a3a',out:'#1d2a22',glass:'#bfe2f2',tire:'#22252b',rim:'#8a8f98',light:'#ffe28a',
-  bin:'#3f6f9e',bin2:'#2f5579',binOff:'#8c8f94',binOff2:'#6f7277',
+  bin:'#22c55e',bin2:'#15803d',binOff:'#8c8f94',binOff2:'#6f7277',
   skin:'#f0c39a',white:'#ffffff',paper:'#f7f5ef',paper2:'#dcd8cc',ink:'#1d2a22',sky:'#a9dcf5',grey:'#9aa0a6',dark:'#2b2f36',
   red:'#d9412b',amber:'#e39a1c',blue:'#2f74c8',green:'#16a34a',staff:'#2f8f46',gold:'#f2c14e',gold2:'#b7791f',
   trunk:'#6b4a32',sign:'#26332b',signText:'#f2f0e6',wood:'#6b4a32',snow:'#eef3f6',snow2:'#dbe4ec',nodriver:'#8a8f98'};
@@ -48,6 +56,11 @@ function text(g,s,x,y,c){s=String(s).toUpperCase();x=Math.round(x);y=Math.round(
   for(var i=0;i<s.length;i++){var gl=GL[s.charAt(i)]||GL[' '];
     for(var r=0;r<5;r++){var bt=gl[r];if(bt&4)g.fillRect(x,y+r,1,1);if(bt&2)g.fillRect(x+1,y+r,1,1);if(bt&1)g.fillRect(x+2,y+r,1,1);}
     x+=4;}}
+/* the same font at double size, for what has to be read from across the office */
+function text2(g,s,x,y,c){s=String(s).toUpperCase();x=Math.round(x);y=Math.round(y);g.fillStyle=c;
+  for(var i=0;i<s.length;i++){var gl=GL[s.charAt(i)]||GL[' '];
+    for(var r=0;r<5;r++)for(var b=0;b<3;b++)if(gl[r]&(4>>b))g.fillRect(x+b*2,y+r*2,2,2);
+    x+=8;}}
 function tw(s){return String(s).length*4-1;}
 function sign(g,s,cx,y){var w=tw(s)+6,x=Math.round(cx-w/2);rect(g,C.sign,x,y,w,9);text(g,s,x+3,y+2,C.signText);}
 function badge(g,s,cx,y,col){var w=tw(s)+4,x=Math.round(cx-w/2);rect(g,col,x,y,w,7);text(g,s,x+2,y+1,C.white);}
@@ -56,17 +69,48 @@ function spr(g,rows,pal,x,y,flip){x=Math.round(x);y=Math.round(y);var w=0,r,i;
   for(r=0;r<rows.length;r++){var row=rows[r];for(i=0;i<row.length;i++){var col=pal[row.charAt(i)];if(!col)continue;
     g.fillStyle=col;g.fillRect(flip?x+w-1-i:x+i,y+r,1,1);}}}
 
+/* a hook-lift truck, 28x12: flat bed on the left, cab on the right, three axles.
+   The driver sits in the window (cols 20-22, rows 1-2) - see drawTruck. */
 var TRUCK=[
-"............OOOOO...",
-"............OWWWGO..",
-"............OWWWGGO.",
-"OOOOOOOOOOOOOGGGGGGO",
-"OggggggggggOGGSGGGYO",
-"OggggggggggOGGSGGGGO",
-"OOOOOOOOOOOOOOOOOOOO",
-"..OKKO.........OKKO.",
-"..KkkK.........KkkK.",
-"...KK...........KK.."];
+"..................OOOOOOO...",
+"..................OWWWWGGO..",
+"..................OWWWWGGGO.",
+"..................OGGGGGGGO.",
+"OOOOOOOOOOOOOOOOOOOGGGGGGGGO",
+"OggggggggggggggggOOGGGSSGGYO",
+"OggggggggggggggggOOGGGSSGGGO",
+"OddddddddddddddddOOGGGGGGGGO",
+"OOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+"...OKKKO.....OKKKO.....OKKKO",
+"...KkkkK.....KkkkK.....KkkkK",
+"....KKK.......KKK.......KKK."];
+var TRUCK_W=28,TRUCK_H=12;
+/* what a Geotab vehicle is, and what to call it when nobody is named as its driver */
+function vehicleKind(name){name=String(name||'');if(/van/i.test(name))return'van';if(/^hino/i.test(name))return'truck';return'pickup';}
+function vehicleName(name){name=String(name||'').trim();
+  if(/furniture bank/i.test(name))return'FB Van';if(/mercedes/i.test(name))return'Mercedes';if(/silverado/i.test(name))return'Silverado';
+  if(/L7/i.test(name))return'L7';var hy=name.match(/^hino\s+\d\d(\d\d)$/i);if(hy)return'Hino '+hy[1];
+  return name.replace(/[^A-Za-z0-9 ]/g,'').trim().slice(0,10);}
+/* a van or a pickup in the same 28x12 box as a hook-lift, so placement is the same */
+function drawSmallVehicle(kind,x,y,flip,stripe){
+  function r(x0,y0,w,h,c){rect(ctx,c,flip?x+TRUCK_W-x0-w:x+x0,y+y0,w,h);}
+  if(kind==='van'){
+    r(2,2,22,8,C.out);r(3,3,20,6,'#eef1f4');r(22,4,4,6,C.out);r(22,5,3,4,'#eef1f4');
+    r(15,3,6,3,C.glass);r(22,5,2,2,C.glass);r(3,7,20,1,stripe);r(25,7,1,1,C.light);
+    [5,18].forEach(function(c){r(c,10,4,2,C.tire);r(c+1,10,2,1,C.rim);});
+  }else{
+    r(1,5,15,5,C.out);r(2,6,13,3,'#c9ced4');r(15,2,10,8,C.out);r(16,3,8,6,'#c9ced4');r(25,5,2,5,C.out);r(25,6,1,3,'#c9ced4');
+    r(18,3,5,3,C.glass);r(16,7,8,1,stripe);r(26,6,1,1,C.light);
+    [4,19].forEach(function(c){r(c,10,4,2,C.tire);r(c+1,10,2,1,C.rim);});
+  }
+}
+var BIGBIN=[
+"OOOOOOOOOOOOOOO",
+"OBBBBBBBBBBBBBO",
+".ObBBBBBBBBBbO.",
+".OBBBBBBBBBBBO.",
+"..OBBBBBBBBBO..",
+"..OOOOOOOOOOO.."];
 var BIN=[
 "OOOOOOOOOOO",
 "OBBBBBBBBBO",
@@ -164,9 +208,58 @@ function tree(g,cx,cy,r2){
   if(SE.blossom)for(k=0;k<8;k++)rect(g,SE.blossom,cx+Math.floor(r2()*10)-5,cy+Math.floor(r2()*6)-3,1,1);
 }
 var HSTYLE=[{roof:'#a8483a',roof2:'#7f352a',wall:'#e6c39a'},{roof:'#4f6d8a',roof2:'#3a5168',wall:'#d4dde4'},{roof:'#6b5040',roof2:'#4f3a2e',wall:'#e9d6b0'}];
-var TREES_A=[70,118,166,214,352,384],TREES_B=[94,142,190,238,340,372];
-var HOUSE_N=8;
-function houseX(k){return 10+k*48;}
+var TREES=[76,104,132,160,188,216,236,344,372,410,450,490,530,570,610,650,690];
+/* a small house that fits a lot of any width */
+function drawMiniHouse(g,x,y,w,s){
+  var rh=Math.min(6,Math.ceil(w/2)-1);
+  for(var r=0;r<rh;r++){var inset=Math.round((rh-1-r)*(w/2-1)/rh);rect(g,SE.snow&&r<2?C.snow:s.roof,x+inset,y+r,w-2*inset,1);}
+  rect(g,s.wall,x+1,y+rh,w-2,14-rh);rect(g,s.roof2,x+1,y+13,w-2,1);
+  rect(g,C.wood,x+Math.floor(w/2)-1,y+rh+3,2,14-rh-4);
+  if(w>=14){rect(g,C.sky,x+3,y+rh+2,2,2);rect(g,C.sky,x+w-5,y+rh+2,2,2);}
+}
+/* a town's block: its own lawn, a house or two and a picket fence. The sign, the
+   bins and the stop markers change through the day, so drawTowns paints those. */
+function drawTownBlock(g,T){
+  var B=T.block,x=B.x,w=B.w,top=B.top,fence=SE.snow?'#c9ced4':'#efe9dc';
+  rect(g,SE.snow?C.snow2:SE.grass3,x+1,top+10,w-2,BLOCK_H-11);
+  for(var px=x+1;px<x+w-1;px+=2)rect(g,fence,px,top+BLOCK_H-1,1,1);
+  rect(g,fence,x+1,top+BLOCK_H-2,w-2,1);rect(g,C.wood,x+w-1,top+10,1,BLOCK_H-9);
+  for(var h=0;h<B.houses;h++)drawMiniHouse(g,x+2+h*14,top+11,12,HSTYLE[(T.i+h)%3]);
+  if(SE.flowers)for(var f=0;f<B.houses*12;f+=3)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],x+3+f,top+26,1,1);
+  if(SE.pumpkins)rect(g,'#e8590c',x+3,top+25,3,2);
+  if(SE.leafPiles)for(var q=0;q<4;q++)rect(g,SE.leaves[q%4],x+4+q*3,top+26,2,1);
+}
+/* the parking lot for the vans and pickups, under the board */
+function drawParking(g,r2){
+  asphalt(g,r2,BOARD_X,LOT_Y,W-BOARD_X-4,RT-LOT_Y-1);
+  for(var x=BOARD_X+2;x<W-4;x+=31)rect(g,'#e6e4dc',x,LOT_Y+2,1,22);
+  if(SE.snow)rect(g,C.snow,BOARD_X,LOT_Y,W-BOARD_X-4,1);
+  sign(g,'PARKING',BOARD_X+24,LOT_Y-8);
+}
+
+/* ---------- roads: asphalt, sidewalk, edge lines, a double yellow centre, crosswalks ---------- */
+function asphalt(g,r2,x,y,w,h){rect(g,'#4f555f',x,y,w,h);for(var i=0;i<w*h/10;i++)rect(g,r2()<.5?'#5b626d':'#454a53',x+(r2()*w|0),y+(r2()*h|0),1,1);}
+function drawRoads(g,r2){
+  var x,y;
+  /* the main road: two lanes, one each way */
+  rect(g,'#cfcabd',0,RT-1,W,2);for(x=0;x<W;x+=8)rect(g,'#b2ac9c',x,RT-1,1,2);
+  asphalt(g,r2,0,RT+1,W,17);
+  rect(g,'#e6e4dc',0,RT+2,W,1);rect(g,'#e6e4dc',0,RT+16,W,1);
+  rect(g,'#e9c23a',0,RT+8,W,1);rect(g,'#e9c23a',0,RT+10,W,1);
+  [64,198].forEach(function(cx){for(var k=0;k<5;k++)rect(g,'#f2f0e8',cx+k*4,RT+3,2,13);});   /* office door, yard gate */
+  /* the side road down to the lane */
+  asphalt(g,r2,0,RT+18,26,LANE_TOP-RT-18);rect(g,'#e6e4dc',25,RT+18,1,LANE_TOP-RT-18);
+  for(y=RT+20;y<LANE_TOP;y+=5)rect(g,'#e9c23a',12,y,1,3);
+  /* the lane: narrower, with one dashed white centre line */
+  rect(g,'#b2ac9c',26,LANE_TOP-1,W,1);asphalt(g,r2,0,LANE_TOP,W,13);rect(g,'#b2ac9c',0,LANE_TOP+13,W,1);
+  for(x=30;x<W;x+=10)rect(g,'#e6e4dc',x,LANE_TOP+6,5,1);
+  if(SE.snow){rect(g,C.snow,0,RT-2,W,2);rect(g,C.snow,0,RT+18,W,1);rect(g,C.snow,26,LANE_TOP-1,W,1);rect(g,C.snow,0,LANE_TOP+13,W,1);
+    for(x=0;x<W;x+=3){rect(g,'#6b727e',x,RT+5,2,1);rect(g,'#6b727e',x+1,RT+13,2,1);}}
+}
+/* lamps along the sidewalk, drawn after the buildings so they stand in front of them */
+function drawStreetBits(g){
+  [40,110,170,250,300,390,460,540,620,700].forEach(function(lx){rect(g,'#3a3f47',lx,RT-10,1,9);rect(g,'#3a3f47',lx-1,RT-11,3,1);rect(g,C.light,lx-1,RT-10,3,1);});
+}
 
 /* ---------- static background: drawn once per showing ---------- */
 var bgc=null,bgx=null;
@@ -175,10 +268,7 @@ function drawBG(){
   var gr=SE.snow?[C.snow,C.snow2,C.white]:[SE.grass,SE.grass2,SE.grass3];
   rect(g,gr[0],0,0,W,H);
   for(i=0;i<1400;i++){x=r2()*W|0;y=r2()*H|0;rect(g,r2()<.5?gr[1]:gr[2],x,y,1,1);}
-  rect(g,C.curb,0,RT,W,2);rect(g,C.road,0,RT+2,W,16);rect(g,C.curb,0,RT+18,W,1);
-  for(x=4;x<W;x+=14)rect(g,C.line,x,RT+10,7,1);
-  if(SE.snow){rect(g,C.snow,0,RT-1,W,2);rect(g,C.snow2,0,RT+1,W,1);rect(g,C.snow,0,RT+18,W,2);
-    for(x=0;x<W;x+=3){rect(g,'#6b727e',x,ROADY,2,1);rect(g,'#6b727e',x+1,ROADY+9,2,1);}}
+  drawRoads(g,r2);
   /* office shell: 4..142 x 8..176 */
   rect(g,C.brick,4,8,139,169);
   for(y=8;y<177;y++)for(x=4;x<143;x++){if(x>=7&&x<140&&y>=11&&y<173)continue;var row=Math.floor((y-8)/3);
@@ -208,12 +298,18 @@ function drawBG(){
   var yg=SE.snow?'#e3e8ec':C.gravel,yg2=SE.snow?'#c9c4b6':C.gravel2;
   rect(g,yg,150,14,115,163);
   for(i=0;i<800;i++){x=150+r2()*115|0;y=14+r2()*163|0;rect(g,yg2,x,y,1,1);}
-  rect(g,C.fence,150,14,115,1);rect(g,C.fence,150,176,46,1);rect(g,C.fence,223,176,42,1);
+  rect(g,C.fence,150,14,115,1);rect(g,C.fence,150,176,44,1);rect(g,C.fence,231,176,34,1);
   rect(g,C.fence,150,14,1,163);rect(g,C.fence,264,14,1,163);
-  for(x=150;x<=264;x+=8){rect(g,C.fence,x,13,1,3);if(x<196||x>222)rect(g,C.fence,x,175,1,3);}
+  for(x=150;x<=264;x+=8){rect(g,C.fence,x,13,1,3);if(x<194||x>230)rect(g,C.fence,x,175,1,3);}
   for(y=14;y<=176;y+=8){rect(g,C.fence,149,y,3,1);rect(g,C.fence,263,y,3,1);}
-  rect(g,yg,196,176,27,2);
-  for(x=151;x<264;x+=22)rect(g,SE.snow?'#c9ced4':'#e9e3d0',x,YARD_Y-2,1,13);
+  rect(g,yg,194,176,37,2);
+  /* two rows of truck parking either side of the gate lane */
+  [152,182,229,259].forEach(function(px){rect(g,SE.snow?'#c9ced4':'#e9e3d0',px,YARD_Y-16,1,13);rect(g,SE.snow?'#c9ced4':'#e9e3d0',px,YARD_Y-1,1,14);});
+  /* yard gear: pallets, a tire stack, a fuel tank, a skid steer */
+  rect(g,'#b08a55',236,98,14,2);rect(g,'#b08a55',236,101,14,2);rect(g,'#8a6440',237,100,12,1);rect(g,'#8a6440',237,103,12,1);
+  for(i=0;i<4;i++){rect(g,'#22252b',253,92+i*3,8,2);rect(g,'#3a3f47',255,92+i*3,4,1);}
+  rect(g,'#d9412b',236,108,20,6);rect(g,'#a8321f',236,113,20,1);rect(g,'#6b727e',238,114,2,2);rect(g,'#6b727e',252,114,2,2);text(g,'FUEL',238,108,C.white);
+  rect(g,'#e3b13a',156,121,11,6);rect(g,'#2b2f36',158,118,6,4);rect(g,'#bfe2f2',159,119,4,2);rect(g,'#22252b',156,127,3,2);rect(g,'#22252b',164,127,3,2);rect(g,'#6b727e',167,123,4,1);rect(g,'#6b727e',170,122,2,4);
   sign(g,'YARD',207,9);
   /* back shop: 270..326 x 22..176 */
   rect(g,C.metal,270,22,57,155);for(x=270;x<327;x+=3)rect(g,C.metal2,x,22,1,155);
@@ -244,15 +340,16 @@ function drawBG(){
   rect(g,C.sky,339,24,6,4);rect(g,C.wood,346,27,3,6);
   rect(g,SE.snow?'#d9dcd8':C.dirt,336,176,46,2);
   sign(g,'DUMP',364,1);
-  /* the street: houses only - which stop each one is gets drawn live */
-  for(var k=0;k<HOUSE_N;k++){var hx=houseX(k);rect(g,C.drive,hx+2,RT+19,22,9);if(SE.snow)rect(g,C.snow,hx+2,RT+19,1,9);
-    drawHouse(g,hx,HY,HSTYLE[k%3]);
-    if(SE.flowers)for(var f=0;f<7;f++)rect(g,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],hx+3+f*3,HY+21,1,1);
-    if(SE.pumpkins){rect(g,'#e8590c',hx+22,HY+17,4,3);rect(g,'#2f6a3a',hx+23,HY+16,1,1);rect(g,C.ink,hx+23,HY+18,1,1);}
-    if(SE.leafPiles){for(var q=0;q<9;q++)rect(g,SE.leaves[q%4],hx+2+(q%5)*2,HY+27+Math.floor(q/5),2,1);}}
-  TREES_A.forEach(function(tx){tree(g,tx,HY+40,r2);});TREES_B.forEach(function(tx){tree(g,tx,HY+55,r2);});
-  if(!SE.snow){rect(g,'#7a5a3c',8,HY+34,52,26);for(i=0;i<60;i++)rect(g,'#6a4c32',8+r2()*52|0,HY+34+r2()*26|0,1,1);}
-  if(SE.park==='snowman'){var sy=HY+32;
+  drawParking(g,r2);
+  drawStreetBits(g);
+  /* a block for every town with a bin out or a stop today, row A along the road and row B along the lane */
+  M.towns.forEach(function(T){drawTownBlock(g,T);});
+  if(!M.towns.length)sign(g,'NO BINS OUT AND NO STOPS TODAY',W/2,ROWA+4);
+  /* the park: trees, a flower bed and a lawn the JWG crew look after */
+  rect(g,SE.snow?C.snow2:SE.grass2,0,PARK_TOP-2,W,1);
+  TREES.forEach(function(tx){tree(g,tx,PARK_TOP+8,r2);});
+  if(!SE.snow){rect(g,'#7a5a3c',8,PARK_TOP,52,30);for(i=0;i<60;i++)rect(g,'#6a4c32',8+r2()*52|0,PARK_TOP+r2()*30|0,1,1);}
+  if(SE.park==='snowman'){var sy=PARK_TOP-1;
     rect(g,C.white,286,sy+14,9,8);rect(g,C.white,287,sy+7,7,7);rect(g,C.white,288,sy+2,5,5);
     rect(g,C.ink,289,sy+4,1,1);rect(g,C.ink,291,sy+4,1,1);rect(g,'#e8590c',290,sy+5,2,1);rect(g,C.red,287,sy+7,7,1);
     rect(g,C.wood,284,sy+10,3,1);rect(g,C.wood,294,sy+10,3,1);rect(g,C.ink,290,sy+9,1,1);rect(g,C.ink,290,sy+11,1,1);
@@ -268,14 +365,14 @@ function fmtClock(ms){var d=new Date(ms),h=d.getHours(),m=d.getMinutes();return(
 function needsEmail(j){return j.status!=='Cancelled'&&!(j.email_sent||j.email_confirmed||j.no_email);}
 
 var BADGE_DEFS=[
-  {id:'early',name:'Early start',hint:'A stop done before 8:45',icon:'sun'},
-  {id:'ten',name:'Ten by noon',hint:'10 stops done before noon',icon:'clock'},
-  {id:'big',name:'Big day',hint:'15 stops done',icon:'truck'},
-  {id:'phone',name:"Phone's ringing",hint:'10 jobs entered today',icon:'phone'},
-  {id:'sweep',name:'Clean sweep',hint:'Every bin stop done',icon:'star'},
-  {id:'nodriver',name:'Nobody waiting',hint:'Every bin stop has a driver',icon:'person'},
-  {id:'inbox',name:'Inbox zero',hint:"Every new job's email sent",icon:'mail'},
-  {id:'quotes',name:'Quotes covered',hint:'No quote waiting on a call',icon:'paper'}];
+  {id:'early',name:'Early start',short:'EARLY START',hint:'A stop done before 8:45',icon:'sun'},
+  {id:'ten',name:'Ten by noon',short:'TEN BY NOON',hint:'10 stops done before noon',icon:'clock'},
+  {id:'big',name:'Big day',short:'BIG DAY',hint:'15 stops done',icon:'truck'},
+  {id:'phone',name:"Phone's ringing",short:'PHONE BUSY',hint:'10 jobs entered today',icon:'phone'},
+  {id:'sweep',name:'Clean sweep',short:'CLEAN SWEEP',hint:'Every bin stop done',icon:'star'},
+  {id:'nodriver',name:'Nobody waiting',short:'ALL DRIVERS',hint:'Every bin stop has a driver',icon:'person'},
+  {id:'inbox',name:'Inbox zero',short:'INBOX ZERO',hint:"Every new job's email sent",icon:'mail'},
+  {id:'quotes',name:'Quotes covered',short:'QUOTES DONE',hint:'No quote waiting on a call',icon:'paper'}];
 
 function buildModel(s){
   var m={now:s.now,dayStart:s.dayStart,counts:s.counts,bins:s.bins};
@@ -287,36 +384,53 @@ function buildModel(s){
     var kind=e.kind||(e.service==='Junk Removal'?'junk':/^Furniture/.test(e.service)?'furn':'other');
     var r=geo[e.jobId],doneAt=null;
     if(e.done&&r){var t=kind==='pick'?r.left:r.any;doneAt=isFinite(t)?t:null;}
-    return{i:i,jobId:e.jobId,kind:kind,service:e.service,town:e.town||'',time:e.time||'',hasDriver:!!e.hasDriver,done:!!e.done,doneAt:doneAt,slot:null,cust:CUSTOMERS[i%CUSTOMERS.length]};});
-  /* the street shows eight stops: whatever a truck is at now, then the latest ones a
-     truck has finished (up to five, so the replay has somewhere to go), then the next
-     ones still to do. The rest are counted on the "+N more today" sign. */
-  var visitedJobs={};s.visits.forEach(function(v){visitedJobs[String(v.job_id)]=v.inside&&!v.exited_at?'now':'yes';});
-  var atNow=m.stops.filter(function(st){return visitedJobs[String(st.jobId)]==='now';});
-  var finished=m.stops.filter(function(st){return st.doneAt!=null&&atNow.indexOf(st)<0;}).sort(function(a,b){return b.doneAt-a.doneAt;});
-  var todo=m.stops.filter(function(st){return!st.done&&atNow.indexOf(st)<0;});
-  var shown=atNow.slice(0,HOUSE_N);
-  finished.slice(0,Math.max(0,5-shown.length)).forEach(function(st){shown.push(st);});
-  todo.forEach(function(st){if(shown.length<HOUSE_N)shown.push(st);});
-  finished.forEach(function(st){if(shown.length<HOUSE_N&&shown.indexOf(st)<0)shown.push(st);});
-  shown.sort(function(a,b){return(a.doneAt||Infinity)-(b.doneAt||Infinity)||a.i-b.i;});
-  shown.forEach(function(st,k){st.slot=k;st.loc={x:houseX(k)+3,y:RT+18,ex:houseX(k)+3};});
-  m.shown=shown;m.more=m.stops.length-shown.length;
+    return{i:i,jobId:e.jobId,kind:kind,service:e.service,town:e.town||'',time:e.time||'',hasDriver:!!e.hasDriver,done:!!e.done,doneAt:doneAt,cust:CUSTOMERS[i%CUSTOMERS.length]};});
+  /* one block per town (Jake, 2026-11-02): every town with a bin out on rental or a
+     stop today, the busiest first, half along the main road and half along the lane.
+     Blocks narrow as there are more towns, so no town is ever left off. A stop's
+     truck parks at its town's block. */
+  var towns={},order=[];
+  function townOf(name){var nm=String(name||'').trim()||'No town',k=nm.toLowerCase();
+    if(!towns[k]){towns[k]={key:k,name:nm,out:0,stops:[]};order.push(towns[k]);}return towns[k];}
+  (s.outTowns||[]).forEach(function(c){townOf(c).out++;});
+  m.stops.forEach(function(st){var T=townOf(st.town);T.stops.push(st);st.townObj=T;});
+  order.sort(function(a,b){return(b.out+b.stops.length)-(a.out+a.stops.length)||a.name.localeCompare(b.name);});
+  var perRow=Math.max(8,Math.ceil(order.length/2)),bw=Math.floor((W-4-LOTS_X)/perRow);
+  order.forEach(function(T,k){
+    var row=k<perRow?0:1,x0=LOTS_X+(row?k-perRow:k)*bw,houses=bw>=50?2:1,tx=clamp(Math.round(x0+bw/2-TRUCK_W/2),LOTS_X-2,W-TRUCK_W-2);
+    T.i=k;T.block={x:x0,w:bw,top:row?ROWB:ROWA,houses:houses,binX:x0+3+houses*14};
+    T.loc={x:tx,y:row?LANEY:ROADY,ex:tx,lane:!!row};});
+  m.towns=order;
+  m.stops.forEach(function(st){st.loc=st.townObj.loc;});
   /* trucks, with the zones each one stood in today */
   var byJob={};m.stops.forEach(function(st){(byJob[st.jobId]=byJob[st.jobId]||[]).push(st);});
-  var yardSlots=[153,175,223,243,288];
-  var trucks=s.trucks.map(function(t){return{id:t.id,driver:t.driver||null,color:(t.driver&&s.crewColor[t.driver])||C.nodriver,state:t.state,visits:[]};});
+  /* the hook-lifts park in the yard, two rows each side of the gate lane (x 199), plus
+     the shop doorway; the vans and pickups (and any hook-lift past five) in the lot */
+  var yardSlots=[[153,YARD_Y],[230,YARD_Y],[153,YARD_Y-15],[230,YARD_Y-15],[288,YARD_Y]];
+  var lotSlots=[];for(var ls=BOARD_X+4;ls+TRUCK_W<W-4;ls+=31)lotSlots.push([ls,LOT_Y+12]);
+  /* who's who: the driver's name and app colour; a vehicle nobody has driven today goes by its own name */
+  var trucks=s.trucks.map(function(t){
+    var truckName=vehicleName(t.name);
+    return{id:t.id,driver:t.driver||null,label:(t.driver||truckName||'Truck').toUpperCase(),truckName:truckName,kind:vehicleKind(t.name),
+           color:(t.driver&&s.crewColor[t.driver])||C.nodriver,state:t.state,visits:[]};});
   var byId={};trucks.forEach(function(T){byId[T.id]=T;});
   var used={};
   s.visits.slice().sort(function(a,b){return Date.parse(a.entered_at)-Date.parse(b.entered_at);}).forEach(function(v){
     var T=byId[v.device_id];if(!T)return;
     var legs=byJob[v.job_id]||[],u=used[v.job_id]||0,st=legs[Math.min(u,legs.length-1)]||null;used[v.job_id]=u+1;
     T.visits.push({tin:Date.parse(v.entered_at),tout:v.exited_at?Date.parse(v.exited_at):null,inside:!!v.inside&&!v.exited_at,stop:st});});
-  m.trucks=trucks.filter(function(T){return T.visits.length||T.state!=='yard';}).slice(0,yardSlots.length);
-  m.trucks.forEach(function(T,i){var sx=yardSlots[i];
-    var gate=sx===288?288:199;   /* the fifth truck parks in the shop doorway, the rest in the yard */
-    T.yard={x:sx,y:YARD_Y,ex:gate,inPts:[[gate,YARD_Y]],outPts:[[gate,YARD_Y]]};
-    T.letter=T.driver?T.driver.charAt(0):'?';});
+  /* every vehicle the board has today: hook-lifts first, the ones that have worked
+     today ahead of the ones that haven't, then by name */
+  m.trucks=trucks.slice().sort(function(a,b){return(a.kind==='truck'?0:1)-(b.kind==='truck'?0:1)
+      ||(b.visits.length?1:0)-(a.visits.length?1:0)||a.label.localeCompare(b.label);})
+    .slice(0,yardSlots.length+lotSlots.length);
+  var yi=0,li=0;
+  m.trucks.forEach(function(T){
+    var inYard=T.kind==='truck'&&yi<yardSlots.length,sl=inYard?yardSlots[yi++]:lotSlots[li++],
+        gate=!inYard?sl[0]:sl[0]===288?288:199;
+    T.yard={x:sl[0],y:sl[1],ex:gate,inPts:[[gate,sl[1]]],outPts:[[gate,sl[1]]]};
+    var c=T.color.replace('#',''),lum=(parseInt(c.substr(0,2),16)*299+parseInt(c.substr(2,2),16)*587+parseInt(c.substr(4,2),16)*114)/255000;
+    T.ink=lum>.62?C.ink:C.white;});
   /* entered today, for the flip board and the news line */
   m.entered=s.entered.map(function(j){return{t:Date.parse(j.created_at),service:j.service,city:j.city||''};}).sort(function(a,b){return a.t-b.t;});
   m.emails=s.entered.filter(needsEmail).length;
@@ -369,12 +483,17 @@ function truckAt(T,t){
   if(T.state==='yard'){var arr=pend+20*MIN;if(t>=arr)return{mode:'yard'};return{mode:'drive',from:prev.stop,to:'yard',p:(t-pend)/(arr-pend)};}
   return{mode:'road',near:prev.stop};
 }
-var EDGE={x:378,y:ROADY,ex:378};
+var EDGE={x:W-TRUCK_W-2,y:ROADY,ex:W-TRUCK_W-2};
 function locOf(T,ref){if(ref==='yard')return T.yard;if(ref&&ref.loc)return ref.loc;return EDGE;}
+/* yard, shop and row A stops sit on the main road; row B stops on the lane, reached
+   down the side road at the left edge (CX) */
 function route(from,to){
   if(from===to)return[[to.x,to.y]];
   var pts=[[from.x,from.y]];(from.outPts||[]).forEach(function(p){pts.push(p.slice());});
-  pts.push([from.ex,ROADY]);pts.push([to.ex,ROADY]);
+  var fy=from.lane?LANEY:ROADY,ty=to.lane?LANEY:ROADY;
+  pts.push([from.ex,fy]);
+  if(fy!==ty){pts.push([CX,fy]);pts.push([CX,ty]);}
+  pts.push([to.ex,ty]);
   (to.inPts||[]).forEach(function(p){pts.push(p.slice());});
   pts.push([to.x,to.y]);return pts;
 }
@@ -387,13 +506,15 @@ function along(pts,p){
     want-=segs[i];}
   return{x:pts[pts.length-1][0],y:pts[pts.length-1][1],face:face};
 }
+/* on the main road a truck keeps to its own side: eastbound on the near lane, westbound on the far one */
+function keepRight(p){if(Math.abs(p.y-ROADY)<.5)p.y+=p.face>0?2:-4;return p;}
 function placeTruck(T,t,idx){
   var st=truckAt(T,t);
   if(st.mode==='yard')return{x:T.yard.x,y:T.yard.y,face:1,st:st};
-  if(st.mode==='stop'){var L=locOf(T,st.stop);return{x:L.x,y:L.y,face:1,st:st};}
-  if(st.mode==='drive'){var q=along(route(locOf(T,st.from),locOf(T,st.to)),st.p);return{x:q.x,y:q.y,face:q.face,st:st};}
-  var nx=st.near&&st.near.loc?st.near.loc.x+24:60+idx*70;
-  return{x:clamp(nx+idx*3,4,374),y:ROADY,face:1,st:st};
+  if(st.mode==='stop'){var L=locOf(T,st.stop);return keepRight({x:L.x,y:L.y,face:1,st:st});}
+  if(st.mode==='drive'){var q=along(route(locOf(T,st.from),locOf(T,st.to)),st.p);return keepRight({x:q.x,y:q.y,face:q.face,st:st,moving:true});}
+  var nx=st.near&&st.near.loc?st.near.loc.x+TRUCK_W+4:60+idx*70;
+  return keepRight({x:clamp(nx+idx*3,4,W-TRUCK_W-2),y:ROADY,face:1,st:st,moving:T.state==='moving'});
 }
 function stopDone(st,t){return st.doneAt!=null?t>=st.doneAt:(st.done&&t>=M.now);}
 
@@ -489,21 +610,48 @@ function stepAmbient(dt){
     A.office.forEach(function(w){updWorker(w,d);});A.yard.forEach(function(j){updWander(j,d);});}
 }
 
+/* ---------- scenery that keeps the picture busy: people on the sidewalk, gulls
+   over the dump and a loader on the pile. None of it is data. (No passing cars -
+   Jake took them out 2026-11-02: the road is for our trucks.) ---------- */
+var SC=null;
+function newScenery(){
+  SC={peds:[{x:20,v:7,look:{hair:'#3b2416',shirt:'#c4482b',pants:'#2b2f36'}},{x:260,v:-6,look:{hair:'#d8b46a',shirt:'#4f6d8a',pants:'#3a3f47'}},
+      {x:150,v:5,look:{hair:'#2b2b2b',shirt:'#e3b13a',pants:'#3a3f47'},dog:true}],
+    gulls:[0,1.6,3.1,4.4],loader:{x:360,dir:1}};
+}
+function updScenery(dtR){
+  SC.peds.forEach(function(p){p.x+=p.v*dtR;if(p.x>W+6)p.x=-8;if(p.x<-8)p.x=W+6;});
+  var L=SC.loader;L.x+=L.dir*4*dtR;if(L.x>378){L.dir=-1;}if(L.x<354){L.dir=1;}
+}
+function drawScenery(nowT){
+  SC.peds.forEach(function(p){
+    person(ctx,p.x,RT-13,p.look,{face:p.v>0?1:-1,step:Math.floor(nowT/220)%2});
+    if(p.dog){var dx=p.x+(p.v>0?9:-6);rect(ctx,'#8a5a3c',dx,RT-4,5,2);rect(ctx,'#8a5a3c',p.v>0?dx+4:dx-1,RT-5,2,2);rect(ctx,'#5a3a24',dx,RT-2,1,1);rect(ctx,'#5a3a24',dx+4,RT-2,1,1);}});
+  /* gulls circling the dump */
+  SC.gulls.forEach(function(ph,i){var a=nowT/1400+ph,gx=372+Math.cos(a)*(18+i*4),gy=42+Math.sin(a*1.3)*10,up=Math.floor(nowT/160+i)%2;
+    rect(ctx,'#f2f0e8',gx,gy,1,1);rect(ctx,'#f2f0e8',gx-2,gy-up,2,1);rect(ctx,'#f2f0e8',gx+1,gy-up,2,1);});
+  /* the loader pushing the pile */
+  var L=SC.loader,lx=Math.round(L.x),ly=128,f=L.dir<0;
+  rect(ctx,'#e3b13a',lx,ly,12,5);rect(ctx,'#2b2f36',f?lx+1:lx+5,ly-4,6,4);rect(ctx,C.glass,f?lx+2:lx+6,ly-3,4,2);
+  rect(ctx,'#22252b',lx+1,ly+5,3,2);rect(ctx,'#22252b',lx+8,ly+5,3,2);
+  rect(ctx,'#9aa0a6',f?lx-4:lx+12,ly+1,4,4);rect(ctx,'#6b727e',f?lx-1:lx+11,ly+2,2,1);
+}
+
 /* ---------- weather and particles ---------- */
 var wx=[],parts=[],conf=[],stamps=[],banner=null;
 function weatherNow(){return WX||SE.ambient||null;}
-function resetWeather(){wx=[];var w=weatherNow(),n=w==='snow'?190:w==='rain'?110:w==='leaves'?30:w==='butterflies'?5:0;
+function resetWeather(){wx=[];var w=weatherNow(),n=Math.round((w==='snow'?190:w==='rain'?110:w==='leaves'?30:w==='butterflies'?5:0)*W/400);
   for(var i=0;i<n;i++)wx.push(newFlake(w,true));}
 function newFlake(w,anyY){var f={x:Math.random()*W,y:anyY?Math.random()*H:-4,ph:Math.random()*6.28};
   if(w==='snow'){f.vy=6+Math.random()*8;f.c=Math.random()<.7?'#ffffff':'#dbe4ec';}
   else if(w==='rain'){f.vy=110+Math.random()*40;f.c='#9fc3e0';}
   else if(w==='leaves'){f.vy=5+Math.random()*6;f.c=SE.leaves[Math.floor(Math.random()*SE.leaves.length)];}
-  else{f.x=170+Math.random()*150;f.y=HY-6+Math.random()*60;f.vy=0;f.c=['#f2c14e','#ffffff','#f4b6c8','#e8590c'][Math.floor(Math.random()*4)];}
+  else{f.x=170+Math.random()*150;f.y=PARK_TOP+Math.random()*18;f.vy=0;f.c=['#f2c14e','#ffffff','#f4b6c8','#e8590c'][Math.floor(Math.random()*4)];}
   return f;}
 function updWeather(dtR){
   var w=weatherNow();
   wx.forEach(function(f,i){
-    if(w==='butterflies'){f.ph+=dtR*3;f.x+=Math.cos(f.ph*.7)*10*dtR;f.y+=Math.sin(f.ph)*8*dtR;f.x=clamp(f.x,4,396);f.y=clamp(f.y,HY-6,H-4);return;}
+    if(w==='butterflies'){f.ph+=dtR*3;f.x+=Math.cos(f.ph*.7)*10*dtR;f.y+=Math.sin(f.ph)*8*dtR;f.x=clamp(f.x,4,W-4);f.y=clamp(f.y,PARK_TOP-4,H-4);return;}
     f.ph+=dtR*2;f.y+=f.vy*dtR;if(w!=='rain')f.x+=Math.sin(f.ph)*(w==='leaves'?10:5)*dtR+(w==='leaves'?3*dtR:0);
     if(f.y>H+2||f.x>W+4)wx[i]=newFlake(w,false);
   });
@@ -553,7 +701,7 @@ function drawBanner(nowT){
 }
 
 /* ---------- one frame ---------- */
-var cv=null,ctx=null,els={},raf=0,showAt=0,lastFrame=0,lastSide=0,lastEv=-1,flashUntil=0;
+var cv=null,ctx=null,raf=0,showAt=0,lastFrame=0,lastEv=-1,flashUntil=0;
 function sceneTime(nowT){
   var p=clamp((nowT-showAt)/REPLAY_MS,0,1),e=p<1?1-Math.pow(1-p,2):1;
   return{t:M.start+(M.now-M.start)*e,replaying:p<1};
@@ -591,7 +739,8 @@ function drawSeat(w,f){
 }
 function drawWalkers(nowT,lower){
   A.office.filter(function(w){return w.mode!=='seat'&&(w.y>=110)===lower;}).sort(function(a,b){return a.y-b.y;}).forEach(function(w){
-    person(ctx,w.x,w.y,P[w.key],{face:w.face,step:w.mode!=='visit'&&Math.floor(nowT/180)%2});});
+    person(ctx,w.x,w.y,P[w.key],{face:w.face,step:w.mode!=='visit'&&Math.floor(nowT/180)%2});
+    badge(ctx,w.key.toUpperCase(),w.x+2,w.y-9,C.sign);});   /* away from the desk nameplate, they carry their name */
 }
 function drawOffice(nowT,t,vals,news){
   var O=A.ow,tk=Math.floor(nowT/200)%2,tr=Math.floor(nowT/230)%2,tb=Math.floor(nowT/260)%2,tj=Math.floor(nowT/150)%2,ts=Math.floor(nowT/400)%2;
@@ -618,43 +767,79 @@ function drawOffice(nowT,t,vals,news){
     for(var q=0;q<8;q++)rect(ctx,cols[(q+sh)%4],132+(q*3)%6,145+q*3,1,1);}
 }
 function drawYard(nowT){
+  /* every bin in the yard: ready ones in the main stack, then down the right-hand
+     side the ones being prepped (amber tag) and the ones out of rotation (grey, red tag) */
   var b=M.bins,k;
-  for(k=0;k<Math.min(b.ready,30);k++)spr(ctx,BIN,binPal,155+(k%5)*15,19+Math.floor(k/5)*10,false);
-  if(b.ready>30)badge(ctx,'+'+(b.ready-30),190,76,C.bin);
-  for(k=0;k<Math.min(b.off,3);k++){spr(ctx,BIN,offPal,238,19+k*8,false);rect(ctx,C.amber,246,20+k*8,2,2);}
+  for(k=0;k<b.ready;k++)spr(ctx,BIN,binPal,153+(k%7)*13,19+Math.floor(k/7)*7,false);
+  for(k=0;k<b.prep;k++){spr(ctx,BIN,binPal,250,19+k*7,false);rect(ctx,C.amber,258,20+k*7,2,2);}
+  for(k=0;k<b.off;k++){var oy=19+(b.prep+k)*7;spr(ctx,BIN,offPal,250,oy,false);rect(ctx,C.red,258,oy+1,2,2);}
   A.yard.slice().sort(function(a,c){return a.y-c.y;}).forEach(function(j,i){
     person(ctx,j.x,j.y,i===0?P.yard1:P.yard2,{face:j.face,step:j.moving&&Math.floor(nowT/180)%2});});
   person(ctx,290,44,P.shop,{arm:Math.floor(nowT/300)%2});
 }
-function drawTruck(T,pos,t,nowT){
-  var x=Math.round(pos.x),y=Math.round(pos.y),flip=pos.face<0;
-  spr(ctx,TRUCK,{O:C.out,W:C.glass,G:C.truck,g:C.truck2,S:T.color,Y:C.light,K:C.tire,k:C.rim},x,y,flip);
-  if(SE.snow)rect(ctx,C.snow,flip?x+3:x+12,y,5,1);
-  var tagX=flip?x+1:x+13,tagY=y-9;
-  rect(ctx,T.color,tagX,tagY,5,7);text(ctx,T.letter,tagX+1,tagY+1,C.white);rect(ctx,T.color,tagX+2,tagY+7,1,1);
-  if(pos.st.mode==='stop'&&pos.st.stop&&pos.st.stop.loc){
-    person(ctx,pos.st.stop.loc.x+30,RT+23,{hair:'#5a4030',cap:T.color,shirt:C.staff,pants:'#3a3f47'},{face:1,arm:Math.floor(nowT/300)%2});}
+/* whether the hook is carrying a bin, read off the stops: on the way to a drop-off,
+   or on the way out of a pick-up - the only times a bin has to be on the truck */
+function carrying(st,t){
+  if(st.mode==='drive')return!!((st.to&&st.to.kind==='drop')||(st.from&&st.from.kind==='pick'));
+  if(st.mode==='stop'&&st.stop)return st.stop.kind==='drop'?!stopDone(st.stop,t):st.stop.kind==='pick'&&stopDone(st.stop,t);
+  if(st.mode==='road')return!!(st.near&&st.near.kind==='pick');
+  return false;
 }
-function drawStreet(nowT,t,replaying){
-  M.shown.forEach(function(st){
-    var hx=houseX(st.slot),done=stopDone(st,t);
-    if(st.kind==='drop'&&done)spr(ctx,BIN,binPal,hx+30,HY+12,false);
-    if(st.kind==='pick'&&!done)spr(ctx,BIN,binPal,hx+30,HY+12,false);
-    if((st.kind==='junk'||st.kind==='furn'||st.kind==='other')&&!done){
-      var hc=['#8a6d4f','#a3a3a3','#c45a3a','#d8cfa8','#5f7f9e'];for(var i=0;i<12;i++)rect(ctx,hc[i%5],hx+31+(i%6)*2,HY+14+Math.floor(i/6)*-1+(i%2),2,1);}
-    if((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver&&!done)badge(ctx,'NO DRIVER',hx+13,HY-8,C.red);
-    var waving=st.doneAt!=null&&t>=st.doneAt&&t<st.doneAt+(replaying?25*MIN:10*MIN);
-    if(waving)person(ctx,hx+42,RT+30,st.cust,{face:-1,wave:true,arm:Math.floor(nowT/200)%2});
-    var lbl=String(st.town||'').slice(0,11);if(lbl)text(ctx,lbl,hx+13-tw(lbl)/2,HY+23,SE.snow?'#4f6d8a':'#2d4a22');
+function drawTruck(T,pos,t,nowT){
+  var x=Math.round(pos.x),y=Math.round(pos.y),flip=pos.face<0,st=pos.st,atStop=st.mode==='stop',hook=T.kind==='truck',carry=hook&&carrying(st,t);
+  ctx.globalAlpha=.3;rect(ctx,C.ink,x+2,y+TRUCK_H,TRUCK_W-4,1);ctx.globalAlpha=1;
+  if(hook){
+    spr(ctx,TRUCK,{O:C.out,W:C.glass,G:C.truck,g:C.truck2,d:'#1f5e2c',S:T.color,Y:C.light,K:C.tire,k:C.rim},x,y,flip);
+    if(pos.moving&&Math.floor(nowT/120)%2)[5,15,25].forEach(function(c){rect(ctx,C.tire,flip?x+TRUCK_W-1-c:x+c,y+10,1,1);});
+  }else drawSmallVehicle(T.kind,x,y,flip,T.color);
+  if(SE.snow)rect(ctx,C.snow,flip?x+3:x+(hook?19:15),y+(hook?0:2),6,1);
+  if(carry)spr(ctx,BIGBIN,binPal,flip?x+12:x+1,y-2,false);
+  /* the driver sits in the cab, except out at a stop or parked up in the yard */
+  if(!atStop&&st.mode!=='yard'){var cx0=hook?20:T.kind==='van'?18:19,cy0=hook?1:3,hx=flip?x+TRUCK_W-cx0-3:x+cx0;
+    rect(ctx,T.color,hx,y+cy0,3,1);rect(ctx,C.skin,hx,y+cy0+1,3,1);rect(ctx,C.ink,flip?hx:hx+2,y+cy0+1,1,1);}
+  if(pos.moving&&Math.random()<.18)parts.push({x:flip?x+TRUCK_W:x-1,y:y+7,vx:(flip?1:-1)*5,vy:-3,life:.9,c:'#a8adb4'});
+  /* who it is, in their colour */
+  var lbl=T.label,bw=tw(lbl)+4,tx=Math.round(x+TRUCK_W/2-bw/2),ty=y-(carry?13:9);
+  rect(ctx,T.color,tx,ty,bw,7);text(ctx,lbl,tx+2,ty+1,T.ink);rect(ctx,T.color,tx+Math.floor(bw/2),ty+7,1,1);
+  if(atStop)person(ctx,x+TRUCK_W+1,y-1,{hair:'#5a4030',cap:T.color,shirt:C.staff,pants:'#3a3f47'},{face:-1,arm:Math.floor(nowT/300)%2});
+}
+/* bins out in a town at time t: what is out now, wound back through today's drop-offs
+   and pick-ups still to happen at t - so the replay moves the bins with the trucks */
+function binsAtTown(T,t){
+  var n=T.out;
+  T.stops.forEach(function(st){if(st.doneAt!=null&&st.doneAt>t){if(st.kind==='drop')n--;else if(st.kind==='pick')n++;}});
+  return Math.max(0,n);
+}
+/* bin sizes to try, biggest first, so every bin a town has fits its block */
+var TOWN_BINS=[{w:5,h:3,px:6,py:4},{w:3,h:2,px:4,py:3},{w:2,h:2,px:3,py:3}];
+function drawTowns(nowT,t,replaying){
+  M.towns.forEach(function(T){
+    var B=T.block,n=binsAtTown(T,t),ax=B.binX,aw=B.x+B.w-3-ax,ay=B.top+11,ah=16,k,sz=TOWN_BINS[TOWN_BINS.length-1];
+    /* the sign: the town's name, and its bins out in green */
+    var cnt=String(n),cw=tw(cnt)+4,nm=T.name.toUpperCase(),room=Math.floor((B.w-cw-9)/4);
+    if(nm.length>room)nm=nm.slice(0,room);
+    var sw=tw(nm)+6;rect(ctx,C.sign,B.x+1,B.top,sw,9);text(ctx,nm,B.x+4,B.top+2,C.signText);
+    badge(ctx,cnt,B.x+B.w-2-cw/2,B.top+1,n?'#15803d':'#6b727e');
+    /* a bright green bin for every bin out there */
+    for(k=0;k<TOWN_BINS.length;k++){var s0=TOWN_BINS[k];if(Math.floor(aw/s0.px)*Math.floor(ah/s0.py)>=n){sz=s0;break;}}
+    var cols=Math.max(1,Math.floor(aw/sz.px));
+    for(k=0;k<n;k++){var bx=ax+(k%cols)*sz.px,by=ay+Math.floor(k/cols)*sz.py;rect(ctx,C.bin,bx,by,sz.w,sz.h-1);rect(ctx,C.bin2,bx,by+sz.h-1,sz.w,1);}
+    /* today's stops: green done, white to do, red a bin stop with no driver */
+    var per=Math.max(1,Math.floor((B.w-4)/4));
+    T.stops.forEach(function(st,j){
+      var done=stopDone(st,t),c=done?'#16a34a':((st.kind==='drop'||st.kind==='pick')&&!st.hasDriver?C.red:'#f2f0e6');
+      var sx=B.x+3+(j%per)*4,sy=B.top+28+Math.floor(j/per)*4;rect(ctx,C.ink,sx,sy+1,3,3);rect(ctx,c,sx,sy,3,3);});
+    /* someone steps out and waves when a stop in their town is done */
+    if(T.stops.some(function(st){return st.doneAt!=null&&t>=st.doneAt&&t<st.doneAt+(replaying?25*MIN:10*MIN);}))
+      person(ctx,B.x+B.houses*14-4,B.top+12,CUSTOMERS[T.i%CUSTOMERS.length],{face:1,wave:true,arm:Math.floor(nowT/200)%2});
   });
-  if(M.more>0)sign(ctx,'+'+M.more+' MORE STOPS TODAY',200,H-10);
-  if(SE.lights){var cols=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/450);
-    for(var k=0;k<HOUSE_N;k++)for(var i2=0;i2<8;i2++)rect(ctx,cols[(i2+sh+k)%4],houseX(k)+2+i2*3,HY+8,1,1);}
+  if(SE.lights){var cols2=['#d9412b','#f2c14e','#3cc46f','#2f74c8'],sh=Math.floor(nowT/450);
+    M.towns.forEach(function(T,q){for(var h=0;h<T.block.houses;h++)for(var i2=0;i2<10;i2+=3)rect(ctx,cols2[(i2/3+sh+q+h)%4|0],T.block.x+3+h*14+i2,T.block.top+16,1,1);});}
 }
 function drawJWG(nowT,t){
-  var top=HY+34,amb=A.t,f;
+  var top=PARK_TOP,amb=A.t,f;
   if(SE.park==='mow'){
-    var hr=new Date(t).getHours()+new Date(t).getMinutes()/60,p=clamp((hr-9)/6,0,1),N=6,rows=Math.floor(p*N),frac=p*N-rows,x0=250,x1=330;
+    var hr=new Date(t).getHours()+new Date(t).getMinutes()/60,p=clamp((hr-9)/6,0,1),N=5,rows=Math.floor(p*N),frac=p*N-rows,x0=250,x1=330;
     for(var r=0;r<N;r++){if(r<rows||(r===rows&&frac>0)){var len=r<rows?80:Math.round(frac*80),rx=r%2===0?x0:x1-len;rect(ctx,r%2?SE.grass2:SE.grass3,rx,top+r*4,len,4);}}
     var cr=Math.min(rows,N-1),cx=p>=1?x1:(cr%2===0?x0+frac*80:x1-frac*80),cy=top+cr*4-6;
     rect(ctx,'#e8590c',cx-4,cy+8,9,4);rect(ctx,C.tire,cx-4,cy+12,2,2);rect(ctx,C.tire,cx+3,cy+12,2,2);
@@ -662,15 +847,15 @@ function drawJWG(nowT,t){
   }
   if(SE.bed){
     var grown=SE.bed==='plant'?Math.floor(clamp((new Date(t).getHours()-8)/7,0,1)*24):24;
-    for(f=0;f<grown;f++){var fx=11+(f%8)*6,fy=top+3+Math.floor(f/8)*8;rect(ctx,'#3f7a2e',fx,fy+1,1,2);rect(ctx,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],fx-1,fy,3,1);}
+    for(f=0;f<grown;f++){var fx=11+(f%8)*6,fy=top+2+Math.floor(f/8)*7;rect(ctx,'#3f7a2e',fx,fy+1,1,2);rect(ctx,['#f4b6c8','#ffe28a','#ffffff','#c4482b'][f%4],fx-1,fy,3,1);}
     var mx=10+((Math.floor(amb/2))%40);if(Math.floor(amb/80)%2===0)mx=50-((Math.floor(amb/2))%40);
-    person(ctx,mx,top+6,P.jwg2,{face:Math.floor(amb/80)%2?1:-1,step:Math.floor(nowT/200)%2,can:SE.bed==='water'});
+    person(ctx,mx,top+4,P.jwg2,{face:Math.floor(amb/80)%2?1:-1,step:Math.floor(nowT/200)%2,can:SE.bed==='water'});
   }
   if(SE.park==='rake'){
     var piles=Math.floor(clamp((new Date(t).getHours()-9)/6,0,1)*5);
-    for(f=0;f<5;f++){var px=258+f*15,big=f<piles?1:0;rect(ctx,SE.leaves[f%4],px,top+20-big,6+big*2,2+big);rect(ctx,SE.leaves[(f+1)%4],px+2,top+19-big,3,1);}
+    for(f=0;f<5;f++){var px=258+f*15,big=f<piles?1:0;rect(ctx,SE.leaves[f%4],px,top+17-big,6+big*2,2+big);rect(ctx,SE.leaves[(f+1)%4],px+2,top+16-big,3,1);}
     var rx2=255+(Math.floor(amb)%70);if(Math.floor(amb/70)%2)rx2=325-(Math.floor(amb)%70);
-    person(ctx,rx2,top+4,P.jwg2,{face:Math.floor(amb/70)%2?-1:1,step:Math.floor(nowT/220)%2,rake:true});
+    person(ctx,rx2,top+2,P.jwg2,{face:Math.floor(amb/70)%2?-1:1,step:Math.floor(nowT/220)%2,rake:true});
   }
   if(weatherNow()==='snow'){
     var span=560,pos=(amb*18)%span,dir=Math.floor(amb*18/span)%2,px2=dir?W+80-pos:pos-80,flip=!!dir;
@@ -686,7 +871,7 @@ function drawJWG(nowT,t){
     for(var b=0;b<3;b++){var bx=(nowT/40*(1+b*.3)+b*140)%(W+40)-20,by=12+b*12+Math.sin(nowT/300+b)*4,up=Math.floor(nowT/120+b)%2;
       rect(ctx,'#2b1d3a',bx,by,2,2);rect(ctx,'#2b1d3a',bx-3,by-up,3,1);rect(ctx,'#2b1d3a',bx+2,by-up,3,1);}
   }
-  if(SE.snow&&Math.random()<.08){var hx=houseX(Math.floor(Math.random()*HOUSE_N));parts.push({x:hx+19,y:HY-1,vx:3+Math.random()*3,vy:-(4+Math.random()*3),life:1.6,c:'#c9ced4'});}
+  if(SE.snow&&M.towns.length&&Math.random()<.08){var B=M.towns[Math.floor(Math.random()*M.towns.length)].block;parts.push({x:B.x+8,y:B.top+11,vx:3+Math.random()*3,vy:-(4+Math.random()*3),life:1.6,c:'#c9ced4'});}
 }
 function drawTint(t){
   var d=new Date(t),m=d.getHours()*60+d.getMinutes(),a=0,col=null;
@@ -703,7 +888,7 @@ function draw(nowT){
   if(reached>lastEv){
     for(var k=lastEv+1;k<=reached;k++){var e=M.events[k];
       if(!tt.replaying&&k<reached)continue;
-      if(e.kind==='done'&&e.stop&&e.stop.slot!=null)stamp(houseX(e.stop.slot)+13,RT+16,'DONE',C.red,nowT);
+      if(e.kind==='done'&&e.stop){var SB=e.stop.townObj.block;stamp(SB.x+SB.w/2,SB.top-2,'DONE',C.red,nowT);}
       if(e.kind==='new')flashUntil=nowT+1200;
       if(e.kind==='badge'&&nowT-showAt<=REPLAY_MS+500){banner={name:e.badge.name,icon:e.badge.icon,born:nowT};burstConfetti();}}
     lastEv=reached;}
@@ -715,61 +900,87 @@ function draw(nowT){
     else{var recent=M.events.slice(Math.max(0,reached-4),reached+1),n=Math.floor((nowT-showAt-REPLAY_MS)/4000);news=recent[recent.length-1-((n%recent.length)+recent.length)%recent.length].flap;}
   }
   ctx.drawImage(bgc,0,0);
-  drawOffice(nowT,t,vals,news);drawYard(nowT);
-  drawJWG(nowT,t);drawStreet(nowT,t,tt.replaying);
+  drawOffice(nowT,t,vals,news);drawYard(nowT);drawWhoBoard(t);drawBadgeWall(t);
+  drawJWG(nowT,t);drawTowns(nowT,t,tt.replaying);drawScenery(nowT);
   M.trucks.map(function(T,idx){return{T:T,pos:placeTruck(T,t,idx)};}).sort(function(a,b){return a.pos.y-b.pos.y;})
     .forEach(function(o){drawTruck(o.T,o.pos,t,nowT);});
   drawWeather(nowT);drawStamps(nowT);drawTint(t);drawBanner(nowT);
   return tt;
 }
 
-/* ---------- the side column: badges and today's story, in the board's own type ---------- */
-var sideKey='';
-function renderSide(t){
-  var key=M.events.filter(function(e){return e.t<=t;}).length+'|'+(t>=M.now);
-  if(key===sideKey)return;sideKey=key;
-  if(els.badges){
-    els.badges.innerHTML=BADGE_DEFS.map(function(b){var at=M.earned[b.id],got=at!=null&&at<=t;
-      return'<div class="hq-badge'+(got?' got':'')+'"><canvas width="9" height="9" data-icon="'+b.icon+'"></canvas><b>'+b.name+'</b><span>'
-        +(got?(at>=M.now-MIN?'Earned':'Earned '+fmtClock(at)):b.hint)+'</span></div>';}).join('');
-    [].forEach.call(els.badges.querySelectorAll('canvas'),function(c){var ic=ICONS[c.getAttribute('data-icon')];spr(c.getContext('2d'),ic.rows,ic.pal,0,0,false);});
-  }
-  if(els.story){
-    var seen=M.events.filter(function(e){return e.t<=t;}).slice(-7).reverse();
-    els.story.innerHTML=seen.length?seen.map(function(e){return'<li class="'+e.kind+'"><time>'+fmtClock(e.t)+'</time><span>'+escH(e.line)+'</span></li>';}).join('')
-      :'<li class="empty"><span>Nothing yet today</span></li>';
-  }
+/* ---------- the right-hand block, in the world itself: the "who's out" board (every
+   vehicle's colour, name in big letters, what it is doing, stops done) and the badge wall ---------- */
+function boardStatus(T,t){
+  var s=truckAt(T,t);
+  function town(st){return st&&st.town?String(st.town).toUpperCase():'';}
+  if(s.mode==='stop')return'AT '+(town(s.stop)||'A STOP');
+  if(s.mode==='drive')return s.to==='yard'?'BACK TO BASE':'TO '+(town(s.to)||'A STOP');
+  if(s.mode==='yard')return T.kind==='truck'?'IN THE YARD':'PARKED';
+  return'ON THE ROAD';
 }
-function escH(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function stopsDoneBy(T,t){return T.visits.filter(function(v){return v.tout!=null&&v.tout<=t;}).length;}
+function bigSpr(rows,pal,x,y,s,grey){
+  for(var r=0;r<rows.length;r++)for(var i=0;i<rows[r].length;i++){var col=pal[rows[r].charAt(i)];if(!col)continue;
+    rect(ctx,grey?'#4a4f57':col,x+i*s,y+r*s,s,s);}
+}
+function boardFrame(x0,y0,w,h,title){
+  rect(ctx,'#6b4a32',x0,y0,w,h);rect(ctx,'#15181c',x0+2,y0+2,w-4,h-4);
+  rect(ctx,'#6b4a32',x0+10,y0+h,2,LOT_Y-y0-h-9);rect(ctx,'#6b4a32',x0+w-12,y0+h,2,LOT_Y-y0-h-9);
+  text(ctx,title,x0+6,y0+5,'#f2c14e');rect(ctx,'#3a3f47',x0+4,y0+12,w-8,1);
+}
+function drawWhoBoard(t){
+  var x0=BOARD_X,y0=4,w=196,h=132;
+  boardFrame(x0,y0,w,h,"WHO'S OUT");text(ctx,'STOPS',x0+w-25,y0+5,'#8a8f98');
+  if(!M.trucks.length){text(ctx,'NO TRUCKS REPORTING',x0+6,y0+20,'#cfc6a6');return;}
+  M.trucks.slice(0,9).forEach(function(T,i){
+    var ry=y0+16+i*12,n=String(stopsDoneBy(T,t));
+    rect(ctx,T.color,x0+6,ry,6,10);
+    text2(ctx,T.label.slice(0,7),x0+15,ry,'#f2f0e6');
+    text(ctx,boardStatus(T,t).slice(0,17),x0+76,ry+3,'#cfc6a6');
+    text2(ctx,n,x0+w-6-n.length*8,ry,'#3cc46f');
+  });
+}
+function drawBadgeWall(t){
+  var x0=BOARD_X+200,y0=4,w=W-4-x0,h=132,cw=Math.floor((w-8)/2);
+  boardFrame(x0,y0,w,h,'TEAM BADGES');
+  BADGE_DEFS.forEach(function(b,i){
+    var at=M.earned[b.id],got=at!=null&&at<=t,cx=x0+4+(i%2)*cw,cy=y0+16+Math.floor(i/2)*29,ic=ICONS[b.icon];
+    if(got){rect(ctx,C.gold2,cx+1,cy-1,cw-2,28);rect(ctx,'#2a2412',cx+2,cy,cw-4,26);}
+    bigSpr(ic.rows,ic.pal,cx+Math.floor((cw-18)/2),cy+1,2,!got);
+    text(ctx,b.short,cx+Math.floor((cw-tw(b.short))/2),cy+20,got?C.gold:'#6b727e');
+  });
+}
 function badgeCount(){return BADGE_DEFS.filter(function(b){return M.earned[b.id]!=null;}).length;}
 
 function frame(nowT){
   var dtR=Math.min(.1,Math.max(0,(nowT-lastFrame)/1000));lastFrame=nowT;
-  stepAmbient(dtR*AMBIENT_MIN_PER_SEC);updWeather(dtR);
-  var tt=draw(nowT);
-  if(nowT-lastSide>250){lastSide=nowT;renderSide(tt.t);}
+  stepAmbient(dtR*AMBIENT_MIN_PER_SEC);updWeather(dtR);updScenery(dtR);
+  draw(nowT);
   raf=requestAnimationFrame(frame);
 }
 
 window.JJHQ={
-  /* opts: {canvas, badges, story} - the board's own elements */
+  /* opts: {canvas} - the board's own canvas; everything else is drawn in the world */
   mount:function(opts){
     if(!opts||!opts.canvas)throw new Error('JJHQ.mount needs a canvas');
-    cv=opts.canvas;ctx=cv.getContext('2d');els={badges:opts.badges,story:opts.story};
+    cv=opts.canvas;ctx=cv.getContext('2d');
     bgc=document.createElement('canvas');bgc.width=W;bgc.height=H;bgx=bgc.getContext('2d');
-    newAmbient();
+    newAmbient();newScenery();
   },
   /* snap: the board's data for this showing (built in office-tv.html hqSnapshot) */
   show:function(snap){
     if(!cv)throw new Error('JJHQ.show before JJHQ.mount');
     SE=SEASONS[seasonFor(new Date(snap.now))];WX=wxKind(snap.wx);
     M=buildModel(snap);
+    /* the yard crew walk below however many bins are stacked today */
+    var ytop=clamp(19+Math.ceil(M.bins.ready/7)*7+2,84,118);
+    A.yard.forEach(function(j){j.region=[176,232,ytop,118];j.x=clamp(j.x,176,232);j.y=clamp(j.y,ytop,118);j.tx=clamp(j.tx,176,232);j.ty=clamp(j.ty,ytop,118);});
     drawBG();resetWeather();
-    stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;sideKey='';
+    stamps=[];parts=[];conf=[];banner=null;boardReady=false;flaps={};tick={msg:'',pages:[''],page:0,pageAt:0};lastEv=-1;flashUntil=0;
     cancelAnimationFrame(raf);
-    showAt=lastFrame=performance.now();lastSide=0;
+    showAt=lastFrame=performance.now();
     /* a hidden tab gets no animation frames - draw the end state once so the screen is never blank */
-    if(document.hidden){showAt-=REPLAY_MS;draw(showAt+REPLAY_MS);renderSide(M.now);return;}
+    if(document.hidden){showAt-=REPLAY_MS;draw(showAt+REPLAY_MS);return;}
     raf=requestAnimationFrame(frame);
   },
   hide:function(){cancelAnimationFrame(raf);raf=0;},
